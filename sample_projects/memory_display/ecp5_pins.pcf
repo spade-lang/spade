@@ -1,0 +1,28 @@
+# LED Pins
+
+# LD5
+set_io LD5_R U21
+set_io LD5_G W21
+set_io LD5_B T24
+
+
+# 
+# LD5
+# U21 Red
+# W21 Green
+# T24 Blue
+# 
+# 
+# LD6
+# T23 Red
+# R21 Green
+# T22 Blue
+
+
+# LD7
+# P21 Red
+# R23 Green
+# P22 Blue
+
+# 100MHz clock
+set_io --warn-no-port CLK K23 # input
