@@ -1,0 +1,47 @@
+// entity test(display_out: DisplayOutput) -> DisplayOutput{
+//     match display_out {
+//         DisplayOutput::Pixel(col, line, _) => {
+//             if (line & 1) == 0 {
+//                 DisplayOutput::Pixel(col, line, 0x00)
+//             }
+//             else {
+//                 DisplayOutput::Pixel(col, line, 255)
+//             }
+//         },
+//         other => other
+//     }
+// }
+
+pipeline(1) draw_frame(clk: clk, display_out: DisplayOutput, cs: bool) -> (bool, DisplayOutput) {
+    stage {
+        let reg result = match display_out {
+            DisplayOutput::Pixel(col, line, _) => {
+                if (line & 1) == 0 {
+                    DisplayOutput::Pixel(col, line, 0x00)
+                }
+                else {
+                    DisplayOutput::Pixel(col, line, 255)
+                }
+            },
+            // NOTE: we should be able to use other here but can't
+            other => display_out
+        };
+    }
+    (cs, result)
+}
+
+// cs, mosi, slck
+entity main(clk: clk, rst: bool) -> (bool, bool, bool) {
+    decl spi_tx_state;
+
+    let (cs_raw, display_out_raw) = inst display_fsm$(clk, rst, spi_tx_state);
+
+    let (cs, display_out) = inst(1) draw_frame(clk, display_out_raw, cs_raw);
+
+    let spi_in = inst display_spi_command(display_out);
+
+    let (slk, mosi, spi_tx_state_) = inst spi_tx(clk, rst, spi_in);
+    reg(clk) spi_tx_state = spi_tx_state_;
+
+    (cs, mosi, slk)
+}

@@ -1,18 +1,156 @@
 enum DisplayState {
     // Unitialised and has been for x cycles
-    Uninit(duration: int<16>),
+    Uninit(duration: int<21>),
+    // Chip select held high without data being transmitted
+    PreTransmit(duration: int<8>),
     // Currently transmitting the header for the start of a line
     TransmitLineHeader(line: int<8>),
+    TransmitLineNumber(line: int<8>),
     // Currently transmitting the pixels of line `line`. The pixels being transmitted are
     // col..col+8
     TransmitPixels(line: int<8>, col: int<8>),
     // Transmitting the padding betwene lines
     InterLinePadding(line: int<8>),
-    // Transmitting the end of frame padding and have been doing so for `duration`
-    // spi frames
-    EndOfFramePadding(duration: int<2>),
+    // Transmitting the final padding at the end of the frame
+    EndOfFramePadding,
     // Keeping chip select high until display is ready
-    EndOfFrameWait(int<8>)
+    EndOfFrameWait(duration: int<21>)
 }
 
-entity 
+enum DisplayOutput {
+    // No output, chip select low
+    None,
+    CsHigh,
+    // Send display command
+    Command(val: int<8>),
+    LineNumber(line: int<8>),
+    // Send pixel data
+    Pixel(line: int<8>, col: int<8>, pixels: int<8>),
+    Padding
+}
+
+// Return chip select, display output
+entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool, DisplayOutput) {
+    // On sequence duration. Doing 1 ms just to be on the safe side
+    let on_time = 100_000;
+    // Chip select hold time. (clock cycles for  (2 us @ 100MHz))
+    let thSCS = 600;
+    // Chip select low time. (clock cycles for (6 us @ 100MHz))
+    // For debugging this is set higher
+    let twSCSL = 100_000;
+
+    // We need to switch vcom around occationally to refresh the display
+    reg(clk) (vcom, vcom_counter): (int<8>, int<3>) reset (rst: (0, 0)) = {
+        if vcom_counter == 3 {
+            (if vcom == 0 {4} else {0}, 0)
+        }
+        else {
+            (vcom, vcom_counter+1)
+        }
+    };
+
+    let new_spi_frame = match spi_tx_state {
+        TxExternalState::Ready => false,
+        TxExternalState::TransmitStart => false,
+        TxExternalState::Transmitting => false,
+        TxExternalState::TransmitDone => true,
+    };
+
+    // 240/8
+    let col_count = 50;
+    let line_count = 240;
+    reg(clk) state reset (rst: DisplayState::Uninit(0)) = {
+        match (new_spi_frame, state) {
+            (_, DisplayState::Uninit(duration)) => {
+                if duration > on_time {
+                    DisplayState::PreTransmit(0)
+                }
+                else {
+                    DisplayState::Uninit(duration+1)
+                }
+            },
+            (_, DisplayState::PreTransmit(duration)) => {
+                if duration > thSCS {
+                    DisplayState::TransmitLineHeader(0)
+                }
+                else {
+                    DisplayState::PreTransmit(duration+1)
+                }
+            },
+            (true, DisplayState::TransmitLineHeader(line)) => {
+                DisplayState::TransmitLineNumber(line)
+            },
+            (true, DisplayState::TransmitLineNumber(line)) => {
+                DisplayState::TransmitPixels(line, 0)
+            },
+            (true, DisplayState::TransmitPixels(line, col)) => {
+                if col > col_count-1 {
+                    DisplayState::InterLinePadding(line)
+                }
+                else {
+                    DisplayState::TransmitPixels(line, col+1)
+                }
+            },
+            (true, DisplayState::InterLinePadding(line)) => {
+                if line > line_count-1 {
+                    DisplayState::EndOfFramePadding()
+                }
+                else {
+                    DisplayState::TransmitLineHeader(line+1)
+                }
+            },
+            (true, DisplayState::EndOfFramePadding) => {
+                DisplayState::EndOfFrameWait(0)
+            },
+            (_, DisplayState::EndOfFrameWait(duration)) => {
+                if duration > twSCSL {
+                    DisplayState::PreTransmit(0)
+                }
+                else {
+                    DisplayState::EndOfFrameWait(duration+1)
+                }
+            },
+            (false, _) => state,
+        }
+    };
+
+    let cs = match state {
+        DisplayState::Uninit(_) => false,
+        DisplayState::PreTransmit(_) => true,
+        DisplayState::TransmitLineHeader(_) => true,
+        DisplayState::TransmitLineNumber(_) => true,
+        DisplayState::TransmitPixels(_, _) => true,
+        // Transmitting the padding betwene lines
+        DisplayState::InterLinePadding(_) => true,
+        // Transmitting the final padding at the end of the frame
+        DisplayState::EndOfFramePadding => true,
+        // Keeping chip select high until display is ready
+        DisplayState::EndOfFrameWait(_) => false
+    };
+
+    let output = match state {
+        DisplayState::Uninit(_) => DisplayOutput::None(),
+        DisplayState::PreTransmit(_) => DisplayOutput::None(),
+        DisplayState::TransmitLineHeader(_) => DisplayOutput::Command(0x80 | vcom),
+        DisplayState::TransmitLineNumber(line) => DisplayOutput::LineNumber$(line),
+        DisplayState::TransmitPixels(line, col) => DisplayOutput::Pixel$(col, line, pixels: 0),
+        // Transmitting the padding betwene lines
+        DisplayState::InterLinePadding(_) => DisplayOutput::Padding(),
+        // Transmitting the final padding at the end of the frame
+        DisplayState::EndOfFramePadding => DisplayOutput::Padding(),
+        // Keeping chip select high until display is ready
+        DisplayState::EndOfFrameWait(_) => DisplayOutput::None()
+    };
+
+    (cs, output)
+}
+
+entity display_spi_command(output: DisplayOutput) -> Option<int<8>> {
+    match output {
+        DisplayOutput::None() => Option::None(),
+        DisplayOutput::Command(cmd) => Option::Some(cmd),
+        DisplayOutput::LineNumber(num) => Option::Some(num),
+        DisplayOutput::Pixel(_, _, pixels) => Option::Some(pixels),
+        DisplayOutput::Padding() => Option::Some(0)
+    }
+}
