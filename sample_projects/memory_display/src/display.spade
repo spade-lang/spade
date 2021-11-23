@@ -13,6 +13,7 @@ enum DisplayState {
     InterLinePadding(line: int<8>),
     // Transmitting the final padding at the end of the frame
     EndOfFramePadding,
+    EndOfFrameWaitSpi,
     // Keeping chip select high until display is ready
     EndOfFrameWait(duration: int<21>)
 }
@@ -34,33 +35,26 @@ entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool,
     // On sequence duration. Doing 1 ms just to be on the safe side
     let on_time = 100_000;
     // Chip select hold time. (clock cycles for  (2 us @ 100MHz))
-    let thSCS = 600;
+    let thSCS = 200;
     // Chip select low time. (clock cycles for (6 us @ 100MHz))
     // For debugging this is set higher
-    let twSCSL = 100_000;
+    let twSCSL = 600;
 
     // We need to switch vcom around occationally to refresh the display
-    reg(clk) (vcom, vcom_counter): (int<8>, int<3>) reset (rst: (0, 0)) = {
-        if vcom_counter == 3 {
-            (if vcom == 0 {4} else {0}, 0)
+    reg(clk) (vcom, vcom_counter): (int<8>, int<11>) reset (rst: (0, 0)) = {
+        if vcom_counter == 1000 {
+            (if vcom == 0 {0x40} else {0}, 0)
         }
         else {
             (vcom, vcom_counter+1)
         }
     };
 
-    let new_spi_frame = match spi_tx_state {
-        TxExternalState::Ready => false,
-        TxExternalState::TransmitStart => false,
-        TxExternalState::Transmitting => false,
-        TxExternalState::TransmitDone => true,
-    };
-
     // 240/8
     let col_count = 50;
     let line_count = 240;
     reg(clk) state reset (rst: DisplayState::Uninit(0)) = {
-        match (new_spi_frame, state) {
+        match (spi_tx_state, state) {
             (_, DisplayState::Uninit(duration)) => {
                 if duration > on_time {
                     DisplayState::PreTransmit(0)
@@ -77,13 +71,13 @@ entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool,
                     DisplayState::PreTransmit(duration+1)
                 }
             },
-            (true, DisplayState::TransmitLineHeader(line)) => {
+            (TxExternalState::TransmitStart, DisplayState::TransmitLineHeader(line)) => {
                 DisplayState::TransmitLineNumber(line)
             },
-            (true, DisplayState::TransmitLineNumber(line)) => {
+            (TxExternalState::TransmitStart, DisplayState::TransmitLineNumber(line)) => {
                 DisplayState::TransmitPixels(line, 0)
             },
-            (true, DisplayState::TransmitPixels(line, col)) => {
+            (TxExternalState::TransmitStart, DisplayState::TransmitPixels(line, col)) => {
                 if col > col_count-1 {
                     DisplayState::InterLinePadding(line)
                 }
@@ -91,15 +85,19 @@ entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool,
                     DisplayState::TransmitPixels(line, col+1)
                 }
             },
-            (true, DisplayState::InterLinePadding(line)) => {
+            (TxExternalState::TransmitStart, DisplayState::InterLinePadding(line)) => {
                 if line > line_count-1 {
                     DisplayState::EndOfFramePadding()
                 }
                 else {
-                    DisplayState::TransmitLineHeader(line+1)
+                    DisplayState::TransmitLineNumber(line+1)
+                    // DisplayState::EndOfFramePadding()
                 }
             },
-            (true, DisplayState::EndOfFramePadding) => {
+            (TxExternalState::TransmitStart, DisplayState::EndOfFramePadding) => {
+                DisplayState::EndOfFrameWaitSpi()
+            },
+            (TxExternalState::TransmitDone, DisplayState::EndOfFrameWaitSpi) => {
                 DisplayState::EndOfFrameWait(0)
             },
             (_, DisplayState::EndOfFrameWait(duration)) => {
@@ -110,7 +108,7 @@ entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool,
                     DisplayState::EndOfFrameWait(duration+1)
                 }
             },
-            (false, _) => state,
+            (_, _) => state,
         }
     };
 
@@ -125,7 +123,8 @@ entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool,
         // Transmitting the final padding at the end of the frame
         DisplayState::EndOfFramePadding => true,
         // Keeping chip select high until display is ready
-        DisplayState::EndOfFrameWait(_) => false
+        DisplayState::EndOfFrameWaitSpi => true,
+        DisplayState::EndOfFrameWait(_) => false,
     };
 
     let output = match state {
@@ -138,6 +137,7 @@ entity display_fsm(clk: clk, rst: bool, spi_tx_state: TxExternalState) -> (bool,
         DisplayState::InterLinePadding(_) => DisplayOutput::Padding(),
         // Transmitting the final padding at the end of the frame
         DisplayState::EndOfFramePadding => DisplayOutput::Padding(),
+        DisplayState::EndOfFrameWaitSpi => DisplayOutput::None(),
         // Keeping chip select high until display is ready
         DisplayState::EndOfFrameWait(_) => DisplayOutput::None()
     };

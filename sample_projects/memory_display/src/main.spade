@@ -17,10 +17,10 @@ pipeline(1) draw_frame(clk: clk, display_out: DisplayOutput, cs: bool) -> (bool,
         let reg result = match display_out {
             DisplayOutput::Pixel(col, line, _) => {
                 if (line & 1) == 0 {
-                    DisplayOutput::Pixel(col, line, 0x00)
+                    DisplayOutput::Pixel(col, line, 0b0011_1100)
                 }
                 else {
-                    DisplayOutput::Pixel(col, line, 255)
+                    DisplayOutput::Pixel(col, line, 0b1111_1111)
                 }
             },
             // NOTE: we should be able to use other here but can't
@@ -39,6 +39,7 @@ entity main(clk: clk, rst: bool) -> (bool, bool, bool) {
     let (cs, display_out) = inst(1) draw_frame(clk, display_out_raw, cs_raw);
 
     let spi_in = inst display_spi_command(display_out);
+    // let spi_in = Option::Some(0x80);
 
     let (slk, mosi, spi_tx_state_) = inst spi_tx(clk, rst, spi_in);
     reg(clk) spi_tx_state = spi_tx_state_;

@@ -9,15 +9,19 @@ entity posedge_detector(clk: clk, signal: bool) -> bool {
 }
 
 enum TxState {
+    // 00
     Waiting,
+    // 01
     Transmit(
         // Number of clock cycles since the last bit was sent
         last_bit: int<10>,
         num_transmitted: int<3>,
         data: int<8>
     ),
+    // 10
     LastCycle(time: int<10>, value: bool),
-    WaitForNext(time: int<10>),
+    // 11
+    WaitForNext(time: int<10>, value: bool),
 }
 
 enum TxExternalState {
@@ -64,18 +68,18 @@ entity spi_tx(clk: clk, rst: bool, to_transmit: Option<int<8>>) ->
             TxState::LastCycle(time, val) => {
                 if time == 49 {
                     // TxState::Waiting()
-                    TxState::WaitForNext(0)
+                    TxState::WaitForNext(0, val)
                 }
                 else {
                     TxState::LastCycle(time + 1, val)
                 }
             },
-            TxState::WaitForNext(time) => {
+            TxState::WaitForNext(time, val) => {
                 if time == 100 {
                     TxState::Waiting()
                 }
                 else {
-                    TxState::WaitForNext(time+1)
+                    TxState::WaitForNext(time+1, val)
                 }
             }
         }
@@ -83,8 +87,14 @@ entity spi_tx(clk: clk, rst: bool, to_transmit: Option<int<8>>) ->
 
     match state {
         TxState::Waiting() => (true, true, TxExternalState::Ready()),
-        TxState::Transmit(last_bit, _, data) => {
-            ((last_bit < 50), (data & 1) == 1, TxExternalState::Transmitting())
+        TxState::Transmit(last_bit, num_transmitted, data) => {
+            let state = if last_bit == 0 && num_transmitted == 0 {
+                TxExternalState::TransmitStart()
+            }
+            else {
+                TxExternalState::Transmitting()
+            };
+            ((last_bit < 50), (data & 1) == 1, state)
         },
         TxState::LastCycle(time, val) => {
             let external_state = if time == 49 {
@@ -95,8 +105,8 @@ entity spi_tx(clk: clk, rst: bool, to_transmit: Option<int<8>>) ->
             };
             (false, val, external_state)
         },
-        TxState::WaitForNext(_) => {
-            (true, true, TxExternalState::Transmitting())
+        TxState::WaitForNext(_, val) => {
+            (true, val, TxExternalState::Transmitting())
         }
     }
 }
