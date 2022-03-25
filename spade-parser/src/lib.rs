@@ -410,7 +410,30 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
         if let Some(val) = self.int_literal()? {
-            Ok(val.map(TypeExpression::Integer))
+            if self.peek_cond(
+                |token| matches!(token, TokenKind::DotDot | TokenKind::DotDotEquals),
+                ".. or ..=",
+            )? {
+                let plus_one = self.peek_kind(&TokenKind::DotDotEquals)?;
+                let _ = self.eat_unconditional()?;
+
+                let upper = self.int_literal()?.ok_or(Error::ExpectedIntegerLiteral {
+                    got: self.peek()?.ok_or(Error::Eof)?,
+                })?;
+
+                let upper = upper.map(|n| if plus_one { n + 1 } else { n });
+
+                if val.strip() != 0 {
+                    return Err(Error::NonZeroLowerBound { got: val });
+                }
+                if upper.strip() == val.strip() {
+                    return Err(Error::EqualLowerUpperBound { lower: val, upper });
+                }
+                Ok(TypeExpression::IntegerRange(val.strip(), upper.strip())
+                    .between_locs(&val, &upper))
+            } else {
+                Ok(val.map(TypeExpression::Integer))
+            }
         } else {
             let inner = self.type_spec()?;
 
@@ -2577,5 +2600,133 @@ mod tests {
         );
 
         check_parse!(code, item, Ok(Some(expected)));
+    }
+
+    #[test]
+    fn infix_operators_work() {
+        let code = r#"
+            1 `infix` 2
+            "#;
+
+        let expected = Expression::FnCall(
+            ast_path("infix"),
+            ArgumentList::Positional(vec![
+                Expression::IntLiteral(1).nowhere(),
+                Expression::IntLiteral(2).nowhere(),
+            ])
+            .nowhere(),
+        )
+        .nowhere();
+
+        check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn infix_operator_precedence_is_unchanged() {
+        // NOTE: the exact ordering here is somewhat unimportant, in general one
+        // should probably put parentheses around infix operators anyway. The main
+        // purpose of this test is to prevent accidental changes to the order in the future
+        let code = r#"
+            0 || 1 `infix` 2 `infix` 3
+            "#;
+
+        let expected = Expression::FnCall(
+            ast_path("infix"),
+            ArgumentList::Positional(vec![
+                Expression::BinaryOperator(
+                    Box::new(Expression::IntLiteral(0).nowhere()),
+                    BinaryOperator::LogicalOr,
+                    Box::new(Expression::IntLiteral(1).nowhere()),
+                )
+                .nowhere(),
+                Expression::FnCall(
+                    ast_path("infix"),
+                    ArgumentList::Positional(vec![
+                        Expression::IntLiteral(2).nowhere(),
+                        Expression::IntLiteral(3).nowhere(),
+                    ])
+                    .nowhere(),
+                )
+                .nowhere(),
+            ])
+            .nowhere(),
+        )
+        .nowhere();
+
+        check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn field_access_operator_does_not_require_parens() {
+        let code = r#"x.y.z"#;
+
+        let expected = Expression::FieldAccess(
+            Box::new(
+                Expression::FieldAccess(
+                    Box::new(Expression::Identifier(ast_path("x")).nowhere()),
+                    ast_ident("y"),
+                )
+                .nowhere(),
+            ),
+            ast_ident("z"),
+        )
+        .nowhere();
+
+        check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn array_index_operator_precedence_is_correct() {
+        let code = r#"x && y[z]"#;
+
+        let expected = Expression::BinaryOperator(
+            Box::new(Expression::Identifier(ast_path("x")).nowhere()),
+            BinaryOperator::LogicalAnd,
+            Box::new(
+                Expression::Index(
+                    Box::new(Expression::Identifier(ast_path("y")).nowhere()),
+                    Box::new(Expression::Identifier(ast_path("z")).nowhere()),
+                )
+                .nowhere(),
+            ),
+        )
+        .nowhere();
+
+        check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn tuple_index_operator_precedence_is_correct() {
+        let code = r#"y#1#2"#;
+
+        let expected = Expression::TupleIndex(
+            Box::new(
+                Expression::TupleIndex(
+                    Box::new(Expression::Identifier(ast_path("y")).nowhere()),
+                    1u128.nowhere(),
+                )
+                .nowhere(),
+            ),
+            2.nowhere(),
+        )
+        .nowhere();
+
+        check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn integer_ranges_in_type_expressions_parse() {
+        let code = r#"int<0..100>"#;
+
+        let expected = TypeExpression::TypeSpec(Box::new(
+            TypeSpec::Named(
+                Path(vec![Identifier("int".to_string()).nowhere()]).nowhere(),
+                vec![TypeExpression::IntegerRange(0, 100).nowhere()],
+            )
+            .nowhere(),
+        ))
+        .nowhere();
+
+        check_parse!(code, type_expression, Ok(expected));
     }
 }

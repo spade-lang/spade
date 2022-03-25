@@ -8,7 +8,7 @@ use spade_hir::{TypeDeclaration, TypeList};
 use spade_types::{ConcreteType, KnownType};
 
 use crate::equation::{TypeVar, TypedExpression};
-use crate::TypeState;
+use crate::{bits_required_to_fit, TypeState};
 
 impl TypeState {
     pub fn type_decl_to_concrete(
@@ -78,6 +78,9 @@ impl TypeState {
     ) -> ConcreteType {
         match expr {
             hir::TypeExpression::Integer(val) => ConcreteType::Integer(*val),
+            hir::TypeExpression::IntegerRange(lo, hi) => {
+                ConcreteType::Integer(bits_required_to_fit(*lo, *hi))
+            }
             hir::TypeExpression::TypeSpec(inner) => {
                 Self::type_spec_to_concrete(&inner, type_list, generic_substitutions)
             }

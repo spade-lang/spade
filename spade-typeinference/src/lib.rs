@@ -50,6 +50,12 @@ macro_rules! add_trace {
     }
 }
 
+fn bits_required_to_fit(lo: u128, hi: u128) -> u128 {
+    assert!(lo == 0);
+    assert!(hi != lo);
+    (((hi - (lo + 1)) as f64).log2().floor() + 1.0) as u128
+}
+
 pub struct ProcessedEntity {
     pub entity: Entity,
     pub type_state: TypeState,
@@ -180,6 +186,9 @@ impl TypeState {
     ) -> TypeVar {
         match e {
             hir::TypeExpression::Integer(i) => TypeVar::Known(KnownType::Integer(*i), vec![]),
+            hir::TypeExpression::IntegerRange(lo, hi) => {
+                TypeVar::Known(KnownType::Integer(bits_required_to_fit(*lo, *hi)), vec![])
+            }
             hir::TypeExpression::TypeSpec(spec) => self.type_var_from_hir(spec, generic_list_token),
         }
     }

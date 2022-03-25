@@ -77,6 +77,39 @@ impl CompilationError for Error {
                     .with_labels(vec![Label::primary(got.file_id, got.span)
                         .with_message(format!("expected expression here"))])
             }
+            Error::ExpectedIntegerLiteral { got } => {
+                let message = format!("Unexpected `{}`, expected integer literal", got.kind.as_str());
+
+                Diagnostic::error()
+                    .with_message(message)
+                    .with_labels(vec![Label::primary(got.file_id, got.span)
+                        .with_message(format!("expected integer literal here"))])
+            }
+            Error::NonZeroLowerBound { got } => {
+                let message = format!("Only non-zero lower bounds are supported, got `{}`", got);
+
+                Diagnostic::error()
+                    .with_message(message)
+                    .with_labels(vec![Label::primary(got.file_id, got.span)
+                        .with_message(format!("this lower bound"))])
+                    .with_suggestions(vec![Suggestion {
+                        file_id: got.file_id,
+                        range: got.span.into(),
+                        replacement: format!("0"),
+                        message: format!("Consider setting this lower bound to 0"),
+                    }])
+            }
+            Error::EqualLowerUpperBound { lower, upper } => {
+                Diagnostic::error()
+                    .with_message(format!("Lower and upper bounds are equal to each other"))
+                    .with_labels(vec![
+                        Label::primary(lower.file_id, lower.span).with_message(format!("this lower bound")),
+                        Label::primary(upper.file_id, upper.span).with_message(format!("this upper bound")),
+                    ])
+                    .with_notes(vec![
+                        format!("The type has no valid values")
+                    ])
+            }
             Error::ExpectedBlock { for_what, got, loc } => {
                 let message = format!("Expected a block for {}", for_what);
 

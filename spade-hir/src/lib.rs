@@ -151,6 +151,8 @@ impl TypeParam {
 pub enum TypeExpression {
     /// An integer value
     Integer(u128),
+    /// A type that fits all integer between two bounds (inclusive..exclusive).
+    IntegerRange(u128, u128),
     /// Another type
     TypeSpec(TypeSpec),
 }

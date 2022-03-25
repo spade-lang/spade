@@ -89,6 +89,9 @@ pub fn visit_type_expression(
             Ok(hir::TypeExpression::TypeSpec(inner))
         }
         ast::TypeExpression::Integer(val) => Ok(hir::TypeExpression::Integer(*val)),
+        ast::TypeExpression::IntegerRange(lo, hi) => {
+            Ok(hir::TypeExpression::IntegerRange(*lo, *hi))
+        }
     }
 }
 

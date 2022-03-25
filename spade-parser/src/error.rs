@@ -25,6 +25,15 @@ pub enum Error {
     #[error("Expected expression, got {got:?}")]
     ExpectedExpression { got: Token },
 
+    #[error("Expected integer literal, got {got:?}")]
+    ExpectedIntegerLiteral { got: Token },
+
+    #[error("Only lower bounds equal to 0 are allowed currently, got {got:?}")]
+    NonZeroLowerBound { got: Loc<u128> },
+
+    #[error("Integer range has equal lower and upper bound")]
+    EqualLowerUpperBound { lower: Loc<u128>, upper: Loc<u128> },
+
     #[error("Entity missing block for {for_what}")]
     ExpectedBlock {
         for_what: String,

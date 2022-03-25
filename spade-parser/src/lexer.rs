@@ -114,6 +114,10 @@ pub enum TokenKind {
     InfixOperatorSeparator,
     #[token("'")]
     SingleQuote,
+    #[token("..")]
+    DotDot,
+    #[token("..=")]
+    DotDotEquals,
 
     // Other operators
     #[token("=")]
@@ -216,6 +220,8 @@ impl TokenKind {
             TokenKind::Not => "!",
             TokenKind::Xor => "^",
             TokenKind::InfixOperatorSeparator => "`",
+            TokenKind::DotDot => "..",
+            TokenKind::DotDotEquals => ".=",
 
             TokenKind::OpenParen => "(",
             TokenKind::CloseParen => ")",

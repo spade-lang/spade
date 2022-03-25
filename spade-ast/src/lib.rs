@@ -9,6 +9,8 @@ pub mod testutil;
 pub enum TypeExpression {
     TypeSpec(Box<Loc<TypeSpec>>),
     Integer(u128),
+    /// A type that fits all integer between two bounds (inclusive..exclusive).
+    IntegerRange(u128, u128),
 }
 impl WithLocation for TypeExpression {}
 
