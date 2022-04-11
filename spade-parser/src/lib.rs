@@ -281,6 +281,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn expect_int_literal(&mut self) -> Result<Loc<u128>> {
+        if let Some(int) = self.int_literal()? {
+            Ok(int)
+        } else {
+            Err(Error::ExpectedIntegerLiteral {
+                got: self.peek()?.ok_or(Error::Eof)?,
+            })
+        }
+    }
+
     #[trace_parser]
     fn bool_literal(&mut self) -> Result<Option<Loc<bool>>> {
         if let Some(tok) = self.peek_and_eat(&TokenKind::True)? {
@@ -410,30 +420,41 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
         if let Some(val) = self.int_literal()? {
-            if self.peek_cond(
-                |token| matches!(token, TokenKind::DotDot | TokenKind::DotDotEquals),
+            Ok(val.map(TypeExpression::Integer))
+        } else if self.peek_cond(
+            |t| t == &TokenKind::Identifier("fits".to_string()),
+            "looking for fits",
+        )? {
+            let _ = self.eat_unconditional()?; // `fits))
+            self.eat(&TokenKind::OpenParen)?;
+
+            let val = self.expect_int_literal()?;
+
+            if !self.peek_cond(
+                |t| matches!(t, TokenKind::DotDot | TokenKind::DotDotEquals),
                 ".. or ..=",
             )? {
-                let plus_one = self.peek_kind(&TokenKind::DotDotEquals)?;
-                let _ = self.eat_unconditional()?;
-
-                let upper = self.int_literal()?.ok_or(Error::ExpectedIntegerLiteral {
-                    got: self.peek()?.ok_or(Error::Eof)?,
-                })?;
-
-                let upper = upper.map(|n| if plus_one { n + 1 } else { n });
-
-                if val.strip() != 0 {
-                    return Err(Error::NonZeroLowerBound { got: val });
-                }
-                if upper.strip() == val.strip() {
-                    return Err(Error::EqualLowerUpperBound { lower: val, upper });
-                }
-                Ok(TypeExpression::IntegerRange(val.strip(), upper.strip())
-                    .between_locs(&val, &upper))
-            } else {
-                Ok(val.map(TypeExpression::Integer))
+                return Err(Error::ExpectedRangeSeparator(
+                    self.peek()?.ok_or(Error::Eof)?,
+                ));
             }
+            // either .. or ..=
+            let plus_one = self.peek_kind(&TokenKind::DotDotEquals)?;
+            let _ = self.eat_unconditional()?;
+
+            let upper = self
+                .expect_int_literal()?
+                .map(|n| if plus_one { n + 1 } else { n });
+
+            self.eat(&TokenKind::CloseParen)?;
+
+            if val.strip() != 0 {
+                return Err(Error::NonZeroLowerBound { got: val });
+            }
+            if upper.strip() == val.strip() {
+                return Err(Error::EqualLowerUpperBound { lower: val, upper });
+            }
+            Ok(TypeExpression::IntegerRange(val.strip(), upper.strip()).between_locs(&val, &upper))
         } else {
             let inner = self.type_spec()?;
 

@@ -259,7 +259,13 @@ impl CompilationError for Error {
             Error::StageOutsidePipeline(loc) => Diagnostic::error()
                 .with_message("Stage outside pipeline")
                 .with_labels(vec![loc.primary_label().with_message("stage is not allowed here")])
-                .with_notes(vec![format!("Stages are only allowed in the root block of a pipeline")])
+                .with_notes(vec![format!("Stages are only allowed in the root block of a pipeline")]),
+            Error::ExpectedRangeSeparator(got) => Diagnostic::error()
+                .with_message("Expected range separator (`..` or `..=`)")
+                .with_labels(vec![
+                    got.primary_label()
+                    .with_message("Expected range separator here")
+                ])
         };
 
         term::emit(buffer, &codespan_config(), &code.files, &diag).unwrap();

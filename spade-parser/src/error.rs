@@ -98,8 +98,12 @@ pub enum Error {
         array: Loc<()>,
         inner: Loc<TypeSpec>,
     },
+
     #[error("Stages are only allowed in the root of pipelines")]
     StageOutsidePipeline(Loc<()>),
+
+    #[error("Expected range separator (`..` or `..=`), got {0:?}")]
+    ExpectedRangeSeparator(Token),
 }
 
 impl Error {
