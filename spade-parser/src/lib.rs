@@ -2737,7 +2737,7 @@ mod tests {
 
     #[test]
     fn integer_ranges_with_exclusive_upper_bound_in_type_expressions_parse() {
-        let code = r#"int<0..100>"#;
+        let code = r#"int<fits(0..100)>"#;
 
         let expected = TypeExpression::TypeSpec(Box::new(
             TypeSpec::Named(
@@ -2753,7 +2753,7 @@ mod tests {
 
     #[test]
     fn integer_ranges_with_inclusive_upper_bound_in_type_expressions_parse() {
-        let code = r#"int<0..=100>"#;
+        let code = r#"int<fits(0..=100)>"#;
 
         let expected = TypeExpression::TypeSpec(Box::new(
             TypeSpec::Named(

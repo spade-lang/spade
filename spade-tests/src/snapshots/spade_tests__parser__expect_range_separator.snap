@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/parser.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Expected range separator (`..` or `..=`)
+  ┌─ testinput:2:22
+  │
+2 │     let a: int<fits(4)> = 0
+  │                      ^ Expected range separator here
+
+

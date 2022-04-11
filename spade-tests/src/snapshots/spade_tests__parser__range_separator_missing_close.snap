@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/parser.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Unexpected `>`, expected integer literal
+  ┌─ testinput:2:24
+  │
+2 │     let a: int<fits(0..> = 0
+  │                        ^ expected integer literal here
+
+
