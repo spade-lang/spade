@@ -2715,13 +2715,29 @@ mod tests {
     }
 
     #[test]
-    fn integer_ranges_in_type_expressions_parse() {
+    fn integer_ranges_with_exclusive_upper_bound_in_type_expressions_parse() {
         let code = r#"int<0..100>"#;
 
         let expected = TypeExpression::TypeSpec(Box::new(
             TypeSpec::Named(
                 Path(vec![Identifier("int".to_string()).nowhere()]).nowhere(),
                 vec![TypeExpression::IntegerRange(0, 100).nowhere()],
+            )
+            .nowhere(),
+        ))
+        .nowhere();
+
+        check_parse!(code, type_expression, Ok(expected));
+    }
+
+    #[test]
+    fn integer_ranges_with_inclusive_upper_bound_in_type_expressions_parse() {
+        let code = r#"int<0..=100>"#;
+
+        let expected = TypeExpression::TypeSpec(Box::new(
+            TypeSpec::Named(
+                Path(vec![Identifier("int".to_string()).nowhere()]).nowhere(),
+                vec![TypeExpression::IntegerRange(0, 101).nowhere()],
             )
             .nowhere(),
         ))
