@@ -50,12 +50,14 @@ macro_rules! add_trace {
     }
 }
 
-// https://github.com/rust-lang/rust/issues/70887 integer logarithms are unstable
+// https://github.com/rust-lang/rust/issues/70887 integer logarithms would be nice here
 fn bits_to_fit_value(x: i128) -> u128 {
-    if x < 0 {
-        (-x as f64).log2().ceil() as u128
+    if x == 0 {
+        0
+    } else if x < 0 {
+        bits_to_fit_value(x.abs() - 1) // signed integers fit one more value on the negative side
     } else {
-        (x as f64).log2().floor() as u128 + 1
+        (x as f64).log2().floor() as u128 + 2
     }
 }
 
