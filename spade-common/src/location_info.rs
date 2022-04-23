@@ -227,6 +227,19 @@ where
     }
 }
 
+impl<T> std::ops::Add<T> for Loc<T>
+where
+    T: std::ops::Add,
+    T::Output: WithLocation,
+{
+    type Output = Loc<T::Output>;
+
+    fn add(self, other: T) -> Self::Output {
+        let loc = self.loc();
+        (self.strip() + other).at_loc(&loc)
+    }
+}
+
 impl<T> std::ops::Deref for Loc<T> {
     type Target = T;
 

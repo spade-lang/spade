@@ -425,7 +425,7 @@ impl<'a> Parser<'a> {
             |t| t == &TokenKind::Identifier("fits".to_string()),
             "looking for fits",
         )? {
-            let _ = self.eat_unconditional()?; // `fits))
+            let _ = self.eat_unconditional()?; // `fits`
             self.eat(&TokenKind::OpenParen)?;
 
             let val = self.expect_int_literal()?;
@@ -438,13 +438,13 @@ impl<'a> Parser<'a> {
                     self.peek()?.ok_or(Error::Eof)?,
                 ));
             }
-            // either .. or ..=
-            let plus_one = self.peek_kind(&TokenKind::DotDotEquals)?;
-            let _ = self.eat_unconditional()?;
 
-            let upper = self
-                .expect_int_literal()?
-                .map(|n| if plus_one { n + 1 } else { n });
+            // either .. or ..=
+            let upper = if let TokenKind::DotDotEquals = self.eat_unconditional()?.kind {
+                self.expect_int_literal()? + 1
+            } else {
+                self.expect_int_literal()?
+            };
 
             self.eat(&TokenKind::CloseParen)?;
 
