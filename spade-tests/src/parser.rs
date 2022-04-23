@@ -58,3 +58,13 @@ snapshot_error!(
     }
     "#
 );
+
+// Disallow this since the fits(a..b)-syntax is parsed before generics are checked.
+snapshot_error!(
+    integer_ranges_disallow_generic_fits,
+    r#"
+    fn foo<fits>(a<fits>) -> bool {
+        true
+    }
+    "#
+);
