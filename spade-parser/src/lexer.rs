@@ -221,7 +221,7 @@ impl TokenKind {
             TokenKind::Xor => "^",
             TokenKind::InfixOperatorSeparator => "`",
             TokenKind::DotDot => "..",
-            TokenKind::DotDotEquals => ".=",
+            TokenKind::DotDotEquals => "..=",
 
             TokenKind::OpenParen => "(",
             TokenKind::CloseParen => ")",
