@@ -428,7 +428,7 @@ impl<'a> Parser<'a> {
             let _ = self.eat_unconditional()?; // `fits`
             self.eat(&TokenKind::OpenParen)?;
 
-            let val = self.expect_int_literal()?;
+            let lower = self.expect_int_literal()?;
 
             if !self.peek_cond(
                 |t| matches!(t, TokenKind::DotDot | TokenKind::DotDotEquals),
@@ -448,13 +448,17 @@ impl<'a> Parser<'a> {
 
             self.eat(&TokenKind::CloseParen)?;
 
-            if val.strip() != 0 {
-                return Err(Error::NonZeroLowerBound { got: val });
+            if lower.strip() != 0 {
+                return Err(Error::NonZeroLowerBound { got: lower });
             }
-            if upper.strip() == val.strip() {
-                return Err(Error::EqualLowerUpperBound { lower: val, upper });
+            if upper.strip() == lower.strip() {
+                return Err(Error::EqualLowerUpperBound {
+                    lower: lower,
+                    upper,
+                });
             }
-            Ok(TypeExpression::IntegerRange(val.strip(), upper.strip()).between_locs(&val, &upper))
+            Ok(TypeExpression::IntegerRange(lower.strip(), upper.strip())
+                .between_locs(&lower, &upper))
         } else {
             let inner = self.type_spec()?;
 
