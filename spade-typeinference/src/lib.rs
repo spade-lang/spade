@@ -50,10 +50,17 @@ macro_rules! add_trace {
     }
 }
 
-fn bits_required_to_fit(lo: u128, hi: u128) -> u128 {
-    assert!(lo == 0);
-    assert!(hi != lo);
-    (((hi - (lo + 1)) as f64).log2().floor() + 1.0) as u128
+// https://github.com/rust-lang/rust/issues/70887 integer logarithms are unstable
+fn bits_to_fit_value(x: i128) -> u128 {
+    if x < 0 {
+        (-x as f64).log2().ceil() as u128
+    } else {
+        (x as f64).log2().floor() as u128 + 1
+    }
+}
+
+fn bits_to_fit_range(lo: u128, hi: u128) -> u128 {
+    bits_to_fit_value(lo as i128).max(bits_to_fit_value(hi as i128))
 }
 
 pub struct ProcessedEntity {
@@ -187,7 +194,7 @@ impl TypeState {
         match e {
             hir::TypeExpression::Integer(i) => TypeVar::Known(KnownType::Integer(*i), vec![]),
             hir::TypeExpression::IntegerRange(lo, hi) => {
-                TypeVar::Known(KnownType::Integer(bits_required_to_fit(*lo, *hi)), vec![])
+                TypeVar::Known(KnownType::Integer(bits_to_fit_range(*lo, *hi)), vec![])
             }
             hir::TypeExpression::TypeSpec(spec) => self.type_var_from_hir(spec, generic_list_token),
         }
