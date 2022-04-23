@@ -72,6 +72,8 @@ pub enum TokenKind {
     Use,
     #[token("as")]
     As,
+    #[token("fits")]
+    Fits,
 
     // Math operators
     #[token("+")]
@@ -199,6 +201,7 @@ impl TokenKind {
             TokenKind::Mod => "mod",
             TokenKind::As => "as",
             TokenKind::Use => "use",
+            TokenKind::Fits => "fits",
 
             TokenKind::Assignment => "=",
             TokenKind::Plus => "+",

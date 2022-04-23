@@ -421,11 +421,7 @@ impl<'a> Parser<'a> {
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
         if let Some(val) = self.int_literal()? {
             Ok(val.map(TypeExpression::Integer))
-        } else if self.peek_cond(
-            |t| t == &TokenKind::Identifier("fits".to_string()),
-            "looking for fits",
-        )? {
-            let _ = self.eat_unconditional()?; // `fits`
+        } else if self.peek_and_eat(&TokenKind::Fits)?.is_some() {
             self.eat(&TokenKind::OpenParen)?;
 
             let lower = self.expect_int_literal()?;
