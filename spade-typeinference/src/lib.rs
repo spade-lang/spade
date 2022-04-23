@@ -1982,4 +1982,25 @@ mod tests {
         ensure_same_type!(state, &TExpr::Id(0), &expr_a);
         ensure_same_type!(state, &TExpr::Id(1), &expr_b);
     }
+
+    #[test]
+    fn bits_to_fit_positive() {
+        // 4 bits can represent -8..8
+        assert_eq!(bits_to_fit_value(7), 4);
+        assert_eq!(bits_to_fit_value(8), 5);
+    }
+
+    #[test]
+    fn bits_to_fit_negative() {
+        // 4 bits can represent -8..8
+        assert_eq!(bits_to_fit_value(-7), 4);
+        assert_eq!(bits_to_fit_value(-8), 4);
+        assert_eq!(bits_to_fit_value(-9), 5);
+    }
+
+    #[test]
+    fn bits_to_fit_zero() {
+        // Special case. we don't need any bits to fit 0 since there is only one value.
+        assert_eq!(bits_to_fit_value(0), 0);
+    }
 }
