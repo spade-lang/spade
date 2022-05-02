@@ -52,11 +52,15 @@ macro_rules! add_trace {
 
 // lifeguard rust#70887: integer logarithms would be nice here
 fn bits_to_fit_value(x: i128) -> u128 {
+    // NOTE: This assumes signed integers.
     if x == 0 {
+        // 0.log2() is -inf so we add a special case.
         0
     } else if x < 0 {
-        bits_to_fit_value(x.abs() - 1) // signed integers fit one more value on the negative side
+        // Signed integers fit one more value on the negative side
+        bits_to_fit_value(x.abs() - 1)
     } else {
+        // .floor() + 1 for the next integer and then another +1 for the sign bit.
         (x as f64).log2().floor() as u128 + 2
     }
 }
