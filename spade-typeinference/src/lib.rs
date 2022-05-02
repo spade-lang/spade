@@ -50,7 +50,7 @@ macro_rules! add_trace {
     }
 }
 
-// https://github.com/rust-lang/rust/issues/70887 integer logarithms would be nice here
+// lifeguard rust#70887: integer logarithms would be nice here
 fn bits_to_fit_value(x: i128) -> u128 {
     if x == 0 {
         0
