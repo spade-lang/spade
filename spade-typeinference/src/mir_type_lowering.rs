@@ -151,6 +151,9 @@ impl TypeState {
                 }
             }
             TypeSpec::Unit(_) => todo!("Handle unit type"),
+            TypeSpec::Backward(inner) => ConcreteType::Backward(Box::new(
+                Self::type_spec_to_concrete(inner, type_list, generic_substitutions),
+            )),
         }
     }
 
@@ -204,6 +207,8 @@ impl TypeState {
                     .collect::<Option<Vec<_>>>()?;
                 Some(ConcreteType::Tuple(inner))
             }
+            TypeVar::Backward(inner) => Self::ungenerify_type(inner, symtab, type_list)
+                .map(|t| ConcreteType::Backward(Box::new(t))),
             TypeVar::Unknown(_) => None,
         }
     }

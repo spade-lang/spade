@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Type error
+  ┌─ testinput:1:42
+  │  
+1 │   entity name(x: ~(bool, bool)) -> int<32> {
+  │                                    ------- int<32> type specified here
+  │ ╭──────────────────────────────────────────^
+2 │ │     x#0
+3 │ │ }
+  │ ╰─^ Found type ~bool
+  │  
+  = Expected: int<32>
+  =      Got: ~bool
+
+

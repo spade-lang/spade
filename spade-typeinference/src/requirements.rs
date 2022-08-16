@@ -52,76 +52,96 @@ impl Requirement {
                 field,
                 expr,
             } => {
-                match &target_type.inner {
-                    TypeVar::Known(inner, params) => {
-                        // Look up the type of the known var
-                        match inner {
-                            KnownType::Type(inner) => {
-                                // Check if we're dealing with a struct
-                                match symtab.type_symbol_by_id(&inner).inner {
-                                    TypeSymbol::Declared(_, TypeDeclKind::Struct) => {}
-                                    TypeSymbol::Declared(_, TypeDeclKind::Enum) => {
-                                        return Err(Error::FieldAccessOnEnum {
-                                            loc: target_type.loc(),
-                                            actual_type: inner.clone(),
-                                        })
-                                    }
-                                    TypeSymbol::Declared(_, TypeDeclKind::Primitive) => {
-                                        return Err(Error::FieldAccessOnPrimitive {
-                                            loc: target_type.loc(),
-                                            actual_type: inner.clone(),
-                                        })
-                                    }
-                                    TypeSymbol::GenericArg | TypeSymbol::GenericInt => {
-                                        return Err(Error::FieldAccessOnGeneric {
-                                            loc: target_type.loc(),
-                                            name: inner.clone(),
-                                        })
-                                    }
-                                }
+                let (known_type, params, is_backwards) = match &target_type.inner {
+                    // To know if we can access the field, we need to see if this type is actually
+                    // known in the first place
+                    TypeVar::Known(t, params) => (t, params, false),
+                    // If it is a backward type, we'll extract the inner struct and remember
+                    // that it was a backward type, or error out if it is not a struct
+                    TypeVar::Backward(inner) => match inner.as_ref() {
+                        TypeVar::Known(t, params) => (t, params, true),
+                        TypeVar::Backward(_) => panic!("Found recursive backward type"),
+                        TypeVar::Unknown(_) => return Ok(RequirementResult::NoChange),
+                        other => {
+                            return Err(Error::FieldAccessOnNonStruct {
+                                loc: expr.loc(),
+                                got: other.clone(),
+                            })
+                        }
+                    },
+                    TypeVar::Unknown(_) => return Ok(RequirementResult::NoChange),
+                    other => {
+                        return Err(Error::FieldAccessOnNonStruct {
+                            loc: expr.loc(),
+                            got: other.clone(),
+                        })
+                    }
+                };
 
-                                // Get the struct, find the type of the field and unify
-                                let s = symtab.struct_by_id(&inner);
-
-                                let field_spec =
-                                    if let Some(spec) = s.params.try_get_arg_type(field) {
-                                        spec
-                                    } else {
-                                        return Err(Error::NoSuchField {
-                                            field: field.clone(),
-                                            _struct: inner.clone(),
-                                        });
-                                    };
-
-                                // The generic list here refers to the generics being passed to the
-                                // types of the struct here. We need to construct it from the
-                                // infered generics.
-                                let mapping = s
-                                    .type_params
-                                    .iter()
-                                    .map(|p| p.clone().name_id())
-                                    .zip(params.iter().cloned())
-                                    .collect();
-                                let generic_list = type_state
-                                    .add_mapped_generic_list(GenericListSource::Anonymous, mapping);
-                                let field_type =
-                                    type_state.type_var_from_hir(&field_spec, &generic_list);
-
-                                Ok(RequirementResult::Satisfied(vec![Replacement {
-                                    from: expr.clone(),
-                                    to: field_type,
-                                }]))
+                match known_type {
+                    KnownType::Type(type_name) => {
+                        // Check if we're dealing with a struct
+                        match symtab.type_symbol_by_id(&type_name).inner {
+                            TypeSymbol::Declared(_, TypeDeclKind::Struct) => {}
+                            TypeSymbol::Declared(_, TypeDeclKind::Enum) => {
+                                return Err(Error::FieldAccessOnEnum {
+                                    loc: target_type.loc(),
+                                    actual_type: type_name.clone(),
+                                })
                             }
-                            KnownType::Integer(_) => {
-                                Err(Error::FieldAccessOnInteger { loc: expr.loc() })
+                            TypeSymbol::Declared(_, TypeDeclKind::Primitive) => {
+                                return Err(Error::FieldAccessOnPrimitive {
+                                    loc: target_type.loc(),
+                                    actual_type: type_name.clone(),
+                                })
+                            }
+                            TypeSymbol::GenericArg | TypeSymbol::GenericInt => {
+                                return Err(Error::FieldAccessOnGeneric {
+                                    loc: target_type.loc(),
+                                    name: type_name.clone(),
+                                })
                             }
                         }
+
+                        // Get the struct, find the type of the field and unify
+                        let s = symtab.struct_by_id(&type_name);
+
+                        let field_spec = if let Some(spec) = s.params.try_get_arg_type(field) {
+                            spec
+                        } else {
+                            return Err(Error::NoSuchField {
+                                field: field.clone(),
+                                _struct: type_name.clone(),
+                            });
+                        };
+
+                        // The generic list here refers to the generics being passed to the
+                        // types of the struct here. We need to construct it from the
+                        // infered generics.
+                        let mapping = s
+                            .type_params
+                            .iter()
+                            .map(|p| p.clone().name_id())
+                            .zip(params.iter().cloned())
+                            .collect();
+
+                        let generic_list = type_state
+                            .add_mapped_generic_list(GenericListSource::Anonymous, mapping);
+
+                        let field_type = type_state.type_var_from_hir(&field_spec, &generic_list);
+
+                        let result_type = if is_backwards {
+                            TypeVar::Backward(Box::new(field_type))
+                        } else {
+                            field_type
+                        };
+
+                        Ok(RequirementResult::Satisfied(vec![Replacement {
+                            from: expr.clone(),
+                            to: result_type,
+                        }]))
                     }
-                    TypeVar::Unknown(_) => Ok(RequirementResult::NoChange),
-                    other => Err(Error::FieldAccessOnNonStruct {
-                        loc: expr.loc(),
-                        got: other.clone(),
-                    }),
+                    KnownType::Integer(_) => Err(Error::FieldAccessOnInteger { loc: expr.loc() }),
                 }
             }
         }

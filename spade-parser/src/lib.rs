@@ -432,10 +432,12 @@ impl<'a> Parser<'a> {
     // Types
     #[trace_parser]
     pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
-        if let Some(tuple) = self.tuple_spec()? {
-            Ok(tuple)
+        let backwards_sign = self.peek_and_eat(&TokenKind::Tilde)?;
+
+        let inner = if let Some(tuple) = self.tuple_spec()? {
+            tuple
         } else if let Some(array) = self.array_spec()? {
-            Ok(array)
+            array
         } else {
             let (path, span) = self
                 .path()
@@ -459,8 +461,16 @@ impl<'a> Parser<'a> {
                 (vec![], span)
             };
 
-            Ok(TypeSpec::Named(path, params).between(self.file_id, &span, &generic_span))
-        }
+            TypeSpec::Named(path, params).between(self.file_id, &span, &generic_span)
+        };
+
+        let result = if let Some(back) = backwards_sign {
+            TypeSpec::Backward(Box::new(inner.clone())).between(self.file_id, &back.span, &inner)
+        } else {
+            inner
+        };
+
+        Ok(result)
     }
 
     #[trace_parser]
@@ -1970,6 +1980,18 @@ mod tests {
             ))
             .nowhere()],
         )
+        .nowhere();
+
+        check_parse!(code, type_spec, Ok(expected));
+    }
+
+    #[test]
+    fn backward_type_specs_work() {
+        let code = "~int<5>";
+
+        let expected = TypeSpec::Backward(Box::new(
+            TypeSpec::Named(ast_path("int"), vec![TypeExpression::Integer(5).nowhere()]).nowhere(),
+        ))
         .nowhere();
 
         check_parse!(code, type_spec, Ok(expected));

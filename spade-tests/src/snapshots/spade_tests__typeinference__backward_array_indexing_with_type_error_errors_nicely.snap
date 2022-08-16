@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/typeinference.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Index target must be an array, got ~[bool; 10]
+  ┌─ testinput:2:5
+  │
+2 │     x[0]
+  │     ^ Expected array
+
+

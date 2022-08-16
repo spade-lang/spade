@@ -109,7 +109,7 @@ pub enum TokenKind {
     #[token("|")]
     BitwiseOr,
     #[token("~")]
-    BitwiseNot,
+    Tilde,
     #[token("!")]
     Not,
     #[token("^")]
@@ -218,7 +218,7 @@ impl TokenKind {
             TokenKind::LogicalXor => "^^",
             TokenKind::BitwiseAnd => "&",
             TokenKind::BitwiseOr => "|",
-            TokenKind::BitwiseNot => "~",
+            TokenKind::Tilde => "~",
             TokenKind::Not => "!",
             TokenKind::BitwiseXor => "^",
             TokenKind::InfixOperatorSeparator => "`",

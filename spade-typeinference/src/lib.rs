@@ -267,6 +267,9 @@ impl TypeState {
             hir::TypeSpec::Unit(_) => {
                 todo!("Support unit type in type inference")
             }
+            hir::TypeSpec::Backward(inner) => {
+                TypeVar::Backward(Box::new(self.type_var_from_hir(inner, generic_list_token)))
+            }
         }
     }
 
@@ -878,6 +881,9 @@ impl TypeState {
                 inner: Box::new(self.check_var_for_replacement(*inner)),
                 size: Box::new(self.check_var_for_replacement(*size)),
             },
+            TypeVar::Backward(inner) => {
+                TypeVar::Backward(Box::new(self.check_var_for_replacement(*inner)))
+            }
             u @ TypeVar::Unknown(_) => u,
         }
     }
@@ -1093,6 +1099,12 @@ impl TypeState {
                     None,
                 ))
             }
+            (TypeVar::Backward(i1), TypeVar::Backward(i2)) => {
+                let new_inner =
+                    try_with_context!(self.unify_inner(i1.as_ref(), i2.as_ref(), symtab));
+
+                Ok((TypeVar::Backward(Box::new(new_inner)), None))
+            }
             // Unknown with other
             (TypeVar::Unknown(_), TypeVar::Unknown(_)) => Ok((v1, Some(v2))),
             (_other, TypeVar::Unknown(_)) => Ok((v1, Some(v2))),
@@ -1102,6 +1114,8 @@ impl TypeState {
             (_other, TypeVar::Known(_, _)) => Err(err_producer!()),
             (TypeVar::Tuple(_), _other) => Err(err_producer!()),
             (_other, TypeVar::Tuple(_)) => Err(err_producer!()),
+            (TypeVar::Backward(_), _other) => Err(err_producer!()),
+            (_other, TypeVar::Backward(_)) => Err(err_producer!()),
         };
 
         let (new_type, replaced_type) = result?;
@@ -1232,6 +1246,7 @@ impl TypeState {
                 Self::replace_type_var(size, from, replacement);
             }
             TypeVar::Unknown(_) => {}
+            TypeVar::Backward(inner) => Self::replace_type_var(inner, from, replacement),
         }
 
         if in_var == from {

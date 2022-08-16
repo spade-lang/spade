@@ -145,31 +145,45 @@ impl TypeState {
             self.visit_expression(tup, symtab, generic_list)?;
             let t = self.type_of(&TypedExpression::Id(tup.id));
 
-            match t {
-                Ok(TypeVar::Tuple(inner)) => {
-                    if (index.inner as usize) < inner.len() {
-                        self.unify_expression_generic_error(
-                            &expression,
-                            &inner[index.inner as usize],
-                            symtab,
-                        )?
-                    } else {
-                        return Err(Error::TupleIndexOutOfBounds {
-                            index: index.clone(),
-                            actual_size: inner.len() as u128,
-                        });
-                    }
+            let (without_backward, is_backward) = match t {
+                Ok(TypeVar::Backward(inner)) => (*inner.clone(), true),
+                Ok(other) => (other.clone(), false),
+                Err(e) => return Err(e.clone())
+            };
+
+            let inner_types = match without_backward {
+                TypeVar::Tuple(inner) => {
+                    inner
                 }
-                Ok(t @ TypeVar::Known(_, _) | t @ TypeVar::Array { .. }) => {
+                t @ TypeVar::Known(_, _) | t @ TypeVar::Array { .. } => {
                     return Err(Error::TupleIndexOfNonTuple {
                         got: t.clone(),
                         loc: tup.loc(),
                     })
                 }
-                Ok(TypeVar::Unknown(_)) => {
+                TypeVar::Unknown(_) => {
                     return Err(Error::TupleIndexOfGeneric { loc: tup.loc() })
                 }
-                Err(e) => return Err(e.clone()),
+                TypeVar::Backward(_) => panic!("Found a recursive backwards type")
+            };
+
+            if (index.inner as usize) < inner_types.len() {
+                let true_inner_type = if is_backward {
+                    TypeVar::Backward(Box::new(inner_types[index.inner as usize].clone()))
+                }
+                else {
+                    inner_types[index.inner as usize].clone()
+                };
+                self.unify_expression_generic_error(
+                    &expression,
+                    &true_inner_type,
+                    symtab,
+                )?
+            } else {
+                return Err(Error::TupleIndexOutOfBounds {
+                    index: index.clone(),
+                    actual_size: inner_types.len() as u128,
+                });
             }
         });
         Ok(())
