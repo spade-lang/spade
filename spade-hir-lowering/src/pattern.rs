@@ -93,8 +93,8 @@ pub(crate) fn split_wildcard(
             // on them impossible
             spade_types::PrimitiveType::Clock | spade_types::PrimitiveType::Memory => vec![],
         },
+        ConcreteType::Backward(_) => vec![Constructor::Single],
         ConcreteType::Integer(_) => unreachable!("Pattern matching on type level integer"),
-        ConcreteType::Backward(_) => unreachable!("Pattern matching on backward type"),
     }
 }
 
@@ -172,7 +172,7 @@ impl Constructor {
                 }
                 ConcreteType::Single { .. } => vec![],
                 ConcreteType::Integer(_) => unreachable!("Pattern matching on type level integer"),
-                ConcreteType::Backward(_) => unreachable!("Pattern matching on type backward type"),
+                ConcreteType::Backward(_) => vec![],
             },
             Constructor::Variant(idx) => match ty {
                 ConcreteType::Enum { options } => {

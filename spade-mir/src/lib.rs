@@ -78,6 +78,7 @@ pub enum Operator {
     BitwiseXor,
     USub,
     Not,
+    ReadPort,
     BitwiseNot,
     // Divide op[0] by 2**op[1] rounding towards 0
     DivPow2,
@@ -148,6 +149,8 @@ pub enum Operator {
     Instance(String, #[derivative(PartialEq = "ignore")] Option<Loc<()>>),
     /// Alias another named value
     Alias,
+    /// Define a variable for the value but don't do anything with it. Useful for creating ports
+    Nop,
 }
 
 impl std::fmt::Display for Operator {
@@ -212,6 +215,8 @@ impl std::fmt::Display for Operator {
             Operator::IndexMemory => write!(f, "IndexMemory"),
             Operator::Instance(name, _) => write!(f, "Instance({})", name),
             Operator::Alias => write!(f, "Alias"),
+            Operator::Nop => write!(f, "Nop"),
+            Operator::ReadPort => write!(f, "ReadPort"),
         }
     }
 }

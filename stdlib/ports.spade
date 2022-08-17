@@ -1,0 +1,4 @@
+entity make_port<T>() -> ~T __builtin__
+
+/// Reads the current value from a port
+entity read_port<T>(port: ~T) -> T __builtin__

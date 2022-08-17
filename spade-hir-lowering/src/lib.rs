@@ -1012,7 +1012,9 @@ impl ExprLocal for Loc<Expression> {
             ["std", "conv", "sext"] => handle_sext,
             ["std", "conv", "zext"] => handle_zext,
             ["std", "conv", "concat"] => handle_concat,
-            ["std", "ops", "div_pow2"] => handle_div_pow2
+            ["std", "ops", "div_pow2"] => handle_div_pow2,
+            ["std", "ports", "make_port"] => handle_make_port,
+            ["std", "ports", "read_port"] => handle_read_port
         }
 
         // Look up the name in the executable list to see if this is a type instantiation
@@ -1427,6 +1429,58 @@ impl ExprLocal for Loc<Expression> {
             ],
             ty: self_type,
             loc: Some(self.loc()),
+        }));
+
+        Ok(result)
+    }
+
+    fn handle_make_port(
+        &self,
+        result: Vec<mir::Statement>,
+        args: &[Argument],
+        ctx: &mut Context,
+    ) -> Result<Vec<mir::Statement>> {
+        let mut result = result;
+
+        assert!(args.is_empty());
+
+        let self_type = ctx
+            .types
+            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push(mir::Statement::Binding(mir::Binding {
+            name: self.variable(ctx.subs)?,
+            operator: mir::Operator::Nop,
+            operands: vec![],
+            ty: self_type,
+            loc: None
+        }));
+
+        Ok(result)
+    }
+
+    fn handle_read_port(
+        &self,
+        result: Vec<mir::Statement>,
+        args: &[Argument],
+        ctx: &mut Context,
+    ) -> Result<Vec<mir::Statement>> {
+        let mut result = result;
+
+        assert_eq!(args.len(), 1);
+
+        let self_type = ctx
+            .types
+            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push(mir::Statement::Binding(mir::Binding {
+            name: self.variable(ctx.subs)?,
+            operator: mir::Operator::ReadPort,
+            operands: vec![args[0].value.variable(ctx.subs)?],
+            ty: self_type,
+            loc: None,
         }));
 
         Ok(result)

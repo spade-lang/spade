@@ -457,6 +457,9 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
                 full_size - member_end
             )
         }
+        Operator::ReadPort => {
+            format!("{}", ops[0].backward_var_name())
+        }
         Operator::ConstructTuple => {
             let mut members = ops
                 .iter()
@@ -473,6 +476,9 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
         Operator::Alias => {
             // NOTE Dummy. Set in the next match statement
             format!("") //format!("{}", ops[0])
+        }
+        Operator::Nop => {
+            format!("")
         }
     }
 }
@@ -515,6 +521,7 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
         | Operator::IndexMemory
         | Operator::Select
         | Operator::Match
+        | Operator::ReadPort
         | Operator::Truncate => panic!(
             "{} can not be used on types with backward size",
             binding.operator
@@ -565,6 +572,9 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
         Operator::Instance(_, _) => todo!(),
         Operator::Alias => {
             // NOTE: Set in statement_code
+            format!("")
+        }
+        Operator::Nop => {
             format!("")
         }
     }
@@ -641,6 +651,7 @@ fn statement_code(
                 },
                 Operator::Match => format!("{}", forward_expression.unwrap()),
                 Operator::DivPow2 => format!("{}", forward_expression.unwrap()),
+                Operator::Nop => format!(""),
                 Operator::DeclClockedMemory { .. } => format!("{}", forward_expression.unwrap()),
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
@@ -2169,6 +2180,27 @@ mod expression_tests {
         let expected = indoc! {
             r#"
             assign _e_0_o = _e_1;"#
+        };
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn read_port_codegen_works() {
+        let stmt = statement!(e(0); Type::Int(8); ReadPort; e(1));
+
+        let expected = indoc! {
+            r#"
+            logic[7:0] _e_0;
+            assign _e_0 = _e_1_o;"#
         };
 
         assert_same_code!(

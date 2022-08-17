@@ -1,0 +1,8 @@
+use std::ports::read_port;
+use std::ports::make_port;
+
+entity assign_through_port(val: int<10>) -> int<10> {
+    let port = inst make_port();
+    set port = val;
+    inst read_port(port)
+}
