@@ -117,6 +117,9 @@ pub fn generate_pipeline<'a>(
             Statement::Assert(_) => {
                 // Assertions have no effect on pipeline state
             }
+            Statement::Set { .. } => {
+                // Set have no effect on pipeline state
+            }
         }
     }
 

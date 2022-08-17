@@ -38,6 +38,9 @@ impl TypeList {
                     self.inner.insert(ValueName::Expr(*idx), ty.clone());
                 }
                 Statement::Assert(_) => {}
+                Statement::Set { .. } => {
+                    // No new types introduced
+                }
             }
         }
     }

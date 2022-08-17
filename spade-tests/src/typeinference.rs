@@ -127,7 +127,27 @@ fn field_indexing_on_backward_type_works() {
     build_items(code);
 }
 
-// TODO: Test for error message when using port in function
+snapshot_error! {
+    type_error_on_port_set_mismatch,
+    "
+    // NOTE: returning bool because we don't support unit types
+    entity set_port(p: ~int<10>, v: int<9>) -> bool {
+        set p = v;
+        false
+    }
+    "
+}
+
+snapshot_error! {
+    type_error_on_port_set_to_port,
+    "
+    // NOTE: returning bool because we don't support unit types
+    entity set_port(p: ~int<10>, v: ~int<10>) -> bool {
+        set p = v;
+        false
+    }
+    "
+}
 
 snapshot_error!(
     return_type_mismatch,

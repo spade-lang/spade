@@ -279,6 +279,10 @@ pub enum Statement {
     /// A constant expression with the specified ID and value
     Constant(u64, Type, ConstantValue),
     Assert(Loc<ValueName>),
+    Set {
+        target: Loc<ValueName>,
+        value: Loc<ValueName>,
+    },
 }
 
 impl std::fmt::Display for Statement {
@@ -288,6 +292,7 @@ impl std::fmt::Display for Statement {
             Statement::Register(r) => write!(f, "{r}"),
             Statement::Constant(id, ty, val) => write!(f, "const e{id}: {ty} = {val}"),
             Statement::Assert(val) => write!(f, "assert {val}"),
+            Statement::Set { target, value } => write!(f, "set {target} = {value}"),
         }
     }
 }

@@ -123,6 +123,10 @@ pub enum Statement {
     PipelineRegMarker,
     Label(Loc<Identifier>),
     Assert(Loc<Expression>),
+    Set {
+        target: Loc<Expression>,
+        value: Loc<Expression>,
+    },
 }
 impl WithLocation for Statement {}
 

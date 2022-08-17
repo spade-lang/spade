@@ -103,6 +103,9 @@ fn statement_declaration(statement: &Statement, code: &Option<CodeBundle>) -> Co
         Statement::Assert(_) => {
             code! {}
         }
+        Statement::Set { .. } => {
+            code! {}
+        }
     }
 }
 
@@ -725,6 +728,17 @@ fn statement_code(
                     [1] "end";
                 [0] "end";
                 [0] format!("`endif")
+            }
+        }
+        Statement::Set { target, value } => {
+            let assignment = format!(
+                "assign {} = {};",
+                target.backward_var_name(),
+                value.var_name()
+            );
+
+            code! {
+                [0] assignment
             }
         }
     }
@@ -2141,6 +2155,29 @@ mod expression_tests {
 
         assert_same_code!(
             &statement_code_and_declaration(&stmt, &TypeList::empty(), &source_code).to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn set_codegen_works() {
+        let stmt = Statement::Set {
+            target: value_name!(e(0)).nowhere(),
+            value: value_name!(e(1)).nowhere(),
+        };
+
+        let expected = indoc! {
+            r#"
+            assign _e_0_o = _e_1;"#
+        };
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
             expected
         );
     }

@@ -145,6 +145,7 @@ pub fn visit_pipeline(pipeline: &Loc<ast::Pipeline>, ctx: &mut Context) -> Resul
             }
             ast::Statement::Register(_) => {}
             ast::Statement::Assert(_) => {}
+            ast::Statement::Set { .. } => {}
         }
     }
 

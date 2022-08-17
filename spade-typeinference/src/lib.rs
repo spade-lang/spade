@@ -783,6 +783,17 @@ impl TypeState {
                 self.unify_expression_generic_error(expr, &t_bool(symtab), symtab)?;
                 Ok(())
             }
+            Statement::Set { target, value } => {
+                self.visit_expression(target, symtab, generic_list)?;
+                self.visit_expression(value, symtab, generic_list)?;
+
+                let inner_type = self.new_generic();
+                let outer_type = TypeVar::Backward(Box::new(inner_type.clone()));
+                self.unify_expression_generic_error(target, &outer_type, symtab)?;
+                self.unify_expression_generic_error(value, &inner_type, symtab)?;
+
+                Ok(())
+            }
         }
     }
 

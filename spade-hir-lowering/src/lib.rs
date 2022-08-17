@@ -592,6 +592,14 @@ impl StatementLocal for Statement {
                     expr.variable(ctx.subs)?.at_loc(expr),
                 ))
             }
+            Statement::Set { target, value } => {
+                result.append(&mut target.lower(ctx)?);
+                result.append(&mut value.lower(ctx)?);
+                result.push(mir::Statement::Set {
+                    target: target.variable(ctx.subs)?.at_loc(target),
+                    value: value.variable(ctx.subs)?.at_loc(value),
+                })
+            }
         }
         Ok(result)
     }

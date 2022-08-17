@@ -178,6 +178,12 @@ pub enum Statement {
     Binding(Loc<Pattern>, Option<Loc<TypeSpec>>, Loc<Expression>),
     PipelineRegMarker(usize),
     Register(Loc<Register>),
+    /// Sets the value of the target expression, which must be a Backward port to
+    /// the value of `value`
+    Set {
+        target: Loc<Expression>,
+        value: Loc<Expression>,
+    },
     Assert(Loc<Expression>),
 }
 impl WithLocation for Statement {}

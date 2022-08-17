@@ -216,6 +216,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                 (name, val)
             }
             Statement::Assert(_) => panic!("trying to evaluate an assert statemnet"),
+            Statement::Set { .. } => panic!("trying to evaluate a `set` statement"),
         };
 
         name_vals.insert(n, v.clone());

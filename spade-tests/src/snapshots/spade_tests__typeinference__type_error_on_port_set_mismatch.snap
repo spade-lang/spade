@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/typeinference.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Expected type int<10>, got int<9>
+  ┌─ testinput:3:13
+  │
+3 │     set p = v;
+  │             ^ Expected int<10> here
+
+

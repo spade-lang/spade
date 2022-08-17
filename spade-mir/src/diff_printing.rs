@@ -142,6 +142,11 @@ where
             let value = translate_val_name(value, lhs_trans, rhs_trans);
             format!("assert {value}")
         }
+        Statement::Set { target, value } => {
+            let value = translate_val_name(value, lhs_trans, rhs_trans);
+            let target = translate_val_name(target, lhs_trans, rhs_trans);
+            format!("set {target} = {value}")
+        }
     }
 }
 
