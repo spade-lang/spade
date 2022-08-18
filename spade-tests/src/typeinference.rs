@@ -415,3 +415,28 @@ fn accessing_a_generic_fixed_field_works() {
         ";
     build_items(code);
 }
+
+snapshot_error! {
+    backward_type_in_generic_is_an_error,
+    "
+    fn takes_generic<T>(x: T) -> bool {true}
+
+    fn x(b: ~bool) -> bool {
+        takes_generic(b)
+    }
+    "
+}
+
+snapshot_error! {
+    port_type_in_generic_is_an_error,
+    "
+    struct X {
+        x: ~bool
+    }
+    fn takes_generic<T>(x: T) -> bool {true}
+
+    fn x(b: X) -> bool {
+        takes_generic(b)
+    }
+    "
+}

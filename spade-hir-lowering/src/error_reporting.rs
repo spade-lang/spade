@@ -144,6 +144,11 @@ impl CompilationError for Error {
                 .with_message("Ports can not be put in a register")
                 .with_labels(vec![loc.primary_label().with_message("This is a port")])
                 .with_notes(vec![format!("{ty} is a port")]),
+            Error::PortInGenericType { loc, param, actual } => Diagnostic::error()
+                .with_message("Generic types can not be ports")
+                .with_labels(vec![loc.primary_label().with_message(format!(
+                    "Parameter {param} is {actual} which is a port type"
+                ))]),
             Error::InternalExpressionWithoutType(loc) => Diagnostic::error()
                 .with_message("(Internal error) expression did not have a type")
                 .with_labels(vec![loc

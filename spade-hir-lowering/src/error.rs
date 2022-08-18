@@ -49,6 +49,12 @@ pub enum Error {
     },
     #[error("Port in register")]
     PortInRegister { loc: Loc<()>, ty: ConcreteType },
+    #[error("Port in generic type")]
+    PortInGenericType {
+        loc: Loc<()>,
+        param: NameID,
+        actual: ConcreteType,
+    },
     #[error("Unification error")]
     UnificationError(#[source] spade_typeinference::result::Error),
     #[error("(Internal) Expression without type")]

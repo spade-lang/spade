@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/typeinference.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Generic types can not be ports
+  ┌─ testinput:4:5
+  │
+4 │     takes_generic(b)
+  │     ^^^^^^^^^^^^^^^^ Parameter T is ~bool which is a port type
+
+

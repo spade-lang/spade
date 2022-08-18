@@ -1025,6 +1025,22 @@ impl ExprLocal for Loc<Expression> {
             ["std", "ports", "read_port"] => handle_read_port
         }
 
+        // Check if this is a call to something generic. If so we need to ensure that the
+        // generic arguments were not mapped to ports
+        let tok = GenericListToken::Expression(self.id);
+        let instance_list = ctx.types.get_generic_list(&tok);
+        for (name, ty) in instance_list {
+            let actual = TypeState::ungenerify_type(ty, &ctx.symtab.symtab(), &ctx.item_list.types);
+            if actual.as_ref().map(|t| t.is_port()).unwrap_or(false) {
+                return Err(Error::PortInGenericType {
+                    loc: self.loc(),
+                    param: name.clone(),
+                    // NOTE: Safe because we were able to run `t.is_port()` above
+                    actual: actual.unwrap().clone(),
+                });
+            }
+        }
+
         // Look up the name in the executable list to see if this is a type instantiation
         match ctx.item_list.executables.get(name) {
             Some(hir::ExecutableItem::EnumInstance { base_enum, variant }) => {
@@ -1077,9 +1093,6 @@ impl ExprLocal for Loc<Expression> {
                 };
 
                 let instance_name = if !type_params.is_empty() {
-                    let tok = GenericListToken::Expression(self.id);
-                    let instance_list = ctx.types.get_generic_list(&tok);
-
                     let t = type_params
                         .iter()
                         .map(|param| {
