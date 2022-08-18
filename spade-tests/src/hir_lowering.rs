@@ -739,6 +739,29 @@ mod tests {
     }
 
     #[test]
+    fn pipelines_with_ports_work() {
+        let code = r#"
+            pipeline(3) pl(clk: clk, a: ~int<16>) -> ~int<16> {
+                reg;
+                reg;
+                reg;
+                    a
+            }
+        "#;
+
+        let expected = entity!("pl"; (
+                "clk", n(3, "clk"), Type::Bool,
+                "a", n(0, "a"), Type::backward(Type::Int(16)),
+            ) -> Type::backward(Type::Int(16)); {
+            } => n(0, "a")
+        );
+
+        let result = build_entity!(code);
+
+        assert_same_mir!(&result, &expected);
+    }
+
+    #[test]
     fn subpipes_do_not_get_extra_delay() {
         let code = r#"
             pipeline(3) sub(clk: clk) -> int<18> __builtin__

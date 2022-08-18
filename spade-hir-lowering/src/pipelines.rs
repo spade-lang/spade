@@ -42,8 +42,13 @@ pub fn generate_pipeline<'a>(
     let mut subs = Substitutions::new();
 
     // Skip because the clock should not be pipelined
+    // NOTE: We can now achieve this by making `clk` a port. However, where to do this is
+    // not 100% clear
     for input in inputs.iter().skip(1).map(|var| var.0.clone()) {
-        subs.set_available(input, 0)
+        let is_port = types
+            .type_of_name(&input, symtab.symtab(), &item_list.types)
+            .is_port();
+        subs.set_available(input, 0, is_port)
     }
 
     let mut statements = vec![];
@@ -74,13 +79,20 @@ pub fn generate_pipeline<'a>(
             Statement::Binding(pat, _, expr) => {
                 let time = expr.inner.kind.available_in()?;
                 for name in pat.get_names() {
-                    subs.set_available(name, time)
+                    let is_port = types
+                        .type_of_name(&name, symtab.symtab(), &item_list.types)
+                        .is_port();
+
+                    subs.set_available(name, time, is_port)
                 }
             }
             Statement::Register(reg) => {
                 let time = reg.inner.value.kind.available_in()?;
                 for name in reg.pattern.get_names() {
-                    subs.set_available(name, time)
+                    let is_port = types
+                        .type_of_name(&name, symtab.symtab(), &item_list.types)
+                        .is_port();
+                    subs.set_available(name, time, is_port)
                 }
             }
             Statement::Declaration(_) => todo!(),

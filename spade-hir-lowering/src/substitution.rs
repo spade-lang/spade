@@ -14,6 +14,8 @@ pub enum Substitution {
     Waiting(usize, NameID),
     /// The value is available now and the true name is `NameID`
     Available(NameID),
+    /// The value is a port, so it should not be registered and is always available.
+    Port,
 }
 
 pub struct SubRegister {
@@ -82,6 +84,7 @@ impl Substitutions {
                     });
                     Substitution::Available(new_name)
                 }
+                Substitution::Port => Substitution::Port,
             };
             new_subs.insert(original.clone(), new_sub);
         }
@@ -92,18 +95,25 @@ impl Substitutions {
 
     /// Mark the variable as available in the current pipeline stage under its
     /// own name
-    pub fn set_available(&mut self, from: NameID, time: usize) {
+    pub fn set_available(&mut self, from: NameID, time: usize, is_port: bool) {
         self.live_vars.push(from.clone());
-        if time == 0 {
+        if is_port {
             self.inner
                 .last_mut()
                 .unwrap()
-                .insert(from.clone(), Substitution::Available(from));
+                .insert(from.clone(), Substitution::Port);
         } else {
-            self.inner
-                .last_mut()
-                .unwrap()
-                .insert(from.clone(), Substitution::Waiting(time, from));
+            if time == 0 {
+                self.inner
+                    .last_mut()
+                    .unwrap()
+                    .insert(from.clone(), Substitution::Available(from));
+            } else {
+                self.inner
+                    .last_mut()
+                    .unwrap()
+                    .insert(from.clone(), Substitution::Waiting(time, from));
+            }
         }
     }
 

@@ -634,6 +634,7 @@ impl ExprLocal for Loc<Expression> {
                     })
                 }
                 substitution::Substitution::Available(current) => Ok(Some(current.value_name())),
+                substitution::Substitution::Port => Ok(Some(ident.value_name())),
             },
             ExprKind::IntLiteral(_) => Ok(None),
             ExprKind::BoolLiteral(_) => Ok(None),
@@ -666,6 +667,7 @@ impl ExprLocal for Loc<Expression> {
                         })
                     }
                     substitution::Substitution::Available(name) => Ok(Some(name.value_name())),
+                    substitution::Substitution::Port => Ok(Some(name.value_name())),
                 }
             }
         }
