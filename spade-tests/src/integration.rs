@@ -137,4 +137,28 @@ mod namespace_tests {
         }
         "
     }
+
+    snapshot_error! {
+        backward_types_can_not_be_put_in_registers,
+        "
+        entity x(clk: clk, a: ~bool) -> bool {
+            reg(clk) _ = a;
+            true
+        }
+        "
+    }
+
+    snapshot_error! {
+        transitive_backwar_type_can_not_be_put_in_registers,
+        "
+        struct X {
+            a: ~bool,
+            b: bool
+        }
+        entity x(clk: clk, a: X) -> bool {
+            reg(clk) _ = a;
+            true
+        }
+        "
+    }
 }

@@ -1,6 +1,7 @@
 use spade_common::{location_info::Loc, name::NameID};
 use spade_hir::Expression;
 use spade_typeinference::equation::TypeVar;
+use spade_types::ConcreteType;
 use thiserror::Error;
 
 use crate::usefulness::Witness;
@@ -46,6 +47,8 @@ pub enum Error {
         // The statement in which this binding occurs. (let, reg etc.)
         binding_kind: &'static str,
     },
+    #[error("Port in register")]
+    PortInRegister { loc: Loc<()>, ty: ConcreteType },
     #[error("Unification error")]
     UnificationError(#[source] spade_typeinference::result::Error),
     #[error("(Internal) Expression without type")]

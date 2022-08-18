@@ -557,16 +557,22 @@ impl StatementLocal for Statement {
                     });
                 }
 
+                let ty = ctx.types.type_of_id(
+                    register.pattern.id,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                );
+
+                if ty.is_port() {
+                    return Err(Error::PortInRegister {
+                        loc: register.value.loc(),
+                        ty,
+                    });
+                }
+
                 result.push(mir::Statement::Register(mir::Register {
                     name: register.pattern.value_name(),
-                    ty: ctx
-                        .types
-                        .type_of_id(
-                            register.pattern.id,
-                            ctx.symtab.symtab(),
-                            &ctx.item_list.types,
-                        )
-                        .to_mir_type(),
+                    ty: ty.to_mir_type(),
                     clock: register.clock.variable(ctx.subs)?,
                     reset: register
                         .reset
@@ -1454,7 +1460,7 @@ impl ExprLocal for Loc<Expression> {
             operator: mir::Operator::Nop,
             operands: vec![],
             ty: self_type,
-            loc: None
+            loc: None,
         }));
 
         Ok(result)

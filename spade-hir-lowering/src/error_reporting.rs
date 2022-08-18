@@ -140,6 +140,10 @@ impl CompilationError for Error {
                         format!("hint: you might want to use match statement to handle different cases")
                     ])
             }
+            Error::PortInRegister { loc, ty } => Diagnostic::error()
+                .with_message("Ports can not be put in a register")
+                .with_labels(vec![loc.primary_label().with_message("This is a port")])
+                .with_notes(vec![format!("{ty} is a port")]),
             Error::InternalExpressionWithoutType(loc) => Diagnostic::error()
                 .with_message("(Internal error) expression did not have a type")
                 .with_labels(vec![loc
