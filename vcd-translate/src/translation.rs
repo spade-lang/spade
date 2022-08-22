@@ -127,6 +127,10 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
     let type_size = t.to_mir_type().size();
     let missing_values = type_size as usize - value_len;
 
+    if type_size == 0 {
+        return;
+    }
+
     // Extend according to verilog specification section 18.2.2
     let extend_value = match in_value[0] {
         Value::V0 => Value::V0,

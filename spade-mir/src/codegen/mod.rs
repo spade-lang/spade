@@ -569,7 +569,7 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
             );
             format!("{}{}", op_names[0], index.verilog_code())
         }
-        Operator::Instance(_, _) => todo!(),
+        Operator::Instance(_, _) => format!(""),
         Operator::Alias => {
             // NOTE: Set in statement_code
             format!("")

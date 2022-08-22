@@ -440,3 +440,27 @@ snapshot_error! {
     }
     "
 }
+
+#[test]
+fn destructuring_a_read_port_gives_real_values() {
+    let code = "
+    mod std {mod ports { entity read_port<T>(t: ~T) -> T __builtin__ }}
+    struct A {
+        x: bool,
+        y: int<3>
+    }
+
+    struct HasA {
+        inner: ~A
+    }
+
+    fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+
+    entity uut(val: HasA) -> bool {
+        let A$(x, y) = inst std::ports::read_port(val.inner);
+        takes_normal(x, y)
+    }
+    ";
+
+    build_items(code);
+}
