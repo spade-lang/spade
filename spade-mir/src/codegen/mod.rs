@@ -617,13 +617,44 @@ fn statement_code(
             let assignment = match &binding.operator {
                 Operator::Instance(module_name, loc) => {
                     // Input args
-                    let mut args = ops.join(", ");
+                    let mut args = binding
+                        .operands
+                        .iter()
+                        .flat_map(|port| {
+                            let ty = &types[port];
 
-                    if !ops.is_empty() {
-                        // Output arg
-                        args += ", ";
+                            // Push the input and output into the result if they
+                            // should be bound
+                            let mut result = vec![];
+                            if ty.size() != 0 {
+                                result.push(port.var_name())
+                            }
+                            if ty.backward_size() != 0 {
+                                result.push(port.backward_var_name())
+                            }
+                            result
+                        })
+                        .join(", ");
+
+                    if !args.is_empty() {
+                        args += ", "
                     }
-                    args += &name;
+
+                    let out_size = binding.ty.size();
+                    let back_size = binding.ty.backward_size();
+                    let io_comma = if out_size != 0 && back_size != 0 {
+                        ", "
+                    }
+                    else {
+                        ""
+                    };
+                    if out_size != 0 {
+                        args += &name;
+                    }
+                    args += io_comma;
+                    if back_size != 0 {
+                        args += &back_name;
+                    }
 
                     let module_name = escape_path(module_name.to_string());
 
@@ -830,17 +861,6 @@ pub fn entity_code(entity: &mut Entity, source_code: &Option<CodeBundle>) -> Cod
 
     let (inputs, input_assignments): (Vec<_>, Vec<_>) = inputs.unzip();
 
-    let output_size = entity.output_type.size();
-    let (output_definition, output_assignment) = if output_size != 0 {
-        let def = code! {
-            [0] format!("output{} output__", size_spec(output_size))
-        };
-        let assignment = code! {[0] assign("output__", &entity.output.var_name())};
-        (def, assignment)
-    } else {
-        (code! {}, code! {})
-    };
-
     let back_port_size = entity.output_type.backward_size();
     let (back_port_definition, back_port_assignment) = if back_port_size != 0 {
         let def = code! {
@@ -852,9 +872,25 @@ pub fn entity_code(entity: &mut Entity, source_code: &Option<CodeBundle>) -> Cod
         let assignment = code! {
             [0] assign(&entity.output.backward_var_name(), "input__")
         };
-        (def, assignment)
+        (Some(def), Some(assignment))
     } else {
-        (code! {}, code! {})
+        (None, None)
+    };
+
+    let output_size = entity.output_type.size();
+    let (output_definition, output_assignment) = if output_size != 0 {
+        let comma = if back_port_definition.is_some() {
+            ","
+        } else {
+            ""
+        };
+        let def = code! {
+            [0] format!("output{} output__{comma}", size_spec(output_size))
+        };
+        let assignment = code! {[0] assign("output__", &entity.output.var_name())};
+        (Some(def), Some(assignment))
+    } else {
+        (None, None)
     };
 
     let mut body = Code::new();
@@ -1136,7 +1172,7 @@ mod tests {
 
         let expected = indoc!(
             r#"module e_test (
-                    output[3:0] output__
+                    output[3:0] output__,
                     input[2:0] input__
                 );
                 `ifdef COCOTB_SIM
@@ -1836,10 +1872,86 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &TypeList::empty()
+                    .with(ValueName::Expr(1), Type::Bool)
+                    .with(ValueName::Expr(2), Type::Bool),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn entity_instantiation_with_back_and_forward_ports_works() {
+        let ty = Type::Tuple(vec![Type::backward(Type::Bool), Type::Bool]);
+        let stmt = statement!(e(0); ty; Instance(("test".to_string(), None)); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic _e_0;
+            logic _e_0_o;
+            e_test test__e_0(_e_1, _e_2, _e_0, _e_0_o);"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &TypeList::empty()
+                    .with(ValueName::Expr(1), Type::Bool)
+                    .with(ValueName::Expr(2), Type::Bool),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn entity_instantiation_with_back_ports_works() {
+        let ty = Type::backward(Type::Bool);
+        let stmt = statement!(e(0); ty; Instance(("test".to_string(), None)); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic _e_0_o;
+            e_test test__e_0(_e_1, _e_2, _e_0_o);"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &TypeList::empty()
+                    .with(ValueName::Expr(1), Type::Bool)
+                    .with(ValueName::Expr(2), Type::Bool),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn entity_instantiation_with_back_inputs_works() {
+        let ty = Type::Bool;
+        let stmt = statement!(e(0); ty; Instance(("test".to_string(), None)); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic _e_0;
+            e_test test__e_0(_e_1, _e_1_o, _e_2_o, _e_0);"#
+        );
+
+        let type_list = TypeList::empty()
+            .with(
+                ValueName::Expr(1),
+                Type::Tuple(vec![Type::Bool, Type::backward(Type::Bool)]),
+            )
+            .with(ValueName::Expr(2), Type::backward(Type::Bool));
+
+        assert_same_code!(
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
+                .to_string(),
             expected
         );
     }
