@@ -464,3 +464,25 @@ fn destructuring_a_read_port_gives_real_values() {
 
     build_items(code);
 }
+
+snapshot_error!{
+    reading_from_port_members_is_a_type_error,
+    "
+    mod std {mod ports { entity read_port<T>(t: ~T) -> T __builtin__ }}
+
+    use std::ports::read_port;
+
+    struct A {
+        x: bool,
+        y: int<3>
+    }
+
+    fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+
+    entity uut(val: ~A) -> bool {
+        let x = inst read_port(val.x);
+        let y = inst read_port(val.y);
+        takes_normal(x, y)
+    }
+    "
+}
