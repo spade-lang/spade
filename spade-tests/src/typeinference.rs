@@ -465,7 +465,7 @@ fn destructuring_a_read_port_gives_real_values() {
     build_items(code);
 }
 
-snapshot_error!{
+snapshot_error! {
     reading_from_port_members_is_a_type_error,
     "
     mod std {mod ports { entity read_port<T>(t: ~T) -> T __builtin__ }}

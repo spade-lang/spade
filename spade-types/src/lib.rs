@@ -93,6 +93,10 @@ impl ConcreteType {
             ConcreteType::Array { inner, size: _ } => inner.is_port(),
             // Enums can not be ports
             ConcreteType::Enum { .. } => false,
+            ConcreteType::Single {
+                base: PrimitiveType::Memory,
+                ..
+            } => true,
             ConcreteType::Single { .. } => false,
             ConcreteType::Integer(_) => false,
             ConcreteType::Backward(_) => true,
