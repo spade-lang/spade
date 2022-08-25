@@ -41,10 +41,7 @@ pub fn generate_pipeline<'a>(
 
     let mut subs = Substitutions::new();
 
-    // Skip because the clock should not be pipelined
-    // NOTE: We can now achieve this by making `clk` a port. However, where to do this is
-    // not 100% clear
-    for input in inputs.iter().skip(1).map(|var| var.0.clone()) {
+    for input in inputs.iter().map(|var| var.0.clone()) {
         let is_port = types
             .type_of_name(&input, symtab.symtab(), &item_list.types)
             .is_port();

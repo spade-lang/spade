@@ -97,6 +97,10 @@ impl ConcreteType {
                 base: PrimitiveType::Memory,
                 ..
             } => true,
+            ConcreteType::Single {
+                base: PrimitiveType::Clock,
+                ..
+            } => true,
             ConcreteType::Single { .. } => false,
             ConcreteType::Integer(_) => false,
             ConcreteType::Backward(_) => true,
