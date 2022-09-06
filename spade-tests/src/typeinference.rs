@@ -87,17 +87,6 @@ fn type_inference_works_for_bools_with_not_operator() {
     build_items(code);
 }
 
-#[test]
-fn backward_tuple_indexing_type_checks() {
-    let code = r#"
-    entity name(x: ~(bool, bool)) -> ~bool {
-        x#0
-    }
-    "#;
-
-    build_items(code);
-}
-
 snapshot_error!(
     backward_tuple_indexing_with_type_error_errors_nicely,
     "entity name(x: ~(bool, bool)) -> int<32> {
@@ -113,19 +102,6 @@ snapshot_error!(
     }
     "
 );
-
-#[test]
-fn field_indexing_on_backward_type_works() {
-    let code = "
-    struct X {
-        a: bool
-    }
-    entity name(x: ~X) -> ~bool {
-        x.a
-    }
-    ";
-    build_items(code);
-}
 
 snapshot_error! {
     type_error_on_port_set_mismatch,

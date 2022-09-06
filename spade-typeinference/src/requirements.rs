@@ -52,23 +52,16 @@ impl Requirement {
                 field,
                 expr,
             } => {
-                let (known_type, params, is_backwards) = match &target_type.inner {
+                let (known_type, params) = match &target_type.inner {
                     // To know if we can access the field, we need to see if this type is actually
                     // known in the first place
-                    TypeVar::Known(t, params) => (t, params, false),
-                    // If it is a backward type, we'll extract the inner struct and remember
-                    // that it was a backward type, or error out if it is not a struct
-                    TypeVar::Backward(inner) => match inner.as_ref() {
-                        TypeVar::Known(t, params) => (t, params, true),
-                        TypeVar::Backward(_) => panic!("Found recursive backward type"),
-                        TypeVar::Unknown(_) => return Ok(RequirementResult::NoChange),
-                        other => {
-                            return Err(Error::FieldAccessOnNonStruct {
-                                loc: expr.loc(),
-                                got: other.clone(),
-                            })
-                        }
-                    },
+                    TypeVar::Known(t, params) => (t, params),
+                    other @ TypeVar::Backward(_) => {
+                        return Err(Error::FieldAccessOnNonStruct {
+                            loc: expr.loc(),
+                            got: other.clone(),
+                        });
+                    }
                     TypeVar::Unknown(_) => return Ok(RequirementResult::NoChange),
                     other => {
                         return Err(Error::FieldAccessOnNonStruct {
@@ -130,15 +123,9 @@ impl Requirement {
 
                         let field_type = type_state.type_var_from_hir(&field_spec, &generic_list);
 
-                        let result_type = if is_backwards {
-                            TypeVar::Backward(Box::new(field_type))
-                        } else {
-                            field_type
-                        };
-
                         Ok(RequirementResult::Satisfied(vec![Replacement {
                             from: expr.clone(),
-                            to: result_type,
+                            to: field_type,
                         }]))
                     }
                     KnownType::Integer(_) => Err(Error::FieldAccessOnInteger { loc: expr.loc() }),

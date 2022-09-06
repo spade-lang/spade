@@ -3,12 +3,12 @@ source: spade-tests/src/typeinference.rs
 expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
 ---
 error: Attempt to use tuple indexing on non-tuple
-  ┌─ testinput:2:5
+  ┌─ testinput:8:28
   │
-2 │     x#0
-  │     ^ expected tuple
+8 │     let x = inst read_port(val#0);
+  │                            ^^^ expected tuple
   │
   = Expected: tuple
-  =      Got: ~(bool, bool)
+  =      Got: ~(bool, int<3>)
 
 

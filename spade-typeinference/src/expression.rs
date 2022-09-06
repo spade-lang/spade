@@ -143,19 +143,13 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::TupleIndex(tup, index) = &expression => {
             self.visit_expression(tup, symtab, generic_list)?;
-            let t = self.type_of(&TypedExpression::Id(tup.id));
+            let t = self.type_of(&TypedExpression::Id(tup.id))?;
 
-            let (without_backward, is_backward) = match t {
-                Ok(TypeVar::Backward(inner)) => (*inner.clone(), true),
-                Ok(other) => (other.clone(), false),
-                Err(e) => return Err(e.clone())
-            };
-
-            let inner_types = match without_backward {
+            let inner_types = match t {
                 TypeVar::Tuple(inner) => {
                     inner
                 }
-                t @ TypeVar::Known(_, _) | t @ TypeVar::Array { .. } => {
+                t @ TypeVar::Known(_, _) | t @ TypeVar::Array { .. } | t @ TypeVar::Backward(_) => {
                     return Err(Error::TupleIndexOfNonTuple {
                         got: t.clone(),
                         loc: tup.loc(),
@@ -164,16 +158,10 @@ impl TypeState {
                 TypeVar::Unknown(_) => {
                     return Err(Error::TupleIndexOfGeneric { loc: tup.loc() })
                 }
-                TypeVar::Backward(_) => panic!("Found a recursive backwards type")
             };
 
             if (index.inner as usize) < inner_types.len() {
-                let true_inner_type = if is_backward {
-                    TypeVar::Backward(Box::new(inner_types[index.inner as usize].clone()))
-                }
-                else {
-                    inner_types[index.inner as usize].clone()
-                };
+                let true_inner_type = inner_types[index.inner as usize].clone();
                 self.unify_expression_generic_error(
                     &expression,
                     &true_inner_type,
@@ -203,7 +191,7 @@ impl TypeState {
             let target_type = self.type_of(&TypedExpression::Id(target.id))?;
             let self_type = self.type_of(&TypedExpression::Id(expression.id))?;
 
-            let requirement = Requirement::HasField{
+            let requirement = Requirement::HasField {
                 target_type: target_type.at_loc(target),
                 field: field.clone(),
                 expr: self_type.at_loc(expression)
