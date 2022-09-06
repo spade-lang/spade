@@ -486,3 +486,20 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    reading_from_tuple_members_is_an_error,
+    "
+    mod std {mod ports { entity read_port<T>(t: ~T) -> T __builtin__ }}
+
+    use std::ports::read_port;
+
+    fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+
+    entity uut(val: ~(bool, int<3>)) -> bool {
+        let x = inst read_port(val#0);
+        let y = inst read_port(val#1);
+        takes_normal(x, y)
+    }
+    "
+}
