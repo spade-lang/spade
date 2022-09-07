@@ -42,6 +42,7 @@ pub enum ConcreteType {
     },
     Integer(u128),
     Backward(Box<ConcreteType>),
+    Wire(Box<ConcreteType>),
 }
 
 impl ConcreteType {
@@ -49,40 +50,6 @@ impl ConcreteType {
         match self {
             ConcreteType::Struct { name, members } => (name, members),
             t => unreachable!("Assumed {} was a struct", t),
-        }
-    }
-
-    /// Transforms a backward type of a compound type into a compound type of backward types
-    ///
-    /// ~(a, b) => (~a, ~b)
-    /// ~[a, N] => [~a, N]
-    /// etc.
-    pub fn internalize_backward(self) -> Self {
-        match self {
-            ConcreteType::Backward(inner) => match *inner {
-                ConcreteType::Tuple(inner) => ConcreteType::Tuple(
-                    inner
-                        .into_iter()
-                        .map(|t| ConcreteType::Backward(Box::new(t)))
-                        .collect(),
-                ),
-                ConcreteType::Struct { name, members } => ConcreteType::Struct {
-                    name,
-                    members: members
-                        .into_iter()
-                        .map(|(f, t)| (f, ConcreteType::Backward(Box::new(t))))
-                        .collect(),
-                },
-                ConcreteType::Array { inner, size } => ConcreteType::Array {
-                    inner: Box::new(ConcreteType::Backward(inner)),
-                    size,
-                },
-                ConcreteType::Enum { .. } => panic!("Backward enum"),
-                s @ ConcreteType::Single { .. } => s,
-                s @ ConcreteType::Integer(_) => s,
-                ConcreteType::Backward(_) => panic!("Recursicve backward type"),
-            },
-            other => other,
         }
     }
 
@@ -104,6 +71,7 @@ impl ConcreteType {
             ConcreteType::Single { .. } => false,
             ConcreteType::Integer(_) => false,
             ConcreteType::Backward(_) => true,
+            ConcreteType::Wire(_) => true,
         }
     }
 }
@@ -173,7 +141,10 @@ impl std::fmt::Display for ConcreteType {
                 write!(f, "#{}", size)
             }
             ConcreteType::Backward(inner) => {
-                write!(f, "~{}", inner)
+                write!(f, "&mut {}", inner)
+            }
+            ConcreteType::Wire(inner) => {
+                write!(f, "&{}", inner)
             }
         }
     }

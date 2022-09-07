@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn pipelines_with_ports_work() {
         let code = r#"
-            pipeline(3) pl(clk: clk, a: ~int<16>) -> ~int<16> {
+            pipeline(3) pl(clk: clk, a: &mut int<16>) -> &mut int<16> {
                 reg;
                 reg;
                 reg;
@@ -1669,10 +1669,10 @@ mod tests {
     fn assigning_ports_to_variables_works() {
         let code = r#"
             mod std {mod ports{
-                entity make_port<T>() -> ~T __builtin__
+                entity make_port<T>() -> &mut T __builtin__
             }}
 
-            entity test() -> ~int<10> {
+            entity test() -> &mut int<10> {
                 let x = inst std::ports::make_port();
                 x
             }

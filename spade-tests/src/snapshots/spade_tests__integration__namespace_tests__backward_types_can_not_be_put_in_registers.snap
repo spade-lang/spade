@@ -8,6 +8,6 @@ error: Ports can not be put in a register
 2 │     reg(clk) _ = a;
   │                  ^ This is a port
   │
-  = ~bool is a port
+  = &mut bool is a port
 
 

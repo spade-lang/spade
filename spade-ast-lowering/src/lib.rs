@@ -149,6 +149,9 @@ pub fn visit_type_spec(t: &ast::TypeSpec, symtab: &mut SymbolTable) -> Result<hi
         ast::TypeSpec::Backward(inner) => Ok(hir::TypeSpec::Backward(Box::new(
             inner.try_map_ref(|p| visit_type_spec(p, symtab))?,
         ))),
+        ast::TypeSpec::Wire(inner) => Ok(hir::TypeSpec::Wire(Box::new(
+            inner.try_map_ref(|p| visit_type_spec(p, symtab))?,
+        ))),
     }
 }
 

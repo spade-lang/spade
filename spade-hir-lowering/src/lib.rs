@@ -142,6 +142,9 @@ impl MirLowerable for ConcreteType {
                 Type::Tuple(members)
             }
             CType::Backward(inner) => Type::Backward(Box::new(inner.to_mir_type())),
+            // At this point we no longer need to know if this is a Wire or not, it will
+            // behave exactly as a normal type
+            CType::Wire(inner) => inner.to_mir_type(),
         }
     }
 }
@@ -786,7 +789,6 @@ impl ExprLocal for Loc<Expression> {
                 let types = if let mir::types::Type::Tuple(inner) = &ctx
                     .types
                     .expr_type(tup, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    .internalize_backward()
                     .to_mir_type()
                 {
                     inner.clone()
@@ -809,17 +811,14 @@ impl ExprLocal for Loc<Expression> {
                     ctx.types
                         .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
-                let member_types = if let mir::types::Type::Tuple(members) =
-                    &ctype.clone().internalize_backward().to_mir_type()
-                {
-                    members.clone()
-                } else {
-                    unreachable!("Field access on non-struct {:?}", self_type)
-                };
+                let member_types =
+                    if let mir::types::Type::Tuple(members) = &ctype.clone().to_mir_type() {
+                        members.clone()
+                    } else {
+                        unreachable!("Field access on non-struct {:?}", self_type)
+                    };
 
-                let field_index = if let ConcreteType::Struct { name: _, members } =
-                    ctype.internalize_backward()
-                {
+                let field_index = if let ConcreteType::Struct { name: _, members } = ctype {
                     let field_indices = members
                         .iter()
                         .enumerate()

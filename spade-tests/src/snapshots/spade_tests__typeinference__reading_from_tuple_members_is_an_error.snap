@@ -9,6 +9,6 @@ error: Attempt to use tuple indexing on non-tuple
   │                            ^^^ expected tuple
   │
   = Expected: tuple
-  =      Got: ~(bool, int<3>)
+  =      Got: &mut (bool, int<3>)
 
 

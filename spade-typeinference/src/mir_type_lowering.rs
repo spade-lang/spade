@@ -154,6 +154,11 @@ impl TypeState {
             TypeSpec::Backward(inner) => ConcreteType::Backward(Box::new(
                 Self::type_spec_to_concrete(inner, type_list, generic_substitutions),
             )),
+            TypeSpec::Wire(inner) => ConcreteType::Wire(Box::new(Self::type_spec_to_concrete(
+                inner,
+                type_list,
+                generic_substitutions,
+            ))),
         }
     }
 
@@ -209,6 +214,8 @@ impl TypeState {
             }
             TypeVar::Backward(inner) => Self::ungenerify_type(inner, symtab, type_list)
                 .map(|t| ConcreteType::Backward(Box::new(t))),
+            TypeVar::Wire(inner) => Self::ungenerify_type(inner, symtab, type_list)
+                .map(|t| ConcreteType::Wire(Box::new(t))),
             TypeVar::Unknown(_) => None,
         }
     }

@@ -203,6 +203,7 @@ pub enum TypeSpec {
     },
     Unit(Loc<()>),
     Backward(Box<Loc<TypeSpec>>),
+    Wire(Box<Loc<TypeSpec>>),
 }
 impl WithLocation for TypeSpec {}
 

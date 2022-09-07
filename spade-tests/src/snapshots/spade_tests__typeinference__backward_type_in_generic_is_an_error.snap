@@ -6,6 +6,6 @@ error: Generic types can not be ports
   ┌─ testinput:4:5
   │
 4 │     takes_generic(b)
-  │     ^^^^^^^^^^^^^^^^ Parameter T is ~bool which is a port type
+  │     ^^^^^^^^^^^^^^^^ Parameter T is &mut bool which is a port type
 
 

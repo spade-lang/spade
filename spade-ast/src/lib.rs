@@ -27,6 +27,7 @@ pub enum TypeSpec {
     /// Backward type is considered a port, meaning it can not be explicitly put in registers, and
     /// is not registered in pipelines
     Backward(Box<Loc<TypeSpec>>),
+    Wire(Box<Loc<TypeSpec>>),
 }
 impl WithLocation for TypeSpec {}
 

@@ -149,7 +149,7 @@ impl TypeState {
                 TypeVar::Tuple(inner) => {
                     inner
                 }
-                t @ TypeVar::Known(_, _) | t @ TypeVar::Array { .. } | t @ TypeVar::Backward(_) => {
+                t @ TypeVar::Known(_, _) | t @ TypeVar::Array { .. } | t @ TypeVar::Backward(_) | t @ TypeVar::Wire(_) => {
                     return Err(Error::TupleIndexOfNonTuple {
                         got: t.clone(),
                         loc: tup.loc(),

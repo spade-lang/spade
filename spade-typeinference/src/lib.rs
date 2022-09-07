@@ -270,6 +270,9 @@ impl TypeState {
             hir::TypeSpec::Backward(inner) => {
                 TypeVar::Backward(Box::new(self.type_var_from_hir(inner, generic_list_token)))
             }
+            hir::TypeSpec::Wire(inner) => {
+                TypeVar::Wire(Box::new(self.type_var_from_hir(inner, generic_list_token)))
+            }
         }
     }
 
@@ -895,6 +898,7 @@ impl TypeState {
             TypeVar::Backward(inner) => {
                 TypeVar::Backward(Box::new(self.check_var_for_replacement(*inner)))
             }
+            TypeVar::Wire(inner) => TypeVar::Wire(Box::new(self.check_var_for_replacement(*inner))),
             u @ TypeVar::Unknown(_) => u,
         }
     }
@@ -1116,6 +1120,12 @@ impl TypeState {
 
                 Ok((TypeVar::Backward(Box::new(new_inner)), None))
             }
+            (TypeVar::Wire(i1), TypeVar::Wire(i2)) => {
+                let new_inner =
+                    try_with_context!(self.unify_inner(i1.as_ref(), i2.as_ref(), symtab));
+
+                Ok((TypeVar::Wire(Box::new(new_inner)), None))
+            }
             // Unknown with other
             (TypeVar::Unknown(_), TypeVar::Unknown(_)) => Ok((v1, Some(v2))),
             (_other, TypeVar::Unknown(_)) => Ok((v1, Some(v2))),
@@ -1127,6 +1137,8 @@ impl TypeState {
             (_other, TypeVar::Tuple(_)) => Err(err_producer!()),
             (TypeVar::Backward(_), _other) => Err(err_producer!()),
             (_other, TypeVar::Backward(_)) => Err(err_producer!()),
+            (TypeVar::Wire(_), _other) => Err(err_producer!()),
+            (_other, TypeVar::Wire(_)) => Err(err_producer!()),
         };
 
         let (new_type, replaced_type) = result?;
@@ -1258,6 +1270,7 @@ impl TypeState {
             }
             TypeVar::Unknown(_) => {}
             TypeVar::Backward(inner) => Self::replace_type_var(inner, from, replacement),
+            TypeVar::Wire(inner) => Self::replace_type_var(inner, from, replacement),
         }
 
         if in_var == from {

@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
             TokenKind::LogicalOr => Some(BinaryOperator::LogicalOr),
             TokenKind::LogicalAnd => Some(BinaryOperator::LogicalAnd),
             TokenKind::LogicalXor => Some(BinaryOperator::LogicalXor),
-            TokenKind::BitwiseAnd => Some(BinaryOperator::BitwiseAnd),
+            TokenKind::Ampersand => Some(BinaryOperator::BitwiseAnd),
             TokenKind::BitwiseOr => Some(BinaryOperator::BitwiseOr),
             TokenKind::BitwiseXor => Some(BinaryOperator::BitwiseXor),
             _ => None,

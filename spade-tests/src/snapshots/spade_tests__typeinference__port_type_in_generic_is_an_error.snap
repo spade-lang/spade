@@ -6,6 +6,6 @@ error: Generic types can not be ports
   ┌─ testinput:7:5
   │
 7 │     takes_generic(b)
-  │     ^^^^^^^^^^^^^^^^ Parameter T is struct X {x: ~bool} which is a port type
+  │     ^^^^^^^^^^^^^^^^ Parameter T is struct X {x: &mut bool} which is a port type
 
 

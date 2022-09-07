@@ -432,7 +432,12 @@ impl<'a> Parser<'a> {
     // Types
     #[trace_parser]
     pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
-        let backwards_sign = self.peek_and_eat(&TokenKind::Tilde)?;
+        let wire_sign = self.peek_and_eat(&TokenKind::Ampersand)?;
+        let mut_sign = if wire_sign.is_some() {
+            self.peek_and_eat(&TokenKind::Mut)?
+        } else {
+            None
+        };
 
         let inner = if let Some(tuple) = self.tuple_spec()? {
             tuple
@@ -464,10 +469,16 @@ impl<'a> Parser<'a> {
             TypeSpec::Named(path, params).between(self.file_id, &span, &generic_span)
         };
 
-        let result = if let Some(back) = backwards_sign {
-            TypeSpec::Backward(Box::new(inner.clone())).between(self.file_id, &back.span, &inner)
-        } else {
-            inner
+        let result = match (wire_sign, mut_sign) {
+            (Some(wire), Some(_mut)) => TypeSpec::Backward(Box::new(inner.clone())).between(
+                self.file_id,
+                &wire.span,
+                &inner,
+            ),
+            (Some(wire), None) => {
+                TypeSpec::Wire(Box::new(inner.clone())).between(self.file_id, &wire.span, &inner)
+            }
+            (None, _) => inner,
         };
 
         Ok(result)
@@ -2006,8 +2017,20 @@ mod tests {
     }
 
     #[test]
-    fn backward_type_specs_work() {
-        let code = "~int<5>";
+    fn wire_type_specs_work() {
+        let code = "&int<5>";
+
+        let expected = TypeSpec::Wire(Box::new(
+            TypeSpec::Named(ast_path("int"), vec![TypeExpression::Integer(5).nowhere()]).nowhere(),
+        ))
+        .nowhere();
+
+        check_parse!(code, type_spec, Ok(expected));
+    }
+
+    #[test]
+    fn mut_wire_type_specs_work() {
+        let code = "&mut int<5>";
 
         let expected = TypeSpec::Backward(Box::new(
             TypeSpec::Named(ast_path("int"), vec![TypeExpression::Integer(5).nowhere()]).nowhere(),
