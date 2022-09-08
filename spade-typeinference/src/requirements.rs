@@ -75,7 +75,7 @@ impl Requirement {
                     KnownType::Type(type_name) => {
                         // Check if we're dealing with a struct
                         match symtab.type_symbol_by_id(&type_name).inner {
-                            TypeSymbol::Declared(_, TypeDeclKind::Struct) => {}
+                            TypeSymbol::Declared(_, TypeDeclKind::Struct { is_port: _ }) => {}
                             TypeSymbol::Declared(_, TypeDeclKind::Enum) => {
                                 return Err(Error::FieldAccessOnEnum {
                                     loc: target_type.loc(),

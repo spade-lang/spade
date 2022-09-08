@@ -255,6 +255,7 @@ impl WithLocation for Enum {}
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Struct {
     pub members: ParameterList,
+    pub is_port: bool,
 }
 impl WithLocation for Struct {}
 

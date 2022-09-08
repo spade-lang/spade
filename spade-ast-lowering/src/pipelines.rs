@@ -54,7 +54,7 @@ pub fn pipeline_head(input: &ast::Pipeline, symtab: &mut SymbolTable) -> Result<
     let inputs = crate::visit_parameter_list(&input.inputs, symtab)?;
 
     let output_type = if let Some(output_type) = &input.output_type {
-        Some(output_type.try_map_ref(|ty| super::visit_type_spec(ty, symtab))?)
+        Some(super::visit_type_spec(output_type, symtab)?)
     } else {
         None
     };

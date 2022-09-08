@@ -68,6 +68,8 @@ pub enum TokenKind {
     Enum,
     #[token("struct")]
     Struct,
+    #[token("port")]
+    Port,
     #[token("mod")]
     Mod,
     #[token("use")]
@@ -200,6 +202,7 @@ impl TokenKind {
             TokenKind::Function => "fn",
             TokenKind::Enum => "enum",
             TokenKind::Struct => "struct",
+            TokenKind::Port => "port",
             TokenKind::Mod => "mod",
             TokenKind::As => "as",
             TokenKind::Use => "use",

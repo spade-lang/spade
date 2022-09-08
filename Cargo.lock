@@ -893,6 +893,7 @@ version = "0.1.0"
 dependencies = [
  "codespan",
  "codespan-reporting",
+ "local-impl",
  "matches",
  "pretty_assertions",
  "spade-ast",
@@ -1040,6 +1041,7 @@ dependencies = [
  "codespan",
  "codespan-reporting",
  "colored",
+ "local-impl",
  "parse_tree_macros",
  "serde",
  "spade-ast",

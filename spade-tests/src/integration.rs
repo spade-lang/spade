@@ -151,9 +151,9 @@ mod namespace_tests {
     snapshot_error! {
         transitive_backward_type_can_not_be_put_in_registers,
         "
-        struct X {
+        struct port X {
             a: &mut bool,
-            b: bool
+            b: &bool
         }
         entity x(clk: clk, a: X) -> bool {
             reg(clk) _ = a;
@@ -166,20 +166,6 @@ mod namespace_tests {
         wire_types_can_not_be_stored_in_registers,
         "
         entity x(clk: clk, a: &bool) -> bool {
-            reg(clk) _ = a;
-            true
-        }
-        "
-    }
-
-    snapshot_error! {
-        transitive_registers_can_not_be_stored_in_registers,
-        "
-        struct X {
-            a: &bool,
-            b: bool
-        }
-        entity x(clk: clk, a: X) -> bool {
             reg(clk) _ = a;
             true
         }

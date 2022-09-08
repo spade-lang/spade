@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/ast_lowering.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Port in enum
+  ┌─ testinput:2:10
+  │
+1 │ enum X {
+  │      - This is an enum
+2 │     A{x: &int<32>}
+  │          ^^^^^^^^ This is a port
+
+

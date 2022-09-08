@@ -386,3 +386,93 @@ snapshot_error! {
         }
         "
 }
+
+snapshot_error! {
+    ports_can_not_contain_values,
+    "struct port A {
+        x: int<32>,
+    }"
+}
+
+snapshot_error! {
+    non_ports_can_not_contain_ports,
+    "struct A {
+        x: &int<32>
+    }"
+}
+
+snapshot_error! {
+    non_ports_can_not_contain_tuple_ports,
+    "struct A {
+        x: (&int<32>, &bool)
+    }"
+}
+
+snapshot_error! {
+    non_ports_can_not_contain_mut_wires,
+    "struct A {
+        x: &mut int<32>
+    }"
+}
+
+snapshot_error! {
+    non_ports_can_not_contain_transitive_ports,
+    "
+    struct port P {
+        x: &int<32>
+    }
+    struct A {
+        x: P
+    }"
+}
+
+snapshot_error! {
+    tuple_type_specs_can_not_contain_ports_and_values,
+    "
+    entity x(a: (int<32>, &int<32>)) -> bool __builtin__"
+}
+
+snapshot_error! {
+    generics_in_ports_can_not_be_bare,
+    "
+    struct port P<T> {
+        x: T
+    }
+    "
+}
+
+snapshot_error! {
+    enums_can_not_have_ports,
+    "enum X {
+        A{x: &int<32>}
+    }"
+}
+
+snapshot_error! {
+    enums_can_not_have_transitive_ports,
+    "
+    struct port A {} 
+    enum X {
+        A{x: A}
+    }"
+}
+
+snapshot_error! {
+    wires_of_ports_are_disallowed,
+    "
+    struct port A {}
+
+
+    entity x(a: &A) -> bool __builtin__
+    "
+}
+
+snapshot_error! {
+    mut_wires_of_ports_are_disallowed,
+    "
+    struct port A {}
+
+
+    entity x(a: &mut A) -> bool __builtin__
+    "
+}

@@ -36,6 +36,32 @@ pub enum Error {
         new: Loc<Identifier>,
         prev: Loc<Identifier>,
     },
+    #[error("Non-port in port struct")]
+    NonPortInPortStruct {
+        type_spec: Loc<()>,
+        port_keyword: Loc<()>,
+        field: Loc<Identifier>,
+    },
+    #[error("Non-port in port struct")]
+    PortInNonPortStruct {
+        struct_name: Loc<Identifier>,
+        type_spec: Loc<()>,
+    },
+    #[error("Port in enum")]
+    PortInEnum {
+        enum_name: Loc<Identifier>,
+        type_spec: Loc<()>,
+    },
+    #[error("Non port in port tuple")]
+    NonPortInPortTuple {
+        offending_type: Loc<()>,
+        port_witness: Loc<()>,
+    },
+    #[error("Aire of port")]
+    WireOfPort {
+        full_type: Loc<()>,
+        inner_type: Loc<()>,
+    },
     #[error("Pattern list length mismatch, expected {expected} arguments, got {got}")]
     PatternListLengthMismatch {
         expected: usize,

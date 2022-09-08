@@ -17,6 +17,7 @@ use thiserror::Error;
 use spade_ast as ast;
 use spade_hir as hir;
 
+use crate::types::IsPort;
 use ast::ParameterList;
 use hir::expression::BinaryOperator;
 use hir::symbol_table::{DeclarationState, LookupError, SymbolTable, Thing, TypeSymbol};
@@ -87,14 +88,17 @@ pub fn visit_type_expression(
         ast::TypeExpression::TypeSpec(spec) => {
             let inner = visit_type_spec(spec, symtab)?;
             // Look up the type. For now, we'll panic if we don't find a concrete type
-            Ok(hir::TypeExpression::TypeSpec(inner))
+            Ok(hir::TypeExpression::TypeSpec(inner.inner))
         }
         ast::TypeExpression::Integer(val) => Ok(hir::TypeExpression::Integer(*val)),
     }
 }
 
-pub fn visit_type_spec(t: &ast::TypeSpec, symtab: &mut SymbolTable) -> Result<hir::TypeSpec> {
-    match t {
+pub fn visit_type_spec(
+    t: &Loc<ast::TypeSpec>,
+    symtab: &mut SymbolTable,
+) -> Result<Loc<hir::TypeSpec>> {
+    let result = match &t.inner {
         ast::TypeSpec::Named(path, params) => {
             // Lookup the referenced type
             // NOTE: this weird scope is required because the borrow of t lasts
@@ -132,27 +136,75 @@ pub fn visit_type_spec(t: &ast::TypeSpec, symtab: &mut SymbolTable) -> Result<hi
             }
         }
         ast::TypeSpec::Array { inner, size } => {
-            let inner = Box::new(inner.try_map_ref(|i| visit_type_spec(i, symtab))?);
-            let size = Box::new(size.try_map_ref(|i| visit_type_expression(i, symtab))?);
+            let inner = Box::new(visit_type_spec(inner, symtab)?);
+            let size = Box::new(visit_type_expression(size, symtab)?.at_loc(size));
 
             Ok(hir::TypeSpec::Array { inner, size })
         }
         ast::TypeSpec::Tuple(inner) => {
+            // Check if this tuple is a port by checking if any of the contained types
+            // are ports. If they are, retain the first one to use as a witness for this fact
+            // for error reporting
+            let transitive_port_witness = inner
+                .iter()
+                .map(|p| {
+                    if p.is_port(symtab)? {
+                        Ok(Some(p))
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .find_map(|x| x);
+
+            if let Some(witness) = transitive_port_witness {
+                let witness = witness;
+                // Since this type has 1 port, all members must be ports
+                for ty in inner {
+                    if !ty.is_port(symtab)? {
+                        return Err(Error::NonPortInPortTuple {
+                            offending_type: ty.loc(),
+                            port_witness: witness.loc(),
+                        });
+                    }
+                }
+            }
+
             let inner = inner
                 .iter()
-                .map(|p| p.try_map_ref(|p| visit_type_spec(p, symtab)))
+                .map(|p| visit_type_spec(p, symtab))
                 .collect::<Result<Vec<_>>>()?;
 
             Ok(hir::TypeSpec::Tuple(inner))
         }
         ast::TypeSpec::Unit(w) => Ok(hir::TypeSpec::Unit(w.clone())),
-        ast::TypeSpec::Backward(inner) => Ok(hir::TypeSpec::Backward(Box::new(
-            inner.try_map_ref(|p| visit_type_spec(p, symtab))?,
-        ))),
-        ast::TypeSpec::Wire(inner) => Ok(hir::TypeSpec::Wire(Box::new(
-            inner.try_map_ref(|p| visit_type_spec(p, symtab))?,
-        ))),
-    }
+        ast::TypeSpec::Backward(inner) => {
+            if inner.is_port(symtab)? {
+                return Err(Error::WireOfPort {
+                    full_type: t.loc(),
+                    inner_type: inner.loc(),
+                });
+            }
+            Ok(hir::TypeSpec::Backward(Box::new(visit_type_spec(
+                inner, symtab,
+            )?)))
+        }
+        ast::TypeSpec::Wire(inner) => {
+            if inner.is_port(symtab)? {
+                return Err(Error::WireOfPort {
+                    full_type: t.loc(),
+                    inner_type: inner.loc(),
+                });
+            }
+
+            Ok(hir::TypeSpec::Wire(Box::new(visit_type_spec(
+                inner, symtab,
+            )?)))
+        }
+    };
+
+    Ok(result?.at_loc(&t))
 }
 
 fn visit_parameter_list(l: &ParameterList, symtab: &mut SymbolTable) -> Result<hir::ParameterList> {
@@ -166,7 +218,7 @@ fn visit_parameter_list(l: &ParameterList, symtab: &mut SymbolTable) -> Result<h
             });
         }
         arg_names.insert(name.clone());
-        let t = input_type.try_map_ref(|t| visit_type_spec(t, symtab))?;
+        let t = visit_type_spec(input_type, symtab)?;
 
         result.push((name.clone(), t));
     }
@@ -184,7 +236,7 @@ pub fn entity_head(item: &ast::Entity, symtab: &mut SymbolTable) -> Result<Entit
         .collect::<Result<_>>()?;
 
     let output_type = if let Some(output_type) = &item.output_type {
-        Some(output_type.try_map_ref(|t| visit_type_spec(t, symtab))?)
+        Some(visit_type_spec(output_type, symtab)?)
     } else {
         None
     };
@@ -581,7 +633,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
         }
         ast::Statement::Binding(pattern, t, expr) => {
             let hir_type = if let Some(t) = t {
-                Some(t.try_map_ref(|t| visit_type_spec(t, &mut ctx.symtab))?)
+                Some(visit_type_spec(t, &mut ctx.symtab)?)
             } else {
                 None
             };
@@ -913,7 +965,7 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Loc<hir
     let value = reg.value.try_visit(visit_expression, ctx)?;
 
     let value_type = if let Some(value_type) = &reg.value_type {
-        Some(value_type.try_map_ref(|t| visit_type_spec(t, &mut ctx.symtab))?)
+        Some(visit_type_spec(value_type, &mut ctx.symtab)?)
     } else {
         None
     };
@@ -2069,7 +2121,8 @@ mod expression_visiting {
         let mut symtab = SymbolTable::new();
         let idtracker = ExprIdTracker::new();
 
-        let head = TypeSymbol::Declared(vec![], hir::symbol_table::TypeDeclKind::Struct).nowhere();
+        let head = TypeSymbol::Declared(vec![], hir::symbol_table::TypeDeclKind::normal_struct())
+            .nowhere();
         symtab.add_type(ast_path("test").inner, head.clone());
 
         assert_eq!(
@@ -2156,7 +2209,7 @@ mod pattern_visiting {
 
         let type_name = symtab.add_type(
             ast_path("a").inner,
-            TypeSymbol::Declared(vec![], TypeDeclKind::Struct).nowhere(),
+            TypeSymbol::Declared(vec![], TypeDeclKind::normal_struct()).nowhere(),
         );
 
         symtab.add_thing_with_name_id(

@@ -287,8 +287,15 @@ impl WithLocation for Enum {}
 pub struct Struct {
     pub name: Loc<Identifier>,
     pub members: ParameterList,
+    pub port_keyword: Option<Loc<()>>,
 }
 impl WithLocation for Struct {}
+
+impl Struct {
+    pub fn is_port(&self) -> bool {
+        self.port_keyword.is_some()
+    }
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeDeclKind {

@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/ast_lowering.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Can not mix ports and non-ports in a tuple
+  ┌─ testinput:1:14
+  │
+1 │ entity x(a: (int<32>, &int<32>)) -> bool __builtin__
+  │              ^^^^^^^  -------- But this is
+  │              │         
+  │              This type is not a port
+  │
+  = A tuple must either be all ports or no ports
+
+

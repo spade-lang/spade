@@ -343,9 +343,18 @@ impl WithLocation for GenericArg {}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TypeDeclKind {
-    Struct,
+    Struct { is_port: bool },
     Enum,
     Primitive,
+}
+
+impl TypeDeclKind {
+    pub fn normal_struct() -> Self {
+        TypeDeclKind::Struct { is_port: false }
+    }
+    pub fn struct_port() -> Self {
+        TypeDeclKind::Struct { is_port: true }
+    }
 }
 
 /// A previously declared type symbol

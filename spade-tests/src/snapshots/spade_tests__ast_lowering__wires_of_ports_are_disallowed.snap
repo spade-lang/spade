@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/ast_lowering.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Can not create a wire of ports
+  ┌─ testinput:4:13
+  │
+4 │ entity x(a: &A) -> bool __builtin__
+  │             ^^
+  │             ││
+  │             │Because this is a port
+  │             This can not be a wire
+
+

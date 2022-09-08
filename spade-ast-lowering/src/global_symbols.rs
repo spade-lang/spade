@@ -11,7 +11,7 @@ use spade_common::{
 };
 use spade_hir as hir;
 
-use crate::{visit_parameter_list, Error, Result};
+use crate::{types::IsPort, visit_parameter_list, Error, Result};
 use spade_hir::symbol_table::{GenericArg, SymbolTable, Thing, TypeSymbol};
 
 #[tracing::instrument(skip_all)]
@@ -135,9 +135,11 @@ pub fn visit_type_declaration(
         })
         .collect();
 
-    let kind = match t.kind {
+    let kind = match &t.kind {
         ast::TypeDeclKind::Enum(_) => hir::symbol_table::TypeDeclKind::Enum,
-        ast::TypeDeclKind::Struct(_) => hir::symbol_table::TypeDeclKind::Struct,
+        ast::TypeDeclKind::Struct(s) => hir::symbol_table::TypeDeclKind::Struct {
+            is_port: s.is_port(),
+        },
     };
 
     symtab.add_unique_type(
@@ -215,6 +217,16 @@ pub fn re_visit_type_declaration(
                     .map(|l| visit_parameter_list(&l, symtab))
                     .unwrap_or_else(|| Ok(hir::ParameterList(vec![])))?;
 
+                // Ensure that we don't have any port types in the enum variants
+                for (_, ty) in option.1.clone().map(|l| l.0).unwrap_or(vec![]) {
+                    if ty.is_port(symtab)? {
+                        return Err(Error::PortInEnum {
+                            type_spec: ty.loc(),
+                            enum_name: e.name.clone(),
+                        });
+                    }
+                }
+
                 let variant_thing = EnumVariant {
                     output_type: hir::TypeSpec::Declared(
                         declaration_id.clone(),
@@ -255,6 +267,29 @@ pub fn re_visit_type_declaration(
             )
         }
         ast::TypeDeclKind::Struct(s) => {
+            // Disallow normal argumetns if the struct is a port, and port types
+            // if it is not
+            if s.is_port() {
+                for (f, ty) in &s.members.0 {
+                    if !ty.is_port(symtab)? {
+                        return Err(Error::NonPortInPortStruct {
+                            type_spec: ty.loc(),
+                            port_keyword: s.port_keyword.unwrap(),
+                            field: f.clone(),
+                        });
+                    }
+                }
+            } else {
+                for (_, ty) in &s.members.0 {
+                    if ty.is_port(symtab)? {
+                        return Err(Error::PortInNonPortStruct {
+                            struct_name: s.name.clone(),
+                            type_spec: ty.loc(),
+                        });
+                    }
+                }
+            }
+
             let members = visit_parameter_list(&s.members, symtab)?;
 
             let self_type =
@@ -279,7 +314,13 @@ pub fn re_visit_type_declaration(
             );
 
             // We don't do any special processing of structs here
-            hir::TypeDeclKind::Struct(hir::Struct { members }.at_loc(s))
+            hir::TypeDeclKind::Struct(
+                hir::Struct {
+                    members,
+                    is_port: s.is_port(),
+                }
+                .at_loc(s),
+            )
         }
     };
     // Close the symtab scope

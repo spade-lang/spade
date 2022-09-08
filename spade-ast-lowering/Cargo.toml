@@ -12,10 +12,23 @@ rust-version.workspace = true
 doctest = false
 
 [dependencies]
+<<<<<<< HEAD
 thiserror.workspace = true
 codespan.workspace = true
 codespan-reporting.workspace = true
 tracing.workspace = true
+||||||| parent of e38c48a (Verify port types in ast lowering)
+thiserror = "1.0"
+codespan = "0.12.0"
+codespan-reporting = "0.12.0"
+tracing = "0.1.34"
+=======
+thiserror = "1.0"
+codespan = "0.12.0"
+codespan-reporting = "0.12.0"
+tracing = "0.1.34"
+local-impl = "0.1.0"
+>>>>>>> e38c48a (Verify port types in ast lowering)
 
 spade-common = {path = "../spade-common"}
 spade-ast = {path = "../spade-ast"}

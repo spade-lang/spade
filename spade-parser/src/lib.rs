@@ -1257,6 +1257,10 @@ impl<'a> Parser<'a> {
         let start_token = peek_for!(self, &TokenKind::Struct);
         self.disallow_attributes(attributes, &start_token)?;
 
+        let port_keyword = self
+            .peek_and_eat(&TokenKind::Port)?
+            .map(|tok| ().at(self.file_id, &tok.span()));
+
         let name = self.identifier()?;
 
         let generic_args = self.generics_list()?;
@@ -1269,11 +1273,14 @@ impl<'a> Parser<'a> {
 
         let result = TypeDeclaration {
             name: name.clone(),
-            kind: TypeDeclKind::Struct(Struct { name, members }.between(
-                self.file_id,
-                &start_token.span,
-                &members_loc,
-            )),
+            kind: TypeDeclKind::Struct(
+                Struct {
+                    name,
+                    members,
+                    port_keyword,
+                }
+                .between(self.file_id, &start_token.span, &members_loc),
+            ),
             generic_args,
         }
         .between(self.file_id, &start_token.span, &members_loc);
@@ -2746,6 +2753,30 @@ mod tests {
                     Struct {
                         name: ast_ident("State"),
                         members: aparams![("a", tspec!("bool")), ("b", tspec!("bool"))],
+                        port_keyword: None,
+                    }
+                    .nowhere(),
+                ),
+                generic_args: vec![],
+            }
+            .nowhere(),
+        );
+
+        check_parse!(code, item, Ok(Some(expected)));
+    }
+
+    #[test]
+    fn port_struct_declarations_parse() {
+        let code = "struct port State { a: bool, b: bool }";
+
+        let expected = Item::Type(
+            TypeDeclaration {
+                name: ast_ident("State"),
+                kind: TypeDeclKind::Struct(
+                    Struct {
+                        name: ast_ident("State"),
+                        members: aparams![("a", tspec!("bool")), ("b", tspec!("bool"))],
+                        port_keyword: Some(().nowhere()),
                     }
                     .nowhere(),
                 ),

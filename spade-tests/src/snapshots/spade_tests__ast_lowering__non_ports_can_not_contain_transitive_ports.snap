@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Port in non-port struct
+  ┌─ testinput:5:8
+  │
+5 │     x: P
+  │        ^ This is a port
+  │
+  = Consider making A a port
+  │
+4 │ struct port A {
+  │        +++++
+
+

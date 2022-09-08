@@ -1,4 +1,4 @@
 entity make_port<T>() -> &mut T __builtin__
 
 /// Reads the current value from a port
-entity read_port<T>(port: &mut T) -> T __builtin__
+entity read_port<T>(p: &mut T) -> T __builtin__

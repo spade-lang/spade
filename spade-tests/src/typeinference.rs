@@ -406,7 +406,7 @@ snapshot_error! {
 snapshot_error! {
     port_type_in_generic_is_an_error,
     "
-    struct X {
+    struct port X {
         x: &mut bool
     }
     fn takes_generic<T>(x: T) -> bool {true}
@@ -426,7 +426,7 @@ fn destructuring_a_read_port_gives_real_values() {
         y: int<3>
     }
 
-    struct HasA {
+    struct port HasA {
         inner: &mut A
     }
 

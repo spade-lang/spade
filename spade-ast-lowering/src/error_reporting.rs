@@ -1,5 +1,5 @@
 use crate::Error;
-use codespan_reporting::diagnostic::Diagnostic;
+use codespan_reporting::diagnostic::{Diagnostic, Suggestion, SuggestionPart};
 use codespan_reporting::term::{self, termcolor::Buffer};
 use spade_common::error_reporting::{codespan_config, AsLabel, CodeBundle, CompilationError};
 use spade_hir::symbol_table::{DeclarationError, UniqueNameError};
@@ -68,6 +68,80 @@ impl CompilationError for Error {
                 .with_labels(vec![at
                     .primary_label()
                     .with_message(format!("Expected {} arguments", expected))]),
+            Error::NonPortInPortStruct {
+                type_spec,
+                port_keyword,
+                field,
+            } => Diagnostic::error()
+                .with_message(format!("Non-port in port struct"))
+                .with_labels(vec![
+                    type_spec
+                        .primary_label()
+                        .with_message("This is not a port type"),
+                    port_keyword
+                        .secondary_label()
+                        .with_message("All members of a port must be ports"),
+                ])
+                .with_suggestions(vec![Suggestion {
+                    file_id: port_keyword.file_id,
+                    message: format!("Consider making {field} a wire"),
+                    parts: vec![SuggestionPart {
+                        range: type_spec.span().start..type_spec.span().start,
+                        replacement: format!("&"),
+                    }],
+                }]),
+            Error::PortInNonPortStruct {
+                struct_name,
+                type_spec,
+            } => Diagnostic::error()
+                .with_message(format!("Port in non-port struct"))
+                .with_labels(vec![type_spec
+                    .primary_label()
+                    .with_message("This is a port")])
+                .with_suggestions(vec![Suggestion {
+                    file_id: struct_name.file_id,
+                    message: format!("Consider making {struct_name} a port"),
+                    parts: vec![SuggestionPart {
+                        range: struct_name.span().start..struct_name.span().start,
+                        replacement: format!("port "),
+                    }],
+                }]),
+            Error::PortInEnum {
+                enum_name,
+                type_spec,
+            } => Diagnostic::error()
+                .with_message(format!("Port in enum"))
+                .with_labels(vec![
+                    type_spec.primary_label().with_message("This is a port"),
+                    enum_name.secondary_label().with_message("This is an enum"),
+                ]),
+            Error::NonPortInPortTuple {
+                offending_type,
+                port_witness,
+            } => Diagnostic::error()
+                .with_message(format!("Can not mix ports and non-ports in a tuple"))
+                .with_labels(vec![
+                    offending_type
+                        .primary_label()
+                        .with_message("This type is not a port"),
+                    port_witness.secondary_label().with_message("But this is"),
+                ])
+                .with_notes(vec![format!(
+                    "A tuple must either be all ports or no ports"
+                )]),
+            Error::WireOfPort {
+                full_type,
+                inner_type,
+            } => Diagnostic::error()
+                .with_message(format!("Can not create a wire of ports"))
+                .with_labels(vec![
+                    full_type
+                        .primary_label()
+                        .with_message("This can not be a wire"),
+                    inner_type
+                        .secondary_label()
+                        .with_message("Because this is a port"),
+                ]),
             Error::IncorrectStageCount {
                 got,
                 expected,
