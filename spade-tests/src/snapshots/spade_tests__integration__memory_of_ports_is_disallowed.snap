@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/integration.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Generic types can not be ports
+   ┌─ testinput:11:36
+   │
+11 │     let mem: Memory<&bool, 1024> = inst std::mem::clocked_memory(clk, [(true, idx, p)]);
+   │                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Parameter std::mem::D is &bool which is a port type
+
+

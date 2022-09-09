@@ -186,3 +186,45 @@ fn dereferencing_a_reference_works() {
 
     build_items(code);
 }
+
+snapshot_error! {
+    wires_can_not_be_passed_as_generics,
+    "
+    entity identity<T>(x: T) -> T {x}
+
+    entity x(p: &bool) -> &bool {
+        inst identity(p)
+    }
+    "
+}
+
+snapshot_error! {
+    wires_can_not_be_passed_as_generics2,
+    "
+    entity identity<T>(x: T) -> T {x}
+
+    entity x(p: &bool) -> &bool {
+        let x: &bool = inst identity(p);
+        x
+    }
+    "
+}
+
+snapshot_error! {
+    memory_of_ports_is_disallowed,
+    "
+    mod std {mod mem {
+        entity clocked_memory<#NumElements, #WritePorts, #AddrWidth, D>(
+            clk: clk,
+            writes: [(bool, int<AddrWidth>, D); WritePorts],
+        ) -> Memory<D, NumElements>
+            __builtin__
+        }
+    }
+    entity A(clk: clk, p: &bool) -> bool {
+        let idx: int<10> = 0;
+        let mem: Memory<&bool, 1024> = inst std::mem::clocked_memory(clk, [(true, idx, p)]);
+
+        true
+    }"
+}

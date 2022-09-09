@@ -1015,18 +1015,6 @@ impl ExprLocal for Loc<Expression> {
             }
         }
 
-        handle_special_functions! {
-            ["std", "mem", "clocked_memory"] => handle_clocked_memory_decl,
-            ["std", "mem", "read_mem"] => handle_read_memory,
-            ["std", "conv", "trunc"] => handle_trunc,
-            ["std", "conv", "sext"] => handle_sext,
-            ["std", "conv", "zext"] => handle_zext,
-            ["std", "conv", "concat"] => handle_concat,
-            ["std", "ops", "div_pow2"] => handle_div_pow2,
-            ["std", "ports", "make_port"] => handle_make_port,
-            ["std", "ports", "read_port"] => handle_read_port
-        }
-
         // Check if this is a call to something generic. If so we need to ensure that the
         // generic arguments were not mapped to ports
         let tok = GenericListToken::Expression(self.id);
@@ -1041,6 +1029,18 @@ impl ExprLocal for Loc<Expression> {
                     actual: actual.unwrap().clone(),
                 });
             }
+        }
+
+        handle_special_functions! {
+            ["std", "mem", "clocked_memory"] => handle_clocked_memory_decl,
+            ["std", "mem", "read_mem"] => handle_read_memory,
+            ["std", "conv", "trunc"] => handle_trunc,
+            ["std", "conv", "sext"] => handle_sext,
+            ["std", "conv", "zext"] => handle_zext,
+            ["std", "conv", "concat"] => handle_concat,
+            ["std", "ops", "div_pow2"] => handle_div_pow2,
+            ["std", "ports", "make_port"] => handle_make_port,
+            ["std", "ports", "read_port"] => handle_read_port
         }
 
         // Look up the name in the executable list to see if this is a type instantiation

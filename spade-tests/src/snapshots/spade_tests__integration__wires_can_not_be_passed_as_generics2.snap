@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/integration.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Generic types can not be ports
+  ┌─ testinput:4:20
+  │
+4 │     let x: &bool = inst identity(p);
+  │                    ^^^^^^^^^^^^^^^^ Parameter T is &bool which is a port type
+
+
