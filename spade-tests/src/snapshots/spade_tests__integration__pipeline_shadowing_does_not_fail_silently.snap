@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/integration.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Use of undeclared name x
+  ┌─ testinput:6:19
+  │
+6 │         stage(-2).x
+  │                   ^ Undeclared name
+
+

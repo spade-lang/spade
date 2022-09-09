@@ -241,6 +241,7 @@ impl std::fmt::Display for TypeSpec {
             TypeSpec::Array { inner, size } => write!(f, "[{inner}; {size}]"),
             TypeSpec::Unit(_) => write!(f, "()"),
             TypeSpec::Backward(inner) => write!(f, "&mut {inner}"),
+            TypeSpec::Wire(inner) => write!(f, "&{inner}"),
         }
     }
 }
