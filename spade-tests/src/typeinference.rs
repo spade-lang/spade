@@ -479,3 +479,12 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    dereference_requires_target_type,
+    "
+    entity x(a: &bool) -> int<8> {
+        *a
+    }
+    "
+}

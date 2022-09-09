@@ -169,3 +169,20 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    wire_read_requires_dereference,
+    "
+    entity x(a: &bool) -> bool {
+        a
+    }"
+}
+
+#[test]
+fn dereferencing_a_reference_works() {
+    let code = "entity x(a: &bool) -> bool {
+        *a
+    }";
+
+    build_items(code);
+}

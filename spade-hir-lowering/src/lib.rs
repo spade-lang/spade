@@ -748,7 +748,7 @@ impl ExprLocal for Loc<Expression> {
                 };
             }
             ExprKind::UnaryOperator(op, operand) => {
-                let binop_builder = |op| -> Result<()> {
+                let unop_builder = |op| -> Result<()> {
                     result.append(&mut operand.lower(ctx)?);
 
                     result.push(mir::Statement::Binding(mir::Binding {
@@ -762,9 +762,12 @@ impl ExprLocal for Loc<Expression> {
                 };
                 use mir::Operator::*;
                 match op {
-                    hir::expression::UnaryOperator::Sub => binop_builder(USub)?,
-                    hir::expression::UnaryOperator::Not => binop_builder(Not)?,
-                    hir::expression::UnaryOperator::BitwiseNot => binop_builder(BitwiseNot)?,
+                    hir::expression::UnaryOperator::Sub => unop_builder(USub)?,
+                    hir::expression::UnaryOperator::Not => unop_builder(Not)?,
+                    hir::expression::UnaryOperator::BitwiseNot => unop_builder(BitwiseNot)?,
+                    // Dereferences do nothing for codegen of the actual operator. It only
+                    // prevents pipelining, hence Alias is fine here
+                    hir::expression::UnaryOperator::Dereference => unop_builder(Alias)?,
                 };
             }
             ExprKind::TupleLiteral(elems) => {

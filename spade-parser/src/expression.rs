@@ -50,6 +50,7 @@ fn unop_binding_power(op: &UnaryOperator) -> OpBindingPower {
         UnaryOperator::Sub => OpBindingPower::PrefixUnary,
         UnaryOperator::Not => OpBindingPower::PrefixUnary,
         UnaryOperator::BitwiseNot => OpBindingPower::PrefixUnary,
+        UnaryOperator::Dereference => OpBindingPower::PrefixUnary,
     }
 }
 
@@ -208,6 +209,7 @@ impl<'a> Parser<'a> {
             TokenKind::Minus => Some(UnaryOperator::Sub.at(self.file_id, &t.span)),
             TokenKind::Not => Some(UnaryOperator::Not.at(self.file_id, &t.span)),
             TokenKind::Tilde => Some(UnaryOperator::BitwiseNot.at(self.file_id, &t.span)),
+            TokenKind::Asterisk => Some(UnaryOperator::Dereference.at(self.file_id, &t.span)),
             _ => None,
         });
 
@@ -934,5 +936,16 @@ mod test {
         .nowhere();
 
         check_parse!("-a + b", expression, Ok(expexte_value));
+    }
+
+    #[test]
+    fn deref_operator_works() {
+        let expected = Expression::UnaryOperator(
+            UnaryOperator::Dereference,
+            Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+        )
+        .nowhere();
+
+        check_parse!("*a", expression, Ok(expected));
     }
 }

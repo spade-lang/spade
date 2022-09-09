@@ -763,6 +763,9 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
                 ast::UnaryOperator::BitwiseNot => {
                     Ok(unop(hir::expression::UnaryOperator::BitwiseNot))
                 }
+                ast::UnaryOperator::Dereference => {
+                    Ok(unop(hir::expression::UnaryOperator::Dereference))
+                }
             }
         }
         ast::Expression::TupleLiteral(exprs) => {
