@@ -51,6 +51,7 @@ fn unop_binding_power(op: &UnaryOperator) -> OpBindingPower {
         UnaryOperator::Not => OpBindingPower::PrefixUnary,
         UnaryOperator::BitwiseNot => OpBindingPower::PrefixUnary,
         UnaryOperator::Dereference => OpBindingPower::PrefixUnary,
+        UnaryOperator::Reference => OpBindingPower::PrefixUnary,
     }
 }
 
@@ -84,6 +85,7 @@ impl<'a> Parser<'a> {
             TokenKind::Minus => Some(UnaryOperator::Sub),
             TokenKind::Not => Some(UnaryOperator::Not),
             TokenKind::Tilde => Some(UnaryOperator::BitwiseNot),
+            TokenKind::Ampersand => Some(UnaryOperator::Reference),
             _ => None,
         }
     }
@@ -947,5 +949,16 @@ mod test {
         .nowhere();
 
         check_parse!("*a", expression, Ok(expected));
+    }
+
+    #[test]
+    fn ref_operator_works() {
+        let expected = Expression::UnaryOperator(
+            UnaryOperator::Reference,
+            Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+        )
+        .nowhere();
+
+        check_parse!("&a", expression, Ok(expected));
     }
 }

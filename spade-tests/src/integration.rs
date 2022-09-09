@@ -228,3 +228,21 @@ snapshot_error! {
         true
     }"
 }
+
+snapshot_error! {
+    assigning_value_to_wire_causes_error,
+    "
+    entity x(x: bool) -> &bool {
+        x
+    }
+    "
+}
+
+#[test]
+fn wires_can_be_created() {
+    let code = "entity x(x: bool) -> &bool {
+        &x
+    }";
+
+    build_items(code);
+}

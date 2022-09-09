@@ -768,6 +768,7 @@ impl ExprLocal for Loc<Expression> {
                     // Dereferences do nothing for codegen of the actual operator. It only
                     // prevents pipelining, hence Alias is fine here
                     hir::expression::UnaryOperator::Dereference => unop_builder(Alias)?,
+                    hir::expression::UnaryOperator::Reference => unop_builder(Alias)?,
                 };
             }
             ExprKind::TupleLiteral(elems) => {

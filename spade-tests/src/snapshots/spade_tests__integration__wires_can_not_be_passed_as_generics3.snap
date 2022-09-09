@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/integration.rs
-assertion_line: 214
 expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
 ---
 error: Generic types can not be ports

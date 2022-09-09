@@ -32,6 +32,7 @@ pub enum UnaryOperator {
     Not,
     BitwiseNot,
     Dereference,
+    Reference,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]

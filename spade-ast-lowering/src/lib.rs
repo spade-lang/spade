@@ -766,6 +766,9 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
                 ast::UnaryOperator::Dereference => {
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }
+                ast::UnaryOperator::Reference => {
+                    Ok(unop(hir::expression::UnaryOperator::Reference))
+                }
             }
         }
         ast::Expression::TupleLiteral(exprs) => {

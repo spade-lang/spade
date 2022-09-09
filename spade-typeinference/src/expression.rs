@@ -534,6 +534,12 @@ impl TypeState {
                     self.unify_expression_generic_error(operand, &reference_type, symtab)?;
                     self.unify_expression_generic_error(expression, &result_type, symtab)?
                 }
+                UnaryOperator::Reference => {
+                    let result_type = self.new_generic();
+                    let reference_type = TypeVar::Wire(Box::new(result_type.clone()));
+                    self.unify_expression_generic_error(operand, &result_type, symtab)?;
+                    self.unify_expression_generic_error(expression, &reference_type, symtab)?
+                }
             }
         });
         Ok(())
