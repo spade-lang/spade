@@ -15,6 +15,9 @@ doctest = false
 codespan-reporting.workspace = true
 logos.workspace = true
 indoc.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-tree.workspace = true
 
 spade-ast-lowering = {path = "../spade-ast-lowering"}
 spade-parser = {path = "../spade-parser"}

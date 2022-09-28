@@ -4,12 +4,14 @@ use spade_typeinference::equation::TypeVar;
 use spade_types::ConcreteType;
 use thiserror::Error;
 
-use crate::usefulness::Witness;
+use crate::{usefulness::Witness, affine_check};
 
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("(Internal) Argument error")]
     ArgumentError(#[from] spade_hir::param_util::ArgumentError),
+    #[error("Affine error")]
+    AffineError(#[from] affine_check::error::Error),
     #[error("using generic type")]
     UsingGenericType { expr: Loc<Expression>, t: TypeVar },
     #[error("cast to larger")]

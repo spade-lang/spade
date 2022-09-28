@@ -49,18 +49,12 @@ impl TypeState {
         expression: &Loc<Expression>,
         symtab: &SymbolTable,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::PipelineRef{stage: _, name} = &expression => {
-            // Check if this is a declaration. Since we have thrown away this information
-            // before, we'll do that by checking if this name has a type var already,
-            // and if not we'll assume it was declared
-            match name.get_type(self) {
-                Ok(_) => {},
-                Err(Error::UnknownType(_)) => {
-                    let new_var = self.new_generic();
-                    self.add_equation(TypedExpression::Name(name.clone().inner), new_var)
-                }
-                Err(_) => {}
-            };
+        assuming_kind!(ExprKind::PipelineRef{stage: _, name, declares_name} = &expression => {
+            // If this reference declares the referenced name, add a new equation
+            if *declares_name {
+                let new_var = self.new_generic();
+                self.add_equation(TypedExpression::Name(name.clone().inner), new_var)
+            }
 
             // Add an equation for the anonymous id
             self.unify_expression_generic_error(

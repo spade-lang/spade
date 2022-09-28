@@ -314,7 +314,7 @@ pub struct Entity {
     pub name: UnitName,
     pub head: EntityHead,
     // This is needed here because the head does not have NameIDs
-    pub inputs: Vec<(NameID, Loc<TypeSpec>)>,
+    pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
     pub body: Loc<Expression>,
 }
 impl WithLocation for Entity {}
@@ -430,7 +430,7 @@ pub struct Pipeline {
     pub head: PipelineHead,
     pub name: UnitName,
     // This is needed here because the head does not have NameIDs
-    pub inputs: Vec<(NameID, Loc<TypeSpec>)>,
+    pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
     pub body: Loc<Expression>,
 }
 impl WithLocation for Pipeline {}

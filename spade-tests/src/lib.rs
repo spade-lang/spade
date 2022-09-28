@@ -8,6 +8,8 @@ mod ast_lowering;
 #[cfg(test)]
 mod hir_lowering;
 #[cfg(test)]
+mod affine_check;
+#[cfg(test)]
 mod integration;
 #[cfg(test)]
 mod parser;
@@ -52,6 +54,20 @@ macro_rules! snapshot_error {
     ($fn:ident, $src:literal) => {
         #[test]
         fn $fn() {
+            use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+            use tracing_subscriber::prelude::*;
+            use tracing_tree::HierarchicalLayer;
+            let env_filter = EnvFilter::builder()
+                .with_default_directive(LevelFilter::OFF.into())
+                .with_env_var("SPADE_LOG")
+                .from_env_lossy();
+            let layer = HierarchicalLayer::new(2)
+                .with_targets(true)
+                .with_writer(tracing_subscriber::fmt::TestWriter::new())
+                .with_filter(env_filter);
+
+            tracing_subscriber::registry().with(layer).try_init().ok();
+
             let source = unindent::unindent($src);
             let mut buffer = codespan_reporting::term::termcolor::Buffer::no_color();
             let opts = spade::Opt {

@@ -1,3 +1,4 @@
+use crate::affine_check::error::Error as AffineError;
 use crate::usefulness::Witness;
 use crate::Error;
 use codespan_reporting::diagnostic::Diagnostic;
@@ -27,6 +28,40 @@ fn format_witnesses(witnesses: &[Witness]) -> String {
     }
 }
 
+fn report_affine(e: &AffineError) -> Diagnostic<usize> {
+    match e {
+        AffineError::UnusedAffineItem {
+            definition,
+            witness,
+        } => Diagnostic::error()
+            .with_message(format!("Unused affine item"))
+            .with_labels(vec![definition
+                .primary_label()
+                .with_message(format!("This must be used"))])
+            .with_notes(vec![format!("Required because it{}", witness.motivation())]),
+        AffineError::UseOfConsumedAffineName {
+            new_use,
+            previous_use,
+            witness,
+        } => {
+            let prev_use_label_message = format!("Previously used here");
+            Diagnostic::error()
+                .with_message(format!("Subexpression used multiple times"))
+                .with_labels(vec![
+                    new_use.primary_label()
+                        .with_message(format!("Use of consumed resource")),
+                    previous_use
+                        .secondary_label()
+                        .with_message(prev_use_label_message),
+                ])
+                .with_notes(vec![format!(
+                    "Because the expression {}",
+                    witness.motivation()
+                )])
+        }
+    }
+}
+
 impl CompilationError for Error {
     fn report(&self, buffer: &mut Buffer, code: &CodeBundle) {
         // Errors which require special handling
@@ -45,6 +80,7 @@ impl CompilationError for Error {
         let diag = match self {
             Error::ArgumentError(_) => unreachable!(),
             Error::UnificationError(_) => unreachable!(),
+            Error::AffineError(e) => report_affine(e),
             Error::UsingGenericType { expr, t } => Diagnostic::error()
                 .with_message(format!("Type of expression is not fully known"))
                 .with_labels(vec![expr

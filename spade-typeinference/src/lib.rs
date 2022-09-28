@@ -315,7 +315,7 @@ impl TypeState {
         // Add equations for the inputs
         for (name, t) in &entity.inputs {
             let tvar = self.type_var_from_hir(t, &generic_list);
-            self.add_equation(TypedExpression::Name(name.clone()), tvar)
+            self.add_equation(TypedExpression::Name(name.inner.clone()), tvar)
         }
 
         self.visit_expression(&entity.body, symtab, &generic_list)?;

@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/affine_check.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Unused affine item
+  ┌─ testinput:5:10
+  │
+5 │ entity x(resource: A) -> bool {
+  │          ^^^^^^^^ This must be used
+  │
+  = Required because it.x is of type &mut
+
+

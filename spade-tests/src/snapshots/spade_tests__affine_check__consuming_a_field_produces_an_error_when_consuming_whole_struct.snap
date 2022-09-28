@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/affine_check.rs
+expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
+---
+error: Subexpression used multiple times
+  ┌─ testinput:9:5
+  │
+8 │     let _ = inst consumer(a.x);
+  │                           --- Previously used here
+9 │     a
+  │     ^ Use of consumed resource
+  │
+  = Because the expression .x is of type &mut
+
+

@@ -10,7 +10,7 @@ use spade_typeinference::TypeState;
 
 use crate::{
     error::Error, monomorphisation::MonoState, substitution::Substitutions, Context, ExprLocal,
-    Manglable, MirLowerable, NameIDExt, Result, StatementLocal, TypeStateLocal,
+    Manglable, MirLowerable, NameIDExt, Result, StatementLocal, TypeStateLocal, affine_check,
 };
 
 pub fn handle_pattern(pat: &Pattern, live_vars: &mut Vec<NameID>) {
@@ -45,7 +45,7 @@ pub fn generate_pipeline<'a>(
         let is_port = types
             .type_of_name(&input, symtab.symtab(), &item_list.types)
             .is_port();
-        subs.set_available(input, 0, is_port)
+        subs.set_available(input.inner, 0, is_port)
     }
 
     let mut statements = vec![];
@@ -152,6 +152,14 @@ pub fn generate_pipeline<'a>(
     let output_type = types
         .expr_type(result, symtab.symtab(), &item_list.types)?
         .to_mir_type();
+
+    affine_check::check_affine_types(
+        &pipeline.inputs,
+        &pipeline.body,
+        types,
+        symtab.symtab(),
+        &item_list.types
+    )?;
 
     Ok(mir::Entity {
         name: name.mangled(),

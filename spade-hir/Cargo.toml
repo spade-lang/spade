@@ -18,6 +18,7 @@ tracing.workspace = true
 codespan-reporting.workspace = true
 serde.workspace = true
 itertools.workspace = true
+local-impl.workspace = true
 
 spade-common = {path = "../spade-common"}
 spade-types = {path = "../spade-types"}

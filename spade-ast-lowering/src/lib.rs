@@ -294,7 +294,12 @@ pub fn visit_entity(item: &Loc<ast::Entity>, ctx: &mut Context) -> Result<hir::I
         .inputs
         .0
         .iter()
-        .map(|(ident, ty)| (ctx.symtab.add_local_variable(ident.clone()), ty.clone()))
+        .map(|(ident, ty)| {
+            (
+                ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
+                ty.clone(),
+            )
+        })
         .collect();
 
     let body = body.as_ref().unwrap().try_visit(visit_expression, ctx)?;
@@ -912,15 +917,15 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             };
 
             let path = Path(vec![name.clone()]).at_loc(name);
-            let name_id = match ctx.symtab.try_lookup_variable(&path)? {
-                Some(id) => id,
-                None => ctx.symtab.add_declaration(name.clone())?,
-            }
-            .at_loc(name);
+            let (name_id, declares_name) = match ctx.symtab.try_lookup_variable(&path)? {
+                Some(id) => (id.at_loc(name), false),
+                None => (ctx.symtab.add_declaration(name.clone())?.at_loc(name), true),
+            };
 
             Ok(hir::ExprKind::PipelineRef {
                 stage: stage_index.at_loc(&loc),
                 name: name_id,
+                declares_name,
             })
         }
     }
@@ -1031,7 +1036,7 @@ mod entity_visiting {
                 output_type: None,
                 type_params: vec![],
             },
-            inputs: vec![((name_id(1, "a").inner, hir::TypeSpec::unit().nowhere()))],
+            inputs: vec![((name_id(1, "a"), hir::TypeSpec::unit().nowhere()))],
             body: hir::ExprKind::Block(Box::new(hir::Block {
                 statements: vec![hir::Statement::Binding(
                     hir::PatternKind::name(name_id(2, "var")).idless().nowhere(),

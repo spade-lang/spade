@@ -96,6 +96,7 @@ pub enum ExprKind {
     PipelineRef {
         stage: Loc<usize>,
         name: Loc<NameID>,
+        declares_name: bool,
     },
 }
 impl WithLocation for ExprKind {}
@@ -107,6 +108,28 @@ impl ExprKind {
 
     pub fn idless(self) -> Expression {
         Expression { kind: self, id: 0 }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            ExprKind::Identifier(_) => "Identifier",
+            ExprKind::IntLiteral(_) => "IntLiteral",
+            ExprKind::BoolLiteral(_) => "BoolLiteral",
+            ExprKind::TupleLiteral(_) => "TupleLiteral",
+            ExprKind::ArrayLiteral(_) => "ArrayLiteral",
+            ExprKind::Index(_, _) => "Index",
+            ExprKind::TupleIndex(_, _) => "TupleIndex",
+            ExprKind::FieldAccess(_, _) => "FieldAccess",
+            ExprKind::BinaryOperator(_, _, _) => "BinaryOperator",
+            ExprKind::UnaryOperator(_, _) => "UnaryOperator",
+            ExprKind::Match(_, _) => "Match",
+            ExprKind::Block(_) => "Block",
+            ExprKind::FnCall(_, _) => "FnCall",
+            ExprKind::EntityInstance(_, _) => "EntityInstance",
+            ExprKind::PipelineInstance { .. } => "PipelineInstance",
+            ExprKind::If(_, _, _) => "If",
+            ExprKind::PipelineRef { .. } => "PipelineRef",
+        }
     }
 }
 
@@ -134,6 +157,7 @@ impl Expression {
         }
     }
 }
+
 
 impl PartialEq for Expression {
     fn eq(&self, other: &Self) -> bool {
