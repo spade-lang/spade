@@ -82,7 +82,7 @@ impl Requirement {
                                     actual_type: type_name.clone(),
                                 })
                             }
-                            TypeSymbol::Declared(_, TypeDeclKind::Primitive) => {
+                            TypeSymbol::Declared(_, TypeDeclKind::Primitive { is_port: _ }) => {
                                 return Err(Error::FieldAccessOnPrimitive {
                                     loc: target_type.loc(),
                                     actual_type: type_name.clone(),

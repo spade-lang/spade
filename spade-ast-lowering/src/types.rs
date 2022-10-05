@@ -120,7 +120,7 @@ impl IsPort for ast::TypeSpec {
                     TypeSymbol::Declared(_, kind) => match kind {
                         TypeDeclKind::Struct { is_port } => Ok(*is_port),
                         TypeDeclKind::Enum => Ok(false),
-                        TypeDeclKind::Primitive => Ok(false),
+                        TypeDeclKind::Primitive { is_port } => Ok(*is_port),
                     },
                     TypeSymbol::GenericArg => Ok(false),
                     TypeSymbol::GenericInt => Ok(false),
