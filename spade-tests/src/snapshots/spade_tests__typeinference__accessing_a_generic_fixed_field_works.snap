@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/typeinference.rs
-assertion_line: 343
 expression: "std::str::from_utf8(buffer.as_slice()).expect(\"error contains invalid utf-8\")"
 ---
 

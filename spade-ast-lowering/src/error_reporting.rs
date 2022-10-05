@@ -123,8 +123,10 @@ impl CompilationError for Error {
                 .with_labels(vec![
                     offending_type
                         .primary_label()
-                        .with_message("This type is not a port"),
-                    port_witness.secondary_label().with_message("But this is"),
+                        .with_message("This is not a port"),
+                    port_witness
+                        .secondary_label()
+                        .with_message("This is a port"),
                 ])
                 .with_notes(vec![format!(
                     "A tuple must either be all ports or no ports"
@@ -138,9 +140,7 @@ impl CompilationError for Error {
                     full_type
                         .primary_label()
                         .with_message("This can not be a wire"),
-                    inner_type
-                        .secondary_label()
-                        .with_message("Because this is a port"),
+                    inner_type.secondary_label().with_message("This is a port"),
                 ]),
             Error::IncorrectStageCount {
                 got,

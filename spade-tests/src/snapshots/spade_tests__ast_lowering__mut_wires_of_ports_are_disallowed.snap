@@ -8,7 +8,7 @@ error: Can not create a wire of ports
 4 │ entity x(a: &mut A) -> bool __builtin__
   │             ^^^^^^
   │             │    │
-  │             │    Because this is a port
+  │             │    This is a port
   │             This can not be a wire
 
 
