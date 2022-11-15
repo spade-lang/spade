@@ -1,0 +1,2 @@
+/// Merge 2 arrays of length N and M to create one of length K=M+N
+fn merge<T, #N, #M, #K>(lhs: [T; N], rhs: [T; M]) -> [T; K] __builtin__

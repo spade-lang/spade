@@ -528,6 +528,33 @@ impl TypeState {
                     &rhs_size,
                     ConstraintSource::Concatenation
                 );
+            },
+            ["std", "array", "merge"] => {
+                let lhs_size = generic_arg!(1);
+                let rhs_size = generic_arg!(2);
+                let result_size = generic_arg!(3);
+
+                // Result size is sum of input sizes
+                self.add_constraint(
+                    result_size.clone(),
+                    ce_var(&lhs_size) + ce_var(&rhs_size),
+                    expression.loc(),
+                    &result_size,
+                    ConstraintSource::Concatenation
+                );
+                self.add_constraint(
+                    lhs_size.clone(),
+                    ce_var(&result_size) + -ce_var(&rhs_size),
+                    args[0].value.loc(),
+                    &lhs_size,
+                    ConstraintSource::Concatenation
+                );
+                self.add_constraint(rhs_size.clone(),
+                    ce_var(&result_size) + -ce_var(&lhs_size),
+                    args[1].value.loc(),
+                    &rhs_size,
+                    ConstraintSource::Concatenation
+                );
             }
         };
 
@@ -1229,8 +1256,11 @@ impl TypeState {
                 let var = self.check_var_for_replacement(var);
 
                 if replacement.val < 0 {
-                    // lifeguard spade#126
-                    panic!("Inferred a negative integer from constraints");
+                    return Err(UnificationError::NegativeFromConstraints {
+                        inside: var,
+                        offender: replacement.val,
+                        loc,
+                    });
                 }
 
                 let expected_type = &KnownType::Integer(replacement.val as u128);
@@ -1259,6 +1289,7 @@ impl TypeState {
                         });
                     }
                     Err(e @ UnificationError::FromConstraints { .. }) => return Err(e),
+                    Err(e @ UnificationError::NegativeFromConstraints { .. }) => return Err(e),
                 };
             }
         }

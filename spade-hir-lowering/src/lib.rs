@@ -1076,6 +1076,7 @@ impl ExprLocal for Loc<Expression> {
             ["std", "conv", "sext"] => handle_sext,
             ["std", "conv", "zext"] => handle_zext,
             ["std", "conv", "concat"] => handle_concat,
+            ["std", "array", "merge"] => handle_array_merge,
             ["std", "ops", "div_pow2"] => handle_div_pow2,
             ["std", "ports", "make_port"] => handle_make_port,
             ["std", "ports", "read_port"] => handle_read_port
@@ -1490,6 +1491,52 @@ impl ExprLocal for Loc<Expression> {
                     operands: vec![
                         args[0].value.variable(ctx.subs)?,
                         args[1].value.variable(ctx.subs)?,
+                    ],
+                    ty: self_type,
+                    loc: None,
+                }),
+                self,
+            );
+
+            Ok(result)
+        }
+    }
+
+
+    fn handle_array_merge(
+        &self,
+        result: StatementList,
+        args: &[Argument],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let arg0_type = ctx
+            .types
+            .expr_type(&args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+        let arg1_type = ctx
+            .types
+            .expr_type(&args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        let self_type = ctx
+            .types
+            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        if self_type.size() != arg0_type.size() + arg1_type.size() {
+            // TODO: Verify that this error is caught in type inference
+            Err(Diagnostic::bug(self, "Merge size missmatch").into())
+        } else {
+            result.push_primary(
+                mir::Statement::Binding(mir::Binding {
+                    name: self.variable(ctx.subs)?,
+                    operator: mir::Operator::Concat,
+                    operands: vec![
+                        // Our arrays are stored in reverse order for natural indexing
+                        args[1].value.variable(ctx.subs)?,
+                        args[0].value.variable(ctx.subs)?,
                     ],
                     ty: self_type,
                     loc: None,

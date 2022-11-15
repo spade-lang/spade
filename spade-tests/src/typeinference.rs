@@ -213,6 +213,34 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    merge_of_mismatched_types_fails,
+    "
+    mod std{mod array{ 
+        fn merge<T, #N, #M, #K>(lhs: [T; N], rhs: [T; M]) -> [T; K] __builtin__
+    }}
+    entity test(x: [bool; 3], y: [bool; 4]) -> [bool; 5] {
+        x `std::array::merge` y
+    }
+    "
+}
+
+
+snapshot_error! {
+    merging_into_smaller_type_produces_error,
+    "
+    mod std{mod array{ 
+        fn merge<T, #N, #M, #K>(lhs: [T; N], rhs: [T; M]) -> [T; K] __builtin__
+    }}
+
+    fn generic_woodoo<#N>() -> [bool; N] __builtin__
+
+    entity test(x: [bool; 6]) -> [bool; 5] {
+        x `std::array::merge` generic_woodoo()
+    }
+    "
+}
+
+snapshot_error! {
     variable_declarations_are_typechecked_correctly,
     "
         entity counter() -> int<8> {
