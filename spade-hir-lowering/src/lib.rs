@@ -487,22 +487,23 @@ impl PatternLocal for Loc<Pattern> {
 
     /// Returns an error if the pattern is refutable, i.e. it does not match all possible
     /// values it binds to
-    #[tracing::instrument(level = "trace", skip(self, ctx))]
-    fn is_refutable(&self, ctx: &Context) -> Usefulness {
-        let operand_ty = ctx
-            .types
-            .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types);
+    #[tracing::instrument(level = "trace", skip(self, _ctx))]
+    fn is_refutable(&self, _ctx: &Context) -> Usefulness {
+        Usefulness{witnesses: vec![]}
+        // let operand_ty = ctx
+        //     .types
+        //     .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types);
 
-        let pat_stacks = vec![PatStack::new(vec![DeconstructedPattern::from_hir(
-            self, ctx,
-        )])];
+        // let pat_stacks = vec![PatStack::new(vec![DeconstructedPattern::from_hir(
+        //     self, ctx,
+        // )])];
 
-        // The patterns which make a wildcard useful are the ones that are missing
-        // from the match statement
-        is_useful(
-            &PatStack::new(vec![DeconstructedPattern::wildcard(&operand_ty)]),
-            &usefulness::Matrix::new(&pat_stacks),
-        )
+        // // The patterns which make a wildcard useful are the ones that are missing
+        // // from the match statement
+        // is_useful(
+        //     &PatStack::new(vec![DeconstructedPattern::wildcard(&operand_ty)]),
+        //     &usefulness::Matrix::new(&pat_stacks),
+        // )
     }
 }
 
