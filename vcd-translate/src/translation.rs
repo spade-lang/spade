@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use color_eyre::eyre::bail;
 use num::{
     bigint::{Sign, ToBigUint},
     BigInt, BigUint,
@@ -284,6 +285,26 @@ pub fn translate_value(
     } else {
         None
     }
+}
+
+pub fn translate_string(
+    name: &str,
+    value: &str,
+    types: &HashMap<String, Option<ConcreteType>>,
+) -> color_eyre::Result<Option<String>> {
+    let value_vcd = value
+        .to_lowercase()
+        .chars()
+        .map(|c| match c {
+            '0' => Ok(Value::V0),
+            '1' => Ok(Value::V1),
+            'x' => Ok(Value::X),
+            'z' => Ok(Value::Z),
+            other => bail!("Invalid vcd character: {other}"),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(translate_value(name, &value_vcd, types))
 }
 
 // Translates a string of `01XZ` characters into the corresponding

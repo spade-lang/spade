@@ -1,3 +1,5 @@
+mod translation;
+
 use std::rc::Rc;
 use std::sync::RwLock;
 
@@ -26,7 +28,8 @@ use spade_parser::Parser;
 use spade_typeinference::equation::{TypeVar, TypedExpression};
 use spade_typeinference::{GenericListSource, HasType, TypeState};
 use spade_types::ConcreteType;
-use vcd_translate::translation::{self, inner_translate_value};
+use translation::BitTranslator;
+use vcd_translate::translation::inner_translate_value;
 
 trait Reportable {
     type Inner;
@@ -528,7 +531,7 @@ impl Spade {
 }
 
 fn val_to_spade(val: &str, ty: ConcreteType) -> String {
-    let val_vcd = translation::value_from_str(&val);
+    let val_vcd = vcd_translate::translation::value_from_str(&val);
     let mut result = String::new();
     inner_translate_value(&mut result, &val_vcd, &ty);
     result
@@ -541,5 +544,6 @@ fn spade(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BitString>()?;
     m.add_class::<SpadeType>()?;
     m.add_class::<ComparisonResult>()?;
+    m.add_class::<BitTranslator>()?;
     Ok(())
 }
