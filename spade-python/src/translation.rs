@@ -6,6 +6,8 @@ use spade_types::ConcreteType;
 use color_eyre::{eyre::Context, Result};
 use vcd_translate::translation::{translate_names, translate_string};
 
+use crate::spade_type::SpadeType;
+
 #[pyclass]
 pub struct BitTranslator {
     types: HashMap<String, Option<ConcreteType>>,
@@ -26,7 +28,14 @@ impl BitTranslator {
         Ok(Self { types })
     }
 
-    fn translate_value(&self, name: &str, val: &str) -> Result<Option<String>> {
+    pub fn translate_value(&self, name: &str, val: &str) -> Result<Option<String>> {
         translate_string(name, val, &self.types)
+    }
+
+    pub fn type_of(&self, name: &str) -> Option<SpadeType> {
+        self.types
+            .get(name)
+            .and_then(|t| t.clone())
+            .map(|t| SpadeType(t))
     }
 }

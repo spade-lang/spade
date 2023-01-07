@@ -1,3 +1,4 @@
+mod spade_type;
 mod translation;
 
 use std::rc::Rc;
@@ -25,6 +26,7 @@ use spade_hir_lowering::{expr_to_mir, MirLowerable};
 use spade_mir::codegen::mangle_input;
 use spade_mir::eval::eval_statements;
 use spade_parser::Parser;
+use spade_type::SpadeType;
 use spade_typeinference::equation::{TypeVar, TypedExpression};
 use spade_typeinference::{GenericListSource, HasType, TypeState};
 use spade_types::ConcreteType;
@@ -80,10 +82,6 @@ impl BitString {
         &self.0
     }
 }
-
-#[pyclass]
-#[derive(Clone)]
-struct SpadeType(pub ConcreteType);
 
 /// State which we need to modify later. Stored in an Option so we can
 /// take ownership of temporarily
