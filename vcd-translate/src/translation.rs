@@ -5,6 +5,7 @@ use num::{
     bigint::{Sign, ToBigUint},
     BigInt, BigUint,
 };
+use spade_common::name::{Identifier, NameID};
 use spade_hir_lowering::{MirLowerable, NameIDExt};
 use spade_mir::{codegen::escape_path, ValueName};
 use spade_typeinference::equation::TypedExpression;
@@ -27,7 +28,7 @@ pub fn translate_names(
 }
 
 #[derive(Debug, PartialEq, Hash, Eq)]
-enum MaybeValue<T> {
+pub(crate) enum MaybeValue<T> {
     Value(T),
     Undef,
     HighImpedance,
@@ -69,7 +70,7 @@ impl MaybeValue<BigInt> {
     }
 }
 
-fn translate_uint(value: &[Value], flip: bool) -> MaybeValue<BigUint> {
+pub(crate) fn translate_uint(value: &[Value], flip: bool) -> MaybeValue<BigUint> {
     let mut result = BigUint::new(vec![]);
     let mut accumulated_bits = 0;
     let mut intermediate = 0u64;
@@ -285,26 +286,6 @@ pub fn translate_value(
     } else {
         None
     }
-}
-
-pub fn translate_string(
-    name: &str,
-    value: &str,
-    types: &HashMap<String, Option<ConcreteType>>,
-) -> color_eyre::Result<Option<String>> {
-    let value_vcd = value
-        .to_lowercase()
-        .chars()
-        .map(|c| match c {
-            '0' => Ok(Value::V0),
-            '1' => Ok(Value::V1),
-            'x' => Ok(Value::X),
-            'z' => Ok(Value::Z),
-            other => bail!("Invalid vcd character: {other}"),
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(translate_value(name, &value_vcd, types))
 }
 
 // Translates a string of `01XZ` characters into the corresponding
