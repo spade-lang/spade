@@ -30,7 +30,8 @@ use spade_type::SpadeType;
 use spade_typeinference::equation::{TypeVar, TypedExpression};
 use spade_typeinference::{GenericListSource, HasType, TypeState};
 use spade_types::ConcreteType;
-use translation::BitTranslator;
+use translation::SurferTranslator;
+// use translation::BitTranslator;
 use vcd_translate::translation::inner_translate_value;
 
 trait Reportable {
@@ -542,6 +543,6 @@ fn spade(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BitString>()?;
     m.add_class::<SpadeType>()?;
     m.add_class::<ComparisonResult>()?;
-    m.add_class::<BitTranslator>()?;
+    m.add_class::<SurferTranslator>()?;
     Ok(())
 }
