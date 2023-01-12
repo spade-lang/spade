@@ -11,38 +11,6 @@ use vcd_translate::{
 
 use crate::spade_type::SpadeType;
 
-// #[pyclass]
-// pub struct BitTranslator {
-//     types: HashMap<String, Option<ConcreteType>>,
-// }
-//
-// #[pymethods]
-// impl BitTranslator {
-//     #[new]
-//     fn new(type_file: &str) -> Result<Self> {
-//         let type_file = std::fs::read_to_string(&type_file)
-//             .with_context(|| format!("Failed to read type file {:?}", type_file))?;
-//
-//         let types = translate_names(
-//             ron::from_str(&type_file)
-//                 .with_context(|| format!("failed to decode types in {:?}", type_file))?,
-//         );
-//
-//         Ok(Self { types })
-//     }
-//
-//     pub fn translate_value(&self, name: &str, val: &str) -> Result<Option<PyStructuralValue>> {
-//         translate_string(name, val, &self.types).map(|result| result.map(PyStructuralValue))
-//     }
-//
-//     pub fn type_of(&self, name: &str) -> Option<SpadeType> {
-//         self.types
-//             .get(name)
-//             .and_then(|t| t.clone())
-//             .map(|t| SpadeType(t))
-//     }
-// }
-
 #[pyclass]
 pub struct SurferTranslator {
     types: HashMap<String, Option<ConcreteType>>,
@@ -77,12 +45,22 @@ impl SurferTranslator {
         true
     }
 
-    fn translate(&self, name: &str, value: &str) -> Result<Option<PyObject>> {
-        Python::with_gil(|py| {
-            let result_class = self.surfer_module.getattr(py, "TranslationResult")?;
+    fn translate(&self, name: &str, value: &str) -> Result<PyObject> {
+        let translated = translate_string(name, value, &self.types)?;
 
-            Ok(Some(result_class.call1(py, ("test",))?))
-        })
+        if let Some(t) = translated {
+            Python::with_gil(|py| {
+                let result_class = self.surfer_module.getattr(py, "TranslationResult")?;
+
+                pythonify_structural_value(py, &t, &result_class)
+            })
+        } else {
+            Python::with_gil(|py| {
+                let result_class = self.surfer_module.getattr(py, "TranslationResult")?;
+
+                Ok(result_class.call1(py, (value,))?)
+            })
+        }
     }
 
     fn signal_info(&self, name: &str) -> Result<Option<PyObject>> {
@@ -96,6 +74,54 @@ impl SurferTranslator {
             Ok(None)
         }
     }
+}
+
+fn pythonify_structural_value(
+    py: Python,
+    value: &StructuralValue,
+    result_class: &PyObject,
+) -> Result<PyObject> {
+    let result = match value {
+        StructuralValue::HighImp => result_class.call1(py, ("HIGHIMP",))?,
+        StructuralValue::Undef => result_class.call1(py, ("UNDEF",))?,
+        StructuralValue::InvalidTag(tag) => {
+            result_class.call1(py, (format!("Unknown tag ({tag})"),))?
+        }
+        StructuralValue::Bits(v) => result_class.call1(py, (v,))?,
+        StructuralValue::Tuple(inner) => {
+            let result = result_class.call1(py, ("tuple",))?;
+            for (i, v) in inner.iter().enumerate() {
+                result.call_method1(
+                    py,
+                    "with_field",
+                    (
+                        format!("{i}"),
+                        pythonify_structural_value(py, v, result_class)?,
+                    ),
+                )?;
+            }
+            result
+        }
+        StructuralValue::Array(_) => result_class.call1(py, ("ARRAY",))?,
+        StructuralValue::Struct(inner) => {
+            let result = result_class.call1(py, ("tuple",))?;
+            for (name, v) in inner {
+                result.call_method1(
+                    py,
+                    "with_field",
+                    (
+                        format!("{}", name),
+                        pythonify_structural_value(py, v, result_class)?,
+                    ),
+                )?;
+            }
+            result
+        }
+        StructuralValue::Enum(_, _) => todo!(),
+        StructuralValue::Memory => todo!(),
+        StructuralValue::Unsized => todo!(),
+    };
+    Ok(result)
 }
 
 fn signal_info_from_type(
@@ -134,44 +160,3 @@ fn signal_info_from_type(
     }
     Ok(result)
 }
-
-// # def fields_from_type(type: SpadeType) -> SignalInfo:
-// #     result = SignalInfo()
-// #
-// #     for (field_name, field_type) in type.fields():
-// #         subfields = fields_from_type(field_type)
-// #         result.with_field((field_name, subfields))
-// #
-// #     return result
-
-// #[pyclass]
-// pub struct PyStructuralValue(pub StructuralValue);
-//
-// impl PyStructuralValue {
-//     fn value(&self) -> String {
-//         todo!()
-//     }
-//
-//     fn fields(&self) -> Vec<(String, PyStructuralValue)> {
-//         match self.0 {
-//             StructuralValue::HighImp => vec![],
-//             StructuralValue::Undef => vec![],
-//             StructuralValue::InvalidTag(_) => vec![],
-//             StructuralValue::Bits(_) => vec![],
-//             StructuralValue::Tuple(inner) => inner
-//                 .iter()
-//                 .enumerate()
-//                 .map(|(i, sv)| (format!("{i}"), PyStructuralValue(sv)))
-//                 .collect(),
-//             StructuralValue::Array(inner) => vec![],
-//             StructuralValue::Struct(members) => {
-//                 inner.iter().map(|(name, val)| {
-//                     (format!("{name}", val))
-//                 })
-//             },
-//             StructuralValue::Enum(_, _) => todo!(),
-//             StructuralValue::Memory => todo!(),
-//             StructuralValue::Unsized => todo!(),
-//         }
-//     }
-// }
