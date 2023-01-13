@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use pyo3::{pyclass, pymethods, types::PyModule, PyObject, Python, ToPyObject};
 use spade_types::ConcreteType;
@@ -81,6 +81,7 @@ fn pythonify_structural_value(
     value: &StructuralValue,
     result_class: &PyObject,
 ) -> Result<PyObject> {
+    let start = Instant::now();
     let result = match value {
         StructuralValue::HighImp => result_class.call1(py, ("HIGHIMP",))?,
         StructuralValue::Undef => result_class.call1(py, ("UNDEF",))?,
@@ -121,6 +122,8 @@ fn pythonify_structural_value(
         StructuralValue::Memory => todo!(),
         StructuralValue::Unsized => todo!(),
     };
+    let end = Instant::now();
+    result.call_method1(py, "push_duration", ("python", (end-start).as_secs_f64(),))?;
     Ok(result)
 }
 
