@@ -22,7 +22,11 @@ pub enum StructuralValue {
     Unsized,
 }
 
-pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> StructuralValue {
+pub fn translate_structural_value(
+    in_value: &[Value],
+    value_str: &str,
+    t: &ConcreteType,
+) -> StructuralValue {
     let value_len = in_value.len();
     let type_size = t.to_mir_type().size();
     let missing_values = type_size as usize - value_len;
@@ -47,7 +51,11 @@ pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> Struc
             let mut offset = 0;
             for t in inner.iter() {
                 let end = offset + t.to_mir_type().size() as usize;
-                inner_result.push(translate_structural_value(&value[offset..end], t));
+                inner_result.push(translate_structural_value(
+                    &value[offset..end],
+                    &value_str[offset..end],
+                    t,
+                ));
                 offset = end;
             }
 
@@ -62,7 +70,7 @@ pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> Struc
                 let end = offset + t.to_mir_type().size() as usize;
                 inner_result.push((
                     name.clone(),
-                    translate_structural_value(&value[offset..end], t),
+                    translate_structural_value(&value[offset..end], &value_str[offset..end], t),
                 ));
                 offset = end;
             }
@@ -73,7 +81,11 @@ pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> Struc
             let mut inner_result = vec![];
             for _ in 0..*size {
                 let end = offset + inner.to_mir_type().size() as usize;
-                inner_result.push(translate_structural_value(&value[offset..end], inner));
+                inner_result.push(translate_structural_value(
+                    &value[offset..end],
+                    &value_str[offset..end],
+                    inner,
+                ));
                 offset = end;
             }
             StructuralValue::Array(inner_result)
@@ -101,7 +113,11 @@ pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> Struc
                                 let end = offset + t.to_mir_type().size() as usize;
                                 members.push((
                                     name.clone(),
-                                    translate_structural_value(&value[offset..end], &t),
+                                    translate_structural_value(
+                                        &value[offset..end],
+                                        &value_str[offset..end],
+                                        &t,
+                                    ),
                                 ));
                                 offset = end;
                             }
@@ -117,11 +133,11 @@ pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> Struc
         ConcreteType::Single {
             base: PrimitiveType::Bool | PrimitiveType::Clock,
             params: _,
-        } => StructuralValue::Bits(value[0].to_string()),
+        } => StructuralValue::Bits(value_str.to_string()),
         ConcreteType::Single {
             base: PrimitiveType::Int | PrimitiveType::Uint,
             params: _,
-        } => StructuralValue::Bits(value.iter().map(|v| format!("{v}")).collect()),
+        } => StructuralValue::Bits(value_str.to_string()),
         ConcreteType::Single {
             base: PrimitiveType::Memory,
             params: _,
@@ -129,8 +145,8 @@ pub fn translate_structural_value(in_value: &[Value], t: &ConcreteType) -> Struc
         ConcreteType::Integer(_) => {
             panic!("Found a variable with type level integer in the vcd file")
         }
-        ConcreteType::Backward(inner) => translate_structural_value(in_value, inner),
-        ConcreteType::Wire(inner) => translate_structural_value(in_value, inner),
+        ConcreteType::Backward(inner) => translate_structural_value(in_value, value_str, inner),
+        ConcreteType::Wire(inner) => translate_structural_value(in_value, value_str, inner),
     }
 }
 
@@ -139,22 +155,20 @@ pub fn translate_string(
     value: &str,
     types: &HashMap<String, Option<ConcreteType>>,
 ) -> color_eyre::Result<Option<StructuralValue>> {
-    let value_vcd = value
-        .to_lowercase()
-        .chars()
-        .map(|c| match c {
-            '0' => Ok(Value::V0),
-            '1' => Ok(Value::V1),
-            'x' => Ok(Value::X),
-            'z' => Ok(Value::Z),
+    let mut value_vcd = Vec::with_capacity(value.len());
+    for c in value.chars() {
+        value_vcd.push(match c.to_ascii_lowercase() {
+            '0' => Value::V0,
+            '1' => Value::V1,
+            'x' => Value::X,
+            'z' => Value::Z,
             other => bail!("Invalid vcd character: {other}"),
         })
-        .collect::<Result<Vec<_>, _>>()?;
+    }
 
-    let ty = types
-        .get(name)
-        .and_then(|t| t.clone())
-        .map(|t| translate_structural_value(&value_vcd, &t));
-
-    Ok(ty)
+    if let Some(Some(t)) = types.get(name) {
+        Ok(Some(translate_structural_value(&value_vcd, value, &t)))
+    } else {
+        Ok(None)
+    }
 }

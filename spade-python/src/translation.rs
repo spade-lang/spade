@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use pyo3::{pyclass, pymethods, types::PyModule, PyObject, Python, ToPyObject};
+use pyo3::{intern, pyclass, pymethods, types::PyModule, Py, PyAny, PyObject, Python, ToPyObject};
 use spade_types::ConcreteType;
 
 use color_eyre::{eyre::Context, Result};
@@ -46,13 +46,32 @@ impl SurferTranslator {
     }
 
     fn translate(&self, name: &str, value: &str) -> Result<PyObject> {
+        let translation_start = Instant::now();
         let translated = translate_string(name, value, &self.types)?;
+        let translation_end = Instant::now();
 
+        let prelude_start = Instant::now();
         if let Some(t) = translated {
             Python::with_gil(|py| {
                 let result_class = self.surfer_module.getattr(py, "TranslationResult")?;
+                let prelude_end = Instant::now();
 
-                pythonify_structural_value(py, &t, &result_class)
+                let mut result = pythonify_structural_value(py, &t, &result_class)?;
+
+                result.call_method1(
+                    py,
+                    "push_duration",
+                    (
+                        "spade_translate",
+                        (translation_end - translation_start).as_secs_f64(),
+                    ),
+                )?;
+                result.call_method1(
+                    py,
+                    "push_duration",
+                    ("spade_prelude", (prelude_end - prelude_start).as_secs_f64()),
+                )?;
+                Ok(result)
             })
         } else {
             Python::with_gil(|py| {
@@ -81,49 +100,64 @@ fn pythonify_structural_value(
     value: &StructuralValue,
     result_class: &PyObject,
 ) -> Result<PyObject> {
+    let repr_string = |s: &str| -> Result<_> {
+        let res = result_class.call0(py)?;
+        res.call_method1(py, "repr_string", (s,))?;
+        Ok(res)
+    };
+    // NOTE: If performance turns out to be an issue, we can try to intern method, but this is
+    // easier for now
+    let repr_simple = |method: &'static str, fields: Vec<(String, Py<PyAny>)>| -> Result<_> {
+        let res = result_class.call0(py)?;
+        res.call_method0(py, method)?;
+        if !fields.is_empty() {
+            res.call_method1(py, "with_fields", (fields,))?;
+        }
+        Ok(res)
+    };
+
     let start = Instant::now();
     let result = match value {
-        StructuralValue::HighImp => result_class.call1(py, ("HIGHIMP",))?,
-        StructuralValue::Undef => result_class.call1(py, ("UNDEF",))?,
-        StructuralValue::InvalidTag(tag) => {
-            result_class.call1(py, (format!("Unknown tag ({tag})"),))?
-        }
-        StructuralValue::Bits(v) => result_class.call1(py, (v,))?,
-        StructuralValue::Tuple(inner) => {
-            let result = result_class.call1(py, ("tuple",))?;
-            for (i, v) in inner.iter().enumerate() {
-                result.call_method1(
-                    py,
-                    "with_field",
-                    (
+        StructuralValue::HighImp => repr_string("HIGHIMP")?,
+        StructuralValue::Undef => repr_string("UNDEF")?,
+        StructuralValue::InvalidTag(tag) => repr_string(&format!("Unknown tag ({tag})"))?,
+        StructuralValue::Bits(v) => repr_simple("repr_bits", vec![])?,
+        StructuralValue::Tuple(inner) => repr_simple(
+            "repr_tuple",
+            inner
+                .iter()
+                .enumerate()
+                .map(|(i, v)| {
+                    Ok((
                         format!("{i}"),
                         pythonify_structural_value(py, v, result_class)?,
-                    ),
-                )?;
-            }
-            result
-        }
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        )?,
         StructuralValue::Array(_) => result_class.call1(py, ("ARRAY",))?,
-        StructuralValue::Struct(inner) => {
-            let result = result_class.call1(py, ("tuple",))?;
-            for (name, v) in inner {
-                result.call_method1(
-                    py,
-                    "with_field",
-                    (
-                        format!("{}", name),
+        StructuralValue::Struct(inner) => repr_simple(
+            "repr_struct",
+            inner
+                .iter()
+                .map(|(n, v)| {
+                    Ok((
+                        n.to_string(),
                         pythonify_structural_value(py, v, result_class)?,
-                    ),
-                )?;
-            }
-            result
-        }
-        StructuralValue::Enum(_, _) => todo!(),
-        StructuralValue::Memory => todo!(),
-        StructuralValue::Unsized => todo!(),
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        )?,
+        StructuralValue::Enum(_, _) => repr_string("ENUM")?,
+        StructuralValue::Memory => repr_string("MEMORY")?,
+        StructuralValue::Unsized => repr_string("()")?,
     };
     let end = Instant::now();
-    result.call_method1(py, "push_duration", ("python", (end-start).as_secs_f64(),))?;
+    result.call_method1(
+        py,
+        "push_duration",
+        ("spade_pythonify", (end - start).as_secs_f64()),
+    )?;
     Ok(result)
 }
 
