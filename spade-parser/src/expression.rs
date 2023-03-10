@@ -1,5 +1,5 @@
-use spade_ast::{ArgumentList, BinaryOperator, CallKind, Expression, UnaryOperator};
 use num::ToPrimitive;
+use spade_ast::{ArgumentList, BinaryOperator, CallKind, Expression, UnaryOperator};
 use spade_common::location_info::{lspan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;

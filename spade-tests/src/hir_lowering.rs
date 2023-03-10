@@ -2125,7 +2125,11 @@ mod tests {
         "#;
 
         let ports_type = Type::Array {
-            inner: Box::new(Type::Tuple(vec![Type::Bool, Type::Int(1u32.to_biguint()), Type::Int(8u32.to_biguint())])),
+            inner: Box::new(Type::Tuple(vec![
+                Type::Bool,
+                Type::Int(1u32.to_biguint()),
+                Type::Int(8u32.to_biguint()),
+            ])),
             length: 0u32.to_biguint(),
         };
 

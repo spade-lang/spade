@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - [!155][!155] Support for specifying initial content of memories.
+- [!154](!154) Add unsigned literals, for example `let x: int<8> 255u` as a
+  stop gap solution until proper unsigned types are implemented
 
 ### Fixed
 
@@ -23,8 +25,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+### Internal
+
+- [!154](!154) Rewrote compiler to use arbitrary width integers internally.
+
+[!154]: https://gitlab.com/spade-lang/spade/-/merge_requests/154
 [!155]: https://gitlab.com/spade-lang/spade/-/merge_requests/155
 [!156]: https://gitlab.com/spade-lang/spade/-/merge_requests/155
+
 
 ## [0.1.0] - 2023-03-07
 

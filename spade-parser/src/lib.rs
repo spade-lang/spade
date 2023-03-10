@@ -13,10 +13,11 @@ use num::{BigInt, ToPrimitive, Zero};
 use tracing::{event, Level};
 
 use spade_ast::{
-    ArgumentList, ArgumentPattern, AttributeList, Block, ComptimeConfig, Enum, Expression,
-    FunctionDecl, ImplBlock, Item, Module, ModuleBody, NamedArgument, ParameterList, Pattern,
-    PipelineStageReference, Register, Statement, Struct, TraitDef, TypeDeclKind, TypeDeclaration,
-    TypeExpression, TypeParam, TypeSpec, Unit, UnitKind, UseStatement, IntLiteral, CallKind,
+    ArgumentList, ArgumentPattern, AttributeList, Block, CallKind, ComptimeConfig, Enum,
+    Expression, FunctionDecl, ImplBlock, IntLiteral, Item, Module, ModuleBody, NamedArgument,
+    ParameterList, Pattern, PipelineStageReference, Register, Statement, Struct, TraitDef,
+    TypeDeclKind, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitKind,
+    UseStatement,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
@@ -2917,7 +2918,10 @@ mod tests {
         let code = "inst(2) some_pipeline(x, y, z)";
 
         let expected = Expression::Call {
-            kind: CallKind::Pipeline(().nowhere(), MaybeComptime::Raw(IntLiteral::signed(2).nowhere()).nowhere()),
+            kind: CallKind::Pipeline(
+                ().nowhere(),
+                MaybeComptime::Raw(IntLiteral::signed(2).nowhere()).nowhere(),
+            ),
             callee: ast_path("some_pipeline"),
             args: ArgumentList::Positional(vec![
                 Expression::Identifier(ast_path("x")).nowhere(),
@@ -3309,8 +3313,12 @@ mod tests {
         let expected = Expression::Comptime(Box::new(
             ComptimeCondition {
                 condition: (ast_path("x"), ComptimeCondOp::Eq, 0.to_bigint().nowhere()),
-                on_true: Box::new(Expression::IntLiteral(IntLiteral::Signed(1.to_bigint())).nowhere()),
-                on_false: Some(Box::new(Expression::IntLiteral(IntLiteral::Signed(0.to_bigint())).nowhere())),
+                on_true: Box::new(
+                    Expression::IntLiteral(IntLiteral::Signed(1.to_bigint())).nowhere(),
+                ),
+                on_false: Some(Box::new(
+                    Expression::IntLiteral(IntLiteral::Signed(0.to_bigint())).nowhere(),
+                )),
             }
             .nowhere(),
         ))

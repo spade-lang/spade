@@ -124,7 +124,6 @@ pub enum CallKind {
 }
 impl WithLocation for CallKind {}
 
-
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Identifier(NameID),

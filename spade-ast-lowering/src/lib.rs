@@ -911,7 +911,10 @@ pub fn visit_call_kind(
                 Diagnostic::error(depth, "Expected pipeline depth")
                     .help("The current comptime branch did not specify a depth")
             })?;
-            hir::expression::CallKind::Pipeline(loc.clone(), int_literal_to_pipeline_stages(&depth)?)
+            hir::expression::CallKind::Pipeline(
+                loc.clone(),
+                int_literal_to_pipeline_stages(&depth)?,
+            )
         }
     })
 }
@@ -2132,7 +2135,10 @@ mod expression_visiting {
     #[test]
     fn pipeline_instantiation_works() {
         let input = ast::Expression::Call {
-            kind: ast::CallKind::Pipeline(().nowhere(), MaybeComptime::Raw(ast::IntLiteral::Signed(2.to_bigint()).nowhere()).nowhere()),
+            kind: ast::CallKind::Pipeline(
+                ().nowhere(),
+                MaybeComptime::Raw(ast::IntLiteral::Signed(2.to_bigint()).nowhere()).nowhere(),
+            ),
             callee: ast_path("test"),
             args: ast::ArgumentList::Positional(vec![
                 ast::Expression::int_literal(1).nowhere(),
