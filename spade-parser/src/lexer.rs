@@ -34,15 +34,15 @@ pub enum TokenKind {
     )"#, |lex| lex.slice().to_string())]
     Identifier(String),
 
-    #[regex(r"-?[0-9][0-9_]*[uU]?", |lex| {
+    #[regex(r"[0-9][0-9_]*[uU]?", |lex| {
         parse_int(lex.slice(), 10)
     })]
     Integer((BigInt, LiteralKind)),
-    #[regex(r"-?0x[0-9A-Fa-f][0-9_A-Fa-f]*[uU]?", |lex| {
+    #[regex(r"0x[0-9A-Fa-f][0-9_A-Fa-f]*[uU]?", |lex| {
         parse_int(&lex.slice()[2..], 16)
     })]
     HexInteger((BigInt, LiteralKind)),
-    #[regex(r"-?0b[0-1][0-1_]*[uU]?", |lex| {
+    #[regex(r"0b[0-1][0-1_]*[uU]?", |lex| {
         parse_int(&lex.slice()[2..], 2)
     })]
     BinInteger((BigInt, LiteralKind)),

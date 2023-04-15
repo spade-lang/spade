@@ -1,0 +1,9 @@
+---
+source: spade-tests/src/parser.rs
+assertion_line: 148
+---
+fn a(b: int<2>) -> int<2> {
+    trunc(b-1)
+}
+
+

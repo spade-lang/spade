@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/parser.rs
+assertion_line: 155
+---
+fn a(b: int<2>) -> int<4> {
+    let c = b-1;
+    let d = -2;
+    c + d
+}
+
+

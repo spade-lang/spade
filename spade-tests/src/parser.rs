@@ -146,6 +146,22 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    no_space_subtraction_works,
+    "fn a(b: int<2>) -> int<2> {
+        trunc(b-1)
+    }"
+}
+
+snapshot_error! {
+    assigning_with_unary_minus_subtraction_works,
+    "fn a(b: int<2>) -> int<4> {
+        let c = b-1;
+        let d = -2;
+        c + d
+    }"
+}
+
+snapshot_error! {
     good_eof_error_on_missing_dot_continuation,
     "fn a() -> bool { a."
 }
