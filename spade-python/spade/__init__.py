@@ -1,13 +1,9 @@
-from .spade import *
+import os
+import colors
 
 import cocotb
-import colors
 from cocotb.types import LogicArray
-from cocotb.handle import Force
-from cocotb.triggers import *
-from spade import Spade
-
-import os
+from .spade import BitString, ComparisonResult, Spade, SpadeType
 
 
 class SpadeExt(Spade):
@@ -28,85 +24,79 @@ class SpadeExt(Spade):
         result.o = result.o__()
         return result
 
-    def o__(self):
+    def o__(self) -> "OutputField":
         """ Get a reference to the output of the DUT"""
         return OutputField(self, [], self.output_as_field_ref(), self.dut)
 
 
 class InputPorts(object):
     def __init__(self, dut, spade: SpadeExt):
-        self.spade__ = spade
-        self.dut__ = dut
+        self._spade = spade
+        self._dut = dut
 
     def __setattr__(self, name: str, value: str):
         if not name.endswith("__"):
             # Ask the spade compiler if the DUT has this field
-            (port, val) = self.spade__.port_value(name, value)
+            (port, val) = self._spade.port_value(name, value)
 
-            self.dut__._id(port, extended=False).value = LogicArray(val.inner())
+            self._dut._id(port, extended=False).value = LogicArray(val.inner())
         else:
             super(InputPorts, self).__setattr__(name, value)
 
 
 class OutputField(object):
     def __init__(self, spade: SpadeExt, path: list[str], field_ref, dut):
-        self.spade__ = spade
-        self.path__ = path
-        self.field_ref__ = field_ref
-        self.dut__ = dut
+        self._spade = spade
+        self._path = path
+        self._field_ref = field_ref
+        self._dut = dut
 
     def assert_eq(self, expected: str):
-        # This shares a bit of code with is_eq, but since we need access to intermediate
-        # values, we'll duplicate things for now
-        r = self.spade__.compare_field(
-            self.field_ref__,
-            expected,
-            BitString(self.dut__.output__.value.binstr)
-        )
+        expected_bits, got_bits, r = self._eq_helper(expected)
 
-        expected_bits = r.expected_bits.inner();
-        got_bits = r.got_bits.inner();
-
-        if expected_bits.lower() != got_bits.lower():
+        if expected_bits != got_bits:
             message = "\n"
             message += colors.red("Assertion failed") + "\n"
-            message += f"\t expected: {colors.green(r.expected_spade)}\n";
+            message += f"\t expected: {colors.green(r.expected_spade)}\n"
             message += f"\t      got: {colors.red(r.got_spade)}\n"
             message += "\n"
             message += f"\tverilog ('{colors.green(expected_bits)}' != '{colors.red(got_bits)}')"
-            assert False, message
+            raise AssertionError(message)
 
     def value(self):
         """
             Returns the value of the field as a string representation of the spade value.
         """
-        # This shares a bit of code with is_eq, but since we need access to intermediate
-        # values, we'll duplicate things for now
-        return self.spade__.field_value(
-            self.field_ref__,
-            BitString(self.dut__.output__.value.binstr)
+        return self._spade.field_value(
+            self._field_ref,
+            BitString(self._dut.output__.value.binstr)
         )
 
     def is_eq(self, other: str) -> bool:
-        r = self.spade__.compare_field(
-            self.field_ref__,
-            other,
-            BitString(self.dut__.output__.value.binstr)
-        )
-        expected_bits = r.expected_bits.inner();
-        got_bits = r.got_bits.inner();
+        expected_bits, got_bits, _ = self._eq_helper(other)
         return expected_bits.lower() == got_bits.lower()
 
+    def _eq_helper(self, other: str):
+        r = self._spade.compare_field(
+            self._field_ref,
+            other,
+            BitString(self._dut.output__.value.binstr)
+        )
+        expected_bits = r.expected_bits.inner().lower()
+        got_bits = r.got_bits.inner().lower()
 
-    def __getattribute__(self, __name: str):
-        if __name.endswith("__") or __name == "assert_eq" or __name == "is_eq" or __name == "value":
-            return super(OutputField, self).__getattribute__(__name)
+        return expected_bits, got_bits, r
+
+    def __getattribute__(self, attr: str):
+        if attr.endswith("__") or attr == "assert_eq" or attr == "is_eq" or attr == "value":
+            return super(OutputField, self).__getattribute__(attr)
         else:
-            new_path = self.path__ + [__name]
+            new_path = self._path + [attr]
             return OutputField(
-                self.spade__,
+                self._spade,
                 new_path,
-                self.spade__.output_field(new_path),
-                self.dut__
+                self._spade.output_field(new_path),
+                self._dut
             )
 
+__all__ = ['Spade', 'SpadeExt', 'OutputField', 'InputPorts', 'BitString', 'ComparisonResult', 'SpadeType']
