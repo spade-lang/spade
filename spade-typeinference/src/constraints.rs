@@ -123,6 +123,7 @@ pub enum ConstraintSource {
     MultOutput,
     ArrayIndexing,
     MemoryIndexing,
+    // Unused
     Concatenation,
 }
 

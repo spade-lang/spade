@@ -41,6 +41,7 @@ pub struct Opt<'b> {
     pub item_list_file: Option<PathBuf>,
     pub print_type_traceback: bool,
     pub print_parse_traceback: bool,
+    pub use_aa: bool,
 }
 
 #[derive(Error, Debug)]
@@ -247,6 +248,7 @@ pub fn compile(
         .filter_map(|(name, item)| match item {
             ExecutableItem::Unit(u) => {
                 let mut type_state = typeinference::TypeState::new();
+                type_state.use_aa = opts.use_aa;
 
                 if let Ok(()) = type_state
                     .visit_entity(u, &type_inference_ctx)

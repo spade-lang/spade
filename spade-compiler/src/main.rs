@@ -31,6 +31,11 @@ pub struct Opt {
     /// Do not include color in the error report
     #[structopt(long = "no-color")]
     pub no_color: bool,
+    
+    /// Use (currently experimental) affine arithmetic to check integer bounds stricter than
+    /// previously possible.
+    #[structopt(long)]
+    pub use_aa: bool,
 
     /// Write a mapping between expression ids/names and the types of the values
     /// formatted in ron https://github.com/ron-rs/ron
@@ -110,6 +115,7 @@ fn main() -> Result<()> {
         item_list_file: opts.item_list,
         print_type_traceback: opts.print_type_traceback,
         print_parse_traceback: opts.print_parse_traceback,
+        use_aa: opts.use_aa,
     };
 
     let diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
