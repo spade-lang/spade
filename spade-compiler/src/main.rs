@@ -31,7 +31,7 @@ pub struct Opt {
     /// Do not include color in the error report
     #[structopt(long = "no-color")]
     pub no_color: bool,
-    
+
     /// Use (currently experimental) affine arithmetic to check integer bounds stricter than
     /// previously possible.
     #[structopt(long)]
