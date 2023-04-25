@@ -23,7 +23,7 @@ impl NameState {
                 let id = self
                     .names
                     .entry(name_str.clone())
-                    .and_modify(|v| *v = *v + 1)
+                    .and_modify(|v| *v += 1)
                     .or_insert(0);
 
                 ValueName::Named(*id, name_str.clone())

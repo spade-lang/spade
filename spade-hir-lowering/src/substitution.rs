@@ -101,19 +101,17 @@ impl Substitutions {
             self.inner
                 .last_mut()
                 .unwrap()
-                .insert(from.inner.clone(), Substitution::Port);
+                .insert(from.inner, Substitution::Port);
+        } else if time == 0 {
+            self.inner
+                .last_mut()
+                .unwrap()
+                .insert(from.inner.clone(), Substitution::Available(from.inner));
         } else {
-            if time == 0 {
-                self.inner
-                    .last_mut()
-                    .unwrap()
-                    .insert(from.inner.clone(), Substitution::Available(from.inner));
-            } else {
-                self.inner
-                    .last_mut()
-                    .unwrap()
-                    .insert(from.inner.clone(), Substitution::Waiting(time, from.inner));
-            }
+            self.inner
+                .last_mut()
+                .unwrap()
+                .insert(from.inner.clone(), Substitution::Waiting(time, from.inner));
         }
     }
 

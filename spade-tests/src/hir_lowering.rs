@@ -1327,7 +1327,7 @@ mod tests {
         let ty = Type::Tuple(vec![Type::Bool]);
 
         let expected = vec![
-            entity! {&["test"]; ("x", n(0, "x"), ty.clone()) -> Type::int(10); {
+            entity! {&["test"]; ("x", n(0, "x"), ty) -> Type::int(10); {
                 (e(1); Type::Bool; IndexTuple((0, vec![Type::Bool])); n(0, "x"));
                 (const 10; Type::Bool; ConstantValue::Bool(true));
                 (e(11); Type::Bool; LogicalAnd; e(10), e(1));
@@ -2198,7 +2198,7 @@ mod tests {
         let result = build_entity!(code);
 
         let intype_inner = vec![Type::Bool, Type::Backward(Box::new(Type::int(2)))];
-        let intype = Type::Tuple(intype_inner.clone());
+        let intype = Type::Tuple(intype_inner);
         let outtype = Type::Tuple(vec![Type::Backward(Box::new(Type::Bool)), Type::int(2)]);
         let tuple_type = Type::Tuple(vec![intype.clone(), outtype.clone()]);
 

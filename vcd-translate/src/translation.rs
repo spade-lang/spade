@@ -19,7 +19,7 @@ trait BigUintExt {
 impl BigUintExt for BigUint {
     fn to_bit_count(&self) -> usize {
         self.to_usize()
-            .expect(&format!("Bit counts > {} are unsupported", usize::MAX))
+            .unwrap_or_else(|| panic!("Bit counts > {} are unsupported", usize::MAX))
     }
 }
 
@@ -140,7 +140,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
     let type_size = t.to_mir_type().size();
     let missing_values = type_size
         .to_usize()
-        .expect(&format!("Value is wider than {} bits", usize::MAX))
+        .unwrap_or_else(|| panic!("Value is wider than {} bits", usize::MAX))
         - value_len;
 
     // FIXME: This is a temporary hack to work around
@@ -173,7 +173,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
                     + t.to_mir_type()
                         .size()
                         .to_usize()
-                        .expect(&format!("Value is wider than {} bits", usize::MAX));
+                        .unwrap_or_else(|| panic!("Value is wider than {} bits", usize::MAX));
                 inner_translate_value(result, &value[offset..end], t);
                 offset = end;
                 if i != inner.len() - 1 {

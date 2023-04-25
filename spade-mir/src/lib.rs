@@ -252,7 +252,7 @@ impl std::fmt::Display for Operator {
                             .join(", ")
                     )
                 } else {
-                    format!("")
+                    String::new()
                 }
             ),
             Operator::IndexArray => write!(f, "IndexArray"),

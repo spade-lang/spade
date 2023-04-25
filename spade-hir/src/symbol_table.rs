@@ -463,12 +463,12 @@ impl SymbolTable {
         // Check if a variable with this name already exists
         if let Some(id) = self.try_lookup_id(&Path(vec![ident.clone()]).at_loc(&ident)) {
             if let Some(Thing::Variable(prev)) = self.things.get(&id) {
-                return Err(declared_more_than_once(ident, prev).into());
+                return Err(declared_more_than_once(ident, prev));
             }
         }
 
         if let Some((old, _)) = self.declarations.last().unwrap().get_key_value(&ident) {
-            Err(declared_more_than_once(ident, old).into())
+            Err(declared_more_than_once(ident, old))
         } else {
             let name_id = self.add_local_variable(ident.clone());
             self.declarations
@@ -784,13 +784,11 @@ impl SymbolTable {
                                 } else {
                                     self.try_lookup_id(&full_path.at_loc(name))
                                 }
+                            } else if full_path == name.inner {
+                                self.try_lookup_id(&path_in_namespace.at_loc(name))
                             } else {
-                                if full_path == name.inner {
-                                    self.try_lookup_id(&path_in_namespace.at_loc(name))
-                                } else {
-                                    self.try_lookup_id(&path_in_namespace.at_loc(name))
-                                        .or_else(|| self.try_lookup_id(&full_path.at_loc(name)))
-                                }
+                                self.try_lookup_id(&path_in_namespace.at_loc(name))
+                                    .or_else(|| self.try_lookup_id(&full_path.at_loc(name)))
                             };
                         }
                         _ => {}

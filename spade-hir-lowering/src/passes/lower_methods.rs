@@ -74,7 +74,7 @@ impl<'a> Pass for LowerMethods<'a> {
                 Some(spade_hir::ExprKind::Call {
                     kind: call_kind.clone(),
                     callee: method.inner.at_loc(name),
-                    args: args.clone(),
+                    args,
                 })
             }
             _ => None,

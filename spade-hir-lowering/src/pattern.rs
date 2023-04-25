@@ -346,7 +346,7 @@ impl std::fmt::Display for DeconstructedPattern {
                                 .join(", ")
                         )
                     } else {
-                        format!("")
+                        String::new()
                     };
 
                     write!(f, "{}{fields_str}", option.0,)

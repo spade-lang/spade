@@ -60,7 +60,7 @@ impl Path {
 
     /// If the path is lib::<rest> return Some(<rest>), else None
     pub fn lib_relative(&self) -> Option<Path> {
-        if self.0.first() == Some(&Identifier(format!("lib")).nowhere()) {
+        if self.0.first() == Some(&Identifier("lib".to_string()).nowhere()) {
             Some(Path(Vec::from(&self.0[1..])))
         } else {
             None

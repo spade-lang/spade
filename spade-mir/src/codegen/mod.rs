@@ -30,7 +30,7 @@ struct Context<'a> {
 /// Produces a source location verilog attribute if the loc and code bundle are defined
 fn source_attribute(loc: &Option<Loc<()>>, code: &Option<CodeBundle>) -> Option<String> {
     match (loc, code) {
-        (Some(l), Some(c)) => Some(format!(r#"(* src = "{}" *)"#, c.source_loc(&l))),
+        (Some(l), Some(c)) => Some(format!(r#"(* src = "{}" *)"#, c.source_loc(l))),
         _ => None,
     }
 }
@@ -248,14 +248,14 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
         Operator::Concat => {
             format!(
                 "{{{}}}",
-                op_names.iter().map(|op| format!("{op}")).join(", ")
+                op_names.iter().map(|op| op.to_string()).join(", ")
             )
         }
         Operator::SignExtend {
             extra_bits,
             operand_size,
         } => match extra_bits.to_u32() {
-            Some(0) => format!("{}", op_names[0]),
+            Some(0) => op_names[0].to_string(),
             Some(1) => format!(
                 "{{{}[{}], {}}}",
                 op_names[0],
@@ -274,7 +274,7 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             .replace("#]", "}"),
         },
         Operator::ZeroExtend { extra_bits } => match extra_bits.to_u32() {
-            Some(0) => format!("{}", op_names[0]),
+            Some(0) => op_names[0].to_string(),
             _ => format!("{{{}'b0, {}}}", extra_bits, op_names[0]),
         },
         Operator::Match => {
@@ -503,11 +503,11 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             )
         }
         Operator::ReadPort => {
-            format!("{}", ops[0].backward_var_name())
+            ops[0].backward_var_name()
         }
         Operator::FlipPort => {
             // NOTE Dummy. Set in statement_code
-            format!("")
+            String::new()
         }
         Operator::ConstructTuple => {
             let mut members = ops
@@ -520,14 +520,14 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
         }
         Operator::Instance(_, _) => {
             // NOTE: dummy. Set in the next match statement
-            format!("")
+            String::new()
         }
         Operator::Alias => {
             // NOTE Dummy. Set in the next match statement
-            format!("") //format!("{}", ops[0])
+            String::new() //format!("{}", ops[0])
         }
         Operator::Nop => {
-            format!("")
+            String::new()
         }
     }
 }
@@ -623,15 +623,15 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
         }
         Operator::FlipPort => {
             // NOTE: Set in statement_code
-            format!("")
+            String::new()
         }
-        Operator::Instance(_, _) => format!(""),
+        Operator::Instance(_, _) => String::new(),
         Operator::Alias => {
             // NOTE: Set in statement_code
-            format!("")
+            String::new()
         }
         Operator::Nop => {
-            format!("")
+            String::new()
         }
     }
 }
@@ -738,9 +738,9 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                         [0] backward_expression.map(|_| format!("assign {} = {};", back_ops[0], back_name));
                     }.to_string()
                 },
-                Operator::Match => format!("{}", forward_expression.unwrap()),
-                Operator::DivPow2 => format!("{}", forward_expression.unwrap()),
-                Operator::Nop => format!(""),
+                Operator::Match => forward_expression.unwrap(),
+                Operator::DivPow2 => forward_expression.unwrap(),
+                Operator::Nop => String::new(),
                 Operator::FlipPort => {
                     // The forward ports of the flipped port (op[0]) and and the original (self)
                     // should be mapped to the backward ports of the opposite port
@@ -750,7 +750,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     }
                     .to_string()
                 }
-                Operator::DeclClockedMemory { .. } => format!("{}", forward_expression.unwrap()),
+                Operator::DeclClockedMemory { .. } => forward_expression.unwrap(),
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
                     [0] backward_expression.map(|b| format!("assign {} = {};", b, back_name));
@@ -825,7 +825,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
 
             AssertedExpression(val.clone()).report(
                 &mut msg_buf,
-                &ctx.source_code.as_ref().unwrap(),
+                ctx.source_code.as_ref().unwrap(),
                 &mut diag_handler,
             );
 
@@ -901,7 +901,7 @@ pub fn entity_code(entity: &mut Entity, source_code: &Option<CodeBundle>) -> Cod
     flatten_aliases(entity);
     make_names_predictable(entity);
 
-    let types = &TypeList::from_entity(&entity);
+    let types = &TypeList::from_entity(entity);
 
     let entity_name = entity.name.as_verilog();
 
@@ -989,8 +989,8 @@ pub fn entity_code(entity: &mut Entity, source_code: &Option<CodeBundle>) -> Cod
     };
 
     let mut ctx = Context {
-        types: &types,
-        source_code: &source_code,
+        types,
+        source_code,
         instance_names: &mut InstanceNameTracker::new(),
     };
 

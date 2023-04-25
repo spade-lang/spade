@@ -322,7 +322,7 @@ pub fn compile(
 
         match ron::to_string(&list) {
             Ok(encoded) => {
-                std::fs::write(item_list_file, &encoded).or_report(&mut errors);
+                std::fs::write(item_list_file, encoded).or_report(&mut errors);
             }
             Err(e) => {
                 println!("Failed to encode item list as RON {e:?}")

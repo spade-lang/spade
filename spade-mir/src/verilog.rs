@@ -7,7 +7,7 @@ pub fn assign(target: &str, value: &str) -> String {
 
 pub fn size_spec(size: &BigUint) -> String {
     if size == &1u32.to_biguint() {
-        format!("")
+        String::new()
     } else {
         format!("[{}:0]", size - 1u32.to_biguint())
     }

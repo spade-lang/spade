@@ -69,7 +69,7 @@ impl UnitNameExt for UnitName {
                 path: name.inner.1.as_strings(),
             },
             UnitName::FullPath(name) => mir::UnitName::Escaped {
-                name: format!("{}", name.inner.1.as_strs().join("::")),
+                name: name.inner.1.as_strs().join("::"),
                 path: name.inner.1.as_strings(),
             },
             UnitName::Unmangled(name, _) => mir::UnitName::Unescaped(name.clone()),
@@ -169,7 +169,7 @@ struct PatternCondition {
 /// statements required for that computation. If `ops` is empt, a single `true` constant
 /// is returned
 pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::Statement>, ValueName) {
-    if ops.len() == 0 {
+    if ops.is_empty() {
         let id = ctx.idtracker.next();
         (
             vec![mir::Statement::Constant(
@@ -879,7 +879,7 @@ impl ExprLocal for Loc<Expression> {
                     let self_tvar = ctx
                         .types
                         .type_of(&TypedExpression::Id(self.id))
-                        .expect(&format!("Found no type for {}", self.id));
+                        .unwrap_or_else(|_| panic!("Found no type for {}", self.id));
 
                     let inner_tvar = match &self_tvar {
                         TypeVar::Tuple(inner) => {
@@ -930,7 +930,7 @@ impl ExprLocal for Loc<Expression> {
                 );
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
-                        name: self.variable(&ctx.subs)?,
+                        name: self.variable(ctx.subs)?,
                         operator: mir::Operator::ConstructTuple,
                         operands: vec![lname, rname],
                         ty: self_type,
@@ -947,7 +947,7 @@ impl ExprLocal for Loc<Expression> {
                         .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
                 let member_types =
-                    if let mir::types::Type::Tuple(members) = &ctype.clone().to_mir_type() {
+                    if let mir::types::Type::Tuple(members) = &ctype.to_mir_type() {
                         members.clone()
                     } else {
                         unreachable!("Field access on non-struct {:?}", self_type)
@@ -1122,7 +1122,7 @@ impl ExprLocal for Loc<Expression> {
                         if cdepth != udepth {
                             return Err(Diagnostic::error(
                                 cdepth,
-                                format!("Pipeline depth mismatch"),
+                                "Pipeline depth mismatch".to_string(),
                             )
                             .primary_label(format!("Expected depth {udepth}"))
                             .secondary_label(udepth, format!("{} has depth {udepth}", head.name))
@@ -1188,13 +1188,13 @@ impl ExprLocal for Loc<Expression> {
         let tok = GenericListToken::Expression(self.id);
         let instance_list = ctx.types.get_generic_list(&tok);
         for (name, ty) in instance_list {
-            let actual = TypeState::ungenerify_type(ty, &ctx.symtab.symtab(), &ctx.item_list.types);
+            let actual = TypeState::ungenerify_type(ty, ctx.symtab.symtab(), &ctx.item_list.types);
             if actual.as_ref().map(|t| t.is_port()).unwrap_or(false) {
                 return Err(Error::PortInGenericType {
                     loc: self.loc(),
                     param: name.clone(),
                     // NOTE: Safe because we were able to run `t.is_port()` above
-                    actual: actual.unwrap().clone(),
+                    actual: actual.unwrap(),
                 });
             }
         }
@@ -1415,7 +1415,7 @@ impl ExprLocal for Loc<Expression> {
         // Figure out the sizes of the operands
         let port_t =
             ctx.types
-                .expr_type(&args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                .expr_type(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
         if let ConcreteType::Array { inner, size } = port_t {
             if let ConcreteType::Tuple(tup_inner) = *inner {
                 assert!(
@@ -1433,7 +1433,7 @@ impl ExprLocal for Loc<Expression> {
                             addr_w,
                             inner_w,
                             write_ports,
-                            elems: elem_count.clone(),
+                            elems: elem_count,
                             initial,
                         },
                         operands: args
@@ -1508,7 +1508,7 @@ impl ExprLocal for Loc<Expression> {
 
         let input_type = ctx
             .types
-            .expr_type(&args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         if self_type.size() > input_type.size() {
@@ -1563,7 +1563,7 @@ impl ExprLocal for Loc<Expression> {
 
         let input_type = ctx
             .types
-            .expr_type(&args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let extra_bits = if self_type.size() > input_type.size() {
@@ -1604,7 +1604,7 @@ impl ExprLocal for Loc<Expression> {
 
         let input_type = ctx
             .types
-            .expr_type(&args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let extra_bits = if self_type.size() > input_type.size() {
@@ -1637,11 +1637,11 @@ impl ExprLocal for Loc<Expression> {
 
         let arg0_type = ctx
             .types
-            .expr_type(&args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
         let arg1_type = ctx
             .types
-            .expr_type(&args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .expr_type(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let self_type = ctx
@@ -1651,8 +1651,8 @@ impl ExprLocal for Loc<Expression> {
 
         if self_type.size() != arg0_type.size() + arg1_type.size() {
             Err(Error::ConcatSizeMismatch {
-                lhs: arg0_type.size().at_loc(&args[0].value),
-                rhs: arg1_type.size().at_loc(&args[1].value),
+                lhs: arg0_type.size().at_loc(args[0].value),
+                rhs: arg1_type.size().at_loc(args[1].value),
                 expected: arg0_type.size() + arg1_type.size(),
                 result: self_type.size().at_loc(self),
             })
@@ -1802,7 +1802,7 @@ pub fn generate_unit<'a>(
         .collect::<Result<_>>()?;
 
     let mut statements = StatementList::new();
-    let mut subs = &mut Substitutions::new();
+    let subs = &mut Substitutions::new();
 
     if let UnitKind::Pipeline(_) = unit.head.unit_kind.inner {
         lower_pipeline(
@@ -1810,7 +1810,7 @@ pub fn generate_unit<'a>(
             &unit.body,
             types,
             &mut statements,
-            &mut subs,
+            subs,
             symtab,
             item_list,
             name_map,
@@ -1844,7 +1844,7 @@ pub fn generate_unit<'a>(
     Ok(mir::Entity {
         name: name.as_mir(),
         inputs: mir_inputs,
-        output: unit.body.variable(&subs)?,
+        output: unit.body.variable(subs)?,
         output_type: output_t,
         statements: statements.to_vec(name_source_map),
     })

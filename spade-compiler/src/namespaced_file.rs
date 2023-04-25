@@ -20,7 +20,7 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
     let parts = arg.split(',').collect::<Vec<_>>();
 
     match parts.len() {
-        0 => Err(format!("Expected a string")),
+        0 => Err("Expected a string".to_string()),
         1 => Ok(NamespacedFile {
             file: arg.try_into().map_err(|e| format!("{e}"))?,
             namespace: SpadePath(vec![]),

@@ -295,7 +295,7 @@ impl<'a> Parser<'a> {
             if let Some(args) = self.argument_list()? {
                 Ok(Expression::MethodCall {
                     target: Box::new(expr.clone()),
-                    name: field.clone(),
+                    name: field,
                     args: args.clone(),
                     kind: inst
                         .map(|i| CallKind::Entity(().at(self.file_id, &i)))

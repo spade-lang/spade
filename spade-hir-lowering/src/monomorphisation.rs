@@ -155,7 +155,7 @@ pub fn compile_items(
                 let pass_result = u.apply(&mut LowerMethods {
                     type_state: &type_state,
                     items: item_list,
-                    symtab: symtab,
+                    symtab,
                 });
                 if let Err(e) = pass_result {
                     result.push(Err(e));

@@ -14,7 +14,7 @@ fn unexpected_token_list<'a>(expected: impl IntoIterator<Item = &'a str>) -> Str
 
     let count = expected.len();
     if count == 1 {
-        format!("{}", expected[0])
+        expected[0].to_string()
     } else if count == 2 {
         format!("{} or {}", expected[0], expected[1])
     } else {
@@ -70,7 +70,7 @@ impl CompilationError for Error {
                         .with_message(format!("Expected `{}`", expected.as_str())),
                     friend
                         .secondary_label()
-                        .with_message(format!("to close this")),
+                        .with_message("to close this".to_string()),
                 ]),
             Error::ExpectedExpression { got } => {
                 let message = format!("Unexpected `{}`, expected expression", got.kind.as_str(),);
@@ -78,7 +78,7 @@ impl CompilationError for Error {
                 Diagnostic::error()
                     .with_message(message)
                     .with_labels(vec![Label::primary(got.file_id, got.span.clone())
-                        .with_message(format!("expected expression here"))])
+                        .with_message("expected expression here".to_string())])
             }
             Error::ExpectedBlock { for_what, got, loc } => {
                 let message = format!("Expected a block for {}", for_what);
@@ -96,7 +96,7 @@ impl CompilationError for Error {
                     Label::primary(got.file_id, got.span.clone()).with_message("Expected item")
                 ]),
             Error::MissingTupleIndex { hash_loc } => {
-                let message = format!("Expected an index after #");
+                let message = "Expected an index after #".to_string();
 
                 Diagnostic::error()
                     .with_message(message)
@@ -105,7 +105,7 @@ impl CompilationError for Error {
                         .with_message("expected index")])
             }
             Error::ExpectedPipelineDepth { got } => {
-                let message = format!("Expected pipeline depth");
+                let message = "Expected pipeline depth".to_string();
 
                 Diagnostic::error()
                     .with_message(message)
@@ -118,7 +118,7 @@ impl CompilationError for Error {
                     ])
             }
             Error::ExpectedRegisterCount { got } => {
-                let message = format!("Expected register count");
+                let message = "Expected register count".to_string();
 
                 Diagnostic::error()
                     .with_message(message)
@@ -132,14 +132,14 @@ impl CompilationError for Error {
             }
             Error::ExpectedOffset{got} => {
                 Diagnostic::error()
-                    .with_message(format!("Expected an offset"))
+                    .with_message("Expected an offset".to_string())
                     .with_labels(vec![got.primary_label()
                         .with_message("Expected offset")
                     ])
             }
             Error::PipelineRefInFunction{ at, fn_keyword } => {
                 Diagnostic::error()
-                    .with_message(format!("Pipeline stage reference in function"))
+                    .with_message("Pipeline stage reference in function".to_string())
                     .with_labels(vec![
                         at.primary_label()
                             .with_message("Stage reference is not allowed here"),
@@ -148,7 +148,7 @@ impl CompilationError for Error {
             }
             Error::PipelineRefInEntity{ at, entity_keyword } => {
                 Diagnostic::error()
-                    .with_message(format!("Pipeline stage reference in entity"))
+                    .with_message("Pipeline stage reference in entity".to_string())
                     .with_labels(vec![
                         at.primary_label()
                             .with_message("Stage reference is not allowed here"),
@@ -157,7 +157,7 @@ impl CompilationError for Error {
             }
             Error::EntityInImpl{loc} => {
                 Diagnostic::error()
-                    .with_message(format!("Entities are not allowed in impl blocks"))
+                    .with_message("Entities are not allowed in impl blocks".to_string())
                     .with_labels(vec![
                         loc.primary_label()
                             .with_message("Not allowed here")
@@ -171,7 +171,7 @@ impl CompilationError for Error {
                 ))
                 .with_labels(vec![found.primary_label().with_message("Expected a type")]),
             Error::ExpectedExpressionOrStage { got } => {
-                let message = format!("Expected return expression or pipeline stage");
+                let message = "Expected return expression or pipeline stage".to_string();
 
                 Diagnostic::error()
                     .with_message(message)
@@ -216,11 +216,11 @@ impl CompilationError for Error {
                 .with_notes(vec![format!("Array types need a specified size")])
                 .with_suggestions(vec![Suggestion {
                     file_id: array.file_id,
-                    message: format!("Insert a size here"),
+                    message: "Insert a size here".to_string(),
                     parts: vec![
                         SuggestionPart {
                             range: inner.span.end().to_usize()..inner.span.end().to_usize(),
-                            replacement: format!("; N"),
+                            replacement: "; N".to_string(),
                         },
                     ],
                 }]),

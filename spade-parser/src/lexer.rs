@@ -10,7 +10,7 @@ pub enum LiteralKind {
 
 fn parse_int(slice: &str, radix: u32) -> (BigInt, LiteralKind) {
     let lower = slice.to_ascii_lowercase();
-    let cleaned = lower.replace('_', "").replace("u", "").replace("U", "");
+    let cleaned = lower.replace(['_', 'u', 'U'], "");
 
     let signed = if lower.ends_with('u') {
         LiteralKind::Unsigned
@@ -19,7 +19,7 @@ fn parse_int(slice: &str, radix: u32) -> (BigInt, LiteralKind) {
     };
 
     (
-        BigInt::parse_bytes(&cleaned.as_bytes(), radix).unwrap(),
+        BigInt::parse_bytes(cleaned.as_bytes(), radix).unwrap(),
         signed,
     )
 }

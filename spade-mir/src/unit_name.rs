@@ -39,8 +39,8 @@ impl UnitName {
     /// to be used by tests
     pub fn from_strs(strs: &[&str]) -> Self {
         UnitName::Escaped {
-            name: strs.into_iter().join("::"),
-            path: strs.into_iter().map(|s| s.to_string()).collect(),
+            name: strs.iter().join("::"),
+            path: strs.iter().map(|s| s.to_string()).collect(),
         }
     }
     pub fn as_verilog(&self) -> String {
@@ -52,7 +52,7 @@ impl UnitName {
 
     pub fn instance_name(&self, names: &mut InstanceNameTracker) -> String {
         let name = match self {
-            UnitName::Escaped { name, path } => path.last().unwrap_or(&name),
+            UnitName::Escaped { name, path } => path.last().unwrap_or(name),
             UnitName::Unescaped(name) => name,
         };
         names.use_name(name)

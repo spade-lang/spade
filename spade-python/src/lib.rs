@@ -192,7 +192,7 @@ impl Spade {
         let (port_name, port_ty) = self.get_port(port.into())?;
 
         let mut type_state = TypeState::new();
-        let generic_list = type_state.create_generic_list(GenericListSource::Anonymous, &vec![]);
+        let generic_list = type_state.create_generic_list(GenericListSource::Anonymous, &[]);
         let ty = type_state.type_var_from_hir(&port_ty, &generic_list);
 
         let val = self.compile_expr(expr, &ty)?;
@@ -225,7 +225,7 @@ impl Spade {
         Ok(ComparisonResult {
             expected_spade: spade_expr.to_string(),
             expected_bits: spade_bits,
-            got_spade: val_to_spade(&relevant_bits.inner(), concrete),
+            got_spade: val_to_spade(relevant_bits.inner(), concrete),
             got_bits: relevant_bits.clone(),
         })
     }
@@ -248,7 +248,7 @@ impl Spade {
             output_bits.inner()[field.range.0 as usize..field.range.1 as usize].to_owned(),
         );
 
-        Ok(val_to_spade(&relevant_bits.inner(), concrete))
+        Ok(val_to_spade(relevant_bits.inner(), concrete))
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
@@ -256,7 +256,7 @@ impl Spade {
         let output_type = self.output_type()?;
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &vec![]);
+            .create_generic_list(GenericListSource::Anonymous, &[]);
 
         let ty = self
             .type_state
@@ -295,7 +295,7 @@ impl Spade {
 
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &vec![]);
+            .create_generic_list(GenericListSource::Anonymous, &[]);
         let ty = self
             .type_state
             .type_var_from_hir(&output_type, &generic_list);
@@ -309,7 +309,7 @@ impl Spade {
         // Now that we have a type which we can work with, we can create a virtual expression
         // which accesses the field in order to learn the type of the field
         let expr = format!("o.{}", path.iter().join(","));
-        let file_id = self.code.add_file("py".to_string(), expr.clone().into());
+        let file_id = self.code.add_file("py".to_string(), expr.clone());
         let mut parser = Parser::new(lexer::TokenKind::lexer(&expr), file_id);
 
         // Parse the expression
@@ -333,7 +333,7 @@ impl Spade {
 
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &vec![]);
+            .create_generic_list(GenericListSource::Anonymous, &[]);
         // NOTE: We need to actually have the type information about what we're assigning to here
         // available
         let type_ctx = spade_typeinference::Context {
@@ -409,7 +409,7 @@ impl Spade {
     fn get_port(&mut self, port: String) -> PyResult<(String, TypeSpec)> {
         let owned = self.owned.as_ref().unwrap();
         let symtab = owned.symtab.symtab();
-        let head = Self::lookup_function_like(&self.uut, &symtab)
+        let head = Self::lookup_function_like(&self.uut, symtab)
             .map_err(Diagnostic::from)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
@@ -427,7 +427,7 @@ impl Spade {
     #[tracing::instrument(level = "trace", skip(self, ty))]
     pub fn compile_expr(&mut self, expr: &str, ty: &impl HasType) -> PyResult<BitString> {
         let file_id = self.code.add_file("py".to_string(), expr.into());
-        let mut parser = Parser::new(lexer::TokenKind::lexer(&expr), file_id);
+        let mut parser = Parser::new(lexer::TokenKind::lexer(expr), file_id);
 
         // Parse the expression
         let ast = parser.expression().report_and_convert(
@@ -461,10 +461,10 @@ impl Spade {
 
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &vec![]);
+            .create_generic_list(GenericListSource::Anonymous, &[]);
 
         let type_ctx = spade_typeinference::Context {
-            symtab: &symtab.symtab(),
+            symtab: symtab.symtab(),
             items: &self.item_list,
         };
         self.type_state
@@ -472,7 +472,7 @@ impl Spade {
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         self.type_state
-            .unify_expression_generic_error(&hir, ty, &symtab.symtab())
+            .unify_expression_generic_error(&hir, ty, symtab.symtab())
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         let mut hir_ctx = spade_hir_lowering::Context {
@@ -528,7 +528,7 @@ impl Spade {
 }
 
 fn val_to_spade(val: &str, ty: ConcreteType) -> String {
-    let val_vcd = translation::value_from_str(&val);
+    let val_vcd = translation::value_from_str(val);
     let mut result = String::new();
     inner_translate_value(&mut result, &val_vcd, &ty);
     result

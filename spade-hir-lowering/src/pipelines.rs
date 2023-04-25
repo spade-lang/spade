@@ -43,7 +43,7 @@ pub fn lower_pipeline<'a>(
 
     for (name, _) in hir_inputs {
         let is_port = types
-            .name_type(&name, symtab.symtab(), &item_list.types)?
+            .name_type(name, symtab.symtab(), &item_list.types)?
             .is_port();
 
         subs.set_available(name.clone(), 0, is_port)
@@ -178,7 +178,7 @@ impl PipelineAvailability for ExprKind {
                 // let arg_availability = try_compute_availability(
                 //     &args.iter().map(|arg| &arg.value).collect::<Vec<_>>(),
                 // )?;
-                Ok(depth.inner as usize)
+                Ok(depth.inner)
             }
             ExprKind::Call {
                 kind: CallKind::Function,

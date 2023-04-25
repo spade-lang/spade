@@ -162,7 +162,7 @@ pub fn derive_diagnostic(input: TokenStream) -> TokenStream {
         .parse_args()
         .unwrap_or_else(|_| abort!(top_attribute, "top attribute is malformed\nexpected something like `#[diagnostic(error, \"uh oh, stinky\")]`"));
     let primary_message = primary_message.map(|msg| msg.quote());
-    let attrs = field_attributes(&fields);
+    let attrs = field_attributes(fields);
     let primary = attrs
         .iter()
         .find(|(_, attr)| attr.ident == "primary")

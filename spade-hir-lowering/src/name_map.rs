@@ -28,7 +28,7 @@ impl From<&Loc<NameID>> for NameSource {
 
 impl From<&Loc<u64>> for NameSource {
     fn from(e: &Loc<u64>) -> Self {
-        NameSource::Expr(e.clone())
+        NameSource::Expr(*e)
     }
 }
 

@@ -46,7 +46,7 @@ pub fn check_linear_types(
 
     visit_expression(body, &mut linear_state, &ctx)?;
 
-    linear_state.consume_expression(&body)?;
+    linear_state.consume_expression(body)?;
 
     linear_state.check_unused().map_err(|(alias, witness)| {
         let self_description = match &alias.inner {
@@ -113,14 +113,14 @@ fn visit_expression(
             for (i, expr) in inner.iter().enumerate() {
                 visit_expression(expr, linear_state, ctx)?;
                 trace!("visited tuple literal member {i}");
-                linear_state.consume_expression(&expr)?;
+                linear_state.consume_expression(expr)?;
             }
         }
         spade_hir::ExprKind::ArrayLiteral(inner) => {
             for expr in inner {
                 visit_expression(expr, linear_state, ctx)?;
                 trace!("Consuming array literal inner");
-                linear_state.consume_expression(&expr)?;
+                linear_state.consume_expression(expr)?;
             }
         }
         spade_hir::ExprKind::CreatePorts => {}
@@ -152,7 +152,7 @@ fn visit_expression(
                 | UnaryOperator::Not
                 | UnaryOperator::BitwiseNot
                 | UnaryOperator::Reference => {
-                    linear_state.consume_expression(&operand)?;
+                    linear_state.consume_expression(operand)?;
                 }
                 UnaryOperator::Dereference => {}
                 UnaryOperator::FlipPort => {}
@@ -161,7 +161,7 @@ fn visit_expression(
         spade_hir::ExprKind::Match(cond, variants) => {
             visit_expression(cond, linear_state, ctx)?;
             for (pat, expr) in variants {
-                linear_state.push_pattern(pat, &ctx)?;
+                linear_state.push_pattern(pat, ctx)?;
                 visit_expression(expr, linear_state, ctx)?;
             }
         }
@@ -170,7 +170,7 @@ fn visit_expression(
                 match &statement.inner {
                     Statement::Binding(pattern, _, value) => {
                         visit_expression(value, linear_state, ctx)?;
-                        linear_state.consume_expression(&value)?;
+                        linear_state.consume_expression(value)?;
                         linear_state.push_pattern(pattern, ctx)?
                     }
                     Statement::Register(reg) => {
@@ -182,7 +182,7 @@ fn visit_expression(
                             value_type: _,
                         } = &reg.inner;
 
-                        linear_state.push_pattern(&pattern, ctx)?;
+                        linear_state.push_pattern(pattern, ctx)?;
 
                         visit_expression(clock, linear_state, ctx)?;
                         if let Some((trig, val)) = &reset {
@@ -192,7 +192,7 @@ fn visit_expression(
 
                         visit_expression(value, linear_state, ctx)?;
 
-                        linear_state.consume_expression(&value)?;
+                        linear_state.consume_expression(value)?;
                     }
                     Statement::Declaration(names) => {
                         for name in names {
@@ -226,7 +226,7 @@ fn visit_expression(
             let consume = ctx
                 .symtab
                 .try_lookup_final_id(
-                    &Path::from_strs(&vec!["std", "ports", "read_mut_wire"]).nowhere(),
+                    &Path::from_strs(&["std", "ports", "read_mut_wire"]).nowhere(),
                 )
                 .map(|n| &n != &callee.inner)
                 .unwrap_or(true);
