@@ -865,7 +865,6 @@ impl<'a> Parser<'a> {
     pub fn comptime_statement(&mut self, allow_stages: bool) -> Result<Option<Loc<Statement>>> {
         let inner = |s: &mut Self| s.exhaustive_statements(allow_stages, &TokenKind::CloseBrace);
 
-        
         self.comptime_condition(&inner, &|condition, loc| {
             Statement::Comptime(condition).at_loc(&loc)
         })

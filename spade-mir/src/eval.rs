@@ -56,7 +56,9 @@ impl Value {
                     // bits (as is the case for BigInt). To fix that, we mask out the bits we do
                     // want which gives a positive number with the correct binary representation.
                     // https://stackoverflow.com/questions/12946116/twos-complement-binary-in-python
-                    let size_usize = size.to_usize().unwrap_or_else(|| panic!("Variable size {size} is too large to fit a 'usize'"));
+                    let size_usize = size.to_usize().unwrap_or_else(|| {
+                        panic!("Variable size {size} is too large to fit a 'usize'")
+                    });
                     let mask = (BigInt::from(1) << size_usize) - 1;
                     format!("{:b}", val & mask)
                 }
@@ -201,8 +203,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                         );
                         let variant_member_size =
                             ops.iter().map(|op| name_types[op].size()).sum::<BigUint>();
-                        let padding_size =
-                            ty.size() - tag_size - variant_member_size;
+                        let padding_size = ty.size() - tag_size - variant_member_size;
                         if padding_size != BigUint::zero() {
                             to_concat.push(Value::Undef(padding_size))
                         }

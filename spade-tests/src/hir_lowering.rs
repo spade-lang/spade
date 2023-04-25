@@ -1326,17 +1326,15 @@ mod tests {
 
         let ty = Type::Tuple(vec![Type::Bool]);
 
-        let expected = vec![
-            entity! {&["test"]; ("x", n(0, "x"), ty) -> Type::int(10); {
-                (e(1); Type::Bool; IndexTuple((0, vec![Type::Bool])); n(0, "x"));
-                (const 10; Type::Bool; ConstantValue::Bool(true));
-                (e(11); Type::Bool; LogicalAnd; e(10), e(1));
-                (const 0; Type::int(10); ConstantValue::int(10));
-                (const 4; Type::Bool; ConstantValue::Bool(true));
-                (const 2; Type::int(10); ConstantValue::int(0));
-                (e(3); Type::int(10); Match; e(11), e(0), e(4), e(2));
-            } => e(3)},
-        ];
+        let expected = vec![entity! {&["test"]; ("x", n(0, "x"), ty) -> Type::int(10); {
+            (e(1); Type::Bool; IndexTuple((0, vec![Type::Bool])); n(0, "x"));
+            (const 10; Type::Bool; ConstantValue::Bool(true));
+            (e(11); Type::Bool; LogicalAnd; e(10), e(1));
+            (const 0; Type::int(10); ConstantValue::int(10));
+            (const 4; Type::Bool; ConstantValue::Bool(true));
+            (const 2; Type::int(10); ConstantValue::int(0));
+            (e(3); Type::int(10); Match; e(11), e(0), e(4), e(2));
+        } => e(3)}];
 
         build_and_compare_entities!(code, expected);
     }

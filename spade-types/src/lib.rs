@@ -130,10 +130,10 @@ impl std::fmt::Display for ConcreteType {
                     String::new()
                 } else {
                     params
-                            .iter()
-                            .map(|p| format!("{}", p))
-                            .collect::<Vec<_>>()
-                            .join(", ")
+                        .iter()
+                        .map(|p| format!("{}", p))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 };
 
                 write!(f, "{}{}", base, params_str)

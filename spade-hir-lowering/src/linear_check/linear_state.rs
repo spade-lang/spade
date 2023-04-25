@@ -173,22 +173,19 @@ impl LinearTree {
                 UsageInfo::Consumed(prev) => Err((MutWireWitness::This, *prev)),
             },
             LinearTreeKind::Struct(members) => {
-                members
-                    .iter().try_for_each(|(ident, sub)| {
-                        sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                            (MutWireWitness::Field(ident.clone(), Box::new(witness)), loc)
-                        })
-                    })?;
+                members.iter().try_for_each(|(ident, sub)| {
+                    sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
+                        (MutWireWitness::Field(ident.clone(), Box::new(witness)), loc)
+                    })
+                })?;
                 Ok(())
             }
             LinearTreeKind::Tuple(members) => {
-                members
-                    .iter()
-                    .enumerate().try_for_each(|(i, sub)| {
-                        sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                            (MutWireWitness::TupleIndex(i, Box::new(witness)), loc)
-                        })
-                    })?;
+                members.iter().enumerate().try_for_each(|(i, sub)| {
+                    sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
+                        (MutWireWitness::TupleIndex(i, Box::new(witness)), loc)
+                    })
+                })?;
                 Ok(())
             }
         }

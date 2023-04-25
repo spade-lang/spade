@@ -946,12 +946,11 @@ impl ExprLocal for Loc<Expression> {
                     ctx.types
                         .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
-                let member_types =
-                    if let mir::types::Type::Tuple(members) = &ctype.to_mir_type() {
-                        members.clone()
-                    } else {
-                        unreachable!("Field access on non-struct {:?}", self_type)
-                    };
+                let member_types = if let mir::types::Type::Tuple(members) = &ctype.to_mir_type() {
+                    members.clone()
+                } else {
+                    unreachable!("Field access on non-struct {:?}", self_type)
+                };
 
                 let field_index = if let ConcreteType::Struct { name: _, members } = ctype {
                     let field_indices = members

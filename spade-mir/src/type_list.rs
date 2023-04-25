@@ -57,8 +57,7 @@ impl std::ops::Index<&ValueName> for TypeList {
     type Output = Type;
 
     fn index(&self, index: &ValueName) -> &Self::Output {
-        self
-            .inner
+        self.inner
             .get(index)
             .unwrap_or_else(|| panic!("No type found for {index}"))
     }

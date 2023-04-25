@@ -502,9 +502,7 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
                 full_size - member_end
             )
         }
-        Operator::ReadPort => {
-            ops[0].backward_var_name()
-        }
+        Operator::ReadPort => ops[0].backward_var_name(),
         Operator::FlipPort => {
             // NOTE Dummy. Set in statement_code
             String::new()
@@ -526,9 +524,7 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             // NOTE Dummy. Set in the next match statement
             String::new() //format!("{}", ops[0])
         }
-        Operator::Nop => {
-            String::new()
-        }
+        Operator::Nop => String::new(),
     }
 }
 
@@ -630,9 +626,7 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
             // NOTE: Set in statement_code
             String::new()
         }
-        Operator::Nop => {
-            String::new()
-        }
+        Operator::Nop => String::new(),
     }
 }
 
