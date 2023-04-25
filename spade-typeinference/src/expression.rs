@@ -533,7 +533,7 @@ impl TypeState {
                 | BinaryOperator::RightShift => {
                     let int_type = self.new_generic_int(&ctx.symtab);
 
-                    // FIXME: Make generic over types that can be added
+                    // FIXME: Make generic over types that can be bitmanipulated
                     self.unify_expression_generic_error(&lhs, &int_type, &ctx.symtab)?;
                     self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
                     self.unify_expression_generic_error(expression, &rhs.inner, &ctx.symtab)?;
@@ -545,7 +545,7 @@ impl TypeState {
                 | BinaryOperator::Ge
                 | BinaryOperator::Le => {
                     let int_type = self.new_generic_int(&ctx.symtab);
-                    // FIXME: Make generic over types that can be added
+                    // FIXME: Make generic over types that can be compared
                     self.unify_expression_generic_error(&lhs, &int_type, &ctx.symtab)?;
                     self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
                     self.unify_expression_generic_error(expression, &t_bool(&ctx.symtab), &ctx.symtab)?;
@@ -553,7 +553,6 @@ impl TypeState {
                 BinaryOperator::LogicalAnd
                 | BinaryOperator::LogicalOr
                 | BinaryOperator::LogicalXor => {
-                    // FIXME: Make generic over types that can be ored
                     self.unify_expression_generic_error(&lhs, &t_bool(&ctx.symtab), &ctx.symtab)?;
                     self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
 
