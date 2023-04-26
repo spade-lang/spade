@@ -474,20 +474,56 @@ impl TypeState {
                     let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
                     let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
 
-                    self.add_constraint(
-                        result_size.clone(),
-                        match *op {
-                            BinaryOperator::Add =>
+                    match *op {
+                        BinaryOperator::Add => {
+                            self.add_constraint(
+                                result_size.clone(),
                                 ce_var(lhs_size.clone()) + ce_var(rhs_size.clone()),
-                            BinaryOperator::Sub =>
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                lhs_size.clone(),
+                                ce_var(result_size.clone()) - ce_var(rhs_size.clone()),
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                rhs_size.clone(),
+                                ce_var(result_size.clone()) - ce_var(lhs_size.clone()),
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                        }
+                        BinaryOperator::Sub => {
+                            self.add_constraint(
+                                result_size.clone(),
                                 ce_var(lhs_size.clone()) - ce_var(rhs_size.clone()),
-                            _ =>
-                                unreachable!(),
-                        },
-                        expression.loc(),
-                        &result_t,
-                        ConstraintSource::AdditionOutput
-                    );
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                lhs_size.clone(),
+                                ce_var(result_size.clone()) + ce_var(rhs_size.clone()),
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                rhs_size.clone(),
+                                ce_var(result_size.clone()) + ce_var(lhs_size.clone()),
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                        }
+                        _ =>
+                            unreachable!(),
+                    }
 
                     // FIXME: Make generic over types that can be added
                     self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;

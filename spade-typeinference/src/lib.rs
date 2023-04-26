@@ -644,6 +644,7 @@ impl TypeState {
         loop {
             let progress_before = known.len();
             for (var, eq) in equations.inner.iter() {
+                dbg!(eq);
                 match evaluate(eq.constraint.clone(), &known) {
                     Some(value) => {
                         known.insert(var.clone(), value);
