@@ -84,6 +84,7 @@ macro_rules! snapshot_error {
                 item_list_file: None,
                 print_type_traceback: false,
                 print_parse_traceback: false,
+                use_aa: false,
             };
 
             let files = vec![(
@@ -155,6 +156,7 @@ fn build_items_inner(code: &str, with_stdlib: bool) -> Vec<spade_mir::Entity> {
         item_list_file: None,
         print_type_traceback: false,
         print_parse_traceback: false,
+        use_aa: false,
     };
 
     let files = vec![(
