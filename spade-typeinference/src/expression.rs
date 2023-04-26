@@ -1,4 +1,3 @@
-use num::{BigInt, One};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigUint;
@@ -8,7 +7,7 @@ use spade_hir::{ExprKind, Expression};
 use spade_macros::trace_typechecker;
 use spade_types::KnownType;
 
-use crate::constraints::{bits_to_store, ce_int, ce_var, ConstraintSource};
+use crate::constraints::{ce_range, ce_var, ConstraintSource};
 use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{Error, UnificationErrorExt};
 use crate::error_reporting::LocExt;
@@ -324,9 +323,10 @@ impl TypeState {
             let array_size = self.new_generic();
             let (int_type, int_size) = self.new_split_generic_int(&&ctx.symtab);
 
+            // TODO: This requires extra care
             self.add_constraint(
                 int_size,
-                bits_to_store(ce_var(&array_size) - ce_int(BigInt::one())),
+                ce_var(array_size.clone()) - ce_range(0, 1),
                 index.loc(),
                 &int_type,
                 ConstraintSource::ArrayIndexing
@@ -471,28 +471,30 @@ impl TypeState {
                 BinaryOperator::Add
                 | BinaryOperator::Sub => {
                     let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
+                    let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
                     let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
 
                     self.add_constraint(
                         result_size.clone(),
-                        ce_var(&lhs_size) + ce_int(BigInt::one()),
+                        match *op {
+                            BinaryOperator::Add =>
+                                ce_var(lhs_size.clone()) + ce_var(rhs_size.clone()),
+                            BinaryOperator::Sub =>
+                                ce_var(lhs_size.clone()) - ce_var(rhs_size.clone()),
+                            _ =>
+                                unreachable!(),
+                        },
                         expression.loc(),
                         &result_t,
-                        ConstraintSource::AdditionOutput
-                    );
-                    self.add_constraint(
-                        lhs_size.clone(),
-                        ce_var(&result_size) + -ce_int(BigInt::one()),
-                        lhs.loc(),
-                        &lhs_t,
                         ConstraintSource::AdditionOutput
                     );
 
                     // FIXME: Make generic over types that can be added
                     self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
-                    self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
+                    self.unify_expression_generic_error(&rhs, &rhs_t, &ctx.symtab)?;
                     self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
                 }
+
                 BinaryOperator::Mul => {
                     let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
                     let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
@@ -501,23 +503,10 @@ impl TypeState {
                     // Result size is sum of input sizes
                     self.add_constraint(
                         result_size.clone(),
-                        ce_var(&lhs_size) + ce_var(&rhs_size),
+                        ce_var(lhs_size.clone()) * ce_var(rhs_size.clone()),
                         expression.loc(),
                         &result_t,
                         ConstraintSource::MultOutput
-                    );
-                    self.add_constraint(
-                        lhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&rhs_size),
-                        lhs.loc(),
-                        &lhs_t,
-                        ConstraintSource::MultOutput
-                    );
-                    self.add_constraint(rhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&lhs_size),
-                        rhs.loc(),
-                        &rhs_t
-                        , ConstraintSource::MultOutput
                     );
 
                     self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
