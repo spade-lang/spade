@@ -28,7 +28,7 @@ use spade_hir::{
 use spade_types::KnownType;
 
 use constraints::{
-    bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintRhs, ConstraintSource, TypeConstraints,
+    ce_range, ce_var, ConstraintExpr, ConstraintRhs, ConstraintSource, TypeConstraints,
 };
 use equation::{TypeEquations, TypeVar, TypedExpression};
 use error::{Error, Result, UnificationError, UnificationErrorExt, UnificationTrace};
@@ -530,22 +530,9 @@ impl TypeState {
                 // Result size is sum of input sizes
                 self.add_constraint(
                     result_size.clone(),
-                    ce_var(&lhs_size) + ce_var(&rhs_size),
+                    ce_var(lhs_size) + ce_var(rhs_size),
                     expression_id.loc(),
                     &result_size,
-                    ConstraintSource::Concatenation
-                );
-                self.add_constraint(
-                    lhs_size.clone(),
-                    ce_var(&result_size) + -ce_var(&rhs_size),
-                    matched_args[0].value.loc(),
-                    &lhs_size,
-                    ConstraintSource::Concatenation
-                );
-                self.add_constraint(rhs_size.clone(),
-                    ce_var(&result_size) + -ce_var(&lhs_size),
-                    matched_args[1].value.loc(),
-                    &rhs_size,
                     ConstraintSource::Concatenation
                 );
             },
@@ -610,7 +597,7 @@ impl TypeState {
 
         self.add_constraint(
             addr_size.clone(),
-            bits_to_store(ce_var(&num_elements) - ce_int(1.to_bigint())),
+            ce_var(num_elements) - ce_range(0, 1),
             args[1].value.loc(),
             &port_type,
             ConstraintSource::MemoryIndexing,
@@ -621,6 +608,55 @@ impl TypeState {
         self.unify_expression_generic_error(&args[1].value, &port_type, ctx.symtab)?;
 
         Ok(())
+    }
+
+    pub fn solve_constraints(equations: TypeConstraints) -> HashMap<TypeVar, (i64, i64)> {
+        fn evaluate(
+            eq: ConstraintExpr,
+            known: &HashMap<TypeVar, (i64, i64)>,
+        ) -> Option<(i64, i64)> {
+            match eq {
+                ConstraintExpr::Var(var) => known.get(&var).cloned(),
+                ConstraintExpr::Range { lo, hi } => Some((lo, hi)),
+                ConstraintExpr::Add(a, b) => match (evaluate(*a, known), evaluate(*b, known)) {
+                    (Some((a_lo, a_hi)), Some((b_lo, b_hi))) => Some((a_lo + b_lo, a_hi + b_hi)),
+                    _ => None,
+                },
+                ConstraintExpr::Mul(a, b) => match (evaluate(*a, known), evaluate(*b, known)) {
+                    (Some((a_lo, a_hi)), Some((b_lo, b_hi))) => {
+                        let x = a_lo * b_lo;
+                        let y = a_hi * b_lo;
+                        let z = a_hi * b_hi;
+                        let q = a_lo * b_hi;
+                        Some((x.min(y).min(z).min(q), x.max(y).max(z).max(q)))
+                    }
+                    _ => None,
+                },
+                ConstraintExpr::Neg(a) => match evaluate(*a, known) {
+                    Some((lo, hi)) => Some((-hi, -lo)),
+                    _ => None,
+                },
+            }
+        }
+
+        // A simple SAT-solver without backtracking
+        let mut known = HashMap::new();
+        loop {
+            let progress_before = known.len();
+            for (var, eq) in equations.inner.iter() {
+                match evaluate(eq.constraint.clone(), &known) {
+                    Some(value) => {
+                        known.insert(var.clone(), value);
+                    }
+                    None => {}
+                }
+            }
+            if progress_before == known.len() {
+                // Not making more progress
+                break;
+            }
+        }
+        known
     }
 
     pub fn handle_read_memory(
@@ -634,7 +670,7 @@ impl TypeState {
 
         self.add_constraint(
             addr_size.clone(),
-            bits_to_store(ce_var(&num_elements) - ce_int(1.to_bigint())),
+            ce_var(num_elements) - ce_range(0, 1),
             args[1].value.loc(),
             &addr_type,
             ConstraintSource::MemoryIndexing,
@@ -1018,6 +1054,7 @@ impl TypeState {
         }
     }
 
+    /*
     fn check_expr_for_replacement(&self, val: ConstraintExpr) -> ConstraintExpr {
         match val {
             v @ ConstraintExpr::Integer(_) => v,
@@ -1034,6 +1071,7 @@ impl TypeState {
             }
         }
     }
+    */
 
     pub fn add_equation(&mut self, expression: TypedExpression, var: TypeVar) {
         let var = self.check_var_for_replacement(var);
@@ -1058,12 +1096,7 @@ impl TypeState {
         inside: &TypeVar,
         source: ConstraintSource,
     ) {
-        let replaces = lhs.clone();
-        let lhs = self.check_var_for_replacement(lhs);
-        let rhs = self
-            .check_expr_for_replacement(rhs)
-            .with_context(&replaces, &inside.clone(), source)
-            .at_loc(&loc);
+        let rhs = rhs.with_context(&lhs, &inside.clone(), source).at_loc(&loc);
 
         self.constraints.add_constraint(lhs, rhs);
     }
@@ -1308,22 +1341,7 @@ impl TypeState {
                 requirement.replace_type_var(&replaced_type, &new_type)
             }
 
-            self.constraints.inner = self
-                .constraints
-                .inner
-                .clone()
-                .into_iter()
-                .map(|(mut lhs, mut rhs)| {
-                    TypeState::replace_type_var(&mut lhs, &replaced_type, &new_type);
-                    TypeState::replace_type_var_in_constraint_rhs(
-                        &mut rhs,
-                        &replaced_type,
-                        &new_type,
-                    );
-
-                    (lhs, rhs)
-                })
-                .collect()
+            let solutions = dbg!(TypeState::solve_constraints(self.constraints.clone()));
         }
 
         Ok(new_type)
@@ -1338,6 +1356,9 @@ impl TypeState {
     ) -> std::result::Result<TypeVar, UnificationError> {
         let new_type = self.unify_inner(e1, e2, symtab)?;
 
+        // TODO: Don't do this here for now - we can check these in one step in the end since we
+        // know the type `Int` already. We only catch a certain kind of error earlier
+        /*
         // With replacement done, some of our constraints may have been updated to provide
         // more type inference information. Try to do unification of those new constraints too
         loop {
@@ -1401,6 +1422,7 @@ impl TypeState {
                 };
             }
         }
+        */
 
         Ok(new_type)
     }
@@ -1433,6 +1455,7 @@ impl TypeState {
         }
     }
 
+    /*
     fn replace_type_var_in_constraint_expr(
         in_constraint: &mut ConstraintExpr,
         from: &TypeVar,
@@ -1459,13 +1482,14 @@ impl TypeState {
             }
         }
     }
+    */
 
     fn replace_type_var_in_constraint_rhs(
         in_constraint: &mut ConstraintRhs,
         from: &TypeVar,
         replacement: &TypeVar,
     ) {
-        Self::replace_type_var_in_constraint_expr(&mut in_constraint.constraint, from, replacement);
+        // Self::replace_type_var_in_constraint_expr(&mut in_constraint.constraint, from, replacement);
         // NOTE: We do not want to replace type variables here as that that removes
         // information about where the constraint relates. Instead, this replacement
         // is performed when reporting the error
