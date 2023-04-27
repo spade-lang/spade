@@ -8,7 +8,7 @@ use spade_hir::{ExprKind, Expression};
 use spade_macros::trace_typechecker;
 use spade_types::KnownType;
 
-use crate::constraints::{bits_to_store, ce_int, ce_var, ConstraintSource};
+use crate::constraints::{bits_to_store, ce_int, ce_var, ce_br, ConstraintSource};
 use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{Error, UnificationErrorExt};
 use crate::error_reporting::LocExt;
@@ -471,26 +471,33 @@ impl TypeState {
                 BinaryOperator::Add
                 | BinaryOperator::Sub => {
                     let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
+                    let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
                     let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
 
+                    // Result size is sum of input sizes
                     self.add_constraint(
                         result_size.clone(),
-                        ce_var(&lhs_size) + ce_int(BigInt::one()),
+                        ce_br(ce_var(&lhs_size)) + ce_br(ce_var(&rhs_size)),
                         expression.loc(),
                         &result_t,
-                        ConstraintSource::AdditionOutput
+                        ConstraintSource::MultOutput
                     );
                     self.add_constraint(
                         lhs_size.clone(),
-                        ce_var(&result_size) + -ce_int(BigInt::one()),
+                        ce_br(ce_var(&result_size)) - ce_br(ce_var(&rhs_size)),
                         lhs.loc(),
                         &lhs_t,
-                        ConstraintSource::AdditionOutput
+                        ConstraintSource::MultOutput
+                    );
+                    self.add_constraint(rhs_size.clone(),
+                        ce_br(ce_var(&result_size)) - ce_br(ce_var(&lhs_size)),
+                        rhs.loc(),
+                        &rhs_t
+                        , ConstraintSource::MultOutput
                     );
 
-                    // FIXME: Make generic over types that can be added
                     self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
-                    self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
+                    self.unify_expression_generic_error(&rhs, &rhs_t, &ctx.symtab)?;
                     self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
                 }
                 BinaryOperator::Mul => {
@@ -501,20 +508,20 @@ impl TypeState {
                     // Result size is sum of input sizes
                     self.add_constraint(
                         result_size.clone(),
-                        ce_var(&lhs_size) + ce_var(&rhs_size),
+                        bits_to_store(ce_var(&lhs_size) + ce_var(&rhs_size)),
                         expression.loc(),
                         &result_t,
                         ConstraintSource::MultOutput
                     );
                     self.add_constraint(
                         lhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&rhs_size),
+                        bits_to_store(ce_var(&result_size) - ce_var(&rhs_size)),
                         lhs.loc(),
                         &lhs_t,
                         ConstraintSource::MultOutput
                     );
                     self.add_constraint(rhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&lhs_size),
+                        bits_to_store(ce_var(&result_size) - ce_var(&lhs_size)),
                         rhs.loc(),
                         &rhs_t
                         , ConstraintSource::MultOutput

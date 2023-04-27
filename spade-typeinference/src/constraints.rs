@@ -12,6 +12,7 @@ pub enum ConstraintExpr {
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
     BitsToRepresent(Box<ConstraintExpr>),
+    BitsToRange(Box<ConstraintExpr>),
 }
 
 impl WithLocation for ConstraintExpr {}
@@ -47,6 +48,16 @@ impl ConstraintExpr {
                     .to_bigint()
                     .unwrap(),
                 ),
+                _ => self.clone(),
+            },
+            ConstraintExpr::BitsToRange(inner) => match inner.evaluate() {
+                ConstraintExpr::Integer(val) => {
+                    // NOTE: This might fail, but it will only do so for massive
+                    // constraints. If this turns out to be an issue, we need to
+                    // look into doing log2 on BigInt, which as of right now, is
+                    // unsupported
+                    ConstraintExpr::Integer(2_u128.pow(val.to_u32().unwrap()).to_bigint().unwrap())
+                }
                 _ => self.clone(),
             },
         }
@@ -101,6 +112,7 @@ impl std::fmt::Display for ConstraintExpr {
             ConstraintExpr::Sum(rhs, lhs) => write!(f, "({rhs} + {lhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
             ConstraintExpr::BitsToRepresent(val) => write!(f, "BitsToRepresent({val})"),
+            ConstraintExpr::BitsToRange(val) => write!(f, "BitsToRange({val})"),
         }
     }
 }
@@ -115,6 +127,9 @@ pub fn ce_var(v: &TypeVar) -> ConstraintExpr {
 }
 pub fn ce_int(v: BigInt) -> ConstraintExpr {
     ConstraintExpr::Integer(v)
+}
+pub fn ce_br(v: ConstraintExpr) -> ConstraintExpr {
+    ConstraintExpr::BitsToRepresent(Box::new(v))
 }
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
@@ -188,6 +203,7 @@ impl TypeConstraints {
                     ConstraintExpr::Var(_)
                     | ConstraintExpr::Sum(_, _)
                     | ConstraintExpr::BitsToRepresent(_)
+                    | ConstraintExpr::BitsToRange(_)
                     | ConstraintExpr::Sub(_) => Some((expr.clone(), rhs)),
                 }
             })

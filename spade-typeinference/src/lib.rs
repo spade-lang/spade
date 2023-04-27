@@ -1032,6 +1032,9 @@ impl TypeState {
             ConstraintExpr::BitsToRepresent(inner) => {
                 ConstraintExpr::BitsToRepresent(Box::new(self.check_expr_for_replacement(*inner)))
             }
+            ConstraintExpr::BitsToRange(inner) => {
+                ConstraintExpr::BitsToRepresent(Box::new(self.check_expr_for_replacement(*inner)))
+            }
         }
     }
 
@@ -1454,7 +1457,9 @@ impl TypeState {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
-            ConstraintExpr::Sub(i) | ConstraintExpr::BitsToRepresent(i) => {
+            ConstraintExpr::Sub(i)
+            | ConstraintExpr::BitsToRepresent(i)
+            | ConstraintExpr::BitsToRange(i) => {
                 Self::replace_type_var_in_constraint_expr(i, from, replacement);
             }
         }
