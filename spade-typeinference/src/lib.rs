@@ -34,6 +34,7 @@ use equation::{TypeEquations, TypeVar, TypedExpression};
 use error::{Error, Result, UnificationError, UnificationErrorExt, UnificationTrace};
 use fixed_types::{t_bool, t_clock, t_int};
 use requirements::{Replacement, Requirement};
+use size_equation::SizeExpression;
 use trace_stack::{format_trace_stack, TraceStackEntry};
 
 mod constraints;
@@ -46,6 +47,7 @@ pub mod fixed_types;
 pub mod method_resolution;
 pub mod mir_type_lowering;
 mod requirements;
+mod size_equation;
 pub mod testutil;
 pub mod trace_stack;
 
@@ -412,27 +414,44 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<Option<SizeExpression>> {
         let new_type = self.new_generic();
         self.add_equation(TypedExpression::Id(expression.inner.id), new_type);
 
         // Recurse down the expression
-        match &expression.inner.kind {
-            ExprKind::Identifier(_) => self.visit_identifier(expression, ctx)?,
-            ExprKind::IntLiteral(_) => self.visit_int_literal(expression, ctx)?,
-            ExprKind::BoolLiteral(_) => self.visit_bool_literal(expression, ctx)?,
-            ExprKind::TupleLiteral(_) => self.visit_tuple_literal(expression, ctx, generic_list)?,
-            ExprKind::TupleIndex(_, _) => self.visit_tuple_index(expression, ctx, generic_list)?,
-            ExprKind::ArrayLiteral(_) => self.visit_array_literal(expression, ctx, generic_list)?,
-            ExprKind::CreatePorts => self.visit_create_ports(expression, ctx, generic_list)?,
-            ExprKind::FieldAccess(_, _) => {
-                self.visit_field_access(expression, ctx, generic_list)?
+        Ok(match &expression.inner.kind {
+            ExprKind::Identifier(_) => Some(self.visit_identifier(expression, ctx)?),
+            ExprKind::IntLiteral(_) => Some(self.visit_int_literal(expression, ctx)?),
+            ExprKind::BoolLiteral(_) => {
+                self.visit_bool_literal(expression, ctx)?;
+                None
             }
-            ExprKind::MethodCall { .. } => self.visit_method_call(expression, ctx, generic_list)?,
-            ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
-            ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,
-            ExprKind::If(_, _, _) => self.visit_if(expression, ctx, generic_list)?,
-            ExprKind::Match(_, _) => self.visit_match(expression, ctx, generic_list)?,
+            ExprKind::TupleLiteral(_) => {
+                self.visit_tuple_literal(expression, ctx, generic_list)?;
+                None
+            }
+            ExprKind::TupleIndex(_, _) => {
+                self.visit_tuple_index(expression, ctx, generic_list)?;
+                None
+            }
+            ExprKind::ArrayLiteral(_) => {
+                self.visit_array_literal(expression, ctx, generic_list)?;
+                None
+            }
+            ExprKind::CreatePorts => {
+                Some(self.visit_create_ports(expression, ctx, generic_list)?)
+            }
+            ExprKind::FieldAccess(_, _) => {
+                Some(self.visit_field_access(expression, ctx, generic_list)?)
+            }
+            ExprKind::MethodCall { .. } => {
+                self.visit_method_call(expression, ctx, generic_list)?;
+                None
+            }
+            ExprKind::Index(_, _) => Some(self.visit_index(expression, ctx, generic_list)?),
+            ExprKind::Block(_) => Some(self.visit_block_expr(expression, ctx, generic_list)?),
+            ExprKind::If(_, _, _) => Some(self.visit_if(expression, ctx, generic_list)?),
+            ExprKind::Match(_, _) => Some(self.visit_match(expression, ctx, generic_list)?),
             ExprKind::BinaryOperator(_, _, _) => {
                 self.visit_binary_operator(expression, ctx, generic_list)?
             }
@@ -445,7 +464,7 @@ impl TypeState {
                 args,
             } => {
                 let head = ctx.symtab.unit_by_id(&callee.inner);
-                self.handle_function_like(
+                Some(self.handle_function_like(
                     expression.map_ref(|e| e.id),
                     &expression.get_type(self)?,
                     &callee.inner,
@@ -454,13 +473,13 @@ impl TypeState {
                     ctx,
                     true,
                     false,
-                )?;
+                )?)
             }
             ExprKind::PipelineRef { .. } => {
                 self.visit_pipeline_ref(expression, ctx)?;
+                None
             }
-        }
-        Ok(())
+        })
     }
 
     // Common handler for entities, functions and pipelines
@@ -481,7 +500,7 @@ impl TypeState {
         // If we are calling a method, we have an implicit self argument which means
         // that any error reporting number of arguments should be reduced by one
         is_method: bool,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         // Add new symbols for all the type parameters
         let generic_list = self.create_generic_list(
             GenericListSource::Expression(expression_id.inner),
@@ -588,7 +607,7 @@ impl TypeState {
                 loc: expression_id.loc(),
             })?;
 
-        Ok(())
+        Ok(SizeExpression::Var(return_type))
     }
 
     pub fn handle_clocked_memory(

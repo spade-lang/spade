@@ -1,4 +1,4 @@
-use num::{BigInt, One};
+use num::{BigInt, One, ToPrimitive};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigUint;
@@ -14,6 +14,7 @@ use crate::error::{Error, UnificationErrorExt};
 use crate::error_reporting::LocExt;
 use crate::fixed_types::t_bool;
 use crate::requirements::Requirement;
+use crate::size_equation::SizeExpression;
 use crate::{kvar, Context, GenericListToken, HasType, Result, TraceStackEntry, TypeState};
 
 macro_rules! assuming_kind {
@@ -22,23 +23,27 @@ macro_rules! assuming_kind {
             $block
         } else {
             panic!("Incorrect assumption about expression kind")
-        };
+        }
     };
 }
 
 impl TypeState {
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_identifier(&mut self, expression: &Loc<Expression>, ctx: &Context) -> Result<()> {
+    pub fn visit_identifier(
+        &mut self,
+        expression: &Loc<Expression>,
+        ctx: &Context,
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::Identifier(ident) = &expression => {
             // Add an equation for the anonymous id
-            self.unify_expression_generic_error(
+            let var = self.unify_expression_generic_error(
                 &expression,
                 &TypedExpression::Name(ident.clone()),
                 &ctx.symtab,
             )?;
-        });
-        Ok(())
+            Ok(SizeExpression::Var(var))
+        })
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -46,7 +51,7 @@ impl TypeState {
         &mut self,
         expression: &Loc<Expression>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::PipelineRef{stage: _, name, declares_name} = &expression => {
             // If this reference declares the referenced name, add a new equation
             if *declares_name {
@@ -55,31 +60,39 @@ impl TypeState {
             }
 
             // Add an equation for the anonymous id
-            self.unify_expression_generic_error(
+            let var = self.unify_expression_generic_error(
                 &expression,
                 &TypedExpression::Name(name.clone().inner),
                 &ctx.symtab,
             )?;
-        });
-        Ok(())
+            Ok(SizeExpression::Var(var))
+        })
     }
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_int_literal(&mut self, expression: &Loc<Expression>, ctx: &Context) -> Result<()> {
+    pub fn visit_int_literal(
+        &mut self,
+        expression: &Loc<Expression>,
+        ctx: &Context,
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::IntLiteral(value) = &expression => {
-            let t = self.new_generic_int(&ctx.symtab);
-            self.unify(&t, &expression.inner, &ctx.symtab)
-                .map_normal_err(|(_, got)| Error::IntLiteralIncompatible {
-                    got,
-                    loc: expression.loc(),
-                })?;
-            self.add_requirement(Requirement::FitsIntLiteral {
-                value: value.clone(),
-                target_type: t.at_loc(&expression)
-            });
-        });
-        Ok(())
+                    let t = self.new_generic_int(&ctx.symtab);
+                    self.unify(&t, &expression.inner, &ctx.symtab)
+                        .map_normal_err(|(_, got)| Error::IntLiteralIncompatible {
+                            got,
+                            loc: expression.loc(),
+                        })?;
+                    let var = self.add_requirement(Requirement::FitsIntLiteral {
+                        value: value.clone(),
+                        target_type: t.at_loc(&expression)
+                    });
+                    let value_as_int = match value {
+            spade_hir::expression::IntLiteral::Signed(x) => x.to_i128(),
+            spade_hir::expression::IntLiteral::Unsigned(x) => x.to_i128(),
+        }.unwrap();
+                    Ok(SizeExpression::Range { lo: value_as_int, hi: value_as_int })
+                })
     }
 
     #[trace_typechecker]
@@ -154,6 +167,7 @@ impl TypeState {
                 }
             };
 
+            // TODO: The value from the tuple is a SizeExpression
             if (index.inner as usize) < inner_types.len() {
                 let true_inner_type = inner_types[index.inner as usize].clone();
                 self.unify_expression_generic_error(
@@ -178,7 +192,7 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::FieldAccess(target, field) = &expression => {
             self.visit_expression(&target, ctx, generic_list)?;
 
@@ -186,14 +200,14 @@ impl TypeState {
             let self_type = self.type_of(&TypedExpression::Id(expression.id))?;
 
             let requirement = Requirement::HasField {
-                target_type: target_type.at_loc(target),
+                target_type: target_type.clone().at_loc(target),
                 field: field.clone(),
                 expr: self_type.at_loc(expression)
             };
 
             requirement.check_or_add(self, ctx)?;
-        });
-        Ok(())
+            Ok(SizeExpression::Var(target_type))
+        })
     }
 
     #[trace_typechecker]
@@ -235,9 +249,10 @@ impl TypeState {
                 args: args_with_self
             };
 
-            requirement.check_or_add(self, ctx)?
-        });
-        Ok(())
+            // TODO: Where is the return type?
+            requirement.check_or_add(self, ctx)?;
+            Ok(())
+        })
     }
 
     #[trace_typechecker]
@@ -277,8 +292,8 @@ impl TypeState {
             };
 
             self.unify_expression_generic_error(expression, &result_type, &ctx.symtab)?;
-        });
-        Ok(())
+            Ok(())
+        })
     }
 
     #[trace_typechecker]
@@ -288,14 +303,15 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         _generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::CreatePorts = &expression => {
             let inner_type = self.new_generic();
             let inverted = TypeVar::Inverted(Box::new(inner_type.clone()));
             let compound = TypeVar::Tuple(vec![inner_type, inverted]);
-            self.unify_expression_generic_error(expression, &compound, ctx.symtab)?;
-        });
-        Ok(())
+            let var = self.unify_expression_generic_error(expression, &compound, ctx.symtab)?;
+            // TODO: Can this return an int?
+            Ok(SizeExpression::Var(var))
+        })
     }
 
     #[trace_typechecker]
@@ -305,7 +321,7 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::Index(target, index) = &expression => {
             // Visit child nodes
             self.visit_expression(&target, ctx, generic_list)?;
@@ -337,16 +353,17 @@ impl TypeState {
                     Error::IndexMustBeInteger{got, loc: index.loc()}
                 })?;
 
+            let inner = expression.get_type(self)?;
             let array_type = TypeVar::Array{
-                inner: Box::new(expression.get_type(self)?),
+                inner: Box::new(inner.clone()),
                 size: Box::new(array_size)
             };
             self.unify(&target.inner, &array_type, &ctx.symtab)
                 .map_normal_err(|(got, _)| {
                     Error::IndexeeMustBeArray{got, loc: target.loc()}
                 })?;
-        });
-        Ok(())
+            Ok(SizeExpression::Var(inner))
+        })
     }
 
     #[trace_typechecker]
@@ -356,12 +373,12 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::Block(block) = &expression => {
             self.visit_block(block, ctx, generic_list)?;
 
             // Unify the return type of the block with the type of this expression
-            self.unify(&expression.inner, &block.result.inner, &ctx.symtab)
+            let var = self.unify(&expression.inner, &block.result.inner, &ctx.symtab)
                 // NOTE: We could be more specific about this error specifying
                 // that the type of the block must match the return type, though
                 // that might just be spammy.
@@ -370,8 +387,8 @@ impl TypeState {
                     got,
                     loc: block.result.loc(),
                 })?;
-        });
-        Ok(())
+            Ok(SizeExpression::Var(var))
+        })
     }
 
     #[trace_typechecker]
@@ -381,7 +398,7 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::If(cond, on_true, on_false) = &expression => {
             self.visit_expression(&cond, ctx, generic_list)?;
             self.visit_expression(&on_true, ctx, generic_list)?;
@@ -399,14 +416,14 @@ impl TypeState {
                     first_branch: on_true.loc(),
                     incorrect_branch: on_false.loc(),
                 })?;
-            self.unify(expression, &on_false.inner, &ctx.symtab)
+            let var = self.unify(expression, &on_false.inner, &ctx.symtab)
                 .map_normal_err(|(got, expected)| Error::UnspecifiedTypeError {
                     expected,
                     got,
                     loc: expression.loc(),
                 })?;
-        });
-        Ok(())
+            Ok(SizeExpression::Var(var))
+        })
     }
 
     #[trace_typechecker]
@@ -416,7 +433,7 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<SizeExpression> {
         assuming_kind!(ExprKind::Match(cond, branches) = &expression => {
             self.visit_expression(&cond, ctx, generic_list)?;
 
@@ -451,9 +468,9 @@ impl TypeState {
                 "Empty match statements should be checked by ast lowering"
             );
 
-            self.unify_expression_generic_error(&branches[0].1, expression, &ctx.symtab)?;
-        });
-        Ok(())
+            let var = self.unify_expression_generic_error(&branches[0].1, expression, &ctx.symtab)?;
+            Ok(SizeExpression::Var(var))
+        })
     }
 
     #[trace_typechecker]
@@ -463,104 +480,125 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<Option<SizeExpression>> {
         assuming_kind!(ExprKind::BinaryOperator(lhs, op, rhs) = &expression => {
-            self.visit_expression(&lhs, ctx, generic_list)?;
-            self.visit_expression(&rhs, ctx, generic_list)?;
-            match *op {
-                BinaryOperator::Add
-                | BinaryOperator::Sub => {
-                    let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
-                    let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
+                    self.visit_expression(&lhs, ctx, generic_list)?;
+                    self.visit_expression(&rhs, ctx, generic_list)?;
+                    match *op {
+                        BinaryOperator::Add
+                        | BinaryOperator::Sub => {
+                            let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
+                            let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
+                            // let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
 
-                    self.add_constraint(
-                        result_size.clone(),
-                        ce_var(&lhs_size) + ce_int(BigInt::one()),
-                        expression.loc(),
-                        &result_t,
-                        ConstraintSource::AdditionOutput
-                    );
-                    self.add_constraint(
-                        lhs_size.clone(),
-                        ce_var(&result_size) + -ce_int(BigInt::one()),
-                        lhs.loc(),
-                        &lhs_t,
-                        ConstraintSource::AdditionOutput
-                    );
+                            /*
+                            self.add_constraint(
+                                result_size.clone(),
+                                ce_var(&lhs_size) + ce_int(BigInt::one()),
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                lhs_size.clone(),
+                                ce_var(&result_size) + -ce_int(BigInt::one()),
+                                lhs.loc(),
+                                &lhs_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            */
 
-                    // FIXME: Make generic over types that can be added
-                    self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
-                    self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
-                    self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
-                }
-                BinaryOperator::Mul => {
-                    let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
-                    let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
-                    let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
+                            // FIXME: Make generic over types that can be added
+                            self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
+                            self.unify_expression_generic_error(&rhs, &rhs_t, &ctx.symtab)?;
+                            // TODO: Insert the equation
+                            // result_t >= lhs_t + rhs_t
+                            // self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
+                            match op {
+            BinaryOperator::Add =>
+                            Ok(Some(SizeExpression::Add(Box::new(SizeExpression::Var(lhs_t)), Box::new(SizeExpression::Var(rhs_t))))),
+            BinaryOperator::Sub =>
+                            Ok(Some(SizeExpression::Add(Box::new(SizeExpression::Var(lhs_t)), Box::new(SizeExpression::Neg(Box::new(SizeExpression::Var(rhs_t))))))),
+            _ => unreachable!(),
+        }
+                        }
+                        BinaryOperator::Mul => {
+                            let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
+                            let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
+                            /*
+                            let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
 
-                    // Result size is sum of input sizes
-                    self.add_constraint(
-                        result_size.clone(),
-                        ce_var(&lhs_size) + ce_var(&rhs_size),
-                        expression.loc(),
-                        &result_t,
-                        ConstraintSource::MultOutput
-                    );
-                    self.add_constraint(
-                        lhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&rhs_size),
-                        lhs.loc(),
-                        &lhs_t,
-                        ConstraintSource::MultOutput
-                    );
-                    self.add_constraint(rhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&lhs_size),
-                        rhs.loc(),
-                        &rhs_t
-                        , ConstraintSource::MultOutput
-                    );
+                            // Result size is sum of input sizes
+                            self.add_constraint(
+                                result_size.clone(),
+                                ce_var(&lhs_size) + ce_var(&rhs_size),
+                                expression.loc(),
+                                &result_t,
+                                ConstraintSource::MultOutput
+                            );
+                            self.add_constraint(
+                                lhs_size.clone(),
+                                ce_var(&result_size) + -ce_var(&rhs_size),
+                                lhs.loc(),
+                                &lhs_t,
+                                ConstraintSource::MultOutput
+                            );
+                            self.add_constraint(rhs_size.clone(),
+                                ce_var(&result_size) + -ce_var(&lhs_size),
+                                rhs.loc(),
+                                &rhs_t
+                                , ConstraintSource::MultOutput
+                            );
+                            */
 
-                    self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
-                    self.unify_expression_generic_error(&rhs, &rhs_t, &ctx.symtab)?;
-                    self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
-                }
-                // Shift operators have the same width in as they do out
-                BinaryOperator::LeftShift
-                | BinaryOperator::BitwiseAnd
-                | BinaryOperator::BitwiseXor
-                | BinaryOperator::BitwiseOr
-                | BinaryOperator::ArithmeticRightShift
-                | BinaryOperator::RightShift => {
-                    let int_type = self.new_generic_int(&ctx.symtab);
+                            self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
+                            self.unify_expression_generic_error(&rhs, &rhs_t, &ctx.symtab)?;
+                            // TODO: Insert the equation
+                            // result_t >= lhs_t * rhs_t
+                            // self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
 
-                    // FIXME: Make generic over types that can be bitmanipulated
-                    self.unify_expression_generic_error(&lhs, &int_type, &ctx.symtab)?;
-                    self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
-                    self.unify_expression_generic_error(expression, &rhs.inner, &ctx.symtab)?;
-                }
-                BinaryOperator::Eq
-                | BinaryOperator::NotEq
-                | BinaryOperator::Gt
-                | BinaryOperator::Lt
-                | BinaryOperator::Ge
-                | BinaryOperator::Le => {
-                    let int_type = self.new_generic_int(&ctx.symtab);
-                    // FIXME: Make generic over types that can be compared
-                    self.unify_expression_generic_error(&lhs, &int_type, &ctx.symtab)?;
-                    self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
-                    self.unify_expression_generic_error(expression, &t_bool(&ctx.symtab), &ctx.symtab)?;
-                }
-                BinaryOperator::LogicalAnd
-                | BinaryOperator::LogicalOr
-                | BinaryOperator::LogicalXor => {
-                    self.unify_expression_generic_error(&lhs, &t_bool(&ctx.symtab), &ctx.symtab)?;
-                    self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
+                            // TODO: Do later
+                            Ok(None)
+                        }
+                        // Shift operators have the same width in as they do out
+                        BinaryOperator::LeftShift
+                        | BinaryOperator::BitwiseAnd
+                        | BinaryOperator::BitwiseXor
+                        | BinaryOperator::BitwiseOr
+                        | BinaryOperator::ArithmeticRightShift
+                        | BinaryOperator::RightShift => {
+                            let int_type = self.new_generic_int(&ctx.symtab);
 
-                    self.unify_expression_generic_error(expression, &t_bool(&ctx.symtab), &ctx.symtab)?;
-                }
-            }
-        });
-        Ok(())
+                            // FIXME: Make generic over types that can be bitmanipulated
+                            self.unify_expression_generic_error(&lhs, &int_type, &ctx.symtab)?;
+                            self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
+                            let var = self.unify_expression_generic_error(expression, &rhs.inner, &ctx.symtab)?;
+                            Ok(Some(SizeExpression::Var(var)))
+                        }
+                        BinaryOperator::Eq
+                        | BinaryOperator::NotEq
+                        | BinaryOperator::Gt
+                        | BinaryOperator::Lt
+                        | BinaryOperator::Ge
+                        | BinaryOperator::Le => {
+                            let int_type = self.new_generic_int(&ctx.symtab);
+                            // FIXME: Make generic over types that can be compared
+                            self.unify_expression_generic_error(&lhs, &int_type, &ctx.symtab)?;
+                            self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
+                            self.unify_expression_generic_error(expression, &t_bool(&ctx.symtab), &ctx.symtab)?;
+                            Ok(None)
+                        }
+                        BinaryOperator::LogicalAnd
+                        | BinaryOperator::LogicalOr
+                        | BinaryOperator::LogicalXor => {
+                            self.unify_expression_generic_error(&lhs, &t_bool(&ctx.symtab), &ctx.symtab)?;
+                            self.unify_expression_generic_error(&lhs, &rhs.inner, &ctx.symtab)?;
+
+                            self.unify_expression_generic_error(expression, &t_bool(&ctx.symtab), &ctx.symtab)?;
+                            Ok(None)
+                        }
+                    }
+                })
     }
 
     #[trace_typechecker]
@@ -570,7 +608,7 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<Option<SizeExpression>> {
         assuming_kind!(ExprKind::UnaryOperator(op, operand) = &expression => {
             self.visit_expression(&operand, ctx, generic_list)?;
             match op {
@@ -578,6 +616,8 @@ impl TypeState {
                     let int_type = self.new_generic_int(&ctx.symtab);
                     self.unify_expression_generic_error(operand, &int_type, &ctx.symtab)?;
                     self.unify_expression_generic_error(expression, &int_type, &ctx.symtab)?
+                        // TODO: Add equation, but which one? Is negation good for both
+                        // of these?
                 }
                 UnaryOperator::Not => {
                     self.unify_expression_generic_error(operand, &t_bool(&ctx.symtab), &ctx.symtab)?;
@@ -601,8 +641,8 @@ impl TypeState {
                     self.unify_expression_generic_error(operand, &inner_type, &ctx.symtab)?;
                     self.unify_expression_generic_error(expression, &inverted_type, &ctx.symtab)?
                 }
-            }
-        });
-        Ok(())
+            };
+            Ok(None)
+        })
     }
 }
