@@ -341,6 +341,7 @@ impl TypeState {
         }
 
         self.check_requirements(ctx)?;
+        self.solve_size_equations(ctx)?;
 
         Ok(())
     }
@@ -862,7 +863,8 @@ impl TypeState {
         match &stmt.inner {
             Statement::Binding(pattern, t, value) => {
                 trace!("Visiting `let {} = ..`", pattern.kind);
-                self.visit_expression(value, ctx, generic_list)?;
+                dbg!(self.visit_expression(value, ctx, generic_list)?);
+
 
                 self.visit_pattern(pattern, ctx, generic_list)?;
 
@@ -1503,6 +1505,10 @@ impl TypeState {
                 expected,
                 loc: expr.loc(),
             })
+    }
+
+    fn solve_size_equations(&mut self, ctx: &Context) -> Result<()> {
+        panic!()
     }
 
     fn check_requirements(&mut self, ctx: &Context) -> Result<()> {

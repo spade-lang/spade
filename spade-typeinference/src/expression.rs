@@ -119,11 +119,11 @@ impl TypeState {
         assuming_kind!(ExprKind::TupleLiteral(inner) = &expression => {
             for expr in inner {
                 self.visit_expression(expr, ctx, generic_list)?;
-                // NOTE: safe unwrap, we know this expr has a type because we just visited
             }
 
             let mut inner_types = vec![];
             for expr in inner {
+                // NOTE: safe unwrap, we know this expr has a type because we just visited
                 let t = self.type_of(&TypedExpression::Id(expr.id)).unwrap();
 
                 inner_types.push(t);
@@ -485,35 +485,70 @@ impl TypeState {
                     self.visit_expression(&lhs, ctx, generic_list)?;
                     self.visit_expression(&rhs, ctx, generic_list)?;
                     match *op {
-                        BinaryOperator::Add
-                        | BinaryOperator::Sub => {
-                            let (lhs_t, lhs_size) = self.new_split_generic_int(&ctx.symtab);
-                            let (rhs_t, rhs_size) = self.new_split_generic_int(&ctx.symtab);
-                            // let (result_t, result_size) = self.new_split_generic_int(&ctx.symtab);
+                        BinaryOperator::Sub => {
+                            panic!()
+                        }
+                        BinaryOperator::Add => {
+                            let (_, lhs_max) = self.new_split_generic_int(&ctx.symtab);
+                            let (_, rhs_max) = self.new_split_generic_int(&ctx.symtab);
+                            let (_, result_max) = self.new_split_generic_int(&ctx.symtab);
 
-                            /*
+                            // We have to be careful to not over- or under-constrain these
+                            // equations. I think 6 equations are a good idea since we need a layer
+                            // of indirection at least.
+                            let (lhs_t, lhs_bits) = self.new_split_generic_int(&ctx.symtab);
+                            let (rhs_t, rhs_bits) = self.new_split_generic_int(&ctx.symtab);
+                            let (result_t, result_bits) = self.new_split_generic_int(&ctx.symtab);
+
+                            // Determin the max values
                             self.add_constraint(
-                                result_size.clone(),
-                                ce_var(&lhs_size) + ce_int(BigInt::one()),
+                                result_max.clone(),
+                                ce_var(&lhs_max) + ce_var(&rhs_max),
                                 expression.loc(),
-                                &result_t,
+                                &result_max,
                                 ConstraintSource::AdditionOutput
                             );
                             self.add_constraint(
-                                lhs_size.clone(),
-                                ce_var(&result_size) + -ce_int(BigInt::one()),
+                                lhs_max.clone(),
+                                ce_var(&result_max) + -ce_var(&rhs_max),
                                 lhs.loc(),
                                 &lhs_t,
                                 ConstraintSource::AdditionOutput
                             );
-                            */
+                            self.add_constraint(
+                                rhs_max.clone(),
+                                ce_var(&result_max) + -ce_var(&lhs_max),
+                                lhs.loc(),
+                                &rhs_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            // Determin the size of the variables
+                            self.add_constraint(
+                                result_bits.clone(),
+                                bits_to_store(ce_var(&result_max)),
+                                expression.loc(),
+                                &result_max,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                lhs_bits.clone(),
+                                bits_to_store(ce_var(&lhs_max)),
+                                lhs.loc(),
+                                &lhs_t,
+                                ConstraintSource::AdditionOutput
+                            );
+                            self.add_constraint(
+                                rhs_bits.clone(),
+                                bits_to_store(ce_var(&rhs_max)),
+                                lhs.loc(),
+                                &rhs_t,
+                                ConstraintSource::AdditionOutput
+                            );
 
                             // FIXME: Make generic over types that can be added
                             self.unify_expression_generic_error(&lhs, &lhs_t, &ctx.symtab)?;
                             self.unify_expression_generic_error(&rhs, &rhs_t, &ctx.symtab)?;
-                            // TODO: Insert the equation
-                            // result_t >= lhs_t + rhs_t
-                            // self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
+                            self.unify_expression_generic_error(expression, &result_t, &ctx.symtab)?;
                             match op {
             BinaryOperator::Add =>
                             Ok(Some(SizeExpression::Add(Box::new(SizeExpression::Var(lhs_t)), Box::new(SizeExpression::Var(rhs_t))))),

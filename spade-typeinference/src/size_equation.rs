@@ -6,5 +6,6 @@ pub enum SizeExpression {
     Var(TypeVar),
     Add(Box<SizeExpression>, Box<SizeExpression>),
     Neg(Box<SizeExpression>),
+    Log2(Box<SizeExpression>),
 }
 
