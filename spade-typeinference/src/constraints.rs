@@ -9,9 +9,12 @@ pub enum ConstraintExpr {
     Var(TypeVar),
     Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Sub(Box<ConstraintExpr>),
+    Max(Box<ConstraintExpr>, Box<ConstraintExpr>),
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
     BitsToRepresent(Box<ConstraintExpr>),
+    // Opposite of `BitsToRepresent`
+    LargestNumber(Box<ConstraintExpr>),
 }
 
 impl WithLocation for ConstraintExpr {}
@@ -24,7 +27,7 @@ impl ConstraintExpr {
             ConstraintExpr::Var(_) => self.clone(),
             ConstraintExpr::Sum(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
                 (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Integer(l + r)
+                    ConstraintExpr::Integer(dbg!(dbg!(l) + dbg!(r)))
                 }
                 _ => self.clone(),
             },
@@ -38,15 +41,34 @@ impl ConstraintExpr {
                     // constraints. If this turns out to be an issue, we need to
                     // look into doing log2 on BigInt, which as of right now, is
                     // unsupported
-                    ((val
+                    dbg!(((dbg!(val)
                         .to_f64()
                         .expect("Failed to convert constrained integer to f64"))
                     .log2()
                     .floor() as i128
-                        + 1)
+                        + 2) // Also add the sign!
                     .to_bigint()
-                    .unwrap(),
+                    .unwrap()),
                 ),
+                _ => self.clone(),
+            },
+            ConstraintExpr::LargestNumber(inner) => match inner.evaluate() {
+                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(
+                    // NOTE: This is a really bad idea since it might cause errors further down the
+                    // line.
+                    (2_f64.powf(val
+                        .to_f64()
+                        .expect("Failed to convert constrained integer to i128") + 1.0)
+                    )
+                    .to_bigint()
+                    .unwrap() - 1,
+                ),
+                _ => self.clone(),
+            },
+            ConstraintExpr::Max(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
+                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                    ConstraintExpr::Integer(l.max(r))
+                }
                 _ => self.clone(),
             },
         }
@@ -98,9 +120,11 @@ impl std::fmt::Display for ConstraintExpr {
         match self {
             ConstraintExpr::Integer(val) => write!(f, "{val}"),
             ConstraintExpr::Var(var) => write!(f, "{var}"),
-            ConstraintExpr::Sum(rhs, lhs) => write!(f, "({rhs} + {lhs})"),
+            ConstraintExpr::Sum(lhs, rhs) => write!(f, "({lhs} + {rhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
             ConstraintExpr::BitsToRepresent(val) => write!(f, "BitsToRepresent({val})"),
+            ConstraintExpr::Max(lhs, rhs) => write!(f, "max({lhs} + {rhs})"),
+            ConstraintExpr::LargestNumber(val) => write!(f, "LargestNumber({val})"),
         }
     }
 }
@@ -110,6 +134,12 @@ pub fn bits_to_store(inner: ConstraintExpr) -> ConstraintExpr {
 }
 
 // Shorthand constructors for constraint_expr
+pub fn ce_max(a: ConstraintExpr, b: ConstraintExpr) -> ConstraintExpr {
+    ConstraintExpr::Max(Box::new(a), Box::new(b))
+}
+pub fn ce_largest(v: ConstraintExpr) -> ConstraintExpr {
+    ConstraintExpr::LargestNumber(Box::new(v))
+}
 pub fn ce_var(v: &TypeVar) -> ConstraintExpr {
     ConstraintExpr::Var(v.clone())
 }
@@ -187,7 +217,9 @@ impl TypeConstraints {
                     }
                     ConstraintExpr::Var(_)
                     | ConstraintExpr::Sum(_, _)
+                    | ConstraintExpr::Max(_, _)
                     | ConstraintExpr::BitsToRepresent(_)
+                    | ConstraintExpr::LargestNumber(_)
                     | ConstraintExpr::Sub(_) => Some((expr.clone(), rhs)),
                 }
             })
@@ -207,9 +239,9 @@ pub struct ConstraintReplacement {
 #[derive(Clone, Debug)]
 pub struct ConstraintContext {
     /// A type var in which this constraint applies. For example, if a constraint
-    /// this constraint constrains `t1` inside `int<t1>`, then `from` is `int<t1>`
+    /// this constraint constrains `t1` inside `int<t1>`, then `inside` is `int<t1>`
     pub inside: TypeVar,
-    /// The left hand side which this constrains. Used together with `from` to construct
+    /// The left hand side which this constrains. Used together with `inside` to construct
     /// type errors
     pub replaces: TypeVar,
     /// Context in which this constraint was added to give hints to the user

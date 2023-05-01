@@ -412,12 +412,12 @@ impl TypeState {
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<Option<TypeVar>> {
         let new_type = self.new_generic();
         self.add_equation(TypedExpression::Id(expression.inner.id), new_type);
 
         // Recurse down the expression
-        match &expression.inner.kind {
+        Ok(match &expression.inner.kind {
             ExprKind::Identifier(_) => self.visit_identifier(expression, ctx)?,
             ExprKind::IntLiteral(_) => self.visit_int_literal(expression, ctx)?,
             ExprKind::BoolLiteral(_) => self.visit_bool_literal(expression, ctx)?,
@@ -432,7 +432,10 @@ impl TypeState {
             ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
             ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,
             ExprKind::If(_, _, _) => self.visit_if(expression, ctx, generic_list)?,
-            ExprKind::Match(_, _) => self.visit_match(expression, ctx, generic_list)?,
+            ExprKind::Match(_, _) => {
+                self.visit_match(expression, ctx, generic_list)?;
+                None
+            }
             ExprKind::BinaryOperator(_, _, _) => {
                 self.visit_binary_operator(expression, ctx, generic_list)?
             }
@@ -455,12 +458,13 @@ impl TypeState {
                     true,
                     false,
                 )?;
+                None
             }
             ExprKind::PipelineRef { .. } => {
                 self.visit_pipeline_ref(expression, ctx)?;
+                None
             }
-        }
-        Ok(())
+        })
     }
 
     // Common handler for entities, functions and pipelines
@@ -694,12 +698,11 @@ impl TypeState {
         block: &Block,
         ctx: &Context,
         generic_list: &GenericListToken,
-    ) -> Result<()> {
+    ) -> Result<Option<TypeVar>> {
         for statement in &block.statements {
             self.visit_statement(statement, ctx, generic_list)?;
         }
-        self.visit_expression(&block.result, ctx, generic_list)?;
-        Ok(())
+        self.visit_expression(&block.result, ctx, generic_list)
     }
 
     #[trace_typechecker]
@@ -1032,6 +1035,13 @@ impl TypeState {
             ConstraintExpr::BitsToRepresent(inner) => {
                 ConstraintExpr::BitsToRepresent(Box::new(self.check_expr_for_replacement(*inner)))
             }
+            ConstraintExpr::LargestNumber(inner) => {
+                ConstraintExpr::BitsToRepresent(Box::new(self.check_expr_for_replacement(*inner)))
+            }
+            ConstraintExpr::Max(lhs, rhs) => ConstraintExpr::Max(
+                Box::new(self.check_expr_for_replacement(*lhs)),
+                Box::new(self.check_expr_for_replacement(*rhs)),
+            ),
         }
     }
 
@@ -1454,8 +1464,12 @@ impl TypeState {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
-            ConstraintExpr::Sub(i) | ConstraintExpr::BitsToRepresent(i) => {
+            ConstraintExpr::Sub(i) | ConstraintExpr::BitsToRepresent(i) | ConstraintExpr::LargestNumber(i) => {
                 Self::replace_type_var_in_constraint_expr(i, from, replacement);
+            }
+            ConstraintExpr::Max(lhs, rhs) => {
+                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
+                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
         }
     }
