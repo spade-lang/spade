@@ -206,6 +206,18 @@ impl<T> Loc<T> {
             file_id: self.file_id,
         }
     }
+
+    pub fn merge(&self, other: &Self) -> Option<Loc<()>> {
+        if other.file_id != self.file_id {
+            None
+        } else {
+            Some(Loc {
+                inner: (),
+                span: self.span.merge(other.span),
+                file_id: self.file_id,
+            })
+        }
+    }
 }
 
 impl<T, E> Loc<Result<T, E>> {

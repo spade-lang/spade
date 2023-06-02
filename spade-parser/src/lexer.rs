@@ -185,6 +185,8 @@ pub enum TokenKind {
     Comma,
     #[token(".")]
     Dot,
+    #[token("..")]
+    DotDot,
     #[token(";")]
     Semi,
     #[token(":")]
@@ -285,6 +287,11 @@ impl TokenKind {
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Dot => ".",
+            // TODO: Are we sure this is the syntax we want? The old MR
+            // https://gitlab.com/spade-lang/spade/-/merge_requests/23/diffs#0334659675e62b390588f7bcb50419c4426b5b5a
+            // had a bunch of more syntax for talking about the size of integers, but I think this
+            // is the only syntax that is needed,
+            TokenKind::DotDot => "..",
             TokenKind::PathSeparator => "::",
             TokenKind::SingleQuote => "'",
 

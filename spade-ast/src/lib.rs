@@ -13,6 +13,9 @@ pub mod testutil;
 pub enum TypeExpression {
     TypeSpec(Box<Loc<TypeSpec>>),
     Integer(BigUint),
+    // Range is inclusive - [1, 1] means we have to hold the value of 1, we cannot create an empty range
+    // which isn't a problem, right?
+    Range { lo: Loc<BigInt>, hi: Loc<BigInt> },
 }
 impl WithLocation for TypeExpression {}
 

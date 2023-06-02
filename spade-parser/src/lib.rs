@@ -514,17 +514,42 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
-        if let Some(val) = self.int_literal()? {
-            match val.inner.clone().as_unsigned() {
-                Some(u) => Ok(TypeExpression::Integer(u).at_loc(&val)),
-                None => Err(Diagnostic::error(val, "Negative type level integer")
-                    .primary_label("Type level integers must be positive")
-                    .into()),
-            }
+        // Is it a TypeSpec?
+        let val = if let Some(val) = self.int_literal()? {
+            val
         } else {
             let inner = self.type_spec()?;
+            return Ok(TypeExpression::TypeSpec(Box::new(inner.clone())).at_loc(&inner));
+        };
 
-            Ok(TypeExpression::TypeSpec(Box::new(inner.clone())).at_loc(&inner))
+        // Is it a Range?
+        if self.peek_and_eat(&TokenKind::DotDot)?.is_some() {
+            let a = val.inner.clone().as_signed().at_loc(&val);
+            let b = match self
+                .int_literal()?
+                .map(|b| b.inner.clone().as_signed().at_loc(&b))
+            {
+                Some(b) => b,
+                None => {
+                    return Err(Diagnostic::error(val, "Negative type level integer")
+                        .primary_label("Type level integers must be positive")
+                        .into())
+                }
+            };
+            // We assume that `int<8..2> == int<2..8>` - potentially this could be an error but I
+            // don't see how you make it clearer
+            let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+            return Ok(TypeExpression::Range { lo, hi }.at_loc(&val));
+        }
+
+        // It has to be a constant
+        match val.inner.clone().as_unsigned() {
+            Some(u) => Ok(TypeExpression::Integer(u).at_loc(&val)),
+            None => {
+                return Err(Diagnostic::error(val, "Negative type level integer")
+                    .primary_label("Type level integers must be positive")
+                    .into())
+            }
         }
     }
 
