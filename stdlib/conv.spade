@@ -1,16 +1,16 @@
 /// Truncate the high order bits of the supplied integer. If the result is
 /// larger than the input, an error is emitted
-fn trunc<#N, #M>(x: int<N>) -> int<M> __builtin__
+fn trunc<#N, #M, #O, #P>(x: int<N..M>) -> int<O..P> __builtin__
 
 /// Sign extend the provided integer. Gives a compiler error if the output is smaller
 /// than the input
-fn sext<#N, #M>(x: int<N>) -> int<M> __builtin__
+fn sext<#N, #M, #O, #P>(x: int<N..M>) -> int<O..P> __builtin__
 
 /// Zero extend the provided integer. Gives a compiler error if the output is smaller
 /// than the input
-fn zext<#N, #M>(x: int<N>) -> int<M> __builtin__
+fn zext<#N, #M, #O, #P>(x: int<N..M>) -> int<O..P> __builtin__
 
-// Concatenate 2 integers. The resulting integer must be of length N+M, and this
-// checked, but not inferred by the built in handling. Once we get type constraints
+// Concatenate 2 integers. The resulting integer must be of length range(wl(N..M) + wl(O..P)) = K..L,
+// and this checked, but not inferred by the built in handling. Once we get type constraints
 // implemented, this should be changed
-fn concat<#N, #M, #K>(x: int<N>, y: int<M>) -> int<K> __builtin__
+fn concat<#N, #M, #O, #P, #K, #L>(x: int<N..M>, y: int<O..P>) -> int<K..L> __builtin__

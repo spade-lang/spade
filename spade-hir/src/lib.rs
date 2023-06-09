@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 
 pub use expression::{Argument, ArgumentKind, ArgumentList, ExprKind, Expression};
 use itertools::Itertools;
-use num::{BigInt, BigUint};
+use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -210,7 +210,7 @@ impl TypeParam {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum TypeExpression {
     /// An integer value
-    Integer(BigUint),
+    Integer(BigInt),
     /// Another type
     TypeSpec(TypeSpec),
 }

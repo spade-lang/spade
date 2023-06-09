@@ -3,6 +3,7 @@ use num::{BigInt, ToPrimitive, Zero};
 use spade_common::location_info::WithLocation;
 use spade_common::name::Path;
 use spade_common::num_ext::InfallibleToBigInt;
+use spade_common::wordlength::wordlength_to_range;
 use spade_common::{location_info::Loc, name::Identifier};
 use spade_diagnostics::{diag_anyhow, diag_assert, diag_bail, Diagnostic};
 use spade_hir::expression::IntLiteral;
@@ -224,16 +225,10 @@ impl Requirement {
                                     )
                                     .note("How did you manage to trigger this 🤔")
                                 })?;
-                                let (contained_range, unsigned) = match value {
-                                    IntLiteral::Signed(_) => (
-                                        (
-                                            -(&two).pow(size_u32.checked_sub(1).unwrap_or(0)),
-                                            two.pow(size_u32.checked_sub(1).unwrap_or(0)).checked_sub(&1.to_bigint()).unwrap_or(0.to_bigint()),
-                                        ),
-                                        false,
-                                    ),
+                                let contained_range = match value {
+                                    IntLiteral::Signed(_) => wordlength_to_range(size_u32),
                                     IntLiteral::Unsigned(_) => {
-                                        ((BigInt::zero(), two.pow(size_u32)-1), true)
+                                        (BigInt::zero(), two.pow(size_u32)-1)
                                     }
                                 };
 
@@ -253,7 +248,7 @@ impl Requirement {
                                         "{value} does not fit in an int<{size}>"
                                     ));
 
-                                    let diagnostic = if unsigned {
+                                    let diagnostic = if contained_range.0 == 0.to_bigint() {
                                         diagnostic.note(format!(
                                             "int<{size}> fits unsigned integers in the range (0, {})",
                                             contained_range.1,

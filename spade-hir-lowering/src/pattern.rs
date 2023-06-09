@@ -74,7 +74,6 @@ pub(crate) fn split_wildcard(
             spade_types::PrimitiveType::Int => {
                 let bits = match &params[0] {
                     ConcreteType::Integer(s) => s
-                        .to_bigint()
                         .to_u128()
                         // NOTE: Throwing error handling in here right now would be annoying,
                         // so an expect should be fine. This is a very uncommon case anyway

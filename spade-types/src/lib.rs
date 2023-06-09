@@ -1,8 +1,8 @@
-use num::BigUint;
+use num::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
 use spade_common::{
     name::{Identifier, NameID},
-    num_ext::InfallibleToBigUint,
+    num_ext::InfallibleToBigInt,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub enum ConcreteType {
         base: PrimitiveType,
         params: Vec<ConcreteType>,
     },
-    Integer(BigUint),
+    Integer(BigInt),
     Backward(Box<ConcreteType>),
     Wire(Box<ConcreteType>),
 }
@@ -157,12 +157,12 @@ impl std::fmt::Display for ConcreteType {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum KnownType {
     Type(NameID),
-    Integer(BigUint),
+    Integer(BigInt),
 }
 
 impl KnownType {
     pub fn integer(val: u64) -> Self {
-        Self::Integer(val.to_biguint())
+        Self::Integer(val.to_bigint())
     }
 }
 

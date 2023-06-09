@@ -1,6 +1,8 @@
 use crate::inferer::{Equation, Var};
 use num::BigInt;
 use num::Signed;
+use spade_common::wordlength::range_to_wordlength;
+use spade_common::wordlength::wordlength_to_range;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -80,23 +82,13 @@ impl Range {
     pub fn bit_manip(&self) -> Option<Self> {
         // This signed integers
         self.to_wordlength().map(|wl| {
-            let a = -BigInt::from(2).pow(wl - 1);
-            let b = BigInt::from(2).pow(wl - 1) - BigInt::from(1);
-
-            Self::new(a.clone().min(b.clone()), a.max(b))
+            let (lo, hi) = wordlength_to_range(wl);
+            Self::new(lo, hi)
         })
     }
 
     pub fn to_wordlength(&self) -> Option<u32> {
-        // NOTE: This can be considerably more fancy, taking into account the range and working
-        // from there - but I'm keeping things simple for now.
-        for i in 1..2048 {
-            let n = BigInt::from(2).pow(i);
-            if self.hi.abs() < n && self.lo.abs() < n + BigInt::from(1) {
-                return Some(i + 1);
-            }
-        }
-        None
+        range_to_wordlength(&self.lo, &self.hi)
     }
 
     pub fn zero() -> Range {

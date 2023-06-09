@@ -34,6 +34,7 @@ use mir::ValueNameSource;
 use mir::{ConstantValue, ValueName};
 use monomorphisation::MonoState;
 pub use name_map::NameSourceMap;
+use num::bigint::ToBigUint;
 use num::{BigUint, One, Zero};
 use pattern::DeconstructedPattern;
 use pipelines::lower_pipeline;
@@ -41,6 +42,8 @@ use pipelines::MaybePipelineContext;
 use spade_common::id_tracker::ExprIdTracker;
 use spade_common::location_info::WithLocation;
 use spade_common::name::{Identifier, Path};
+use spade_common::num_ext::InfallibleToBigUint;
+use spade_common::wordlength::range_to_wordlength;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::{diag_assert, diag_bail, DiagHandler, Diagnostic};
 use spade_typeinference::equation::TypeVar;
@@ -114,7 +117,7 @@ impl MirLowerable for ConcreteType {
             }
             CType::Array { inner, size } => Type::Array {
                 inner: Box::new(inner.to_mir_type()),
-                length: size.clone(),
+                length: size.clone().to_biguint().unwrap(),
             },
             CType::Single {
                 base: PrimitiveType::Bool,
@@ -128,14 +131,22 @@ impl MirLowerable for ConcreteType {
                 base: PrimitiveType::Int,
                 params,
             } => match params.as_slice() {
-                [CType::Integer(val)] => Type::Int(val.clone()),
+                [CType::Integer(lo), CType::Integer(hi)] => Type::Int(
+                    range_to_wordlength(lo, hi)
+                        .expect(&format!(
+                            "Range {lo}..{hi} is too large to fit in any wordlength"
+                        ))
+                        .to_biguint(),
+                ),
                 t => unreachable!("{:?} is an invalid generic parameter for an integer", t),
             },
             CType::Single {
                 base: PrimitiveType::Uint,
                 params,
             } => match params.as_slice() {
-                [CType::Integer(val)] => Type::Int(val.clone()),
+                [CType::Integer(lo), CType::Integer(hi)] => {
+                    todo!()
+                }
                 t => unreachable!("{:?} is an invalid generic parameter for an integer", t),
             },
             CType::Single {
@@ -144,7 +155,7 @@ impl MirLowerable for ConcreteType {
             } => match params.as_slice() {
                 [inner, CType::Integer(length)] => Type::Memory {
                     inner: Box::new(inner.to_mir_type()),
-                    length: length.clone(),
+                    length: length.clone().to_biguint().unwrap(),
                 },
                 t => unreachable!("{:?} is an invalid generic parameter for a memory", t),
             },
@@ -1876,8 +1887,8 @@ impl ExprLocal for Loc<Expression> {
                         operator: mir::Operator::DeclClockedMemory {
                             addr_w,
                             inner_w,
-                            write_ports,
-                            elems: elem_count.clone(),
+                            write_ports: write_ports.to_biguint().unwrap(),
+                            elems: elem_count.clone().to_biguint().unwrap(),
                             initial,
                         },
                         operands: args

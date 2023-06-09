@@ -418,7 +418,7 @@ mod tests {
     use hir::{dtype, hparams, testutil::t_num, ItemList};
     use spade_common::{
         name::testutil::{name_id, name_id_p},
-        num_ext::InfallibleToBigUint,
+        num_ext::InfallibleToBigInt,
     };
 
     use super::*;
@@ -453,7 +453,7 @@ mod tests {
                                     ast::TypeSpec::Named(
                                         ast_path("int"),
                                         Some(
-                                            vec![ast::TypeExpression::Integer(10u32.to_biguint())
+                                            vec![ast::TypeExpression::Integer(10u32.to_bigint())
                                                 .nowhere()]
                                             .nowhere(),
                                         ),

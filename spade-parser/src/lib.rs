@@ -12,6 +12,7 @@ use error::{ExpectedArgumentList, SuggestBraceEnumVariant};
 use local_impl::local_impl;
 use logos::Lexer;
 use num::{BigInt, ToPrimitive, Zero};
+use spade_common::wordlength::wordlength_to_range;
 use tracing::{event, Level};
 
 use spade_ast::{
@@ -522,35 +523,8 @@ impl<'a> Parser<'a> {
             return Ok(TypeExpression::TypeSpec(Box::new(inner.clone())).at_loc(&inner));
         };
 
-        // Is it a Range?
-        if self.peek_and_eat(&TokenKind::DotDot)?.is_some() {
-            let a = val.inner.clone().as_signed().at_loc(&val);
-            let b = match self
-                .int_literal()?
-                .map(|b| b.inner.clone().as_signed().at_loc(&b))
-            {
-                Some(b) => b,
-                None => {
-                    return Err(Diagnostic::error(val, "Negative type level integer")
-                        .primary_label("Type level integers must be positive")
-                        .into())
-                }
-            };
-            // We assume that `int<8..2> == int<2..8>` - potentially this could be an error but I
-            // don't see how you make it clearer
-            let (lo, hi) = if a < b { (a, b) } else { (b, a) };
-            return Ok(TypeExpression::Range { lo, hi }.at_loc(&val));
-        }
-
         // It has to be a constant
-        match val.inner.clone().as_unsigned() {
-            Some(u) => Ok(TypeExpression::Integer(u).at_loc(&val)),
-            None => {
-                return Err(Diagnostic::error(val, "Negative type level integer")
-                    .primary_label("Type level integers must be positive")
-                    .into())
-            }
-        }
+        Ok(TypeExpression::Integer(val.inner.clone().as_signed()).at_loc(&val))
     }
 
     // Types
@@ -576,6 +550,8 @@ impl<'a> Parser<'a> {
             tuple
         } else if let Some(array) = self.array_spec()? {
             array
+        } else if let Some(int) = self.int_spec()? {
+            int
         } else {
             // Single type, maybe with generics
             let (path, span) = self
@@ -653,6 +629,59 @@ impl<'a> Parser<'a> {
                 size: Box::new(size),
             }
             .between(self.file_id, &start, &end),
+        ))
+    }
+
+    pub fn int_spec(&mut self) -> Result<Option<Loc<TypeSpec>>> {
+        // Single type, maybe with generics
+        let (path, span) = self
+            .path()
+            .map_err(|e| e.specify_unexpected_token(Error::ExpectedType))?
+            .separate();
+
+        if path.inner.0.len() != 1 || path.inner.0[0].inner.0 != "int" {
+            return Ok(None);
+        }
+
+        // Check if this type has generic params
+        let lt_start = self.eat(&TokenKind::Lt)?;
+        let lo_or_size = self.type_expression()?;
+        // Is it a Range?
+        let generics = if self.peek_and_eat(&TokenKind::DotDot)?.is_some() {
+            let lo = lo_or_size;
+            let hi = self.type_expression()?;
+            vec![lo, hi]
+        } else {
+            match &lo_or_size.inner {
+                TypeExpression::TypeSpec(_) => todo!(),
+                TypeExpression::Integer(size) => {
+                    let (lo, hi) = wordlength_to_range(if let Some(size) = size.to_u32() {
+                        size
+                    } else {
+                        return Err(Diagnostic::error(
+                            &lo_or_size,
+                            format!(
+                                "Too large a wordlength to store on an FPGA - {size} is too large"
+                            ),
+                        )
+                        .help("A wordlength has to atleast fit into a 32-bit integer")
+                        .into());
+                    });
+                    vec![
+                        TypeExpression::Integer(lo).at_loc(&lo_or_size),
+                        TypeExpression::Integer(hi).at_loc(&lo_or_size),
+                    ]
+                }
+            }
+        };
+        let span_end = self.eat(&TokenKind::Gt)?;
+
+        Ok(Some(
+            TypeSpec::Named(
+                path,
+                Some(generics.between(self.file_id, &lt_start, &span_end)),
+            )
+            .between(self.file_id, &span, &span_end),
         ))
     }
 
@@ -2429,7 +2458,7 @@ mod tests {
     fn size_types_work() {
         let expected = TypeSpec::Named(
             ast_path("uint"),
-            Some(vec![TypeExpression::Integer(10u32.to_biguint()).nowhere()].nowhere()),
+            Some(vec![TypeExpression::Integer(10u32.to_bigint()).nowhere()].nowhere()),
         )
         .nowhere();
         check_parse!("uint<10>", type_spec, Ok(expected));
@@ -2445,7 +2474,7 @@ mod tests {
                 vec![TypeExpression::TypeSpec(Box::new(
                     TypeSpec::Named(
                         ast_path("int"),
-                        Some(vec![TypeExpression::Integer(5u32.to_biguint()).nowhere()].nowhere()),
+                        Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
                     )
                     .nowhere(),
                 ))
@@ -2465,7 +2494,7 @@ mod tests {
         let expected = TypeSpec::Wire(Box::new(
             TypeSpec::Named(
                 ast_path("int"),
-                Some(vec![TypeExpression::Integer(5u32.to_biguint()).nowhere()].nowhere()),
+                Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
             )
             .nowhere(),
         ))
@@ -2481,7 +2510,7 @@ mod tests {
         let expected = TypeSpec::Backward(Box::new(
             TypeSpec::Named(
                 ast_path("int"),
-                Some(vec![TypeExpression::Integer(5u32.to_biguint()).nowhere()].nowhere()),
+                Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
             )
             .nowhere(),
         ))
@@ -2805,7 +2834,7 @@ mod tests {
 
         let expected = TypeSpec::Array {
             inner: Box::new(TypeSpec::Named(ast_path("int"), None).nowhere()),
-            size: Box::new(TypeExpression::Integer(5u32.to_biguint()).nowhere()),
+            size: Box::new(TypeExpression::Integer(5u32.to_bigint()).nowhere()),
         }
         .nowhere();
 

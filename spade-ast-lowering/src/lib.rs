@@ -7,7 +7,7 @@ pub mod pipelines;
 pub mod types;
 
 use attributes::LocAttributeExt;
-use num::{BigInt, BigUint, Signed, ToPrimitive, Zero};
+use num::{BigInt, ToPrimitive, Zero};
 use pipelines::{int_literal_to_pipeline_stages, PipelineContext};
 use spade_diagnostics::Diagnostic;
 use tracing::{event, info, Level};
@@ -96,20 +96,6 @@ pub fn visit_type_expression(
             Ok(hir::TypeExpression::TypeSpec(inner.inner))
         }
         ast::TypeExpression::Integer(val) => Ok(hir::TypeExpression::Integer(val.clone())),
-        ast::TypeExpression::Range { lo, hi } => {
-            for i in 1..2048 {
-                let n = BigInt::from(2).pow(i);
-                if hi.abs() < n && lo.abs() < n + BigInt::from(1) {
-                    return Ok(hir::TypeExpression::Integer(BigUint::from(i + 1)));
-                }
-            }
-
-            Err(
-                Diagnostic::error(lo.merge(hi).unwrap(), "Negative type level integer")
-                    .primary_label("Type level integers must be positive")
-                    .into(),
-            )
-        }
     }
 }
 

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use inferer::{Equation, Inferer};
 use num::{BigInt, ToPrimitive};
 use range::Range;
-use spade_common::location_info::Loc;
+use spade_common::{location_info::Loc, wordlength::wordlength_to_range};
 use spade_hir::{symbol_table::FrozenSymtab, Unit};
 use spade_typeinference::{equation::TypeVar, TypeState};
 use spade_types::KnownType;
@@ -37,16 +37,14 @@ pub fn infer_and_check(
     for (ty, var) in inferer.mappings.iter() {
         match &ty.inner {
             TypeVar::Known(KnownType::Integer(size), _) => {
-                let x = size
-                    .to_u128()
-                    .unwrap()
-                    .saturating_sub(1)
-                    .try_into()
-                    .unwrap(); // This is assumed to be small
-                known.insert(
-                    *var,
-                    Range::new(-BigInt::from(2).pow(x) + 1, BigInt::from(2).pow(x) - 2),
+                let (lo, hi) = wordlength_to_range(
+                    size.to_u128()
+                        .unwrap()
+                        .saturating_sub(1)
+                        .try_into()
+                        .unwrap(),
                 );
+                known.insert(*var, Range::new(lo, hi));
             }
             TypeVar::Known(KnownType::Type(n), _) => panic!("How do I handle a type? {:?}", n),
             TypeVar::Unknown(_) => {

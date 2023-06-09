@@ -1373,7 +1373,7 @@ impl TypeState {
                 }
 
                 // NOTE: safe unwrap. We already checked the constraint above
-                let expected_type = &KnownType::Integer(replacement.val.to_biguint().unwrap());
+                let expected_type = &KnownType::Integer(replacement.val);
                 match self.unify_inner(&var, expected_type, symtab) {
                     Ok(_) => {}
                     Err(UnificationError::Normal((mut lhs, mut rhs))) => {
@@ -1449,7 +1449,7 @@ impl TypeState {
 
                 match v {
                     TypeVar::Known(KnownType::Integer(val), _) => {
-                        *in_constraint = ConstraintExpr::Integer(val.clone().to_bigint())
+                        *in_constraint = ConstraintExpr::Integer(val.clone())
                     }
                     _ => {}
                 }

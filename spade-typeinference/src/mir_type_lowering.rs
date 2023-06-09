@@ -156,7 +156,7 @@ impl TypeState {
                 ));
 
                 let size = if let ConcreteType::Integer(size) = size_type.as_ref() {
-                    size.clone()
+                    size.clone().to_biguint().unwrap()
                 } else {
                     panic!("Array size must be an integer")
                 };
@@ -238,9 +238,9 @@ impl TypeState {
                 let inner = Self::inner_ungenerify_type(inner, symtab, type_list, invert);
                 let size = Self::inner_ungenerify_type(size, symtab, type_list, invert).map(|t| {
                     if let ConcreteType::Integer(size) = t {
-                        size
+                        size.to_biguint().unwrap()
                     } else {
-                        panic!("Array size must be an integer")
+                        panic!("Array size must be a positive integer")
                     }
                 });
 

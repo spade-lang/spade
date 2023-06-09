@@ -1,6 +1,6 @@
 use spade_common::{
     location_info::{Loc, WithLocation},
-    num_ext::InfallibleToBigUint,
+    num_ext::InfallibleToBigInt,
 };
 
 /// A declared type.
@@ -18,7 +18,7 @@ macro_rules! dtype {
 
 /// A type level integer
 pub fn t_num(size: u128) -> Loc<crate::TypeExpression> {
-    crate::TypeExpression::Integer(size.to_biguint()).nowhere()
+    crate::TypeExpression::Integer(size.to_bigint()).nowhere()
 }
 
 #[macro_export]

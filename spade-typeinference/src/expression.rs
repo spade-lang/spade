@@ -1,7 +1,7 @@
 use num::{BigInt, One};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
-use spade_common::num_ext::InfallibleToBigUint;
+use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::Diagnostic;
 use spade_hir::expression::{BinaryOperator, NamedArgument, UnaryOperator};
 use spade_hir::{ExprKind, Expression};
@@ -270,7 +270,7 @@ impl TypeState {
                 members[0].get_type(self)?
             };
 
-            let size_type = kvar!(KnownType::Integer(members.len().to_biguint()));
+            let size_type = kvar!(KnownType::Integer(members.len().to_bigint()));
             let result_type = TypeVar::Array {
                 inner: Box::new(inner_type),
                 size: Box::new(size_type),
