@@ -632,28 +632,44 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    #[trace_parser]
     pub fn int_spec(&mut self) -> Result<Option<Loc<TypeSpec>>> {
         // Single type, maybe with generics
-        let (path, span) = self
-            .path()
-            .map_err(|e| e.specify_unexpected_token(Error::ExpectedType))?
-            .separate();
-
-        if path.inner.0.len() != 1 || path.inner.0[0].inner.0 != "int" {
+        let (ident, span) = if let Some(Token {
+            kind: TokenKind::Identifier(name),
+            span,
+            file_id,
+        }) = self.peek().ok()
+        {
+            if name != "int" {
+                return Ok(None);
+            }
+            (Identifier(name).at(file_id, &span), span)
+        } else {
             return Ok(None);
-        }
+        };
 
-        // Check if this type has generic params
+        self.eat_unconditional()?;
         let lt_start = self.eat(&TokenKind::Lt)?;
         let lo_or_size = self.type_expression()?;
         // Is it a Range?
-        let generics = if self.peek_and_eat(&TokenKind::DotDot)?.is_some() {
+        let generics = if self.peek()?.kind == TokenKind::DotDot {
+            self.eat_unconditional()?;
             let lo = lo_or_size;
             let hi = self.type_expression()?;
             vec![lo, hi]
         } else {
             match &lo_or_size.inner {
-                TypeExpression::TypeSpec(_) => todo!(),
+                TypeExpression::TypeSpec(_) => {
+                    return Err(Diagnostic::error(
+                        &lo_or_size,
+                        format!(
+                        "int requires either a known wordlength (int<5>) or a range (int<N..M>)"
+                    ),
+                    )
+                    .help("Perhaps you ment a generic range with (int<N..M>)?")
+                    .into())
+                }
                 TypeExpression::Integer(size) => {
                     let (lo, hi) = wordlength_to_range(if let Some(size) = size.to_u32() {
                         size
@@ -678,7 +694,7 @@ impl<'a> Parser<'a> {
 
         Ok(Some(
             TypeSpec::Named(
-                path,
+                Path(vec![ident]).between(self.file_id, &span, &span),
                 Some(generics.between(self.file_id, &lt_start, &span_end)),
             )
             .between(self.file_id, &span, &span_end),
@@ -3674,5 +3690,49 @@ mod tests {
         .nowhere();
 
         check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn parse_int_with_range() {
+        let code = r#"int<N..M>"#;
+
+        let expected = TypeSpec::Named(
+            ast_path("int"),
+            Some(
+                vec![
+                    TypeExpression::TypeSpec(Box::new(
+                        TypeSpec::Named(ast_path("N"), None).nowhere(),
+                    ))
+                    .nowhere(),
+                    TypeExpression::TypeSpec(Box::new(
+                        TypeSpec::Named(ast_path("M"), None).nowhere(),
+                    ))
+                    .nowhere(),
+                ]
+                .nowhere(),
+            ),
+        )
+        .nowhere();
+
+        check_parse!(code, int_spec, Ok(Some(expected)));
+    }
+
+    #[test]
+    fn parse_int_with_size() {
+        let code = r#"int<5>"#;
+
+        let expected = TypeSpec::Named(
+            ast_path("int"),
+            Some(
+                vec![
+                    TypeExpression::Integer(-16.to_bigint()).nowhere(),
+                    TypeExpression::Integer(15.to_bigint()).nowhere(),
+                ]
+                .nowhere(),
+            ),
+        )
+        .nowhere();
+
+        check_parse!(code, int_spec, Ok(Some(expected)));
     }
 }
