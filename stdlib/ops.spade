@@ -12,12 +12,13 @@
 // lifeguard spade#140
 // FIXME: pow and result should probably not be `N` but type inference is not good
 // enough for that yet
-fn div_pow2<#N>(x: int<N>, pow: int<N>) -> int<N> __builtin__
+// FIXME: The range syntax made this even worse.
+fn div_pow2<#N, #M>(x: int<N..M>, pow: int<N..M>) -> int<N..M> __builtin__
 
 
 /// Computes the absolute value of x. The result is truncated, meaning that
 /// `abs(-2^(N-1)) == -2^(N-1)`.
-fn abs_trunc<#N>(x: int<N>) -> int<N> {
+fn abs_trunc<#N, #M>(x: int<N..M>) -> int<0..M> {
     if x < 0 {
         -x
     }
@@ -27,7 +28,7 @@ fn abs_trunc<#N>(x: int<N>) -> int<N> {
 }
 
 /// Returns the max value of two integers
-fn max<#N>(x: int<N>, y: int<N>) -> int<N> {
+fn max<#N, #M>(x: int<N..M>, y: int<N..M>) -> int<N..M> {
     if x < y {
         y
     } else {
@@ -36,7 +37,7 @@ fn max<#N>(x: int<N>, y: int<N>) -> int<N> {
 }
 
 /// Returns the min value of two integers
-fn min<#N>(x: int<N>, y: int<N>) -> int<N> {
+fn min<#N, #M>(x: int<N..M>, y: int<N..M>) -> int<N..M> {
     if x < y {
         x
     } else {
@@ -45,7 +46,7 @@ fn min<#N>(x: int<N>, y: int<N>) -> int<N> {
 }
 
 /// Returns the two integers in increasing order
-fn order<#N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
+fn order<#N, #M>(x: int<N..M>, y: int<N..M>) -> (int<N..M>, int<N..M>) {
     if x < y {
         (x, y)
     } else {

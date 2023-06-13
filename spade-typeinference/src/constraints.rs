@@ -1,4 +1,4 @@
-use num::{bigint::ToBigInt, BigInt, ToPrimitive};
+use num::BigInt;
 use spade_common::location_info::{Loc, WithLocation};
 
 use crate::equation::TypeVar;
@@ -9,9 +9,6 @@ pub enum ConstraintExpr {
     Var(TypeVar),
     Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Sub(Box<ConstraintExpr>),
-    /// The number of bits required to represent the specified number. In practice
-    /// inner.log2().floor()+1
-    BitsToRepresent(Box<ConstraintExpr>),
 }
 
 impl WithLocation for ConstraintExpr {}
@@ -30,23 +27,6 @@ impl ConstraintExpr {
             },
             ConstraintExpr::Sub(inner) => match inner.evaluate() {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
-                _ => self.clone(),
-            },
-            ConstraintExpr::BitsToRepresent(inner) => match inner.evaluate() {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(
-                    // NOTE: This might fail, but it will only do so for massive
-                    // constraints. If this turns out to be an issue, we need to
-                    // look into doing log2 on BigInt, which as of right now, is
-                    // unsupported
-                    ((val
-                        .to_f64()
-                        .expect("Failed to convert constrained integer to f64"))
-                    .log2()
-                    .floor() as i128
-                        + 1)
-                    .to_bigint()
-                    .unwrap(),
-                ),
                 _ => self.clone(),
             },
         }
@@ -100,13 +80,12 @@ impl std::fmt::Display for ConstraintExpr {
             ConstraintExpr::Var(var) => write!(f, "{var}"),
             ConstraintExpr::Sum(rhs, lhs) => write!(f, "({rhs} + {lhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
-            ConstraintExpr::BitsToRepresent(val) => write!(f, "BitsToRepresent({val})"),
         }
     }
 }
 
-pub fn bits_to_store(inner: ConstraintExpr) -> ConstraintExpr {
-    ConstraintExpr::BitsToRepresent(Box::new(inner))
+pub fn larger_than_or_equal(_inner: ConstraintExpr) -> ConstraintExpr {
+    panic!()
 }
 
 // Shorthand constructors for constraint_expr
@@ -185,10 +164,9 @@ impl TypeConstraints {
                             .push(().at_loc(&rhs).map(|_| (expr.clone(), replacement.clone())));
                         None
                     }
-                    ConstraintExpr::Var(_)
-                    | ConstraintExpr::Sum(_, _)
-                    | ConstraintExpr::BitsToRepresent(_)
-                    | ConstraintExpr::Sub(_) => Some((expr.clone(), rhs)),
+                    ConstraintExpr::Var(_) | ConstraintExpr::Sum(_, _) | ConstraintExpr::Sub(_) => {
+                        Some((expr.clone(), rhs))
+                    }
                 }
             })
             .collect();

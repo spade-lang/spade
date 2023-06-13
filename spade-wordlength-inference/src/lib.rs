@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use inferer::{Equation, Inferer};
-use num::{BigInt, ToPrimitive};
+use num::ToPrimitive;
 use range::Range;
-use spade_common::{location_info::Loc, wordlength::wordlength_to_range};
+use spade_common::location_info::Loc;
 use spade_hir::{symbol_table::FrozenSymtab, Unit};
 use spade_typeinference::{equation::TypeVar, TypeState};
 use spade_types::KnownType;
@@ -36,16 +36,13 @@ pub fn infer_and_check(
     //
     for (ty, var) in inferer.mappings.iter() {
         match &ty.inner {
-            TypeVar::Known(KnownType::Integer(size), _) => {
-                let (lo, hi) = wordlength_to_range(
-                    size.to_u128()
-                        .unwrap()
-                        .saturating_sub(1)
-                        .try_into()
-                        .unwrap(),
-                );
-                known.insert(*var, Range::new(lo, hi));
-            }
+            TypeVar::Known(KnownType::Integer(_), sub) => match sub.as_slice() {
+                [TypeVar::Known(KnownType::Integer(lo), _), TypeVar::Known(KnownType::Integer(hi), _)] =>
+                {
+                    known.insert(*var, Range::new(lo.clone(), hi.clone()));
+                }
+                other => panic!("An int is malformed {:?}", other),
+            },
             TypeVar::Known(KnownType::Type(n), _) => panic!("How do I handle a type? {:?}", n),
             TypeVar::Unknown(_) => {
                 // known.insert(var, Range { lo: 0, hi: 0 });

@@ -1,6 +1,5 @@
 use crate::inferer::{Equation, Var};
 use num::BigInt;
-use num::Signed;
 use spade_common::wordlength::range_to_wordlength;
 use spade_common::wordlength::wordlength_to_range;
 use std::collections::BTreeMap;

@@ -72,23 +72,15 @@ pub(crate) fn split_wildcard(
             .collect(),
         ConcreteType::Single { base, params } => match base {
             spade_types::PrimitiveType::Int => {
-                let bits = match &params[0] {
-                    ConcreteType::Integer(s) => s
-                        .to_u128()
-                        // NOTE: Throwing error handling in here right now would be annoying,
-                        // so an expect should be fine. This is a very uncommon case anyway
-                        .expect("Integer bit sizes above 2^128 bits is unsupported"),
+                match (&params[0], &params[1]) {
+                    (ConcreteType::Integer(lo), ConcreteType::Integer(hi)) => split_int_range(
+                        lo.clone(),
+                        hi.clone(),
+                        // Recursively split wildcards into ranges
+                        other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
+                    ),
                     _ => unreachable!(),
-                };
-
-                let min = -(1.to_bigint() << (bits - 1));
-                let max = (1.to_bigint() << (bits - 1)) - 1;
-                split_int_range(
-                    min,
-                    max,
-                    // Recursively split wildcards into ranges
-                    other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
-                )
+                }
             }
             // Unsigned integers are currently unsupported so we'll leave this as todo
             spade_types::PrimitiveType::Uint => todo!(),

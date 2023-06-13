@@ -12,7 +12,6 @@ use std::sync::Arc;
 use hir::{Binding, Parameter, UnitHead, WalTrace};
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
-use spade_common::num_ext::InfallibleToBigInt;
 use spade_macros::trace_typechecker;
 use trace_stack::TraceStack;
 use tracing::{info, trace};
@@ -28,9 +27,7 @@ use spade_hir::{
 };
 use spade_types::KnownType;
 
-use constraints::{
-    bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintRhs, ConstraintSource, TypeConstraints,
-};
+use constraints::{ce_var, ConstraintExpr, ConstraintRhs, ConstraintSource, TypeConstraints};
 use equation::{TypeEquations, TypeVar, TypedExpression};
 use error::{Error, Result, UnificationError, UnificationErrorExt, UnificationTrace};
 use fixed_types::{t_bool, t_clock, t_int};
@@ -229,15 +226,16 @@ impl TypeState {
     }
 
     pub fn new_generic_int(&mut self, symtab: &SymbolTable) -> TypeVar {
-        TypeVar::Known(t_int(symtab), vec![self.new_generic()])
+        TypeVar::Known(t_int(symtab), vec![self.new_generic(), self.new_generic()])
     }
 
     /// Return a new generic int. The first returned value is int<N>, and the second
     /// value is N
-    pub fn new_split_generic_int(&mut self, symtab: &SymbolTable) -> (TypeVar, TypeVar) {
-        let size = self.new_generic();
-        let full = TypeVar::Known(t_int(symtab), vec![size.clone()]);
-        (full, size)
+    pub fn new_split_generic_int(&mut self, symtab: &SymbolTable) -> (TypeVar, TypeVar, TypeVar) {
+        let lo = self.new_generic();
+        let hi = self.new_generic();
+        let full = TypeVar::Known(t_int(symtab), vec![lo.clone(), hi.clone()]);
+        (full, lo, hi)
     }
 
     pub fn new_generic(&mut self) -> TypeVar {
@@ -547,12 +545,14 @@ impl TypeState {
 
     pub fn handle_clocked_memory(
         &mut self,
-        num_elements: TypeVar,
-        addr_size_arg: TypeVar,
-        args: &[Argument],
-        ctx: &Context,
+        _num_elements: TypeVar,
+        _addr_size_arg: TypeVar,
+        _args: &[Argument],
+        _ctx: &Context,
     ) -> Result<()> {
-        let (addr_type, addr_size) = self.new_split_generic_int(ctx.symtab);
+        todo!();
+        /*
+        let (addr_type, addr_lo, addr_hi) = self.new_split_generic_int(ctx.symtab);
         let port_type = TypeVar::Array {
             inner: Box::new(TypeVar::Tuple(vec![
                 self.new_generic(),
@@ -575,15 +575,18 @@ impl TypeState {
         self.unify_expression_generic_error(&args[1].value, &port_type, ctx.symtab)?;
 
         Ok(())
+        */
     }
 
     pub fn handle_read_memory(
         &mut self,
-        num_elements: TypeVar,
-        addr_size_arg: TypeVar,
-        args: &[Argument],
-        ctx: &Context,
+        _num_elements: TypeVar,
+        _addr_size_arg: TypeVar,
+        _args: &[Argument],
+        _ctx: &Context,
     ) -> Result<()> {
+        todo!();
+        /*
         let (addr_type, addr_size) = self.new_split_generic_int(ctx.symtab);
 
         self.add_constraint(
@@ -598,6 +601,7 @@ impl TypeState {
         self.unify(&addr_size, &addr_size_arg, ctx.symtab).unwrap();
 
         Ok(())
+        */
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
@@ -1027,9 +1031,6 @@ impl TypeState {
             ConstraintExpr::Sub(inner) => {
                 ConstraintExpr::Sub(Box::new(self.check_expr_for_replacement(*inner)))
             }
-            ConstraintExpr::BitsToRepresent(inner) => {
-                ConstraintExpr::BitsToRepresent(Box::new(self.check_expr_for_replacement(*inner)))
-            }
         }
     }
 
@@ -1458,7 +1459,7 @@ impl TypeState {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
-            ConstraintExpr::Sub(i) | ConstraintExpr::BitsToRepresent(i) => {
+            ConstraintExpr::Sub(i) => {
                 Self::replace_type_var_in_constraint_expr(i, from, replacement);
             }
         }

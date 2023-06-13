@@ -6,25 +6,25 @@
 /// `write enable`, `address` and `data` field. When WE is enabled, data is written
 /// to address. Otherwise no change takes effect
 /// NOTE: We when possible, we should make compute AddrWidth from NumElements
-entity clocked_memory<#NumElements, #WritePorts, #AddrWidth, D>(
+entity clocked_memory<#NumElements, #WritePorts, #AddrLo, #AddrHi, D>(
     clk: clock,
-    writes: [(bool, int<AddrWidth>, D); WritePorts],
+    writes: [(bool, int<AddrLo..AddrHi>, D); WritePorts],
 ) -> Memory<D, NumElements>
     __builtin__
 
 
 /// Same as `clocked_memory` but initializes the memory with the values specified in `initial`.
 /// The initial values must be evaluatable at compile time, otherwise an error is thrown
-entity clocked_memory_init<#NumElements, #WritePorts, #AddrWidth, D>(
+entity clocked_memory_init<#NumElements, #WritePorts, #AddrLo, #AddrHi, D>(
     clk: clock,
-    writes: [(bool, int<AddrWidth>, D); WritePorts],
+    writes: [(bool, int<AddrLo..AddrHi>, D); WritePorts],
     initial: [D; NumElements]
 ) -> Memory<D, NumElements>
     __builtin__
 
 /// Get the value out of a memory
-entity read_memory<#AddrWidth, D, #NumElements> (
+entity read_memory<#AddrLo, #AddrHi, D, #NumElements> (
     mem: Memory<D, NumElements>,
-    addr: int<AddrWidth>
+    addr: int<AddrLo..AddrHi>
 ) -> D
     __builtin__

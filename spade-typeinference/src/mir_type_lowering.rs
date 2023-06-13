@@ -21,11 +21,11 @@ impl TypeState {
     ) -> ConcreteType {
         // Mapping between generic name and type param
 
-        assert!(
-            params.len() == decl.generic_args.len(),
-            "Too few type decl params in {:?}",
-            decl
-        );
+        // assert_eq!(
+        //     params.len(), decl.generic_args.len(),
+        //     "Too few type decl params in {:?}",
+        //     decl
+        // );
 
         let generic_subs = decl
             .generic_args

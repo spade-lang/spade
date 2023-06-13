@@ -4,7 +4,6 @@ use num::{
     bigint::{Sign, ToBigUint},
     BigInt, BigUint, ToPrimitive, Zero,
 };
-use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::num_ext::InfallibleToBigUint;
 use spade_hir_lowering::{MirLowerable, NameIDExt};
 use spade_mir::{codegen::escape_path, ValueName};
@@ -333,7 +332,7 @@ pub fn value_from_str(s: &str) -> Vec<Value> {
 
 #[cfg(test)]
 mod tests {
-    use spade_common::name::testutil::name_id;
+    use spade_common::{name::testutil::name_id, num_ext::InfallibleToBigInt};
 
     use super::*;
 
