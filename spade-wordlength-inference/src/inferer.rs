@@ -35,7 +35,7 @@ impl WithLocation for Equation {}
 
 pub struct Inferer<'a> {
     pub(crate) locs: BTreeMap<Var, Loc<()>>,
-    pub(crate) mappings: BTreeMap<Loc<TypeVar>, Var>,
+    pub(crate) mappings: BTreeMap<Loc<(TypeVar, TypeVar)>, Var>,
     // These are >= equations
     pub(crate) equations: Vec<(Var, Loc<Equation>)>,
     pub(crate) var_counter: usize,
@@ -64,14 +64,16 @@ impl<'a> Inferer<'a> {
     fn find_or_create(&mut self, thing: &Loc<Expression>) -> Option<Var> {
         if let Ok(TypeVar::Known(t, v)) = thing.get_type(self.type_state) {
             match v.as_slice() {
-                [size] if t == t_int(self.symtab) => {
+                [lo, hi] if t == t_int(self.symtab) => {
                     // NOTE: Here we should inject where the variable came from so we can point to
                     // it later in an error.
-                    let p = if let Some(q) = self.mappings.get(&Loc::nowhere(size.clone())) {
+                    let p = if let Some(q) = self.mappings.get(&(lo.clone(), hi.clone()).nowhere())
+                    {
                         *q
                     } else {
                         let q = self.new_var(thing);
-                        self.mappings.insert(size.clone().at_loc(thing), q);
+                        self.mappings
+                            .insert((lo.clone(), hi.clone()).at_loc(thing), q);
                         q
                     };
                     Some(p)
@@ -383,23 +385,21 @@ impl<'a> Inferer<'a> {
                             v.insert(infer);
                         }
                         Entry::Occupied(v) => {
-                            match (v.get().to_wordlength(), infer.to_wordlength()) {
-                                // NOTE: I had to weaken this check to `<` (from `!=`) since it gave false
-                                // positives for cases like: f(0) if the constant wasn't large
-                                // enough. Maybe this is a signal of a special rule or something
-                                // else, but it does signal potential optimization potential.
-                                (Some(typecheck_wl), Some(infer_wl)) if typecheck_wl < infer_wl => {
-                                    // I'm not sure this is the same kind of error as it's being
-                                    // used as in both places - sure it's a contradiction, but here
-                                    // we might have inferred an incorrect or contradicting conclusion.
-                                    return Err(error::WordlengthMismatch {
-                                        typechecked: typecheck_wl,
-                                        inferred: infer_wl,
-                                        inferred_at: loc,
-                                    }
-                                    .into());
+                            let ty = v.get().clone();
+                            // NOTE: I had to weaken this check to `<` (from `!=`) since it gave false
+                            // positives for cases like: f(0) if the constant wasn't large
+                            // enough. Maybe this is a signal of a special rule or something
+                            // else, but it does signal potential optimization potential.
+                            if !ty.contains(&infer) {
+                                // I'm not sure this is the same kind of error as it's being
+                                // used as in both places - sure it's a contradiction, but here
+                                // we might have inferred an incorrect or contradicting conclusion.
+                                return Err(error::WordlengthMismatch {
+                                    typechecked: ty,
+                                    inferred: infer,
+                                    inferred_at: loc,
                                 }
-                                _ => {}
+                                .into());
                             }
                         }
                     }

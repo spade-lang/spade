@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 246
+---
+entity test(clk: clock) -> bool {
+    reg(clk) (sample_i, audio_val): (int<9>, int<16>) = {
+        true
+    };
+
+    true
+}
+
+
+error: Expected type (int<-256, 255>, int<-32768, 32767>), got bool
+  ┌─ testinput:2:57
+  │  
+2 │       reg(clk) (sample_i, audio_val): (int<9>, int<16>) = {
+  │ ╭─────────────────────────────────────────────────────────^
+3 │ │         true
+4 │ │     };
+  │ ╰─────^ Expected (int<-256, 255>, int<-32768, 32767>) here
+
+

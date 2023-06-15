@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/wordlength_inference.rs
 ---
-fn f<a, b>(a: int<a>, b: int<b>) -> int<b> {
+fn f<a, aa, b, bb>(a: int<a..aa>, b: int<b..bb>) -> int<b..bb> {
   a + b
 }
 
@@ -12,10 +12,10 @@ entity main(clk: clock, rst: bool) -> int<0> {
 }
 
 
-error: Word length mismatch. Got 2 bits but expected 0 bits
-  ┌─ testinput:8:3
+error: Expected type int<-16, 15>, got int<10, 10>
+  ┌─ testinput:6:19
   │
-8 │   0
-  │   ^ Got 2 bits, expected 0
+6 │   let x: int<5> = f(0, 10);
+  │                   ^^^^^^^^ Expected int<-16, 15> here
 
 

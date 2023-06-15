@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 477
+---
+use std::ports::read_mut_wire;
+
+fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+
+entity uut(val: &mut (bool, int<3>)) -> bool {
+    let x = inst read_mut_wire(val#0);
+    let y = inst read_mut_wire(val#1);
+    takes_normal(x, y)
+}
+
+
+error: Attempt to use tuple indexing on non-tuple
+  ┌─ testinput:6:32
+  │
+6 │     let x = inst read_mut_wire(val#0);
+  │                                ^^^-- Because this is a tuple index
+  │                                │   
+  │                                expected tuple
+  │
+  = note: Expected: tuple
+  = note:      Got: &mut (bool, int<-4, 3>)
+
+

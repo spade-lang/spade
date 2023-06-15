@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2464
+---
+use std::mem::clocked_memory_init;
+use std::mem::read_memory;
+
+entity test(clk: clock, a: int<8>) -> int<8> {
+    // lifeguard spade#151
+    let idx: int<1> = 0;
+    let mem = inst clocked_memory_init(clk, [(false, idx, 0)], [a, a]);
+    inst read_memory(mem, 0)
+}
+
+
+error: Expected type int<-1, 0>, got int<0, 0>
+  ┌─ testinput:6:23
+  │
+6 │     let idx: int<1> = 0;
+  │                       ^ Expected int<-1, 0> here
+
+

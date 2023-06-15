@@ -2,6 +2,8 @@ use spade_common::location_info::Loc;
 use spade_diagnostics::Diagnostic;
 use spade_macros::IntoDiagnostic;
 
+use crate::range::Range;
+
 #[derive(IntoDiagnostic)]
 #[diagnostic(
     error,
@@ -17,8 +19,8 @@ pub struct UnificationError {
 pub struct WordlengthMismatch {
     #[diagnostic(primary, "Got {} bits, expected {}", diag.inferred, diag.typechecked)]
     pub inferred_at: Loc<()>,
-    pub inferred: u32,
-    pub typechecked: u32,
+    pub inferred: Range,
+    pub typechecked: Range,
 }
 
 pub type Result<T> = std::result::Result<T, Diagnostic>;

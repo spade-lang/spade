@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 679
+---
+pipeline(1) x(clk: clock) -> bool {
+        let a: int<8> = stage.valid;
+    reg;
+        true
+}
+
+error: Expected type int<-128, 127>, got bool
+  ┌─ testinput:2:25
+  │
+2 │         let a: int<8> = stage.valid;
+  │                         ^^^^^^^^^^^ Expected int<-128, 127> here
+
+

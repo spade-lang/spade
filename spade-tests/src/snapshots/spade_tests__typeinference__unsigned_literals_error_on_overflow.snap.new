@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 616
+---
+fn test() -> int<8> {
+    256u
+}
+
+
+error: Type error
+  ┌─ testinput:1:21
+  │  
+1 │   fn test() -> int<8> {
+  │                ------ int<-128, 127> type specified here
+  │ ╭─────────────────────^
+2 │ │     256u
+3 │ │ }
+  │ ╰─^ Found type int<256, 256>
+  │  
+  = Expected: -128
+  =       in: int<-128, 127>
+  =      Got: 256
+  =       in: int<256, 256>
+
+

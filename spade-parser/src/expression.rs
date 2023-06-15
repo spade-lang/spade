@@ -693,10 +693,10 @@ mod test {
 
     #[test]
     fn tuple_type_specs_work() {
-        let code = "(int, bool)";
+        let code = "(str, bool)";
 
         let expected = TypeSpec::Tuple(vec![
-            TypeSpec::Named(ast_path("int"), None).nowhere(),
+            TypeSpec::Named(ast_path("str"), None).nowhere(),
             TypeSpec::Named(ast_path("bool"), None).nowhere(),
         ])
         .nowhere();

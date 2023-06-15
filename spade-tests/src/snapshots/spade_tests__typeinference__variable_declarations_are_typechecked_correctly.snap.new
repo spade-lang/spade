@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 225
+---
+entity counter() -> int<8> {
+    decl x;
+    let a = x;
+    let x: int<9> = 0;
+    x
+}
+
+
+error: Expected type int<-256, 255>, got int<0, 0>
+  ┌─ testinput:4:21
+  │
+4 │     let x: int<9> = 0;
+  │                     ^ Expected int<-256, 255> here
+
+

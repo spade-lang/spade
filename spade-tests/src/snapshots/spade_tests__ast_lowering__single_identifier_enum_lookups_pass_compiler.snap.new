@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/ast_lowering.rs
+assertion_line: 113
+---
+enum X {
+    A{x: int<5>},
+    B
+}
+
+use X::A;
+use X::B;
+
+fn test(x: X) -> X {
+    match x {
+        A(_) => A(4),
+        // If this test works, B, being in scope should not be a variable but remain
+        // referring to X::B. In the incorrect behaviour, the single identifier path B
+        // binds to X and B() is calling a variable as a function
+        B => B(),
+    }
+}
+
+
+error: Argument type mismatch
+   ┌─ testinput:11:19
+   │
+11 │         A(_) => A(4),
+   │                   ^ Expected int<-16, 15>
+   │
+   = Expected: int<-16, 15>
+   =      Got: int<4, 4>
+
+

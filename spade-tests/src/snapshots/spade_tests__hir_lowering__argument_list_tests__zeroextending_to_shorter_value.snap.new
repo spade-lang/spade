@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3134
+---
+fn main() -> int<4> {
+    let a: int<8> = 0;
+    let b: int<4> = std::conv::zext(a);
+    b
+}
+
+
+error: Expected type int<-128, 127>, got int<0, 0>
+  ┌─ testinput:2:21
+  │
+2 │     let a: int<8> = 0;
+  │                     ^ Expected int<-128, 127> here
+
+

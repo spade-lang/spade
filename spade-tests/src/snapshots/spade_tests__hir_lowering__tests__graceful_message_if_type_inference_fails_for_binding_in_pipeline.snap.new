@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2070
+---
+pipeline(1) x(clk: clock) -> bool {
+        let x = 0;
+    reg;
+        true
+}
+
+
+

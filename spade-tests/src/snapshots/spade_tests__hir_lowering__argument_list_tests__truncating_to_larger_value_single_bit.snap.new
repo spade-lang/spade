@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3101
+---
+fn main() -> int<2> {
+    let a: int<1> = 0;
+    let b: int<2> = std::conv::trunc(a);
+    b
+}
+
+
+error: Expected type int<-1, 0>, got int<0, 0>
+  ┌─ testinput:2:21
+  │
+2 │     let a: int<1> = 0;
+  │                     ^ Expected int<-1, 0> here
+
+

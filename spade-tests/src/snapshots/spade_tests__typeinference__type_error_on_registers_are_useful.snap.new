@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 501
+---
+entity test(clk: clock, rst: bool) -> bool {
+    let shift_clock_initial: int<10> = 0b0000011111;
+    reg(clk) shift_clock: int<10> reset(rst: shift_clock_initial) = {
+        let upper: int<2> = trunc(shift_clock);
+        let rest: int<8> = shift_clock >> 2;
+        upper `concat` rest
+    };
+    true
+}
+
+error: Expected type int<-512, 511>, got int<31, 31>
+  ┌─ testinput:2:40
+  │
+2 │     let shift_clock_initial: int<10> = 0b0000011111;
+  │                                        ^^^^^^^^^^^^ Expected int<-512, 511> here
+
+

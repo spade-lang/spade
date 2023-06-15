@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/wordlength_inference.rs
 ---
-fn p<N>(x: int<N>) -> int<N> { x }
+fn p<#N, #M>(x: int<N..M>) -> int<N..M> { x }
 
 fn f(a: int<5>) -> int<7> {
   1 * p(a) + 1
@@ -12,12 +12,13 @@ entity main(clk: clock, rst: bool) -> int<7> {
 }
 
 
-error: Type of expression is not fully known
-  ┌─ testinput:4:3
+error: Argument type mismatch
+  ┌─ testinput:8:5
   │
-4 │   1 * p(a) + 1
-  │   ^^^^^^^^ The type of this expression is not fully known
+8 │   f(3)
+  │     ^ Expected int<-16, 15>
   │
-  = note: Found incomplete type: int<_>
+  = Expected: int<-16, 15>
+  =      Got: int<3, 3>
 
 

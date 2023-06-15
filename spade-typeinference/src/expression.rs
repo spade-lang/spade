@@ -68,7 +68,7 @@ impl TypeState {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_int_literal(&mut self, expression: &Loc<Expression>, ctx: &Context) -> Result<()> {
         assuming_kind!(ExprKind::IntLiteral(value) = &expression => {
-            let t = self.new_generic_int(&ctx.symtab);
+            let t = self.new_const_generic_int(&ctx.symtab, value.clone().as_signed());
             self.unify(&t, &expression.inner, &ctx.symtab)
                 .map_normal_err(|(_, got)| Error::IntLiteralIncompatible {
                     got,

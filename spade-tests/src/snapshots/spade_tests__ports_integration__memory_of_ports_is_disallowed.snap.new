@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ports_integration.rs
+assertion_line: 77
+---
+entity A(clk: clock, p: &bool) -> bool {
+    let idx: int<10> = 0;
+    let mem: Memory<&bool, 1024> = inst std::mem::clocked_memory(clk, [(true, idx, p)]);
+
+    true
+}
+
+error: Expected type int<-512, 511>, got int<0, 0>
+  ┌─ testinput:2:24
+  │
+2 │     let idx: int<10> = 0;
+  │                        ^ Expected int<-512, 511> here
+
+

@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 171
+---
+entity counter(clk: clock, rst: bool) -> int<8> {
+    reg(clk) x reset (rst: 0) = x + 1;
+    x
+}
+
+
+error: Type error
+  ┌─ testinput:1:49
+  │  
+1 │   entity counter(clk: clock, rst: bool) -> int<8> {
+  │                                            ------ int<-128, 127> type specified here
+  │ ╭─────────────────────────────────────────────────^
+2 │ │     reg(clk) x reset (rst: 0) = x + 1;
+3 │ │     x
+4 │ │ }
+  │ ╰─^ Found type int<0, 0>
+  │  
+  = Expected: -128
+  =       in: int<-128, 127>
+  =      Got: 0
+  =       in: int<0, 0>
+
+

@@ -49,7 +49,7 @@ snapshot_inference_error!(
     multiple_generics_aa,
     "AA",
     r#"
-        fn f<a, b>(a: int<a>, b: int<b>) -> int<b> {
+        fn f<a, aa, b, bb>(a: int<a..aa>, b: int<b..bb>) -> int<b..bb> {
           a + b
         }
 
@@ -65,7 +65,7 @@ snapshot_inference_error!(
     multiple_generics_ia,
     "IA",
     r#"
-        fn f<a, b>(a: int<a>, b: int<b>) -> int<b> {
+        fn f<a, aa, b, bb>(a: int<a..aa>, b: int<b..bb>) -> int<b..bb> {
           a + b
         }
 
@@ -149,7 +149,7 @@ snapshot_inference_error!(
     wordlength_inference_aa,
     "AA",
     r#"
-        fn p<N>(x: int<N>) -> int<N> { x }
+        fn p<#N, #M>(x: int<N..M>) -> int<N..M> { x }
 
         fn f(a: int<5>) -> int<7> {
           1 * p(a) + 1
@@ -165,7 +165,7 @@ snapshot_inference_error!(
     wordlength_inference_ia,
     "IA",
     r#"
-        fn p<N>(x: int<N>) -> int<N> { x }
+        fn p<#N, #M>(x: int<N..M>) -> int<N..M> { x }
 
         fn f(a: int<5>) -> int<7> {
           1 * p(a) + 1
@@ -245,7 +245,7 @@ snapshot_inference_error!(
     multiple_generics_aaia,
     "IA",
     r#"
-        fn f<a, b>(a: int<a>, b: int<b>) -> int<b> {
+        fn f<a, aa, b, bb>(a: int<a..aa>, b: int<b..bb>) -> int<b..bb> {
           a + b
         }
 
@@ -295,7 +295,7 @@ snapshot_inference_error!(
     wordlength_inference_aaia,
     "IA",
     r#"
-        fn p<N>(x: int<N>) -> int<N> { x }
+        fn p<#N, #M>(x: int<N..M>) -> int<N..M> { x }
 
         fn f(a: int<5>) -> int<7> {
           1 * p(a) + 1

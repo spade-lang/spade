@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2929
+---
+entity main(x: (int<8>, int<4>)) -> (int<8>, int<4>) {
+    #[wal_trace]
+    let y = x;
+    x
+}
+
+
+error: #[wal_trace] can only be applied to values of struct type
+  ┌─ testinput:2:5
+  │
+2 │     #[wal_trace]
+  │     ^^^^^^^^^^^^ #[wal_trace] on (int<-128, 127>, int<-8, 7>)
+3 │     let y = x;
+  │         - This has type (int<-128, 127>, int<-8, 7>)
+
+

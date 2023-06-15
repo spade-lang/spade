@@ -17,12 +17,32 @@ entity main(clk: clock, rst: bool) -> int<4> {
 }
 
 
-error: Type of expression is not fully known
-  ┌─ testinput:5:6
-  │
-5 │   if 0 == trunc(p + 1) {
-  │      ^ The type of this expression is not fully known
-  │
-  = note: Found incomplete type: int<_>
+error: Type error
+   ┌─ testinput:3:22
+   │  
+ 3 │   fn f(a: X) -> int<4> {
+   │                 ------ int<-8, 7> type specified here
+   │ ╭──────────────────────^
+ 4 │ │   let p = a.x;
+ 5 │ │   if 0 == trunc(p + 1) {
+ 6 │ │     0
+   · │
+ 9 │ │   }
+10 │ │ }
+   │ ╰─^ Found type int<0, 0>
+   │  
+   = Expected: -8
+   =       in: int<-8, 7>
+   =      Got: 0
+   =       in: int<0, 0>
+
+error: Argument type mismatch
+   ┌─ testinput:13:13
+   │
+13 │   f( X$( x: 0 ) )
+   │             ^ Expected int<-8, 7>
+   │
+   = Expected: int<-8, 7>
+   =      Got: int<0, 0>
 
 

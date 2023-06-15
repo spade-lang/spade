@@ -5,12 +5,12 @@ source: spade-tests/src/ast_lowering.rs
 fn mangling_time<#N>() -> int<N> __builtin__
 
 
-error: no_mangle is not allowed on generic units
-  ┌─ testinput:1:1
+error: int requires either a known wordlength (int<5>) or a range (int<N..M>)
+  ┌─ testinput:2:31
   │
-1 │ #[no_mangle]
-  │ ^^^^^^^^^^^^ no_mangle not allowed here
 2 │ fn mangling_time<#N>() -> int<N> __builtin__
-  │                  -- Because this unit is generic
+  │                               ^
+  │
+  = help: Perhaps you ment a generic range with (int<N..M>)?
 
 

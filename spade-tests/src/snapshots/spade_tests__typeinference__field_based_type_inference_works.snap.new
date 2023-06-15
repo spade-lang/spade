@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 338
+---
+struct A {
+    x: bool
+}
+fn a() -> int<32> {
+    let a: int<32> = A(true).x;
+    a
+}
+
+
+error: Expected type int<-2147483648, 2147483647>, got bool
+  ┌─ testinput:5:22
+  │
+5 │     let a: int<32> = A(true).x;
+  │                      ^^^^^^^^^ Expected int<-2147483648, 2147483647> here
+
+

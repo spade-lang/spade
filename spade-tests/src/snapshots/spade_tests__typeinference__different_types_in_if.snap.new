@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 566
+---
+fn test(b: int<4>) -> int<8> {
+    let a = if b == 4 { 3 } else { true };
+    7
+}
+
+
+error: Expected type int<4, 4>, got int<-8, 7>
+  ┌─ testinput:2:16
+  │
+2 │     let a = if b == 4 { 3 } else { true };
+  │                ^ Expected int<4, 4> here
+
+

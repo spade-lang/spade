@@ -1,0 +1,38 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 181
+---
+entity counter(clk: clock, rst: bool) -> (int<8>, int<8>) {
+    decl x, y;
+
+    let x_at_max = x == 8;
+    let y_at_max = y == 6;
+
+    reg(clk) x reset (rst: 0) =
+        if x_at_max {
+            x
+        }
+        else {
+            x + 1
+        };
+
+    reg(clk) y reset (rst: 0) = {
+            y
+        };
+
+    (x, y)
+}
+
+
+error: Register reset value mismatch
+  ┌─ testinput:7:28
+  │
+7 │     reg(clk) x reset (rst: 0) =
+  │                            ^ Found type int<0, 0>
+  │
+  = Expected: 8
+  =       in: int<8, 8>
+  =      Got: 0
+  =       in: int<0, 0>
+
+

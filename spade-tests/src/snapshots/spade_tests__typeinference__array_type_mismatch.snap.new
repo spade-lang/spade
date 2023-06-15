@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 606
+---
+fn x() -> bool  {
+    let a = [0, true, 2];
+    false
+}
+
+
+error: Array element type mismatch. Expected int<0, 0>
+  ┌─ testinput:2:14
+  │
+2 │     let a = [0, true, 2];
+  │              ^  ^^^^ Expected int<0, 0>
+  │              │   
+  │              To match this
+  │
+  = Expected: int<0, 0>
+  =      Got: bool
+
+

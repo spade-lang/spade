@@ -238,6 +238,16 @@ impl TypeState {
         (full, lo, hi)
     }
 
+    pub fn new_const_generic_int(&mut self, symtab: &SymbolTable, value: BigInt) -> TypeVar {
+        TypeVar::Known(
+            t_int(symtab),
+            vec![
+                TypeVar::Known(KnownType::Integer(value.clone()), vec![]),
+                TypeVar::Known(KnownType::Integer(value.clone()), vec![]),
+            ],
+        )
+    }
+
     pub fn new_generic(&mut self) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(id)
@@ -1667,7 +1677,7 @@ mod tests {
             )
             .expect("Type error");
 
-        ensure_same_type!(state, TExpr::Id(0), unsized_int(1, &symtab));
+        ensure_same_type!(state, TExpr::Id(0), unsized_int(1, 2, &symtab));
     }
 
     #[test]
@@ -1734,8 +1744,8 @@ mod tests {
         let expr_b = TExpr::Name(name_id(1, "b").inner);
         let expr_c = TExpr::Name(name_id(2, "c").inner);
         state.add_eq_from_tvar(expr_a.clone(), TVar::Unknown(100));
-        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, &symtab));
-        state.add_eq_from_tvar(expr_c.clone(), TVar::Unknown(102));
+        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, 102, &symtab));
+        state.add_eq_from_tvar(expr_c.clone(), TVar::Unknown(103));
 
         let generic_list = state.create_generic_list(GenericListSource::Anonymous, &vec![]);
         state
@@ -1751,9 +1761,9 @@ mod tests {
 
         // Check the generic type variables
         ensure_same_type!(state, TExpr::Id(0), TVar::Known(t_bool(&symtab), vec![]));
-        ensure_same_type!(state, TExpr::Id(1), unsized_int(101, &symtab));
-        ensure_same_type!(state, TExpr::Id(2), unsized_int(101, &symtab));
-        ensure_same_type!(state, TExpr::Id(3), unsized_int(101, &symtab));
+        ensure_same_type!(state, TExpr::Id(1), unsized_int(101, 102, &symtab));
+        ensure_same_type!(state, TExpr::Id(2), unsized_int(101, 102, &symtab));
+        ensure_same_type!(state, TExpr::Id(3), unsized_int(101, 102, &symtab));
 
         // Check the constraints added to the literals
         ensure_same_type!(state, TExpr::Id(0), expr_a);
@@ -1780,7 +1790,7 @@ mod tests {
         let expr_b = TExpr::Name(name_id(1, "b").inner);
         let expr_c = TExpr::Name(name_id(2, "c").inner);
         state.add_eq_from_tvar(expr_a.clone(), TVar::Unknown(100));
-        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, &symtab));
+        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, 102, &symtab));
         state.add_eq_from_tvar(expr_c.clone(), TVar::Known(t_clock(&symtab), vec![]));
 
         let generic_list = state.create_generic_list(GenericListSource::Anonymous, &vec![]);
@@ -1828,7 +1838,7 @@ mod tests {
         let expr_b = TExpr::Name(name_id(1, "b").inner);
         let expr_c = TExpr::Name(name_id(2, "c").inner);
         state.add_eq_from_tvar(expr_a.clone(), TVar::Unknown(100));
-        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, &symtab));
+        state.add_eq_from_tvar(expr_b.clone(), unsized_int(102, 103, &symtab));
         state.add_eq_from_tvar(expr_c.clone(), TVar::Unknown(102));
 
         let generic_list = state.create_generic_list(GenericListSource::Anonymous, &vec![]);
@@ -1970,8 +1980,8 @@ mod tests {
             )
             .unwrap();
 
-        ensure_same_type!(state, TExpr::Id(0), unsized_int(2, &symtab));
-        ensure_same_type!(state, TExpr::Id(1), unsized_int(2, &symtab));
+        ensure_same_type!(state, TExpr::Id(0), unsized_int(2, 3, &symtab));
+        ensure_same_type!(state, TExpr::Id(1), unsized_int(2, 3, &symtab));
     }
 
     #[test]
@@ -1993,8 +2003,8 @@ mod tests {
         let expr_b = TExpr::Name(name_id(1, "b").inner);
         let expr_c = TExpr::Name(name_id(2, "c").inner);
         state.add_eq_from_tvar(expr_a.clone(), TVar::Unknown(100));
-        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, &symtab));
-        state.add_eq_from_tvar(expr_c.clone(), sized_int(5, &symtab));
+        state.add_eq_from_tvar(expr_b.clone(), unsized_int(101, 102, &symtab));
+        state.add_eq_from_tvar(expr_c.clone(), sized_int(-16, 15, &symtab));
 
         let generic_list = state.create_generic_list(GenericListSource::Anonymous, &vec![]);
         state
@@ -2010,9 +2020,9 @@ mod tests {
 
         // Check the generic type variables
         ensure_same_type!(state, TExpr::Id(0), TVar::Known(t_bool(&symtab), vec![]));
-        ensure_same_type!(state, TExpr::Id(1), sized_int(5, &symtab));
-        ensure_same_type!(state, TExpr::Id(2), sized_int(5, &symtab));
-        ensure_same_type!(state, TExpr::Id(3), sized_int(5, &symtab));
+        ensure_same_type!(state, TExpr::Id(1), sized_int(-16, 15, &symtab));
+        ensure_same_type!(state, TExpr::Id(2), sized_int(-16, 15, &symtab));
+        ensure_same_type!(state, TExpr::Id(3), sized_int(-16, 15, &symtab));
 
         // Check the constraints added to the literals
         ensure_same_type!(state, TExpr::Id(0), expr_a);
@@ -2060,7 +2070,7 @@ mod tests {
             .unwrap();
 
         // The index should be an integer
-        ensure_same_type!(state, expr_b, unsized_int(5, &symtab));
+        ensure_same_type!(state, expr_b, unsized_int(5, 6, &symtab));
         // The target should be an array
 
         ensure_same_type!(
@@ -2109,11 +2119,11 @@ mod tests {
             )
             .unwrap();
 
-        ensure_same_type!(state, TExpr::Id(0), unsized_int(3, &symtab));
+        ensure_same_type!(state, TExpr::Id(0), unsized_int(3, 4, &symtab));
         ensure_same_type!(
             state,
             TExpr::Name(name_id(0, "a").inner),
-            unsized_int(3, &symtab)
+            unsized_int(3, 4, &symtab)
         );
         ensure_same_type!(state, expr_clk, t_clock(&symtab));
     }
@@ -2204,11 +2214,11 @@ mod tests {
         let tclk = get_type!(state, &TExpr::Name(name_id(1, "clk").inner));
         let trst_cond = get_type!(state, &TExpr::Name(rst_cond.clone()));
         let trst_val = get_type!(state, &TExpr::Name(rst_value.clone()));
-        ensure_same_type!(state, t0, unsized_int(3, &symtab));
-        ensure_same_type!(state, ta, unsized_int(3, &symtab));
+        ensure_same_type!(state, t0, unsized_int(21, 22, &symtab));
+        ensure_same_type!(state, ta, unsized_int(21, 22, &symtab));
         ensure_same_type!(state, tclk, t_clock(&symtab));
         ensure_same_type!(state, trst_cond, t_bool(&symtab));
-        ensure_same_type!(state, trst_val, unsized_int(3, &symtab));
+        ensure_same_type!(state, trst_val, unsized_int(3, 4, &symtab));
     }
 
     #[test]
@@ -2240,7 +2250,7 @@ mod tests {
             .unwrap();
 
         let ta = get_type!(state, &TExpr::Name(name_id(0, "a").inner));
-        ensure_same_type!(state, ta, unsized_int(1, &symtab));
+        ensure_same_type!(state, ta, unsized_int(1, 2, &symtab));
     }
 
     #[test]
@@ -2272,7 +2282,7 @@ mod tests {
             .unwrap();
 
         let ta = get_type!(state, &TExpr::Name(name_id(0, "a").inner));
-        ensure_same_type!(state, ta, sized_int(5, &symtab));
+        ensure_same_type!(state, ta, sized_int(-16, 15, &symtab));
     }
 
     #[test]
@@ -2324,7 +2334,7 @@ mod tests {
         let ttup = get_type!(state, &TExpr::Id(3));
         let reg = get_type!(state, &TExpr::Name(name_id(0, "test").inner));
         let expected = TypeVar::Tuple(vec![
-            sized_int(5, &symtab),
+            sized_int(-16, 15, &symtab),
             TypeVar::Known(t_bool(&symtab), vec![]),
         ]);
         ensure_same_type!(state, ttup, &expected);

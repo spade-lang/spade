@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 216
+---
+entity counter(x: int<4>, y:int<3>) -> int<8> {
+    x `std::conv::concat` y
+}
+
+
+bug: Inferred integer <= 0
+  ┌─ testinput:2:5
+  │
+2 │     x `std::conv::concat` y
+  │     ^^^^^^^^^^^^^^^^^^^^^^^ -1 is not > 0 in _
+  │
+  = note: This is an internal bug in the compiler.
+    We would appreciate if you opened an issue in the repository:
+    https://gitlab.com/spade-lang/spade/-/issues/new?issuable_template=Internal%20bug
+
+

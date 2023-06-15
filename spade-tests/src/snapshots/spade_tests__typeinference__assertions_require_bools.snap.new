@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 237
+---
+fn test(x: int<32>) -> bool {
+    assert x;
+    true
+}
+
+error: Expected type bool, got int<-2147483648, 2147483647>
+  ┌─ testinput:2:12
+  │
+2 │     assert x;
+  │            ^ Expected bool here
+
+

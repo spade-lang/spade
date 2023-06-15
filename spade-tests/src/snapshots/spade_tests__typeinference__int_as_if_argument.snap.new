@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 114
+---
+fn a(y: int<1>) -> int<32> {
+    if y {3} else {5}
+}
+
+error: If condition must be a bool, got int<-1, 0>
+  ┌─ testinput:2:8
+  │
+2 │     if y {3} else {5}
+  │        ^ Expected boolean
+  │
+  = Expected: bool
+  =      Got: int<-1, 0>
+
+

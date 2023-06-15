@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 307
+---
+struct X {a: bool}
+
+entity a() -> bool {
+    decl x;
+    let _: int<32> = x.a;
+    let x = X(false);
+    true
+}
+
+
+error: Expected type bool, got int<-2147483648, 2147483647>
+  ┌─ testinput:5:22
+  │
+5 │     let _: int<32> = x.a;
+  │                      ^^^ Expected bool here
+
+

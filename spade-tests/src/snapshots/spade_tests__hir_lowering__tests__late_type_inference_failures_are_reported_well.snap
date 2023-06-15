@@ -12,12 +12,12 @@ fn main() -> int<33> {
 }
 
 
-error: Expected type 32, got 16
-  ┌─ testinput:1:1
-  │  
-1 │ ╭ fn a<N>(x: int<N>, y: int<32>) -> int<33> {
-2 │ │     x + y
-3 │ │ }
-  │ ╰─^ Expected 32 here
+error: int requires either a known wordlength (int<5>) or a range (int<N..M>)
+  ┌─ testinput:1:16
+  │
+1 │ fn a<N>(x: int<N>, y: int<32>) -> int<33> {
+  │                ^
+  │
+  = help: Perhaps you ment a generic range with (int<N..M>)?
 
 

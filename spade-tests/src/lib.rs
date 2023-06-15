@@ -90,7 +90,7 @@ macro_rules! snapshot_error {
                 item_list_file: None,
                 print_type_traceback: false,
                 print_parse_traceback: false,
-                wl_infer_method: None,
+                wl_infer_method: Some(spade_wordlength_inference::InferMethod::AAIA),
             };
 
             let files = vec![(
@@ -237,7 +237,7 @@ pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
         item_list_file: None,
         print_type_traceback: false,
         print_parse_traceback: false,
-        wl_infer_method: None,
+        wl_infer_method: Some(spade_wordlength_inference::InferMethod::AAIA),
     };
 
     let files = vec![(

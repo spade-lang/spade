@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 153
+---
+entity main(a: int<16>, b: int<16>) -> int<16> {
+    a + b
+}
+
+
+error: Word length mismatch. Got <-65536..65534> bits but expected <-32768..32767> bits
+  ┌─ testinput:2:5
+  │
+2 │     a + b
+  │     ^ Got <-65536..65534> bits, expected <-32768..32767>
+
+

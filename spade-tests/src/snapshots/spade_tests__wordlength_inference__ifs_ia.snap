@@ -7,10 +7,13 @@ fn f<a, b>(q: bool, a: int<0>, b: int<4>) -> int<0> {
 entity main(clk: clock, rst: bool) -> int<0> { f(false, 0, 0) }
 
 
-error: Word length mismatch. Got 2 bits but expected 0 bits
-  ┌─ testinput:4:57
+error: Argument type mismatch
+  ┌─ testinput:4:60
   │
 4 │ entity main(clk: clock, rst: bool) -> int<0> { f(false, 0, 0) }
-  │                                                         ^ Got 2 bits, expected 0
+  │                                                            ^ Expected int<-8, 7>
+  │
+  = Expected: int<-8, 7>
+  =      Got: int<0, 0>
 
 

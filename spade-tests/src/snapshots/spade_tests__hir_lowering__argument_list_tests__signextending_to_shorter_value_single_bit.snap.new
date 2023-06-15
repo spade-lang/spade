@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3123
+---
+fn main() -> int<1> {
+    let a: int<2> = 0;
+    let b: int<1> = std::conv::sext(a);
+    b
+}
+
+
+error: Expected type int<-2, 1>, got int<0, 0>
+  ┌─ testinput:2:21
+  │
+2 │     let a: int<2> = 0;
+  │                     ^ Expected int<-2, 1> here
+
+

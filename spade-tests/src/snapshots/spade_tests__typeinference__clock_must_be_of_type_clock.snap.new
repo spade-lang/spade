@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 576
+---
+entity test(b: int<4>) -> int<8> {
+    reg(b) a = 3;
+    a
+}
+
+
+error: Register clock must be a type clock
+  ┌─ testinput:2:9
+  │
+2 │     reg(b) a = 3;
+  │         ^ Found type int<-8, 7>
+  │
+  = Expected: clock
+  =      Got: int<-8, 7>
+
+

@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3090
+---
+fn main() -> int<8> {
+    let a: int<4> = 0;
+    let b: int<8> = std::conv::trunc(a);
+    b
+}
+
+
+error: Expected type int<-8, 7>, got int<0, 0>
+  ┌─ testinput:2:21
+  │
+2 │     let a: int<4> = 0;
+  │                     ^ Expected int<-8, 7> here
+
+

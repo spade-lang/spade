@@ -9,6 +9,13 @@ pub struct Range {
     lo: BigInt,
     hi: BigInt,
 }
+
+impl std::fmt::Display for Range {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<{}..{}>", self.lo, self.hi)
+    }
+}
+
 impl Range {
     pub fn new(a: BigInt, b: BigInt) -> Self {
         Range {
@@ -92,6 +99,10 @@ impl Range {
 
     pub fn zero() -> Range {
         Self::new(BigInt::from(0), BigInt::from(0))
+    }
+
+    pub fn contains(&self, infer: &Range) -> bool {
+        self.lo <= infer.lo && self.hi <= self.hi
     }
 }
 

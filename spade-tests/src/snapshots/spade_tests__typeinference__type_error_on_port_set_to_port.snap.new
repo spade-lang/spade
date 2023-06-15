@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 132
+---
+// NOTE: returning bool because we don't support unit types
+entity set_port(p: &mut int<10>, v: &mut int<10>) -> bool {
+    set p = v;
+    false
+}
+
+
+error: Expected type int<-512, 511>, got &mut int<-512, 511>
+  ┌─ testinput:3:13
+  │
+3 │     set p = v;
+  │             ^ Expected int<-512, 511> here
+
+

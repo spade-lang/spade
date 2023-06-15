@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 666
+---
+#[wal_suffix(__)]
+struct T {}
+fn test(t: T, x: int<10>) -> bool {
+    #[wal_trace(rst=x)]
+    let t = t;
+    false
+}
+
+
+error: Expected type bool, got int<-512, 511>
+  ┌─ testinput:4:21
+  │
+4 │     #[wal_trace(rst=x)]
+  │                     ^ Expected bool here
+
+

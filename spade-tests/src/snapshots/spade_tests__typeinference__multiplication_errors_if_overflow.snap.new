@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 162
+---
+entity main(a: int<14>, b: int<16>) -> int<32> {
+    a * b
+}
+
+
+

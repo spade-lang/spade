@@ -2490,7 +2490,13 @@ mod tests {
                 vec![TypeExpression::TypeSpec(Box::new(
                     TypeSpec::Named(
                         ast_path("int"),
-                        Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
+                        Some(
+                            vec![
+                                TypeExpression::Integer(-16.to_bigint()).nowhere(),
+                                TypeExpression::Integer(15.to_bigint()).nowhere(),
+                            ]
+                            .nowhere(),
+                        ),
                     )
                     .nowhere(),
                 ))
@@ -2510,7 +2516,13 @@ mod tests {
         let expected = TypeSpec::Wire(Box::new(
             TypeSpec::Named(
                 ast_path("int"),
-                Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
+                Some(
+                    vec![
+                        TypeExpression::Integer(-16.to_bigint()).nowhere(),
+                        TypeExpression::Integer(15.to_bigint()).nowhere(),
+                    ]
+                    .nowhere(),
+                ),
             )
             .nowhere(),
         ))
@@ -2526,7 +2538,13 @@ mod tests {
         let expected = TypeSpec::Backward(Box::new(
             TypeSpec::Named(
                 ast_path("int"),
-                Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
+                Some(
+                    vec![
+                        TypeExpression::Integer(-16.to_bigint()).nowhere(),
+                        TypeExpression::Integer(15.to_bigint()).nowhere(),
+                    ]
+                    .nowhere(),
+                ),
             )
             .nowhere(),
         ))
@@ -2846,10 +2864,10 @@ mod tests {
 
     #[test]
     fn array_type_specs_work() {
-        let code = "[int; 5]";
+        let code = "[bool; 5]";
 
         let expected = TypeSpec::Array {
-            inner: Box::new(TypeSpec::Named(ast_path("int"), None).nowhere()),
+            inner: Box::new(TypeSpec::Named(ast_path("bool"), None).nowhere()),
             size: Box::new(TypeExpression::Integer(5u32.to_bigint()).nowhere()),
         }
         .nowhere();

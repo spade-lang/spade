@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 586
+---
+entity test(clk: clock, b: int<4>) -> int<8> {
+    reg(clk) a reset (b: 0) = 3;
+    a
+}
+
+
+error: Register reset must be a bool
+  ┌─ testinput:2:23
+  │
+2 │     reg(clk) a reset (b: 0) = 3;
+  │                       ^ Found type int<-8, 7>
+  │
+  = Expected: bool
+  =      Got: int<-8, 7>
+
+

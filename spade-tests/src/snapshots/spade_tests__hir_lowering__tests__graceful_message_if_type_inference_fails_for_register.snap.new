@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2060
+---
+entity x(clk: clock) -> bool {
+    reg(clk) x = 0;
+    true
+}
+
+
+

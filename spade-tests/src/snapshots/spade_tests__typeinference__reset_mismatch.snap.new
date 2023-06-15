@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 596
+---
+entity test(clk: clock, rst: bool) -> int<8> {
+    reg(clk) a reset (rst: true) = 3;
+    a
+}
+
+
+error: Register reset value mismatch
+  ┌─ testinput:2:28
+  │
+2 │     reg(clk) a reset (rst: true) = 3;
+  │                            ^^^^ Found type bool
+  │
+  = Expected: int<3, 3>
+  =      Got: bool
+
+

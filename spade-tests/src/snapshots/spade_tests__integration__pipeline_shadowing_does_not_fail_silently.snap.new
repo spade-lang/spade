@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 138
+---
+pipeline(2) main(clk: clock, x: int<8>) -> int<8> {
+        let x: int<8> = 0;
+    reg;
+        let x: int<8> = 1;
+    reg;
+        stage(-2).x
+}
+
+
+error: Expected type int<-128, 127>, got int<0, 0>
+  ┌─ testinput:2:25
+  │
+2 │         let x: int<8> = 0;
+  │                         ^ Expected int<-128, 127> here
+
+

@@ -5,15 +5,18 @@ use spade_types::KnownType;
 use crate::fixed_types::t_int;
 use crate::TypeVar as TVar;
 
-pub fn sized_int(size: u128, symtab: &SymbolTable) -> TVar {
+pub fn sized_int(lo: i128, hi: i128, symtab: &SymbolTable) -> TVar {
     TVar::Known(
         t_int(symtab),
-        vec![TVar::Known(KnownType::Integer(size.to_bigint()), vec![])],
+        vec![
+            TVar::Known(KnownType::Integer(lo.to_bigint()), vec![]),
+            TVar::Known(KnownType::Integer(hi.to_bigint()), vec![]),
+        ],
     )
 }
 
-pub fn unsized_int(id: u64, symtab: &SymbolTable) -> TVar {
-    TVar::Known(t_int(symtab), vec![TVar::Unknown(id)])
+pub fn unsized_int(lo: u64, hi: u64, symtab: &SymbolTable) -> TVar {
+    TVar::Known(t_int(symtab), vec![TVar::Unknown(lo), TVar::Unknown(hi)])
 }
 
 #[macro_export]
@@ -42,8 +45,8 @@ macro_rules! ensure_same_type {
             $state.print_equations();
 
             if let (Ok(t1), Ok(t2)) = (&_t1, &_t2) {
-                println!("Types were OK and have values {}, {}", t1, t2);
-                println!("Raw: {:?}, {:?}", t1, t2);
+                println!("Types were OK and have values [[ {} ]], [[ {} ]]", t1, t2);
+                println!("Raw:\n  {:?}\n  {:?}", t1, t2);
             } else {
                 println!("{:?}\n!=\n{:?}", _t1, _t2);
             }

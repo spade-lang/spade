@@ -420,14 +420,20 @@ mod tests {
                     ast_ident("a").inner,
                     ConcreteType::Single {
                         base: PrimitiveType::Int,
-                        params: vec![ConcreteType::Integer(5u32.to_bigint())],
+                        params: vec![
+                            ConcreteType::Integer(-16.to_bigint()),
+                            ConcreteType::Integer(15.to_bigint()),
+                        ],
                     },
                 ),
                 (
                     ast_ident("b").inner,
                     ConcreteType::Single {
                         base: PrimitiveType::Int,
-                        params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                        params: vec![
+                            ConcreteType::Integer(-4.to_bigint()),
+                            ConcreteType::Integer(3u32.to_bigint()),
+                        ],
                     },
                 ),
             ],
@@ -445,11 +451,17 @@ mod tests {
         let ty = ConcreteType::Tuple(vec![
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(5u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-16.to_bigint()),
+                    ConcreteType::Integer(15.to_bigint()),
+                ],
             },
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-4.to_bigint()),
+                    ConcreteType::Integer(3u32.to_bigint()),
+                ],
             },
         ]);
 
@@ -465,11 +477,17 @@ mod tests {
         let ty = ConcreteType::Tuple(vec![
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(5u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-16.to_bigint()),
+                    ConcreteType::Integer(15.to_bigint()),
+                ],
             },
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-4.to_bigint()),
+                    ConcreteType::Integer(3u32.to_bigint()),
+                ],
             },
         ]);
 
@@ -486,14 +504,20 @@ mod tests {
                 ast_ident("a").inner,
                 ConcreteType::Single {
                     base: PrimitiveType::Int,
-                    params: vec![ConcreteType::Integer(5u32.to_bigint())],
+                    params: vec![
+                        ConcreteType::Integer(-16.to_bigint()),
+                        ConcreteType::Integer(15.to_bigint()),
+                    ],
                 },
             ),
             (
                 ast_ident("b").inner,
                 ConcreteType::Single {
                     base: PrimitiveType::Int,
-                    params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                    params: vec![
+                        ConcreteType::Integer(-4.to_bigint()),
+                        ConcreteType::Integer(3u32.to_bigint()),
+                    ],
                 },
             ),
         ];
@@ -501,7 +525,10 @@ mod tests {
             ast_ident("a").inner,
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-4.to_bigint()),
+                    ConcreteType::Integer(3u32.to_bigint()),
+                ],
             },
         )];
 
@@ -580,7 +607,10 @@ mod tests {
         let ty = ConcreteType::Array {
             inner: Box::new(ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-4.to_bigint()),
+                    ConcreteType::Integer(3u32.to_bigint()),
+                ],
             }),
             size: 2u32.to_biguint(),
         };
@@ -597,11 +627,17 @@ mod tests {
         let ty = ConcreteType::Tuple(vec![
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(5u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-16.to_bigint()),
+                    ConcreteType::Integer(15.to_bigint()),
+                ],
             },
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-4.to_bigint()),
+                    ConcreteType::Integer(3u32.to_bigint()),
+                ],
             },
         ]);
 
@@ -617,11 +653,17 @@ mod tests {
         let ty = ConcreteType::Tuple(vec![
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(5u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-16.to_bigint()),
+                    ConcreteType::Integer(15.to_bigint()),
+                ],
             },
             ConcreteType::Single {
                 base: PrimitiveType::Int,
-                params: vec![ConcreteType::Integer(3u32.to_bigint())],
+                params: vec![
+                    ConcreteType::Integer(-4.to_bigint()),
+                    ConcreteType::Integer(3u32.to_bigint()),
+                ],
             },
         ]);
 

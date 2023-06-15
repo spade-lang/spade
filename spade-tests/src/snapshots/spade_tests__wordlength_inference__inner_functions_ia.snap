@@ -8,10 +8,26 @@ fn f<a, b>(a: int<2>) -> int<0> {
 entity main(clk: clock, rst: bool) -> int<0> { f(0) }
 
 
-error: Word length mismatch. Got 2 bits but expected 0 bits
-  ┌─ testinput:5:48
+error: Type error
+  ┌─ testinput:1:18
+  │
+1 │ fn g() -> int<3> { 0 }
+  │           ------ ^^^^^ Found type int<0, 0>
+  │           │       
+  │           int<-4, 3> type specified here
+  │
+  = Expected: -4
+  =       in: int<-4, 3>
+  =      Got: 0
+  =       in: int<0, 0>
+
+error: Argument type mismatch
+  ┌─ testinput:5:50
   │
 5 │ entity main(clk: clock, rst: bool) -> int<0> { f(0) }
-  │                                                ^^^^ Got 2 bits, expected 0
+  │                                                  ^ Expected int<-2, 1>
+  │
+  = Expected: int<-2, 1>
+  =      Got: int<0, 0>
 
 

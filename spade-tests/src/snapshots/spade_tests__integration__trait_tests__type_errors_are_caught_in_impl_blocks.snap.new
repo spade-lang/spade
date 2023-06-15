@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 175
+---
+struct X {}
+
+impl X {
+    fn x(self) -> bool {
+        1
+    }
+}
+
+
+error: Type error
+  ┌─ testinput:4:24
+  │  
+4 │       fn x(self) -> bool {
+  │                     ---- bool type specified here
+  │ ╭────────────────────────^
+5 │ │         1
+6 │ │     }
+  │ ╰─────^ Found type int<1, 1>
+  │  
+  = Expected: bool
+  =      Got: int<1, 1>
+
+
