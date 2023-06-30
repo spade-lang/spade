@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use num::{
     bigint::{Sign, ToBigUint},
     BigInt, BigUint, ToPrimitive, Zero,
@@ -181,14 +182,15 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
         ConcreteType::Array { inner, size } => {
             let mut offset = 0;
             result.push('[');
-            for i in 0..size.to_bit_count() {
+            let mut inner_values = vec![];
+            for _ in 0..size.to_bit_count() {
                 let end = offset + inner.to_mir_type().size().to_bit_count();
-                inner_translate_value(result, &value[offset..end], inner);
+                let mut inner_result = String::new();
+                inner_translate_value(&mut inner_result, &value[offset..end], inner);
+                inner_values.push(inner_result);
                 offset = end;
-                if i != size.to_bit_count() - 1 {
-                    result.push(',')
-                }
             }
+            *result += &inner_values.iter().rev().join(",");
             result.push(']');
         }
         ConcreteType::Enum { options } => {
@@ -566,7 +568,7 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "[1,2]");
+        assert_eq!(translated, "[2,1]");
     }
 
     #[test]
