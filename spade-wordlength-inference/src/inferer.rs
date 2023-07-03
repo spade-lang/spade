@@ -35,7 +35,7 @@ impl WithLocation for Equation {}
 
 pub struct Inferer<'a> {
     pub(crate) locs: BTreeMap<Var, Loc<()>>,
-    pub(crate) mappings: BTreeMap<Loc<(TypeVar, TypeVar)>, Var>,
+    pub(crate) mappings: BTreeMap<Loc<(TypeVar, TypeVar, TypeVar)>, Var>,
     // These are >= equations
     pub(crate) equations: Vec<(Var, Loc<Equation>)>,
     pub(crate) var_counter: usize,
@@ -63,17 +63,20 @@ impl<'a> Inferer<'a> {
 
     fn find_or_create(&mut self, thing: &Loc<Expression>) -> Option<Var> {
         if let Ok(TypeVar::Known(t, v)) = thing.get_type(self.type_state) {
-            match v.as_slice() {
+            match v.clone().as_slice() {
                 [lo, hi] if t == t_int(self.symtab) => {
                     // NOTE: Here we should inject where the variable came from so we can point to
                     // it later in an error.
-                    let p = if let Some(q) = self.mappings.get(&(lo.clone(), hi.clone()).nowhere())
-                    {
+                    let p = if let Some(q) = self.mappings.get(
+                        &(TypeVar::Known(t.clone(), v.clone()), lo.clone(), hi.clone()).nowhere(),
+                    ) {
                         *q
                     } else {
                         let q = self.new_var(thing);
-                        self.mappings
-                            .insert((lo.clone(), hi.clone()).at_loc(thing), q);
+                        self.mappings.insert(
+                            (TypeVar::Known(t, v), lo.clone(), hi.clone()).at_loc(thing),
+                            q,
+                        );
                         q
                     };
                     Some(p)

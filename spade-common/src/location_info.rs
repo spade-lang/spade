@@ -109,6 +109,7 @@ impl WithLocation for String {}
 impl<'a> WithLocation for &'a str {}
 impl<T> WithLocation for Vec<T> {}
 impl<T> WithLocation for (T, T) {}
+impl<T> WithLocation for (T, T, T) {}
 
 pub fn lspan(s: logos::Span) -> Span {
     Span::new(s.start as u32, s.end as u32)

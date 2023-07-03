@@ -10,8 +10,9 @@ use crate::range::Range;
     "Got a type-error while doing wordlength inference - please report this!"
 )]
 pub struct UnificationError {
-    #[diagnostic(primary, "This place is somehow related")]
+    #[diagnostic(primary, "This place is somehow related - {:#?}", diag.err)]
     pub at: Loc<()>,
+    pub err: spade_typeinference::error::UnificationError,
 }
 
 #[derive(IntoDiagnostic)]
