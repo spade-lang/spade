@@ -635,11 +635,11 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn int_spec(&mut self) -> Result<Option<Loc<TypeSpec>>> {
         // Single type, maybe with generics
-        let (ident, span) = if let Some(Token {
+        let (ident, span) = if let Ok(Token {
             kind: TokenKind::Identifier(name),
             span,
             file_id,
-        }) = self.peek().ok()
+        }) = self.peek()
         {
             if name != "int" {
                 return Ok(None);
@@ -676,9 +676,7 @@ impl<'a> Parser<'a> {
                     } else {
                         return Err(Diagnostic::error(
                             &lo_or_size,
-                            format!(
-                                "Too large a wordlength to store on an FPGA - {size} is too large"
-                            ),
+                            format!("{size} is an unsupported wordlength"),
                         )
                         .help("A wordlength has to atleast fit into a 32-bit integer")
                         .into());

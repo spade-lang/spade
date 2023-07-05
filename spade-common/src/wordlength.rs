@@ -15,7 +15,7 @@ pub fn range_to_wordlength(lo: &BigInt, hi: &BigInt) -> Option<u32> {
 
 // TODO: rename to signed
 pub fn wordlength_to_range(wl: u32) -> (BigInt, BigInt) {
-    if wl < 1 {
+    if wl == 0 {
         return (BigInt::from(0), BigInt::from(0));
     }
     let a = -BigInt::from(2).pow(wl - 1);

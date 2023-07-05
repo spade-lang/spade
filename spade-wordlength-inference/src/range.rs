@@ -102,7 +102,7 @@ impl Range {
     }
 
     pub fn contains(&self, infer: &Range) -> bool {
-        self.lo <= infer.lo && self.hi <= self.hi
+        self.lo <= infer.lo && infer.hi <= self.hi
     }
 }
 

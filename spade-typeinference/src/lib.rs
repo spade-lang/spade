@@ -1383,7 +1383,6 @@ impl TypeState {
                     });
                 }
 
-                // NOTE: safe unwrap. We already checked the constraint above
                 let expected_type = &KnownType::Integer(replacement.val);
                 match self.unify_inner(&var, expected_type, symtab) {
                     Ok(_) => {}
