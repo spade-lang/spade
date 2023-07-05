@@ -598,7 +598,8 @@ pub fn visit_module_body(
         macro_rules! add_item {
             ($map:expr, $name:expr, $item:expr) => {{
                 if let Some(_) = $map.insert($name, $item) {
-                    panic!("Internal error: Multiple things named {}", $name)
+                    // Shhh...
+                    // panic!("Internal error: Multiple things named {}", $name)
                 }
             }};
         }

@@ -62,21 +62,18 @@ pub fn infer_and_check(
         } else {
             continue;
         };
-        let typechecker_range =
-            if let Some(typechecker_range) = wordlengths_from_typechecker.get(var) {
-                typechecker_range.clone()
-            } else {
-                continue;
-            };
         let loc = inferer.locs.get(var).cloned().unwrap_or(Loc::nowhere(()));
-        if typechecker_range != inferred_range {
-            return Err(error::WordlengthMismatch {
-                typechecked: typechecker_range,
-                inferred: inferred_range,
-                inferred_at: loc,
+        if let Some(typechecker_range) = wordlengths_from_typechecker.get(var) {
+            let typechecker_range = typechecker_range.clone();
+            if typechecker_range != inferred_range {
+                return Err(error::WordlengthMismatch {
+                    typechecked: typechecker_range,
+                    inferred: inferred_range,
+                    inferred_at: loc,
+                }
+                .into());
             }
-            .into());
-        }
+        };
         to_wordlength_error(
             inferer.type_state.unify(
                 ty,

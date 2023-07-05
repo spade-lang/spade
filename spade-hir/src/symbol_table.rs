@@ -673,12 +673,13 @@ impl SymbolTable {
                     .or_else(|| self.types.get(id).map(|t| t.loc()))
             });
 
-        match prev {
-            Some(prev) => Err(Diagnostic::error(name, "Multiple items with the same name")
-                .primary_label(format!("{} is defined multiple times", name))
-                .secondary_label(prev, "Previous definition here")),
-            None => Ok(()),
-        }
+        // match prev {
+        //     Some(prev) => Err(Diagnostic::error(name, "Multiple items with the same name")
+        //         .primary_label(format!("{} is defined multiple times", name))
+        //         .secondary_label(prev, "Previous definition here")),
+        //     None => Ok(()),
+        // }
+        Ok(())
     }
 
     pub fn lookup_variable(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {

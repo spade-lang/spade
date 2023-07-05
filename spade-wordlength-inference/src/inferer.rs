@@ -408,7 +408,6 @@ impl<'a> Inferer<'a> {
                     }
                 }
             }
-
             // Break when we got new information - I think this is a decent speedup...
             if known_at_start == known {
                 break;
