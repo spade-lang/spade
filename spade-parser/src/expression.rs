@@ -1,10 +1,12 @@
 use num::ToPrimitive;
 use spade_ast::{ArgumentList, BinaryOperator, CallKind, Expression, UnaryOperator};
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::Diagnostic;
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
 
-use crate::error::{ExpectedArgumentList, Result, UnexpectedToken};
+use crate::error::{expected_pipeline_depth, ExpectedArgumentList, Result, UnexpectedToken};
+use crate::item_type::UnitKindLocal;
+use crate::OptionExt;
 use crate::{lexer::TokenKind, ParseStackEntry, Parser};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
@@ -318,6 +320,34 @@ impl<'a> Parser<'a> {
         } else if self.peek_and_eat(&TokenKind::Dot)?.is_some() {
             let inst = self.peek_and_eat(&TokenKind::Instance)?;
 
+            let pipeline_depth = if inst.is_some() && self.peek_kind(&TokenKind::OpenParen)? {
+                Some(self.surrounded(
+                    &TokenKind::OpenParen,
+                    |s| {
+                        s.maybe_comptime(&|s| {
+                            s.int_literal()?
+                                .or_error(s, |p| Ok(expected_pipeline_depth(&p.peek()?)))
+                        })
+                    },
+                    &TokenKind::CloseParen,
+                )?)
+            } else {
+                None
+            };
+
+            let call_kind = match (&inst, pipeline_depth) {
+                (Some(inst), Some((depth, pl_loc))) => {
+                    CallKind::Pipeline(().between(self.file_id, inst, &pl_loc), depth)
+                }
+                (Some(inst), None) => CallKind::Entity(().at(self.file_id, inst)),
+                (None, Some((d, _))) => diag_bail!(d, "Found depth without inst"),
+                (None, None) => CallKind::Function,
+            };
+
+            if let Some(inst) = &inst {
+                self.unit_context.allows_inst(().at(self.file_id, inst))?;
+            }
+
             let field = self.identifier()?;
 
             if let Some(args) = self.argument_list()? {
@@ -325,9 +355,7 @@ impl<'a> Parser<'a> {
                     target: Box::new(expr.clone()),
                     name: field.clone(),
                     args: args.clone(),
-                    kind: inst
-                        .map(|i| CallKind::Entity(().at(self.file_id, &i)))
-                        .unwrap_or(CallKind::Function),
+                    kind: call_kind,
                 }
                 .between(self.file_id, &expr, &args))
             } else if let Some(inst_keyword) = inst {
@@ -747,7 +775,8 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression, Ok(expected), |p: &mut Parser| p
+            .set_parsing_entity());
     }
 
     #[test]

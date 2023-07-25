@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct T {
+    payload: bool,
+}
+
+impl T {
+    pipeline(1) test(self, clk: clock, num: int<8>) -> T {
+        reg;
+            self
+    }
+}
+
+pipeline(1) test(clk: clock, t: T) -> T {
+        let x = 0;
+        let out = t
+            .inst(1) test(clk, x)
+            .inst(1) test(clk, x);
+    reg;
+        out
+}
+
+
+error: All subexpressions need the same pipeline delay
+   ┌─ testinput:16:27
+   │  
+14 │           let out = t
+   │ ╭───────────────────'
+15 │ │             .inst(1) test(clk, x)
+   │ ╰─────────────────────────────────' But this has delay 1
+16 │               .inst(1) test(clk, x);
+   │                             ^^^ This has delay 0

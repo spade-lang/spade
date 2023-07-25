@@ -42,8 +42,6 @@ impl<'a> Pass for LowerMethods<'a> {
 
                 let method = select_method(self_.loc(), &type_name, name, self.items)?;
 
-                let unit = self.symtab.symtab().unit_by_id(&method.inner);
-
                 // Insert self as the first arg
                 let args = args.map_ref(|args| {
                     let mut new = args.clone();
@@ -57,19 +55,6 @@ impl<'a> Pass for LowerMethods<'a> {
                     new
                 });
 
-                match unit.unit_kind.inner {
-                    spade_hir::UnitKind::Function(_) => {}
-                    spade_hir::UnitKind::Entity => {}
-                    spade_hir::UnitKind::Pipeline(_) => {
-                        return Err(Diagnostic::error(
-                            expression.loc(),
-                            "Pipeline methods cannot be instantiated",
-                        )
-                        .secondary_label(&unit.unit_kind, "This is a pipeline")
-                        .note("This restriction will be lifted in the future")
-                        .into())
-                    }
-                }
                 Some(spade_hir::ExprKind::Call {
                     kind: call_kind.clone(),
                     callee: method.inner.at_loc(name),

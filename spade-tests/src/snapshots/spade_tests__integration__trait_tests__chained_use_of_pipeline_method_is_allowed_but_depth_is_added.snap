@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct T {
+    payload: bool,
+}
+
+impl T {
+    pipeline(1) test(self) -> T {
+        reg;
+            self
+    }
+}
+
+pipeline(1) test(t: T) -> T {
+        let out = t
+            .inst(1) test()
+            .inst(1) test();
+    reg;
+        out
+}
+
+
+error: Use of out before it is ready
+   ┌─ testinput:17:9
+   │
+17 │         out
+   │         ^^^ Is unavailable for another 1 stage
+   │
+   = Requesting out from stage 1
+   = But it will not be available until stage 2
+
+

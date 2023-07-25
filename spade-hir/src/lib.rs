@@ -398,6 +398,7 @@ pub struct Unit {
     // This is needed here because the head does not have NameIDs
     pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
     pub body: Loc<Expression>,
+    pub is_method: bool,
 }
 impl WithLocation for Unit {}
 

@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/integration.rs
+---
+entity a() -> bool {true}
+fn test() -> bool {
+    inst a()
+}
+
+
+error: cannot instantiate entities and pipelines in functions
+  ┌─ testinput:3:5
+  │
+2 │ fn test() -> bool {
+  │ -- this is a function
+3 │     inst a()
+  │     ^^^^ inst not allowed here
+  │
+  = note: functions can only contain combinatorial logic
+  = consider making the function an entity
+  │
+2 │ entity test() -> bool {
+  │ ~~~~~~

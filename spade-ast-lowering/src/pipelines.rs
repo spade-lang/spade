@@ -4,7 +4,7 @@ use spade_common::{location_info::Loc, name::Identifier};
 use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 
-use crate::{comptime::ComptimeCondExt, error::Result, Context};
+use crate::{comptime::ComptimeCondExt, error::Result, Context, SelfContext};
 
 pub fn int_literal_to_pipeline_stages(depth: &Loc<ast::IntLiteral>) -> Result<Loc<usize>> {
     depth
@@ -107,6 +107,7 @@ pub fn maybe_perform_pipelining_tasks(
     unit: &Loc<ast::Unit>,
     head: &Loc<hir::UnitHead>,
     ctx: &mut Context,
+    self_context: &SelfContext,
 ) -> Result<Option<PipelineContext>> {
     let ast::Unit {
         head:
@@ -127,7 +128,9 @@ pub fn maybe_perform_pipelining_tasks(
                     .note("The current comptime branch does not specify a depth")
             })?;
 
-            if head.inputs.0.is_empty() {
+            if head.inputs.0.is_empty()
+                || (head.inputs.0.len() == 1 && !matches!(self_context, SelfContext::FreeStanding))
+            {
                 return Err(Diagnostic::error(
                     ast_inputs.loc(),
                     "Missing clock argument for pipeline",

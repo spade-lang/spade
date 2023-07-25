@@ -8,13 +8,4 @@ impl X {
 }
 
 
-error: Pipelines are currently not allowed in impl blocks
-  ┌─ testinput:4:5
-  │
-4 │     pipeline(0) a(self) -> bool {true}
-  │     ^^^^^^^^^^^ Not allowed here
-  │
-  = note: This limitation is likely to be lifted in the future
-  = help: Consider defining a free-standing pipeline for now
-
 

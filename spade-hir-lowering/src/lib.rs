@@ -2962,6 +2962,7 @@ pub fn generate_unit<'a>(
             &mut statements,
             &mut ctx,
             name_map,
+            unit.is_method,
         )?;
     }
 

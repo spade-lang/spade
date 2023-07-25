@@ -305,28 +305,29 @@ impl TypeState {
     }
 
     #[trace_typechecker]
-    #[tracing::instrument(level = "trace", skip_all, fields(%entity.name))]
-    pub fn visit_entity(&mut self, entity: &Unit, ctx: &Context) -> Result<()> {
+    #[tracing::instrument(level = "trace", skip_all, fields(%unit.name))]
+    pub fn visit_entity(&mut self, unit: &Unit, ctx: &Context) -> Result<()> {
         let generic_list = self.create_generic_list(
-            GenericListSource::Definition(&entity.name.name_id().inner),
-            &entity.head.type_params,
+            GenericListSource::Definition(&unit.name.name_id().inner),
+            &unit.head.type_params,
             None,
         )?;
 
         // Add equations for the inputs
-        for (name, t) in &entity.inputs {
+        for (name, t) in &unit.inputs {
             let tvar = self.type_var_from_hir(t.loc(), t, &generic_list);
             self.add_equation(TypedExpression::Name(name.inner.clone()), tvar)
         }
 
-        if entity.head.unit_kind.is_pipeline() {
+        if unit.head.unit_kind.is_pipeline() {
+            let clock_index = if unit.is_method { 1 } else { 0 };
             self.unify(
-                &TypedExpression::Name(entity.inputs[0].0.clone().inner),
-                &t_clock(ctx.symtab).at_loc(&entity.head.unit_kind),
+                &TypedExpression::Name(unit.inputs[clock_index].0.clone().inner),
+                &t_clock(ctx.symtab).at_loc(&unit.head.unit_kind),
                 ctx,
             )
             .into_diagnostic(
-                entity.inputs[0].1.loc(),
+                unit.inputs[clock_index].1.loc(),
                 |diag,
                  Tm {
                      g: got,
@@ -340,18 +341,18 @@ impl TypeState {
             )?;
         }
 
-        self.visit_expression(&entity.body, ctx, &generic_list)?;
+        self.visit_expression(&unit.body, ctx, &generic_list)?;
 
         // Ensure that the output type matches what the user specified, and unit otherwise
-        if let Some(output_type) = &entity.head.output_type {
+        if let Some(output_type) = &unit.head.output_type {
             let tvar = self.type_var_from_hir(output_type.loc(), output_type, &generic_list);
 
             self.trace_stack.push(TraceStackEntry::Message(format!(
                 "Unifying with output type {tvar:?}"
             )));
-            self.unify(&TypedExpression::Id(entity.body.inner.id), &tvar, ctx)
+            self.unify(&TypedExpression::Id(unit.body.inner.id), &tvar, ctx)
                 .into_diagnostic_no_expected_source(
-                    &entity.body,
+                    &unit.body,
                     |diag,
                      Tm {
                          g: got,
@@ -369,16 +370,16 @@ impl TypeState {
         } else {
             // No output type, so unify with the unit type.
             self.unify(
-                &TypedExpression::Id(entity.body.inner.id),
-                &t_void(ctx.symtab).at_loc(&entity.head.name),
+                &TypedExpression::Id(unit.body.inner.id),
+                &t_void(ctx.symtab).at_loc(&unit.head.name),
                 ctx
             )
-            .into_diagnostic_no_expected_source(entity.body.loc(), |diag, Tm{g: got, e: _expected}| {
+            .into_diagnostic_no_expected_source(unit.body.loc(), |diag, Tm{g: got, e: _expected}| {
                 diag.message("Output type mismatch")
                     .primary_label(format!("Found type {got}"))
                     .note(format!(
                         "The {} does not specify a return type.\nAdd a return type, or remove the return value.",
-                        entity.head.unit_kind.name()
+                        unit.head.unit_kind.name()
                     ))
             })?;
         }

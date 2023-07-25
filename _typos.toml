@@ -1,5 +1,6 @@
 [default.extend-identifiers]
 MemeOverloard = "MemeOverloard"
+FifoRtoW = "FifoRtoW"
 
 [default.extend-words]
 inout = "inout"

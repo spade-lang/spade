@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct X {}
+
+impl X {
+    pipeline(1) x(self) {
+        reg;
+    }
+}
+
+
+error: Missing clock argument for pipeline
+  ┌─ testinput:4:18
+  │
+4 │     pipeline(1) x(self) {
+  │                  ^^^^^^
+  │
+  = note: All pipelines need to take at least a clock as an argument

@@ -1,0 +1,29 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct X {
+    payload: bool,
+}
+
+impl X {
+    entity a(self) -> bool {true}
+}
+
+fn t(x: X) -> bool {
+    x.inst a()
+}
+
+
+error: cannot instantiate entities and pipelines in functions
+   ┌─ testinput:10:7
+   │
+ 9 │ fn t(x: X) -> bool {
+   │ -- this is a function
+10 │     x.inst a()
+   │       ^^^^ inst not allowed here
+   │
+   = note: functions can only contain combinatorial logic
+   = consider making the function an entity
+   │
+ 9 │ entity t(x: X) -> bool {
+   │ ~~~~~~

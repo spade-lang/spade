@@ -728,8 +728,6 @@ snapshot_error! {
     "
         struct X {}
         impl X {
-            // NOTE: This error should change once
-            // pipelines as methods are added
             pipeline(1) x(self, x: bool) -> bool __builtin__
         }
     "
@@ -1153,4 +1151,17 @@ fn trait_impls_inside_modules_works() {
     "#;
 
     build_items(code);
+}
+
+snapshot_error! {
+    missing_clock_for_pipeline_method,
+    "
+        struct X {}
+
+        impl X {
+            pipeline(1) x(self) {
+                reg;
+            }
+        }
+    "
 }

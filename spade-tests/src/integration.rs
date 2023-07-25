@@ -197,6 +197,15 @@ snapshot_error! {
     "enum Option<T> {}"
 }
 
+snapshot_error! {
+    inst_in_fn_is_error,
+    "entity a() -> bool {true}
+    fn test() -> bool {
+        inst a()
+    }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, snapshot_error};
@@ -269,27 +278,35 @@ mod trait_tests {
     }
 
     snapshot_error! {
-        instantiating_pipeline_methods_fails_gracefully,
+        instantiating_pipeline_methods_works,
         "
-            struct X {}
+            struct X {
+                payload: bool,
+            }
 
             impl X {
-                pipeline(10) a(self) -> bool {true}
+                pipeline(10) a(self) -> bool {reg*10; true}
             }
 
             fn t(x: X) -> bool {
-                x.a()
+                x.inst(10) a()
             }
         "
     }
 
     snapshot_error! {
-        pipelines_in_impl_blocks_are_graceuflly_disallowed,
+        entity_instance_in_function_is_disallowed,
         "
-            struct X {}
+            struct X {
+                payload: bool,
+            }
 
             impl X {
-                pipeline(0) a(self) -> bool {true}
+                entity a(self) -> bool {true}
+            }
+
+            fn t(x: X) -> bool {
+                x.inst a()
             }
         "
     }
@@ -524,7 +541,7 @@ mod trait_tests {
                 fn a(self) -> bool {true}
             }
 
-            fn t(x: X) -> bool {
+            entity t(x: X) -> bool {
                 x.inst a()
             }
         "
@@ -802,6 +819,34 @@ mod trait_tests {
                 fn a(self, b: bool, a: bool) -> bool {
                     true
                 }
+            }
+        "
+    }
+
+    // NOTE: This test does not currently test for exactly what is tested here,
+    // the diagnostic should ideally point to `x` and using a `port` type with the
+    // wrong domain should be allowed.
+    snapshot_error! {
+        chained_use_of_pipeline_method_is_disallowed_with_local_args,
+        "
+            struct T {
+                payload: bool,
+            }
+
+            impl T {
+                pipeline(1) test(self, clk: clock, num: int<8>) -> T {
+                    reg;
+                        self
+                }
+            }
+
+            pipeline(1) test(clk: clock, t: T) -> T {
+                    let x = 0;
+                    let out = t
+                        .inst(1) test(clk, x)
+                        .inst(1) test(clk, x);
+                reg;
+                    out
             }
         "
     }

@@ -1,0 +1,14 @@
+struct ContainsBool {
+    x: int<8>,
+}
+
+impl ContainsBool {
+    pipeline(1) get_x(self, clk: clock) -> int<8> {
+        reg;
+            self.x
+    }
+}
+
+entity get_x_test_harness(clk: clock, x: int<8>) -> int<8> {
+    ContainsBool(x).inst(1) get_x(clk)
+}

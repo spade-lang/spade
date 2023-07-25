@@ -532,7 +532,7 @@ pub fn visit_unit(
         }
     }
 
-    ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx)?;
+    ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx, &self_context)?;
 
     let mut body = body.as_ref().unwrap().try_visit(visit_expression, ctx)?;
 
@@ -571,6 +571,7 @@ pub fn visit_unit(
             attributes,
             inputs,
             body,
+            is_method: !matches!(self_context, SelfContext::FreeStanding),
         }
         .at_loc(unit),
     ))
@@ -887,7 +888,7 @@ pub fn visit_item(
     item_list: &mut hir::ItemList,
 ) -> Result<Vec<hir::Item>> {
     match item {
-        ast::Item::Unit(u) => Ok(vec![visit_unit(None, u, ctx)?]),
+        ast::Item::Unit(u) => Ok(vec![visit_unit(None, u, ctx, &SelfContext::FreeStanding)?]),
         ast::Item::TraitDef(_) => {
             // Global symbol lowering already visits traits
             event!(Level::INFO, "Trait definition");
@@ -1907,6 +1908,7 @@ mod entity_visiting {
 
         let expected = hir::Unit {
             name: UnitName::FullPath(name_id(0, "test")),
+            is_method: false,
             head: hir::UnitHead {
                 name: Identifier("test".to_string()).nowhere(),
                 inputs: hparams!(("a", hir::TypeSpec::unit().nowhere())).nowhere(),
@@ -1934,7 +1936,7 @@ mod entity_visiting {
 
         global_symbols::visit_unit(&None, &input, ctx).expect("Failed to collect global symbols");
 
-        let result = visit_unit(None, &input, &mut ctx);
+        let result = visit_unit(None, &input, &mut ctx, &SelfContext::FreeStanding);
 
         assert_eq!(result, Ok(hir::Item::Unit(expected)));
 
@@ -2883,6 +2885,7 @@ mod item_visiting {
         let expected = hir::Item::Unit(
             hir::Unit {
                 name: hir::UnitName::FullPath(name_id(0, "test")),
+                is_method: false,
                 head: hir::UnitHead {
                     name: Identifier("test".to_string()).nowhere(),
                     output_type: None,
@@ -2978,6 +2981,7 @@ mod impl_blocks {
         let expected_item = hir::Item::Unit(
             hir::Unit {
                 name: entity_name.clone(),
+                is_method: true,
                 head: hir::UnitHead {
                     name: ast_ident("x"),
                     inputs: hir_param_list.clone().nowhere(),
@@ -3083,6 +3087,7 @@ mod module_visiting {
                 hir::ExecutableItem::Unit(
                     hir::Unit {
                         name: hir::UnitName::FullPath(name_id(0, "test")),
+                        is_method: false,
                         head: hir::UnitHead {
                             name: Identifier("test".to_string()).nowhere(),
                             output_type: None,

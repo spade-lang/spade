@@ -12,13 +12,12 @@ fn t(x: X) -> bool {
 }
 
 
-error: Pipelines are currently not allowed in impl blocks
-  ┌─ testinput:4:5
+error: Wrong number of pipeline stages
+  ┌─ testinput:4:34
   │
 4 │     pipeline(10) a(self) -> bool {true}
-  │     ^^^^^^^^^^^^ Not allowed here
-  │
-  = note: This limitation is likely to be lifted in the future
-  = help: Consider defining a free-standing pipeline for now
+  │              --                  ^^^^^^ Found no stage here
+  │              │                    
+  │              10 stages specified here
 
 

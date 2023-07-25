@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!309][!309] Add named argument turbofishes (`::$<>`)
 - [!312][!312] Include a map of modules in `ItemList`
 - [!271][!271] Add automatic clock gating of the `Option`-type
+- [!213][!213] Allow pipeline methods
 
 ### Changed
 
@@ -28,12 +29,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+[!213]: https://gitlab.com/spade-lang/spade/-/merge_requests/213
 [!304]: https://gitlab.com/spade-lang/spade/-/merge_requests/304
 [!307]: https://gitlab.com/spade-lang/spade/-/merge_requests/307
 [!308]: https://gitlab.com/spade-lang/spade/-/merge_requests/308
 [!309]: https://gitlab.com/spade-lang/spade/-/merge_requests/309
 [!312]: https://gitlab.com/spade-lang/spade/-/merge_requests/312
 [!314]: https://gitlab.com/spade-lang/spade/-/merge_requests/314
+[!271]: https://gitlab.com/spade-lang/spade/-/merge_requests/271
 
 ## [0.8.0] - 2024-05-14
 
@@ -92,7 +95,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Removed
 
 [!266]: https://gitlab.com/spade-lang/spade/-/merge_requests/266
-<<<<<<< HEAD
 [!272]: https://gitlab.com/spade-lang/spade/-/merge_requests/272
 [!273]: https://gitlab.com/spade-lang/spade/-/merge_requests/273
 [!275]: https://gitlab.com/spade-lang/spade/-/merge_requests/275
@@ -101,12 +103,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [!281]: https://gitlab.com/spade-lang/spade/-/merge_requests/281
 [!285]: https://gitlab.com/spade-lang/spade/-/merge_requests/285
 [!277]: https://gitlab.com/spade-lang/spade/-/merge_requests/277
-||||||| parent of 005c985 (Add simple automatic enum gating)
-
-=======
-[!271]: https://gitlab.com/spade-lang/spade/-/merge_requests/271
-
->>>>>>> 005c985 (Add simple automatic enum gating)
 
 ## [0.6.0] - 2024-01-03
 

@@ -1473,16 +1473,6 @@ impl<'a> Parser<'a> {
     pub fn impl_body(&mut self) -> Result<Vec<Loc<Unit>>> {
         let mut result = vec![];
         while let Some(u) = self.unit(&AttributeList::empty())? {
-            if u.head.unit_kind.is_pipeline() {
-                return Err(Diagnostic::error(
-                    u.head.unit_kind.loc(),
-                    "Pipelines are currently not allowed in impl blocks",
-                )
-                .primary_label("Not allowed here")
-                .note("This limitation is likely to be lifted in the future")
-                .help("Consider defining a free-standing pipeline for now"));
-            }
-
             result.push(u);
         }
 
