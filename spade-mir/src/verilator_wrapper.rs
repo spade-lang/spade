@@ -108,6 +108,7 @@ impl Entity {
 
         let (input_pre, input_impl) = self.input_wrapper(&class_name);
         let class = code! {
+            [0] format!("#if __has_include(<V{name}.h>)");
             [0] format!(r#"#include <V{name}.h>"#);
             [0] format!("class {class_name};");
             [0] input_pre;
@@ -119,6 +120,7 @@ impl Entity {
             [2]         format!("V{name}* top;");
             [0] "};";
             [0] input_impl;
+            [0] "#endif";
         };
 
         Some(class.to_string())

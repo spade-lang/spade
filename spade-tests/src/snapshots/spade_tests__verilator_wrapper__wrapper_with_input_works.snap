@@ -1,6 +1,7 @@
 ---
 source: spade-tests/src/verilator_wrapper.rs
 ---
+#if __has_include(<Vno_mangle.h>)
 #include <Vno_mangle.h>
 class no_mangle_spade_t;
 class no_mangle_spade_t_i;
@@ -62,3 +63,4 @@ class no_mangle_spade_t_i {
 no_mangle_spade_t_i* init_no_mangle_spade_t_i(no_mangle_spade_t& t) {
     return new no_mangle_spade_t_i(t);
 }
+#endif
