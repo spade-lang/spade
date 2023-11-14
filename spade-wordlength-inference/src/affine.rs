@@ -125,96 +125,35 @@ impl AAForm {
 
     fn mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
         // Shamelessly stolen from https://github.com/ogay/libaffa/blob/master/src/aa_aafapprox.cpp
-        // since the old code had bugs
+        // since the old code had some major issues - this rewrite solves the correctness issues.
+        
         let zero = BigRational::from_integer(BigInt::from(0));
         let x = self;
         let y = other;
         let mut z = BTreeMap::new();
         for i in x.vars().union(&y.vars()) {
-            if i == &AffineVar::Const {
-                continue;
-            }
-            let x_part = x.0.get(i).map(|xx| xx * y.mid()).unwrap_or_else(|| zero.clone());
-            let y_part = y.0.get(i).map(|yy| yy * x.mid()).unwrap_or_else(|| zero.clone());
-            z.insert(*i, x_part + y_part);
+            z.insert(
+                *i,
+                if i == &AffineVar::Const {
+                    // The constants always have a 1 in their noise variable
+                    x.mid() * y.mid()
+                } else {
+                    // Otherwise we just: x[i] * mid(y) + y[i] * mid(x)
+                    let x_part =
+                        x.0.get(i)
+                            .map(|xx| xx * y.mid())
+                            .unwrap_or_else(|| zero.clone());
+                    let y_part =
+                        y.0.get(i)
+                            .map(|yy| yy * x.mid())
+                            .unwrap_or_else(|| zero.clone());
+                    x_part + y_part
+                },
+            )
         }
-        // Calculate the constant offset
-        z.insert(AffineVar::Const, x.mid() * y.mid());
         // Calculate extra noise from this multiplication
         z.insert(Self::new_var(tracker), x.rad() * y.rad());
         AAForm(z)
-    }
-
-    fn old_mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
-        // This code is quite complicated and I got a myriad of bugs here. The idea is to over
-        // estimate using: |(a * b)| <= |(|b| * a + |a| * b + mid(a) * mid(b) + rad(a) * rad(b))|
-        // It's a pretty correct way of estimating and it works decently well.
-        let x0 = self.mid();
-        let y0 = other.mid();
-
-        let p = range_helper(
-            Range::new(
-                BigRational::to_integer(&BigRational::ceil(&x0)),
-                BigRational::to_integer(&BigRational::ceil(&x0)),
-            )
-            .mul(&Range::new(
-                BigRational::to_integer(&BigRational::ceil(&y0)),
-                BigRational::to_integer(&BigRational::ceil(&y0)),
-            )),
-        );
-        let gamma = -p.mid;
-        let delta = (self.rad() * other.rad()) + p.rad;
-
-        Self::affine(tracker, self, other, y0, x0, gamma, delta)
-    }
-
-    // Computes alpha * x + beta * y + gamma (where delta is extra noise)
-    fn affine(
-        tracker: &mut AAVarTracker,
-        x: &AAForm,
-        y: &AAForm,
-        alpha: BigRational,
-        beta: BigRational,
-        gamma: BigRational,
-        delta: BigRational,
-    ) -> AAForm {
-        let zero = BigRational::from_integer(BigInt::from(0));
-
-        let mut z = BTreeMap::new();
-        for i in x.vars().union(&y.vars()) {
-            let xi = x.0.get(i).unwrap_or(&zero);
-            let yi = y.0.get(i).unwrap_or(&zero);
-            let zi = alpha.clone() * xi
-                + beta.clone() * yi
-                + if i == &AffineVar::Const {
-                    gamma.clone()
-                } else {
-                    zero.clone()
-                };
-            z.insert(*i, zi);
-
-            // We get no rounding errors when using BigRational
-            // / Hope the compiler doesn't optimize this away...
-            // delta += (a - zi).max(zi - b);
-        }
-        let d = Self::new_var(tracker);
-        z.insert(d, delta);
-        AAForm(z)
-    }
-
-    fn add(&self, other: &Self) -> Self {
-        let mut out = self.0.clone();
-        for (var, value) in other.0.iter() {
-            match out.entry(*var) {
-                Entry::Vacant(v) => {
-                    v.insert(value.clone());
-                }
-                Entry::Occupied(mut v) => {
-                    *v.get_mut() += value;
-                }
-            }
-        }
-        AAForm(out)
     }
 
     /// Takes two AAForms and tries to compute the smallest AAForm that is bigger than both of
