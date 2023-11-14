@@ -661,17 +661,17 @@ impl SymbolTable {
     pub fn ensure_is_unique(&self, name: &Loc<Path>) -> Result<(), Diagnostic> {
         let full_path = self.current_namespace().join(name.inner.clone());
 
-        let prev = self
-            .symbols
-            .first()
-            .unwrap()
-            .get(&full_path)
-            .and_then(|id| {
-                self.things
-                    .get(id)
-                    .map(|thing| thing.name_loc())
-                    .or_else(|| self.types.get(id).map(|t| t.loc()))
-            });
+        // let prev = self
+        //     .symbols
+        //     .first()
+        //     .unwrap()
+        //     .get(&full_path)
+        //     .and_then(|id| {
+        //         self.things
+        //             .get(id)
+        //             .map(|thing| thing.name_loc())
+        //             .or_else(|| self.types.get(id).map(|t| t.loc()))
+        //     });
 
         // match prev {
         //     Some(prev) => Err(Diagnostic::error(name, "Multiple items with the same name")
