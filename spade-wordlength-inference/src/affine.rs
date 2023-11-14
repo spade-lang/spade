@@ -149,11 +149,26 @@ impl AAForm {
                             .unwrap_or_else(|| zero.clone());
                     x_part + y_part
                 },
-            )
+            );
         }
         // Calculate extra noise from this multiplication
         z.insert(Self::new_var(tracker), x.rad() * y.rad());
         AAForm(z)
+    }
+
+    fn add(&self, other: &Self) -> Self {
+        let mut out = self.0.clone();
+        for (var, value) in other.0.iter() {
+            match out.entry(*var) {
+                Entry::Vacant(v) => {
+                    v.insert(value.clone());
+                }
+                Entry::Occupied(mut v) => {
+                    *v.get_mut() += value;
+                }
+            }
+        }
+        AAForm(out)
     }
 
     /// Takes two AAForms and tries to compute the smallest AAForm that is bigger than both of
