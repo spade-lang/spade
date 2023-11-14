@@ -103,6 +103,70 @@ impl AAForm {
             .unwrap_or(BigRational::from_integer(BigInt::from(0)))
     }
 
+    fn vars(&self) -> BTreeSet<AffineVar> {
+        self.0.keys().cloned().collect()
+    }
+
+    fn bit_manip(&self, tracker: &mut AAVarTracker) -> AAForm {
+        let mid = self.mid();
+        let rad = self.rad();
+        AAForm::from_range(
+            tracker,
+            Range::new(
+                (mid.clone() - rad.clone()).to_integer(),
+                (mid + rad).to_integer(),
+            )
+            .bit_manip()
+            .unwrap(),
+        )
+    }
+
+    // Operations
+
+    fn mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
+        // Shamelessly stolen from https://github.com/ogay/libaffa/blob/master/src/aa_aafapprox.cpp
+        // since the old code had bugs
+        let x = self;
+        let y = other;
+        let mut z = BTreeMap::new();
+        for i in x.vars().union(&y.vars()) {
+            if i == &AffineVar::Const { continue }
+            z.insert(*i, match (x.0.get(i), y.0.get(i)) {
+                (Some(xx), Some(yy)) => x.mid() * yy + y.mid() * xx,
+                (Some(xx), None) => y.mid() * xx,
+                (None, Some(yy)) => x.mid() * yy,
+                (None, None) => unreachable!("Set union forces the keys to exist in one of the numbers"),
+            });
+            }
+        let d = Self::new_var(tracker);
+        z.insert(d, x.rad() * y.rad());
+        AAForm(z)
+    }
+
+
+    fn old_mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
+        // This code is quite complicated and I got a myriad of bugs here. The idea is to over
+        // estimate using: |(a * b)| <= |(|b| * a + |a| * b + mid(a) * mid(b) + rad(a) * rad(b))|
+        // It's a pretty correct way of estimating and it works decently well.
+        let x0 = self.mid();
+        let y0 = other.mid();
+
+        let p = range_helper(
+            Range::new(
+                BigRational::to_integer(&BigRational::ceil(&x0)),
+                BigRational::to_integer(&BigRational::ceil(&x0)),
+            )
+            .mul(&Range::new(
+                BigRational::to_integer(&BigRational::ceil(&y0)),
+                BigRational::to_integer(&BigRational::ceil(&y0)),
+            )),
+        );
+        let gamma = -p.mid;
+        let delta = (self.rad() * other.rad()) + p.rad;
+
+        Self::affine(tracker, self, other, y0, x0, gamma, delta)
+    }
+    
     // Computes alpha * x + beta * y + gamma (where delta is extra noise)
     fn affine(
         tracker: &mut AAVarTracker,
@@ -137,48 +201,6 @@ impl AAForm {
         AAForm(z)
     }
 
-    fn vars(&self) -> BTreeSet<AffineVar> {
-        self.0.keys().cloned().collect()
-    }
-
-    fn bit_manip(&self, tracker: &mut AAVarTracker) -> AAForm {
-        let mid = self.mid();
-        let rad = self.rad();
-        AAForm::from_range(
-            tracker,
-            Range::new(
-                (mid.clone() - rad.clone()).to_integer(),
-                (mid + rad).to_integer(),
-            )
-            .bit_manip()
-            .unwrap(),
-        )
-    }
-
-    // Operations
-
-    fn mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
-        // This code is quite complicated and I got a myriad of bugs here. The idea is to over
-        // estimate using: |(a * b)| <= |(|b| * a + |a| * b + mid(a) * mid(b) + rad(a) * rad(b))|
-        // It's a pretty correct way of estimating and it works decently well.
-        let x0 = self.mid();
-        let y0 = other.mid();
-
-        let p = range_helper(
-            Range::new(
-                BigRational::to_integer(&BigRational::ceil(&x0)),
-                BigRational::to_integer(&BigRational::ceil(&x0)),
-            )
-            .mul(&Range::new(
-                BigRational::to_integer(&BigRational::ceil(&y0)),
-                BigRational::to_integer(&BigRational::ceil(&y0)),
-            )),
-        );
-        let gamma = -p.mid;
-        let delta = (self.rad() * other.rad()) + p.rad;
-
-        Self::affine(tracker, self, other, y0, x0, gamma, delta)
-    }
 
     fn add(&self, other: &Self) -> Self {
         let mut out = self.0.clone();

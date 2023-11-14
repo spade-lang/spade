@@ -486,7 +486,7 @@ mod tests {
         Range::new(BigInt::from(lo), BigInt::from(hi))
     }
     fn c(lo: i128, hi: i128) -> Equation {
-        Equation::Constant(Range::new(BigInt::from(lo), BigInt::from(hi)))
+        Equation::Constant(r(lo, hi))
     }
     fn v(x: usize) -> Equation {
         Equation::V(Var(x))
@@ -822,6 +822,26 @@ mod tests {
             InferMethod::AAIA,
             vec![(Var(0), sub(c(8, 8), c(8, 8)))],
             vec![(Var(0), r(0, 0))],
+        )
+    }
+
+    #[test]
+    fn test_a_b_b_a_positive() {
+        let e = mul(sub(v(0), v(1)), sub(v(1), v(0)));
+        check_infer(
+            InferMethod::AAIA,
+            vec![(Var(0), c(0, 100)), (Var(1), c(0, 100)), (Var(2), e)],
+            vec![(Var(0), r(0, 100)), (Var(1), r(0, 100)), (Var(2), r(-10000, 10000))],
+        )
+    }
+
+    #[test]
+    fn test_a_b_b_a_positive_and_negative() {
+        let e = mul(sub(v(0), v(1)), sub(v(1), v(0)));
+        check_infer(
+            InferMethod::AAIA,
+            vec![(Var(0), c(-10, 10)), (Var(1), c(-10, 10)), (Var(2), e)],
+            vec![(Var(0), r(-10, 10)), (Var(1), r(-10, 10)), (Var(2), r(-400, 400))],
         )
     }
 }
