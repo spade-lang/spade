@@ -126,23 +126,24 @@ impl AAForm {
     fn mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
         // Shamelessly stolen from https://github.com/ogay/libaffa/blob/master/src/aa_aafapprox.cpp
         // since the old code had bugs
+        let zero = BigRational::from_integer(BigInt::from(0));
         let x = self;
         let y = other;
         let mut z = BTreeMap::new();
         for i in x.vars().union(&y.vars()) {
-            if i == &AffineVar::Const { continue }
-            z.insert(*i, match (x.0.get(i), y.0.get(i)) {
-                (Some(xx), Some(yy)) => x.mid() * yy + y.mid() * xx,
-                (Some(xx), None) => y.mid() * xx,
-                (None, Some(yy)) => x.mid() * yy,
-                (None, None) => unreachable!("Set union forces the keys to exist in one of the numbers"),
-            });
+            if i == &AffineVar::Const {
+                continue;
             }
-        let d = Self::new_var(tracker);
-        z.insert(d, x.rad() * y.rad());
+            let x_part = x.0.get(i).map(|xx| xx * y.mid()).unwrap_or_else(|| zero.clone());
+            let y_part = y.0.get(i).map(|yy| yy * x.mid()).unwrap_or_else(|| zero.clone());
+            z.insert(*i, x_part + y_part);
+        }
+        // Calculate the constant offset
+        z.insert(AffineVar::Const, x.mid() * y.mid());
+        // Calculate extra noise from this multiplication
+        z.insert(Self::new_var(tracker), x.rad() * y.rad());
         AAForm(z)
     }
-
 
     fn old_mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
         // This code is quite complicated and I got a myriad of bugs here. The idea is to over
@@ -166,7 +167,7 @@ impl AAForm {
 
         Self::affine(tracker, self, other, y0, x0, gamma, delta)
     }
-    
+
     // Computes alpha * x + beta * y + gamma (where delta is extra noise)
     fn affine(
         tracker: &mut AAVarTracker,
@@ -200,7 +201,6 @@ impl AAForm {
         z.insert(d, delta);
         AAForm(z)
     }
-
 
     fn add(&self, other: &Self) -> Self {
         let mut out = self.0.clone();
