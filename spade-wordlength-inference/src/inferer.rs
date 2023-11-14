@@ -831,7 +831,11 @@ mod tests {
         check_infer(
             InferMethod::AAIA,
             vec![(Var(0), c(0, 100)), (Var(1), c(0, 100)), (Var(2), e)],
-            vec![(Var(0), r(0, 100)), (Var(1), r(0, 100)), (Var(2), r(-10000, 10000))],
+            vec![
+                (Var(0), r(0, 100)),
+                (Var(1), r(0, 100)),
+                (Var(2), r(-10000, 10000)),
+            ],
         )
     }
 
@@ -841,7 +845,11 @@ mod tests {
         check_infer(
             InferMethod::AAIA,
             vec![(Var(0), c(-10, 10)), (Var(1), c(-10, 10)), (Var(2), e)],
-            vec![(Var(0), r(-10, 10)), (Var(1), r(-10, 10)), (Var(2), r(-400, 400))],
+            vec![
+                (Var(0), r(-10, 10)),
+                (Var(1), r(-10, 10)),
+                (Var(2), r(-400, 400)),
+            ],
         )
     }
 }

@@ -126,7 +126,7 @@ impl AAForm {
     fn mul(&self, tracker: &mut AAVarTracker, other: &Self) -> Self {
         // Shamelessly stolen from https://github.com/ogay/libaffa/blob/master/src/aa_aafapprox.cpp
         // since the old code had some major issues - this rewrite solves the correctness issues.
-        
+
         let zero = BigRational::from_integer(BigInt::from(0));
         let x = self;
         let y = other;
