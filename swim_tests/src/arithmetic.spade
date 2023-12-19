@@ -1,0 +1,3 @@
+fn problematic_add(x: int<8>, y: int<8>) -> int<9> {
+    x + y
+}
