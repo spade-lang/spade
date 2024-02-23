@@ -2017,7 +2017,7 @@ impl HasType for NameID {
 /// Mapping between names and concrete type used for lookup, without being
 /// able to do more type inference
 /// Required because we can't serde the whole TypeState
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TypeMap {
     equations: TypeEquations,
 }

@@ -20,7 +20,7 @@ use spade_mir::{
 use spade_typeinference::{equation::TypedExpression, TypeMap, TypeState};
 use spade_types::ConcreteType;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MirContext {
     /// Mapping to concrete types for this instantiation of the entity
     pub type_map: TypeMap,

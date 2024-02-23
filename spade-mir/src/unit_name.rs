@@ -35,7 +35,7 @@ use spade_common::name::{NameID, Path};
 /// (x_n1, "x_0") -> y_n0
 /// (main_n2, "x_0") -> x_n1
 /// (main_n2, "y_0") -> y_n0
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InstanceMap {
     pub inner: HashMap<NameID, BTreeMap<String, NameID>>,
 }

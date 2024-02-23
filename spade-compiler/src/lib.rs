@@ -1,6 +1,7 @@
 pub mod compiler_state;
 mod name_dump;
 pub mod namespaced_file;
+pub mod wasm;
 
 use codespan_reporting::term::termcolor::Buffer;
 use compiler_state::{CompilerState, MirContext};
@@ -49,8 +50,7 @@ pub fn wordlength_inference_method(
     })
 }
 
-pub struct Opt<'b> {
-    pub error_buffer: &'b mut Buffer,
+pub struct Opt {
     pub outfile: Option<PathBuf>,
     pub mir_output: Option<PathBuf>,
     pub verilator_wrapper_output: Option<PathBuf>,
@@ -137,6 +137,7 @@ pub struct UnfinishedArtefacts {
     pub item_list: Option<ItemList>,
 }
 
+#[derive(Clone)]
 struct CodegenArtefacts {
     bumpy_mir_entities: Vec<spade_mir::Entity>,
     flat_mir_entities: Vec<Codegenable>,
@@ -146,13 +147,22 @@ struct CodegenArtefacts {
     mir_context: HashMap<NameID, MirContext>,
 }
 
-#[tracing::instrument(skip_all)]
-pub fn compile(
+pub struct CompileResult<'a> {
+    codegen_artefacts: CodegenArtefacts,
+    state: CompilerState,
+    errors: ErrorHandler<'a>,
+    item_list: ItemList,
+    unfinished_artefacts: UnfinishedArtefacts,
+    code: Rc<RwLock<CodeBundle>>,
+}
+
+pub fn compile_inner<'a, 'b>(
     mut sources: Vec<(ModuleNamespace, String, String)>,
     include_stdlib_and_prelude: bool,
-    opts: Opt,
+    opts: &'b Opt,
+    error_buffer: &'a mut Buffer,
     diag_handler: DiagHandler,
-) -> Result<Artefacts, UnfinishedArtefacts> {
+) -> Result<CompileResult<'a>, UnfinishedArtefacts> {
     let mut symtab = SymbolTable::new();
     let mut item_list = ItemList::new();
 
@@ -172,7 +182,7 @@ pub fn compile(
     let code = Rc::new(RwLock::new(CodeBundle::new("".to_string())));
     let mut errors = ErrorHandler {
         failed: false,
-        error_buffer: opts.error_buffer,
+        error_buffer,
         diag_handler,
         code: Rc::clone(&code),
     };
@@ -307,14 +317,7 @@ pub fn compile(
         opts.wl_infer_method,
     );
 
-    let CodegenArtefacts {
-        bumpy_mir_entities,
-        flat_mir_entities,
-        module_code,
-        mir_code,
-        instance_map,
-        mir_context,
-    } = codegen(mir_entities, Rc::clone(&code), &mut errors, &mut idtracker);
+    let codegen_artefacts = codegen(mir_entities, Rc::clone(&code), &mut errors, &mut idtracker);
 
     let state = CompilerState {
         code: code.read().unwrap().dump_files(),
@@ -323,13 +326,55 @@ pub fn compile(
         impl_idtracker,
         item_list: item_list.clone(),
         name_source_map,
-        instance_map,
-        mir_context,
+        instance_map: codegen_artefacts.instance_map.clone(),
+        mir_context: codegen_artefacts.mir_context.clone(),
     };
 
     if errors.failed {
         return Err(unfinished_artefacts);
+    } else {
+        Ok(CompileResult {
+            codegen_artefacts,
+            state,
+            errors,
+            item_list,
+            code,
+            unfinished_artefacts,
+        })
     }
+}
+
+#[tracing::instrument(skip_all)]
+pub fn compile(
+    mut sources: Vec<(ModuleNamespace, String, String)>,
+    include_stdlib_and_prelude: bool,
+    opts: Opt,
+    error_buffer: &mut Buffer,
+    diag_handler: DiagHandler,
+) -> Result<Artefacts, UnfinishedArtefacts> {
+    let CompileResult {
+        codegen_artefacts,
+        state,
+        mut errors,
+        item_list,
+        unfinished_artefacts,
+        code,
+    } = compile_inner(
+        sources,
+        include_stdlib_and_prelude,
+        &opts,
+        error_buffer,
+        diag_handler,
+    )?;
+
+    let CodegenArtefacts {
+        bumpy_mir_entities,
+        flat_mir_entities,
+        module_code,
+        mir_code,
+        instance_map,
+        mir_context,
+    } = codegen_artefacts;
 
     if let Some(outfile) = opts.outfile {
         std::fs::write(outfile, module_code.join("\n\n")).or_report(&mut errors);

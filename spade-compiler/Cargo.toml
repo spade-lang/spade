@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -25,6 +28,7 @@ tracing.workspace = true
 itertools.workspace = true
 
 atty = "0.2.14"
+wasm-bindgen = "0.2.91"
 
 spade-ast = {path = "../spade-ast"}
 spade-ast-lowering = {path = "../spade-ast-lowering"}
