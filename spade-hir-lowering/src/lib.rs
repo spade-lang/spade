@@ -986,7 +986,9 @@ impl StatementLocal for Statement {
                         traced = Some(state.value_name());
                         Ok(())
                     }
-                    Attribute::WalTraceable { .. } => Err(attr.report_unused("register")),
+                    Attribute::WalTraceable { .. } | Attribute::Doc { .. } => {
+                        Err(attr.report_unused("register"))
+                    }
                 })?;
 
                 let initial = if let Some(init) = initial {

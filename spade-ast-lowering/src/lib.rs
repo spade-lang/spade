@@ -25,6 +25,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_hir::{self as hir, Module};
 
+use crate::attributes::doc;
 use crate::attributes::AttributeListExt;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::IsPort;
@@ -452,7 +453,6 @@ pub fn visit_unit(
             println!("Failed to find {path:?} in symtab")
         })
         .expect("Attempting to lower an entity that has not been added to the symtab previously");
-    let head = head.clone(); // An offering to the borrow checker. May ferris have mercy on us all
 
     let mut unit_name = if !type_params.is_empty() {
         hir::UnitName::WithID(id.clone().at_loc(name))
@@ -488,8 +488,13 @@ pub fn visit_unit(
             wal_suffix = Some(suffix.clone());
             Ok(None)
         }
-        _ => Err(attr.report_unused("a unit")),
+        ast::Attribute::Doc { .. } => Ok(None), // handled later
+        ast::Attribute::Fsm { .. }
+        | ast::Attribute::WalTrace { .. }
+        | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("a unit")),
     })?;
+
+    let doc = doc(&attributes)?;
 
     // If this is a builtin entity
     if body.is_none() {
@@ -558,6 +563,7 @@ pub fn visit_unit(
     Ok(hir::Item::Unit(
         hir::Unit {
             name: unit_name,
+            doc,
             head: head.clone().inner,
             inputs,
             body,
@@ -1188,7 +1194,8 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                 }
                 ast::Attribute::NoMangle
                 | ast::Attribute::Fsm { .. }
-                | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
+                | ast::Attribute::WalTraceable { .. }
+                | ast::Attribute::Doc { .. } => Err(attr.report_unused("let binding")),
             })?;
 
             stmts.push(
@@ -1887,6 +1894,7 @@ mod entity_visiting {
                 type_params: vec![],
                 unit_kind: hir::UnitKind::Entity.nowhere(),
             },
+            doc: None,
             inputs: vec![((name_id(1, "a"), hir::TypeSpec::unit().nowhere()))],
             body: hir::ExprKind::Block(Box::new(hir::Block {
                 statements: vec![hir::Statement::binding(
@@ -3035,7 +3043,9 @@ mod item_visiting {
                     type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                 },
+                doc: None,
                 inputs: vec![],
+                doc: None,
                 body: hir::ExprKind::Block(Box::new(hir::Block {
                     statements: vec![],
                     result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
@@ -3142,7 +3152,9 @@ mod impl_blocks {
                     type_params: vec![],
                     unit_kind: hir::UnitKind::Function(hir::FunctionKind::Fn).nowhere(),
                 },
+                doc: None,
                 inputs: vec![(name_id(2, "self"), param_type_spec)],
+                doc: None,
                 body: hir::ExprKind::Block(Box::new(hir::Block {
                     statements: vec![],
                     result: Some(hir::ExprKind::int_literal(0).with_id(1).nowhere()),
@@ -3245,7 +3257,9 @@ mod module_visiting {
                             type_params: vec![],
                             unit_kind: hir::UnitKind::Entity.nowhere(),
                         },
+                        doc: None,
                         inputs: vec![],
+                        doc: None,
                         body: hir::ExprKind::Block(Box::new(hir::Block {
                             statements: vec![],
                             result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),

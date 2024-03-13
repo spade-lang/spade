@@ -21,7 +21,7 @@ use spade_ast::{
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_common::num_ext::InfallibleToBigInt;
-use spade_diagnostics::Diagnostic;
+use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_macros::trace_parser;
 
 use crate::error::{
@@ -1136,7 +1136,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn statement(&mut self, allow_stages: bool) -> Result<Option<Loc<Statement>>> {
-        let attrs = self.attributes()?;
+        let attrs = self.attributes_and_doc()?;
         let result = self.first_successful(vec![
             &|s| s.binding(&attrs),
             &|s| s.register(&attrs),
@@ -1206,7 +1206,7 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn parameter(&mut self) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
-        let attrs = self.attributes()?;
+        let attrs = self.attributes_and_doc()?;
         let (name, ty) = self.name_and_type()?;
         Ok((attrs, name, ty))
     }
@@ -1891,6 +1891,21 @@ impl<'a> Parser<'a> {
             "wal_suffix" => Ok(attribute_arg_parser!(start, self, s, Attribute::WalSuffix {
                 suffix [required]: {s.identifier()}
             })),
+            "doc" => {
+                self.eat(&TokenKind::OpenParen)?;
+                let Token {
+                    kind: TokenKind::DocComment(content),
+                    ..
+                } = self.eat_cond(|t| matches!(t, TokenKind::DocComment(_)), "doc comment")?
+                else {
+                    return Err(diag_anyhow!(
+                        self.peek()?.loc(),
+                        "eat_cond should have checked that this is a TokenKind::DocComment"
+                    ));
+                };
+                self.eat(&TokenKind::CloseParen)?;
+                Ok(Attribute::Doc { content })
+            }
             other => Err(
                 Diagnostic::error(&start, format!("Unknown attribute '{other}'"))
                     .primary_label("Unrecognised attribute"),
@@ -1899,25 +1914,42 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn attributes(&mut self) -> Result<AttributeList> {
-        // peek_for!(self, &TokenKind::Hash)
+    pub fn attributes_and_doc(&mut self) -> Result<AttributeList> {
         let mut result = AttributeList(vec![]);
-        while let Some(start) = self.peek_and_eat(&TokenKind::Hash)? {
-            let (inner, loc) = self.surrounded(
-                &TokenKind::OpenBracket,
-                Self::attribute_inner,
-                &TokenKind::CloseBracket,
-            )?;
 
-            result.0.push(inner.between(self.file_id, &start, &loc));
+        loop {
+            if let Some(start) = self.peek_and_eat(&TokenKind::Hash)? {
+                let (inner, loc) = self.surrounded(
+                    &TokenKind::OpenBracket,
+                    Self::attribute_inner,
+                    &TokenKind::CloseBracket,
+                )?;
+
+                result.0.push(inner.between(self.file_id, &start, &loc));
+            } else if self.peek_cond(|tk| matches!(tk, TokenKind::DocComment(_)), "doc comment")? {
+                let Token {
+                    kind,
+                    span,
+                    file_id,
+                } = self.eat_unconditional()?;
+                let TokenKind::DocComment(doc) = kind else {
+                    unreachable!("peeked doc comment but ate {}", kind.as_str());
+                };
+                result
+                    .0
+                    .push(Attribute::Doc { content: doc }.at(file_id, &span));
+            } else {
+                break;
+            }
         }
+
         Ok(result)
     }
 
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn item(&mut self) -> Result<Option<Item>> {
-        let attrs = self.attributes()?;
+        let attrs = self.attributes_and_doc()?;
         self.first_successful(vec![
             &|s: &mut Self| s.unit(&attrs).map(|e| e.map(Item::Unit)),
             &|s: &mut Self| s.trait_def(&attrs).map(|e| e.map(Item::TraitDef)),

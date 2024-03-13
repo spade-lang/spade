@@ -401,6 +401,9 @@ pub fn re_visit_type_declaration(
                     );
                     Ok(None)
                 }
+                ast::Attribute::Doc { content } => Ok(Some(hir::Attribute::Doc {
+                    content: content.clone(),
+                })),
                 ast::Attribute::NoMangle
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }

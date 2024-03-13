@@ -222,6 +222,8 @@ pub enum TokenKind {
 
     #[regex("//[^\n]*\n", logos::skip)]
     Comment,
+    #[regex("///[^\n]*\n", |lex| lex.slice().to_string())]
+    DocComment(String),
 
     #[token("/*")]
     BlockCommentStart,
@@ -324,6 +326,7 @@ impl TokenKind {
 
             TokenKind::Whitespace => "whitespace",
             TokenKind::Comment => "comment",
+            TokenKind::DocComment(_) => "doc comment",
 
             TokenKind::BlockCommentStart => "/*",
             TokenKind::BlockCommentEnd => "*/",

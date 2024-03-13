@@ -394,6 +394,7 @@ impl std::fmt::Display for UnitName {
 pub struct Unit {
     pub name: UnitName,
     pub head: UnitHead,
+    pub doc: Option<String>,
     // This is needed here because the head does not have NameIDs
     pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
     pub body: Loc<Expression>,
@@ -593,12 +594,14 @@ impl std::fmt::Display for TraitName {
 pub enum Attribute {
     Fsm { state: NameID },
     WalTraceable { suffix: Identifier },
+    Doc { content: String },
 }
 impl Attribute {
     pub fn name(&self) -> &str {
         match self {
             Attribute::Fsm { state: _ } => "fsm",
             Attribute::WalTraceable { suffix: _ } => "suffix",
+            Attribute::Doc { .. } => "doc",
         }
     }
 }
