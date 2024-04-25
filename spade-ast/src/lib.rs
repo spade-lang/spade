@@ -585,7 +585,7 @@ impl WithLocation for Unit {}
 pub struct Register {
     pub pattern: Loc<Pattern>,
     pub clock: Loc<Expression>,
-    pub reset: Option<(Loc<Expression>, Loc<Expression>)>,
+    pub reset: Option<Loc<Expression>>,
     pub initial: Option<Loc<Expression>>,
     pub value: Loc<Expression>,
     pub value_type: Option<Loc<TypeSpec>>,

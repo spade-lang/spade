@@ -17,8 +17,8 @@ mod unsafe {
     /// multi-bit signals can cause issues.
     /// It is primarily intended for other synchronization primitives
     entity sync2<T>(clk: clock, in: T) -> T {
-        reg(clk) sync1 = in;
-        reg(clk) sync2 = sync1;
+        reg sync1 (clk) = in;
+        reg sync2 (clk) = sync1;
         sync2
     }
 
@@ -26,7 +26,7 @@ mod unsafe {
     /// aspect is important, it must be a N bit gray counter for this to do
     /// anything useful.
     entity sync_uint_counter<#N>(source_clk: clock, dest_clk: clock, in: uint<N>) -> uint<N> {
-        reg(source_clk) gray = bin_to_gray(in);
+        reg gray (clk: source_clk) = bin_to_gray(in);
         gray_to_bin(inst sync2(dest_clk, gray))
     }
 }
@@ -56,7 +56,7 @@ mod handshake_impl {
     entity transmitter<T>(clk: clock, rst: bool, data: Option<T>, out: TxOutRxIn<T>) {
         let ack = inst std::cdc::sync2_bool(clk, *out.ack);
 
-        reg(clk) state reset(rst: TxState::WaitData) = match (state, data, ack) {
+        reg state (clk, reset: (rst, TxState::WaitData)) = match (state, data, ack) {
             (TxState::WaitData, None, _) => TxState::WaitData,
             (TxState::WaitData, Some(_), _) => TxState::HoldData,
             (TxState::HoldData, _, _) => TxState::WaitAck,
@@ -64,7 +64,7 @@ mod handshake_impl {
             (TxState::WaitAck, _, true) => TxState::WaitData,
         };
 
-        reg(clk) data_held = match (data, state) {
+        reg data_held (clk) = match (data, state) {
             (Some(d), TxState::WaitData) => d,
             _ => data_held,
         };
@@ -85,7 +85,7 @@ mod handshake_impl {
     entity receiver<T>(clk: clock, rst: bool, in: ~TxOutRxIn<T>) -> Option<T> {
         let data_valid = inst std::cdc::sync2_bool(clk, *in.data_valid);
 
-        reg(clk) (state, data_out) reset(rst: (RxState::WaitValid, None)) = match (state, data_valid) {
+        reg (state, data_out) (clk: clk, reset: (rst, (RxState::WaitValid, None))) = match (state, data_valid) {
             (RxState::WaitValid, false) => (state, None),
             (RxState::WaitValid, true) => (RxState::WaitInvalid, Some(*in.data)),
             (RxState::WaitInvalid, true) => (RxState::WaitInvalid, None),
@@ -131,14 +131,14 @@ mod sync_wide_impl {
     entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: ~FromSender<T>) {
         let ack = inst sync2_bool(source_clk, *to_tx.ack);
 
-        reg(source_clk) state reset(rst: TxState::Init) = match state {
+        reg state (clk: source_clk, reset: (rst, TxState::Init)) = match state {
             TxState::Init => TxState::Setup(data_in),
             TxState::Setup(data) => TxState::Hold(data),
             TxState::Hold(data) => if ack {TxState::WaitRelease} else {TxState::Hold(data)},
             TxState::WaitRelease => if !ack {TxState::Setup(data_in)} else {TxState::WaitRelease},
         };
 
-        reg(source_clk) UNDEF = UNDEF;
+        reg UNDEF (clk: source_clk) = UNDEF;
         let (valid, data) = match state {
             TxState::Init => (false, UNDEF),
             TxState::Setup(data) => (false, data),
@@ -160,12 +160,12 @@ mod sync_wide_impl {
         // it while valid is high, and before replying with ack
         let data = *from_tx.data;
 
-        reg(dest_clk) state reset(rst: RxState::WaitReceive) = match state {
+        reg state (clk: dest_clk, reset: (rst, RxState::WaitReceive)) = match state {
             RxState::WaitReceive => if valid {RxState::SendAck} else {state},
             RxState::SendAck => if !valid {RxState::WaitReceive} else {state},
         };
 
-        reg(dest_clk) out reset(rst: init) = match (state, valid) {
+        reg out (clk: dest_clk, reset: (rst, init)) = match (state, valid) {
             (RxState::WaitReceive, true) => data,
             _ => out
         };
@@ -180,7 +180,7 @@ mod sync_wide_impl {
 }
 
 /// Synchronizes a wide value from the source domain into the destination domain.
-/// This guarantees that all values sent between the domains are valid, but 
+/// This guarantees that all values sent between the domains are valid, but
 /// some values may be skipped
 entity sync_wide<T>(source_clk: clock, rst: bool, in: T, init: T, dest_clk: clock) -> T {
     let (from_tx, to_tx) = port;

@@ -624,43 +624,53 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
+    fn named_argument_list(&mut self) -> Result<Vec<NamedArgument>> {
+        let args = self
+            .comma_separated(Self::named_argument, &TokenKind::CloseParen)
+            .extra_expected(vec![":"])
+            .map_err(|e| {
+                debug!("check named arguments =");
+                let Ok(tok) = self.peek() else {
+                    return e;
+                };
+                debug!("{:?}", tok);
+                if tok.kind == TokenKind::Assignment {
+                    e.span_suggest_replace(
+                        "named arguments are specified with `:`",
+                        // FIXME: expand into whitespace
+                        // lifeguard: spade#309
+                        tok.loc(),
+                        ":",
+                    )
+                } else {
+                    e
+                }
+            })?
+            .into_iter()
+            .map(Loc::strip)
+            .collect();
+        Ok(args)
+    }
+
+    #[trace_parser]
+    fn positional_argument_list(&mut self) -> Result<Vec<Loc<Expression>>> {
+        let args = self
+            .comma_separated(Self::expression, &TokenKind::CloseParen)
+            .no_context()?;
+
+        Ok(args)
+    }
+
+    #[trace_parser]
     fn argument_list(&mut self) -> Result<Option<Loc<ArgumentList>>> {
         let is_named = self.peek_and_eat(&TokenKind::Dollar)?.is_some();
         let opener = peek_for!(self, &TokenKind::OpenParen);
-
         let argument_list = if is_named {
-            let args = self
-                .comma_separated(Self::named_argument, &TokenKind::CloseParen)
-                .extra_expected(vec![":"])
-                .map_err(|e| {
-                    debug!("check named arguments =");
-                    let Ok(tok) = self.peek() else {
-                        return e;
-                    };
-                    debug!("{:?}", tok);
-                    if tok.kind == TokenKind::Assignment {
-                        e.span_suggest_replace(
-                            "named arguments are specified with `:`",
-                            // FIXME: expand into whitespace
-                            // lifeguard: spade#309
-                            tok.loc(),
-                            ":",
-                        )
-                    } else {
-                        e
-                    }
-                })?
-                .into_iter()
-                .map(Loc::strip)
-                .collect();
-            ArgumentList::Named(args)
+            ArgumentList::Named(self.named_argument_list()?)
         } else {
-            let args = self
-                .comma_separated(Self::expression, &TokenKind::CloseParen)
-                .no_context()?;
-
-            ArgumentList::Positional(args)
+            ArgumentList::Positional(self.positional_argument_list()?)
         };
+
         let end = self.eat(&TokenKind::CloseParen)?;
         let span = lspan(opener.span).merge(lspan(end.span));
         Ok(Some(argument_list.at(self.file_id, &span)))
@@ -959,38 +969,6 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn register_reset_definition(&mut self) -> Result<(Loc<Expression>, Loc<Expression>)> {
-        let condition = self.expression()?;
-        self.eat(&TokenKind::Colon)?;
-        let value = self.expression()?;
-
-        Ok((condition, value))
-    }
-
-    #[trace_parser]
-    pub fn register_reset(&mut self) -> Result<Option<(Loc<Expression>, Loc<Expression>)>> {
-        peek_for!(self, &TokenKind::Reset);
-        let (reset, _) = self.surrounded(
-            &TokenKind::OpenParen,
-            |s| s.register_reset_definition().map(Some),
-            &TokenKind::CloseParen,
-        )?;
-        // NOTE: Safe unwrap, register_reset_definition can not fail
-        Ok(Some(reset.unwrap()))
-    }
-
-    #[trace_parser]
-    pub fn register_initial(&mut self) -> Result<Option<Loc<Expression>>> {
-        peek_for!(self, &TokenKind::Initial);
-        let (reset, _) = self.surrounded(
-            &TokenKind::OpenParen,
-            Self::expression,
-            &TokenKind::CloseParen,
-        )?;
-        Ok(Some(reset))
-    }
-
-    #[trace_parser]
     pub fn register(&mut self, attributes: &AttributeList) -> Result<Option<Loc<Statement>>> {
         let start_token = peek_for!(self, &TokenKind::Reg);
 
@@ -1059,15 +1037,15 @@ impl<'a> Parser<'a> {
             .allows_reg(().at(self.file_id, &start_token.span()))?;
 
         // Clock selection
-        let (clock, _clock_paren_span) = self.surrounded(
-            &TokenKind::OpenParen,
-            |s| s.expression().map(Some),
-            &TokenKind::CloseParen,
-        )?;
+        // let (clock, _clock_paren_span) = self.surrounded(
+        //     &TokenKind::OpenParen,
+        //     |s| s.expression().map(Some),
+        //     &TokenKind::CloseParen,
+        // )?;
 
-        // Identifier parsing cannot fail since we map it into a Some. Therefore,
-        // unwrap is safe
-        let clock = clock.unwrap();
+        // // Identifier parsing cannot fail since we map it into a Some. Therefore,
+        // // unwrap is safe
+        // let clock = clock.unwrap();
 
         // Name
         let pattern = self.pattern()?;
@@ -1079,23 +1057,71 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // Optional reset
-        let reset = self.register_reset()?;
-        let initial = self.register_initial()?;
-        // Try parsing reset again, if we find two resets, error out
-        let reset = match (reset, self.register_reset()?) {
-            (Some(first), None) => Some(first),
-            (None, Some(second)) => Some(second),
-            (Some(first), Some(second)) => {
-                return Err(Diagnostic::error(
-                    ().between_locs(&second.0, &second.1),
-                    "Multiple resets specified",
-                )
-                .primary_label("Second reset")
-                .secondary_label(().between_locs(&first.0, &first.1), "First reset"))
+        let mut clock = None;
+        let mut reset = None;
+        let mut initial = None;
+        if self.peek_and_eat(&TokenKind::OpenParen)?.is_some() {
+            for argument in self.named_argument_list()? {
+                match argument {
+                    // TODO: check if already set
+                    NamedArgument::Full(arg, value) => match arg.inner.0.as_str() {
+                        "clk" | "clock" => {
+                            clock = Some(value);
+                        }
+                        "reset" => {
+                            reset = Some(value);
+                        }
+                        "initial" => {
+                            initial = Some(value);
+                        }
+                        _ => todo!("unknown register argument"),
+                    },
+                    NamedArgument::Short(arg) => match arg.inner.0.as_str() {
+                        "clk" | "clock" => {
+                            clock = Some(
+                                Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
+                                    .at_loc(&arg),
+                            )
+                        }
+                        "reset" => {
+                            reset = Some(
+                                Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
+                                    .at_loc(&arg),
+                            )
+                        }
+                        "initial" => {
+                            initial = Some(
+                                Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
+                                    .at_loc(&arg),
+                            )
+                        }
+                        _ => todo!("unknown register argument"),
+                    },
+                }
             }
-            (None, None) => None,
+            self.eat(&TokenKind::CloseParen)?;
+        }
+        let Some(clock) = clock else {
+            todo!("missing clock");
         };
+
+        // Optional reset
+        // let reset = self.register_reset()?;
+        // let initial = self.register_initial()?;
+        // // Try parsing reset again, if we find two resets, error out
+        // let reset = match (reset, self.register_reset()?) {
+        //     (Some(first), None) => Some(first),
+        //     (None, Some(second)) => Some(second),
+        //     (Some(first), Some(second)) => {
+        //         return Err(Diagnostic::error(
+        //             ().between_locs(&second.0, &second.1),
+        //             "Multiple resets specified",
+        //         )
+        //         .primary_label("Second reset")
+        //         .secondary_label(().between_locs(&first.0, &first.1), "First reset"))
+        //     }
+        //     (None, None) => None,
+        // };
 
         // Value
         self.eat(&TokenKind::Assignment)?;
@@ -2764,10 +2790,13 @@ mod tests {
             Register {
                 pattern: Pattern::name("name"),
                 clock: Expression::Identifier(ast_path("clk")).nowhere(),
-                reset: Some((
-                    Expression::Identifier(ast_path("rst")).nowhere(),
-                    Expression::int_literal_signed(0).nowhere(),
-                )),
+                reset: Some(
+                    Expression::TupleLiteral(vec![
+                        Expression::Identifier(ast_path("rst")).nowhere(),
+                        Expression::int_literal_signed(0).nowhere(),
+                    ])
+                    .nowhere(),
+                ),
                 initial: None,
                 value: Expression::int_literal_signed(1).nowhere(),
                 value_type: None,
@@ -2793,10 +2822,13 @@ mod tests {
             Register {
                 pattern: Pattern::name("name"),
                 clock: Expression::Identifier(ast_path("clk")).nowhere(),
-                reset: Some((
-                    Expression::Identifier(ast_path("rst")).nowhere(),
-                    Expression::int_literal_signed(0).nowhere(),
-                )),
+                reset: Some(
+                    Expression::TupleLiteral(vec![
+                        Expression::Identifier(ast_path("rst")).nowhere(),
+                        Expression::int_literal_signed(0).nowhere(),
+                    ])
+                    .nowhere(),
+                ),
                 initial: None,
                 value: Expression::int_literal_signed(1).nowhere(),
                 value_type: Some(TypeSpec::Named(ast_path("Type"), None).nowhere()),

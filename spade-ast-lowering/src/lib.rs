@@ -11,32 +11,31 @@ use attributes::LocAttributeExt;
 use itertools::{EitherOrBoth, Itertools};
 use num::{BigInt, ToPrimitive, Zero};
 use pipelines::{int_literal_to_pipeline_stages, PipelineContext};
-use spade_diagnostics::{diag_bail, Diagnostic};
 use tracing::{event, info, Level};
 
 use std::collections::{HashMap, HashSet};
 
-use comptime::ComptimeCondExt;
+use ast::{Binding, CallKind, Expression, ImplBlock, ParameterList, TypeParam, Unit, UnitKind};
+use hir::expression::{BinaryOperator, IntLiteralKind};
 use hir::param_util::ArgumentError;
-use hir::symbol_table::DeclarationState;
-use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace, WhereClause};
+use hir::symbol_table::{DeclarationState, LookupError, SymbolTable, Thing, TypeSymbol};
+use hir::{
+    ConstGeneric, ExecutableItem, Module, PatternKind, TraitDef, TraitName, TraitSpec,
+    TypeExpression, TypeSpec, UnitHead, WalTrace, WhereClause,
+};
 use spade_ast as ast;
+pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path};
-use spade_hir::{self as hir, Module};
+use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_hir as hir;
 
-use crate::attributes::AttributeListExt;
-use crate::pipelines::maybe_perform_pipelining_tasks;
-use crate::types::{IsPort, IsSelf};
-use ast::{Binding, CallKind, ParameterList, UnitKind};
-use hir::expression::{BinaryOperator, IntLiteralKind};
-use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
-pub use spade_common::id_tracker;
-
+use attributes::AttributeListExt;
+use comptime::ComptimeCondExt;
 use error::Result;
-use spade_ast::{ImplBlock, TypeParam, Unit};
-use spade_hir::{TraitDef, TraitSpec, TypeExpression, TypeSpec, UnitHead};
+use pipelines::maybe_perform_pipelining_tasks;
+use types::{IsPort, IsSelf};
 
 pub struct Context {
     pub symtab: SymbolTable,
@@ -2613,11 +2612,16 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
 
     let clock = reg.clock.try_visit(visit_expression, ctx)?;
 
-    let reset = if let Some((trig, value)) = &reg.reset {
-        Some((
-            trig.try_visit(visit_expression, ctx)?,
-            value.try_visit(visit_expression, ctx)?,
-        ))
+    let reset = if let Some(reset) = &reg.reset {
+        // parse as tuple of (bool, T)
+        match &reset.inner {
+            Expression::TupleLiteral(parts) if parts.len() == 2 => Some((
+                parts[0].try_visit(visit_expression, ctx)?,
+                parts[1].try_visit(visit_expression, ctx)?,
+            )),
+            Expression::TupleLiteral(_) => todo!("should be 2-tuple (bool, T)"),
+            _ => todo!("should be 2-tuple (bool, T"),
+        }
     } else {
         None
     };
@@ -3752,10 +3756,13 @@ mod register_visiting {
         let input = ast::Register {
             pattern: ast::Pattern::name("test"),
             clock: ast::Expression::Identifier(ast_path("clk")).nowhere(),
-            reset: Some((
-                ast::Expression::Identifier(ast_path("rst")).nowhere(),
-                ast::Expression::int_literal_signed(0).nowhere(),
-            )),
+            reset: Some(
+                Expression::TupleLiteral(vec![
+                    ast::Expression::Identifier(ast_path("rst")).nowhere(),
+                    ast::Expression::int_literal_signed(0).nowhere(),
+                ])
+                .nowhere(),
+            ),
             initial: Some(ast::Expression::int_literal_signed(0).nowhere()),
             value: ast::Expression::int_literal_signed(1).nowhere(),
             value_type: Some(ast::TypeSpec::Unit(().nowhere()).nowhere()),
