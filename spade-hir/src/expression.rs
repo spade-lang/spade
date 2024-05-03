@@ -1,4 +1,4 @@
-use crate::{Pattern, TypeExpression};
+use crate::{Pattern, Statement, TypeExpression};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -195,6 +195,7 @@ pub enum ExprKind {
     },
     StageValid,
     StageReady,
+    Fsm(Vec<Loc<Statement>>),
     // This is a special case expression which is never created in user code, but which can be used
     // in type inferecne to create virtual expressions with specific IDs
     Null,
@@ -328,6 +329,7 @@ impl LocExprExt for Loc<Expression> {
             ExprKind::PipelineRef { .. } => Some(self.clone()),
             ExprKind::StageReady => None,
             ExprKind::StageValid => None,
+            ExprKind::Fsm(_) => Some(self.clone()),
             ExprKind::Null => None,
         }
     }

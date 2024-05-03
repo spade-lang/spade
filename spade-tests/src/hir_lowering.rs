@@ -2336,7 +2336,7 @@ mod tests {
     fn traced_fsm_is_traced() {
         let code = r#"
         entity name(clk: clock, x: bool) -> bool {
-            #[fsm(state)]
+            #[wal_fsm(state)]
             reg(clk) state = x;
             x
         }
@@ -2356,7 +2356,7 @@ mod tests {
     fn traced_fsm_with_implicit_name_is_traced() {
         let code = r#"
         entity name(clk: clock, x: bool) -> bool {
-            #[fsm]
+            #[wal_fsm]
             reg(clk) state = x;
             x
         }
@@ -2375,7 +2375,7 @@ mod tests {
     snapshot_error! { traced_fsm_with_implicit_name_on_tuple_is_error,
         r#"
         entity name(clk: clock, x: bool) -> bool {
-            #[fsm]
+            #[wal_fsm]
             reg(clk) (x, y) = x;
             x
         }

@@ -112,6 +112,15 @@ pub enum TokenKind {
     #[token("mut")]
     Mut,
 
+    #[token("fsm")]
+    Fsm,
+    #[token("loop")]
+    Loop,
+    #[token("yield")]
+    Yield,
+    #[token("in")]
+    In,
+
     #[token("$config")]
     ComptimeConfig,
     #[token("$if")]
@@ -261,6 +270,11 @@ impl TokenKind {
             TokenKind::Assert => "assert",
             TokenKind::Set => "set",
             TokenKind::Mut => "mut",
+
+            TokenKind::Loop => "loop",
+            TokenKind::Fsm => "fsm",
+            TokenKind::Yield => "yield",
+            TokenKind::In => "in",
 
             TokenKind::ComptimeConfig => "$config",
             TokenKind::ComptimeIf => "$if",

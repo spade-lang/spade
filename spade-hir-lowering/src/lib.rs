@@ -782,6 +782,7 @@ pub fn do_wal_trace_lowering(
             let type_ctx = spade_typeinference::Context {
                 symtab: ctx.symtab.symtab(),
                 items: ctx.item_list,
+                fsm_context: None,
             };
             let generic_list = &ctx.types.create_generic_list(
                 spade_typeinference::GenericListSource::Anonymous,
@@ -804,6 +805,7 @@ pub fn do_wal_trace_lowering(
                     &spade_typeinference::Context {
                         symtab: ctx.symtab.symtab(),
                         items: ctx.item_list,
+                        fsm_context: None,
                     },
                 )
                 .unwrap(); // Unification with a completely generic expr
@@ -887,11 +889,11 @@ pub fn lower_wal_trace(
 }
 
 #[local_impl]
-impl StatementLocal for Statement {
+impl StatementLocal for Loc<Statement> {
     #[tracing::instrument(name = "Statement::lower", level = "trace", skip(self, ctx))]
     fn lower(&self, ctx: &mut Context) -> Result<StatementList> {
         let mut result = StatementList::new();
-        match self {
+        match &self.inner {
             Statement::Binding(hir::Binding {
                 pattern,
                 ty: _,
@@ -1061,6 +1063,12 @@ impl StatementLocal for Statement {
                     value: value.variable(ctx.subs)?.at_loc(value),
                 })
             }
+            Statement::ForLoop(_) | Statement::Yield(_) => {
+                return Err(Diagnostic::bug(
+                    self,
+                    "FSM things should already have been lowered",
+                ))
+            }
         }
         Ok(result)
     }
@@ -1133,6 +1141,7 @@ impl ExprLocal for Loc<Expression> {
                 self,
                 "method call should have been lowered to function by this point"
             ),
+            ExprKind::Fsm(_) => Ok(None),
             ExprKind::Null => {
                 diag_bail!(self, "Null expression found during hir lowering")
             }
@@ -1774,6 +1783,9 @@ impl ExprLocal for Loc<Expression> {
             }
             ExprKind::Null => {
                 diag_bail!(self, "Null expression found during hir lowering")
+            }
+            ExprKind::Fsm(_) => {
+                diag_bail!(self, "FSM should already have been lowered at this point")
             }
         }
         Ok(result)

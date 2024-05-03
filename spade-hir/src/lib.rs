@@ -140,6 +140,14 @@ pub struct Binding {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct ForLoop {
+    pub var: Loc<NameID>,
+    pub start: Loc<BigUint>,
+    pub end: Loc<BigUint>,
+    pub body: Vec<Loc<Statement>>,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Statement {
     Binding(Binding),
     Register(Loc<Register>),
@@ -155,6 +163,8 @@ pub enum Statement {
         suffix: Identifier,
         target: Loc<NameID>,
     },
+    ForLoop(ForLoop),
+    Yield(Loc<Expression>),
 }
 impl WithLocation for Statement {}
 

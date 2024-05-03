@@ -127,6 +127,9 @@ pub fn visit_statement(
             linear_state.consume_expression(target)?;
             linear_state.consume_expression(value)?;
         }
+        // TODO: We need to ensure that it is not possible to have fsms which yield values of linear type
+        Statement::Yield(_) => {}
+        Statement::ForLoop(_) => {}
     }
     Ok(())
 }
@@ -166,6 +169,7 @@ fn visit_expression(
             expr,
             "method call should have been lowered to function by this point"
         ),
+        spade_hir::ExprKind::Fsm(_) => true,
         spade_hir::ExprKind::Null => false,
     };
 
@@ -312,6 +316,11 @@ fn visit_expression(
                 linear_state.push_new_name(name, ctx);
             }
             linear_state.add_alias_name(expr.id.at_loc(expr), &name.clone())?
+        }
+        spade_hir::ExprKind::Fsm(stmts) => {
+            for stmt in stmts {
+                visit_statement(stmt, linear_state, ctx)?;
+            }
         }
         spade_hir::ExprKind::MethodCall { .. } => diag_bail!(
             expr,

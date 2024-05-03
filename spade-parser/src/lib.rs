@@ -13,7 +13,7 @@ use tracing::{debug, event, Level};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, Binding, BitLiteral, Block, CallKind,
-    ComptimeConfig, Enum, Expression, ImplBlock, IntLiteral, Item, Module, ModuleBody,
+    ComptimeConfig, Enum, Expression, ForLoop, ImplBlock, IntLiteral, Item, Module, ModuleBody,
     NamedArgument, ParameterList, Pattern, PipelineStageReference, Register, Statement, Struct,
     TraitDef, TypeDeclKind, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead,
     UnitKind, UseStatement,
@@ -1093,6 +1093,61 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    #[trace_parser]
+    pub fn _yield(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
+        let tok = peek_for!(self, &TokenKind::Yield);
+
+        self.disallow_attributes(attrs, &tok)?;
+
+        let val = self.expression()?;
+
+        Ok(Some(Statement::Yield(val.clone()).between(
+            self.file_id,
+            &tok,
+            &val,
+        )))
+    }
+
+    #[trace_parser]
+    pub fn _for(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
+        let tok = peek_for!(self, &TokenKind::For);
+
+        self.disallow_attributes(attrs, &tok)?;
+
+        let var = self.identifier()?;
+        self.eat(&TokenKind::In)?;
+        let Some(start) = self.int_literal()? else {
+            return Err(Diagnostic::from(UnexpectedToken {
+                got: self.peek()?,
+                expected: vec!["integer"],
+            }));
+        };
+        self.eat(&TokenKind::Dot)?;
+        self.eat(&TokenKind::Dot)?;
+        let Some(end) = self.int_literal()? else {
+            return Err(Diagnostic::from(UnexpectedToken {
+                got: self.peek()?,
+                expected: vec!["integer"],
+            }));
+        };
+
+        let (body, body_loc) = self.surrounded(
+            &TokenKind::OpenBrace,
+            |s| s.statements(false),
+            &TokenKind::CloseBrace,
+        )?;
+
+        Ok(Some(
+            Statement::ForLoop(ForLoop {
+                var,
+                start,
+                end,
+                body,
+            })
+            .between(self.file_id, &tok, &body_loc),
+        ))
+    }
+
     /// If the next token is the start of a statement, return that statement,
     /// otherwise None
     #[trace_parser]
@@ -1107,6 +1162,8 @@ impl<'a> Parser<'a> {
             &|s| s.assert(&attrs),
             &|s| s.set(&attrs),
             &|s| s.comptime_statement(allow_stages),
+            &|s| s._for(&attrs),
+            &|s| s._yield(&attrs),
         ])?;
 
         if let Some(statement) = &result {
@@ -1810,7 +1867,7 @@ impl<'a> Parser<'a> {
 
         match start.inner.0.as_str() {
             "no_mangle" => Ok(Attribute::NoMangle),
-            "fsm" => {
+            "wal_fsm" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (state, _) = self.surrounded(
                         &TokenKind::OpenParen,
@@ -3054,7 +3111,7 @@ mod tests {
     fn reg_has_fsm_attribute() {
         let code = r#"
             entity X() {
-                #[fsm(state)]
+                #[wal_fsm(state)]
                 reg(clk) state = false;
                 false
             }"#;

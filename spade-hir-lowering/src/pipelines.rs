@@ -172,6 +172,12 @@ pub fn handle_statement(
         Statement::Set { .. } => {
             // Set have no effect on pipeline state
         }
+        Statement::ForLoop(_) => {
+            // For loops have no effect on pipeline state
+        }
+        Statement::Yield(_) => {
+            // Yields have no effect on pipeline state
+        }
     }
     Ok(())
 }
@@ -624,6 +630,7 @@ impl PipelineAvailability for ExprKind {
             ExprKind::Null => {
                 panic!("Null expression during pipeline lowering")
             }
+            ExprKind::Fsm(_) => Ok(0),
         }
     }
 }

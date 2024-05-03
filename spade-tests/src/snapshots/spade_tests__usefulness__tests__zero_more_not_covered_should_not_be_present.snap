@@ -1,8 +1,8 @@
 ---
 source: spade-tests/src/usefulness.rs
 ---
-fn test(in: (bool, bool, bool)) -> bool {
-    match in {
+fn test(input: (bool, bool, bool)) -> bool {
+    match input {
         (true, true, true) => true,
         (false, true, true) => true,
         (false, false, true) => true,
@@ -14,7 +14,7 @@ fn test(in: (bool, bool, bool)) -> bool {
 error: Non-exhaustive match: patterns (false, true, false), (true, true, false) and 2 more not covered
   ┌─ testinput:2:5
   │  
-2 │ ╭     match in {
+2 │ ╭     match input {
 3 │ │         (true, true, true) => true,
 4 │ │         (false, true, true) => true,
 5 │ │         (false, false, true) => true,

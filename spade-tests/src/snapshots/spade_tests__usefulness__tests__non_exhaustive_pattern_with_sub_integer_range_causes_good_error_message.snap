@@ -1,8 +1,8 @@
 ---
 source: spade-tests/src/usefulness.rs
 ---
-fn test(in: (int<8>, bool)) -> bool {
-    match in {
+fn test(input: (int<8>, bool)) -> bool {
+    match input {
         (val, true) => true,
     }
 }
@@ -11,7 +11,7 @@ fn test(in: (int<8>, bool)) -> bool {
 error: Non-exhaustive match: pattern (-128..127, false) not covered
   ┌─ testinput:2:5
   │  
-2 │ ╭     match in {
+2 │ ╭     match input {
 3 │ │         (val, true) => true,
 4 │ │     }
   │ ╰─────^ pattern (-128..127, false) not covered

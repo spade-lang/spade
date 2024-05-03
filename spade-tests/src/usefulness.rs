@@ -215,8 +215,8 @@ mod tests {
     snapshot_error! {
         zero_more_not_covered_should_not_be_present,
         "
-        fn test(in: (bool, bool, bool)) -> bool {
-            match in {
+        fn test(input: (bool, bool, bool)) -> bool {
+            match input {
                 (true, true, true) => true,
                 (false, true, true) => true,
                 (false, false, true) => true,
@@ -233,8 +233,8 @@ mod tests {
                 x: bool,
                 y: bool,
             }
-        fn test(in: A) -> bool {
-            match in {
+        fn test(input: A) -> bool {
+            match input {
                 A(true, true) => true
             }
         }
@@ -248,8 +248,8 @@ mod tests {
                 x: bool,
                 y: bool,
             }
-        fn test(in: A) -> bool {
-            match in {
+        fn test(input: A) -> bool {
+            match input {
                 A$(y:true, x: true) => true,
                 A$(y:true, x: false) => true,
                 A$(y:false, x: false) => true,
@@ -265,8 +265,8 @@ mod tests {
                 X{a: bool},
                 Y
             }
-        fn test(in: A) -> bool {
-            match in {
+        fn test(input: A) -> bool {
+            match input {
                 A::Y => true
             }
         }
@@ -309,8 +309,8 @@ mod tests {
     snapshot_error! {
         non_exhaustive_pattern_with_sub_integer_range_causes_good_error_message,
         "
-        fn test(in: (int<8>, bool)) -> bool {
-            match in {
+        fn test(input: (int<8>, bool)) -> bool {
+            match input {
                 (val, true) => true,
             }
         }

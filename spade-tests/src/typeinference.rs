@@ -836,9 +836,9 @@ fn tuple_match_regression_1() {
         ) -> bool __builtin__
 
         entity accumulators(
-            in: (int<10>, int<10>),
+            input: (int<10>, int<10>),
         ) {
-            let write = match in {
+            let write = match input {
                 (idx, 0) => Some((idx, 0)),
                 (0, idx) => Some((idx, 0)),
                 _ => None()
@@ -869,9 +869,9 @@ fn second_integer_resolves_correctly() {
             rst: bool,
             // Clear the accumulator at the provided index. Takes precedence over
             // new_value
-            in: (int<10>, int<10>),
+            input: (int<10>, int<10>),
         ) {
-                let write = match in {
+                let write = match input {
                     (idx, 0) => Some((idx, 0)),
                     (0, idx) => Some((idx, 0)),
                     (_, _) => None()

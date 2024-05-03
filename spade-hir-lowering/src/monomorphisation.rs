@@ -167,6 +167,7 @@ pub fn compile_items(
                 let type_ctx = &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: item_list,
+                    fsm_context: None,
                 };
                 let mut type_state = old_type_state.clone();
                 let generic_list_token = if !u.head.type_params.is_empty() {

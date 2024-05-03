@@ -990,7 +990,7 @@ snapshot_error! {
 
 snapshot_error! {
     structs_can_not_be_fsm,
-    "#[fsm]
+    "#[wal_fsm]
     struct X {
     }"
 }

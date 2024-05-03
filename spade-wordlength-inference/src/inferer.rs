@@ -157,6 +157,7 @@ impl<'a> Inferer<'a> {
             | ExprKind::PipelineRef { .. }
             | ExprKind::BitLiteral(_)
             | ExprKind::CreatePorts => None,
+            ExprKind::Fsm(_) => todo!(),
         };
 
         let maybe_eq = maybe_eq.or_else(|| self.find_or_create(expr).map(Equation::V));
@@ -212,6 +213,8 @@ impl<'a> Inferer<'a> {
                 }
                 self.expression(&register.value)?;
             }
+            Statement::ForLoop(_) => todo!(),
+            Statement::Yield(_) => todo!(),
 
             // Nothing to be done for these since they contain no expressions and thus no
             // integer operations.

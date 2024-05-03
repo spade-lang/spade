@@ -2,7 +2,7 @@
 source: spade-tests/src/hir_lowering.rs
 ---
 entity name(clk: clock, x: bool) -> bool {
-    #[fsm]
+    #[wal_fsm]
     reg(clk) (x, y) = x;
     x
 }
@@ -11,8 +11,8 @@ entity name(clk: clock, x: bool) -> bool {
 error: #[fsm] without explicit name on non-name pattern
   ┌─ testinput:2:5
   │
-2 │     #[fsm]
-  │     ^^^^^^
+2 │     #[wal_fsm]
+  │     ^^^^^^^^^^
 3 │     reg(clk) (x, y) = x;
   │              ------ This is a pattern
   │

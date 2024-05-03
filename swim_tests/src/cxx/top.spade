@@ -41,6 +41,6 @@ fn unused() {
 }
 
 #[no_mangle]
-fn comparison_test(in: Option<int<8>>) -> Option<int<8>> {
-    in
+fn comparison_test(input: Option<int<8>>) -> Option<int<8>> {
+    input
 }

@@ -249,6 +249,7 @@ pub fn compile(
     let type_inference_ctx = typeinference::Context {
         symtab: frozen_symtab.symtab(),
         items: &item_list,
+        fsm_context: None,
     };
 
     let executables_and_types = item_list

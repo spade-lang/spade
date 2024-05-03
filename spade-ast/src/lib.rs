@@ -200,6 +200,7 @@ pub enum Expression {
     StageValid,
     StageReady,
     Comptime(Box<Loc<ComptimeCondition<Loc<Expression>>>>),
+    Fsm(Vec<Loc<Statement>>),
 }
 impl WithLocation for Expression {}
 
@@ -260,6 +261,7 @@ impl Expression {
             Expression::StageValid => "stage.valid",
             Expression::StageReady => "stage.ready",
             Expression::Comptime { .. } => "comptime",
+            Expression::Fsm { .. } => "fsm",
         }
     }
 }
@@ -320,6 +322,14 @@ pub struct Binding {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct ForLoop {
+    pub var: Loc<Identifier>,
+    pub start: Loc<IntLiteral>,
+    pub end: Loc<IntLiteral>,
+    pub body: Vec<Loc<Statement>>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Label(Loc<Identifier>),
     Declaration(Vec<Loc<Identifier>>),
@@ -334,6 +344,8 @@ pub enum Statement {
     },
     Assert(Loc<Expression>),
     Comptime(ComptimeCondition<Vec<Loc<Statement>>>),
+    ForLoop(ForLoop),
+    Yield(Loc<Expression>),
 }
 impl WithLocation for Statement {}
 

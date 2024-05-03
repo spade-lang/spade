@@ -82,50 +82,7 @@ impl Passable for Loc<Expression> {
             }
             ExprKind::Block(block) => {
                 for statement in &mut block.statements {
-                    match &mut statement.inner {
-                        Statement::Binding(Binding {
-                            pattern: _,
-                            ty: _,
-                            value,
-                            wal_trace: _,
-                        }) => value.apply(pass)?,
-                        Statement::Register(reg) => {
-                            let Register {
-                                pattern: _,
-                                clock,
-                                reset,
-                                initial,
-                                value,
-                                value_type: _,
-                                attributes: _,
-                            } = &mut reg.inner;
-
-                            match reset {
-                                Some((trig, val)) => subnodes!(trig, val),
-                                None => {}
-                            }
-
-                            match initial {
-                                Some(initial) => subnodes!(initial),
-                                None => {}
-                            }
-
-                            subnodes!(clock, value);
-                        }
-                        Statement::Declaration(_) => {}
-                        Statement::PipelineRegMarker(cond) => {
-                            if let Some(cond) = cond {
-                                cond.apply(pass)?;
-                            }
-                        }
-                        Statement::Label(_) => {}
-                        Statement::WalSuffixed {
-                            suffix: _,
-                            target: _,
-                        } => {}
-                        Statement::Assert(expr) => expr.apply(pass)?,
-                        Statement::Set { target, value } => subnodes!(target, value),
-                    }
+                    statement.apply(pass)?;
                 }
 
                 if let Some(result) = &mut block.result {
@@ -138,10 +95,77 @@ impl Passable for Loc<Expression> {
                 name: _,
                 declares_name: _,
             } => {}
+            ExprKind::Fsm(stmts) => {
+                for stmt in stmts {
+                    stmt.apply(pass)?
+                }
+            }
             ExprKind::Null => {}
         };
 
         pass.visit_expression(self)
+    }
+}
+
+impl Passable for Statement {
+    fn apply(&mut self, pass: &mut impl Pass) -> Result<()> {
+        macro_rules! subnodes {
+            ($($node:expr),*) => {
+                {$($node.apply(pass)?;)*}
+            };
+        }
+        match self {
+            Statement::Binding(Binding {
+                pattern: _,
+                ty: _,
+                value,
+                wal_trace: _,
+            }) => value.apply(pass)?,
+            Statement::Register(reg) => {
+                let Register {
+                    pattern: _,
+                    clock,
+                    reset,
+                    initial,
+                    value,
+                    value_type: _,
+                    attributes: _,
+                } = &mut reg.inner;
+
+                match reset {
+                    Some((trig, val)) => subnodes!(trig, val),
+                    None => {}
+                }
+
+                match initial {
+                    Some(initial) => subnodes!(initial),
+                    None => {}
+                }
+
+                subnodes!(clock, value);
+            }
+            Statement::Declaration(_) => {}
+            Statement::PipelineRegMarker(cond) => {
+                if let Some(cond) = cond {
+                    cond.apply(pass)?;
+                }
+            }
+            Statement::Label(_) => {}
+            Statement::WalSuffixed {
+                suffix: _,
+                target: _,
+            } => {}
+            Statement::Assert(expr) => expr.apply(pass)?,
+            Statement::Set { target, value } => subnodes!(target, value),
+            Statement::Yield(value) => subnodes!(value),
+            Statement::ForLoop(stmts) => {
+                for stmt in &mut stmts.body {
+                    stmt.apply(pass)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

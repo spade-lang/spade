@@ -1269,6 +1269,51 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
 
             Ok(vec![hir::Statement::Set { target, value }.at_loc(s)])
         }
+        ast::Statement::ForLoop(ast::ForLoop {
+            var,
+            start,
+            end,
+            body,
+        }) => {
+            ctx.symtab.new_scope();
+
+            let var = ctx.symtab.add_local_variable(var.clone()).at_loc(var);
+
+            let start = start.try_map_ref(|v| {
+                v.clone().as_unsigned().ok_or_else(|| {
+                    Diagnostic::error(start, "For loop ranges can only be positive")
+                        .primary_label("Negative for-loop range")
+                })
+            })?;
+            let end = end.try_map_ref(|v| {
+                v.clone().as_unsigned().ok_or_else(|| {
+                    Diagnostic::error(end, "For loop ranges can only be positive")
+                        .primary_label("Negative for-loop range")
+                })
+            })?;
+
+            let body = body
+                .iter()
+                .map(|s| visit_statement(s, ctx))
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+
+            let result = Ok(vec![hir::Statement::ForLoop(hir::ForLoop {
+                var,
+                start,
+                end,
+                body,
+            })
+            .at_loc(s)]);
+            ctx.symtab.close_scope();
+            result
+        }
+        ast::Statement::Yield(result) => Ok(vec![hir::Statement::Yield(
+            result.try_visit(visit_expression, ctx)?,
+        )
+        .at_loc(result)]),
     }
 }
 
@@ -1601,6 +1646,9 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         }
         ast::Expression::StageReady => Ok(hir::ExprKind::StageReady),
         ast::Expression::StageValid => Ok(hir::ExprKind::StageValid),
+        ast::Expression::Fsm(inner) => Ok(hir::ExprKind::Fsm(
+            inner.iter().map(|stmt| visit_statement(stmt, ctx)).collect::<Result<Vec<_>>>()?.into_iter().flatten().collect()
+        ))
     }
     .map(|kind| kind.with_id(new_id))
 }

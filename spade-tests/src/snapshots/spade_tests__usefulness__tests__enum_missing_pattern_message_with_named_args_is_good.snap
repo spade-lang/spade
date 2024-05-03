@@ -5,8 +5,8 @@ source: spade-tests/src/usefulness.rs
         X{a: bool},
         Y
     }
-fn test(in: A) -> bool {
-    match in {
+fn test(input: A) -> bool {
+    match input {
         A::Y => true
     }
 }
@@ -15,7 +15,7 @@ fn test(in: A) -> bool {
 error: Non-exhaustive match: patterns A::X(a: false), A::X(a: true) not covered
   ┌─ testinput:6:5
   │  
-6 │ ╭     match in {
+6 │ ╭     match input {
 7 │ │         A::Y => true
 8 │ │     }
   │ ╰─────^ patterns A::X(a: false), A::X(a: true) not covered

@@ -377,6 +377,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: &symtab,
                     items: &self.item_list,
+                    fsm_context: None,
                 },
             )
             .unwrap();
@@ -409,6 +410,7 @@ impl Spade {
         let type_ctx = spade_typeinference::Context {
             symtab: &ast_ctx.symtab,
             items: &self.item_list,
+            fsm_context: None,
         };
         let generic_list =
             self.type_state
@@ -427,6 +429,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: &ast_ctx.symtab,
                     items: &self.item_list,
+                    fsm_context: None,
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -612,6 +615,7 @@ impl Spade {
         let type_ctx = spade_typeinference::Context {
             symtab: symtab.symtab(),
             items: &self.item_list,
+            fsm_context: None,
         };
         let generic_list = self
             .type_state
@@ -629,6 +633,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: &self.item_list,
+                    fsm_context: None,
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -636,6 +641,7 @@ impl Spade {
             .check_requirements(&spade_typeinference::Context {
                 items: &self.item_list,
                 symtab: symtab.symtab(),
+                fsm_context: None,
             })
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 

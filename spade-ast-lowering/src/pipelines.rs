@@ -97,6 +97,8 @@ fn visit_pipeline_statement(
             }
         }
         ast::Statement::Set { .. } => {}
+        ast::Statement::ForLoop { .. } => {}
+        ast::Statement::Yield(_) => {}
     };
     Ok(())
 }

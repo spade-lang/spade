@@ -218,6 +218,9 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             "The size of a concatenation is the sum of the operand sizes"
                                 .to_string()
                         }
+                        ConstraintSource::ForLoopIndex => {
+                            "A for-loop index must fit the whole range of iteration".to_string()
+                        }
                     })
             }
             UnificationError::Specific(e) => e,

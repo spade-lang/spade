@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use colored::Colorize;
-use hir::{Binding, Parameter, UnitHead, WalTrace};
+use hir::{Binding, ForLoop, Parameter, UnitHead, WalTrace};
 use itertools::Itertools;
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
@@ -58,9 +58,14 @@ mod requirements;
 pub mod testutil;
 pub mod trace_stack;
 
+pub struct FsmContext {
+    outer_expression: TypedExpression,
+}
+
 pub struct Context<'a> {
     pub symtab: &'a SymbolTable,
     pub items: &'a ItemList,
+    pub fsm_context: Option<&'a FsmContext>,
 }
 
 // NOTE(allow) This is a debug macro which is not normally used but can come in handy
@@ -516,6 +521,20 @@ impl TypeState {
                 )?;
             }
             ExprKind::Null => {}
+            ExprKind::Fsm(stmts) => {
+                let fsm_context = FsmContext {
+                    outer_expression: TypedExpression::Id(expression.inner.id),
+                };
+                let ctx = Context {
+                    symtab: ctx.symtab,
+                    items: ctx.items,
+                    fsm_context: Some(&fsm_context),
+                };
+
+                for stmt in stmts {
+                    self.visit_statement(stmt, &ctx, generic_list)?;
+                }
+            }
         }
         Ok(())
     }
@@ -1118,6 +1137,69 @@ impl TypeState {
                 let outer_type = TypeVar::backward(stmt.loc(), inner_type.clone());
                 self.unify_expression_generic_error(target, &outer_type, ctx)?;
                 self.unify_expression_generic_error(value, &inner_type, ctx)?;
+
+                Ok(())
+            }
+            Statement::ForLoop(l) => {
+                let Some(_) = ctx.fsm_context else {
+                    return Err(Diagnostic::error(stmt, "Loops can only be used in an FSM")
+                        .primary_label("Loop outside FSM"));
+                };
+
+                let ForLoop {
+                    var,
+                    start,
+                    end,
+                    body,
+                } = l;
+
+                let (index_ty, index_size) = self.new_generic_number(ctx);
+
+                self.add_constraint(
+                    index_size.clone(),
+                    bits_to_store(ConstraintExpr::Integer(start.inner.clone().to_bigint())),
+                    var.loc(),
+                    &index_ty,
+                    ConstraintSource::ForLoopIndex,
+                );
+                self.add_constraint(
+                    index_size,
+                    bits_to_store(ConstraintExpr::Integer(end.inner.clone().to_bigint())),
+                    var.loc(),
+                    &index_ty,
+                    ConstraintSource::ForLoopIndex,
+                );
+                self.add_equation(TypedExpression::Name(var.inner.clone()), index_ty);
+
+                for statement in body {
+                    self.visit_statement(statement, ctx, generic_list)?;
+                }
+
+                Ok(())
+            }
+            Statement::Yield(value) => {
+                let Some(fsm_context) = ctx.fsm_context else {
+                    return Err(Diagnostic::error(
+                        stmt,
+                        "yield can only be used in an FSM expression or statement",
+                    )
+                    .primary_label("yield outside fsm"));
+                };
+                self.visit_expression(value, ctx, generic_list)?;
+
+                self.unify(value, &fsm_context.outer_expression, ctx)
+                    .into_diagnostic(
+                        value,
+                        |d,
+                         Tm {
+                             e: expected,
+                             g: got,
+                         }| {
+                            d.message(format!("FSM type mismatch. Expected {expected} got {got}"))
+                                .primary_label(format!("expected {expected}"))
+                                .help("All yield statements in an fsm must have the same type")
+                        },
+                    )?;
 
                 Ok(())
             }
@@ -2115,6 +2197,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2160,6 +2243,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2210,6 +2294,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2254,6 +2339,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2307,6 +2393,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2350,6 +2437,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2382,6 +2470,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2421,6 +2510,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2467,6 +2557,7 @@ mod tests {
         let ctx = Context {
             symtab: &symtab,
             items: &ItemList::new(),
+            fsm_context: None,
         };
         let generic_list = state
             .create_generic_list(GenericListSource::Anonymous, &vec![], None)
@@ -2537,6 +2628,7 @@ mod tests {
                 &Context {
                     symtab: &symtab,
                     items: &ItemList::new(),
+                    fsm_context: None,
                 },
                 &generic_list,
             )
@@ -2630,6 +2722,7 @@ mod tests {
                 &Context {
                     symtab: &symtab,
                     items: &ItemList::new(),
+                    fsm_context: None,
                 },
                 &generic_list,
             )

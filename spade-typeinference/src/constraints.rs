@@ -124,6 +124,7 @@ pub enum ConstraintSource {
     ArrayIndexing,
     MemoryIndexing,
     Concatenation,
+    ForLoopIndex,
 }
 
 impl std::fmt::Display for ConstraintSource {
@@ -134,6 +135,7 @@ impl std::fmt::Display for ConstraintSource {
             ConstraintSource::ArrayIndexing => write!(f, "ArrayIndexing"),
             ConstraintSource::MemoryIndexing => write!(f, "MemoryIndexing"),
             ConstraintSource::Concatenation => write!(f, "Concatenation"),
+            ConstraintSource::ForLoopIndex => write!(f, "ForLoopIndex"),
         }
     }
 }

@@ -123,7 +123,7 @@ mod fifo_impl {
         let write_ptr = inst lib::cdc::unsafe::sync_uint_counter$(
             source_clk: write_clk,
             dest_clk: read_clk,
-            in: *to_w.write_ptr,
+            input: *to_w.write_ptr,
         );
         let write_clk = false; // Unbind write_clk so we don't use it on accident later
 
@@ -172,7 +172,7 @@ mod fifo_impl {
         let read_ptr = inst cdc::unsafe::sync_uint_counter$(
             source_clk: read_clk,
             dest_clk: write_clk,
-            in: *from_w.read_ptr,
+            input: *from_w.read_ptr,
         );
         let read_clk = false; // Unbind so we don't use it on accident later
 

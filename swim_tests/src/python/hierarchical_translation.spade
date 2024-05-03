@@ -3,8 +3,8 @@ enum X {
     B{x: bool}
 }
 
-entity sub(in: X) -> bool {
-    let local = in;
+entity sub(input: X) -> bool {
+    let local = input;
     true
 }
 
@@ -14,8 +14,8 @@ pipeline(1) subpipe(clk: clock) -> bool {
         true
 }
 
-entity top(clk: clock, in: X) -> bool {
+entity top(clk: clock, input: X) -> bool {
     reg(clk) in_reg: int<8> = 0;
     let _ = inst(1) subpipe(clk);
-    inst sub(in)
+    inst sub(input)
 }
