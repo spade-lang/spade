@@ -1167,7 +1167,9 @@ impl<'a> Parser<'a> {
         ])?;
 
         if let Some(statement) = &result {
-            if let Statement::Label(_) | Statement::Comptime(_) = statement.inner {
+            if let Statement::Label(_) | Statement::Comptime(_) | Statement::ForLoop(_) =
+                statement.inner
+            {
             } else {
                 self.eat(&TokenKind::Semi)?;
             }

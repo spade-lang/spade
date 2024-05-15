@@ -1313,7 +1313,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
         ast::Statement::Yield(result) => Ok(vec![hir::Statement::Yield(
             result.try_visit(visit_expression, ctx)?,
         )
-        .at_loc(result)]),
+        .at_loc(s)]),
     }
 }
 

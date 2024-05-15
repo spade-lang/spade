@@ -11,6 +11,8 @@ mod ast_lowering;
 #[cfg(test)]
 mod compiler_state;
 #[cfg(test)]
+mod fsm;
+#[cfg(test)]
 mod hir_lowering;
 #[cfg(test)]
 mod integration;
