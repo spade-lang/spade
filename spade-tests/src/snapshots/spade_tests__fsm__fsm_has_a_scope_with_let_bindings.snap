@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/fsm.rs
+---
+fn test() {
+    for i in 0..1 {
+        let y = 0;
+    }
+    let x = y;
+}
+
+error: Use of undeclared name y
+  ┌─ testinput:5:13
+  │
+5 │     let x = y;
+  │             ^ Undeclared name
+
+

@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/fsm.rs
+---
+fn test() {
+    yield 1;
+}
+
+error: yield can only be used in an FSM expression or statement
+  ┌─ testinput:2:5
+  │
+2 │     yield 1;
+  │     ^^^^^^^ yield outside fsm
+
+

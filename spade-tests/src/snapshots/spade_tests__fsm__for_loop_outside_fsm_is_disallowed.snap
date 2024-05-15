@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/fsm.rs
+---
+fn test() {
+    for i in 0..10 {}
+}
+
+error: Loops can only be used in an FSM
+  ┌─ testinput:2:5
+  │
+2 │     for i in 0..10 {}
+  │     ^^^^^^^^^^^^^^^^^ Loop outside FSM
+
+
