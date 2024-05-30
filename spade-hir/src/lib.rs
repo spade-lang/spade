@@ -328,6 +328,7 @@ pub struct Struct {
     pub members: Loc<ParameterList>,
     pub is_port: bool,
     pub attributes: AttributeList,
+    pub doc: Option<String>,
     pub wal_traceable: Option<Loc<WalTraceable>>,
 }
 impl WithLocation for Struct {}
@@ -594,14 +595,12 @@ impl std::fmt::Display for TraitName {
 pub enum Attribute {
     Fsm { state: NameID },
     WalTraceable { suffix: Identifier },
-    Doc { content: String },
 }
 impl Attribute {
     pub fn name(&self) -> &str {
         match self {
             Attribute::Fsm { state: _ } => "fsm",
             Attribute::WalTraceable { suffix: _ } => "suffix",
-            Attribute::Doc { .. } => "doc",
         }
     }
 }

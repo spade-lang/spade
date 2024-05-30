@@ -9,7 +9,7 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, Path},
 };
-use spade_diagnostics::Diagnostic;
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir as hir;
 
 use crate::{
@@ -380,6 +380,7 @@ pub fn re_visit_type_declaration(
             );
 
             let mut wal_traceable = None;
+            let mut doc = None;
             let attributes = s.attributes.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::WalTraceable {
                     suffix,
@@ -401,9 +402,13 @@ pub fn re_visit_type_declaration(
                     );
                     Ok(None)
                 }
-                ast::Attribute::Doc { content } => Ok(Some(hir::Attribute::Doc {
-                    content: content.clone(),
-                })),
+                ast::Attribute::Doc { content } => {
+                    if doc.is_some() {
+                        diag_bail!(attr.loc(), "attribute list contains two documentation attributes, should only be one");
+                    }
+                    doc = Some(content.to_string());
+                    Ok(None)
+                }
                 ast::Attribute::NoMangle
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
@@ -416,6 +421,7 @@ pub fn re_visit_type_declaration(
                     members,
                     is_port: s.is_port(),
                     attributes,
+                    doc,
                     wal_traceable,
                 }
                 .at_loc(s),
