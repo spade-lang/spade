@@ -1679,6 +1679,19 @@ impl ExprLocal for Loc<Expression> {
                     | (CallKind::Entity(_), UnitKind::Entity) => {
                         result.append(self.handle_call(callee, &args, ctx)?);
                     }
+                    (CallKind::Entity(kw), UnitKind::Fsm) => {
+                        // TODO: we need to make sure that the FSM is infinite here
+                        return Err(Diagnostic::bug(
+                            kw,
+                            "Instantiating FSMs is currently not supported",
+                        ));
+                    }
+                    (CallKind::CallFsm(kw), _) => {
+                        return Err(Diagnostic::bug(
+                            kw,
+                            "Call expressions should have been lowered at this point",
+                        ));
+                    }
                     (CallKind::Pipeline(_, cdepth), UnitKind::Pipeline(udepth)) => {
                         if cdepth != udepth {
                             return Err(Diagnostic::error(

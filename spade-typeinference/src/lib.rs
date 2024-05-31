@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use colored::Colorize;
-use hir::{Binding, ForLoop, Parameter, UnitHead, WalTrace};
+use hir::{Binding, ForLoop, Parameter, UnitHead, UnitKind, WalTrace};
 use itertools::Itertools;
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
@@ -324,7 +324,7 @@ impl TypeState {
             self.add_equation(TypedExpression::Name(name.inner.clone()), tvar)
         }
 
-        if entity.head.unit_kind.is_pipeline() {
+        if entity.head.unit_kind.is_pipeline() || entity.head.unit_kind.is_fsm() {
             self.unify(
                 &TypedExpression::Name(entity.inputs[0].0.clone().inner),
                 &t_clock(ctx.symtab).at_loc(&entity.head.unit_kind),
@@ -338,12 +338,32 @@ impl TypeState {
                      e: _expected,
                  }| {
                     diag.message(format!(
-                        "First pipeline argument must be a clock. Got {got}"
+                        "First {} argument must be a clock. Got {got}",
+                        entity.head.unit_kind.name()
                     ))
                     .primary_label("expected clock")
                 },
             )?;
         }
+
+        if entity.head.unit_kind.is_fsm() {
+            self.unify(
+                &TypedExpression::Name(entity.inputs[1].0.clone().inner),
+                &t_bool(ctx.symtab).at_loc(&entity.head.unit_kind),
+                ctx,
+            )
+            .into_diagnostic(
+                entity.inputs[0].1.loc(),
+                |diag,
+                 Tm {
+                     g: got,
+                     e: _expected,
+                 }| {
+                    diag.message(format!("Second FSM argument must be a bool. Got {got}",))
+                        .primary_label("expected bool")
+                },
+            )?;
+        };
 
         self.visit_expression(&entity.body, ctx, &generic_list)?;
 
@@ -1141,11 +1161,6 @@ impl TypeState {
                 Ok(())
             }
             Statement::ForLoop(l) => {
-                let Some(_) = ctx.fsm_context else {
-                    return Err(Diagnostic::error(stmt, "Loops can only be used in an FSM")
-                        .primary_label("Loop outside FSM"));
-                };
-
                 let ForLoop {
                     var,
                     start,

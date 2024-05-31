@@ -132,6 +132,7 @@ pub enum CallKind {
     Function,
     Entity(Loc<()>),
     Pipeline(Loc<()>, Loc<usize>),
+    CallFsm(Loc<()>),
 }
 impl WithLocation for CallKind {}
 

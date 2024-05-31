@@ -83,9 +83,12 @@ pub fn expect_function(
         spade_hir::UnitKind::Function(_) => {
             spade_diagnostics::Diagnostic::bug(callee_name, "expected fn and got it")
         }
-        spade_hir::UnitKind::Entity => diag
+        spade_hir::UnitKind::Entity | spade_hir::UnitKind::Fsm => diag
             .span_suggest_insert_before("consider adding inst", callee_name, "inst ")
-            .secondary_label(unit_def, format!("{callee_name} is an entity")),
+            .secondary_label(
+                unit_def,
+                format!("{callee_name} is an {}", found_instead.name()),
+            ),
         spade_hir::UnitKind::Pipeline(depth) => diag
             .span_suggest_insert_before(
                 "consider adding inst",
@@ -119,7 +122,7 @@ pub fn expect_entity(
         spade_hir::UnitKind::Function(_) => {
             diag.span_suggest_remove("Consider removing inst", inst)
         }
-        spade_hir::UnitKind::Entity => {
+        spade_hir::UnitKind::Entity | spade_hir::UnitKind::Fsm => {
             spade_diagnostics::Diagnostic::bug(unit_name, "expected entity and got it")
         }
         spade_hir::UnitKind::Pipeline(depth) => {
@@ -148,9 +151,9 @@ pub fn expect_pipeline(
         spade_hir::UnitKind::Function(_) => diag
             .span_suggest_remove("Consider removing inst", inst)
             .secondary_label(unit_def, format!("{unit_name} is a function")),
-        spade_hir::UnitKind::Entity => diag
+        kind @ spade_hir::UnitKind::Entity | kind @ spade_hir::UnitKind::Fsm => diag
             .span_suggest_replace("Consider removing the depth", inst, "inst")
-            .secondary_label(unit_def, format!("{unit_name} is an entity")),
+            .secondary_label(unit_def, format!("{unit_name} is an {}", kind.name())),
         spade_hir::UnitKind::Pipeline(_) => {
             spade_diagnostics::Diagnostic::bug(unit_name, "expected pipeline and got it")
         }

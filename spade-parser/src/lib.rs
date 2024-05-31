@@ -302,6 +302,39 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     #[tracing::instrument(skip(self))]
+    fn call_expression(&mut self) -> Result<Option<Loc<Expression>>> {
+        let start = peek_for!(self, &TokenKind::Call);
+
+        let peeked = self.peek()?;
+        let (name, turbofish) = self.path_with_turbofish()?.ok_or_else(|| {
+            Diagnostic::from(UnexpectedToken {
+                got: peeked,
+                expected: vec!["identifier", "pipeline depth"],
+            })
+        })?;
+        let next_token = self.peek()?;
+
+        let args = self.argument_list()?.ok_or_else(|| {
+            ExpectedArgumentList {
+                next_token,
+                base_expr: ().between(self.file_id, &start, &name),
+            }
+            .with_suggestions()
+        })?;
+
+        Ok(Some(
+            Expression::Call {
+                kind: CallKind::CallFsm(start.loc()),
+                callee: name,
+                args: args.clone(),
+                turbofish,
+            }
+            .between(self.file_id, &start.span, &args),
+        ))
+    }
+
+    #[trace_parser]
+    #[tracing::instrument(skip(self))]
     pub fn if_expression(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::If);
 
@@ -1344,6 +1377,10 @@ impl<'a> Parser<'a> {
             TokenKind::Entity => {
                 self.eat_unconditional()?;
                 UnitKind::Entity.at(self.file_id, &start_token)
+            }
+            TokenKind::Fsm => {
+                self.eat_unconditional()?;
+                UnitKind::Fsm.at(self.file_id, &start_token)
             }
             _ => return Ok(None),
         };

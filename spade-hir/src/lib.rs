@@ -493,6 +493,7 @@ pub enum UnitKind {
     Function(FunctionKind),
     Entity,
     Pipeline(Loc<usize>),
+    Fsm,
 }
 impl WithLocation for UnitKind {}
 
@@ -504,11 +505,16 @@ impl UnitKind {
             UnitKind::Function(FunctionKind::Enum) => "enum variant",
             UnitKind::Entity => "entity",
             UnitKind::Pipeline(_) => "pipeline",
+            UnitKind::Fsm => "fsm",
         }
     }
 
     pub fn is_pipeline(&self) -> bool {
         matches!(self, UnitKind::Pipeline(_))
+    }
+
+    pub fn is_fsm(&self) -> bool {
+        matches!(self, UnitKind::Fsm)
     }
 }
 

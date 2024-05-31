@@ -618,6 +618,10 @@ impl PipelineAvailability for ExprKind {
                 ..
             }
             | ExprKind::Call {
+                kind: CallKind::CallFsm(_),
+                ..
+            }
+            | ExprKind::Call {
                 kind: CallKind::Entity(_),
                 ..
             } => Ok(0),

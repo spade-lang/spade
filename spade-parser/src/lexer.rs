@@ -68,6 +68,8 @@ pub enum TokenKind {
     Decl,
     #[token("inst")]
     Instance,
+    #[token("call")]
+    Call,
     #[token("reset")]
     Reset,
     #[token("initial")]
@@ -252,6 +254,7 @@ impl TokenKind {
             TokenKind::Pipeline => "pipeline",
             TokenKind::Stage => "stage",
             TokenKind::Instance => "inst",
+            TokenKind::Call => "call",
             TokenKind::Reset => "reset",
             TokenKind::Initial => "initial",
             TokenKind::If => "if",

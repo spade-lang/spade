@@ -60,6 +60,7 @@ impl<'a> Pass for LowerMethods<'a> {
                 match unit.unit_kind.inner {
                     spade_hir::UnitKind::Function(_) => {}
                     spade_hir::UnitKind::Entity => {}
+                    spade_hir::UnitKind::Fsm => {}
                     spade_hir::UnitKind::Pipeline(_) => {
                         return Err(Diagnostic::error(
                             expression.loc(),

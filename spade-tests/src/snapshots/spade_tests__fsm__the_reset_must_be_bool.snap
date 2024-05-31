@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/fsm.rs
+---
+fsm test(clk: clock, rst: (bool, bool)) {}
+
+
+error: Second FSM argument must be a bool. Got (bool, bool)
+  ┌─ testinput:1:15
+  │
+1 │ fsm test(clk: clock, rst: (bool, bool)) {}
+  │ ---           ^^^^^       ------------ Type (bool, bool) inferred here
+  │ │             │            
+  │ │             expected bool
+  │ Type bool inferred here
+  │
+  = note: Expected: bool
+               Got: (bool, bool)
+
+

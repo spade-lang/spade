@@ -1,0 +1,5 @@
+fsm counter(clk: clock, rst: bool, count: int<8>) {
+    let next = count + 1;
+    yield count;
+    call counter(next)
+}

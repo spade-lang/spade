@@ -11,6 +11,13 @@ fn not_allowed_in_function(message: &str, at: Loc<()>, what: &str, kw_loc: Loc<(
         .span_suggest_replace("consider making the function an entity", kw_loc, "entity")
 }
 
+fn not_allowed_in_fsm(message: &str, at: Loc<()>, what: &str, kw_loc: Loc<()>) -> Diagnostic {
+    Diagnostic::error(at, message)
+        .primary_label(format!("{what} not allowed here"))
+        .secondary_label(kw_loc, "this is an FSM")
+        .note("describe control flow, not structural hardware")
+}
+
 fn bug_no_item_context(at: Loc<()>) -> Diagnostic {
     Diagnostic::bug(
         at,
@@ -40,6 +47,12 @@ impl UnitKindLocal for Option<Loc<UnitKind>> {
                 "register",
                 kw_loc,
             )),
+            Some((UnitKind::Fsm, kw_loc)) => Err(not_allowed_in_fsm(
+                "register declared in fsm",
+                at,
+                "register",
+                kw_loc,
+            )),
             Some((UnitKind::Entity | UnitKind::Pipeline(_), _)) => Ok(()),
             None => Err(bug_no_item_context(at)),
         }
@@ -54,6 +67,12 @@ impl UnitKindLocal for Option<Loc<UnitKind>> {
                 "inst",
                 kw_loc,
             )),
+            Some((UnitKind::Fsm, kw_loc)) => Err(not_allowed_in_fsm(
+                "cannot instantiate entities and pipelines in FSMs",
+                at,
+                "inst",
+                kw_loc,
+            )),
             Some((UnitKind::Entity | UnitKind::Pipeline(_), _)) => Ok(()),
             None => Err(bug_no_item_context(at)),
         }
@@ -63,6 +82,7 @@ impl UnitKindLocal for Option<Loc<UnitKind>> {
         match self.as_ref().map(|x| x.split_loc_ref()) {
             Some((UnitKind::Function, kw_loc)) => Err(stage_ref_in("function", at, kw_loc)),
             Some((UnitKind::Entity, kw_loc)) => Err(stage_ref_in("entity", at, kw_loc)),
+            Some((UnitKind::Fsm, kw_loc)) => Err(stage_ref_in("fsm", at, kw_loc)),
             Some((UnitKind::Pipeline(_), _)) => Ok(()),
             None => Err(bug_no_item_context(at)),
         }

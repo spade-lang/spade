@@ -194,6 +194,8 @@ impl<'a> Parser<'a> {
             Ok(array)
         } else if let Some(instance) = self.entity_instance()? {
             Ok(instance)
+        } else if let Some(call) = self.call_expression()? {
+            Ok(call)
         } else if let Some(val) = self.bool_literal()? {
             Ok(val.map(Expression::BoolLiteral))
         } else if let Some(val) = self.bit_literal()? {

@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/fsm.rs
+---
+fsm test(clk: clock) {}
+
+
+error: Missing reset for fsm
+  ┌─ testinput:1:9
+  │
+1 │ fsm test(clk: clock) {}
+  │         ^^^^^^^^^^^^
+  │
+  = note: All FSMs need to take a reset as the second argument
+  = Consider adding the reset
+  │
+1 │ fsm test(clk: clock, rst: bool) {}
+  │                    +++++++++++
+
+

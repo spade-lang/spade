@@ -121,6 +121,7 @@ pub fn maybe_perform_pipelining_tasks(
     match &unit_kind.inner {
         ast::UnitKind::Function => Ok(None),
         ast::UnitKind::Entity => Ok(None),
+        ast::UnitKind::Fsm => Ok(None),
         ast::UnitKind::Pipeline(depth) => {
             let depth = depth.maybe_unpack(&ctx.symtab)?.ok_or_else(|| {
                 Diagnostic::error(depth, "Missing depth")

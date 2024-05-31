@@ -2,6 +2,7 @@ mod attributes;
 pub mod builtins;
 mod comptime;
 pub mod error;
+mod fsms;
 pub mod global_symbols;
 pub mod pipelines;
 pub mod types;
@@ -26,9 +27,10 @@ use spade_common::name::{Identifier, Path};
 use spade_hir as hir;
 
 use crate::attributes::AttributeListExt;
+use crate::fsms::maybe_check_fsm_requirements;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::IsPort;
-use ast::{Binding, ParameterList, UnitKind};
+use ast::{Binding, Expression, ParameterList, UnitKind};
 use hir::expression::BinaryOperator;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
 pub use spade_common::id_tracker;
@@ -395,6 +397,7 @@ pub fn unit_head(
         let inner = match k {
             ast::UnitKind::Function => hir::UnitKind::Function(hir::FunctionKind::Fn),
             ast::UnitKind::Entity => hir::UnitKind::Entity,
+            ast::UnitKind::Fsm => hir::UnitKind::Fsm,
             ast::UnitKind::Pipeline(depth) => {
                 hir::UnitKind::Pipeline(int_literal_to_pipeline_stages(
                     &depth.inner.maybe_unpack(symtab)?.ok_or_else(|| {
@@ -524,6 +527,30 @@ pub fn visit_unit(
     }
 
     ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx)?;
+    maybe_check_fsm_requirements(unit, &head, ctx)?;
+
+    // An FSM has an implicit `fsm {}` which we need to add
+    let body = if head.unit_kind.is_fsm() {
+        if let Some(body) = body {
+            match &body.inner {
+                Expression::Block(block) => {
+                    if let Some(result) = &block.result {
+                        return Err(Diagnostic::error(result, "An fsm cannot return a value")
+                            .primary_label("Returning from fsm")
+                            .span_suggest_insert_before("If you want to output a value from the FSM before returning, use yield", result, "yield "));
+                    }
+                    Some(Expression::Fsm(block.statements.clone()).at_loc(&body))
+                }
+                _ => {
+                    diag_bail!(body, "FSM body was not a block")
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        body.clone()
+    };
 
     let mut body = body.as_ref().unwrap().try_visit(visit_expression, ctx)?;
 
@@ -1373,6 +1400,7 @@ pub fn visit_call_kind(
             })?;
             hir::expression::CallKind::Pipeline(*loc, int_literal_to_pipeline_stages(&depth)?)
         }
+        ast::CallKind::CallFsm(loc) => hir::expression::CallKind::CallFsm(*loc),
     })
 }
 

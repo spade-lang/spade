@@ -123,6 +123,7 @@ pub enum CallKind {
     Function,
     Entity(Loc<()>),
     Pipeline(Loc<()>, Loc<MaybeComptime<Loc<IntLiteral>>>),
+    CallFsm(Loc<()>),
 }
 impl WithLocation for CallKind {}
 
@@ -465,6 +466,7 @@ pub enum UnitKind {
     Function,
     Entity,
     Pipeline(Loc<MaybeComptime<Loc<IntLiteral>>>),
+    Fsm,
 }
 impl WithLocation for UnitKind {}
 
@@ -474,6 +476,7 @@ impl UnitKind {
             UnitKind::Function => false,
             UnitKind::Entity => false,
             UnitKind::Pipeline(_) => true,
+            UnitKind::Fsm => false,
         }
     }
 }
@@ -484,6 +487,7 @@ impl std::fmt::Display for UnitKind {
             UnitKind::Function => write!(f, "fn"),
             UnitKind::Entity => write!(f, "entity"),
             UnitKind::Pipeline(_) => write!(f, "pipeline"),
+            UnitKind::Fsm => write!(f, "fsm"),
         }
     }
 }

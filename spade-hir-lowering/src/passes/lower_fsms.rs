@@ -1,5 +1,5 @@
 use spade_common::location_info::Loc;
-use spade_hir::{symbol_table::FrozenSymtab, ItemList};
+use spade_hir::{symbol_table::FrozenSymtab, ItemList, Statement};
 use spade_typeinference::TypeState;
 
 use super::pass::Pass;
@@ -16,7 +16,7 @@ impl<'a> Pass for LowerFsms<'a> {
         expression: &mut Loc<spade_hir::Expression>,
     ) -> crate::error::Result<()> {
         match &expression.inner.kind {
-            spade_hir::ExprKind::Fsm(_) => {}
+            spade_hir::ExprKind::Fsm(f) => {}
             spade_hir::ExprKind::Identifier(_)
             | spade_hir::ExprKind::IntLiteral(_)
             | spade_hir::ExprKind::BoolLiteral(_)
@@ -44,4 +44,8 @@ impl<'a> Pass for LowerFsms<'a> {
 
         Ok(())
     }
+}
+
+impl<'a> LowerFsms<'a> {
+    fn desugar_loops(&mut self, statements: &mut Vec<Statement>) {}
 }

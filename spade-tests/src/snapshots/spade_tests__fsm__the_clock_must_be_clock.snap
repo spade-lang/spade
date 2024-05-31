@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/fsm.rs
+---
+fsm test(clk: bool, rst: bool) {}
+
+
+error: First fsm argument must be a clock. Got bool
+  ┌─ testinput:1:15
+  │
+1 │ fsm test(clk: bool, rst: bool) {}
+  │ ---           ^^^^ expected clock
+  │ │              
+  │ Type clock inferred here
+  │
+  = note: Expected: clock
+               Got: bool
+
+
