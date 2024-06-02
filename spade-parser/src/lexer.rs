@@ -30,6 +30,15 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
     )
 }
 
+fn parse_doc_comment(slice: &str) -> String {
+    slice
+        .lines()
+        .map(|line| {
+            &line[3..] // trim the leading `///`
+        })
+        .collect()
+}
+
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum TokenKind {
     // Unholy regex for unicode identifiers. Stolen from Repnop who stole it from Evrey
@@ -222,7 +231,7 @@ pub enum TokenKind {
 
     #[regex("//[^\n]*\n", logos::skip)]
     Comment,
-    #[regex("///[^\n]*\n", |lex| lex.slice().to_string())]
+    #[regex("///[^\n]*\n", |lex| { parse_doc_comment(lex.slice()) })]
     DocComment(String),
 
     #[token("/*")]
@@ -430,6 +439,25 @@ mod tests {
         assert_eq!(
             lex.next(),
             Some(Ok(TokenKind::Identifier("xg".to_string())))
+        );
+        assert_eq!(lex.next(), None);
+    }
+
+    #[test]
+    fn doc_comment_correctly_trimmed() {
+        let mut lex = TokenKind::lexer(
+            r#"
+        /// This is a very cool
+        /// doc comment!
+        "#,
+        );
+        assert_eq!(
+            lex.next(),
+            Some(Ok(TokenKind::DocComment(" This is a very cool".to_owned())))
+        );
+        assert_eq!(
+            lex.next(),
+            Some(Ok(TokenKind::DocComment(" doc comment!".to_owned())))
         );
         assert_eq!(lex.next(), None);
     }

@@ -3045,7 +3045,6 @@ mod item_visiting {
                 },
                 doc: None,
                 inputs: vec![],
-                doc: None,
                 body: hir::ExprKind::Block(Box::new(hir::Block {
                     statements: vec![],
                     result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
@@ -3154,7 +3153,6 @@ mod impl_blocks {
                 },
                 doc: None,
                 inputs: vec![(name_id(2, "self"), param_type_spec)],
-                doc: None,
                 body: hir::ExprKind::Block(Box::new(hir::Block {
                     statements: vec![],
                     result: Some(hir::ExprKind::int_literal(0).with_id(1).nowhere()),
@@ -3259,7 +3257,6 @@ mod module_visiting {
                         },
                         doc: None,
                         inputs: vec![],
-                        doc: None,
                         body: hir::ExprKind::Block(Box::new(hir::Block {
                             statements: vec![],
                             result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
