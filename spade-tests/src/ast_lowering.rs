@@ -211,6 +211,25 @@ fn enum_variant_with_0_arguments_works() {
 }
 
 #[test]
+fn doc_attribute_works_on_enum() {
+    let code = r#"
+            /// This is a
+            /// doc string.
+            enum MyEnum { }
+        "#;
+
+    build_items(code);
+}
+
+snapshot_error! {
+    unused_attribute_errors_on_enum,
+    "
+        #[no_mangle]
+        enum MyEnum { }
+    "
+}
+
+#[test]
 fn none_without_parens_works() {
     let code = r#"
         entity main() -> Option<int<8>> {

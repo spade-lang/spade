@@ -544,6 +544,7 @@ impl WithLocation for ImplBlock {}
 /// Declaration of an enum
 #[derive(PartialEq, Debug, Clone)]
 pub struct Enum {
+    pub attributes: AttributeList,
     pub name: Loc<Identifier>,
     pub options: Vec<(Loc<Identifier>, Option<Loc<ParameterList>>)>,
 }

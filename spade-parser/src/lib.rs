@@ -1542,7 +1542,6 @@ impl<'a> Parser<'a> {
         attributes: &AttributeList,
     ) -> Result<Option<Loc<TypeDeclaration>>> {
         let start_token = peek_for!(self, &TokenKind::Enum);
-        self.disallow_attributes(attributes, &start_token)?;
 
         let name = self.identifier()?;
 
@@ -1559,11 +1558,14 @@ impl<'a> Parser<'a> {
 
         let result = TypeDeclaration {
             name: name.clone(),
-            kind: TypeDeclKind::Enum(Enum { name, options }.between(
-                self.file_id,
-                &start_token.span,
-                &options_loc,
-            )),
+            kind: TypeDeclKind::Enum(
+                Enum {
+                    attributes: attributes.clone(),
+                    name,
+                    options,
+                }
+                .between(self.file_id, &start_token.span, &options_loc),
+            ),
             generic_args,
         }
         .between(self.file_id, &start_token.span, &options_loc);
@@ -3371,6 +3373,7 @@ mod tests {
                 name: ast_ident("State"),
                 kind: TypeDeclKind::Enum(
                     Enum {
+                        attributes: AttributeList::empty(),
                         name: ast_ident("State"),
                         options: vec![
                             (ast_ident("First"), None),
@@ -3404,6 +3407,7 @@ mod tests {
                 name: ast_ident("State"),
                 kind: TypeDeclKind::Enum(
                     Enum {
+                        attributes: AttributeList::empty(),
                         name: ast_ident("State"),
                         options: vec![
                             (ast_ident("First"), None),

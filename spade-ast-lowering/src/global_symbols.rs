@@ -9,7 +9,7 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, Path},
 };
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 
 use crate::{
@@ -307,9 +307,28 @@ pub fn re_visit_type_declaration(
                 hir_options.push((head_id.clone().at_loc(&option.0), parameter_list))
             }
 
+            let mut doc: Option<String> = None;
+            let attributes = e.attributes.lower(&mut |attr| match &attr.inner {
+                ast::Attribute::Doc { content } => {
+                    match &mut doc {
+                        None => doc = Some(content.clone()),
+                        Some(other) => other.push_str(content),
+                    };
+
+                    Ok(None)
+                }
+                ast::Attribute::NoMangle
+                | ast::Attribute::Fsm { .. }
+                | ast::Attribute::WalTraceable { .. }
+                | ast::Attribute::WalTrace { .. }
+                | ast::Attribute::WalSuffix { .. } => Err(attr.report_unused("enum")),
+            })?;
+
             hir::TypeDeclKind::Enum(
                 hir::Enum {
                     options: hir_options,
+                    attributes,
+                    doc,
                 }
                 .at_loc(e),
             )
@@ -380,7 +399,7 @@ pub fn re_visit_type_declaration(
             );
 
             let mut wal_traceable = None;
-            let mut doc = None;
+            let mut doc: Option<String> = None;
             let attributes = s.attributes.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::WalTraceable {
                     suffix,
@@ -403,10 +422,11 @@ pub fn re_visit_type_declaration(
                     Ok(None)
                 }
                 ast::Attribute::Doc { content } => {
-                    if doc.is_some() {
-                        diag_bail!(attr.loc(), "attribute list contains two documentation attributes, should only be one");
-                    }
-                    doc = Some(content.to_string());
+                    match &mut doc {
+                        None => doc = Some(content.clone()),
+                        Some(other) => other.push_str(content),
+                    };
+
                     Ok(None)
                 }
                 ast::Attribute::NoMangle
@@ -464,6 +484,7 @@ mod tests {
             name: ast_ident("test"),
             kind: ast::TypeDeclKind::Enum(
                 ast::Enum {
+                    attributes: ast::AttributeList::empty(),
                     name: ast_ident("test"),
                     options: vec![
                         // No arguments
@@ -537,6 +558,8 @@ mod tests {
                             hparams![("x", dtype!(symtab => "int"; (t_num(10))))].nowhere(),
                         ),
                     ],
+                    attributes: hir::AttributeList::empty(),
+                    doc: None,
                 }
                 .nowhere(),
             ),
@@ -552,6 +575,7 @@ mod tests {
             name: ast_ident("test"),
             kind: ast::TypeDeclKind::Enum(
                 ast::Enum {
+                    attributes: ast::AttributeList::empty(),
                     name: ast_ident("test"),
                     options: vec![
                         // Builtin type with no args
@@ -590,6 +614,8 @@ mod tests {
                         hparams![("a", hir::TypeSpec::Generic(name_id(1, "T")).nowhere())]
                             .nowhere(),
                     )],
+                    attributes: hir::AttributeList::empty(),
+                    doc: None,
                 }
                 .nowhere(),
             ),

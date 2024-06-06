@@ -25,7 +25,6 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_hir::{self as hir, Module};
 
-use crate::attributes::doc;
 use crate::attributes::AttributeListExt;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::IsPort;
@@ -461,6 +460,7 @@ pub fn visit_unit(
     };
     let mut wal_suffix = None;
 
+    let mut doc: Option<String> = None;
     attributes.lower(&mut |attr: &Loc<ast::Attribute>| match &attr.inner {
         ast::Attribute::NoMangle => {
             if !type_params.is_empty() {
@@ -488,13 +488,18 @@ pub fn visit_unit(
             wal_suffix = Some(suffix.clone());
             Ok(None)
         }
-        ast::Attribute::Doc { .. } => Ok(None), // handled later
+        ast::Attribute::Doc { content } => {
+            match &mut doc {
+                None => doc = Some(content.clone()),
+                Some(other) => other.push_str(content),
+            };
+
+            Ok(None)
+        }
         ast::Attribute::Fsm { .. }
         | ast::Attribute::WalTrace { .. }
         | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("a unit")),
     })?;
-
-    let doc = doc(&attributes)?;
 
     // If this is a builtin entity
     if body.is_none() {

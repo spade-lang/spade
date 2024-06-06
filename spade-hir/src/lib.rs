@@ -312,6 +312,8 @@ impl std::fmt::Display for TypeSpec {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Enum {
     pub options: Vec<(Loc<NameID>, Loc<ParameterList>)>,
+    pub attributes: AttributeList,
+    pub doc: Option<String>,
 }
 impl WithLocation for Enum {}
 

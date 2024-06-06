@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[no_mangle]
+enum MyEnum { }
+
+
+error: no_mangle is not a valid attribute for enum
+  ┌─ testinput:1:1
+  │
+1 │ #[no_mangle]
+  │ ^^^^^^^^^^^^ Unsupported attribute for enum

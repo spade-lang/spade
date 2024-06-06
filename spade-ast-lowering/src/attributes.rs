@@ -64,20 +64,3 @@ impl LocAttributeExt for Loc<ast::Attribute> {
         .primary_label(format!("Unsupported attribute for {on}"))
     }
 }
-
-pub fn doc(attrs: &ast::AttributeList) -> Result<Option<String>> {
-    let mut docs = Vec::new();
-    for attr in &attrs.0 {
-        match &attr.inner {
-            Attribute::Doc { content } => {
-                docs.push(content.to_string());
-            }
-            _ => {}
-        }
-    }
-    if docs.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(docs.join("\n")))
-    }
-}
