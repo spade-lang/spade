@@ -34,7 +34,7 @@ fn parse_doc_comment(slice: &str) -> String {
     slice
         .lines()
         .map(|line| {
-            &line[3..] // trim the leading `///`
+            &line[3..] // trim the leading `///` or `//!`
         })
         .collect()
 }
@@ -233,6 +233,8 @@ pub enum TokenKind {
     Comment,
     #[regex("///[^\n]*\n", |lex| { parse_doc_comment(lex.slice()) })]
     DocComment(String),
+    #[regex("//![^\n]*\n", |lex| { parse_doc_comment(lex.slice()) })]
+    ModuleDocComment(String),
 
     #[token("/*")]
     BlockCommentStart,
@@ -336,6 +338,7 @@ impl TokenKind {
             TokenKind::Whitespace => "whitespace",
             TokenKind::Comment => "comment",
             TokenKind::DocComment(_) => "doc comment",
+            TokenKind::ModuleDocComment(_) => "module doc comment",
 
             TokenKind::BlockCommentStart => "/*",
             TokenKind::BlockCommentEnd => "*/",
