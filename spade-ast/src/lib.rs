@@ -643,6 +643,7 @@ impl WithLocation for Module {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ModuleBody {
+    pub doc: Option<String>,
     pub members: Vec<Item>,
 }
 impl WithLocation for ModuleBody {}

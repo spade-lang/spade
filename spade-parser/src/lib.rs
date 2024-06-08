@@ -1966,11 +1966,24 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn module_body(&mut self) -> Result<ModuleBody> {
+        let doc = if self.peek_cond(
+            |tk| matches!(tk, TokenKind::ModuleDocComment(_)),
+            "module doc comment",
+        )? {
+            let Token { kind, .. } = self.eat_unconditional()?;
+            let TokenKind::ModuleDocComment(doc) = kind else {
+                unreachable!("peeked module doc comment but ate {}", kind.as_str());
+            };
+            Some(doc)
+        } else {
+            None
+        };
+
         let mut members = vec![];
         while let Some(item) = self.item()? {
             members.push(item)
         }
-        Ok(ModuleBody { members })
+        Ok(ModuleBody { doc, members })
     }
 
     /// A module body which is not part of a `mod`. Errors if there is anything
@@ -2794,6 +2807,7 @@ mod tests {
         .nowhere();
 
         let expected = ModuleBody {
+            doc: None,
             members: vec![Item::Unit(e1), Item::Unit(e2)],
         };
 
@@ -3309,6 +3323,7 @@ mod tests {
         "#;
 
         let expected = ModuleBody {
+            doc: None,
             members: vec![Item::Unit(
                 Unit {
                     head: UnitHead {
@@ -3563,10 +3578,43 @@ mod tests {
         let code = r#"mod X {}"#;
 
         let expected = ModuleBody {
+            doc: None,
             members: vec![Item::Module(
                 Module {
                     name: ast_ident("X"),
-                    body: ModuleBody { members: vec![] }.nowhere(),
+                    body: ModuleBody {
+                        doc: None,
+                        members: vec![],
+                    }
+                    .nowhere(),
+                }
+                .nowhere(),
+            )],
+        };
+
+        check_parse!(code, module_body, Ok(expected));
+    }
+
+    #[test]
+    fn documented_modules_work() {
+        let code = r#"
+            //! This is a module doc comment.
+        
+            mod sub {
+                //! This is the sub module.
+            }
+        "#;
+
+        let expected = ModuleBody {
+            doc: Some(" This is a module doc comment.".to_owned()),
+            members: vec![Item::Module(
+                Module {
+                    name: ast_ident("sub"),
+                    body: ModuleBody {
+                        doc: Some(" This is the sub module.".to_owned()),
+                        members: vec![],
+                    }
+                    .nowhere(),
                 }
                 .nowhere(),
             )],
@@ -3580,14 +3628,20 @@ mod tests {
         let code = r#"mod X {mod Y {}}"#;
 
         let expected = ModuleBody {
+            doc: None,
             members: vec![Item::Module(
                 Module {
                     name: ast_ident("X"),
                     body: ModuleBody {
+                        doc: None,
                         members: vec![Item::Module(
                             Module {
                                 name: ast_ident("Y"),
-                                body: ModuleBody { members: vec![] }.nowhere(),
+                                body: ModuleBody {
+                                    doc: None,
+                                    members: vec![],
+                                }
+                                .nowhere(),
                             }
                             .nowhere(),
                         )],
