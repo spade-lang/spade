@@ -197,6 +197,7 @@ impl WithLocation for Register {}
 
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord, Serialize, Deserialize)]
 pub struct Module {
+    pub doc: Option<String>,
     pub name: Loc<NameID>,
 }
 

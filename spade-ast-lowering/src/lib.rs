@@ -914,6 +914,7 @@ pub fn visit_module(
     item_list.modules.insert(
         id.clone(),
         Module {
+            doc: module.body.doc.clone(),
             name: id.at_loc(&module.name),
         },
     );
@@ -3225,6 +3226,7 @@ mod module_visiting {
     #[test]
     fn visiting_module_with_one_entity_works() {
         let input = ast::ModuleBody {
+            doc: None,
             members: vec![ast::Item::Unit(
                 ast::Unit {
                     head: ast::UnitHead {
@@ -3305,14 +3307,20 @@ mod module_visiting {
     #[test]
     fn visiting_submodules_works() {
         let input = ast::ModuleBody {
+            doc: None,
             members: vec![ast::Item::Module(
                 ast::Module {
                     name: ast_ident("outer"),
                     body: ast::ModuleBody {
+                        doc: None,
                         members: vec![ast::Item::Module(
                             ast::Module {
                                 name: ast_ident("inner"),
-                                body: ast::ModuleBody { members: vec![] }.nowhere(),
+                                body: ast::ModuleBody {
+                                    doc: None,
+                                    members: vec![],
+                                }
+                                .nowhere(),
                             }
                             .nowhere(),
                         )],
@@ -3330,16 +3338,84 @@ mod module_visiting {
                 (
                     name_id(1, "outer").inner,
                     hir::Module {
+                        doc: None,
                         name: name_id(1, "outer"),
                     },
                 ),
                 (
                     name_id(2, "outer::inner").inner,
                     hir::Module {
+                        doc: None,
                         name: name_id(2, "outer::inner"),
                     },
                 ),
             ]
+            .into_iter()
+            .collect(),
+            traits: HashMap::new(),
+            impls: HashMap::new(),
+        };
+
+        let mut symtab = SymbolTable::new();
+        let idtracker = ExprIdTracker::new();
+
+        let namespace = ModuleNamespace {
+            namespace: Path::from_strs(&[""]),
+            base_namespace: Path::from_strs(&[""]),
+        };
+        symtab.add_thing(
+            namespace.namespace.clone(),
+            spade_hir::symbol_table::Thing::Module(namespace.namespace.0[0].clone()),
+        );
+        global_symbols::gather_types(&input, &mut symtab).expect("failed to collect types");
+
+        global_symbols::gather_symbols(&input, &mut symtab, &mut ItemList::new())
+            .expect("failed to collect global symbols");
+        let mut item_list = ItemList::new();
+        assert_eq!(
+            visit_module_body(
+                &mut item_list,
+                &input,
+                &mut Context {
+                    symtab,
+                    idtracker,
+                    impl_idtracker: ImplIdTracker::new(),
+                    pipeline_ctx: None
+                }
+            ),
+            Ok(())
+        );
+
+        assert_eq!(item_list, expected);
+    }
+
+    #[test]
+    fn documenting_modules_works() {
+        let input = ast::ModuleBody {
+            doc: Some(" This is the root.".to_owned()),
+            members: vec![ast::Item::Module(
+                ast::Module {
+                    name: ast_ident("X"),
+                    body: ast::ModuleBody {
+                        doc: Some(" This is a doc comment.".to_owned()),
+                        members: vec![],
+                    }
+                    .nowhere(),
+                }
+                .nowhere(),
+            )],
+        };
+
+        let expected = hir::ItemList {
+            executables: vec![].into_iter().collect(),
+            types: vec![].into_iter().collect(),
+            modules: vec![(
+                name_id(1, "X").inner,
+                hir::Module {
+                    doc: Some(" This is a doc comment.".to_owned()),
+                    name: name_id(1, "X"),
+                },
+            )]
             .into_iter()
             .collect(),
             traits: HashMap::new(),
