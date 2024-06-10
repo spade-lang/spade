@@ -1,4 +1,4 @@
-use spade_common::location_info::Loc;
+use spade_common::{location_info::Loc, name::NameID};
 use spade_hir::{Binding, ExprKind, Expression, Register, Statement, Unit};
 
 use crate::Result;

@@ -8,6 +8,7 @@ use logos::Logos;
 use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 pub use spade_common::namespace::ModuleNamespace;
+use spade_hir_lowering::passes::pass::FindNames;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
@@ -109,6 +110,7 @@ impl<'a> ErrorHandler<'a> {
 pub struct Artefacts {
     pub code: CodeBundle,
     pub item_list: ItemList,
+    pub symtab: SymbolTable,
     // MIR entities before aliases have been flattened
     pub bumpy_mir_entities: Vec<spade_mir::Entity>,
     // MIR entities after flattening
@@ -119,6 +121,7 @@ pub struct Artefacts {
 /// Like [Artefacts], but if the compiler didn't finish due to errors.
 pub struct UnfinishedArtefacts {
     pub code: CodeBundle,
+    pub symtab: SymbolTable,
     pub item_list: Option<ItemList>,
 }
 
@@ -217,6 +220,12 @@ pub fn compile(
     };
 
     lower_ast(&module_asts, &mut item_list, &mut ctx, &mut errors);
+
+    let find_names_pass = FindNames::default();
+    for (name, item) in item_list.executables {
+        match &item {}
+    }
+    find_names_pass.names();
 
     unfinished_artefacts.item_list = Some(item_list.clone());
 

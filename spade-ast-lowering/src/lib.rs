@@ -891,6 +891,7 @@ pub fn visit_module(
         .current_namespace()
         .clone()
         .at_loc(&module.name.loc());
+
     let id = ctx
         .symtab
         .lookup_id(path)
@@ -3343,8 +3344,6 @@ mod module_visiting {
         );
         global_symbols::gather_types(&input, &mut symtab).expect("failed to collect types");
 
-        global_symbols::gather_symbols(&input, &mut symtab, &mut ItemList::new())
-            .expect("failed to collect global symbols");
         let mut item_list = ItemList::new();
         assert_eq!(
             visit_module_body(
