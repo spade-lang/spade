@@ -36,6 +36,7 @@ fn parse_doc_comment(slice: &str) -> String {
         .map(|line| {
             &line[3..] // trim the leading `///` or `//!`
         })
+        .flat_map(|line| line.chars().chain(std::iter::once('\n')))
         .collect()
 }
 
@@ -447,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn doc_comment_correctly_trimmed() {
+    fn doc_comment_correctly_parsed() {
         let mut lex = TokenKind::lexer(
             r#"
         /// This is a very cool
@@ -456,11 +457,13 @@ mod tests {
         );
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::DocComment(" This is a very cool".to_owned())))
+            Some(Ok(TokenKind::DocComment(
+                " This is a very cool\n".to_owned()
+            )))
         );
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::DocComment(" doc comment!".to_owned())))
+            Some(Ok(TokenKind::DocComment(" doc comment!\n".to_owned())))
         );
         assert_eq!(lex.next(), None);
     }

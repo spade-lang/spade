@@ -1966,18 +1966,17 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn module_body(&mut self) -> Result<ModuleBody> {
-        let doc = if self.peek_cond(
+        let mut doc = vec![];
+        while self.peek_cond(
             |tk| matches!(tk, TokenKind::ModuleDocComment(_)),
             "module doc comment",
         )? {
             let Token { kind, .. } = self.eat_unconditional()?;
-            let TokenKind::ModuleDocComment(doc) = kind else {
+            let TokenKind::ModuleDocComment(content) = kind else {
                 unreachable!("peeked module doc comment but ate {}", kind.as_str());
             };
-            Some(doc)
-        } else {
-            None
-        };
+            doc.push(content);
+        }
 
         let mut members = vec![];
         while let Some(item) = self.item()? {
@@ -2807,7 +2806,7 @@ mod tests {
         .nowhere();
 
         let expected = ModuleBody {
-            doc: None,
+            doc: vec![],
             members: vec![Item::Unit(e1), Item::Unit(e2)],
         };
 
@@ -3323,7 +3322,7 @@ mod tests {
         "#;
 
         let expected = ModuleBody {
-            doc: None,
+            doc: vec![],
             members: vec![Item::Unit(
                 Unit {
                     head: UnitHead {
@@ -3578,12 +3577,12 @@ mod tests {
         let code = r#"mod X {}"#;
 
         let expected = ModuleBody {
-            doc: None,
+            doc: vec![],
             members: vec![Item::Module(
                 Module {
                     name: ast_ident("X"),
                     body: ModuleBody {
-                        doc: None,
+                        doc: vec![],
                         members: vec![],
                     }
                     .nowhere(),
@@ -3596,9 +3595,47 @@ mod tests {
     }
 
     #[test]
+    fn documented_items_work() {
+        let code = r#"
+            /// This is a
+            /// doc comment.
+            struct Item {}
+        "#;
+
+        let expected = Some(Item::Type(
+            TypeDeclaration {
+                name: ast_ident("Item"),
+                kind: TypeDeclKind::Struct(
+                    Struct {
+                        attributes: AttributeList(vec![
+                            Attribute::Doc {
+                                content: " This is a\n".to_owned(),
+                            }
+                            .nowhere(),
+                            Attribute::Doc {
+                                content: " doc comment.\n".to_owned(),
+                            }
+                            .nowhere(),
+                        ]),
+                        name: ast_ident("Item"),
+                        members: ParameterList::without_self(vec![]).nowhere(),
+                        port_keyword: None,
+                    }
+                    .nowhere(),
+                ),
+                generic_args: vec![],
+            }
+            .nowhere(),
+        ));
+
+        check_parse!(code, item, Ok(expected));
+    }
+
+    #[test]
     fn documented_modules_work() {
         let code = r#"
-            //! This is a module doc comment.
+            //! This is a
+            //! module doc comment.
         
             mod sub {
                 //! This is the sub module.
@@ -3606,12 +3643,15 @@ mod tests {
         "#;
 
         let expected = ModuleBody {
-            doc: Some(" This is a module doc comment.".to_owned()),
+            doc: vec![
+                " This is a\n".to_owned(),
+                " module doc comment.\n".to_owned(),
+            ],
             members: vec![Item::Module(
                 Module {
                     name: ast_ident("sub"),
                     body: ModuleBody {
-                        doc: Some(" This is the sub module.".to_owned()),
+                        doc: vec![" This is the sub module.\n".to_owned()],
                         members: vec![],
                     }
                     .nowhere(),
@@ -3628,17 +3668,17 @@ mod tests {
         let code = r#"mod X {mod Y {}}"#;
 
         let expected = ModuleBody {
-            doc: None,
+            doc: vec![],
             members: vec![Item::Module(
                 Module {
                     name: ast_ident("X"),
                     body: ModuleBody {
-                        doc: None,
+                        doc: vec![],
                         members: vec![Item::Module(
                             Module {
                                 name: ast_ident("Y"),
                                 body: ModuleBody {
-                                    doc: None,
+                                    doc: vec![],
                                     members: vec![],
                                 }
                                 .nowhere(),

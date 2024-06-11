@@ -911,10 +911,17 @@ pub fn visit_module(
         })
         .expect("Attempting to lower a module that has not been added to the symtab previously");
 
+    let mut doc = None;
+    for content in &module.body.doc {
+        match &mut doc {
+            None => doc = Some(content.clone()),
+            Some(other) => other.push_str(content),
+        };
+    }
     item_list.modules.insert(
         id.clone(),
         Module {
-            doc: module.body.doc.clone(),
+            doc,
             name: id.at_loc(&module.name),
         },
     );
@@ -3226,7 +3233,7 @@ mod module_visiting {
     #[test]
     fn visiting_module_with_one_entity_works() {
         let input = ast::ModuleBody {
-            doc: None,
+            doc: vec![],
             members: vec![ast::Item::Unit(
                 ast::Unit {
                     head: ast::UnitHead {
@@ -3307,17 +3314,17 @@ mod module_visiting {
     #[test]
     fn visiting_submodules_works() {
         let input = ast::ModuleBody {
-            doc: None,
+            doc: vec![],
             members: vec![ast::Item::Module(
                 ast::Module {
                     name: ast_ident("outer"),
                     body: ast::ModuleBody {
-                        doc: None,
+                        doc: vec![],
                         members: vec![ast::Item::Module(
                             ast::Module {
                                 name: ast_ident("inner"),
                                 body: ast::ModuleBody {
-                                    doc: None,
+                                    doc: vec![],
                                     members: vec![],
                                 }
                                 .nowhere(),
@@ -3392,12 +3399,12 @@ mod module_visiting {
     #[test]
     fn documenting_modules_works() {
         let input = ast::ModuleBody {
-            doc: Some(" This is the root.".to_owned()),
+            doc: vec![" This is the root.".to_owned()],
             members: vec![ast::Item::Module(
                 ast::Module {
                     name: ast_ident("X"),
                     body: ast::ModuleBody {
-                        doc: Some(" This is a doc comment.".to_owned()),
+                        doc: vec![" This is a\n".to_owned(), " doc comment.\n".to_owned()],
                         members: vec![],
                     }
                     .nowhere(),
@@ -3412,7 +3419,7 @@ mod module_visiting {
             modules: vec![(
                 name_id(1, "X").inner,
                 hir::Module {
-                    doc: Some(" This is a doc comment.".to_owned()),
+                    doc: Some(" This is a\n doc comment.\n".to_owned()),
                     name: name_id(1, "X"),
                 },
             )]
