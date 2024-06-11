@@ -1,9 +1,9 @@
-// This module contains primitives for clock domain crossing. Clock domain crossing
-// is difficult to get right, and all of these modules come with pitfalls, for example
-// the possibility to miss some signals if transferring between domains of similar speed.
-// Make sure to read the docs of each individual module.
-//
-// NOTE that these modules are also not well tested in practice at the moment.
+//! This module contains primitives for clock domain crossing. Clock domain crossing
+//! is difficult to get right, and all of these modules come with pitfalls, for example
+//! the possibility to miss some signals if transferring between domains of similar speed.
+//! Make sure to read the docs of each individual module.
+//!
+//! NOTE that these modules are also not well tested in practice at the moment.
 
 use std::ops::gray_to_bin;
 use std::ops::bin_to_gray;
