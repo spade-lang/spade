@@ -95,6 +95,7 @@ pub fn visit_item(item: &ast::Item, item_list: &mut ItemList, ctx: &mut Context)
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.methods,
                 item_list,
+                &[],
                 ctx,
             )?;
         }

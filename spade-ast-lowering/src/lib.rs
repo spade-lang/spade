@@ -694,12 +694,13 @@ pub fn create_trait_from_unit_heads(
     name: TraitName,
     heads: &[Loc<ast::UnitHead>],
     item_list: &mut hir::ItemList,
+    injected_type_params: &[Loc<hir::TypeParam>],
     ctx: &mut Context,
 ) -> Result<()> {
     ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
     let trait_members = heads
         .iter()
-        .map(|head| Ok((head.name.inner.clone(), unit_head(head, &[], ctx)?)))
+        .map(|head| Ok((head.name.inner.clone(), unit_head(head, injected_type_params, ctx)?)))
         .collect::<Result<Vec<_>>>()?;
 
     // Add the trait to the trait list
@@ -784,6 +785,7 @@ pub fn visit_impl(
                 .map(|u| u.head.clone().at_loc(u))
                 .collect::<Vec<_>>(),
             items,
+            &type_params,
             ctx,
         )?;
 
@@ -890,7 +892,10 @@ pub fn visit_impl(
                     "Return type does not match trait",
                 )
                 .primary_label(format!("Expected {}", target_method.output_type()))
-                .secondary_label(target_method.output_type(), "To match the trait"));
+                .secondary_label(target_method.output_type(), "To match the trait")
+                .note(format!("Expected: {}", target_method.output_type()))
+                .note(format!("     Got: {}", impl_head.output_type()))
+                );
             }
         }
 
