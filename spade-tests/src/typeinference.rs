@@ -1567,3 +1567,37 @@ fn where_clauses_drive_inference() {
     ";
     build_items(code);
 }
+
+snapshot_error! {
+    impl_of_constrained_param_is_not_usable_outside_constraints,
+    "
+    struct HasGeneric<T> {}
+
+    impl HasGeneric<bool> {
+        fn requires_bool(self) {}
+    }
+
+    fn test() {
+        let g = HasGeneric::<int<8>>();
+
+        g.requires_bool()
+    }
+    "
+}
+
+snapshot_error! {
+    impl_of_semi_constrained_params_is_not_usable_outside_constraints,
+    "
+    struct HasGeneric<T, S> {}
+
+    impl<S> HasGeneric<bool, S> {
+        fn requires_bool(self) {}
+    }
+
+    fn test() {
+        let g = HasGeneric::<int<8>, bool>();
+
+        g.requires_bool()
+    }
+    "
+}

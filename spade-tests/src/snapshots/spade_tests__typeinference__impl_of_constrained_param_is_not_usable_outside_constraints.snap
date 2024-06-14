@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+struct HasGeneric<T> {}
+
+impl HasGeneric<bool> {
+    fn requires_bool(self) {}
+}
+
+fn test() {
+    let g = HasGeneric::<int<8>>();
+
+    g.requires_bool()
+}
+
+
+error: Argument type mismatch. Expected HasGeneric<bool> got HasGeneric<int<8>>
+   ┌─ testinput:10:5
+   │
+ 3 │ impl HasGeneric<bool> {
+   │                 ---- Type bool inferred here
+   ·
+ 8 │     let g = HasGeneric::<int<8>>();
+   │                          ----- Type int<8> inferred here
+ 9 │ 
+10 │     g.requires_bool()
+   │     ^ expected HasGeneric<bool>
+   │
+   = note: Expected: bool
+                 in: HasGeneric<bool>
+                Got: int<8>
+                 in: HasGeneric<int<8>>
