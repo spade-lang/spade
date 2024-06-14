@@ -263,7 +263,7 @@ mod pipeline_visiting {
 
         let mut ctx = test_context();
 
-        crate::global_symbols::visit_unit(&None, &input, &mut ctx)
+        crate::global_symbols::visit_unit(&None, &input, &[], &mut ctx)
             .expect("Failed to add pipeline to symtab");
 
         let result = visit_unit(None, &input, &mut ctx);
@@ -349,7 +349,7 @@ mod pipeline_visiting {
 
         let mut ctx = test_context();
 
-        crate::global_symbols::visit_unit(&None, &input, &mut ctx)
+        crate::global_symbols::visit_unit(&None, &input, &[], &mut ctx)
             .expect("Failed to add pipeline to symtab");
 
         let result = visit_unit(None, &input, &mut ctx);

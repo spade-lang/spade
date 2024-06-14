@@ -1,4 +1,5 @@
 use comptime::{ComptimeCondition, MaybeComptime};
+use itertools::Itertools;
 use num::{BigInt, BigUint, Zero};
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -15,6 +16,15 @@ pub enum TypeExpression {
     Integer(BigUint),
 }
 impl WithLocation for TypeExpression {}
+
+impl std::fmt::Display for TypeExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeExpression::TypeSpec(s) => write!(f, "{s}"),
+            TypeExpression::Integer(i) => write!(f, "{i}"),
+        }
+    }
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum NamedTurbofish {
@@ -50,6 +60,35 @@ pub enum TypeSpec {
     Wire(Box<Loc<TypeSpec>>),
 }
 impl WithLocation for TypeSpec {}
+
+impl std::fmt::Display for TypeSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeSpec::Tuple(inner) => {
+                write!(f, "({})", inner.iter().map(|i| format!("{i}")).join(", "))
+            }
+            TypeSpec::Array { inner, size } => write!(f, "[{inner};{size}]"),
+            TypeSpec::Named(name, params) => {
+                if params.is_some() {
+                    write!(
+                        f,
+                        "{name}<{}>",
+                        params
+                            .as_ref()
+                            .map(|p| p.iter().map(|p| format!("{p}")).join(", "))
+                            .unwrap_or_default()
+                    )
+                } else {
+                    write!(f, "{name}")
+                }
+            }
+            TypeSpec::Unit(_) => write!(f, "()"),
+            TypeSpec::Backward(inner) => write!(f, "&mut {inner}"),
+            TypeSpec::Inverted(inner) => write!(f, "~{inner}"),
+            TypeSpec::Wire(inner) => write!(f, "&{inner}"),
+        }
+    }
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum ArgumentPattern {
@@ -563,8 +602,9 @@ impl WithLocation for TraitDef {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ImplBlock {
-    pub r#trait: Option<Loc<Path>>,
-    pub target: Loc<Path>,
+    pub type_params: Option<Vec<Loc<TypeParam>>>,
+    pub r#trait: Option<Loc<TypeSpec>>,
+    pub target: Loc<TypeSpec>,
     pub units: Vec<Loc<Unit>>,
 }
 impl WithLocation for ImplBlock {}

@@ -1472,10 +1472,24 @@ impl<'a> Parser<'a> {
         let start_token = peek_for!(self, &TokenKind::Impl);
         self.disallow_attributes(attributes, &start_token)?;
 
-        let trait_or_target = self.path()?;
+        let type_params = if self.peek_kind(&TokenKind::Lt)? {
+            let (result, _) = self.surrounded(
+                &TokenKind::Lt,
+                |s| {
+                    s.comma_separated(|s| s.type_param(), &TokenKind::Gt)
+                        .no_context()
+                },
+                &TokenKind::Gt,
+            )?;
+            Some(result)
+        } else {
+            None
+        };
+
+        let trait_or_target = self.type_spec()?;
 
         let (r#trait, target) = if self.peek_and_eat(&TokenKind::For)?.is_some() {
-            let target = self.path()?;
+            let target = self.type_spec()?;
             (Some(trait_or_target), target)
         } else {
             (None, trait_or_target)
@@ -1489,6 +1503,7 @@ impl<'a> Parser<'a> {
 
         Ok(Some(
             ImplBlock {
+                type_params,
                 r#trait,
                 target,
                 units: body,
@@ -2825,8 +2840,9 @@ mod tests {
         "#;
 
         let expected = ImplBlock {
+            type_params: None,
             r#trait: None,
-            target: ast_path("SomeType"),
+            target: TypeSpec::Named(ast_path("SomeType"), None).nowhere(),
             units: vec![Unit {
                 head: UnitHead {
                     attributes: AttributeList::empty(),
@@ -2859,8 +2875,9 @@ mod tests {
         "#;
 
         let expected = ImplBlock {
-            r#trait: Some(ast_path("SomeTrait")),
-            target: ast_path("SomeType"),
+            type_params: None,
+            r#trait: Some(TypeSpec::Named(ast_path("SomeTrait"), None).nowhere()),
+            target: TypeSpec::Named(ast_path("SomeType"), None).nowhere(),
             units: vec![Unit {
                 head: UnitHead {
                     attributes: AttributeList::empty(),

@@ -83,7 +83,7 @@ pub fn gather_symbols(
 pub fn visit_item(item: &ast::Item, item_list: &mut ItemList, ctx: &mut Context) -> Result<()> {
     match item {
         ast::Item::Unit(e) => {
-            visit_unit(&None, e, ctx)?;
+            visit_unit(&None, e, &[], ctx)?;
         }
         ast::Item::TraitDef(def) => {
             let name = ctx.symtab.add_unique_thing(
@@ -117,8 +117,13 @@ pub fn visit_item(item: &ast::Item, item_list: &mut ItemList, ctx: &mut Context)
 }
 
 #[tracing::instrument(skip_all)]
-pub fn visit_unit(extra_path: &Option<Path>, e: &Loc<ast::Unit>, ctx: &mut Context) -> Result<()> {
-    let head = crate::unit_head(&e.head, ctx)?;
+pub fn visit_unit(
+    extra_path: &Option<Path>,
+    e: &Loc<ast::Unit>,
+    injected_type_params: &[Loc<hir::TypeParam>],
+    ctx: &mut Context,
+) -> Result<()> {
+    let head = crate::unit_head(&e.head, injected_type_params, ctx)?;
 
     let new_path = extra_path
         .as_ref()

@@ -805,4 +805,31 @@ mod trait_tests {
             }
         "
     }
+
+    #[test]
+    fn impl_blocks_support_generics() {
+        let code = r#"
+        struct HasGeneric<T> {}
+        impl<T> HasGeneric<T> {
+            fn test(self) {}
+        }
+        "#;
+        build_items(code);
+    }
+
+    snapshot_error! {
+        impl_on_tuple_is_error,
+        r#"
+            impl (bool, bool) {}
+        "#
+    }
+
+    snapshot_error! {
+        impl_of_tuple_is_error,
+        r#"
+            struct T {}
+
+            impl (bool, bool) for T {}
+        "#
+    }
 }

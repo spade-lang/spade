@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct T {}
+
+impl (bool, bool) for T {}
+
+
+error: (bool, bool) is not a trait
+  ┌─ testinput:3:6
+  │
+3 │ impl (bool, bool) for T {}
+  │      ^^^^^^^^^^^^ Expected trait

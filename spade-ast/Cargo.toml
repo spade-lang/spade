@@ -13,5 +13,6 @@ doctest = false
 
 [dependencies]
 num.workspace = true
+itertools.workspace = true
 
 spade-common = {path = "../spade-common"}

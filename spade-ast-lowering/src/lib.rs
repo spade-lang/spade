@@ -353,14 +353,21 @@ fn visit_parameter_list(
 
 /// Visit the head of an entity to generate an entity head
 #[tracing::instrument(skip_all, fields(name=%head.name))]
-pub fn unit_head(head: &ast::UnitHead, ctx: &mut Context) -> Result<hir::UnitHead> {
+pub fn unit_head(
+    head: &ast::UnitHead,
+    injected_type_params: &[Loc<hir::TypeParam>],
+    ctx: &mut Context,
+) -> Result<hir::UnitHead> {
     ctx.symtab.new_scope();
 
     let type_params = head
         .type_params
         .iter()
         .map(|p| p.try_map_ref(|p| visit_type_param(p, ctx)))
-        .collect::<Result<_>>()?;
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .chain(injected_type_params.iter().cloned())
+        .collect();
 
     let output_type = if let Some(output_type) = &head.output_type {
         Some(visit_type_spec(output_type, ctx)?)
@@ -683,7 +690,7 @@ pub fn create_trait_from_unit_heads(
     ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
     let trait_members = heads
         .iter()
-        .map(|head| Ok((head.name.inner.clone(), unit_head(head, ctx)?)))
+        .map(|head| Ok((head.name.inner.clone(), unit_head(head, &[], ctx)?)))
         .collect::<Result<Vec<_>>>()?;
 
     // Add the trait to the trait list
@@ -702,11 +709,58 @@ pub fn visit_impl(
 
     ctx.symtab.new_scope();
 
+    let type_params = if let Some(params) = &block.type_params {
+        params
+            .iter()
+            .map(|p| p.try_map_ref(|p| visit_type_param(p, ctx)))
+            .collect::<Result<Vec<_>>>()?
+    } else {
+        vec![]
+    };
+
+    let (target_ast_name, target_type_params) = match &block.target.inner {
+        ast::TypeSpec::Named(path, target_type_params) => (
+            path,
+            target_type_params
+                .as_ref()
+                .map(|loc| loc.inner.clone())
+                .unwrap_or_default()
+                .iter()
+                .map(|expr| expr.try_map_ref(|expr| visit_type_expression(expr, ctx)))
+                .collect::<Result<Vec<_>>>()?,
+        ),
+        _ => {
+            return Err(Diagnostic::error(
+                block.target.clone(),
+                "Impl blocks can only be used on named types.",
+            )
+            .primary_label("Impl block on non-named type"))
+        }
+    };
+    let (target_name, _) = ctx.symtab.lookup_type_symbol(&target_ast_name)?;
+
     let self_path = Loc::new(Path::from_strs(&["Self"]), block.span, block.file_id);
-    ctx.symtab.add_alias(self_path, block.target.clone())?;
+    ctx.symtab.add_alias(self_path, target_ast_name.clone())?;
 
     let impl_block_id = ctx.impl_idtracker.next();
     let trait_name = if let Some(t) = &block.r#trait {
+        let t = match &t.inner {
+            ast::TypeSpec::Named(name, params) => {
+                if let Some(params) = params {
+                    return Err(Diagnostic::error(
+                        params,
+                        format!("Traits cannot have type parameters"),
+                    )
+                    .primary_label("Type parameters on trait"));
+                } else {
+                    name
+                }
+            }
+            other => {
+                return Err(Diagnostic::error(t, format!("{other} is not a trait"))
+                    .primary_label("Expected trait"))
+            }
+        };
         let name = ctx.symtab.lookup_trait(t)?;
         TraitName::Named(name.0.at_loc(&name.1))
     } else {
@@ -737,9 +791,7 @@ pub fn visit_impl(
     let mut missing_methods = target_trait.keys().collect::<HashSet<_>>();
 
     // FIXME: Support impls for generic items
-    let target_name = ctx.symtab.lookup_type_symbol(&block.target)?;
-    let ast_type_spec = ast::TypeSpec::Named(block.target.clone(), None).at_loc(&block.target);
-    let target_type_spec = visit_type_spec(&ast_type_spec, ctx)?;
+    let target_type_spec = visit_type_spec(&block.target, ctx)?;
 
     let mut trait_members = vec![];
     let mut trait_impl = HashMap::new();
@@ -766,14 +818,14 @@ pub fn visit_impl(
         };
 
         if matches!(unit.head.unit_kind.inner, UnitKind::Function)
-            && ast_type_spec.is_port(&ctx.symtab)?
+            && block.target.is_port(&ctx.symtab)?
         {
             return Err(Diagnostic::error(
                 &unit.head.unit_kind,
                 "Functions are not allowed on port types",
             )
             .primary_label("Function on port type")
-            .secondary_label(ast_type_spec, "This is a port type")
+            .secondary_label(&block.target, "This is a port type")
             .span_suggest_replace(
                 "Consider making this an entity",
                 &unit.head.unit_kind,
@@ -784,7 +836,7 @@ pub fn visit_impl(
         let path_suffix = Some(Path(vec![
             Identifier(format!("impl_{}", impl_block_id)).nowhere()
         ]));
-        global_symbols::visit_unit(&path_suffix, unit, ctx)?;
+        global_symbols::visit_unit(&path_suffix, unit, &type_params, ctx)?;
         let item = visit_unit(path_suffix, unit, ctx)?;
 
         match &item {
@@ -817,7 +869,7 @@ pub fn visit_impl(
         if impl_head.output_type() != target_method.output_type() {
             let returns_trait_self =
                 matches!(target_method.output_type().inner, TypeSpec::TraitSelf(_));
-            let (impl_path, _) = ctx.symtab.lookup_type_symbol(&block.target)?;
+            let (impl_path, _) = ctx.symtab.lookup_type_symbol(&target_ast_name)?;
             let impl_output_type = match impl_head.output_type().inner {
                 TypeSpec::Declared(name, _) => Some(name),
                 _ => None,
@@ -867,7 +919,7 @@ pub fn visit_impl(
                         _ => None,
                     };
 
-                    let (target_name, _) = ctx.symtab.lookup_type_symbol(&block.target)?;
+                    let (target_name, _) = ctx.symtab.lookup_type_symbol(&target_ast_name)?;
 
                     if !(matches!(&t_spec.inner, hir::TypeSpec::TraitSelf(_))
                         && i_spec_name.is_some_and(|path| path == &target_name))
@@ -946,14 +998,14 @@ pub fn visit_impl(
         );
     }
 
-    let prev = items
-        .impls
-        .entry(target_name.0.clone())
-        .or_default()
-        .insert(
-            trait_name.clone(),
-            hir::ImplBlock { fns: trait_impl }.at_loc(block),
-        );
+    let prev = items.impls.entry(target_name.clone()).or_default().insert(
+        trait_name.clone(),
+        hir::ImplBlock {
+            fns: trait_impl,
+            parameters: target_type_params,
+        }
+        .at_loc(block),
+    );
 
     if let Some(prev) = prev {
         let name = match &trait_name {
@@ -966,7 +1018,7 @@ pub fn visit_impl(
             block,
             format!(
                 "Multiple implementations of {} for {}",
-                name, &target_name.0
+                name, &target_ast_name
             ),
         )
         .secondary_label(prev, "Previous impl here"));
@@ -2032,7 +2084,8 @@ mod entity_visiting {
 
         let mut ctx = &mut test_context();
 
-        global_symbols::visit_unit(&None, &input, ctx).expect("Failed to collect global symbols");
+        global_symbols::visit_unit(&None, &input, &[], ctx)
+            .expect("Failed to collect global symbols");
 
         let result = visit_unit(None, &input, &mut ctx);
 
@@ -3035,8 +3088,9 @@ mod impl_blocks {
     #[test]
     fn anonymous_impl_blocks_work() {
         let ast_block = ImplBlock {
+            type_params: None,
             r#trait: None,
-            target: ast_path("a"),
+            target: ast::TypeSpec::Named(ast_path("a"), None).nowhere(),
             units: vec![ast::Unit {
                 head: ast::UnitHead {
                     attributes: ast::AttributeList::empty(),
@@ -3139,7 +3193,8 @@ mod impl_blocks {
                     (entity_name.name_id().inner.clone(), ().nowhere())
                 )]
                 .into_iter()
-                .collect()
+                .collect(),
+                parameters: vec![]
             }
             .nowhere()
         )

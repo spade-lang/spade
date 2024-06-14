@@ -1036,6 +1036,7 @@ dependencies = [
 name = "spade-ast"
 version = "0.8.0"
 dependencies = [
+ "itertools",
  "num",
  "spade-common",
 ]

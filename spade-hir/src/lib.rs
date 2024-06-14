@@ -218,7 +218,7 @@ impl TypeParam {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum TypeExpression {
     /// An integer value
     Integer(BigUint),
@@ -238,7 +238,7 @@ impl std::fmt::Display for TypeExpression {
 
 /// A specification of a type to be used. For example, the types of input/output arguments the type
 /// of fields in a struct etc.
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum TypeSpec {
     /// The type is a declared type (struct, enum, typedef etc.) with n arguments
     Declared(Loc<NameID>, Vec<Loc<TypeExpression>>),
@@ -634,6 +634,8 @@ impl AttributeList {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct ImplBlock {
+    /// The type parameter given to the target type at this impl block
+    pub parameters: Vec<Loc<TypeExpression>>,
     /// Mapping of identifiers to the NameID of the entity which is the implementation
     /// for the specified function
     pub fns: HashMap<Identifier, (NameID, Loc<()>)>,

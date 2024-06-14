@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/integration.rs
+---
+impl (bool, bool) {}
+
+
+error: Impl blocks can only be used on named types.
+  ┌─ testinput:1:6
+  │
+1 │ impl (bool, bool) {}
+  │      ^^^^^^^^^^^^ Impl block on non-named type
