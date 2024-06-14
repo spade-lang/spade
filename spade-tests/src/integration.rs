@@ -832,4 +832,19 @@ mod trait_tests {
             impl (bool, bool) for T {}
         "#
     }
+
+    #[test]
+    fn impl_type_parameters_are_visible_in_function_bodies() {
+        let code = "
+        struct HasGeneric<#N> {}
+
+        impl<#N> HasGeneric<N> {
+            fn get_generic(self) -> int<8> {
+                N
+            }
+        }
+        ";
+
+        build_items(code);
+    }
 }

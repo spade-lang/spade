@@ -1237,6 +1237,7 @@ pub fn entity_code(
         .chain(output_definition)
         .chain(back_port_definition)
         .map(|code| code.to_string())
+        .filter(|s| !s.is_empty())
         .join(",\n");
 
     let code = code! {

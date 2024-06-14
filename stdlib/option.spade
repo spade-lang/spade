@@ -2,3 +2,16 @@ enum Option<T> {
     None,
     Some{value: T},
 }
+
+impl<T> Option<T> {
+    fn is_some(self) -> bool {
+        match self {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
+    fn is_none(self) -> bool {
+        !self.is_some()
+    }
+}

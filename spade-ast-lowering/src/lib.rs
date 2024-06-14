@@ -144,7 +144,11 @@ pub fn visit_type_spec(t: &Loc<ast::TypeSpec>, ctx: &mut Context) -> Result<Loc<
 
                     if generic_args.len() != visited_params.len() {
                         Err(Diagnostic::error(
-                            params.as_ref().unwrap(),
+                            if params.is_some() {
+                                params.as_ref().unwrap().loc()
+                            } else {
+                                path.loc()
+                            },
                             "Wrong number of type parameters",
                         )
                         .primary_label(format!(
@@ -543,7 +547,10 @@ pub fn visit_unit(
                 inputs: _,
                 output_type: _,
                 unit_kind: _,
-                type_params,
+                // NOTE: Do not look at this type_params field, instead look at the
+                // type params of the head as additional type params can be injected
+                // by impl blocks
+                type_params: _,
                 where_clauses: _,
             },
         body,
@@ -565,7 +572,7 @@ pub fn visit_unit(
         .expect("Attempting to lower an entity that has not been added to the symtab previously");
     let head = head.clone(); // An offering to the borrow checker. May ferris have mercy on us all
 
-    let mut unit_name = if !type_params.is_empty() {
+    let mut unit_name = if !head.type_params.is_empty() {
         hir::UnitName::WithID(id.clone().at_loc(name))
     } else {
         hir::UnitName::FullPath(id.clone().at_loc(name))
@@ -577,9 +584,11 @@ pub fn visit_unit(
             passes: passes.clone(),
         })),
         ast::Attribute::NoMangle => {
-            if !type_params.is_empty() {
-                let generic_list =
-                    ().between_locs(type_params.first().unwrap(), type_params.last().unwrap());
+            if !head.type_params.is_empty() {
+                let generic_list = ().between_locs(
+                    head.type_params.first().unwrap(),
+                    head.type_params.last().unwrap(),
+                );
                 Err(
                     Diagnostic::error(attr, "no_mangle is not allowed on generic units")
                         .primary_label("no_mangle not allowed here")

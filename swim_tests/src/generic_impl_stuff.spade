@@ -1,0 +1,12 @@
+struct HasGeneric<#N> {}
+
+impl<#N> HasGeneric<N> {
+    fn get_generic(self) -> int<8> {
+        N
+    }
+}
+
+fn has_generic_th() -> int<8> {
+    let g = HasGeneric::<123>();
+    g.get_generic()
+}
