@@ -179,12 +179,14 @@ pub fn compile(
         return Err(unfinished_artefacts);
     }
 
+    let mut idtracker = ExprIdTracker::new();
+    let mut impl_idtracker = ImplIdTracker::new();
     let mut ctx = AstLoweringCtx {
-        symtab,
-        idtracker: ExprIdTracker::new(),
-        impl_idtracker: ImplIdTracker::new(),
+        symtab: &mut symtab,
+        idtracker: &mut idtracker,
+        impl_idtracker: &mut impl_idtracker,
         pipeline_ctx: None,
-        self_ctx: SelfContext::FreeStanding,
+        self_ctx: &SelfContext::FreeStanding,
     };
 
     for (namespace, module_ast) in &module_asts {
@@ -218,14 +220,6 @@ pub fn compile(
     lower_ast(&module_asts, &mut item_list, &mut ctx, &mut errors);
 
     unfinished_artefacts.item_list = Some(item_list.clone());
-
-    let AstLoweringCtx {
-        symtab,
-        mut idtracker,
-        impl_idtracker,
-        pipeline_ctx: _,
-        self_ctx: _,
-    } = ctx;
 
     for e in ensure_unique_anonymous_traits(&item_list) {
         errors.report(&e)

@@ -1,13 +1,12 @@
-use crate::{Context, SelfContext};
-use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
-use spade_hir::symbol_table::SymbolTable;
-
-pub fn test_context() -> Context {
-    Context {
-        symtab: SymbolTable::new(),
-        idtracker: ExprIdTracker::new(),
-        impl_idtracker: ImplIdTracker::new(),
-        pipeline_ctx: None,
-        self_ctx: SelfContext::FreeStanding,
-    }
+#[macro_export]
+macro_rules! test_context {
+    () => {
+        Context {
+            symtab: &mut crate::SymbolTable::new(),
+            idtracker: &mut crate::ExprIdTracker::new(),
+            impl_idtracker: &mut crate::ImplIdTracker::new(),
+            pipeline_ctx: None,
+            self_ctx: &crate::SelfContext::FreeStanding,
+        }
+    };
 }

@@ -107,7 +107,6 @@ pub fn maybe_perform_pipelining_tasks(
     unit: &Loc<ast::Unit>,
     head: &Loc<hir::UnitHead>,
     ctx: &mut Context,
-    self_context: &SelfContext,
 ) -> Result<Option<PipelineContext>> {
     let ast::Unit {
         head:
@@ -129,7 +128,7 @@ pub fn maybe_perform_pipelining_tasks(
             })?;
 
             if head.inputs.0.is_empty()
-                || (head.inputs.0.len() == 1 && !matches!(self_context, SelfContext::FreeStanding))
+                || (head.inputs.0.len() == 1 && !matches!(ctx.self_ctx, SelfContext::FreeStanding))
             {
                 return Err(Diagnostic::error(
                     ast_inputs.loc(),
@@ -188,7 +187,7 @@ mod pipeline_visiting {
         location_info::WithLocation, name::testutil::name_id, num_ext::InfallibleToBigInt,
     };
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -263,7 +262,7 @@ mod pipeline_visiting {
             .nowhere(),
         ];
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
 
         crate::global_symbols::visit_unit(&None, &input, &mut ctx)
             .expect("Failed to add pipeline to symtab");
@@ -348,7 +347,7 @@ mod pipeline_visiting {
             .nowhere(),
         ];
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
 
         crate::global_symbols::visit_unit(&None, &input, &mut ctx)
             .expect("Failed to add pipeline to symtab");

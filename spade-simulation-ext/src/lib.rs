@@ -357,7 +357,7 @@ impl Spade {
         };
 
         // Create a new variable which is guaranteed to have the output type
-        let owned = self.take_owned();
+        let mut owned = self.take_owned();
         let mut symtab = owned.symtab.unfreeze();
 
         symtab.new_scope();
@@ -399,11 +399,11 @@ impl Spade {
         )?;
 
         let mut ast_ctx = spade_ast_lowering::Context {
-            symtab,
-            idtracker: owned.idtracker,
-            impl_idtracker: owned.impl_idtracker,
+            symtab: &mut symtab,
+            idtracker: &mut owned.idtracker,
+            impl_idtracker: &mut owned.impl_idtracker,
             pipeline_ctx: None,
-            self_ctx: SelfContext::FreeStanding,
+            self_ctx: &mut SelfContext::FreeStanding,
         };
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
@@ -462,9 +462,9 @@ impl Spade {
         }
 
         self.return_owned(OwnedState {
-            symtab: ast_ctx.symtab.freeze(),
-            idtracker: ast_ctx.idtracker,
-            impl_idtracker: ast_ctx.impl_idtracker,
+            symtab: symtab.freeze(),
+            idtracker: owned.idtracker,
+            impl_idtracker: owned.impl_idtracker,
         });
 
         let result = Some(FieldRef {
@@ -591,27 +591,27 @@ impl Spade {
 
         let OwnedState {
             symtab,
-            idtracker,
-            impl_idtracker,
+            mut idtracker,
+            mut impl_idtracker,
         } = self
             .owned
             .take()
             .expect("attempting to re-take owned state");
 
-        let symtab = symtab.unfreeze();
+        let mut symtab = symtab.unfreeze();
 
         let mut ast_ctx = spade_ast_lowering::Context {
-            symtab,
-            idtracker,
-            impl_idtracker,
+            symtab: &mut symtab,
+            idtracker: &mut idtracker,
+            impl_idtracker: &mut impl_idtracker,
             pipeline_ctx: None,
-            self_ctx: SelfContext::FreeStanding,
+            self_ctx: &mut SelfContext::FreeStanding,
         };
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
             .at_loc(&ast);
 
-        let mut symtab = ast_ctx.symtab.freeze();
+        let mut symtab = symtab.freeze();
 
         let type_ctx = spade_typeinference::Context {
             symtab: symtab.symtab(),
@@ -645,7 +645,7 @@ impl Spade {
 
         let mut hir_ctx = spade_hir_lowering::Context {
             symtab: &mut symtab,
-            idtracker: &mut ast_ctx.idtracker,
+            idtracker: &mut idtracker,
             types: &mut self.type_state,
             item_list: &self.item_list,
             unit_generic_list: &None,
@@ -666,8 +666,8 @@ impl Spade {
 
         self.return_owned(OwnedState {
             symtab,
-            idtracker: ast_ctx.idtracker,
-            impl_idtracker: ast_ctx.impl_idtracker,
+            idtracker,
+            impl_idtracker,
         });
 
         let result = eval_statements(&mir.to_vec_no_source_map());

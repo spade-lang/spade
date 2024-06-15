@@ -37,12 +37,52 @@ pub use spade_common::id_tracker;
 use error::Result;
 use spade_hir::TypeSpec;
 
-pub struct Context {
-    pub symtab: SymbolTable,
-    pub idtracker: ExprIdTracker,
-    pub impl_idtracker: ImplIdTracker,
-    pub pipeline_ctx: Option<PipelineContext>,
-    pub self_ctx: SelfContext,
+pub struct Context<'a> {
+    pub symtab: &'a mut SymbolTable,
+    pub idtracker: &'a mut ExprIdTracker,
+    pub impl_idtracker: &'a mut ImplIdTracker,
+    pub pipeline_ctx: Option<&'a mut PipelineContext>,
+    pub self_ctx: &'a SelfContext,
+}
+
+// When we enter a new context we want to 'automatically' back out of that context at the end of
+// the process. These impls help with that by creating new contexts with shorter lifetimes.
+// 'r is the lifetime of the reference, 'a is the lifetime of the content of the context and
+// 'b is the lieftime of the thing being added temporarily
+impl<'a> Context<'a> {
+    pub fn with_pipeline_context<'r, 'b>(
+        &'r mut self,
+        pipeline_ctx: Option<&'b mut PipelineContext>,
+    ) -> Context<'b>
+    where
+        'a: 'b,
+        'r: 'b,
+    {
+        Context {
+            symtab: self.symtab,
+            idtracker: self.idtracker,
+            impl_idtracker: self.impl_idtracker,
+            self_ctx: self.self_ctx,
+            pipeline_ctx,
+        }
+    }
+
+    pub fn with_self_ctx<'r, 'b>(&'r mut self, self_ctx: &'b SelfContext) -> Context<'b>
+    where
+        'a: 'b,
+        'r: 'b,
+    {
+        Context {
+            symtab: self.symtab,
+            idtracker: self.idtracker,
+            impl_idtracker: self.impl_idtracker,
+            self_ctx,
+            pipeline_ctx: match self.pipeline_ctx.as_mut() {
+                Some(inner) => Some(inner),
+                None => None,
+            },
+        }
+    }
 }
 
 trait LocExt<T> {
@@ -532,7 +572,9 @@ pub fn visit_unit(
         }
     }
 
-    ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx, &self_context)?;
+    let mut pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx)?;
+    let mut ctx_ = ctx.with_pipeline_context(pipeline_ctx.as_mut());
+    let ctx = &mut ctx_;
 
     let mut body = body.as_ref().unwrap().try_visit(visit_expression, ctx)?;
 
@@ -571,7 +613,7 @@ pub fn visit_unit(
             attributes,
             inputs,
             body,
-            is_method: !matches!(self_context, SelfContext::FreeStanding),
+            is_method: !matches!(ctx.self_ctx, SelfContext::FreeStanding),
         }
         .at_loc(unit),
     ))
@@ -583,10 +625,11 @@ pub fn create_trait_from_unit_heads(
     item_list: &mut hir::ItemList,
     ctx: &mut Context,
 ) -> Result<()> {
-    ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
+    let self_ctx = SelfContext::TraitDefinition(name.clone());
+    let mut ctx = ctx.with_self_ctx(&self_ctx);
     let trait_members = heads
         .iter()
-        .map(|head| Ok((head.name.inner.clone(), unit_head(head, ctx)?)))
+        .map(|head| Ok((head.name.inner.clone(), unit_head(head, &mut ctx)?)))
         .collect::<Result<Vec<_>>>()?;
 
     // Add the trait to the trait list
@@ -647,7 +690,9 @@ pub fn visit_impl(
     let mut trait_members = vec![];
     let mut trait_impl = HashMap::new();
 
-    ctx.self_ctx = SelfContext::ImplBlock(target_type_spec);
+    let self_ctx = SelfContext::ImplBlock(target_type_spec);
+    let mut ctx_ = ctx.with_self_ctx(&self_ctx);
+    let ctx = &mut ctx_;
 
     for unit in &block.units {
         let target_method = if let Some(method) = target_trait.get(&unit.head.name.inner) {
@@ -875,7 +920,6 @@ pub fn visit_impl(
         .secondary_label(prev, "Previous impl here"));
     }
 
-    ctx.self_ctx = SelfContext::FreeStanding;
     ctx.symtab.close_scope();
 
     Ok(result)
@@ -888,7 +932,7 @@ pub fn visit_item(
     item_list: &mut hir::ItemList,
 ) -> Result<Vec<hir::Item>> {
     match item {
-        ast::Item::Unit(u) => Ok(vec![visit_unit(None, u, ctx, &SelfContext::FreeStanding)?]),
+        ast::Item::Unit(u) => Ok(vec![visit_unit(None, u, ctx)?]),
         ast::Item::TraitDef(_) => {
             // Global symbol lowering already visits traits
             event!(Level::INFO, "Trait definition");
@@ -1873,7 +1917,7 @@ mod entity_visiting {
     use spade_common::name::testutil::name_id;
     use spade_common::{location_info::WithLocation, name::Identifier};
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -1932,11 +1976,11 @@ mod entity_visiting {
         }
         .nowhere();
 
-        let mut ctx = &mut test_context();
+        let mut ctx = &mut test_context!();
 
         global_symbols::visit_unit(&None, &input, ctx).expect("Failed to collect global symbols");
 
-        let result = visit_unit(None, &input, &mut ctx, &SelfContext::FreeStanding);
+        let result = visit_unit(None, &input, &mut ctx);
 
         assert_eq!(result, Ok(hir::Item::Unit(expected)));
 
@@ -2013,7 +2057,7 @@ mod entity_visiting {
 mod statement_visiting {
     use super::*;
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use pretty_assertions::assert_eq;
     use spade_ast::testutil::{ast_ident, ast_path};
     use spade_common::location_info::WithLocation;
@@ -2021,7 +2065,7 @@ mod statement_visiting {
 
     #[test]
     fn bindings_convert_correctly() {
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
 
         let input = ast::Statement::binding(
             ast::Pattern::name("a"),
@@ -2072,7 +2116,7 @@ mod statement_visiting {
         })
         .nowhere();
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
         let clk_id = ctx.symtab.add_local_variable(ast_ident("clk"));
         assert_eq!(clk_id.0, 0);
         assert_eq!(visit_statement(&input, &mut ctx), Ok(vec![expected]));
@@ -2082,7 +2126,7 @@ mod statement_visiting {
     #[test]
     fn declarations_declare_variables() {
         let input = ast::Statement::Declaration(vec![ast_ident("x"), ast_ident("y")]).nowhere();
-        let mut ctx = &mut test_context();
+        let mut ctx = &mut test_context!();
         assert_eq!(
             visit_statement(&input, &mut ctx),
             Ok(vec![hir::Statement::Declaration(vec![
@@ -2099,12 +2143,13 @@ mod statement_visiting {
     fn multi_reg_statements_lower_correctly() {
         let input = ast::Statement::PipelineRegMarker(Some(3.nowhere()), None).nowhere();
 
-        let mut ctx = test_context();
-        ctx.pipeline_ctx = Some(PipelineContext {
+        let mut ctx = test_context!();
+        let mut pipeline_ctx = PipelineContext {
             stages: vec![],
             current_stage: 0,
             scope: 0,
-        });
+        };
+        ctx.pipeline_ctx = Some(&mut pipeline_ctx);
         assert_eq!(
             visit_statement(&input, &mut ctx),
             Ok(vec![
@@ -2122,7 +2167,7 @@ mod statement_visiting {
 mod expression_visiting {
     use super::*;
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use ast::comptime::MaybeComptime;
     use hir::hparams;
     use hir::symbol_table::EnumVariant;
@@ -2136,7 +2181,7 @@ mod expression_visiting {
         let input = ast::Expression::int_literal_signed(123);
         let expected = hir::ExprKind::int_literal(123).idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut test_context!()), Ok(expected));
     }
 
     macro_rules! binop_test {
@@ -2155,7 +2200,7 @@ mod expression_visiting {
                 )
                 .idless();
 
-                assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+                assert_eq!(visit_expression(&input, &mut test_context!()), Ok(expected));
             }
         };
     }
@@ -2174,7 +2219,7 @@ mod expression_visiting {
                 )
                 .idless();
 
-                assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+                assert_eq!(visit_expression(&input, &mut test_context!()), Ok(expected));
             }
         };
     }
@@ -2200,7 +2245,7 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut test_context!()), Ok(expected));
     }
 
     #[test]
@@ -2216,7 +2261,10 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context(),), Ok(expected));
+        assert_eq!(
+            visit_expression(&input, &mut test_context!(),),
+            Ok(expected)
+        );
     }
 
     #[test]
@@ -2241,7 +2289,7 @@ mod expression_visiting {
         }))
         .idless();
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
         assert_eq!(visit_expression(&input, &mut ctx), Ok(expected));
         assert!(!ctx.symtab.has_symbol(ast_path("a").inner));
     }
@@ -2286,7 +2334,10 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context(),), Ok(expected));
+        assert_eq!(
+            visit_expression(&input, &mut test_context!(),),
+            Ok(expected)
+        );
     }
 
     #[test]
@@ -2309,7 +2360,10 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context(),), Ok(expected))
+        assert_eq!(
+            visit_expression(&input, &mut test_context!(),),
+            Ok(expected)
+        )
     }
 
     #[test]
@@ -2366,8 +2420,8 @@ mod expression_visiting {
             visit_expression(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(expected)
@@ -2429,8 +2483,8 @@ mod expression_visiting {
             visit_expression(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(expected)
@@ -2487,8 +2541,8 @@ mod expression_visiting {
             visit_expression(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(expected)
@@ -2557,8 +2611,8 @@ mod expression_visiting {
             visit_expression(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(expected)
@@ -2615,8 +2669,8 @@ mod expression_visiting {
             visit_expression(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(expected)
@@ -2676,8 +2730,8 @@ mod expression_visiting {
             visit_expression(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(expected)
@@ -2687,7 +2741,7 @@ mod expression_visiting {
 
 #[cfg(test)]
 mod pattern_visiting {
-    use crate::testutil::test_context;
+    use crate::test_context;
     use ast::{
         testutil::{ast_ident, ast_path},
         ArgumentPattern,
@@ -2705,7 +2759,7 @@ mod pattern_visiting {
     fn bool_patterns_work() {
         let input = ast::Pattern::Bool(true);
 
-        let result = visit_pattern(&input, &mut test_context());
+        let result = visit_pattern(&input, &mut test_context!());
 
         assert_eq!(result, Ok(PatternKind::Bool(true).idless()));
     }
@@ -2714,7 +2768,7 @@ mod pattern_visiting {
     fn int_patterns_work() {
         let input = ast::Pattern::integer(5);
 
-        let result = visit_pattern(&input, &mut test_context());
+        let result = visit_pattern(&input, &mut test_context!());
 
         assert_eq!(result, Ok(PatternKind::integer(5).idless()));
     }
@@ -2758,8 +2812,8 @@ mod pattern_visiting {
         let result = visit_pattern(
             &input,
             &mut Context {
-                symtab,
-                ..test_context()
+                symtab: &mut symtab,
+                ..test_context!()
             },
         );
 
@@ -2788,7 +2842,7 @@ mod pattern_visiting {
 mod register_visiting {
     use super::*;
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use spade_ast::testutil::{ast_ident, ast_path};
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
@@ -2837,8 +2891,8 @@ mod register_visiting {
             visit_register(
                 &input,
                 &mut Context {
-                    symtab,
-                    ..test_context()
+                    symtab: &mut symtab,
+                    ..test_context!()
                 }
             ),
             Ok(vec![hir::Statement::Register(expected).nowhere()])
@@ -2856,7 +2910,7 @@ mod item_visiting {
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -2905,7 +2959,7 @@ mod item_visiting {
             .nowhere(),
         );
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
 
         global_symbols::visit_item(&input, &mut ItemList::new(), &mut ctx).unwrap();
         assert_eq!(
@@ -2924,7 +2978,7 @@ mod impl_blocks {
     use hir::{hparams, symbol_table::TypeDeclKind, ItemList};
     use spade_common::name::testutil::name_id;
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -2956,7 +3010,7 @@ mod impl_blocks {
         .nowhere();
 
         let mut items = ItemList::new();
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
 
         // Add the type we are going to impl for. NOTE: Adding this as a j
         let target_type_name = ctx.symtab.add_type(
@@ -3052,7 +3106,7 @@ mod module_visiting {
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
 
-    use crate::testutil::test_context;
+    use crate::test_context;
     use pretty_assertions::assert_eq;
     use spade_common::namespace::ModuleNamespace;
 
@@ -3115,7 +3169,7 @@ mod module_visiting {
             impls: HashMap::new(),
         };
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
         global_symbols::gather_symbols(&input, &mut ItemList::new(), &mut ctx)
             .expect("failed to collect global symbols");
         let mut item_list = ItemList::new();
@@ -3168,7 +3222,7 @@ mod module_visiting {
             impls: HashMap::new(),
         };
 
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
 
         let namespace = ModuleNamespace {
             namespace: Path::from_strs(&[""]),

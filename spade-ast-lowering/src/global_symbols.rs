@@ -431,7 +431,6 @@ pub fn re_visit_type_declaration(
 
 #[cfg(test)]
 mod tests {
-    use crate::testutil::test_context;
     use ast::{
         aparams,
         testutil::{ast_ident, ast_path},
@@ -442,6 +441,8 @@ mod tests {
         name::testutil::{name_id, name_id_p},
         num_ext::InfallibleToBigUint,
     };
+
+    use crate::test_context;
 
     use super::*;
 
@@ -494,7 +495,7 @@ mod tests {
         .nowhere();
 
         // Populate the symtab with builtins
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
         let mut item_list = ItemList::new();
 
         crate::builtins::populate_symtab(&mut ctx.symtab, &mut ItemList::new());
@@ -554,7 +555,7 @@ mod tests {
         .nowhere();
 
         // Populate the symtab with builtins
-        let mut ctx = test_context();
+        let mut ctx = test_context!();
         let mut item_list = ItemList::new();
 
         crate::builtins::populate_symtab(&mut ctx.symtab, &mut ItemList::new());
