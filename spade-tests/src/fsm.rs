@@ -29,8 +29,8 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    fsm_has_a_scope,
-    "fn test() {
+    for_loop_has_a_scope,
+    "fsm test(clk: clock, rst: bool) {
         for i in 0..1 {}
         let x = i;
     }"
@@ -38,7 +38,7 @@ snapshot_error! {
 
 snapshot_error! {
     fsm_has_a_scope_with_let_bindings,
-    "fn test() {
+    "fsm test(clk: clock, rst: bool) {
         for i in 0..1 {
             let y = 0;
         }

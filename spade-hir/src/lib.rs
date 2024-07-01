@@ -140,10 +140,8 @@ pub struct Binding {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct ForLoop {
-    pub var: Loc<NameID>,
-    pub start: Loc<BigUint>,
-    pub end: Loc<BigUint>,
+pub struct WhileLoop {
+    pub cond: Loc<Expression>,
     pub body: Vec<Loc<Statement>>,
 }
 
@@ -163,7 +161,7 @@ pub enum Statement {
         suffix: Identifier,
         target: Loc<NameID>,
     },
-    ForLoop(ForLoop),
+    WhileLoop(WhileLoop),
     Yield(Loc<Expression>),
 }
 impl WithLocation for Statement {}

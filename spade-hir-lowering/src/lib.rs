@@ -1063,7 +1063,7 @@ impl StatementLocal for Loc<Statement> {
                     value: value.variable(ctx.subs)?.at_loc(value),
                 })
             }
-            Statement::ForLoop(_) | Statement::Yield(_) => {
+            Statement::WhileLoop(_) | Statement::Yield(_) => {
                 return Err(Diagnostic::bug(
                     self,
                     "FSM things should already have been lowered",

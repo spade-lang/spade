@@ -158,8 +158,9 @@ impl Passable for Statement {
             Statement::Assert(expr) => expr.apply(pass)?,
             Statement::Set { target, value } => subnodes!(target, value),
             Statement::Yield(value) => subnodes!(value),
-            Statement::ForLoop(stmts) => {
-                for stmt in &mut stmts.body {
+            Statement::WhileLoop(l) => {
+                subnodes!(l.cond);
+                for stmt in &mut l.body {
                     stmt.apply(pass)?;
                 }
             }

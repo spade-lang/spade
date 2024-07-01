@@ -129,7 +129,7 @@ pub fn visit_statement(
         }
         // TODO: We need to ensure that it is not possible to have fsms which yield values of linear type
         Statement::Yield(_) => {}
-        Statement::ForLoop(_) => {}
+        Statement::WhileLoop(_) => {}
     }
     Ok(())
 }

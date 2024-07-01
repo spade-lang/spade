@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use colored::Colorize;
-use hir::{Binding, ForLoop, Parameter, UnitHead, UnitKind, WalTrace};
+use hir::{Binding, Parameter, UnitHead, UnitKind, WalTrace, WhileLoop};
 use itertools::Itertools;
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
@@ -1160,31 +1160,21 @@ impl TypeState {
 
                 Ok(())
             }
-            Statement::ForLoop(l) => {
-                let ForLoop {
-                    var,
-                    start,
-                    end,
-                    body,
-                } = l;
+            Statement::WhileLoop(l) => {
+                let WhileLoop { cond, body } = l;
 
-                let (index_ty, index_size) = self.new_generic_number(ctx);
-
-                self.add_constraint(
-                    index_size.clone(),
-                    bits_to_store(ConstraintExpr::Integer(start.inner.clone().to_bigint())),
-                    var.loc(),
-                    &index_ty,
-                    ConstraintSource::ForLoopIndex,
-                );
-                self.add_constraint(
-                    index_size,
-                    bits_to_store(ConstraintExpr::Integer(end.inner.clone().to_bigint())),
-                    var.loc(),
-                    &index_ty,
-                    ConstraintSource::ForLoopIndex,
-                );
-                self.add_equation(TypedExpression::Name(var.inner.clone()), index_ty);
+                self.unify(&cond.inner, &t_bool(ctx.symtab).at_loc(&cond), ctx)
+                    .into_diagnostic(
+                        cond.loc(),
+                        |diag,
+                         Tm {
+                             g: got,
+                             e: _expected,
+                         }| {
+                            diag.message(format!("While loop condition must be bool, got {got}"))
+                                .primary_label("expected bool")
+                        },
+                    )?;
 
                 for statement in body {
                     self.visit_statement(statement, ctx, generic_list)?;

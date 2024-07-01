@@ -213,7 +213,7 @@ impl<'a> Inferer<'a> {
                 }
                 self.expression(&register.value)?;
             }
-            Statement::ForLoop(_) => todo!(),
+            Statement::WhileLoop(_) => todo!(),
             Statement::Yield(_) => todo!(),
 
             // Nothing to be done for these since they contain no expressions and thus no

@@ -323,10 +323,8 @@ pub struct Binding {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct ForLoop {
-    pub var: Loc<Identifier>,
-    pub start: Loc<IntLiteral>,
-    pub end: Loc<IntLiteral>,
+pub struct WhileLoop {
+    pub cond: Loc<Expression>,
     pub body: Vec<Loc<Statement>>,
 }
 
@@ -345,7 +343,7 @@ pub enum Statement {
     },
     Assert(Loc<Expression>),
     Comptime(ComptimeCondition<Vec<Loc<Statement>>>),
-    ForLoop(ForLoop),
+    WhileLoop(WhileLoop),
     Yield(Loc<Expression>),
 }
 impl WithLocation for Statement {}

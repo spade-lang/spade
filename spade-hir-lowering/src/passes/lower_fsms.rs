@@ -1,8 +1,25 @@
+use petgraph::Graph;
 use spade_common::location_info::Loc;
 use spade_hir::{symbol_table::FrozenSymtab, ItemList, Statement};
 use spade_typeinference::TypeState;
 
 use super::pass::Pass;
+
+pub struct CfgNode {
+    // The body of a CFG node with no control flow statements, similar to a basic
+    // block in compiler terms
+    body: Vec<Statement>,
+}
+
+pub struct CfgEdge {
+    /// An expression id
+    condition: usize,
+}
+
+/// A control flow graph
+pub struct Cfg {
+    graph: Graph<CfgNode, CfgEdge>,
+}
 
 pub struct LowerFsms<'a> {
     pub type_state: &'a TypeState,
@@ -47,5 +64,22 @@ impl<'a> Pass for LowerFsms<'a> {
 }
 
 impl<'a> LowerFsms<'a> {
-    fn desugar_loops(&mut self, statements: &mut Vec<Statement>) {}
+    fn generate_cfg(self, statements: &[Statement]) -> Cfg {
+        for statement in statements {
+            match statement {
+                Statement::Binding(_) => todo!(),
+                Statement::Register(_) => todo!(),
+                Statement::Declaration(_) => todo!(),
+                Statement::PipelineRegMarker(_) => todo!(),
+                Statement::Label(_) => todo!(),
+                Statement::Assert(_) => todo!(),
+                Statement::Set { target, value } => todo!(),
+                Statement::WalSuffixed { suffix, target } => todo!(),
+                Statement::WhileLoop(_) => {
+                    todo!()
+                }
+                Statement::Yield(_) => todo!(),
+            }
+        }
+    }
 }

@@ -13,10 +13,10 @@ use tracing::{debug, event, Level};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, Binding, BitLiteral, Block, CallKind,
-    ComptimeConfig, Enum, Expression, ForLoop, ImplBlock, IntLiteral, Item, Module, ModuleBody,
+    ComptimeConfig, Enum, Expression, ImplBlock, IntLiteral, Item, Module, ModuleBody,
     NamedArgument, ParameterList, Pattern, PipelineStageReference, Register, Statement, Struct,
     TraitDef, TypeDeclKind, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead,
-    UnitKind, UseStatement,
+    UnitKind, UseStatement, WhileLoop,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
@@ -1141,28 +1141,12 @@ impl<'a> Parser<'a> {
         )))
     }
 
-    #[trace_parser]
-    pub fn _for(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let tok = peek_for!(self, &TokenKind::For);
+    pub fn _while(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
+        let tok = peek_for!(self, &TokenKind::While);
 
         self.disallow_attributes(attrs, &tok)?;
 
-        let var = self.identifier()?;
-        self.eat(&TokenKind::In)?;
-        let Some(start) = self.int_literal()? else {
-            return Err(Diagnostic::from(UnexpectedToken {
-                got: self.peek()?,
-                expected: vec!["integer"],
-            }));
-        };
-        self.eat(&TokenKind::Dot)?;
-        self.eat(&TokenKind::Dot)?;
-        let Some(end) = self.int_literal()? else {
-            return Err(Diagnostic::from(UnexpectedToken {
-                got: self.peek()?,
-                expected: vec!["integer"],
-            }));
-        };
+        let cond = self.expression()?;
 
         let (body, body_loc) = self.surrounded(
             &TokenKind::OpenBrace,
@@ -1170,14 +1154,9 @@ impl<'a> Parser<'a> {
             &TokenKind::CloseBrace,
         )?;
 
+        let loc = ().between_locs(&cond, &body_loc);
         Ok(Some(
-            Statement::ForLoop(ForLoop {
-                var,
-                start,
-                end,
-                body,
-            })
-            .between(self.file_id, &tok, &body_loc),
+            Statement::WhileLoop(WhileLoop { cond, body }).at_loc(&loc),
         ))
     }
 
@@ -1195,12 +1174,12 @@ impl<'a> Parser<'a> {
             &|s| s.assert(&attrs),
             &|s| s.set(&attrs),
             &|s| s.comptime_statement(allow_stages),
-            &|s| s._for(&attrs),
+            &|s| s._while(&attrs),
             &|s| s._yield(&attrs),
         ])?;
 
         if let Some(statement) = &result {
-            if let Statement::Label(_) | Statement::Comptime(_) | Statement::ForLoop(_) =
+            if let Statement::Label(_) | Statement::Comptime(_) | Statement::WhileLoop(_) =
                 statement.inner
             {
             } else {

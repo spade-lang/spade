@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/fsm.rs
 ---
-fn test() {
+fsm test(clk: clock, rst: bool) {
     for i in 0..1 {
         let y = 0;
     }

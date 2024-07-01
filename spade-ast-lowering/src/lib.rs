@@ -1296,28 +1296,8 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
 
             Ok(vec![hir::Statement::Set { target, value }.at_loc(s)])
         }
-        ast::Statement::ForLoop(ast::ForLoop {
-            var,
-            start,
-            end,
-            body,
-        }) => {
+        ast::Statement::WhileLoop(ast::WhileLoop { cond, body }) => {
             ctx.symtab.new_scope();
-
-            let var = ctx.symtab.add_local_variable(var.clone()).at_loc(var);
-
-            let start = start.try_map_ref(|v| {
-                v.clone().as_unsigned().ok_or_else(|| {
-                    Diagnostic::error(start, "For loop ranges can only be positive")
-                        .primary_label("Negative for-loop range")
-                })
-            })?;
-            let end = end.try_map_ref(|v| {
-                v.clone().as_unsigned().ok_or_else(|| {
-                    Diagnostic::error(end, "For loop ranges can only be positive")
-                        .primary_label("Negative for-loop range")
-                })
-            })?;
 
             let body = body
                 .iter()
@@ -1327,10 +1307,10 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                 .flatten()
                 .collect();
 
-            let result = Ok(vec![hir::Statement::ForLoop(hir::ForLoop {
-                var,
-                start,
-                end,
+            let cond = cond.try_map_ref(|c| visit_expression(c, ctx))?;
+
+            let result = Ok(vec![hir::Statement::WhileLoop(hir::WhileLoop {
+                cond,
                 body,
             })
             .at_loc(s)]);

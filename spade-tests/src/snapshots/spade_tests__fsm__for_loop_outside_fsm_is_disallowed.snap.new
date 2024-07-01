@@ -6,11 +6,11 @@ fn test() {
     for i in 0..10 {}
 }
 
-bug: Inferred integer < 0
-  ┌─ testinput:2:9
+bug: FSM things should already have been lowered
+  ┌─ testinput:2:5
   │
 2 │     for i in 0..10 {}
-  │         ^ -170141183460469231731687303715884105727 is not >= 0 in Number<_>
+  │     ^^^^^^^^^^^^^^^^^
   │
   = note: This is an internal bug in the compiler.
           We would appreciate if you opened an issue in the repository:

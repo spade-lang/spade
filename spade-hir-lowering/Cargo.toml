@@ -30,6 +30,7 @@ spade-mir = {path = "../spade-mir"}
 spade-typeinference = {path = "../spade-typeinference"}
 spade-types = {path = "../spade-types"}
 spade-wordlength-inference = {path = "../spade-wordlength-inference"}
+petgraph = "0.6.5"
 
 [dev-dependencies]
 prettydiff.workspace = true

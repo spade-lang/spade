@@ -172,7 +172,7 @@ pub fn handle_statement(
         Statement::Set { .. } => {
             // Set have no effect on pipeline state
         }
-        Statement::ForLoop(_) => {
+        Statement::WhileLoop(_) => {
             // For loops have no effect on pipeline state
         }
         Statement::Yield(_) => {

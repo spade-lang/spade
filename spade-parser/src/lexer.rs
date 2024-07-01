@@ -113,6 +113,8 @@ pub enum TokenKind {
     Assert,
     #[token("mut")]
     Mut,
+    #[token("while")]
+    While,
 
     #[token("fsm")]
     Fsm,
@@ -273,6 +275,7 @@ impl TokenKind {
             TokenKind::Assert => "assert",
             TokenKind::Set => "set",
             TokenKind::Mut => "mut",
+            TokenKind::While => "while",
 
             TokenKind::Loop => "loop",
             TokenKind::Fsm => "fsm",
