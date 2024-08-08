@@ -61,7 +61,7 @@ entity dp_bram<#W, D, C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>,
     let w_write = inst new_mut_wire();
     let r_addr = inst new_mut_wire();
 
-    reg (clk: write_clk) undef = undef;
+    let undef = reg(clk: write_clk) undef;
     let w = match inst read_mut_wire(w_write) {
         Some(w) => (true, inst read_mut_wire(w_addr), w),
         None => (false, inst read_mut_wire(w_addr), undef),
@@ -69,7 +69,7 @@ entity dp_bram<#W, D, C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>,
 
     let mem: Memory<D, C> = inst clocked_memory(write_clk, [w]);
 
-    reg (clk: read_clk) read_result = inst read_memory(mem, inst read_mut_wire(r_addr));
+    let read_result = reg(clk: read_clk) inst read_memory(mem, inst read_mut_wire(r_addr));
 
     (WritePort$(addr: w_addr, write: w_write), ReadPort$(addr: r_addr, out: &read_result))
 }
@@ -136,7 +136,7 @@ mod fifo_impl {
             (true, false) => trunc(read_ptr + 1),
             (false, _) => read_ptr,
         };
-        reg (clk: read_clk, reset: (read_rst, 0)) read_ptr = read_ptr_next;
+        let read_ptr = reg(clk: read_clk, reset: (read_rst, 0)) read_ptr_next;
 
         let out = inst(1) read_read_port(read_clk, read_ptr_next, mem);
 
@@ -181,7 +181,7 @@ mod fifo_impl {
         decl write_ptr;
         let full = trunc(write_ptr + 1) == read_ptr;
 
-        reg (clk: write_clk, reset: (write_rst, 0)) write_ptr = match (inst read_mut_wire(write_value), full) {
+        let write_ptr = reg(clk: write_clk, reset: (write_rst, 0)) match (inst read_mut_wire(write_value), full) {
             (Some(v), false) => trunc(write_ptr + 1),
             _ => write_ptr,
         };
