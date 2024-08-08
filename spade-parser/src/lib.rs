@@ -968,9 +968,54 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    fn register_marker(
+        &mut self,
+        reg_token: Token,
+        cond: Option<Loc<Expression>>,
+    ) -> Result<Loc<Statement>> {
+        let count = if self.peek_and_eat(&TokenKind::Asterisk)?.is_some() {
+            if let Some(val) = self.int_literal()? {
+                Some(
+                    val.inner
+                        .clone()
+                        .as_unsigned()
+                        .ok_or_else(|| {
+                            Diagnostic::error(&val, "Negative number of registers")
+                                .primary_label("Expected positive number of stages")
+                        })?
+                        .to_usize()
+                        .ok_or_else(|| {
+                            Diagnostic::bug(&val, "Excessive number of registers").primary_label(
+                                format!("At most {} registers are supported", usize::MAX),
+                            )
+                        })?
+                        .at_loc(&val),
+                )
+            } else {
+                let got = self.peek()?;
+                return Err(Diagnostic::error(
+                    got.loc(),
+                    format!("expected register count, got `{}`", got.kind.as_str()),
+                )
+                .primary_label("expected register count here")
+                .help("register counts can only be integer constants"));
+            }
+        } else {
+            None
+        };
+
+        let full_loc = if let Some(c) = count {
+            ().between(self.file_id, &reg_token, &c.loc())
+        } else {
+            ().at(self.file_id, &reg_token)
+        };
+
+        Ok(Statement::PipelineRegMarker(count, cond).at_loc(&full_loc))
+    }
+
     #[trace_parser]
     pub fn register(&mut self, attributes: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let start_token = peek_for!(self, &TokenKind::Reg);
+        let reg_token = peek_for!(self, &TokenKind::Reg);
 
         // NOTE: It might be nicer to use () but that complicates the compiler slightly more
         // annoying to write, so I'll use [] initially as a proof of concept
@@ -989,73 +1034,11 @@ impl<'a> Parser<'a> {
 
         // If this is a reg marker for a pipeline
         if self.peek_kind(&TokenKind::Semi)? || self.peek_kind(&TokenKind::Asterisk)? {
-            let count = if self.peek_and_eat(&TokenKind::Asterisk)?.is_some() {
-                if let Some(val) = self.int_literal()? {
-                    Some(
-                        val.inner
-                            .clone()
-                            .as_unsigned()
-                            .ok_or_else(|| {
-                                Diagnostic::error(&val, "Negative number of registers")
-                                    .primary_label("Expected positive number of stages")
-                            })?
-                            .to_usize()
-                            .ok_or_else(|| {
-                                Diagnostic::bug(&val, "Excessive number of registers")
-                                    .primary_label(format!(
-                                        "At most {} registers are supported",
-                                        usize::MAX
-                                    ))
-                            })?
-                            .at_loc(&val),
-                    )
-                } else {
-                    let got = self.peek()?;
-                    return Err(Diagnostic::error(
-                        got.loc(),
-                        format!("expected register count, got `{}`", got.kind.as_str()),
-                    )
-                    .primary_label("expected register count here")
-                    .help("register counts can only be integer constants"));
-                }
-            } else {
-                None
-            };
-
-            let full_loc = if let Some(c) = count {
-                ().between(self.file_id, &start_token, &c.loc())
-            } else {
-                ().at(self.file_id, &start_token)
-            };
-
-            return Ok(Some(
-                Statement::PipelineRegMarker(count, cond).at_loc(&full_loc),
-            ));
+            return self.register_marker(reg_token, cond).map(Some);
         }
 
         self.unit_context
-            .allows_reg(().at(self.file_id, &start_token.span()))?;
-
-        // Clock selection
-        // let (clock, _clock_paren_span) = self.surrounded(
-        //     &TokenKind::OpenParen,
-        //     |s| s.expression().map(Some),
-        //     &TokenKind::CloseParen,
-        // )?;
-
-        // // Identifier parsing cannot fail since we map it into a Some. Therefore,
-        // // unwrap is safe
-        // let clock = clock.unwrap();
-
-        // Name
-        let pattern = self.pattern()?;
-
-        // Optional type
-        let value_type = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
-            Some(self.type_spec()?)
-        } else {
-            None
-        };
+            .allows_reg(().at(self.file_id, &reg_token.span()))?;
 
         let mut clock = None;
         let mut reset = None;
@@ -1105,29 +1088,21 @@ impl<'a> Parser<'a> {
             todo!("missing clock");
         };
 
-        // Optional reset
-        // let reset = self.register_reset()?;
-        // let initial = self.register_initial()?;
-        // // Try parsing reset again, if we find two resets, error out
-        // let reset = match (reset, self.register_reset()?) {
-        //     (Some(first), None) => Some(first),
-        //     (None, Some(second)) => Some(second),
-        //     (Some(first), Some(second)) => {
-        //         return Err(Diagnostic::error(
-        //             ().between_locs(&second.0, &second.1),
-        //             "Multiple resets specified",
-        //         )
-        //         .primary_label("Second reset")
-        //         .secondary_label(().between_locs(&first.0, &first.1), "First reset"))
-        //     }
-        //     (None, None) => None,
-        // };
+        // Name
+        let pattern = self.pattern()?;
+
+        // Optional type
+        let value_type = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
+            Some(self.type_spec()?)
+        } else {
+            None
+        };
 
         // Value
         self.eat(&TokenKind::Assignment)?;
         let (value, end_span) = self.expression()?.separate();
 
-        let span = lspan(start_token.span).merge(end_span);
+        let span = lspan(reg_token.span).merge(end_span);
         let result = Statement::Register(
             Register {
                 pattern,
