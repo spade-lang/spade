@@ -693,3 +693,48 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    register_argument_list_unknown_one,
+    "
+        entity test(clk: clock) {
+            let a = reg(clok: clk) false;
+        }
+    "
+}
+
+snapshot_error! {
+    register_argument_list_unknown_one_of_two,
+    "
+        entity test(clk: clock) {
+            let a = reg(clok: clk, reset: (false, false)) false;
+        }
+    "
+}
+
+snapshot_error! {
+    register_argument_list_unknown_two_of_two,
+    "
+        entity test(clk: clock) {
+            let a = reg(clok: clk, reeset: (false, false)) false;
+        }
+    "
+}
+
+snapshot_error! {
+    register_argument_list_missing_clock1,
+    "
+        entity test(clk: clock) {
+            let a = reg() false;
+        }
+    "
+}
+
+snapshot_error! {
+    register_argument_list_missing_clock2,
+    "
+        entity test(clk: clock) {
+            let a = reg(initial: true) false;
+        }
+    "
+}

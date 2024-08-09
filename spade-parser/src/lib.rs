@@ -4,13 +4,12 @@ mod expression;
 pub mod item_type;
 pub mod lexer;
 
-use codespan::Span;
 use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
 use logos::Lexer;
 use num::ToPrimitive;
-use tracing::{debug, event, Level};
+use tracing::{event, Level};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, Binding, BitLiteral, Block, CallKind,
@@ -22,6 +21,7 @@ use spade_ast::{
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_common::num_ext::InfallibleToBigInt;
+use spade_common::{format_list, pluralize};
 use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;
 
@@ -630,11 +630,9 @@ impl<'a> Parser<'a> {
             .comma_separated(Self::named_argument, &TokenKind::CloseParen)
             .extra_expected(vec![":"])
             .map_err(|e| {
-                debug!("check named arguments =");
                 let Ok(tok) = self.peek() else {
                     return e;
                 };
-                debug!("{:?}", tok);
                 if tok.kind == TokenKind::Assignment {
                     e.span_suggest_replace(
                         "named arguments are specified with `:`",
@@ -945,9 +943,9 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn binding(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        peek_for!(self, &TokenKind::Let);
+        let let_token = peek_for!(self, &TokenKind::Let);
 
-        let (pattern, start_span) = self.pattern()?.separate();
+        let pattern = self.pattern()?;
 
         let ty = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
             Some(self.type_spec()?)
@@ -957,8 +955,8 @@ impl<'a> Parser<'a> {
 
         self.eat(&TokenKind::Assignment)?;
 
-        if self.peek_and_eat(&TokenKind::Reg)?.is_some() {
-            self.register(start_span, pattern, ty, attrs).map(Some)
+        if let Some(reg_token) = self.peek_and_eat(&TokenKind::Reg)? {
+            self.register(reg_token.loc(), pattern, ty, attrs).map(Some)
         } else {
             let (value, end_span) = self.expression()?.separate();
             Ok(Some(
@@ -968,7 +966,7 @@ impl<'a> Parser<'a> {
                     value,
                     attrs: attrs.clone(),
                 })
-                .between(self.file_id, &start_span, &end_span),
+                .between(self.file_id, &let_token, &end_span),
             ))
         }
     }
@@ -1036,64 +1034,85 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn register(
         &mut self,
-        start_span: Span,
+        reg_loc: Loc<()>,
         pattern: Loc<Pattern>,
         value_type: Option<Loc<TypeSpec>>,
         attributes: &AttributeList,
     ) -> Result<Loc<Statement>> {
-        self.unit_context
-            .allows_reg(().at(self.file_id, &start_span))?;
+        self.unit_context.allows_reg(reg_loc)?;
+
+        macro_rules! reg_arguments {
+            ( $argument:expr, $unknown:expr, { $( $pat:pat => $var:expr  ),* $(,)? } ) => {
+                match $argument {
+                    NamedArgument::Full(arg, value) => match arg.inner.0.as_str() {
+                        $( $pat => {
+                            $var = Some(value);
+                        } )*
+                        unknown => $unknown.push(unknown.to_string())
+                    }
+                    NamedArgument::Short(arg) => match arg.inner.0.as_str() {
+                        $( $pat => {
+                            $var = Some(
+                                Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
+                                    .at_loc(&arg)
+                            );
+                        } )*
+                        unknown => $unknown.push(unknown.to_string())
+                    }
+                }
+            }
+        }
 
         let mut clock = None;
         let mut reset = None;
         let mut initial = None;
-        self.eat(&TokenKind::OpenParen)?;
+        let known_arguments = vec!["clk", "reset", "initial"];
+        let arg_list_start = self.eat(&TokenKind::OpenParen)?;
+        let mut unknown_arguments = Vec::new();
         for argument in self.named_argument_list()? {
-            match argument {
-                // TODO: check if already set
-                NamedArgument::Full(arg, value) => match arg.inner.0.as_str() {
-                    "clk" | "clock" => {
-                        clock = Some(value);
-                    }
-                    "reset" => {
-                        reset = Some(value);
-                    }
-                    "initial" => {
-                        initial = Some(value);
-                    }
-                    _ => todo!("unknown register argument"),
-                },
-                NamedArgument::Short(arg) => match arg.inner.0.as_str() {
-                    "clk" | "clock" => {
-                        clock = Some(
-                            Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
-                                .at_loc(&arg),
-                        )
-                    }
-                    "reset" => {
-                        reset = Some(
-                            Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
-                                .at_loc(&arg),
-                        )
-                    }
-                    "initial" => {
-                        initial = Some(
-                            Expression::Identifier(Path::ident(arg.clone()).at_loc(&arg))
-                                .at_loc(&arg),
-                        )
-                    }
-                    _ => todo!("unknown register argument"),
-                },
-            }
+            reg_arguments!(
+                argument,
+                unknown_arguments,
+                {
+                    "clk" => clock,
+                    "reset" => reset,
+                    "initial" => initial,
+                }
+            );
         }
-        self.eat(&TokenKind::CloseParen)?;
+        let arg_list_end = self.eat(&TokenKind::CloseParen)?;
+        let arg_list_loc = arg_list_start.loc().merge(&arg_list_end.loc());
+        if !unknown_arguments.is_empty() {
+            return Err(Diagnostic::error(
+                &arg_list_loc,
+                format!(
+                    "Unknown register {}",
+                    pluralize(unknown_arguments.len(), "argument", "arguments")
+                ),
+            )
+            .primary_label(format!(
+                "{} {} unknown register {}",
+                format_list(&unknown_arguments),
+                pluralize(unknown_arguments.len(), "is an", "are"),
+                pluralize(unknown_arguments.len(), "argument", "arguments")
+            ))
+            .help(format!(
+                "Known register arguments are {}",
+                format_list(&known_arguments)
+            )));
+        }
 
         let Some(clock) = clock else {
-            todo!("missing clock");
+            return Err(Diagnostic::error(
+                reg_loc.merge(&arg_list_loc),
+                "Register is missing a clock",
+            )
+            .primary_label("This register has no specified clock")
+            .span_suggest_insert_after("Try adding a clock", arg_list_start, "clk, "));
         };
 
         let value = self.expression()?;
-        let span = start_span.merge(value.span);
+        let loc = reg_loc.merge(&value.loc());
         Ok(Statement::Register(
             Register {
                 pattern,
@@ -1104,9 +1123,9 @@ impl<'a> Parser<'a> {
                 value_type,
                 attributes: attributes.clone(),
             }
-            .at(self.file_id, &span),
+            .at_loc(&loc),
         )
-        .at(self.file_id, &span))
+        .at_loc(&loc))
     }
 
     #[trace_parser]

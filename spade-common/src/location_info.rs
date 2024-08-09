@@ -255,6 +255,15 @@ impl<T> Loc<T> {
             }
         }
     }
+
+    pub fn merge<U>(&self, other: &Loc<U>) -> Loc<()> {
+        assert_eq!(self.file_id, other.file_id);
+        Loc {
+            span: self.span.merge(other.span),
+            file_id: self.file_id,
+            inner: (),
+        }
+    }
 }
 
 impl<T, E> Loc<Result<T, E>> {

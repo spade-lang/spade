@@ -85,7 +85,7 @@ mod handshake_impl {
     entity receiver<T>(clk: clock, rst: bool, in: ~TxOutRxIn<T>) -> Option<T> {
         let data_valid = inst std::cdc::sync2_bool(clk, *in.data_valid);
 
-        let (state, data_out) = reg(clk: clk, reset: (rst, (RxState::WaitValid, None))) match (state, data_valid) {
+        let (state, data_out) = reg(clk, reset: (rst, (RxState::WaitValid, None))) match (state, data_valid) {
             (RxState::WaitValid, false) => (state, None),
             (RxState::WaitValid, true) => (RxState::WaitInvalid, Some(*in.data)),
             (RxState::WaitInvalid, true) => (RxState::WaitInvalid, None),
