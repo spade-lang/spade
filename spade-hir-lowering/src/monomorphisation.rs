@@ -234,7 +234,7 @@ pub fn compile_items(
                 for pass in passes {
                     let pass_result = u.apply(pass);
                     if let Err(e) = pass_result {
-                        result.push(Err(e));
+                        result.push(Err(state.add_mono_traceback(e, &item)));
                         continue 'item_loop;
                     }
                 }

@@ -48,7 +48,8 @@ impl<'a> Pass for FlattenRegs<'a> {
                             "Inferred non-integer count for register repetition"
                         )),
                         None => Err(Diagnostic::error(count, "Could not infer register count")
-                            .primary_label("Unknown register count")),
+                            .primary_label("Could not infer register count")
+                            .help("This may becaused by a generic type used in the repition being unknown")),
                     }?;
 
                     Ok(Some(

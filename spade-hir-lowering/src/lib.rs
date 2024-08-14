@@ -1819,7 +1819,7 @@ impl ExprLocal for Loc<Expression> {
                 match (kind, &head.unit_kind.inner) {
                     (CallKind::Function, UnitKind::Function(_))
                     | (CallKind::Entity(_), UnitKind::Entity) => {
-                        result.append(self.handle_call(callee, &args, ctx)?);
+                        result.append(self.handle_call(self.loc(), callee, &args, ctx)?);
                     }
                     (
                         CallKind::Pipeline {
@@ -1832,7 +1832,7 @@ impl ExprLocal for Loc<Expression> {
                             depth_typeexpr_id: _,
                         },
                     ) => {
-                        result.append(self.handle_call(callee, &args, ctx)?);
+                        result.append(self.handle_call(self.loc(), callee, &args, ctx)?);
                     }
                     (CallKind::Function, other) => {
                         return Err(expect_function(callee, head.loc(), other))
@@ -1939,6 +1939,7 @@ impl ExprLocal for Loc<Expression> {
 
     fn handle_call(
         &self,
+        expr_loc: Loc<()>,
         name: &Loc<NameID>,
         args: &[Argument<Expression, TypeSpec>],
         ctx: &mut Context,
@@ -2078,11 +2079,22 @@ impl ExprLocal for Loc<Expression> {
                     let t = type_params
                         .iter()
                         .map(|param| {
-                            let name = param.name_id();
+                            let param_name = param.name_id();
 
-                            instance_list[&name].clone()
+                            let var = instance_list[&param_name].clone();
+                            if matches!(var, TypeVar::Unknown(_, _, _, _)) {
+                                Err(
+                                    Diagnostic::error(expr_loc, "Could not infer the type of type parameter `{param_name}`").primary_label(
+                                        format!("Cannot infer the type of type parameter `{param_name}` in this call to `{name}`"),
+                                    )
+                                    .secondary_label(param, "Could not infer the type of this parameter")
+                                    .help("Consider specifying the types explicitly using a turbofish (::<...>)"),
+                                )
+                            } else {
+                                Ok(var)
+                            }
                         })
-                        .collect();
+                        .collect::<Result<_>>()?;
 
                     UnitName::WithID(
                         ctx.mono_state

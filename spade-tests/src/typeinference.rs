@@ -1923,3 +1923,17 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    failed_pipeline_depth_inference_produces_a_helpful_error2,
+    "
+        pipeline({Delay+1}) p<#uint Delay>(clk: clock, rst: bool) {
+            reg*10;
+        }
+
+        entity test(clk: clock, rst: bool) {
+            inst(11) p(clk, rst)
+        }
+    ",
+    false
+}

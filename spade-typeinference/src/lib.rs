@@ -1974,8 +1974,8 @@ impl TypeState {
                 };
                 let new_t = match unify_meta(meta1, meta2) {
                     Some(meta @ MetaType::Any) | Some(meta @ MetaType::Number) => {
-                        if traits1.inner.is_empty() || traits2.inner.is_empty() {
-                            panic!("Inferred an any meta-type with traits",);
+                        if !traits1.inner.is_empty() || !traits2.inner.is_empty() {
+                            panic!("Inferred a {meta} meta-type with traits t1: {traits1:?}, t2: {traits2:?}",);
                         }
                         self.new_generic_with_meta(loc1.clone(), meta)
                     }

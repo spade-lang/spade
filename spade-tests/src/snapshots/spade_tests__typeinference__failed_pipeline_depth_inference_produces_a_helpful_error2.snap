@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+pipeline({Delay+1}) p<#uint Delay>(clk: clock, rst: bool) {
+    reg*10;
+}
+
+entity test(clk: clock, rst: bool) {
+    inst(11) p(clk, rst)
+}
+
+
+error: Could not infer the type of type parameter `{param_name}`
+  ┌─ testinput:6:5
+  │
+1 │ pipeline({Delay+1}) p<#uint Delay>(clk: clock, rst: bool) {
+  │                        ---------- Could not infer the type of this parameter
+  ·
+6 │     inst(11) p(clk, rst)
+  │     ^^^^^^^^^^^^^^^^^^^^ Cannot infer the type of type parameter `Delay` in this call to `p`
+  │
+  = help: Consider specifying the types explicitly using a turbofish (::<...>)
