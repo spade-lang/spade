@@ -24,6 +24,7 @@ pub fn wal_alias(
         operands: vec![source.clone()],
         ty: ty.clone(),
         loc: None,
+        verilog_attrs: vec![],
     })
 }
 

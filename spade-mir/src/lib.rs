@@ -450,6 +450,7 @@ pub struct Binding {
     pub operands: Vec<ValueName>,
     pub ty: Type,
     pub loc: Option<Loc<()>>,
+    pub verilog_attrs: Vec<String>
 }
 
 impl std::fmt::Display for Binding {
@@ -460,6 +461,7 @@ impl std::fmt::Display for Binding {
             operands,
             ty,
             loc: _,
+            verilog_attrs: _,
         } = self;
         write!(
             f,
@@ -481,6 +483,8 @@ pub struct Register {
     /// True if this register corresponds to an fsm with the specified ValueName
     /// as the actual state
     pub traced: Option<ValueName>,
+    /// Verilog attributes to put on the definition of the signal holding the register value 
+    pub verilog_attrs: Vec<String>,
 }
 
 impl std::fmt::Display for Register {
@@ -494,6 +498,7 @@ impl std::fmt::Display for Register {
             value,
             loc: _,
             traced: _,
+            verilog_attrs: _
         } = self;
 
         let reset = reset

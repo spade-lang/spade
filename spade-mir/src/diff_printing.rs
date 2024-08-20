@@ -103,6 +103,7 @@ where
             operands,
             ty,
             loc: _,
+            verilog_attrs: _,
         }) => {
             let name = translate_val_name(name, lhs_trans, rhs_trans);
             let operands = operands
@@ -122,6 +123,7 @@ where
             value,
             loc: _,
             traced,
+            verilog_attrs: attributes,
         }) => {
             let name = translate_val_name(name, lhs_trans, rhs_trans);
             let clock = translate_val_name(clock, lhs_trans, rhs_trans);
@@ -151,8 +153,13 @@ where
             } else {
                 "".to_string()
             };
+            let attributes = if attributes.is_empty() {
+                "".to_string()
+            } else {
+                format!("{} ", attributes.iter().map(|attr| format!("(* {attr} *)")).join(" "))
+            };
 
-            format!("{traced}reg {name}: {ty} clock {clock}{reset}{initial} {value}",)
+            format!("{attributes}{traced}reg {name}: {ty} clock {clock}{reset}{initial} {value}",)
         }
         Statement::Constant(name, ty, value) => {
             let name = translate_expr(*name, &lhs_trans.expr, &rhs_trans.expr);

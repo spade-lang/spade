@@ -188,6 +188,7 @@ impl<'a> Inferer<'a> {
                 ty: _,
                 value,
                 wal_trace,
+                verilog_attrs: _,
             }) => {
                 if let Some(wal_trace) = wal_trace {
                     if let Some(expr) = &wal_trace.rst {

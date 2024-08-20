@@ -146,6 +146,7 @@ pub struct Binding {
     // Specifies if a wal_trace mir node should be emitted for this struct. If this
     // is present, the type is traceable
     pub wal_trace: Option<Loc<WalTrace>>,
+    pub verilog_attrs: Vec<String>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -184,6 +185,7 @@ impl Statement {
             ty: None,
             value: val.nowhere(),
             wal_trace: None,
+            verilog_attrs: vec![]
         })
     }
 
@@ -197,6 +199,7 @@ impl Statement {
             ty,
             value,
             wal_trace: None,
+            verilog_attrs: vec![]
         })
     }
 }
@@ -663,6 +666,7 @@ pub enum Attribute {
     Optimize { passes: Vec<Loc<String>> },
     Fsm { state: NameID },
     WalTraceable { suffix: Identifier },
+    VerilogAttribute(String),
 }
 impl Attribute {
     pub fn name(&self) -> &str {
@@ -670,6 +674,7 @@ impl Attribute {
             Attribute::Optimize { passes: _ } => "optimize",
             Attribute::Fsm { state: _ } => "fsm",
             Attribute::WalTraceable { suffix: _ } => "suffix",
+            Attribute::VerilogAttribute(_) => "verilog_attribute"
         }
     }
 }

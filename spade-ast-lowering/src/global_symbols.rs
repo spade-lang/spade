@@ -439,6 +439,7 @@ pub fn re_visit_type_declaration(
                 | ast::Attribute::NoMangle
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::VerilogAttribute(_)
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
             })?;
 

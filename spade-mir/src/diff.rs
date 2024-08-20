@@ -133,6 +133,7 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
                 value: value1,
                 loc: _,
                 traced: _,
+                verilog_attrs: attributes1
             } = &r1;
             let Register {
                 name: _,
@@ -143,8 +144,13 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
                 value: value2,
                 loc: _,
                 traced: _,
+                verilog_attrs: attributes2
             } = &r2;
             if ty1 != ty2 {
+                return false;
+            }
+
+            if attributes1 != attributes2 {
                 return false;
             }
 

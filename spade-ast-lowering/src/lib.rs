@@ -2135,6 +2135,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
             let pattern = pattern.try_visit(visit_pattern, ctx)?;
 
             let mut wal_trace = None;
+            let mut verilog_attrs = vec![];
             attrs.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::WalTrace { clk, rst } => {
                     wal_trace = Some(
@@ -2165,6 +2166,10 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                     }
                     Ok(None)
                 }
+                ast::Attribute::VerilogAttribute(attr) => {
+                    verilog_attrs.push(attr.clone());
+                    Ok(None)
+                }
                 ast::Attribute::NoMangle
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
@@ -2177,6 +2182,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                     ty: hir_type,
                     value,
                     wal_trace,
+                    verilog_attrs,
                 })
                 .at_loc(s),
             );
@@ -2788,7 +2794,15 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
             }
             Ok(None)
         }
-        _ => Err(attr.report_unused("a register")),
+        ast::Attribute::VerilogAttribute(a) => {
+            Ok(Some(hir::Attribute::VerilogAttribute(a.clone())))
+        }
+        ast::Attribute::Optimize { .. }
+        | ast::Attribute::NoMangle
+        | ast::Attribute::WalTraceable {
+            ..
+        }
+        | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("a register")),
     })?;
 
     stmts.push(

@@ -120,6 +120,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     operands: _,
                     ty: _,
                     loc: _,
+                    verilog_attrs: _,
                 }) => state.push(name),
                 crate::Statement::Register(Register {
                     name,
@@ -130,6 +131,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     value: _,
                     loc: _,
                     traced: _,
+                    verilog_attrs: _,
                 }) => state.push(name),
                 crate::Statement::Constant(_, _, _) => {}
                 crate::Statement::Assert(_) => {}
@@ -172,6 +174,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     operands,
                     ty: _,
                     loc: _,
+                    verilog_attrs: _,
                 }) => {
                     *name = state.get(name);
 
@@ -188,6 +191,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     value,
                     loc: _,
                     traced,
+                    verilog_attrs: _,
                 }) => {
                     *name = state.get(name);
                     *clock = state.get(clock);

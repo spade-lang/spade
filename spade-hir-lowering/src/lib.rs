@@ -246,6 +246,7 @@ pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::State
                 operands: vec![result_name, op.clone()],
                 ty: MirType::Bool,
                 loc: None,
+                verilog_attrs: vec![],
             }));
             result_name = new_name;
         }
@@ -287,6 +288,7 @@ impl PatternLocal for Loc<Pattern> {
                                 .type_of_id(p.id, ctx.symtab.symtab(), &ctx.item_list.types)
                                 .to_mir_type(),
                             loc: None,
+                            verilog_attrs: vec![],
                         }),
                         p,
                     );
@@ -318,6 +320,7 @@ impl PatternLocal for Loc<Pattern> {
                                 .type_of_id(p.id, ctx.symtab.symtab(), &ctx.item_list.types)
                                 .to_mir_type(),
                             loc: None,
+                            verilog_attrs: vec![],
                         }),
                         p,
                     );
@@ -366,6 +369,7 @@ impl PatternLocal for Loc<Pattern> {
                                         )
                                         .to_mir_type(),
                                     loc: None,
+                                    verilog_attrs: vec![],
                                 }),
                                 value,
                             );
@@ -399,6 +403,7 @@ impl PatternLocal for Loc<Pattern> {
                                         )
                                         .to_mir_type(),
                                     loc: None,
+                                    verilog_attrs: vec![],
                                 }),
                                 &p.value,
                             );
@@ -437,6 +442,7 @@ impl PatternLocal for Loc<Pattern> {
                         operator: mir::Operator::Eq,
                         operands: vec![value_name.clone(), ValueName::Expr(const_id)],
                         loc: None,
+                        verilog_attrs: vec![],
                     }),
                 ];
 
@@ -456,6 +462,7 @@ impl PatternLocal for Loc<Pattern> {
                     operator: mir::Operator::LogicalNot,
                     operands: vec![value_name.clone()],
                     loc: None,
+                    verilog_attrs: vec![],
                 })];
 
                 Ok(PatternCondition {
@@ -523,6 +530,7 @@ impl PatternLocal for Loc<Pattern> {
                             operands: vec![value_name.clone()],
                             ty: MirType::Bool,
                             loc: None,
+                            verilog_attrs: vec![],
                         })
                     }
                     PatternableKind::Struct => mir::Statement::Constant(
@@ -710,6 +718,7 @@ pub fn do_wal_trace_lowering(
             operands: vec![main_value_name.clone()],
             ty: flipped_ty.clone(),
             loc: None,
+            verilog_attrs: vec![],
         });
         if !flipped_ty.size().is_zero() {
             result.push_anonymous(flipped_port);
@@ -754,6 +763,7 @@ pub fn do_wal_trace_lowering(
                 operands: vec![operand],
                 ty: mir_ty.clone(),
                 loc: None,
+                verilog_attrs: vec![],
             }));
 
             // Add the wal trace statement
@@ -942,6 +952,7 @@ impl StatementLocal for Statement {
                 ty: _,
                 value,
                 wal_trace,
+                verilog_attrs,
             }) => {
                 result.append(value.lower(ctx)?);
 
@@ -967,6 +978,7 @@ impl StatementLocal for Statement {
                         operands: vec![value.variable(ctx)?],
                         ty: mir_ty.clone(),
                         loc: Some(pattern.loc()),
+                        verilog_attrs: verilog_attrs.clone(),
                     }),
                     pattern,
                 );
@@ -1022,9 +1034,14 @@ impl StatementLocal for Statement {
                 }
 
                 let mut traced = None;
+                let mut verilog_attributes = vec![];
                 attributes.lower(&mut |attr| match &attr.inner {
                     Attribute::Fsm { state } => {
                         traced = Some(state.value_name());
+                        Ok(())
+                    }
+                    Attribute::VerilogAttribute(s) => {
+                        verilog_attributes.push(s.clone());
                         Ok(())
                     }
                     Attribute::WalTraceable { .. } => Err(attr.report_unused("register")),
@@ -1067,6 +1084,7 @@ impl StatementLocal for Statement {
                         value: value.variable(ctx)?,
                         loc: Some(pattern.loc()),
                         traced,
+                        verilog_attrs: verilog_attributes,
                     }),
                     pattern,
                 );
@@ -1289,6 +1307,7 @@ impl ExprLocal for Loc<Expression> {
                                 operands: vec![lhs.variable(ctx)?, rhs.variable(ctx)?],
                                 ty: self_type,
                                 loc: Some(self.loc()),
+                                verilog_attrs: vec![],
                             }),
                             self,
                         );
@@ -1316,6 +1335,7 @@ impl ExprLocal for Loc<Expression> {
                                 operands: vec![lhs.variable(ctx)?, rhs.variable(ctx)?],
                                 ty: self_type,
                                 loc: Some(self.loc()),
+                                verilog_attrs: vec![],
                             }),
                             self,
                         );
@@ -1423,6 +1443,7 @@ impl ExprLocal for Loc<Expression> {
                             operands: vec![operand.variable(ctx)?],
                             ty: self_type,
                             loc: Some(self.loc()),
+                            verilog_attrs: vec![],
                         }),
                         self,
                     );
@@ -1455,6 +1476,7 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1479,6 +1501,7 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![tup.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1538,6 +1561,7 @@ impl ExprLocal for Loc<Expression> {
                             operands: vec![],
                             ty: inner_mir_type,
                             loc: Some(self.loc()),
+                            verilog_attrs: vec![],
                         }),
                         mir::Statement::Binding(mir::Binding {
                             name: rname.clone(),
@@ -1545,6 +1569,7 @@ impl ExprLocal for Loc<Expression> {
                             operands: vec![lname.clone()],
                             ty: right_mir_type,
                             loc: Some(self.loc()),
+                            verilog_attrs: vec![],
                         }),
                     ],
                     self,
@@ -1557,6 +1582,7 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![lname, rname],
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1609,6 +1635,7 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1627,6 +1654,7 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1654,6 +1682,7 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1669,6 +1698,7 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?, index.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1713,6 +1743,7 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1746,6 +1777,7 @@ impl ExprLocal for Loc<Expression> {
                             .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 );
@@ -1802,6 +1834,7 @@ impl ExprLocal for Loc<Expression> {
                             .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -1875,6 +1908,7 @@ impl ExprLocal for Loc<Expression> {
                                 operands: vec![signal_name.clone()],
                                 ty: mir::types::Type::Bool,
                                 loc: Some(self.loc()),
+                                verilog_attrs: vec![],
                             }),
                             self,
                         )
@@ -1910,6 +1944,7 @@ impl ExprLocal for Loc<Expression> {
                                 operands: vec![signal_name.clone()],
                                 ty: mir::types::Type::Bool,
                                 loc: Some(self.loc()),
+                                verilog_attrs: vec![],
                             }),
                             self,
                         )
@@ -2051,6 +2086,7 @@ impl ExprLocal for Loc<Expression> {
                             .map(|arg| arg.value.variable(ctx))
                             .collect::<Result<_>>()?,
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -2068,6 +2104,7 @@ impl ExprLocal for Loc<Expression> {
                         .map(|arg| arg.value.variable(ctx))
                         .collect::<Result<Vec<_>>>()?,
                     loc: Some(self.loc()),
+                    verilog_attrs: vec![],
                 }),
                 self,
             ),
@@ -2125,6 +2162,7 @@ impl ExprLocal for Loc<Expression> {
                             .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 );
@@ -2172,6 +2210,7 @@ impl ExprLocal for Loc<Expression> {
                             .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 );
@@ -2302,6 +2341,7 @@ impl ExprLocal for Loc<Expression> {
                             .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
+                        verilog_attrs: vec![],
                     }),
                     self,
                 )
@@ -2341,6 +2381,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![target.variable(ctx)?, index.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2388,6 +2429,7 @@ impl ExprLocal for Loc<Expression> {
                     .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type(),
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2449,6 +2491,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2506,6 +2549,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2581,6 +2625,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2611,6 +2656,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2657,6 +2703,7 @@ impl ExprLocal for Loc<Expression> {
                     operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                     ty: self_type,
                     loc: None,
+                    verilog_attrs: vec![],
                 }),
                 self,
             );
@@ -2686,6 +2733,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2716,6 +2764,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2744,6 +2793,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![]
             }),
             self,
         );
@@ -2772,6 +2822,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2800,6 +2851,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2839,6 +2891,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2878,6 +2931,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2908,6 +2962,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![],
                 ty: self_type,
                 loc: None,
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -2938,6 +2993,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
+                verilog_attrs: vec![],
             }),
             self,
         );
@@ -3087,7 +3143,9 @@ pub fn generate_unit<'a>(
             }
             Ok(())
         }
-        Attribute::Fsm { .. } | Attribute::WalTraceable { .. } => Err(attr.report_unused("unit")),
+        Attribute::VerilogAttribute(_) | Attribute::Fsm { .. } | Attribute::WalTraceable { .. } => {
+            Err(attr.report_unused("unit"))
+        }
     })?;
 
     let mut statements = statements.to_vec(name_source_map);

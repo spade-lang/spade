@@ -2016,6 +2016,26 @@ impl<'a> Parser<'a> {
                         .collect(),
                 })
             }
+            "verilog_attribute" => {
+                let attr = self.surrounded(
+                    &TokenKind::OpenParen,
+                    |s| {
+                        let next = s.eat_unconditional()?;
+                        if let TokenKind::String(attr) = next.kind {
+                            Ok(attr)
+                        } else {
+                            Err(Diagnostic::error(
+                                next.clone(),
+                                format!("Expected string, found `{}`", next.kind.as_str()),
+                            )
+                            .primary_label("Expected string"))
+                        }
+                    },
+                    &TokenKind::CloseParen,
+                )?;
+
+                Ok(Attribute::VerilogAttribute(attr.0))
+            }
             "wal_trace" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     Ok(attribute_arg_parser!(

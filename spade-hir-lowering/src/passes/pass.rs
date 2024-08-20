@@ -116,6 +116,7 @@ impl Passable for Loc<Expression> {
                             ty: _,
                             value,
                             wal_trace: _,
+                            verilog_attrs: _
                         }) => value.apply(pass)?,
                         Statement::Register(reg) => {
                             let Register {

@@ -73,6 +73,7 @@ pub fn handle_statement(
             value: expr,
             wal_trace: _,
             ty: _,
+            verilog_attrs: _
         }) => {
             let time = expr.inner.kind.available_in(ctx)?;
             for name in pat.get_names() {
@@ -140,6 +141,7 @@ pub fn handle_statement(
                             ],
                             ty: reg_type.clone(),
                             loc: Some(statement.loc()),
+                            verilog_attrs: vec![],
                         }),
                         &reg.original,
                         "Pipeline enable mux",
@@ -162,6 +164,7 @@ pub fn handle_statement(
                         initial: None,
                         value: next,
                         traced: None,
+                        verilog_attrs: vec![],
                         // NOTE: Do we/can we also want to point to the declaration
                         // of the variable?
                         loc: Some(statement.loc()),
@@ -280,6 +283,7 @@ pub fn lower_pipeline<'a>(
                     operands: vec![local.clone()],
                     ty: mir::types::Type::Bool,
                     loc: None,
+                    verilog_attrs: vec![],
                 }));
                 current_enable = Some(name.clone());
             }
@@ -295,6 +299,7 @@ pub fn lower_pipeline<'a>(
                     operands: vec![prev.clone()],
                     ty: mir::types::Type::Bool,
                     loc: None,
+                    verilog_attrs: vec![],
                 }));
                 current_enable = Some(name.clone());
             }
@@ -308,6 +313,7 @@ pub fn lower_pipeline<'a>(
                     operands: vec![local.clone(), prev.clone()],
                     ty: mir::types::Type::Bool,
                     loc: None,
+                    verilog_attrs: vec![],
                 }));
                 current_enable = Some(name.clone());
             }
@@ -398,6 +404,7 @@ pub fn lower_pipeline<'a>(
                     value: next,
                     loc: None,
                     traced: None,
+                    verilog_attrs: vec![]
                 }));
                 prev_valid = Some(valid_name.clone());
                 valid_signals.push(Some(valid_name))
@@ -468,6 +475,7 @@ pub fn constexpr_and(
                 operands: vec![l.clone(), r.clone()],
                 ty: mir::types::Type::Bool,
                 loc: None,
+                verilog_attrs: vec![],
             }));
 
             MaybeConst::Val(new_name)
@@ -499,6 +507,7 @@ pub fn constexpr_select(
                 operands: vec![sel, t, f],
                 ty: mir::types::Type::Bool,
                 loc: None,
+                verilog_attrs: vec![],
             }));
 
             MaybeConst::Val(new_name)
@@ -522,6 +531,7 @@ pub fn constexpr_inv(
                 operands: vec![name],
                 ty: mir::types::Type::Bool,
                 loc: None,
+                verilog_attrs: vec![],
             }));
 
             MaybeConst::Val(new_name)

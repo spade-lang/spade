@@ -221,6 +221,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     operands: ops,
                     ty,
                     loc: _,
+                    verilog_attrs: _
                 } = b;
 
                 name_types.insert(name.clone(), ty.clone());

@@ -1,4 +1,4 @@
-use crate::{build_items, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error!(
     trait_self_wrong_impl_return_type,
@@ -252,6 +252,26 @@ snapshot_error! {
             let y: uint<{x+5}> = 0;
         }
     "
+}
+
+code_compiles! {
+    verilog_attributes_work_on_bindings,
+    r#"
+        entity test(clk: clock) {
+            #[verilog_attribute("keep")]
+            let x = true;
+        }
+    "#
+}
+
+code_compiles! {
+    verilog_attributes_work_on_registers,
+    r#"
+        entity test(clk: clock) {
+            #[verilog_attribute("keep")]
+            reg(clk) r = false;
+        }
+    "#
 }
 
 #[cfg(test)]

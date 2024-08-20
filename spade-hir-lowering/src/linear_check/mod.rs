@@ -79,6 +79,7 @@ pub fn visit_statement(
             ty: _,
             value,
             wal_trace: _,
+            verilog_attrs: _
         }) => {
             visit_expression(value, linear_state, ctx)?;
             linear_state.consume_expression(value)?;

@@ -27,6 +27,7 @@ fn split_trivial_tag_value(
         operands: vec![value.clone()],
         ty: Type::Bool,
         loc: *loc,
+        verilog_attrs: vec![]
     }));
     statements.push(Statement::Binding(Binding {
         name: payload_name.clone(),
@@ -37,6 +38,7 @@ fn split_trivial_tag_value(
         operands: vec![value.clone()],
         ty: Type::Tuple(variants[1].clone()),
         loc: *loc,
+        verilog_attrs: vec![]
     }));
 
     (tag_name, payload_name)
@@ -94,6 +96,7 @@ impl Register {
                         loc: self.loc,
                         // FIXME: wal-tracing breaks with this change
                         traced: None,
+                        verilog_attrs: self.verilog_attrs.clone(),
                     }));
                     new_statements.push(Statement::Binding(Binding {
                         name: payload_reg_value_name.clone(),
@@ -105,6 +108,7 @@ impl Register {
                         ],
                         ty: payload_type.clone(),
                         loc: self.loc,
+                        verilog_attrs: self.verilog_attrs.clone()
                     }));
                     new_statements.push(Statement::Register(Register {
                         name: payload_reg_name.clone(),
@@ -116,6 +120,7 @@ impl Register {
                         loc: self.loc,
                         // FIXME: wal-tracing breaks with this change
                         traced: None,
+                        verilog_attrs: self.verilog_attrs.clone(),
                     }));
                     new_statements.push(Statement::Binding(Binding {
                         name: self.name.clone(),
@@ -123,6 +128,7 @@ impl Register {
                         operands: vec![tag_reg_name.clone(), payload_reg_name.clone()],
                         ty: self.ty.clone(),
                         loc: self.loc,
+                        verilog_attrs: self.verilog_attrs.clone()
                     }));
 
                     Some(new_statements)

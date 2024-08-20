@@ -61,6 +61,7 @@ macro_rules! statement {
             ],
             ty: $type,
             loc: None,
+            verilog_attrs: vec![],
         })
     };
     //register with async reset
@@ -81,7 +82,8 @@ macro_rules! statement {
             initial: spade_mir::optional_initial!($($initial)?),
             value: spade_mir::value_name!($val_kind $val_name),
             loc: None,
-            traced: spade_mir::if_tracing!($($traced_kind $traced_name)?)
+            traced: spade_mir::if_tracing!($($traced_kind $traced_name)?),
+            verilog_attrs: vec![],
         })
     };
     // Register without reset
@@ -100,7 +102,8 @@ macro_rules! statement {
             initial: None,
             value: spade_mir::value_name!($val_kind $val_name),
             loc: None,
-            traced: spade_mir::if_tracing!($($traced_kind $traced_name)?)
+            traced: spade_mir::if_tracing!($($traced_kind $traced_name)?),
+            verilog_attrs: vec![],
         })
     };
     // Set statement
@@ -220,6 +223,7 @@ mod tests {
             ],
             ty: Type::Bool,
             loc: None,
+            verilog_attrs: vec![],
         });
 
         assert_eq!(
@@ -239,6 +243,7 @@ mod tests {
             ],
             ty: Type::Bool,
             loc: None,
+            verilog_attrs: vec![],
         });
 
         assert_eq!(
@@ -258,6 +263,7 @@ mod tests {
             value: ValueName::Expr(0),
             loc: None,
             traced: Some(ValueName::Expr(2)),
+            verilog_attrs: vec![],
         });
 
         assert_eq!(
@@ -277,6 +283,7 @@ mod tests {
             value: ValueName::Expr(0),
             loc: None,
             traced: None,
+            verilog_attrs: vec![],
         });
 
         assert_eq!(

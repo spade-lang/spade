@@ -63,6 +63,12 @@ fn statement_declaration(
             add_to_name_map(name_map, &binding.name, &binding.ty);
             let name = binding.name.var_name();
 
+            let attributes = binding
+                .verilog_attrs
+                .iter()
+                .map(|attr| format!("(* {attr} *)"))
+                .collect::<Vec<_>>();
+
             let forward_declaration = if binding.ty.size() != BigUint::zero() {
                 let inner = vec![match &binding.ty {
                     crate::types::Type::Memory { inner, length } => {
@@ -76,6 +82,7 @@ fn statement_declaration(
                     _ => logic(&name, &binding.ty.size()),
                 }];
                 code![
+                    [0] attributes.clone();
                     [0] source_attribute(&binding.loc, code);
                     [0] inner
                 ]
@@ -84,12 +91,15 @@ fn statement_declaration(
             };
 
             let backward_declaration = if binding.ty.backward_size() != BigUint::zero() {
-                vec![logic(
-                    &binding.name.backward_var_name(),
-                    &binding.ty.backward_size(),
-                )]
+                code!{
+                    [0] attributes;
+                    [0] logic(
+                        &binding.name.backward_var_name(),
+                        &binding.ty.backward_size(),
+                    )
+                }
             } else {
-                vec![]
+                code!{}
             };
 
             let ops = &binding
@@ -117,6 +127,12 @@ fn statement_declaration(
             }
         }
         Statement::Register(reg) => {
+            let attributes = reg
+                .verilog_attrs
+                .iter()
+                .map(|attr| format!("(* {attr} *)"))
+                .collect::<Vec<_>>();
+
             if reg.ty.backward_size() != BigUint::zero() {
                 panic!("Attempting to put value with a backward_size != 0 in a register")
             }
@@ -125,6 +141,7 @@ fn statement_declaration(
                 let name = reg.name.var_name();
                 let declaration = verilog::reg(&name, &reg.ty.size());
                 code! {
+                    [0] attributes;
                     [0] source_attribute(&reg.loc, code);
                     [0] &declaration;
                 }
@@ -1303,7 +1320,7 @@ mod tests {
     use spade_common::location_info::WithLocation;
     use spade_common::name::Path;
 
-    use crate as spade_mir;
+    use crate::{self as spade_mir, Register};
     use crate::{entity, statement, types::Type};
 
     use indoc::indoc;
@@ -1874,6 +1891,71 @@ mod tests {
             top.get(&"test1_1".to_string())
                 .expect("failed to get test1_0"),
             &inst2_name
+        );
+    }
+
+    #[test]
+    fn binding_attributes_codegen() {
+        let stmt = Statement::Binding(Binding {
+            name: ValueName::Expr(0),
+            operator: Operator::Alias,
+            operands: vec![ValueName::Expr(1)],
+            ty: Type::Bool,
+            loc: None,
+            verilog_attrs: vec!["keep".to_string(), "other".to_string()],
+        });
+
+
+        let expected = indoc! {
+            r#"
+            (* keep *)
+            (* other *)
+            logic _e_0;
+            assign _e_0 = _e_1;"#
+        };
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn register_attributes_codegen() {
+        let stmt = Statement::Register(Register {
+            name: ValueName::Expr(0),
+            ty: Type::Bool,
+            clock: ValueName::Expr(1),
+            reset: None,
+            initial: None,
+            value: ValueName::Expr(2),
+            loc: None,
+            traced: None,
+            verilog_attrs: vec!["keep".to_string(), "other".to_string()],
+        });
+
+
+        let expected = indoc! {
+            r#"
+            (* keep *)
+            (* other *)
+            reg _e_0;
+            always @(posedge _e_1) begin
+                _e_0 <= _e_2;
+            end"#
+        };
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
         );
     }
 }

@@ -1331,6 +1331,7 @@ impl TypeState {
                 ty,
                 value,
                 wal_trace,
+                verilog_attrs: _
             }) => {
                 trace!("Visiting `let {} = ..`", pattern.kind);
                 self.visit_expression(value, ctx, generic_list)?;

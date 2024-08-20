@@ -218,6 +218,12 @@ pub enum TokenKind {
     #[token("__builtin__")]
     Builtin,
 
+    #[regex(r#""[^"]*""#, |lex| {
+        let s = lex.slice();
+        s[1..(s.len()-1)].to_string()
+    })]
+    String(String),
+
     /// Ignoring whitespace
     #[regex("[ \t\n\r]", logos::skip)]
     Whitespace,
@@ -322,6 +328,8 @@ impl TokenKind {
             TokenKind::Dollar => "$",
 
             TokenKind::Builtin => "__builtin__",
+
+            TokenKind::String(_) => "string",
 
             TokenKind::Eof => "end of file",
 
