@@ -717,3 +717,30 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    errors_in_statements_are_recoverable,
+    "
+        fn test() {
+            let x = ;
+            let y ;
+            set z = true;
+        }
+    "
+}
+
+snapshot_error! {
+    errors_in_items_are_recoverable,
+    "entity main() {
+        not valid syntax
+    }
+
+    struct X {
+        bool
+    }
+
+    enum Y {
+        Variant(a)
+    }
+    "
+}

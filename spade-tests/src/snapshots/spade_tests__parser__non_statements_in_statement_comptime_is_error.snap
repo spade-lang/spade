@@ -10,10 +10,14 @@ fn a() {
 }
 
 
+error: expected item, got `true`
+  ┌─ testinput:6:5
+  │
+6 │     true
+  │     ^^^^ expected item
+
 error: Unexpected `false`, expected `}` or `statement`
   ┌─ testinput:4:9
   │
 4 │         false
   │         ^^^^^ expected `}` or `statement`
-
-

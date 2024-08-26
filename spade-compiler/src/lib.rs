@@ -456,6 +456,10 @@ fn parse(
             })
             .or_report(errors);
 
+        for error in &parser.errors {
+            errors.report(error)
+        }
+
         if let Some(ast) = result {
             module_asts.push((namespace, ast))
         }

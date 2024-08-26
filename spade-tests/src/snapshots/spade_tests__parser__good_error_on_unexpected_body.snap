@@ -11,4 +11,8 @@ error: Unexpected `struct`, expected body or `__builtin__`
   │ │                   
   │ Expected body for this entity
 
-
+error: Unexpected `end of file`, expected `Identifier`
+  ┌─ testinput:1:26
+  │
+1 │ entity a() -> bool struct
+  │                          ^ expected `Identifier`

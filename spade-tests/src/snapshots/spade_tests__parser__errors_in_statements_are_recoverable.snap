@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn test() {
+    let x = ;
+    let y ;
+    set z = true;
+}
+
+
+error: Unexpected `;`, expected expression
+  ┌─ testinput:2:13
+  │
+2 │     let x = ;
+  │             ^ expected expression here
+
+error: Unexpected `;`, expected `=`
+  ┌─ testinput:3:11
+  │
+3 │     let y ;
+  │           ^ expected `=`

@@ -4,6 +4,8 @@ mod expression;
 pub mod item_type;
 pub mod lexer;
 
+use std::marker::PhantomData;
+
 use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
@@ -85,6 +87,8 @@ pub struct Parser<'a> {
     pub parse_stack: Vec<ParseStackEntry>,
     file_id: usize,
     unit_context: Option<Loc<UnitKind>>,
+    pub errors: Vec<Diagnostic>,
+    recovering_tokens: Vec<Vec<TokenKind>>,
 }
 
 impl<'a> Parser<'a> {
@@ -96,6 +100,8 @@ impl<'a> Parser<'a> {
             parse_stack: vec![],
             file_id,
             unit_context: None,
+            errors: vec![],
+            recovering_tokens: vec![vec![TokenKind::Eof]],
         }
     }
 }
@@ -1226,8 +1232,29 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn statements(&mut self, allow_stages: bool) -> Result<Vec<Loc<Statement>>> {
         let mut result = vec![];
-        while let Some(statement) = self.statement(allow_stages)? {
-            result.push(statement)
+        loop {
+            let inner = self.with_recovery(
+                |s| s.statement(allow_stages),
+                vec![
+                    // We can recover via a new statement
+                    // TODO: Maintaining this list will be painful, let's do something about that
+                    TokenKind::Let,
+                    TokenKind::Reg,
+                    TokenKind::Decl,
+                    TokenKind::SingleQuote,
+                    TokenKind::Assert,
+                    TokenKind::Set,
+                    TokenKind::ComptimeIf,
+                    // Statements always occur in blocks, so we also push }
+                    TokenKind::CloseBrace,
+                ],
+            );
+
+            match inner {
+                RecoveryResult::Ok(Some(stmt)) => result.push(stmt),
+                RecoveryResult::Ok(None) => break,
+                RecoveryResult::Recovered => continue,
+            }
         }
         Ok(result)
     }
@@ -1529,154 +1556,25 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // Entities
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn unit(&mut self, attributes: &AttributeList) -> Result<Option<Loc<Unit>>> {
-        let head = if let Some(head) = self.unit_head(attributes)? {
-            head
-        } else {
-            return Ok(None);
-        };
-
-        self.set_item_context(head.unit_kind.clone())?;
-
-        let allow_stages = head.unit_kind.is_pipeline();
-        let (block, block_span) = if let Some(block) = self.block(allow_stages)? {
-            let (block, block_span) = block.separate();
-            (Some(block), block_span)
-        } else if self.peek_kind(&TokenKind::Builtin)? {
-            let tok = self.eat_unconditional()?;
-
-            (None, ().at(self.file_id, &tok.span).span)
-        } else {
-            let next = self.peek()?;
-            return Err(Diagnostic::error(
-                next.clone(),
-                format!(
-                    "Unexpected `{}`, expected body or `{}`",
-                    next.kind.as_str(),
-                    TokenKind::Builtin.as_str()
-                ),
-            )
-            .primary_label(format!("Unexpected {}", &next.kind.as_str()))
-            .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)));
-        };
-
-        self.clear_item_context();
-
-        Ok(Some(
-            Unit {
-                head: head.inner.clone(),
-                body: block.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
-            }
-            .between(self.file_id, &head, &block_span),
-        ))
-    }
-
-    // Traits
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn trait_def(&mut self, attributes: &AttributeList) -> Result<Option<Loc<TraitDef>>> {
-        let start_token = peek_for!(self, &TokenKind::Trait);
-        self.disallow_attributes(attributes, &start_token)?;
-
-        let name = self.identifier()?;
-        let type_params = self.generics_list()?;
-        let where_clauses = self.where_clauses()?;
-
-        let mut result = TraitDef {
-            name,
-            type_params,
-            where_clauses,
-            methods: vec![],
-        };
-
-        self.eat(&TokenKind::OpenBrace)?;
-
-        while let Some(decl) = self.unit_head(&AttributeList::empty())? {
-            result.methods.push(decl);
-            self.eat(&TokenKind::Semi)?;
-        }
-        let end_token = self.eat(&TokenKind::CloseBrace)?;
-
-        Ok(Some(result.between(
-            self.file_id,
-            &start_token.span,
-            &end_token.span,
-        )))
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(level = "debug", skip(self))]
-    pub fn impl_block(&mut self, attributes: &AttributeList) -> Result<Option<Loc<ImplBlock>>> {
-        let start_token = peek_for!(self, &TokenKind::Impl);
-        self.disallow_attributes(attributes, &start_token)?;
-
-        let type_params = self.generics_list()?;
-
-        let trait_or_target_path = self.type_spec()?;
-
-        let (r#trait, target) = if self.peek_and_eat(&TokenKind::For)?.is_some() {
-            let (trait_path, params) = match trait_or_target_path.inner.clone() {
-                TypeSpec::Named(p, params) => (p, params),
-                other => {
-                    return Err(Diagnostic::error(
-                        trait_or_target_path,
-                        format!("{other} is not a trait"),
-                    ))
-                }
-            };
-            let r#trait = TraitSpec {
-                path: trait_path.clone(),
-                type_params: params,
-            }
-            .at_loc(&trait_or_target_path);
-
-            let target = self.type_spec()?;
-
-            (Some(r#trait), target)
-        } else {
-            let target = trait_or_target_path;
-            (None, target)
-        };
-
-        let where_clauses = self.where_clauses()?;
-
-        let (body, body_span) = self.surrounded(
-            &TokenKind::OpenBrace,
-            Self::impl_body,
-            &TokenKind::CloseBrace,
-        )?;
-
-        Ok(Some(
-            ImplBlock {
-                r#trait,
-                type_params,
-                where_clauses,
-                target,
-                units: body,
-            }
-            .between(self.file_id, &start_token.span, &body_span.span),
-        ))
-    }
-
     #[trace_parser]
     pub fn impl_body(&mut self) -> Result<Vec<Loc<Unit>>> {
-        let mut result = vec![];
-        while let Some(u) = self.unit(&AttributeList::empty())? {
-            if u.head.unit_kind.is_pipeline() {
-                return Err(Diagnostic::error(
-                    u.head.unit_kind.loc(),
-                    "Pipelines are currently not allowed in impl blocks",
-                )
-                .primary_label("Not allowed here")
-                .note("This limitation is likely to be lifted in the future")
-                .help("Consider defining a free-standing pipeline for now"));
-            }
-
-            result.push(u);
-        }
+        let result = self.keyword_peeking_parser_seq(
+            vec![Box::new(UnitParser {}.map(|u| {
+                if u.head.unit_kind.is_pipeline() {
+                    return Err(Diagnostic::error(
+                        u.head.unit_kind.loc(),
+                        "Pipelines are currently not allowed in impl blocks",
+                    )
+                    .primary_label("Not allowed here")
+                    .note("This limitation is likely to be lifted in the future")
+                    .help("Consider defining a free-standing pipeline for now"));
+                } else {
+                    Ok(u)
+                }
+            }))],
+            false,
+            vec![TokenKind::CloseBrace],
+        )?;
 
         Ok(result)
     }
@@ -1725,173 +1623,6 @@ impl<'a> Parser<'a> {
             .into(),
         );
         Ok(true)
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn enum_declaration(
-        &mut self,
-        attributes: &AttributeList,
-    ) -> Result<Option<Loc<TypeDeclaration>>> {
-        let start_token = peek_for!(self, &TokenKind::Enum);
-        self.disallow_attributes(attributes, &start_token)?;
-
-        let name = self.identifier()?;
-
-        let type_params = self.generics_list()?;
-
-        let (options, options_loc) = self.surrounded(
-            &TokenKind::OpenBrace,
-            |s: &mut Self| {
-                s.comma_separated(Self::enum_option, &TokenKind::CloseBrace)
-                    .no_context()
-            },
-            &TokenKind::CloseBrace,
-        )?;
-
-        let result = TypeDeclaration {
-            name: name.clone(),
-            kind: TypeDeclKind::Enum(Enum { name, options }.between(
-                self.file_id,
-                &start_token.span,
-                &options_loc,
-            )),
-            generic_args: type_params,
-        }
-        .between(self.file_id, &start_token.span, &options_loc);
-
-        Ok(Some(result))
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn struct_declaration(
-        &mut self,
-        attributes: &AttributeList,
-    ) -> Result<Option<Loc<TypeDeclaration>>> {
-        let start_token = peek_for!(self, &TokenKind::Struct);
-
-        let port_keyword = self
-            .peek_and_eat(&TokenKind::Port)?
-            .map(|tok| ().at(self.file_id, &tok.span()));
-
-        let name = self.identifier()?;
-
-        let type_params = self.generics_list()?;
-
-        let (members, members_loc) = self.surrounded(
-            &TokenKind::OpenBrace,
-            Self::type_parameter_list,
-            &TokenKind::CloseBrace,
-        )?;
-        let members = members.at_loc(&members_loc);
-
-        let result = TypeDeclaration {
-            name: name.clone(),
-            kind: TypeDeclKind::Struct(
-                Struct {
-                    name,
-                    members,
-                    port_keyword,
-                    attributes: attributes.clone(),
-                }
-                .between(self.file_id, &start_token.span, &members_loc),
-            ),
-            generic_args: type_params,
-        }
-        .between(self.file_id, &start_token.span, &members_loc);
-
-        Ok(Some(result))
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn type_declaration(
-        &mut self,
-        attributes: &AttributeList,
-    ) -> Result<Option<Loc<TypeDeclaration>>> {
-        // The head of all type declarations will be `(enum|struct|type...) Name<T, S, ...>`
-        // since we want access to the name and type params, we'll parse all those three, then
-        // defer to parsing the rest.
-        self.first_successful(vec![&|s| Self::enum_declaration(s, attributes), &|s| {
-            Self::struct_declaration(s, attributes)
-        }])
-    }
-
-    #[trace_parser]
-    pub fn module(&mut self, attributes: &AttributeList) -> Result<Option<Loc<Module>>> {
-        let start = peek_for!(self, &TokenKind::Mod);
-        self.disallow_attributes(attributes, &start)?;
-
-        let name = self.identifier()?;
-
-        let open_brace = self.peek()?;
-        let (body, end) = self.surrounded(
-            &TokenKind::OpenBrace,
-            Self::module_body,
-            &TokenKind::CloseBrace,
-        )?;
-
-        Ok(Some(
-            Module {
-                name,
-                body: body.between(self.file_id, &open_brace.span, &end.span),
-            }
-            .between(self.file_id, &start, &end),
-        ))
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn r#use(&mut self, attributes: &AttributeList) -> Result<Option<Loc<UseStatement>>> {
-        let start = peek_for!(self, &TokenKind::Use);
-        self.disallow_attributes(attributes, &start)?;
-
-        let path = self.path()?;
-
-        let alias = if (self.peek_and_eat(&TokenKind::As)?).is_some() {
-            Some(self.identifier()?)
-        } else {
-            None
-        };
-
-        let end = self.eat(&TokenKind::Semi)?;
-
-        Ok(Some(UseStatement { path, alias }.between(
-            self.file_id,
-            &start.span(),
-            &end.span(),
-        )))
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn comptime_item(
-        &mut self,
-        attributes: &AttributeList,
-    ) -> Result<Option<Loc<ComptimeConfig>>> {
-        let start = peek_for!(self, &TokenKind::ComptimeConfig);
-        self.disallow_attributes(attributes, &start)?;
-
-        let name = self.identifier()?;
-        self.eat(&TokenKind::Assignment)?;
-
-        let val = if let Some(v) = self.int_literal()? {
-            v.map(IntLiteral::as_signed)
-        } else {
-            return Err(Diagnostic::from(UnexpectedToken {
-                got: self.eat_unconditional()?,
-                expected: vec!["integer"],
-            }));
-        };
-
-        Ok(Some(
-            ComptimeConfig {
-                name,
-                val: val.clone(),
-            }
-            .between(self.file_id, &start.span(), &val.span()),
-        ))
     }
 
     // Parses `<identifier>=<subtree>` if `identifier` matches the specified identifier
@@ -2125,26 +1856,21 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     #[tracing::instrument(skip(self))]
-    pub fn item(&mut self) -> Result<Option<Item>> {
-        let attrs = self.attributes()?;
-        self.first_successful(vec![
-            &|s: &mut Self| s.unit(&attrs).map(|e| e.map(Item::Unit)),
-            &|s: &mut Self| s.trait_def(&attrs).map(|e| e.map(Item::TraitDef)),
-            &|s: &mut Self| s.impl_block(&attrs).map(|e| e.map(Item::ImplBlock)),
-            &|s: &mut Self| s.type_declaration(&attrs).map(|e| e.map(Item::Type)),
-            &|s: &mut Self| s.module(&attrs).map(|e| e.map(Item::Module)),
-            &|s: &mut Self| s.r#use(&attrs).map(|e| e.map(Item::Use)),
-            &|s: &mut Self| s.comptime_item(&attrs).map(|e| e.map(Item::Config)),
-        ])
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
     pub fn module_body(&mut self) -> Result<ModuleBody> {
-        let mut members = vec![];
-        while let Some(item) = self.item()? {
-            members.push(item)
-        }
+        let members = self.keyword_peeking_parser_seq(
+            vec![
+                Box::new(UnitParser {}.map(|inner| Ok(Item::Unit(inner)))),
+                Box::new(TraitDefParser {}.map(|inner| Ok(Item::TraitDef(inner)))),
+                Box::new(ImplBlockParser {}.map(|inner| Ok(Item::ImplBlock(inner)))),
+                Box::new(StructParser {}.map(|inner| Ok(Item::Type(inner)))),
+                Box::new(EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
+                Box::new(ModuleParser {}.map(|inner| Ok(Item::Module(inner)))),
+                Box::new(UseParser {}.map(|inner| Ok(Item::Use(inner)))),
+                Box::new(ComptimeConfigParser {}.map(|inner| Ok(Item::Config(inner)))),
+            ],
+            true,
+            vec![],
+        )?;
         Ok(ModuleBody { members })
     }
 
@@ -2300,6 +2026,81 @@ impl<'a> Parser<'a> {
         }
 
         ret
+    }
+
+    fn keyword_peeking_parser_seq<T>(
+        &mut self,
+        parsers: Vec<Box<dyn KeywordPeekingParser<T>>>,
+        support_attributes: bool,
+        additional_continuations: Vec<TokenKind>,
+    ) -> Result<Vec<T>> {
+        let mut result = vec![];
+        loop {
+            let inner = self.with_recovery(
+                |s| {
+                    let attributes = if support_attributes {
+                        s.attributes()?
+                    } else {
+                        AttributeList::empty()
+                    };
+
+                    let next = s.peek()?;
+                    let mut result = None;
+                    for parser in &parsers {
+                        if parser.leading_tokens().contains(&next.kind) {
+                            result = Some(parser.parse(s, &attributes)?)
+                        }
+                    }
+                    Ok(result)
+                },
+                parsers
+                    .iter()
+                    .map(|p| p.leading_tokens())
+                    .flatten()
+                    .chain(additional_continuations.clone())
+                    .collect(),
+            );
+
+            match inner {
+                RecoveryResult::Ok(Some(stmt)) => result.push(stmt),
+                RecoveryResult::Ok(None) => break,
+                RecoveryResult::Recovered => continue,
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn with_recovery<T>(
+        &mut self,
+        inner: impl Fn(&mut Self) -> Result<T>,
+        continuations: Vec<TokenKind>,
+    ) -> RecoveryResult<T> {
+        self.recovering_tokens.push(continuations);
+        let result = match inner(self) {
+            Ok(result) => RecoveryResult::Ok(result),
+            Err(e) => {
+                self.errors.push(e);
+
+                // Once we error, consume tokens until we find a token in the
+                // current continuation set.
+                while let Ok(tok) = self.peek() {
+                    if self
+                        .recovering_tokens
+                        .iter()
+                        .rev()
+                        .any(|list| list.iter().any(|t| t == &tok.kind))
+                    {
+                        break;
+                    }
+                    // Safe unwrap, we already peeked
+                    self.eat_unconditional().unwrap();
+                }
+
+                RecoveryResult::Recovered
+            }
+        };
+        self.recovering_tokens.pop();
+        result
     }
 }
 
@@ -2493,6 +2294,378 @@ impl<'a> Parser<'a> {
     }
 }
 
+trait KeywordPeekingParser<T> {
+    fn leading_tokens(&self) -> Vec<TokenKind>;
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T>;
+}
+
+trait SizedKeywordPeekingParser<T>: Sized + KeywordPeekingParser<T> {
+    fn map<F, O>(self, mapper: F) -> MappingParser<Self, F, T, O>
+    where
+        F: Fn(T) -> Result<O>,
+    {
+        MappingParser {
+            inner: Box::new(self),
+            mapper: Box::new(mapper),
+            _phantoms: Default::default(),
+        }
+    }
+}
+impl<TOuter, TInner> SizedKeywordPeekingParser<TInner> for TOuter where
+    TOuter: KeywordPeekingParser<TInner> + Sized
+{
+}
+
+struct MappingParser<Inner, Mapper, I, T>
+where
+    Inner: SizedKeywordPeekingParser<I> + ?Sized,
+    Mapper: Fn(I) -> Result<T>,
+{
+    inner: Box<Inner>,
+    mapper: Box<Mapper>,
+    _phantoms: (PhantomData<I>, PhantomData<T>),
+}
+
+impl<Inner, Mapper, I, T> KeywordPeekingParser<T> for MappingParser<Inner, Mapper, I, T>
+where
+    Inner: SizedKeywordPeekingParser<I> + ?Sized,
+    Mapper: Fn(I) -> Result<T>,
+{
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        self.inner.leading_tokens()
+    }
+
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T> {
+        (self.mapper)(self.inner.parse(parser, attributes)?)
+    }
+}
+
+struct UnitParser {}
+
+impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Function, TokenKind::Entity, TokenKind::Pipeline]
+    }
+
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Unit>> {
+        let head = if let Some(head) = parser.unit_head(attributes)? {
+            head
+        } else {
+            panic!("Matched unit head but matches! returned true")
+        };
+
+        parser.set_item_context(head.unit_kind.clone())?;
+
+        let allow_stages = head.unit_kind.is_pipeline();
+        let (block, block_span) = if let Some(block) = parser.block(allow_stages)? {
+            let (block, block_span) = block.separate();
+            (Some(block), block_span)
+        } else if parser.peek_kind(&TokenKind::Builtin)? {
+            let tok = parser.eat_unconditional()?;
+
+            (None, ().at(parser.file_id, &tok.span).span)
+        } else {
+            let next = parser.peek()?;
+            return Err(Diagnostic::error(
+                next.clone(),
+                format!(
+                    "Unexpected `{}`, expected body or `{}`",
+                    next.kind.as_str(),
+                    TokenKind::Builtin.as_str()
+                ),
+            )
+            .primary_label(format!("Unexpected {}", &next.kind.as_str()))
+            .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)));
+        };
+
+        parser.clear_item_context();
+
+        Ok(Unit {
+            head: head.inner.clone(),
+            body: block.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
+        }
+        .between(parser.file_id, &head, &block_span))
+    }
+}
+
+struct TraitDefParser {}
+impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Trait]
+    }
+
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<TraitDef>> {
+        let start_token = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start_token)?;
+
+        let name = parser.identifier()?;
+
+        let type_params = parser.generics_list()?;
+
+        let where_clauses = parser.where_clauses()?;
+
+        let mut result = TraitDef {
+            name,
+            type_params,
+            where_clauses,
+            methods: vec![],
+        };
+
+        parser.eat(&TokenKind::OpenBrace)?;
+
+        while let Some(decl) = parser.unit_head(&AttributeList::empty())? {
+            result.methods.push(decl);
+            parser.eat(&TokenKind::Semi)?;
+        }
+        let end_token = parser.eat(&TokenKind::CloseBrace)?;
+
+        Ok(result.between(parser.file_id, &start_token.span, &end_token.span))
+    }
+}
+
+struct ImplBlockParser {}
+
+impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Impl]
+    }
+
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<ImplBlock>> {
+        let start_token = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start_token)?;
+
+        let type_params = parser.generics_list()?;
+
+        let trait_or_target_path = parser.type_spec()?;
+
+        let (r#trait, target) = if parser.peek_and_eat(&TokenKind::For)?.is_some() {
+            let (trait_path, params) = match trait_or_target_path.inner.clone() {
+                TypeSpec::Named(p, params) => (p, params),
+                other => {
+                    return Err(Diagnostic::error(
+                        trait_or_target_path,
+                        format!("{other} is not a trait"),
+                    ))
+                }
+            };
+            let r#trait = TraitSpec {
+                path: trait_path.clone(),
+                type_params: params,
+            }
+            .at_loc(&trait_or_target_path);
+
+            let target = parser.type_spec()?;
+
+            (Some(r#trait), target)
+        } else {
+            let target = trait_or_target_path;
+            (None, target)
+        };
+
+        let where_clauses = parser.where_clauses()?;
+
+        let (body, body_span) = parser.surrounded(
+            &TokenKind::OpenBrace,
+            Parser::impl_body,
+            &TokenKind::CloseBrace,
+        )?;
+
+        Ok(ImplBlock {
+            r#trait,
+            type_params,
+            target,
+            where_clauses,
+            units: body,
+        }
+        .between(parser.file_id, &start_token.span, &body_span.span))
+    }
+}
+
+struct StructParser {}
+
+impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Struct]
+    }
+
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+    ) -> Result<Loc<TypeDeclaration>> {
+        let start_token = parser.eat_unconditional()?;
+
+        let port_keyword = parser
+            .peek_and_eat(&TokenKind::Port)?
+            .map(|tok| ().at(parser.file_id, &tok.span()));
+
+        let name = parser.identifier()?;
+
+        let type_params = parser.generics_list()?;
+
+        let (members, members_loc) = parser.surrounded(
+            &TokenKind::OpenBrace,
+            Parser::type_parameter_list,
+            &TokenKind::CloseBrace,
+        )?;
+        let members = members.at_loc(&members_loc);
+
+        let result = TypeDeclaration {
+            name: name.clone(),
+            kind: TypeDeclKind::Struct(
+                Struct {
+                    name,
+                    members,
+                    port_keyword,
+                    attributes: attributes.clone(),
+                }
+                .between(parser.file_id, &start_token.span, &members_loc),
+            ),
+            generic_args: type_params,
+        }
+        .between(parser.file_id, &start_token.span, &members_loc);
+
+        Ok(result)
+    }
+}
+
+struct EnumParser {}
+
+impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Enum]
+    }
+
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+    ) -> Result<Loc<TypeDeclaration>> {
+        let start_token = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start_token)?;
+
+        let name = parser.identifier()?;
+
+        let type_params = parser.generics_list()?;
+
+        let (options, options_loc) = parser.surrounded(
+            &TokenKind::OpenBrace,
+            |s: &mut Parser| {
+                s.comma_separated(Parser::enum_option, &TokenKind::CloseBrace)
+                    .no_context()
+            },
+            &TokenKind::CloseBrace,
+        )?;
+
+        let result = TypeDeclaration {
+            name: name.clone(),
+            kind: TypeDeclKind::Enum(Enum { name, options }.between(
+                parser.file_id,
+                &start_token.span,
+                &options_loc,
+            )),
+            generic_args: type_params,
+        }
+        .between(parser.file_id, &start_token.span, &options_loc);
+
+        Ok(result)
+    }
+}
+
+struct ModuleParser {}
+
+impl KeywordPeekingParser<Loc<Module>> for ModuleParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Mod]
+    }
+
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Module>> {
+        let start = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start)?;
+
+        let name = parser.identifier()?;
+
+        let open_brace = parser.peek()?;
+        let (body, end) = parser.surrounded(
+            &TokenKind::OpenBrace,
+            Parser::module_body,
+            &TokenKind::CloseBrace,
+        )?;
+
+        Ok(Module {
+            name,
+            body: body.between(parser.file_id, &open_brace.span, &end.span),
+        }
+        .between(parser.file_id, &start, &end))
+    }
+}
+
+struct UseParser {}
+
+impl KeywordPeekingParser<Loc<UseStatement>> for UseParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::Use]
+    }
+
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<UseStatement>> {
+        let start = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start)?;
+
+        let path = parser.path()?;
+
+        let alias = if (parser.peek_and_eat(&TokenKind::As)?).is_some() {
+            Some(parser.identifier()?)
+        } else {
+            None
+        };
+
+        let end = parser.eat(&TokenKind::Semi)?;
+
+        Ok(UseStatement { path, alias }.between(parser.file_id, &start.span(), &end.span()))
+    }
+}
+
+struct ComptimeConfigParser {}
+
+impl KeywordPeekingParser<Loc<ComptimeConfig>> for ComptimeConfigParser {
+    fn leading_tokens(&self) -> Vec<TokenKind> {
+        vec![TokenKind::ComptimeConfig]
+    }
+
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+    ) -> Result<Loc<ComptimeConfig>> {
+        let start = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start)?;
+
+        let name = parser.identifier()?;
+        parser.eat(&TokenKind::Assignment)?;
+
+        let val = if let Some(v) = parser.int_literal()? {
+            v.map(IntLiteral::as_signed)
+        } else {
+            return Err(Diagnostic::from(UnexpectedToken {
+                got: parser.eat_unconditional()?,
+                expected: vec!["integer"],
+            }));
+        };
+
+        Ok(ComptimeConfig {
+            name,
+            val: val.clone(),
+        }
+        .between(parser.file_id, &start.span(), &val.span()))
+    }
+}
+
+#[derive(Debug)]
+pub enum RecoveryResult<T> {
+    Ok(T),
+    Recovered,
+}
+
 #[local_impl]
 impl<T> OptionExt for Option<T> {
     fn or_error(
@@ -2586,7 +2759,7 @@ pub fn format_parse_stack(stack: &[ParseStackEntry]) -> String {
 mod tests {
     use ast::comptime::{ComptimeCondOp, ComptimeCondition};
     use spade_ast as ast;
-    use spade_ast::testutil::{ast_ident, ast_path, ast_trait_spec, ast_type_expr, ast_type_spec};
+    use spade_ast::testutil::{ast_ident, ast_path};
     use spade_ast::*;
     use spade_common::num_ext::InfallibleToBigInt;
 
@@ -2680,71 +2853,6 @@ mod tests {
             statement(false),
             Ok(Some(expected))
         );
-    }
-
-    #[test]
-    fn entity_without_inputs() {
-        let code = include_str!("../parser_test_code/entity_without_inputs.sp");
-        let expected = Unit {
-            head: UnitHead {
-                attributes: AttributeList::empty(),
-                unit_kind: UnitKind::Entity.nowhere(),
-                name: Identifier("no_inputs".to_string()).nowhere(),
-                inputs: aparams![],
-                output_type: None,
-                type_params: None,
-                where_clauses: vec![],
-            },
-            body: Some(
-                Expression::Block(Box::new(Block {
-                    statements: vec![
-                        Statement::binding(
-                            Pattern::name("test"),
-                            None,
-                            Expression::int_literal_signed(123).nowhere(),
-                        )
-                        .nowhere(),
-                        Statement::binding(
-                            Pattern::name("test2"),
-                            None,
-                            Expression::int_literal_signed(123).nowhere(),
-                        )
-                        .nowhere(),
-                    ],
-                    result: Some(Expression::Identifier(ast_path("test")).nowhere()),
-                }))
-                .nowhere(),
-            ),
-        }
-        .nowhere();
-
-        check_parse!(code, unit(&AttributeList::empty()), Ok(Some(expected)));
-    }
-
-    #[test]
-    fn entity_with_inputs() {
-        let code = include_str!("../parser_test_code/entity_with_inputs.sp");
-        let expected = Unit {
-            head: UnitHead {
-                attributes: AttributeList::empty(),
-                unit_kind: UnitKind::Entity.nowhere(),
-                name: ast_ident("with_inputs"),
-                inputs: aparams![("clk", tspec!("bool")), ("rst", tspec!("bool"))],
-                output_type: Some(TypeSpec::Named(ast_path("bool"), None).nowhere()),
-                type_params: None,
-                where_clauses: vec![],
-            },
-            body: Some(
-                Expression::Block(Box::new(Block {
-                    statements: vec![],
-                    result: Some(Expression::Identifier(ast_path("clk")).nowhere()),
-                }))
-                .nowhere(),
-            ),
-        }
-        .nowhere();
-
-        check_parse!(code, unit(&AttributeList::empty()), Ok(Some(expected)));
     }
 
     #[test]
@@ -2948,130 +3056,6 @@ mod tests {
     }
 
     #[test]
-    fn anonymous_impl_blocks_work() {
-        let code = r#"
-        impl SomeType {
-            fn some_fn() __builtin__
-        }
-        "#;
-
-        let expected = ImplBlock {
-            r#trait: None,
-            type_params: None,
-            where_clauses: vec![],
-            target: ast_type_spec("SomeType"),
-            units: vec![Unit {
-                head: UnitHead {
-                    attributes: AttributeList::empty(),
-                    unit_kind: UnitKind::Function.nowhere(),
-                    name: ast_ident("some_fn"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere()],
-        }
-        .nowhere();
-
-        check_parse!(
-            code,
-            impl_block(&AttributeList::empty()),
-            Ok(Some(expected))
-        );
-    }
-
-    #[test]
-    fn non_anonymous_impl_blocks_work() {
-        let code = r#"
-        impl SomeTrait for SomeType {
-            fn some_fn() __builtin__
-        }
-        "#;
-
-        let expected = ImplBlock {
-            r#trait: Some(ast_trait_spec("SomeTrait", None)),
-            type_params: None,
-            where_clauses: vec![],
-            target: ast_type_spec("SomeType"),
-            units: vec![Unit {
-                head: UnitHead {
-                    attributes: AttributeList::empty(),
-                    unit_kind: UnitKind::Function.nowhere(),
-                    name: ast_ident("some_fn"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere()],
-        }
-        .nowhere();
-
-        check_parse!(
-            code,
-            impl_block(&AttributeList::empty()),
-            Ok(Some(expected))
-        );
-    }
-
-    #[test]
-    fn non_anonymous_impl_blocks_with_type_params_work() {
-        let code = r#"
-        impl SomeTrait<SomeTypeParam> for SomeType {
-            fn some_fn() __builtin__
-        }
-        "#;
-
-        let expected = ImplBlock {
-            r#trait: Some(ast_trait_spec(
-                "SomeTrait",
-                Some(vec![ast_type_expr("SomeTypeParam")]),
-            )),
-            type_params: None,
-            where_clauses: vec![],
-            target: ast_type_spec("SomeType"),
-            units: vec![Unit {
-                head: UnitHead {
-                    attributes: AttributeList::empty(),
-                    unit_kind: UnitKind::Function.nowhere(),
-                    name: ast_ident("some_fn"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere()],
-        }
-        .nowhere();
-
-        check_parse!(
-            code,
-            impl_block(&AttributeList::empty()),
-            Ok(Some(expected))
-        );
-    }
-
-    #[test]
-    fn typenames_parse() {
-        let code = "X";
-
-        let expected = TypeParam::TypeName {
-            name: ast_ident("X"),
-            traits: vec![],
-        }
-        .nowhere();
-
-        check_parse!(code, type_param(), Ok(expected));
-    }
-
-    #[test]
     fn dec_int_literals_work() {
         let code = "1";
         let expected = IntLiteral::unsized_(1).nowhere();
@@ -3139,151 +3123,6 @@ mod tests {
     }
 
     #[test]
-    fn builtin_entities_work() {
-        let code = "entity X() __builtin__";
-
-        let expected = Some(
-            Unit {
-                head: UnitHead {
-                    attributes: AttributeList::empty(),
-                    unit_kind: UnitKind::Entity.nowhere(),
-                    name: ast_ident("X"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, unit(&AttributeList::empty()), Ok(expected));
-    }
-
-    #[test]
-    fn builtin_functions_work() {
-        let code = "fn X() __builtin__";
-
-        let expected = Some(
-            Unit {
-                head: UnitHead {
-                    attributes: AttributeList::empty(),
-                    unit_kind: UnitKind::Function.nowhere(),
-                    name: ast_ident("X"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, unit(&AttributeList::empty()), Ok(expected));
-    }
-
-    #[test]
-    fn functions_can_have_attributes() {
-        let code = r#"
-            #[no_mangle]
-            fn X() __builtin__"#;
-
-        let expected = Some(Item::Unit(
-            Unit {
-                head: UnitHead {
-                    attributes: AttributeList(vec![Attribute::NoMangle.nowhere()]),
-                    unit_kind: UnitKind::Function.nowhere(),
-                    name: ast_ident("X"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere(),
-        ));
-
-        check_parse!(code, item, Ok(expected));
-    }
-
-    #[test]
-    fn entities_can_have_attributes() {
-        let code = r#"
-            #[no_mangle]
-            entity X() __builtin__"#;
-
-        let expected = Some(Item::Unit(
-            Unit {
-                head: UnitHead {
-                    attributes: AttributeList(vec![Attribute::NoMangle.nowhere()]),
-                    unit_kind: UnitKind::Entity.nowhere(),
-                    name: ast_ident("X"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: None,
-            }
-            .nowhere(),
-        ));
-
-        check_parse!(code, item, Ok(expected));
-    }
-
-    #[test]
-    fn reg_has_fsm_attribute() {
-        let code = r#"
-            entity X() {
-                #[fsm(state)]
-                reg(clk) state = false;
-                false
-            }"#;
-
-        let expected = Some(Item::Unit(
-            Unit {
-                head: UnitHead {
-                    attributes: AttributeList::empty(),
-                    unit_kind: UnitKind::Entity.nowhere(),
-                    name: ast_ident("X"),
-                    inputs: ParameterList::without_self(vec![]).nowhere(),
-                    output_type: None,
-                    type_params: None,
-                    where_clauses: vec![],
-                },
-                body: Some(
-                    Expression::Block(Box::new(Block {
-                        statements: vec![Statement::Register(
-                            Register {
-                                pattern: Pattern::Path(ast_path("state")).nowhere(),
-                                clock: Expression::Identifier(ast_path("clk")).nowhere(),
-                                reset: None,
-                                initial: None,
-                                value: Expression::BoolLiteral(false).nowhere(),
-                                value_type: None,
-                                attributes: AttributeList::from_vec(vec![Attribute::Fsm {
-                                    state: Some(ast_ident("state")),
-                                }
-                                .nowhere()]),
-                            }
-                            .nowhere(),
-                        )
-                        .nowhere()],
-                        result: Some(Expression::BoolLiteral(false).nowhere()),
-                    }))
-                    .nowhere(),
-                ),
-            }
-            .nowhere(),
-        ));
-
-        check_parse!(code, item, Ok(expected));
-    }
-
-    #[test]
     fn entity_instantiation() {
         let code = "inst some_entity(x, y, z)";
 
@@ -3304,24 +3143,6 @@ mod tests {
     }
 
     #[test]
-    fn entity_instantiation_with_a_named_arg() {
-        let code = "inst some_entity$(z: a)";
-
-        let expected = Expression::Call {
-            kind: CallKind::Entity(().nowhere()),
-            callee: ast_path("some_entity"),
-            args: ArgumentList::Named(vec![NamedArgument::Full(
-                ast_ident("z"),
-                Expression::Identifier(ast_path("a")).nowhere(),
-            )])
-            .nowhere(),
-            turbofish: None,
-        }
-        .nowhere();
-
-        check_parse!(code, expression, Ok(expected), Parser::set_parsing_entity);
-    }
-    #[test]
     fn named_args_work() {
         let code = "x: a";
 
@@ -3341,87 +3162,6 @@ mod tests {
         let expected = NamedArgument::Short(ast_ident("x")).nowhere();
 
         check_parse!(code, named_argument, Ok(expected));
-    }
-
-    #[test]
-    fn enum_declarations_parse() {
-        let code = "enum State {
-            First,
-            Second{a: bool},
-            Third{a: bool, b: bool}
-        }";
-
-        let expected = Item::Type(
-            TypeDeclaration {
-                name: ast_ident("State"),
-                kind: TypeDeclKind::Enum(
-                    Enum {
-                        name: ast_ident("State"),
-                        options: vec![
-                            (ast_ident("First"), None),
-                            (ast_ident("Second"), Some(aparams![("a", tspec!("bool")),])),
-                            (
-                                ast_ident("Third"),
-                                Some(aparams![("a", tspec!("bool")), ("b", tspec!("bool"))]),
-                            ),
-                        ],
-                    }
-                    .nowhere(),
-                ),
-                generic_args: None,
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, item, Ok(Some(expected)));
-    }
-
-    #[test]
-    fn struct_declarations_parse() {
-        let code = "struct State { a: bool, b: bool }";
-
-        let expected = Item::Type(
-            TypeDeclaration {
-                name: ast_ident("State"),
-                kind: TypeDeclKind::Struct(
-                    Struct {
-                        name: ast_ident("State"),
-                        members: aparams![("a", tspec!("bool")), ("b", tspec!("bool"))],
-                        port_keyword: None,
-                        attributes: AttributeList::empty(),
-                    }
-                    .nowhere(),
-                ),
-                generic_args: None,
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, item, Ok(Some(expected)));
-    }
-
-    #[test]
-    fn port_struct_declarations_parse() {
-        let code = "struct port State { a: bool, b: bool }";
-
-        let expected = Item::Type(
-            TypeDeclaration {
-                name: ast_ident("State"),
-                kind: TypeDeclKind::Struct(
-                    Struct {
-                        name: ast_ident("State"),
-                        members: aparams![("a", tspec!("bool")), ("b", tspec!("bool"))],
-                        port_keyword: Some(().nowhere()),
-                        attributes: AttributeList::empty(),
-                    }
-                    .nowhere(),
-                ),
-                generic_args: None,
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, item, Ok(Some(expected)));
     }
 
     #[test]
@@ -3543,56 +3283,12 @@ mod tests {
     }
 
     #[test]
-    fn simple_use_statement_parses() {
-        let code = r#"use X::y;"#;
-
-        let expected = Item::Use(
-            UseStatement {
-                path: Path::from_strs(&["X", "y"]).nowhere(),
-                alias: None,
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, item, Ok(Some(expected)));
-    }
-
-    #[test]
-    fn use_statement_with_alias_works() {
-        let code = r#"use X::y as z;"#;
-
-        let expected = Item::Use(
-            UseStatement {
-                path: Path::from_strs(&["X", "y"]).nowhere(),
-                alias: Some(ast_ident("z")),
-            }
-            .nowhere(),
-        );
-
-        check_parse!(code, item, Ok(Some(expected)));
-    }
-
-    #[test]
     fn assertions_parse() {
         let code = r#"assert x;"#;
 
         let expected = Statement::Assert(Expression::Identifier(ast_path("x")).nowhere()).nowhere();
 
         check_parse!(code, statement(false), Ok(Some(expected)));
-    }
-
-    #[test]
-    fn config_define_works() {
-        let code = r#"$config A = 5"#;
-
-        let expected = Item::Config(
-            ComptimeConfig {
-                name: ast_ident("A"),
-                val: 5.to_bigint().nowhere(),
-            }
-            .nowhere(),
-        );
-        check_parse!(code, item, Ok(Some(expected)));
     }
 
     #[test]

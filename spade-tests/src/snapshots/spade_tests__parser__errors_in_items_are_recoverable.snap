@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity main() {
+    not valid syntax
+}
+
+struct X {
+    bool
+}
+
+enum Y {
+    Variant(a)
+}
+
+
+error: Unexpected `identifier`, expected `}`
+  ┌─ testinput:2:9
+  │
+2 │     not valid syntax
+  │         ^^^^^ expected `}`
+
+error: Unexpected `}`, expected `:`
+  ┌─ testinput:7:1
+  │
+7 │ }
+  │ ^ expected `:`
+
+error: Unexpected `(`, expected `{`, `,` or `}`
+   ┌─ testinput:10:12
+   │
+10 │     Variant(a)
+   │            ^
