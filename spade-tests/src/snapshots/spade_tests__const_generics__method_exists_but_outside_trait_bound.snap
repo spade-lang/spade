@@ -12,16 +12,3 @@ fn test<T: X>(it: T) {
 fn main() {
     test(false)
 }
-
-
-error: Method `test` on type `bool` is outside of trait bound `X`
-  ┌─ testinput:7:8
-  │
-6 │ fn test<T: X>(it: T) {
-  │            - Trait bound specified here
-7 │     it.test()
-  │        ^^^^ Method exists, but is not allowed here due to trait bound
-  │
-  = help: Add the method `test` to trait `X`
-  = The error is in a generic unit instantiated at
-    ╰ testinput:10 test<bool>

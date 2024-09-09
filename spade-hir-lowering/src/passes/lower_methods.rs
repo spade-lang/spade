@@ -30,13 +30,8 @@ impl<'a> Pass for LowerMethods<'a> {
                     Diagnostic::bug(self_.as_ref(), format!("did not find a type ({e})"))
                 })?;
 
-                let Some(method) = select_method(
-                    self_.loc(),
-                    &self_type,
-                    &None,
-                    name,
-                    &self.type_state.trait_impls,
-                )?
+                let Some(method) =
+                    select_method(self_.loc(), &self_type, name, &self.type_state.trait_impls)?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),

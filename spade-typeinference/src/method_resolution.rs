@@ -6,7 +6,7 @@ use spade_diagnostics::Diagnostic;
 use spade_hir::{TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
-use crate::equation::{TraitList, TypeVar};
+use crate::equation::TypeVar;
 use crate::traits::{TraitImpl, TraitImplList};
 
 /// Attempts to look up which function to call when calling `method` on a var
@@ -16,7 +16,6 @@ use crate::traits::{TraitImpl, TraitImplList};
 pub fn select_method(
     expr: Loc<()>,
     self_type: &TypeVar,
-    trait_bounds: &Option<TraitList>,
     method: &Loc<Identifier>,
     trait_impls: &TraitImplList,
 ) -> Result<Option<Loc<NameID>>, Diagnostic> {
@@ -35,50 +34,33 @@ pub fn select_method(
     let impls = trait_impls.inner.get(&type_name).cloned().unwrap_or(vec![]);
 
     // Gather all the candidate methods which we may want to call.
-    let (
-        matched_candidates,
-        outside_trait_bound_candidates,
-        maybe_candidates,
-        unmatched_candidates,
-    ): (Vec<_>, Vec<_>, Vec<_>, Vec<_>) = impls
-        .iter()
-        .flat_map(
-            |TraitImpl {
-                 name: trait_name,
-                 type_params,
-                 impl_block: r#impl,
-             }| {
-                r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
-                    if fn_name == &method.inner {
-                        let is_overlapping = spec_is_overlapping(&r#impl.target, self_type);
-                        let selected = actual_fn.0.clone().at_loc(&actual_fn.1);
-                        match is_overlapping {
-                            Overlap::Yes => {
-                                if trait_bounds.as_ref().is_some_and(|tl| {
-                                    tl.get_trait_with_type_params(trait_name, type_params)
-                                        .is_none()
-                                }) {
-                                    (None, Some(selected), None, None)
-                                } else {
-                                    (Some(selected), None, None, None)
-                                }
+    let (matched_candidates, maybe_candidates, unmatched_candidates): (Vec<_>, Vec<_>, Vec<_>) =
+        impls
+            .iter()
+            .flat_map(
+                |TraitImpl {
+                     name: _,
+                     type_params: _,
+                     impl_block: r#impl,
+                 }| {
+                    r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
+                        if fn_name == &method.inner {
+                            let is_overlapping = spec_is_overlapping(&r#impl.target, self_type);
+                            let selected = actual_fn.0.clone().at_loc(&actual_fn.1);
+                            match is_overlapping {
+                                Overlap::Yes => (Some(selected), None, None),
+                                Overlap::Maybe => (None, Some(selected), None),
+                                Overlap::No => (None, None, Some(&r#impl.target)),
                             }
-                            Overlap::Maybe => (None, None, Some(selected), None),
-                            Overlap::No => (None, None, None, Some(&r#impl.target)),
+                        } else {
+                            (None, None, None)
                         }
-                    } else {
-                        (None, None, None, None)
-                    }
-                })
-            },
-        )
-        .multiunzip();
+                    })
+                },
+            )
+            .multiunzip();
 
     let matched_candidates = matched_candidates
-        .into_iter()
-        .filter_map(|x| x)
-        .collect::<Vec<_>>();
-    let outside_trait_bound_candidates = outside_trait_bound_candidates
         .into_iter()
         .filter_map(|x| x)
         .collect::<Vec<_>>();
@@ -98,56 +80,28 @@ pub fn select_method(
     let final_method = match matched_candidates.as_slice() {
         [name] => name,
         [] => {
-            return if !outside_trait_bound_candidates.is_empty() {
-                let Some(trait_list) = trait_bounds.as_ref() else {
-                    return Err(Diagnostic::bug(
-                        method,
-                        "Candidates found outside trait bound, but no trait bound was given",
-                    ));
-                };
-                if trait_list.inner.is_empty() {
-                    return Err(Diagnostic::bug(
-                        method,
-                        "Candidates found outside trait bound, but given trait bound was empty",
+            let mut d =
+                Diagnostic::error(method, format!("`{self_type}` has no method `{method}`"))
+                    .primary_label("No such method")
+                    .secondary_label(expr, format!("This has type `{self_type}`"));
+
+            match unmatched_candidates.as_slice() {
+                [] => {}
+                [one] => {
+                    d.add_help(format!("The method exists for `{one}`"));
+                }
+                multiple => {
+                    d.add_help(format!(
+                        "The method exists for `{}`, and `{}`",
+                        multiple[0..multiple.len() - 1]
+                            .iter()
+                            .map(|t| format!("`{t}`"))
+                            .join(", "),
+                        multiple.last().unwrap()
                     ));
                 }
-                let mut d = Diagnostic::error(
-                    method,
-                    format!("Method `{method}` on type `{self_type}` is outside of trait bound `{trait_list}`"),
-                )
-                    .primary_label("Method exists, but is not allowed here due to trait bound")
-                    .secondary_label(&trait_list.inner[0], "Trait bound specified here");
-
-                d.add_help(format!(
-                    "Add the method `{}` to trait `{}`",
-                    method, &trait_list.inner[0],
-                ));
-
-                Err(d)
-            } else {
-                let mut d =
-                    Diagnostic::error(method, format!("`{self_type}` has no method `{method}`"))
-                        .primary_label("No such method")
-                        .secondary_label(expr, format!("This has type `{self_type}`"));
-
-                match unmatched_candidates.as_slice() {
-                    [] => {}
-                    [one] => {
-                        d.add_help(format!("The method exists for `{one}`"));
-                    }
-                    multiple => {
-                        d.add_help(format!(
-                            "The method exists for `{}`, and `{}`",
-                            multiple[0..multiple.len() - 1]
-                                .iter()
-                                .map(|t| format!("`{t}`"))
-                                .join(", "),
-                            multiple.last().unwrap()
-                        ));
-                    }
-                };
-                Err(d)
-            }
+            };
+            return Err(d);
         }
         _ => {
             return Err(Diagnostic::bug(

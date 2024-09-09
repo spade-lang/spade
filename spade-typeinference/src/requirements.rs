@@ -242,7 +242,7 @@ impl Requirement {
                 expr_id,
                 target_type,
                 method,
-                trait_list,
+                trait_list: _,
                 expr,
                 args,
                 turbofish,
@@ -250,13 +250,8 @@ impl Requirement {
                 call_kind,
             } => target_type.expect_named(
                 |_type_name, _params| {
-                    let Some(implementor) = select_method(
-                        expr.loc(),
-                        target_type,
-                        trait_list,
-                        method,
-                        &type_state.trait_impls,
-                    )?
+                    let Some(implementor) =
+                        select_method(expr.loc(), target_type, method, &type_state.trait_impls)?
                     else {
                         return Ok(RequirementResult::NoChange);
                     };
