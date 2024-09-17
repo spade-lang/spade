@@ -9,7 +9,7 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.10.0] - 2024-09-19
 
 ### Added
 
@@ -39,8 +39,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - [!338][!338] Fix panics in generic impl blocks
 - [!342][!342] Fix negative integer literals on negative bound (`let a: int<3> = -4`)
-
-### Removed
 
 [!324]: https://gitlab.com/spade-lang/spade/-/merge_requests/324
 [!325]: https://gitlab.com/spade-lang/spade/-/merge_requests/325
@@ -319,7 +317,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.9.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.10.0...main
+[0.10.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.10.0...v0.9.0
 [0.9.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.9.0...v0.8.0
 [0.8.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.8.0...v0.7.0
 [0.7.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.7.0...v0.6.0
