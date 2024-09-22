@@ -9,6 +9,21 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- [!346][!346] The parser can now recover from errors in statements and items
+- [!346][!346] Add some additional diagnostics to missing `;`
+
+### Changed
+
+- [!346][!346] *Breaking change* Removed the `$comptime` system
+
+### Fixed
+
+[!346]: https://gitlab.com/spade-lang/spade/-/merge_requests/346
+
 ## [0.10.0] - 2024-09-19
 
 ### Added

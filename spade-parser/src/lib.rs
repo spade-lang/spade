@@ -2,7 +2,9 @@ mod comptime;
 pub mod error;
 mod expression;
 pub mod item_type;
+mod items;
 pub mod lexer;
+mod statements;
 
 use std::marker::PhantomData;
 
@@ -10,14 +12,14 @@ use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
 use logos::Lexer;
+use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterParser, SetParser};
 use tracing::{debug, event, Level};
 
 use spade_ast::{
-    ArgumentList, ArgumentPattern, Attribute, AttributeList, Binding, BitLiteral, Block, CallKind,
-    ComptimeConfig, Enum, Expression, ImplBlock, IntLiteral, Item, Module, ModuleBody,
-    NamedArgument, NamedTurbofish, ParameterList, Pattern, PipelineStageReference, Register,
-    Statement, Struct, TraitDef, TraitSpec, TurbofishInner, TypeDeclKind, TypeDeclaration,
-    TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, UseStatement, WhereClause,
+    ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
+    Expression, IntLiteral, Item, ModuleBody, NamedArgument, NamedTurbofish, ParameterList,
+    Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeExpression,
+    TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
@@ -108,6 +110,7 @@ impl<'a> Parser<'a> {
 
 /// Peek the next token. If it matches the specified token, get that token
 /// otherwise return Ok(none)
+#[macro_export]
 macro_rules! peek_for {
     ($self:expr, $token:expr) => {
         if let Some(t) = $self.peek_and_eat($token)? {
@@ -944,319 +947,60 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // Statements
-
-    #[trace_parser]
-    pub fn binding(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        peek_for!(self, &TokenKind::Let);
-
-        let (pattern, start_span) = self.pattern()?.separate();
-
-        let ty = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
-            Some(self.type_spec()?)
-        } else {
-            None
-        };
-
-        self.eat(&TokenKind::Assignment)?;
-        let (value, end_span) = self.expression()?.separate();
-
-        Ok(Some(
-            Statement::Binding(Binding {
-                pattern,
-                ty,
-                value,
-                attrs: attrs.clone(),
-            })
-            .between(self.file_id, &start_span, &end_span),
-        ))
-    }
-
-    #[trace_parser]
-    pub fn register_reset_definition(&mut self) -> Result<(Loc<Expression>, Loc<Expression>)> {
-        let condition = self.expression()?;
-        self.eat(&TokenKind::Colon)?;
-        let value = self.expression()?;
-
-        Ok((condition, value))
-    }
-
-    #[trace_parser]
-    pub fn register_reset(&mut self) -> Result<Option<(Loc<Expression>, Loc<Expression>)>> {
-        peek_for!(self, &TokenKind::Reset);
-        let (reset, _) = self.surrounded(
-            &TokenKind::OpenParen,
-            |s| s.register_reset_definition().map(Some),
-            &TokenKind::CloseParen,
-        )?;
-        // NOTE: Safe unwrap, register_reset_definition can not fail
-        Ok(Some(reset.unwrap()))
-    }
-
-    #[trace_parser]
-    pub fn register_initial(&mut self) -> Result<Option<Loc<Expression>>> {
-        peek_for!(self, &TokenKind::Initial);
-        let (reset, _) = self.surrounded(
-            &TokenKind::OpenParen,
-            Self::expression,
-            &TokenKind::CloseParen,
-        )?;
-        Ok(Some(reset))
-    }
-
-    #[trace_parser]
-    pub fn register(&mut self, attributes: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let start_token = peek_for!(self, &TokenKind::Reg);
-
-        // NOTE: It might be nicer to use () but that complicates the compiler slightly more
-        // annoying to write, so I'll use [] initially as a proof of concept
-        let cond = if self.peek_kind(&TokenKind::OpenBracket)? {
-            Some(
-                self.surrounded(
-                    &TokenKind::OpenBracket,
-                    Self::expression,
-                    &TokenKind::CloseBracket,
-                )?
-                .0,
-            )
-        } else {
-            None
-        };
-
-        // If this is a reg marker for a pipeline
-        if self.peek_kind(&TokenKind::Semi)? || self.peek_kind(&TokenKind::Asterisk)? {
-            let count = if let Some(ast) = self.peek_and_eat(&TokenKind::Asterisk)? {
-                match self.type_expression() {
-                    Ok(t) => Some(t),
-                    Err(diag) => {
-                        return Err(
-                            diag.secondary_label(ast, "* is used to specify a register count")
-                        )
-                    }
-                }
-            } else {
-                None
-            };
-
-            let full_loc = if let Some(c) = &count {
-                ().between(self.file_id, &start_token, &c.loc())
-            } else {
-                ().at(self.file_id, &start_token)
-            };
-
-            return Ok(Some(
-                Statement::PipelineRegMarker(count, cond).at_loc(&full_loc),
-            ));
-        }
-
-        self.unit_context
-            .allows_reg(().at(self.file_id, &start_token.span()))?;
-
-        // Clock selection
-        let (clock, _clock_paren_span) = self.surrounded(
-            &TokenKind::OpenParen,
-            |s| s.expression().map(Some),
-            &TokenKind::CloseParen,
-        )?;
-
-        // Identifier parsing cannot fail since we map it into a Some. Therefore,
-        // unwrap is safe
-        let clock = clock.unwrap();
-
-        // Name
-        let pattern = self.pattern()?;
-
-        // Optional type
-        let value_type = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
-            Some(self.type_spec()?)
-        } else {
-            None
-        };
-
-        // Optional reset
-        let reset = self.register_reset()?;
-        let initial = self.register_initial()?;
-        // Try parsing reset again, if we find two resets, error out
-        let reset = match (reset, self.register_reset()?) {
-            (Some(first), None) => Some(first),
-            (None, Some(second)) => Some(second),
-            (Some(first), Some(second)) => {
-                return Err(Diagnostic::error(
-                    ().between_locs(&second.0, &second.1),
-                    "Multiple resets specified",
-                )
-                .primary_label("Second reset")
-                .secondary_label(().between_locs(&first.0, &first.1), "First reset"))
-            }
-            (None, None) => None,
-        };
-
-        // Value
-        self.eat(&TokenKind::Assignment)?;
-        let (value, end_span) = self.expression()?.separate();
-
-        let span = lspan(start_token.span).merge(end_span);
-        let result = Statement::Register(
-            Register {
-                pattern,
-                clock,
-                reset,
-                initial,
-                value,
-                value_type,
-                attributes: attributes.clone(),
-            }
-            .at(self.file_id, &span),
-        )
-        .at(self.file_id, &span);
-        Ok(Some(result))
-    }
-
-    #[trace_parser]
-    pub fn declaration(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let start_token = peek_for!(self, &TokenKind::Decl);
-        self.disallow_attributes(attrs, &start_token)?;
-
-        let mut identifiers = vec![];
-        while self.peek_cond(|t| t.is_identifier(), "expected identifier")? {
-            identifiers.push(self.identifier()?);
-
-            if self.peek_and_eat(&TokenKind::Comma)?.is_none() {
-                break;
-            }
-        }
-
-        if identifiers.is_empty() {
-            return Err(Diagnostic::error(start_token.loc(), "empty decl statement")
-                .primary_label("this decl does not declare anything"));
-        }
-
-        let last_ident = identifiers.last().unwrap().clone();
-
-        Ok(Some(Statement::Declaration(identifiers).between(
-            self.file_id,
-            &start_token.span,
-            &last_ident,
-        )))
-    }
-
-    #[trace_parser]
-    pub fn label(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let tok = peek_for!(self, &TokenKind::SingleQuote);
-        self.disallow_attributes(attrs, &tok)?;
-
-        let name = self.identifier()?;
-        Ok(Some(Statement::Label(name.clone()).between(
-            self.file_id,
-            &tok.span,
-            &name,
-        )))
-    }
-
-    #[trace_parser]
-    pub fn assert(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let tok = peek_for!(self, &TokenKind::Assert);
-        self.disallow_attributes(attrs, &tok)?;
-
-        let expr = self.expression()?;
-
-        Ok(Some(Statement::Assert(expr.clone()).between(
-            self.file_id,
-            &tok.span,
-            &expr,
-        )))
-    }
-
-    #[trace_parser]
-    pub fn comptime_statement(&mut self, allow_stages: bool) -> Result<Option<Loc<Statement>>> {
-        let inner = |s: &mut Self| s.exhaustive_statements(allow_stages, &TokenKind::CloseBrace);
-
-        self.comptime_condition(&inner, &|condition, loc| {
-            Statement::Comptime(condition).at_loc(&loc)
-        })
-    }
-
-    #[trace_parser]
-    pub fn set(&mut self, attrs: &AttributeList) -> Result<Option<Loc<Statement>>> {
-        let tok = peek_for!(self, &TokenKind::Set);
-        self.disallow_attributes(attrs, &tok)?;
-
-        let target = self.expression()?;
-
-        self.eat(&TokenKind::Assignment)?;
-
-        let value = self.expression()?;
-
-        Ok(Some(
-            Statement::Set {
-                target,
-                value: value.clone(),
-            }
-            .between(self.file_id, &tok.span, &value),
-        ))
-    }
-
-    /// If the next token is the start of a statement, return that statement,
-    /// otherwise None
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn statement(&mut self, allow_stages: bool) -> Result<Option<Loc<Statement>>> {
-        let attrs = self.attributes()?;
-        let result = self.first_successful(vec![
-            &|s| s.binding(&attrs),
-            &|s| s.register(&attrs),
-            &|s| s.declaration(&attrs),
-            &|s| s.label(&attrs),
-            &|s| s.assert(&attrs),
-            &|s| s.set(&attrs),
-            &|s| s.comptime_statement(allow_stages),
-        ])?;
-
-        if let Some(statement) = &result {
-            if let Statement::Label(_) | Statement::Comptime(_) = statement.inner {
-            } else {
-                self.eat(&TokenKind::Semi)?;
-            }
-
-            if let Statement::PipelineRegMarker(_, _) = statement.inner {
-                if !allow_stages {
-                    return Err(Diagnostic::error(statement.loc(), "stage outside pipeline")
-                        .primary_label("stage is not allowed here")
-                        .note("stages are only allowed in the root block of a pipeline"));
-                }
-            }
-        }
-        Ok(result)
-    }
-
     #[trace_parser]
     pub fn statements(&mut self, allow_stages: bool) -> Result<Vec<Loc<Statement>>> {
-        let mut result = vec![];
-        loop {
-            let inner = self.with_recovery(
-                |s| s.statement(allow_stages),
-                vec![
-                    // We can recover via a new statement
-                    // TODO: Maintaining this list will be painful, let's do something about that
-                    TokenKind::Let,
-                    TokenKind::Reg,
-                    TokenKind::Decl,
-                    TokenKind::SingleQuote,
-                    TokenKind::Assert,
-                    TokenKind::Set,
-                    TokenKind::ComptimeIf,
-                    // Statements always occur in blocks, so we also push }
-                    TokenKind::CloseBrace,
-                ],
-            );
-
-            match inner {
-                RecoveryResult::Ok(Some(stmt)) => result.push(stmt),
-                RecoveryResult::Ok(None) => break,
-                RecoveryResult::Recovered => continue,
+        let semi_continuation = |inner: Loc<Statement>, parser: &mut Parser| {
+            let next = parser.peek()?;
+            match &next.kind {
+                TokenKind::Semi => {
+                    parser.eat_unconditional()?;
+                    Ok(inner)
+                }
+                TokenKind::GreekQuestionMark => Err(Diagnostic::error(
+                    next.clone(),
+                    format!("Expected `;`, got a greek question mark (;)"),
+                )
+                .help("The greek question mark (;) looks similar to the normal `;` character")),
+                other => Err(Diagnostic::error(
+                    next.clone(),
+                    format!("Expected `;`, got `{}`", other.as_str()),
+                )
+                .primary_label("Expected `;`")
+                .span_suggest_insert_after(
+                    "You probably forgot to end this statement with a `;`",
+                    inner,
+                    ";",
+                )),
             }
-        }
-        Ok(result)
+        };
+        let members = self.keyword_peeking_parser_seq(
+            vec![
+                Box::new(BindingParser {}.then(semi_continuation)),
+                Box::new(RegisterParser {}.then(semi_continuation).then(
+                    move |statement, _parser| {
+                        if let Statement::PipelineRegMarker(_, _) = statement.inner {
+                            if !allow_stages {
+                                return Err(Diagnostic::error(
+                                    statement.loc(),
+                                    "stage outside pipeline",
+                                )
+                                .primary_label("stage is not allowed here")
+                                .note("stages are only allowed in the root block of a pipeline"));
+                            }
+                        }
+                        Ok(statement)
+                    },
+                )),
+                Box::new(DeclParser {}.then(semi_continuation)),
+                Box::new(LabelParser {}),
+                Box::new(AssertParser {}.then(semi_continuation)),
+                Box::new(SetParser {}.then(semi_continuation)),
+            ],
+            true,
+            vec![TokenKind::CloseBrace],
+        )?;
+
+        Ok(members)
     }
 
     pub fn exhaustive_statements(
@@ -1559,7 +1303,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn impl_body(&mut self) -> Result<Vec<Loc<Unit>>> {
         let result = self.keyword_peeking_parser_seq(
-            vec![Box::new(UnitParser {}.map(|u| {
+            vec![Box::new(items::UnitParser {}.map(|u| {
                 if u.head.unit_kind.is_pipeline() {
                     return Err(Diagnostic::error(
                         u.head.unit_kind.loc(),
@@ -1859,14 +1603,14 @@ impl<'a> Parser<'a> {
     pub fn module_body(&mut self) -> Result<ModuleBody> {
         let members = self.keyword_peeking_parser_seq(
             vec![
-                Box::new(UnitParser {}.map(|inner| Ok(Item::Unit(inner)))),
-                Box::new(TraitDefParser {}.map(|inner| Ok(Item::TraitDef(inner)))),
-                Box::new(ImplBlockParser {}.map(|inner| Ok(Item::ImplBlock(inner)))),
-                Box::new(StructParser {}.map(|inner| Ok(Item::Type(inner)))),
-                Box::new(EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
-                Box::new(ModuleParser {}.map(|inner| Ok(Item::Module(inner)))),
-                Box::new(UseParser {}.map(|inner| Ok(Item::Use(inner)))),
-                Box::new(ComptimeConfigParser {}.map(|inner| Ok(Item::Config(inner)))),
+                Box::new(items::UnitParser {}.map(|inner| Ok(Item::Unit(inner)))),
+                Box::new(items::TraitDefParser {}.map(|inner| Ok(Item::TraitDef(inner)))),
+                Box::new(items::ImplBlockParser {}.map(|inner| Ok(Item::ImplBlock(inner)))),
+                Box::new(items::StructParser {}.map(|inner| Ok(Item::Type(inner)))),
+                Box::new(items::EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
+                Box::new(items::ModuleParser {}.map(|inner| Ok(Item::Module(inner)))),
+                Box::new(items::UseParser {}.map(|inner| Ok(Item::Use(inner)))),
+                Box::new(items::ComptimeConfigParser {}.map(|inner| Ok(Item::Config(inner)))),
             ],
             true,
             vec![],
@@ -2310,6 +2054,17 @@ trait SizedKeywordPeekingParser<T>: Sized + KeywordPeekingParser<T> {
             _phantoms: Default::default(),
         }
     }
+
+    fn then<F>(self, then: F) -> ThenParser<Self, F, T>
+    where
+        F: Fn(T, &mut Parser) -> Result<T>,
+    {
+        ThenParser {
+            inner: Box::new(self),
+            then: Box::new(then),
+            _phantoms: Default::default(),
+        }
+    }
 }
 impl<TOuter, TInner> SizedKeywordPeekingParser<TInner> for TOuter where
     TOuter: KeywordPeekingParser<TInner> + Sized
@@ -2340,323 +2095,33 @@ where
     }
 }
 
-struct UnitParser {}
-
-impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Function, TokenKind::Entity, TokenKind::Pipeline]
-    }
-
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Unit>> {
-        let head = if let Some(head) = parser.unit_head(attributes)? {
-            head
-        } else {
-            panic!("Matched unit head but matches! returned true")
-        };
-
-        parser.set_item_context(head.unit_kind.clone())?;
-
-        let allow_stages = head.unit_kind.is_pipeline();
-        let (block, block_span) = if let Some(block) = parser.block(allow_stages)? {
-            let (block, block_span) = block.separate();
-            (Some(block), block_span)
-        } else if parser.peek_kind(&TokenKind::Builtin)? {
-            let tok = parser.eat_unconditional()?;
-
-            (None, ().at(parser.file_id, &tok.span).span)
-        } else {
-            let next = parser.peek()?;
-            return Err(Diagnostic::error(
-                next.clone(),
-                format!(
-                    "Unexpected `{}`, expected body or `{}`",
-                    next.kind.as_str(),
-                    TokenKind::Builtin.as_str()
-                ),
-            )
-            .primary_label(format!("Unexpected {}", &next.kind.as_str()))
-            .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)));
-        };
-
-        parser.clear_item_context();
-
-        Ok(Unit {
-            head: head.inner.clone(),
-            body: block.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
-        }
-        .between(parser.file_id, &head, &block_span))
-    }
+/// Allows running parsing tasks after successfully running an inner parser. Used
+/// for example to require `;` after some statements with a helpful error message to
+/// point out where the `;` is missing.
+/// This cannot be used to change the type of `T`, which is intentional as that could
+/// easily change the grammar from LL(1)
+struct ThenParser<Inner, After, T>
+where
+    Inner: SizedKeywordPeekingParser<T> + ?Sized,
+    After: Fn(T, &mut Parser) -> Result<T>,
+{
+    inner: Box<Inner>,
+    then: Box<After>,
+    _phantoms: PhantomData<T>,
 }
 
-struct TraitDefParser {}
-impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
+impl<Inner, After, T> KeywordPeekingParser<T> for ThenParser<Inner, After, T>
+where
+    Inner: SizedKeywordPeekingParser<T> + ?Sized,
+    After: Fn(T, &mut Parser) -> Result<T>,
+{
     fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Trait]
+        self.inner.leading_tokens()
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<TraitDef>> {
-        let start_token = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start_token)?;
-
-        let name = parser.identifier()?;
-
-        let type_params = parser.generics_list()?;
-
-        let where_clauses = parser.where_clauses()?;
-
-        let mut result = TraitDef {
-            name,
-            type_params,
-            where_clauses,
-            methods: vec![],
-        };
-
-        parser.eat(&TokenKind::OpenBrace)?;
-
-        while let Some(decl) = parser.unit_head(&AttributeList::empty())? {
-            result.methods.push(decl);
-            parser.eat(&TokenKind::Semi)?;
-        }
-        let end_token = parser.eat(&TokenKind::CloseBrace)?;
-
-        Ok(result.between(parser.file_id, &start_token.span, &end_token.span))
-    }
-}
-
-struct ImplBlockParser {}
-
-impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Impl]
-    }
-
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<ImplBlock>> {
-        let start_token = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start_token)?;
-
-        let type_params = parser.generics_list()?;
-
-        let trait_or_target_path = parser.type_spec()?;
-
-        let (r#trait, target) = if parser.peek_and_eat(&TokenKind::For)?.is_some() {
-            let (trait_path, params) = match trait_or_target_path.inner.clone() {
-                TypeSpec::Named(p, params) => (p, params),
-                other => {
-                    return Err(Diagnostic::error(
-                        trait_or_target_path,
-                        format!("{other} is not a trait"),
-                    ))
-                }
-            };
-            let r#trait = TraitSpec {
-                path: trait_path.clone(),
-                type_params: params,
-            }
-            .at_loc(&trait_or_target_path);
-
-            let target = parser.type_spec()?;
-
-            (Some(r#trait), target)
-        } else {
-            let target = trait_or_target_path;
-            (None, target)
-        };
-
-        let where_clauses = parser.where_clauses()?;
-
-        let (body, body_span) = parser.surrounded(
-            &TokenKind::OpenBrace,
-            Parser::impl_body,
-            &TokenKind::CloseBrace,
-        )?;
-
-        Ok(ImplBlock {
-            r#trait,
-            type_params,
-            target,
-            where_clauses,
-            units: body,
-        }
-        .between(parser.file_id, &start_token.span, &body_span.span))
-    }
-}
-
-struct StructParser {}
-
-impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Struct]
-    }
-
-    fn parse(
-        &self,
-        parser: &mut Parser,
-        attributes: &AttributeList,
-    ) -> Result<Loc<TypeDeclaration>> {
-        let start_token = parser.eat_unconditional()?;
-
-        let port_keyword = parser
-            .peek_and_eat(&TokenKind::Port)?
-            .map(|tok| ().at(parser.file_id, &tok.span()));
-
-        let name = parser.identifier()?;
-
-        let type_params = parser.generics_list()?;
-
-        let (members, members_loc) = parser.surrounded(
-            &TokenKind::OpenBrace,
-            Parser::type_parameter_list,
-            &TokenKind::CloseBrace,
-        )?;
-        let members = members.at_loc(&members_loc);
-
-        let result = TypeDeclaration {
-            name: name.clone(),
-            kind: TypeDeclKind::Struct(
-                Struct {
-                    name,
-                    members,
-                    port_keyword,
-                    attributes: attributes.clone(),
-                }
-                .between(parser.file_id, &start_token.span, &members_loc),
-            ),
-            generic_args: type_params,
-        }
-        .between(parser.file_id, &start_token.span, &members_loc);
-
-        Ok(result)
-    }
-}
-
-struct EnumParser {}
-
-impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Enum]
-    }
-
-    fn parse(
-        &self,
-        parser: &mut Parser,
-        attributes: &AttributeList,
-    ) -> Result<Loc<TypeDeclaration>> {
-        let start_token = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start_token)?;
-
-        let name = parser.identifier()?;
-
-        let type_params = parser.generics_list()?;
-
-        let (options, options_loc) = parser.surrounded(
-            &TokenKind::OpenBrace,
-            |s: &mut Parser| {
-                s.comma_separated(Parser::enum_option, &TokenKind::CloseBrace)
-                    .no_context()
-            },
-            &TokenKind::CloseBrace,
-        )?;
-
-        let result = TypeDeclaration {
-            name: name.clone(),
-            kind: TypeDeclKind::Enum(Enum { name, options }.between(
-                parser.file_id,
-                &start_token.span,
-                &options_loc,
-            )),
-            generic_args: type_params,
-        }
-        .between(parser.file_id, &start_token.span, &options_loc);
-
-        Ok(result)
-    }
-}
-
-struct ModuleParser {}
-
-impl KeywordPeekingParser<Loc<Module>> for ModuleParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Mod]
-    }
-
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Module>> {
-        let start = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start)?;
-
-        let name = parser.identifier()?;
-
-        let open_brace = parser.peek()?;
-        let (body, end) = parser.surrounded(
-            &TokenKind::OpenBrace,
-            Parser::module_body,
-            &TokenKind::CloseBrace,
-        )?;
-
-        Ok(Module {
-            name,
-            body: body.between(parser.file_id, &open_brace.span, &end.span),
-        }
-        .between(parser.file_id, &start, &end))
-    }
-}
-
-struct UseParser {}
-
-impl KeywordPeekingParser<Loc<UseStatement>> for UseParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Use]
-    }
-
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<UseStatement>> {
-        let start = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start)?;
-
-        let path = parser.path()?;
-
-        let alias = if (parser.peek_and_eat(&TokenKind::As)?).is_some() {
-            Some(parser.identifier()?)
-        } else {
-            None
-        };
-
-        let end = parser.eat(&TokenKind::Semi)?;
-
-        Ok(UseStatement { path, alias }.between(parser.file_id, &start.span(), &end.span()))
-    }
-}
-
-struct ComptimeConfigParser {}
-
-impl KeywordPeekingParser<Loc<ComptimeConfig>> for ComptimeConfigParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::ComptimeConfig]
-    }
-
-    fn parse(
-        &self,
-        parser: &mut Parser,
-        attributes: &AttributeList,
-    ) -> Result<Loc<ComptimeConfig>> {
-        let start = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start)?;
-
-        let name = parser.identifier()?;
-        parser.eat(&TokenKind::Assignment)?;
-
-        let val = if let Some(v) = parser.int_literal()? {
-            v.map(IntLiteral::as_signed)
-        } else {
-            return Err(Diagnostic::from(UnexpectedToken {
-                got: parser.eat_unconditional()?,
-                expected: vec!["integer"],
-            }));
-        };
-
-        Ok(ComptimeConfig {
-            name,
-            val: val.clone(),
-        }
-        .between(parser.file_id, &start.span(), &val.span()))
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T> {
+        let inner = self.inner.parse(parser, attributes)?;
+        (self.then)(inner, parser)
     }
 }
 
@@ -2811,131 +2276,6 @@ mod tests {
             "123",
             expression,
             Ok(Expression::int_literal_signed(123).nowhere())
-        );
-    }
-
-    #[test]
-    fn bindings_work() {
-        let expected = Statement::binding(
-            Pattern::name("test"),
-            None,
-            Expression::int_literal_signed(123).nowhere(),
-        )
-        .nowhere();
-        check_parse!(
-            "let test = 123;",
-            binding(&AttributeList::empty()),
-            Ok(Some(expected))
-        );
-    }
-
-    #[test]
-    fn declarations_work() {
-        let expected = Statement::Declaration(vec![ast_ident("x"), ast_ident("y")]).nowhere();
-
-        check_parse!(
-            "decl x, y;",
-            declaration(&AttributeList::empty()),
-            Ok(Some(expected))
-        );
-    }
-
-    #[test]
-    fn bindings_with_types_work() {
-        let expected = Statement::binding(
-            Pattern::name("test"),
-            Some(TypeSpec::Named(ast_path("bool"), None).nowhere()),
-            Expression::int_literal_signed(123).nowhere(),
-        )
-        .nowhere();
-        check_parse!(
-            "let test: bool = 123;",
-            statement(false),
-            Ok(Some(expected))
-        );
-    }
-
-    #[test]
-    fn parsing_register_without_reset_works() {
-        let code = "reg(clk) name = 1;";
-
-        let expected = Statement::Register(
-            Register {
-                pattern: Pattern::name("name"),
-                clock: Expression::Identifier(ast_path("clk")).nowhere(),
-                reset: None,
-                initial: None,
-                value: Expression::int_literal_signed(1).nowhere(),
-                value_type: None,
-                attributes: ast::AttributeList::empty(),
-            }
-            .nowhere(),
-        )
-        .nowhere();
-
-        check_parse!(
-            code,
-            statement(false),
-            Ok(Some(expected)),
-            Parser::set_parsing_entity
-        );
-    }
-
-    #[test]
-    fn parsing_register_with_reset_works() {
-        let code = "reg(clk) name reset (rst: 0) = 1;";
-
-        let expected = Statement::Register(
-            Register {
-                pattern: Pattern::name("name"),
-                clock: Expression::Identifier(ast_path("clk")).nowhere(),
-                reset: Some((
-                    Expression::Identifier(ast_path("rst")).nowhere(),
-                    Expression::int_literal_signed(0).nowhere(),
-                )),
-                initial: None,
-                value: Expression::int_literal_signed(1).nowhere(),
-                value_type: None,
-                attributes: ast::AttributeList::empty(),
-            }
-            .nowhere(),
-        )
-        .nowhere();
-
-        check_parse!(
-            code,
-            statement(false),
-            Ok(Some(expected)),
-            Parser::set_parsing_entity
-        );
-    }
-
-    #[test]
-    fn parsing_register_with_reset_and_clock() {
-        let code = "reg(clk) name: Type reset (rst: 0) = 1;";
-
-        let expected = Statement::Register(
-            Register {
-                pattern: Pattern::name("name"),
-                clock: Expression::Identifier(ast_path("clk")).nowhere(),
-                reset: Some((
-                    Expression::Identifier(ast_path("rst")).nowhere(),
-                    Expression::int_literal_signed(0).nowhere(),
-                )),
-                initial: None,
-                value: Expression::int_literal_signed(1).nowhere(),
-                value_type: Some(TypeSpec::Named(ast_path("Type"), None).nowhere()),
-                attributes: ast::AttributeList::empty(),
-            }
-            .nowhere(),
-        )
-        .nowhere();
-
-        check_parse!(
-            code,
-            statement(false),
-            Ok(Some(expected)),
-            Parser::set_parsing_entity
         );
     }
 
@@ -3280,77 +2620,6 @@ mod tests {
         };
 
         check_parse!(code, module_body, Ok(expected));
-    }
-
-    #[test]
-    fn assertions_parse() {
-        let code = r#"assert x;"#;
-
-        let expected = Statement::Assert(Expression::Identifier(ast_path("x")).nowhere()).nowhere();
-
-        check_parse!(code, statement(false), Ok(Some(expected)));
-    }
-
-    #[test]
-    fn comptime_if_can_conditionally_bind_statement() {
-        let code = r#"$if A == 1 {
-            let a = 0;
-        }"#;
-
-        let expected = Statement::Comptime(ComptimeCondition {
-            condition: (ast_path("A"), ComptimeCondOp::Eq, 1.to_bigint().nowhere()),
-            on_true: Box::new(vec![Statement::binding(
-                Pattern::name("a"),
-                None,
-                Expression::int_literal_signed(0).nowhere(),
-            )
-            .nowhere()]),
-            on_false: None,
-        })
-        .nowhere();
-        check_parse!(code, statement(true), Ok(Some(expected)));
-    }
-
-    #[test]
-    fn comptime_if_else_works() {
-        let code = r#"$if A == 1 {
-            let a = 0;
-        }
-        $else
-        {
-            let b = 0;
-        }"#;
-
-        let expected = Statement::Comptime(ComptimeCondition {
-            condition: (ast_path("A"), ComptimeCondOp::Eq, 1.to_bigint().nowhere()),
-            on_true: Box::new(vec![Statement::binding(
-                Pattern::name("a"),
-                None,
-                Expression::int_literal_signed(0).nowhere(),
-            )
-            .nowhere()]),
-            on_false: Some(Box::new(vec![Statement::binding(
-                Pattern::name("b"),
-                None,
-                Expression::int_literal_signed(0).nowhere(),
-            )
-            .nowhere()])),
-        })
-        .nowhere();
-        check_parse!(code, statement(true), Ok(Some(expected)));
-    }
-
-    #[test]
-    fn set_statements_work() {
-        let code = r#"set x = y;"#;
-
-        let expected = Statement::Set {
-            target: Expression::Identifier(ast_path("x")).nowhere(),
-            value: Expression::Identifier(ast_path("y")).nowhere(),
-        }
-        .nowhere();
-
-        check_parse!(code, statement(false), Ok(Some(expected)));
     }
 
     #[test]

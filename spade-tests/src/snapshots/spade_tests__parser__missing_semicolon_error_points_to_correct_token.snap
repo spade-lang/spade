@@ -7,8 +7,13 @@ fn top() -> bool {
 }
 
 
-error: Unexpected `let`, expected `;`
+error: Expected `;`, got `let`
   ┌─ testinput:2:15
   │
 2 │     let a = 1 let b = 2;
-  │               ^^^ expected `;`
+  │               ^^^ Expected `;`
+  │
+  = You probably forgot to end this statement with a `;`
+  │
+2 │     let a = 1; let b = 2;
+  │              +

@@ -206,6 +206,8 @@ pub enum TokenKind {
     Dot,
     #[token(";")]
     Semi,
+    #[token(";")]
+    GreekQuestionMark,
     #[token(":")]
     Colon,
     #[token("::")]
@@ -312,6 +314,7 @@ impl TokenKind {
             TokenKind::FatArrow => "=>",
             TokenKind::SlimArrow => "->",
             TokenKind::Semi => ";",
+            TokenKind::GreekQuestionMark => "GreekQuestionMark(;)",
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Dot => ".",

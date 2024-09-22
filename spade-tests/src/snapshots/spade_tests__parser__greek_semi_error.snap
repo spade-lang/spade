@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn top() -> bool {
+    let a = 1;
+    true
+}
+
+
+error: Expected `;`, got a greek question mark (;)
+  ┌─ testinput:2:14
+  │
+2 │     let a = 1;
+  │              ^
+  │
+  = help: The greek question mark (;) looks similar to the normal `;` character

@@ -181,19 +181,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    non_statements_in_statement_comptime_is_error,
-    "
-        fn a() {
-            $if a == 0{
-                let _ = 0;
-                false
-            }
-            true
-        }
-    "
-}
-
-snapshot_error! {
     good_eof_error_on_missing_dot_continuation,
     "fn a() -> bool { a."
 }
@@ -432,6 +419,26 @@ snapshot_error! {
     "
         fn top() -> bool {
             let a = 1 let b = 2;
+            true
+        }
+    "
+}
+
+snapshot_error! {
+    multi_linemissing_semicolon_error_points_to_correct_token,
+    "
+        fn top() -> bool {
+            let a = 1
+            true
+        }
+    "
+}
+
+snapshot_error! {
+    greek_semi_error,
+    "
+        fn top() -> bool {
+            let a = 1;
             true
         }
     "

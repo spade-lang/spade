@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn top() -> bool {
+    let a = 1
+    true
+}
+
+
+error: Expected `;`, got `true`
+  ┌─ testinput:3:5
+  │
+3 │     true
+  │     ^^^^ Expected `;`
+  │
+  = You probably forgot to end this statement with a `;`
+  │
+2 │     let a = 1;
+  │              +
