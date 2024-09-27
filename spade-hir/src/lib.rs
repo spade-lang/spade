@@ -1,5 +1,6 @@
 pub mod expression;
 pub mod param_util;
+pub mod query;
 pub mod symbol_table;
 pub mod testutil;
 

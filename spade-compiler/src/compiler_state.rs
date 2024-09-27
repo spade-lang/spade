@@ -4,8 +4,10 @@ use color_eyre::eyre::anyhow;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
+use spade_common::location_info::WithLocation;
 use spade_common::name::NameID;
 use spade_hir::{
+    query::QueryCache,
     symbol_table::{FrozenSymtab, SymbolTable},
     ItemList,
 };
@@ -43,6 +45,10 @@ pub struct CompilerState {
 }
 
 impl CompilerState {
+    pub fn build_query_cache<'a>(&'a self) -> QueryCache {
+        QueryCache::from_item_list(&self.item_list)
+    }
+
     // Attempts to demangle the specified string to the corresponding snippet of source code
     pub fn demangle_string(&self, mangled: &str) -> Option<String> {
         // We'll need to first mangle the ValueNames into actual strings to search.
@@ -80,6 +86,31 @@ impl CompilerState {
         }
     }
 
+    pub fn name_source_of_hierarchical_value(
+        &self,
+        top_module: &NameID,
+        hierarchy: &[String],
+        query_cache: &QueryCache,
+    ) -> color_eyre::Result<Option<NameSource>> {
+        let (verilog_source, _mir_ctx) = source_of_hierarchical_value(
+            top_module,
+            hierarchy,
+            &self.instance_map,
+            &self.mir_context,
+        )?;
+
+        match verilog_source {
+            VerilogNameSource::ForwardName(n) | VerilogNameSource::BackwardName(n) => {
+                Ok(Some(NameSource::Name(n.clone().nowhere())))
+            }
+            VerilogNameSource::ForwardExpr(id) | VerilogNameSource::BackwardExpr(id) => {
+                Ok(query_cache
+                    .id_to_expression(*id)
+                    .map(|loc_expr| NameSource::Expr(loc_expr.map_ref(|_| *id))))
+            }
+        }
+    }
+
     pub fn type_of_hierarchical_value(
         &self,
         top_module: &NameID,
@@ -96,16 +127,12 @@ impl CompilerState {
     }
 }
 
-pub fn type_of_hierarchical_value(
-    top_module: &NameID,
-    hierarchy: &[String],
-    instance_map: &InstanceMap,
-    mir_contexts: &HashMap<NameID, MirContext>,
-    symtab: &SymbolTable,
-    item_list: &ItemList,
-) -> color_eyre::Result<ConcreteType> {
-    // NOTE: Safe unwrap, we already checked that there is at least one item
-    // in the hierarchy
+pub fn source_of_hierarchical_value<'a>(
+    top_module: &'a NameID,
+    hierarchy: &'a [String],
+    instance_map: &'a InstanceMap,
+    mir_contexts: &'a HashMap<NameID, MirContext>,
+) -> color_eyre::Result<(&'a VerilogNameSource, &'a MirContext)> {
     let mut hierarchy = Vec::from(hierarchy);
     let value_name = hierarchy.pop().unwrap();
     hierarchy.reverse();
@@ -168,6 +195,20 @@ pub fn type_of_hierarchical_value(
                 path = path_so_far.join(".")
             )
         })?;
+
+    Ok((source, mir_ctx))
+}
+
+pub fn type_of_hierarchical_value(
+    top_module: &NameID,
+    hierarchy: &[String],
+    instance_map: &InstanceMap,
+    mir_contexts: &HashMap<NameID, MirContext>,
+    symtab: &SymbolTable,
+    item_list: &ItemList,
+) -> color_eyre::Result<ConcreteType> {
+    let (source, mir_ctx) =
+        source_of_hierarchical_value(top_module, hierarchy, instance_map, mir_contexts)?;
 
     let typed_expr = match source {
         VerilogNameSource::ForwardName(n) => TypedExpression::Name(n.clone()),
