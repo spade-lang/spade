@@ -10,7 +10,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["cocotb~=1.7.2", "ansicolors>=1.1.8"]
+dependencies = ["cocotb~=1.8.1", "ansicolors>=1.1.8"]
 
 [tool.maturin]
 python-source = "python"
