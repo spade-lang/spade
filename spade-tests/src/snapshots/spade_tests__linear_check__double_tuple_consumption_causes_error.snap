@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(resource: (&mut bool, &bool)) -> (&mut bool, &mut bool) {
+entity x(resource: (~& bool, &bool)) -> (~& bool, ~& bool) {
     (resource#0, resource#0)
 }
 
@@ -13,5 +13,3 @@ error: Use of consumed resource
   │      ----------  ^^^^^^^^^^ Use of consumed resource
   │      │            
   │      Previously used here
-
-

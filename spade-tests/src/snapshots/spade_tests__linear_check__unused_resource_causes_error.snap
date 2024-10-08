@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(resource: &mut bool) -> bool {
+entity x(resource: ~& bool) -> bool {
     true
 }
 
@@ -9,7 +9,7 @@ entity x(resource: &mut bool) -> bool {
 error: resource is unused
   ┌─ testinput:1:10
   │
-1 │ entity x(resource: &mut bool) -> bool {
+1 │ entity x(resource: ~& bool) -> bool {
   │          ^^^^^^^^ resource is unused
   │
-  = note: resource is a &mut value which must be set
+  = note: resource is a ~& value which must be set

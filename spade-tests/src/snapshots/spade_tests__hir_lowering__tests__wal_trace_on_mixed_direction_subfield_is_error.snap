@@ -3,7 +3,7 @@ source: spade-tests/src/hir_lowering.rs
 ---
 #[wal_traceable()]
 struct port T {
-    a: (&bool, &mut bool)
+    a: (&bool, ~& bool)
 }
 
 entity test(t: T) -> T {
@@ -18,5 +18,3 @@ error: Wal tracing does not work on types with mixed-direction fields
   │
 8 │     let t = t;
   │         ^ The field 'a' of the struct has both & and &mut wires
-
-

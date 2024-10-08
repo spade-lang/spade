@@ -271,7 +271,6 @@ pub enum TypeSpec {
         size: Box<Loc<TypeExpression>>,
     },
     Unit(Loc<()>),
-    Backward(Box<Loc<TypeSpec>>),
     Inverted(Box<Loc<TypeSpec>>),
     Wire(Box<Loc<TypeSpec>>),
     /// The type of the `self` parameter in a trait method spec. Should not
@@ -322,7 +321,6 @@ impl std::fmt::Display for TypeSpec {
             }
             TypeSpec::Array { inner, size } => format!("[{inner}; {size}]"),
             TypeSpec::Unit(_) => "()".into(),
-            TypeSpec::Backward(inner) => format!("&mut {inner}"),
             TypeSpec::Inverted(inner) => format!("~{inner}"),
             TypeSpec::Wire(inner) => format!("&{inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),

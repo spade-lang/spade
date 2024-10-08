@@ -3,7 +3,7 @@ source: spade-tests/src/typeinference.rs
 ---
 fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
 
-entity uut(val: &mut (bool, int<3>)) -> bool {
+entity uut(val: ~& (bool, int<3>)) -> bool {
     let x = inst read_mut_wire(val#0);
     let y = inst read_mut_wire(val#1);
     takes_normal(x, y)
@@ -13,9 +13,9 @@ entity uut(val: &mut (bool, int<3>)) -> bool {
 error: Attempt to use tuple indexing on non-tuple
   ┌─ testinput:4:32
   │
-3 │ entity uut(val: &mut (bool, int<3>)) -> bool {
-  │                 ------------------- Type &mut (bool, int<3>) inferred here
+3 │ entity uut(val: ~& (bool, int<3>)) -> bool {
+  │                 ----------------- Type ~&(bool, int<3>) inferred here
 4 │     let x = inst read_mut_wire(val#0);
   │                                ^^^-- Because this is a tuple index
   │                                │   
-  │                                expected tuple, got &mut (bool, int<3>)
+  │                                expected tuple, got ~&(bool, int<3>)

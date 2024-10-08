@@ -1,4 +1,4 @@
-entity new_mut_wire<T>() -> &mut T __builtin__
+entity new_mut_wire<T>() -> ~&T __builtin__
 
-/// Reads the current value of a `&mut T`
-entity read_mut_wire<T>(p: &mut T) -> T __builtin__
+/// Reads the current value of a `~& T`
+entity read_mut_wire<T>(p: ~&T) -> T __builtin__

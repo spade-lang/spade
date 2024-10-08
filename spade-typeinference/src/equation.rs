@@ -168,7 +168,11 @@ impl TypeVar {
     }
 
     pub fn backward(loc: Loc<()>, inner: TypeVar) -> Self {
-        TypeVar::Known(loc, KnownType::Backward, vec![inner])
+        TypeVar::Known(
+            loc,
+            KnownType::Inverted,
+            vec![TypeVar::Known(loc, KnownType::Wire, vec![inner])],
+        )
     }
 
     pub fn inverted(loc: Loc<()>, inner: TypeVar) -> Self {
@@ -308,9 +312,6 @@ impl TypeVar {
                     params[1].display_with_meta(display_meta)
                 )
             }
-            TypeVar::Known(_, KnownType::Backward, params) => {
-                format!("&mut {}", params[0].display_with_meta(display_meta))
-            }
             TypeVar::Known(_, KnownType::Wire, params) => {
                 format!("&{}", params[0].display_with_meta(display_meta))
             }
@@ -374,7 +375,6 @@ impl std::fmt::Debug for TypeVar {
             TypeVar::Known(_, KnownType::Array, params) => {
                 write!(f, "[{:?}; {:?}]", params[0], params[1])
             }
-            TypeVar::Known(_, KnownType::Backward, params) => write!(f, "&mut {:?}", params[0]),
             TypeVar::Known(_, KnownType::Wire, params) => write!(f, "&{:?}", params[0]),
             TypeVar::Known(_, KnownType::Inverted, params) => write!(f, "~{:?}", params[0]),
             TypeVar::Unknown(_, id, traits, meta_type) => write!(

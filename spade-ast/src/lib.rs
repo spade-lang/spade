@@ -53,11 +53,11 @@ pub enum TypeSpec {
     },
     Named(Loc<Path>, Option<Loc<Vec<Loc<TypeExpression>>>>),
     Unit(Loc<()>),
-    /// A type in which signals travel in the opposite direction to normal. Any type containing a
-    /// Backward type is considered a port, meaning it cannot be explicitly put in registers, and
-    /// is not registered in pipelines
-    Backward(Box<Loc<TypeSpec>>),
-    /// An inverted port. Turns `&mut T` into `&T` and `&T` into `&mut T`
+    /// An inverted signal (`~`), its "direction" is the inverse of normal. A `~&T` taken as an
+    /// argument is an output, and a returned `~&T` is an input. This used to be expressed as `&mut
+    /// T` Inversions cancel each other, i.e. `~~&T` is effectively `&T` Inverted signals are
+    /// ports.
+    /// If applied to a struct port, all fields are inverted.
     Inverted(Box<Loc<TypeSpec>>),
     Wire(Box<Loc<TypeSpec>>),
     Wildcard,
@@ -79,7 +79,6 @@ impl std::fmt::Display for TypeSpec {
                 write!(f, "{name}{args}")
             }
             TypeSpec::Unit(_) => write!(f, "()"),
-            TypeSpec::Backward(inner) => write!(f, "&mut {inner}"),
             TypeSpec::Inverted(inner) => write!(f, "~{inner}"),
             TypeSpec::Wire(inner) => write!(f, "&{inner}"),
             TypeSpec::Wildcard => write!(f, "_"),

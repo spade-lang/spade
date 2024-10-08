@@ -204,13 +204,10 @@ impl Requirement {
                             type_state.type_var_from_hir(expr.loc(), field_spec, &generic_list)?;
                         let field_type = if inverted {
                             match raw_field_type {
-                                TypeVar::Known(loc, KnownType::Backward, inner) => {
-                                    TypeVar::wire(loc, inner[0].clone())
-                                }
                                 TypeVar::Known(loc, KnownType::Wire, inner) => {
                                     TypeVar::backward(loc, inner[0].clone())
                                 }
-                                TypeVar::Known(_, KnownType::Inverted, _) => raw_field_type,
+                                TypeVar::Known(_, KnownType::Inverted, inner) => inner[0].clone(),
                                 // If we were in an inverted context and we find
                                 // a type which is not a wire, we need to invert
                                 // it.

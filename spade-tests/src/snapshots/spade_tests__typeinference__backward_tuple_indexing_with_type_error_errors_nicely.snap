@@ -1,18 +1,16 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-entity name(x: &mut (bool, bool)) -> int<32> {
+entity name(x: ~& (bool, bool)) -> int<32> {
     x#0
 }
 
 error: Attempt to use tuple indexing on non-tuple
   ┌─ testinput:2:5
   │
-1 │ entity name(x: &mut (bool, bool)) -> int<32> {
-  │                ----------------- Type &mut (bool, bool) inferred here
+1 │ entity name(x: ~& (bool, bool)) -> int<32> {
+  │                --------------- Type ~&(bool, bool) inferred here
 2 │     x#0
   │     ^-- Because this is a tuple index
   │     │ 
-  │     expected tuple, got &mut (bool, bool)
-
-
+  │     expected tuple, got ~&(bool, bool)

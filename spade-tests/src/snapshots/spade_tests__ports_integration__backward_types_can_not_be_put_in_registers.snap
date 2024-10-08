@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/ports_integration.rs
 ---
-entity x(clk: clock, a: &mut bool) -> bool {
+entity x(clk: clock, a: ~& bool) -> bool {
     reg(clk) _ = a;
     true
 }
@@ -14,5 +14,3 @@ error: Ports cannot be put in a register
   │                  ^ This is a port
   │
   = note: &mut bool is a port
-
-

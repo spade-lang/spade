@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(a: (&mut bool, &mut bool)) -> &mut bool {
+entity x(a: (~& bool, ~& bool)) -> ~& bool {
     let (x, y) = a;
     x
 }
@@ -13,4 +13,4 @@ error: y is unused
 2 │     let (x, y) = a;
   │             ^ y is unused
   │
-  = note: y is a &mut value which must be set
+  = note: y is a ~& value which must be set

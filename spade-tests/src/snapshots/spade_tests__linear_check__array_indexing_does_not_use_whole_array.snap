@@ -13,4 +13,4 @@ error: a[1] is unused
 2 │     let a = [inst new_mut_wire(), inst new_mut_wire()];
   │         ^ a[1] is unused
   │
-  = note: a[1] is a &mut value which must be set
+  = note: a[1] is a ~& value which must be set

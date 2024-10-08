@@ -501,7 +501,7 @@ snapshot_error! {
 snapshot_error! {
     non_ports_can_not_contain_mut_wires,
     "struct A {
-        x: &mut int<32>
+        x: ~& int<32>
     }"
 }
 
@@ -563,7 +563,7 @@ snapshot_error! {
     struct port A {}
 
 
-    entity x(a: &mut A) -> bool __builtin__
+    entity x(a: ~& A) -> bool __builtin__
     "
 }
 

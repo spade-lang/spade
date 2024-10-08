@@ -223,12 +223,10 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVar) -> Overlap {
         // FIXME: Type inference ignores TypeSpec::Unit, so presumably those are very unsupported
         // anyway
         (TypeSpec::Unit(_), _) => Overlap::No,
-        (TypeSpec::Backward(sinner), TypeVar::Known(_, KnownType::Backward, vinner))
-        | (TypeSpec::Inverted(sinner), TypeVar::Known(_, KnownType::Inverted, vinner))
+        (TypeSpec::Inverted(sinner), TypeVar::Known(_, KnownType::Inverted, vinner))
         | (TypeSpec::Wire(sinner), TypeVar::Known(_, KnownType::Wire, vinner)) => {
             spec_is_overlapping(sinner, &vinner[0])
         }
-        (TypeSpec::Backward(_), _) => Overlap::No,
         (TypeSpec::Inverted(_), _) => Overlap::No,
         (TypeSpec::Wire(_), _) => Overlap::No,
 

@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 struct port X {
-    x: &mut bool
+    x: ~& bool
 }
 entity takes_generic<T>(x: T) -> bool {true}
 
@@ -16,5 +16,3 @@ error: Generic types cannot be ports
   │
 7 │     inst takes_generic(b)
   │     ^^^^^^^^^^^^^^^^^^^^^ Parameter T is struct X {x: &mut bool} which is a port type
-
-

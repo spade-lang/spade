@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity e(p: &mut bool) {
+entity e(p: ~& bool) {
     let many_p = [p; 3];
 }
 

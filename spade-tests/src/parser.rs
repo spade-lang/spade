@@ -279,7 +279,7 @@ snapshot_error! {
 #[test]
 fn inverted_port_type() {
     let code = r#"
-    entity square_wave(clk: clock, x: ~&mut bool) -> bool __builtin__
+    entity square_wave(clk: clock, x: ~~& bool) -> bool __builtin__
     "#;
 
     build_items(code);

@@ -36,15 +36,15 @@ entity read_memory<#uint AddrWidth, D, #uint NumElements> (
 
 
 struct port WritePort<#uint W, D> {
-    addr: &mut uint<W>,
-    write: &mut Option<D>,
+    addr: ~& uint<W>,
+    write: ~& Option<D>,
 }
 
 
 /// A read port for a memory. It is not recommended to manually read the signals
 /// in this struct, instead use `read_read_port` to access the port.
 struct port ReadPort<#uint W, D> {
-    addr: &mut uint<W>,
+    addr: ~& uint<W>,
     out: &D,
 }
 
@@ -78,7 +78,7 @@ entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (Write
 /// A fifo write port. Writes a single element of data data in to the write port unless `full`
 /// is true. If full is true, the write is ignored
 struct port FifoWrite<D> {
-    write: &mut Option<D>,
+    write: ~& Option<D>,
     full: &bool,
 }
 /// A fifo read port
@@ -88,7 +88,7 @@ struct port FifoWrite<D> {
 /// at least `num_elements` in the fifo.
 struct port FifoRead<#uint W, D> {
     read: &Option<D>,
-    ack: &mut bool,
+    ack: ~& bool,
     num_elements: &uint<W>
 }
 
@@ -109,7 +109,7 @@ mod fifo_impl {
 
     struct port FifoRtoW<#uint W> {
         read_ptr: &uint<W>,
-        write_ptr: &mut uint<W>,
+        write_ptr: ~& uint<W>,
     }
 
     entity fifo_read<#uint W, D, #uint C>(

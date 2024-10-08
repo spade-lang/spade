@@ -165,7 +165,6 @@ pub enum KnownType {
     Integer(BigInt),
     Tuple,
     Array,
-    Backward,
     Wire,
     Inverted,
 }

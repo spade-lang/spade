@@ -338,17 +338,6 @@ pub fn visit_type_spec(
             Ok(hir::TypeSpec::Tuple(inner))
         }
         ast::TypeSpec::Unit(w) => Ok(hir::TypeSpec::Unit(*w)),
-        ast::TypeSpec::Backward(inner) => {
-            if inner.is_port(&ctx.symtab)? {
-                return Err(Diagnostic::from(error::WireOfPort {
-                    full_type: t.loc(),
-                    inner_type: inner.loc(),
-                }));
-            }
-            Ok(hir::TypeSpec::Backward(Box::new(visit_type_spec(
-                inner, kind, ctx,
-            )?)))
-        }
         ast::TypeSpec::Wire(inner) => {
             if inner.is_port(&ctx.symtab)? {
                 return Err(Diagnostic::from(error::WireOfPort {
@@ -1608,17 +1597,6 @@ fn monomorphise_type_spec(
                 size: Box::from(mono_size),
             }
             .at_loc(ty))
-        }
-        TypeSpec::Backward(inner) => {
-            let mono_inner = monomorphise_type_spec(
-                inner,
-                trait_type_params,
-                trait_method_type_params,
-                impl_type_params,
-                impl_method_type_params,
-                ctx,
-            )?;
-            Ok(TypeSpec::Backward(Box::from(mono_inner)).at_loc(ty))
         }
         TypeSpec::Inverted(inner) => {
             let mono_inner = monomorphise_type_spec(
@@ -3032,10 +3010,6 @@ fn type_specs_overlap(l: &TypeSpec, r: &TypeSpec) -> bool {
         (TypeSpec::Array { .. }, _) => false,
         (TypeSpec::Unit(_), TypeSpec::Unit(_)) => true,
         (TypeSpec::Unit(_), _) => false,
-        (TypeSpec::Backward(linner), TypeSpec::Backward(rinner)) => {
-            type_specs_overlap(&linner.inner, &rinner.inner)
-        }
-        (TypeSpec::Backward(_), _) => false,
         (TypeSpec::Inverted(linner), TypeSpec::Inverted(rinner)) => {
             type_specs_overlap(&linner.inner, &rinner.inner)
         }

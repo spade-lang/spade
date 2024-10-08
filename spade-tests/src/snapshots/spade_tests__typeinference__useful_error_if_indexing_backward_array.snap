@@ -1,16 +1,16 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-entity name(x: &mut [bool; 10]) -> int<32> {
+entity name(x: ~& [bool; 10]) -> int<32> {
     x[0]
 }
 
 
-error: Index target must be an array, got &mut [bool; 10]
+error: Index target must be an array, got ~&[bool; 10]
   ┌─ testinput:2:5
   │
-1 │ entity name(x: &mut [bool; 10]) -> int<32> {
-  │                --------------- Type &mut [bool; 10] inferred here
+1 │ entity name(x: ~& [bool; 10]) -> int<32> {
+  │                ------------- Type ~&[bool; 10] inferred here
 2 │     x[0]
   │     ^---
   │     │
@@ -18,6 +18,4 @@ error: Index target must be an array, got &mut [bool; 10]
   │     Expected array
   │
   = note: Expected: [_; _]
-               Got: &mut [bool; 10]
-
-
+               Got: ~&[bool; 10]

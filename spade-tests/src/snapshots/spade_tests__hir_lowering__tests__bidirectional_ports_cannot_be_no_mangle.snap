@@ -1,18 +1,16 @@
 ---
 source: spade-tests/src/hir_lowering.rs
 ---
-entity x(#[no_mangle] t: (&bool, &mut bool)) -> bool {
+entity x(#[no_mangle] t: (&bool, ~& bool)) -> bool {
     set t#1 = false;
     true
 }
 
 
-error: Ports with both & and &mut cannot be #[no_mangle]
+error: Ports with both & and ~& cannot be #[no_mangle]
   ┌─ testinput:1:10
   │
-1 │ entity x(#[no_mangle] t: (&bool, &mut bool)) -> bool {
-  │          ^^^^^^^^^^^^    ------------------ This has both & and &mut components
+1 │ entity x(#[no_mangle] t: (&bool, ~& bool)) -> bool {
+  │          ^^^^^^^^^^^^    ---------------- This has both & and ~& components
   │          │                
   │          Not allowed on mixed-direction ports
-
-

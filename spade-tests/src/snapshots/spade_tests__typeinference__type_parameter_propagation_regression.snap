@@ -8,7 +8,7 @@ struct port FifoRead<#uint W> { }
 entity fifo_read_side<#uint W>(
     write_ptr_w: uint<W>,
     ram_read: ReadPort_<W>,
-    read_ptr_wire: &mut uint<W>,
+    read_ptr_wire: ~& uint<W>,
 ) -> FifoRead<W> {
     FifoRead$()
 }
@@ -42,10 +42,10 @@ entity fifo_test_harness(
 error: read_ptr_wire is unused
   ┌─ testinput:8:5
   │
-8 │     read_ptr_wire: &mut uint<W>,
+8 │     read_ptr_wire: ~& uint<W>,
   │     ^^^^^^^^^^^^^ read_ptr_wire is unused
   │
-  = note: read_ptr_wire is a &mut value which must be set
+  = note: read_ptr_wire is a ~& value which must be set
   = The error is in a generic unit instantiated at
     ╰ testinput:25 fifo_read_side<4>
     ╰ testinput:35 fifo<4>

@@ -2,7 +2,7 @@
 source: spade-tests/src/ports_integration.rs
 ---
 struct port X {
-    a: &mut bool,
+    a: ~& bool,
     b: &bool
 }
 entity x(clk: clock, a: X) -> bool {
@@ -18,5 +18,3 @@ error: Ports cannot be put in a register
   │                  ^ This is a port
   │
   = note: struct X {a: &mut bool, b: &bool} is a port
-
-

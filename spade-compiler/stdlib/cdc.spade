@@ -41,8 +41,8 @@ entity sync2_bool(clk: clock, in: bool) -> bool {
 
 mod handshake_impl {
     struct port TxOutRxIn<T> {
-        data_valid: &mut bool,
-        data: &mut T,
+        data_valid: ~&bool,
+        data: ~&T,
         ack: &bool,
     }
 
@@ -125,7 +125,7 @@ mod sync_wide_impl {
     struct port FromSender<T> {
         valid: &bool,
         data: &T,
-        ack: &mut bool,
+        ack: ~&bool,
     }
 
     entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: ~FromSender<T>) {

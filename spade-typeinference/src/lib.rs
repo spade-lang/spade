@@ -275,10 +275,6 @@ impl TypeState {
             hir::TypeSpec::Unit(_) => {
                 todo!("Support unit type in type inference")
             }
-            hir::TypeSpec::Backward(inner) => Ok(TypeVar::backward(
-                loc,
-                self.type_var_from_hir(loc, inner, generic_list_token)?,
-            )),
             hir::TypeSpec::Wire(inner) => Ok(TypeVar::wire(
                 loc,
                 self.type_var_from_hir(loc, inner, generic_list_token)?,
@@ -2158,7 +2154,6 @@ impl TypeState {
                     (KnownType::Array, KnownType::Array)
                     | (KnownType::Tuple, KnownType::Tuple)
                     | (KnownType::Wire, KnownType::Wire)
-                    | (KnownType::Backward, KnownType::Backward)
                     | (KnownType::Inverted, KnownType::Inverted) => {
                         unify_params!();
                         // Note, replacements should only occur when a variable goes from Unknown
@@ -2281,7 +2276,6 @@ impl TypeState {
                     | (KnownType::Named(_), MetaType::Type)
                     | (KnownType::Tuple, MetaType::Type)
                     | (KnownType::Array, MetaType::Type)
-                    | (KnownType::Backward, MetaType::Type)
                     | (KnownType::Wire, MetaType::Type)
                     | (KnownType::Inverted, MetaType::Type)
                     // Integers match ints and numbers
@@ -2311,7 +2305,6 @@ impl TypeState {
                     (KnownType::Named(_), MetaType::Int | MetaType::Number | MetaType::Uint)
                     | (KnownType::Tuple, MetaType::Int | MetaType::Uint | MetaType::Number)
                     | (KnownType::Array, MetaType::Int | MetaType::Uint | MetaType::Number)
-                    | (KnownType::Backward, MetaType::Int | MetaType::Uint | MetaType::Number)
                     | (KnownType::Wire, MetaType::Int | MetaType::Uint | MetaType::Number)
                     | (KnownType::Inverted, MetaType::Int | MetaType::Uint | MetaType::Number)
                     => Err(meta_err_producer!())

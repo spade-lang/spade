@@ -3008,10 +3008,10 @@ pub fn generate_unit<'a>(
                     if let Some(no_mangle) = no_mangle {
                         return Err(Diagnostic::error(
                             no_mangle,
-                            "Ports with both & and &mut cannot be #[no_mangle]",
+                            "Ports with both & and ~& cannot be #[no_mangle]",
                         )
                         .primary_label("Not allowed on mixed-direction ports")
-                        .secondary_label(type_spec, "This has both & and &mut components"));
+                        .secondary_label(type_spec, "This has both & and ~& components"));
                     }
                 }
 

@@ -773,11 +773,18 @@ impl<'a> Parser<'a> {
         };
 
         let result = match (wire_sign, mut_sign) {
-            (Some(wire), Some(_mut)) => TypeSpec::Backward(Box::new(inner.clone())).between(
-                self.file_id,
-                &wire.span,
-                &inner,
-            ),
+            (Some(wire), Some(mut_)) => {
+                return Err(Diagnostic::error(
+                    &().at(self.file_id, &mut_),
+                    "The syntax of &mut has changed to ~&",
+                )
+                .primary_label("&mut is now written as ~&")
+                .span_suggest_replace(
+                    "Consider using ~&",
+                    ().between(self.file_id, &wire, &mut_),
+                    "~&",
+                ))
+            }
             (Some(wire), None) => {
                 TypeSpec::Wire(Box::new(inner.clone())).between(self.file_id, &wire.span, &inner)
             }
@@ -2330,13 +2337,16 @@ mod tests {
 
     #[test]
     fn mut_wire_type_specs_work() {
-        let code = "&mut int<5>";
+        let code = "~&int<5>";
 
-        let expected = TypeSpec::Backward(Box::new(
-            TypeSpec::Named(
-                ast_path("int"),
-                Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
-            )
+        let expected = TypeSpec::Inverted(Box::new(
+            TypeSpec::Wire(Box::new(
+                TypeSpec::Named(
+                    ast_path("int"),
+                    Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
+                )
+                .nowhere(),
+            ))
             .nowhere(),
         ))
         .nowhere();

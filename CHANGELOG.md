@@ -19,10 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - [!346][!346] *Breaking change* Removed the `$comptime` system
+- [!350][!350] *Breaking change* Replaced `&mut` with `~&`
 
 ### Fixed
 
 [!346]: https://gitlab.com/spade-lang/spade/-/merge_requests/346
+[!350]: https://gitlab.com/spade-lang/spade/-/merge_requests/350
 
 ## [0.10.0] - 2024-09-19
 

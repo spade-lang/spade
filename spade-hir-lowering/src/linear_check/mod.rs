@@ -61,7 +61,7 @@ pub fn check_linear_types(
         Diagnostic::error(&alias, format!("{self_description} is unused"))
             .primary_label(format!("{self_description} is unused"))
             .note(format!(
-                "{self_description} is a &mut value which must be set"
+                "{self_description} is a ~& value which must be set"
             ))
     })?;
 
@@ -209,7 +209,7 @@ fn visit_expression(
         }
         spade_hir::ExprKind::ArrayShorthandLiteral(inner, _) => {
             visit_expression(inner, linear_state, ctx)?;
-            // FIXME: should allow `[instance of &mut T; 0]` and `[instance of &mut T; 1]` here
+            // FIXME: should allow `[instance of ~&T; 0]` and `[instance of ~&T; 1]` here
             // try to consume twice. if we get an error, add a note
             linear_state.consume_expression(inner)?;
             if let Err(mut diag) = linear_state.consume_expression(inner) {

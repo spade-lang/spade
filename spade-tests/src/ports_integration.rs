@@ -3,7 +3,7 @@ use crate::{build_items, snapshot_error};
 snapshot_error! {
     backward_types_can_not_be_put_in_registers,
     "
-    entity x(clk: clock, a: &mut bool) -> bool {
+    entity x(clk: clock, a: ~& bool) -> bool {
         reg(clk) _ = a;
         true
     }
@@ -14,7 +14,7 @@ snapshot_error! {
     transitive_backward_type_can_not_be_put_in_registers,
     "
     struct port X {
-        a: &mut bool,
+        a: ~& bool,
         b: &bool
     }
     entity x(clk: clock, a: X) -> bool {
@@ -106,7 +106,7 @@ fn wires_can_be_created() {
 snapshot_error! {
     assigning_ports_to_ports_is_disallowed,
     "
-        entity not_allowed(a: &mut (&bool, &bool), b: (&bool, &bool)) -> bool {
+        entity not_allowed(a: ~& (&bool, &bool), b: (&bool, &bool)) -> bool {
             set a = b;
             true
         }

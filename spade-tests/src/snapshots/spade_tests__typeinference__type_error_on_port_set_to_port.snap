@@ -2,23 +2,21 @@
 source: spade-tests/src/typeinference.rs
 ---
 // NOTE: returning bool because we don't support unit types
-entity set_port(p: &mut int<10>, v: &mut int<10>) -> bool {
+entity set_port(p: ~& int<10>, v: ~& int<10>) -> bool {
     set p = v;
     false
 }
 
 
-error: Expected type int<10>, got &mut int<10>
+error: Expected type int<10>, got ~&int<10>
   ┌─ testinput:3:13
   │
-2 │ entity set_port(p: &mut int<10>, v: &mut int<10>) -> bool {
-  │                    ------------     ------------ Type &mut int<10> inferred here
-  │                    │                 
+2 │ entity set_port(p: ~& int<10>, v: ~& int<10>) -> bool {
+  │                    ----------     ---------- Type ~&int<10> inferred here
+  │                    │               
   │                    Type int<10> inferred here
 3 │     set p = v;
   │             ^ Expected int<10>
   │
   = note: Expected: int<10>
-               Got: &mut int<10>
-
-
+               Got: ~&int<10>

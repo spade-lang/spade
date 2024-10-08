@@ -175,19 +175,6 @@ impl TypeState {
                 }
             }
             TypeSpec::Unit(_) => todo!("Handle unit type"),
-            TypeSpec::Backward(inner) => {
-                let inner = Box::new(Self::type_spec_to_concrete(
-                    inner,
-                    type_list,
-                    generic_substitutions,
-                    invert,
-                ));
-                if invert {
-                    ConcreteType::Wire(inner)
-                } else {
-                    ConcreteType::Backward(inner)
-                }
-            }
             TypeSpec::Wire(inner) => {
                 let inner = Box::new(Self::type_spec_to_concrete(
                     inner,
@@ -260,15 +247,6 @@ impl TypeState {
                     .map(|v| Self::inner_ungenerify_type(v, symtab, type_list, invert))
                     .collect::<Option<Vec<_>>>()?;
                 Some(ConcreteType::Tuple(inner))
-            }
-            TypeVar::Known(_, KnownType::Backward, inner) => {
-                if invert {
-                    Self::inner_ungenerify_type(&inner[0], symtab, type_list, invert)
-                        .map(|t| ConcreteType::Wire(Box::new(t)))
-                } else {
-                    Self::inner_ungenerify_type(&inner[0], symtab, type_list, invert)
-                        .map(|t| ConcreteType::Backward(Box::new(t)))
-                }
             }
             TypeVar::Known(_, KnownType::Wire, inner) => {
                 if invert {

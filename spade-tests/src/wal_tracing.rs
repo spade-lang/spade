@@ -60,9 +60,9 @@ fn wal_traced_struct_with_multiple_backward_ports_has_type_information() {
         #[wal_traceable(suffix = wal_suffix__)]
         struct port Test {
             a: &int<8>,
-            b: &mut int<4>,
+            b: ~& int<4>,
             c: &int<16>,
-            d: &mut int<7>
+            d: ~& int<7>
         }
 
         entity main(x: Test) -> Test {

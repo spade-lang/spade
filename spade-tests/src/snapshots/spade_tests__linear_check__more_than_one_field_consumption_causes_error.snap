@@ -2,9 +2,9 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct port A {
-    x: &mut bool,
+    x: ~& bool,
 }
-entity x(a: A) -> (&mut bool, &mut bool) {
+entity x(a: A) -> (~& bool, ~& bool) {
     (a.x, a.x)
 }
 
@@ -16,5 +16,3 @@ error: Use of consumed resource
   │      ---  ^^^ Use of consumed resource
   │      │     
   │      Previously used here
-
-

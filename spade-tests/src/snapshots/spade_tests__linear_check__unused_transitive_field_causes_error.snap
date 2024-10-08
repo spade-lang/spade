@@ -2,7 +2,7 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct port A {
-    x: &mut bool,
+    x: ~& bool,
     y: &bool
 }
 struct port B {
@@ -19,4 +19,4 @@ error: resource.a.x is unused
 8 │ entity x(resource: B) -> bool {
   │          ^^^^^^^^ resource.a.x is unused
   │
-  = note: resource.a.x is a &mut value which must be set
+  = note: resource.a.x is a ~& value which must be set

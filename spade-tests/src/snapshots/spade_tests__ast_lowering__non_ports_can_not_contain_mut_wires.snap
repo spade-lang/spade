@@ -2,7 +2,7 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 struct A {
-    x: &mut int<32>
+    x: ~& int<32>
 }
 
 error: Port in non-port struct
@@ -10,12 +10,10 @@ error: Port in non-port struct
   │
 1 │ struct A {
   │        - This is not a port struct
-2 │     x: &mut int<32>
-  │        ^^^^^^^^^^^^ This is a port
+2 │     x: ~& int<32>
+  │        ^^^^^^^^^^ This is a port
   │
   = Consider making A a port struct
   │
 1 │ struct port A {
   │        +++++
-
-

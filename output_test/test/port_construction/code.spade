@@ -2,7 +2,7 @@
 /// appear as a port which a unit that wants to scale values can consume, so
 /// it is returned by a scaler, and consumed by a scalee
 struct port ScalingPort {
-    in: &mut int<10>,
+    in: ~& int<10>,
     out: &int<12>,
 }
 

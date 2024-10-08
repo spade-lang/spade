@@ -33,7 +33,6 @@ impl IsPort for ast::TypeSpec {
                 }
             }
             ast::TypeSpec::Unit(_) => Ok(false),
-            ast::TypeSpec::Backward(_) => Ok(true),
             ast::TypeSpec::Inverted(_) => Ok(true),
             ast::TypeSpec::Wire(_) => Ok(true),
             ast::TypeSpec::Wildcard => unreachable!("Checking if wildcard type is port"),

@@ -162,7 +162,7 @@ snapshot_error!(
 
 snapshot_error!(
     backward_tuple_indexing_with_type_error_errors_nicely,
-    "entity name(x: &mut (bool, bool)) -> int<32> {
+    "entity name(x: ~& (bool, bool)) -> int<32> {
         x#0
     }"
 );
@@ -170,7 +170,7 @@ snapshot_error!(
 snapshot_error!(
     useful_error_if_indexing_backward_array,
     "
-    entity name(x: &mut [bool; 10]) -> int<32> {
+    entity name(x: ~& [bool; 10]) -> int<32> {
         x[0]
     }
     "
@@ -187,7 +187,7 @@ snapshot_error! {
     type_error_on_port_set_mismatch,
     "
     // NOTE: returning bool because we don't support unit types
-    entity set_port(p: &mut int<10>, v: int<9>) -> bool {
+    entity set_port(p: ~& int<10>, v: int<9>) -> bool {
         set p = v;
         false
     }
@@ -198,7 +198,7 @@ snapshot_error! {
     type_error_on_port_set_to_port,
     "
     // NOTE: returning bool because we don't support unit types
-    entity set_port(p: &mut int<10>, v: &mut int<10>) -> bool {
+    entity set_port(p: ~& int<10>, v: ~& int<10>) -> bool {
         set p = v;
         false
     }
@@ -491,7 +491,7 @@ snapshot_error! {
     "
     entity takes_generic<T>(x: T) -> bool {true}
 
-    entity x(b: &mut bool) -> bool {
+    entity x(b: ~& bool) -> bool {
         inst takes_generic(b)
     }
     "
@@ -501,7 +501,7 @@ snapshot_error! {
     port_type_in_generic_is_an_error,
     "
     struct port X {
-        x: &mut bool
+        x: ~& bool
     }
     entity takes_generic<T>(x: T) -> bool {true}
 
@@ -520,7 +520,7 @@ fn destructuring_a_read_mut_wire_gives_real_values() {
     }
 
     struct port HasA {
-        inner: &mut A
+        inner: ~& A
     }
 
     fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
@@ -547,7 +547,7 @@ snapshot_error! {
 
     fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
 
-    entity uut(val: &mut A) -> bool {
+    entity uut(val: ~& A) -> bool {
         let x = inst read_mut_wire(val.x);
         let y = inst read_mut_wire(val.y);
         takes_normal(x, y)
@@ -560,7 +560,7 @@ snapshot_error! {
     "
     fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
 
-    entity uut(val: &mut (bool, int<3>)) -> bool {
+    entity uut(val: ~& (bool, int<3>)) -> bool {
         let x = inst read_mut_wire(val#0);
         let y = inst read_mut_wire(val#1);
         takes_normal(x, y)
@@ -711,7 +711,7 @@ fn accessing_fields_of_structs_in_inverted_ports_works() {
             inner: Inner
         }
 
-        entity test(p: ~Outer) -> &mut bool {
+        entity test(p: ~Outer) -> ~& bool {
             p.inner.x
         }
     ";
@@ -1409,7 +1409,7 @@ snapshot_error! {
         entity fifo_read_side<#uint W>(
             write_ptr_w: uint<W>,
             ram_read: ReadPort_<W>,
-            read_ptr_wire: &mut uint<W>,
+            read_ptr_wire: ~& uint<W>,
         ) -> FifoRead<W> {
             FifoRead$()
         }

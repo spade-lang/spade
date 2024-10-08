@@ -1,19 +1,17 @@
 ---
 source: spade-tests/src/ports_integration.rs
 ---
-entity not_allowed(a: &mut (&bool, &bool), b: (&bool, &bool)) -> bool {
+entity not_allowed(a: ~& (&bool, &bool), b: (&bool, &bool)) -> bool {
     set a = b;
     true
 }
 
 
 error: Cannot create a wire of ports
-  ┌─ testinput:1:23
+  ┌─ testinput:1:24
   │
-1 │ entity not_allowed(a: &mut (&bool, &bool), b: (&bool, &bool)) -> bool {
-  │                       ^^^^^^^^^^^^^^^^^^^
-  │                       │    │
-  │                       │    Because this is a port
-  │                       This cannot be a wire
-
-
+1 │ entity not_allowed(a: ~& (&bool, &bool), b: (&bool, &bool)) -> bool {
+  │                        ^^^^^^^^^^^^^^^^
+  │                        │ │
+  │                        │ Because this is a port
+  │                        This cannot be a wire

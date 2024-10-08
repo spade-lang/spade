@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-pipeline(0) x(clk: clock, resource: &mut bool) -> (&mut bool, &mut bool) {
+pipeline(0) x(clk: clock, resource: ~& bool) -> (~& bool, ~& bool) {
     (resource, resource)
 }
 
@@ -13,5 +13,3 @@ error: Use of consumed resource
   │      --------  ^^^^^^^^ Use of consumed resource
   │      │          
   │      Previously used here
-
-

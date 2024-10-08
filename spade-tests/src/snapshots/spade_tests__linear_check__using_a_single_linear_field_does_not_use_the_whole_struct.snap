@@ -2,10 +2,10 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct port A {
-    a: &mut bool,
-    b: &mut bool,
+    a: ~& bool,
+    b: ~& bool,
 }
-entity x(a: A) -> &mut bool {
+entity x(a: A) -> ~& bool {
     a.a
 }
 
@@ -13,7 +13,7 @@ entity x(a: A) -> &mut bool {
 error: a.b is unused
   ┌─ testinput:5:10
   │
-5 │ entity x(a: A) -> &mut bool {
+5 │ entity x(a: A) -> ~& bool {
   │          ^ a.b is unused
   │
-  = note: a.b is a &mut value which must be set
+  = note: a.b is a ~& value which must be set

@@ -2,10 +2,10 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct port A {
-    x: &mut bool,
+    x: ~& bool,
 }
 
-entity consumer(a: &mut bool) -> bool __builtin__
+entity consumer(a: ~& bool) -> bool __builtin__
 
 entity x(a: A) -> A {
     let _ = inst consumer(a.x);
@@ -20,5 +20,3 @@ error: Use of consumed resource
   │                           --- Previously used here
 9 │     a
   │     ^ Use of consumed resource
-
-

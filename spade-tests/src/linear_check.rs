@@ -3,7 +3,7 @@ use crate::{build_items, build_items_with_stdlib, snapshot_error};
 snapshot_error! {
     double_consumption_of_identifier_produces_error,
     "
-    entity x(resource: &mut bool) -> (&mut bool, &mut bool) {
+    entity x(resource: ~& bool) -> (~& bool, ~& bool) {
         (resource, resource)
     }
     "
@@ -12,7 +12,7 @@ snapshot_error! {
 snapshot_error! {
     double_consumption_of_identifier_produces_error_in_array,
     "
-    entity x(resource: &mut bool) -> [&mut bool; 2] {
+    entity x(resource: ~& bool) -> [~& bool; 2] {
         [resource, resource]
     }
     "
@@ -21,7 +21,7 @@ snapshot_error! {
 snapshot_error! {
     double_consumption_of_identifier_in_pipeline_produces_error,
     "
-    pipeline(0) x(clk: clock, resource: &mut bool) -> (&mut bool, &mut bool) {
+    pipeline(0) x(clk: clock, resource: ~& bool) -> (~& bool, ~& bool) {
         (resource, resource)
     }
     "
@@ -30,7 +30,7 @@ snapshot_error! {
 snapshot_error! {
     unused_resource_causes_error,
     "
-    entity x(resource: &mut bool) -> bool {
+    entity x(resource: ~& bool) -> bool {
         true
     }
     "
@@ -40,7 +40,7 @@ snapshot_error! {
     unused_field_causes_error,
     "
     struct port A {
-        x: &mut bool,
+        x: ~& bool,
         y: &bool
     }
     entity x(resource: A) -> bool {
@@ -53,7 +53,7 @@ snapshot_error! {
     unused_transitive_field_causes_error,
     "
     struct port A {
-        x: &mut bool,
+        x: ~& bool,
         y: &bool
     }
     struct port B {
@@ -68,7 +68,7 @@ snapshot_error! {
 snapshot_error! {
     unused_tuple_member_causes_error,
     "
-    entity x(resource: (&mut bool, &bool)) -> bool {
+    entity x(resource: (~& bool, &bool)) -> bool {
         true
     }
     "
@@ -77,7 +77,7 @@ snapshot_error! {
 snapshot_error! {
     unused_transitive_tuple_member_causes_error,
     "
-    entity x(resource: ((&mut bool, &bool), &bool)) -> bool {
+    entity x(resource: ((~& bool, &bool), &bool)) -> bool {
         true
     }
     "
@@ -86,8 +86,8 @@ snapshot_error! {
 snapshot_error! {
     unused_anonymous_expression_is_reported,
     "
-    entity producer() -> (&mut bool, &mut bool) __builtin__
-    entity consumer(x: &mut bool) -> bool __builtin__
+    entity producer() -> (~& bool, ~& bool) __builtin__
+    entity consumer(x: ~& bool) -> bool __builtin__
 
     entity x() -> bool {
         inst consumer(inst producer()#0)
@@ -98,7 +98,7 @@ snapshot_error! {
 snapshot_error! {
     double_tuple_consumption_causes_error,
     "
-    entity x(resource: (&mut bool, &bool)) -> (&mut bool, &mut bool) {
+    entity x(resource: (~& bool, &bool)) -> (~& bool, ~& bool) {
         (resource#0, resource#0)
     }
     "
@@ -108,9 +108,9 @@ snapshot_error! {
     more_than_one_field_consumption_causes_error,
     "
     struct port A {
-        x: &mut bool,
+        x: ~& bool,
     }
-    entity x(a: A) -> (&mut bool, &mut bool) {
+    entity x(a: A) -> (~& bool, ~& bool) {
         (a.x, a.x)
     }
     "
@@ -120,10 +120,10 @@ snapshot_error! {
     consuming_a_field_produces_an_error_when_consuming_whole_struct,
     "
     struct port A {
-        x: &mut bool,
+        x: ~& bool,
     }
 
-    entity consumer(a: &mut bool) -> bool __builtin__
+    entity consumer(a: ~& bool) -> bool __builtin__
 
     entity x(a: A) -> A {
         let _ = inst consumer(a.x);
@@ -135,7 +135,7 @@ snapshot_error! {
 snapshot_error! {
     destructuring_linear_type_requires_use_of_subtypes,
     "
-    entity x(a: (&mut bool, &mut bool)) -> &mut bool {
+    entity x(a: (~& bool, ~& bool)) -> ~& bool {
         let (x, y) = a;
         x
     }
@@ -146,10 +146,10 @@ snapshot_error! {
     using_a_single_linear_field_does_not_use_the_whole_struct,
     "
     struct port A {
-        a: &mut bool,
-        b: &mut bool,
+        a: ~& bool,
+        b: ~& bool,
     }
-    entity x(a: A) -> &mut bool {
+    entity x(a: A) -> ~& bool {
         a.a
     }
     "
@@ -169,7 +169,7 @@ fn linear_checking_on_registers_works() {
 snapshot_error! {
     checking_works_with_decld_value,
     "
-    entity consume(p: &mut bool) -> bool __builtin__
+    entity consume(p: ~& bool) -> bool __builtin__
 
     entity test() -> bool {
         decl x;
@@ -184,7 +184,7 @@ snapshot_error! {
 snapshot_error! {
     function_calls_consume_ports,
     "
-        entity consumer(x: &mut bool) -> bool __builtin__
+        entity consumer(x: ~& bool) -> bool __builtin__
 
         entity test() -> (bool, bool) {
             let p = inst new_mut_wire();
@@ -196,7 +196,7 @@ snapshot_error! {
 #[test]
 fn reading_from_a_port_does_not_consume_it() {
     let code = "
-        entity consumer(x: &mut bool) -> bool __builtin__
+        entity consumer(x: ~& bool) -> bool __builtin__
 
         entity test() -> (bool, bool) {
             let p = inst new_mut_wire();
@@ -210,7 +210,7 @@ fn reading_from_a_port_does_not_consume_it() {
 #[test]
 fn set_statement_consumes_port() {
     let code = "
-        entity e(p: &mut bool) -> bool {
+        entity e(p: ~& bool) -> bool {
             set p = false;
             false
         }";
@@ -254,7 +254,7 @@ snapshot_error! {
 snapshot_error! {
     array_shorthand_uses_mut_wire,
     "
-        entity e(p: &mut bool) {
+        entity e(p: ~& bool) {
             let many_p = [p; 3];
         }
     "
