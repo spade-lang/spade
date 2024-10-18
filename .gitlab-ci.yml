@@ -18,7 +18,7 @@ workflow:
 
 stages:
     - test
-    - trawler
+    - downstreams
 
 cache:
     key:
@@ -230,8 +230,16 @@ check:typos-and-todos:
             fi
 
 trawler:
-    stage: trawler
+    stage: downstreams
     allow_failure: true
     variables:
         UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     trigger: spade-lang/trawler
+
+
+yowasp:
+    stage: downstreams
+    allow_failure: true
+    variables:
+        UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    trigger: spade-lang/yowasp
