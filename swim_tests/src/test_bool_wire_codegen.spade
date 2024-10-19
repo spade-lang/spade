@@ -1,5 +1,5 @@
 struct port Inner {
-    b: ~& bool
+    b: inv &bool
 }
 
 entity harness(p: Inner) -> bool {

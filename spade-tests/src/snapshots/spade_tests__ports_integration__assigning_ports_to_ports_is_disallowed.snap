@@ -7,11 +7,13 @@ entity not_allowed(a: ~& (&bool, &bool), b: (&bool, &bool)) -> bool {
 }
 
 
-error: Cannot create a wire of ports
-  ┌─ testinput:1:24
+error: The syntax for inverted ports has changed from ~ to inv
+  ┌─ testinput:1:23
   │
 1 │ entity not_allowed(a: ~& (&bool, &bool), b: (&bool, &bool)) -> bool {
-  │                        ^^^^^^^^^^^^^^^^
-  │                        │ │
-  │                        │ Because this is a port
-  │                        This cannot be a wire
+  │                       ^ ~ cannot be used in a type
+  │
+  = Consider using inv
+  │
+1 │ entity not_allowed(a: inv & (&bool, &bool), b: (&bool, &bool)) -> bool {
+  │                       ~~~~

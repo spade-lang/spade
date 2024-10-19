@@ -15,6 +15,4 @@ error: A port expression cannot create non-port values
 4 │     let (a, b) = port;
   │                  ^^^^ X is not a port type
   │
-  = note: The port expression creates a (X, ~X)
-
-
+  = note: The port expression creates a (X, inv X)

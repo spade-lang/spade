@@ -208,7 +208,7 @@ impl TypeVar {
     /// inverted context.
     /// The first argument of the on_named function specifies whether or not
     /// the final named type we found was inverted or not. I.e. if we ran it on
-    /// `~T`, it would be called with (true, T), and if we ran it on `T` it would
+    /// `inv T`, it would be called with (true, T), and if we ran it on `T` it would
     /// be called with `(false, T)`
     pub fn expect_named_or_inverted<T, U, K, O>(
         &self,
@@ -316,7 +316,7 @@ impl TypeVar {
                 format!("&{}", params[0].display_with_meta(display_meta))
             }
             TypeVar::Known(_, KnownType::Inverted, params) => {
-                format!("~{}", params[0].display_with_meta(display_meta))
+                format!("inv {}", params[0].display_with_meta(display_meta))
             }
             TypeVar::Unknown(_, _, traits, meta) if traits.inner.is_empty() => {
                 if display_meta {
@@ -376,7 +376,7 @@ impl std::fmt::Debug for TypeVar {
                 write!(f, "[{:?}; {:?}]", params[0], params[1])
             }
             TypeVar::Known(_, KnownType::Wire, params) => write!(f, "&{:?}", params[0]),
-            TypeVar::Known(_, KnownType::Inverted, params) => write!(f, "~{:?}", params[0]),
+            TypeVar::Known(_, KnownType::Inverted, params) => write!(f, "inv {:?}", params[0]),
             TypeVar::Unknown(_, id, traits, meta_type) => write!(
                 f,
                 "t{id}({}, {meta_type})",

@@ -8,7 +8,7 @@ struct port FifoRead<#uint W> { }
 entity fifo_read_side<#uint W>(
     write_ptr_w: uint<W>,
     ram_read: ReadPort_<W>,
-    read_ptr_wire: ~& uint<W>,
+    read_ptr_wire: inv &uint<W>,
 ) -> FifoRead<W> {
     FifoRead$()
 }
@@ -42,7 +42,7 @@ entity fifo_test_harness(
 error: read_ptr_wire is unused
   ┌─ testinput:8:5
   │
-8 │     read_ptr_wire: ~& uint<W>,
+8 │     read_ptr_wire: inv &uint<W>,
   │     ^^^^^^^^^^^^^ read_ptr_wire is unused
   │
   = note: read_ptr_wire is a ~& value which must be set

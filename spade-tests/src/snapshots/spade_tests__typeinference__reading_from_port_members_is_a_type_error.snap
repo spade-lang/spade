@@ -8,17 +8,17 @@ struct A {
 
 fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
 
-entity uut(val: ~& A) -> bool {
+entity uut(val: inv &A) -> bool {
     let x = inst read_mut_wire(val.x);
     let y = inst read_mut_wire(val.y);
     takes_normal(x, y)
 }
 
 
-error: Field access on ~&A which is not a struct
+error: Field access on inv &A which is not a struct
   ┌─ testinput:9:32
   │
 9 │     let x = inst read_mut_wire(val.x);
-  │                                ^^^ Expected a struct, found ~&A
+  │                                ^^^ Expected a struct, found inv &A
   │
   = help: Field access is only allowed on structs

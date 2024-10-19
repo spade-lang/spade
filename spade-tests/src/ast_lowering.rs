@@ -501,7 +501,7 @@ snapshot_error! {
 snapshot_error! {
     non_ports_can_not_contain_mut_wires,
     "struct A {
-        x: ~& int<32>
+        x: inv &int<32>
     }"
 }
 
@@ -563,7 +563,7 @@ snapshot_error! {
     struct port A {}
 
 
-    entity x(a: ~& A) -> bool __builtin__
+    entity x(a: inv &A) -> bool __builtin__
     "
 }
 
@@ -942,7 +942,7 @@ snapshot_error! {
 
 snapshot_error! {
     inverting_non_port_type,
-    "entity x(t: ~int<8>) -> int<8> __builtin__"
+    "entity x(t: inv int<8>) -> int<8> __builtin__"
 }
 
 snapshot_error! {

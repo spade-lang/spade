@@ -4,7 +4,7 @@ entity no_mangle_input(#[no_mangle] t: bool) -> bool {
     t
 }
 
-entity no_mangle_output(#[no_mangle] val: bool, #[no_mangle] t: ~& bool) -> bool {
+entity no_mangle_output(#[no_mangle] val: bool, #[no_mangle] t: inv &bool) -> bool {
     set t = val;
     inst read_mut_wire(t)
 }

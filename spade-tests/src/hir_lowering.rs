@@ -822,7 +822,7 @@ mod tests {
     #[test]
     fn pipelines_with_ports_work() {
         let code = r#"
-            pipeline(3) pl(clk: clock, a: ~& int<16>) -> ~& int<16> {
+            pipeline(3) pl(clk: clock, a: inv & int<16>) -> inv & int<16> {
                 reg;
                 reg;
                 reg;
@@ -1850,10 +1850,10 @@ mod tests {
     fn assigning_ports_to_variables_works() {
         let code = r#"
             mod std {mod ports{
-                entity new_mut_wire<T>() -> ~& T __builtin__
+                entity new_mut_wire<T>() -> inv &T __builtin__
             }}
 
-            entity test() -> ~& int<10> {
+            entity test() -> inv &int<10> {
                 let x = inst std::ports::new_mut_wire();
                 x
             }
@@ -2055,10 +2055,10 @@ mod tests {
         let code = "
             struct port P {
                 x: &bool,
-                y: ~& int<2>,
+                y: inv &int<2>,
             }
 
-            entity x() -> (P, ~P) {
+            entity x() -> (P, inv P) {
                 port
             }
         ";
@@ -2100,7 +2100,7 @@ mod tests {
     snapshot_error! {
         bidirectional_ports_cannot_be_no_mangle,
         "
-            entity x(#[no_mangle] t: (&bool, ~& bool)) -> bool {
+            entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
                 set t#1 = false;
                 true
             }
@@ -2120,7 +2120,7 @@ mod tests {
     #[test]
     fn output_only_port_can_be_no_mangle() {
         let code = "
-            entity x(#[no_mangle] t: ~& bool) -> bool {
+            entity x(#[no_mangle] t: inv &bool) -> bool {
                 set t = true;
                 true
             }
@@ -2258,7 +2258,7 @@ mod tests {
             #[wal_traceable(suffix = wal_suffix__)]
             struct port Test {
                 a: &int<8>,
-                b: ~& int<4>
+                b: inv &int<4>
             }
 
             entity main(x: Test) -> Test {
@@ -2306,9 +2306,9 @@ mod tests {
             #[wal_traceable(suffix = wal_suffix__)]
             struct port Test {
                 a: &int<8>,
-                b: ~& int<4>,
+                b: inv &int<4>,
                 c: &int<16>,
-                d: ~& int<7>
+                d: inv &int<7>
             }
 
             entity main(x: Test) -> Test {
@@ -2507,7 +2507,7 @@ mod tests {
         "
             #[wal_traceable()]
             struct port T {
-                a: (&bool, ~& bool)
+                a: (&bool, inv &bool)
             }
 
             entity test(t: T) -> T {

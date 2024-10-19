@@ -2,10 +2,10 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct port A {
-    x: ~& bool,
+    x: inv &bool,
 }
 
-entity consumer(a: ~& bool) -> bool __builtin__
+entity consumer(a: inv &bool) -> bool __builtin__
 
 entity x(a: A) -> A {
     let _ = inst consumer(a.x);

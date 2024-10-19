@@ -3,7 +3,7 @@ source: spade-tests/src/hir_lowering.rs
 ---
 #[wal_traceable()]
 struct port T {
-    a: (&bool, ~& bool)
+    a: (&bool, inv &bool)
 }
 
 entity test(t: T) -> T {

@@ -1,15 +1,13 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-entity x(t: ~int<8>) -> int<8> __builtin__
+entity x(t: inv int<8>) -> int<8> __builtin__
 
 error: A non-port type can not be inverted
   ┌─ testinput:1:13
   │
-1 │ entity x(t: ~int<8>) -> int<8> __builtin__
-  │             ^^^^^^^
-  │             ││
-  │             │This is not a port
+1 │ entity x(t: inv int<8>) -> int<8> __builtin__
+  │             ^^^^^^^^^^
+  │             │   │
+  │             │   This is not a port
   │             Inverting non-port
-
-

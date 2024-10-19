@@ -41,8 +41,8 @@ entity sync2_bool(clk: clock, in: bool) -> bool {
 
 mod handshake_impl {
     struct port TxOutRxIn<T> {
-        data_valid: ~&bool,
-        data: ~&T,
+        data_valid: inv &bool,
+        data: inv &T,
         ack: &bool,
     }
 
@@ -82,7 +82,7 @@ mod handshake_impl {
         WaitInvalid,
     }
 
-    entity receiver<T>(clk: clock, rst: bool, in: ~TxOutRxIn<T>) -> Option<T> {
+    entity receiver<T>(clk: clock, rst: bool, in: inv TxOutRxIn<T>) -> Option<T> {
         let data_valid = inst std::cdc::sync2_bool(clk, *in.data_valid);
 
         reg(clk) (state, data_out) reset(rst: (RxState::WaitValid, None)) = match (state, data_valid) {
@@ -125,10 +125,10 @@ mod sync_wide_impl {
     struct port FromSender<T> {
         valid: &bool,
         data: &T,
-        ack: ~&bool,
+        ack: inv &bool,
     }
 
-    entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: ~FromSender<T>) {
+    entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: inv FromSender<T>) {
         let ack = inst sync2_bool(source_clk, *to_tx.ack);
 
         reg(source_clk) state reset(rst: TxState::Init) = match state {

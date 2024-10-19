@@ -211,7 +211,7 @@ impl Requirement {
                                 // If we were in an inverted context and we find
                                 // a type which is not a wire, we need to invert
                                 // it.
-                                // This means that `a.b` if b is `T` is `~T`
+                                // This means that `a.b` if b is `T` is `inv T`
                                 other => TypeVar::inverted(target_type.loc(), other),
                             }
                         } else {

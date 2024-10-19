@@ -117,6 +117,8 @@ pub enum TokenKind {
     Assert,
     #[token("mut")]
     Mut,
+    #[token("inv")]
+    Inv,
     #[token("where")]
     Where,
 
@@ -273,6 +275,7 @@ impl TokenKind {
             TokenKind::Assert => "assert",
             TokenKind::Set => "set",
             TokenKind::Mut => "mut",
+            TokenKind::Inv => "inv",
             TokenKind::Where => "where",
 
             TokenKind::ComptimeConfig => "$config",

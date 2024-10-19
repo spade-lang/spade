@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(a: (~& bool, ~& bool)) -> ~& bool {
+entity x(a: (inv &bool, inv &bool)) -> inv &bool {
     let (x, y) = a;
     x
 }

@@ -1,11 +1,11 @@
-entity no_output(input: bool, output: ~& bool) {
+entity no_output(input: bool, output: inv &bool) {
     set output = !input;
 }
 
-entity void_return(input: bool, output: ~& bool) {
+entity void_return(input: bool, output: inv &bool) {
     set output = !input;
 }
 
-entity also_no_output(input: bool, output: ~& bool) {
+entity also_no_output(input: bool, output: inv &bool) {
     let _ = inst no_output(input, output);
 }

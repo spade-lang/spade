@@ -19,6 +19,7 @@ async def test(dut):
         units='ns'
     ).start())
 
+    await FallingEdge(clk)
     s.i.a = "2"
     s.i.b = "3"
     await FallingEdge(clk)

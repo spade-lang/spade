@@ -7,10 +7,13 @@ entity x(clk: clock, a: ~& bool) -> bool {
 }
 
 
-error: Ports cannot be put in a register
-  ┌─ testinput:2:18
+error: The syntax for inverted ports has changed from ~ to inv
+  ┌─ testinput:1:25
   │
-2 │     reg(clk) _ = a;
-  │                  ^ This is a port
+1 │ entity x(clk: clock, a: ~& bool) -> bool {
+  │                         ^ ~ cannot be used in a type
   │
-  = note: &mut bool is a port
+  = Consider using inv
+  │
+1 │ entity x(clk: clock, a: inv & bool) -> bool {
+  │                         ~~~~

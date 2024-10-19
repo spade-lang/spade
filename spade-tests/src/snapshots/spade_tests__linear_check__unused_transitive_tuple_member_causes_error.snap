@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(resource: ((~& bool, &bool), &bool)) -> bool {
+entity x(resource: ((inv & bool, &bool), &bool)) -> bool {
     true
 }
 
@@ -9,7 +9,7 @@ entity x(resource: ((~& bool, &bool), &bool)) -> bool {
 error: resource#0#0 is unused
   ┌─ testinput:1:10
   │
-1 │ entity x(resource: ((~& bool, &bool), &bool)) -> bool {
+1 │ entity x(resource: ((inv & bool, &bool), &bool)) -> bool {
   │          ^^^^^^^^ resource#0#0 is unused
   │
   = note: resource#0#0 is a ~& value which must be set

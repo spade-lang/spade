@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(resource: ~& bool) -> (~& bool, ~& bool) {
+entity x(resource: inv &bool) -> (inv &bool, inv &bool) {
     (resource, resource)
 }
 

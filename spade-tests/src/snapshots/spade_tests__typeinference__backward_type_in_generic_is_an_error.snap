@@ -3,7 +3,7 @@ source: spade-tests/src/typeinference.rs
 ---
 entity takes_generic<T>(x: T) -> bool {true}
 
-entity x(b: ~& bool) -> bool {
+entity x(b: inv &bool) -> bool {
     inst takes_generic(b)
 }
 

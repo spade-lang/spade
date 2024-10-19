@@ -2,7 +2,7 @@
 /// appear as a port which a unit that wants to scale values can consume, so
 /// it is returned by a scaler, and consumed by a scalee
 struct port ScalingPort {
-    in: ~& int<10>,
+    in: inv &int<10>,
     out: &int<12>,
 }
 
@@ -13,7 +13,7 @@ entity scalee(p: ScalingPort, in: int<10>) -> int<12> {
 
 // The implementation of the scaler views the ports in the opposite direction, i.e.
 // it also wants to *consume* the port, not produce it
-entity scaler_impl(p: ~ScalingPort) -> bool {
+entity scaler_impl(p: inv ScalingPort) -> bool {
     let in = (*p.in);
     let out = sext(in) << 1;
     set p.out = out;

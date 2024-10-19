@@ -722,13 +722,22 @@ impl<'a> Parser<'a> {
     // Types
     #[trace_parser]
     pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
-        if let Some(tilde) = self.peek_and_eat(&TokenKind::Tilde)? {
+        if let Some(inv) = self.peek_and_eat(&TokenKind::Inv)? {
             let rest = self.type_spec()?;
             return Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(
                 self.file_id,
-                &tilde,
+                &inv,
                 &rest,
             ));
+        }
+
+        if let Some(tilde) = self.peek_and_eat(&TokenKind::Tilde)? {
+            return Err(Diagnostic::error(
+                tilde.clone(),
+                "The syntax for inverted ports has changed from ~ to inv",
+            )
+            .primary_label("~ cannot be used in a type")
+            .span_suggest("Consider using inv", tilde, "inv "));
         }
 
         let wire_sign = self.peek_and_eat(&TokenKind::Ampersand)?;
@@ -776,13 +785,13 @@ impl<'a> Parser<'a> {
             (Some(wire), Some(mut_)) => {
                 return Err(Diagnostic::error(
                     &().at(self.file_id, &mut_),
-                    "The syntax of &mut has changed to ~&",
+                    "The syntax of &mut has changed to inv &",
                 )
-                .primary_label("&mut is now written as ~&")
+                .primary_label("&mut is now written as inv &")
                 .span_suggest_replace(
-                    "Consider using ~&",
+                    "Consider using inv &",
                     ().between(self.file_id, &wire, &mut_),
-                    "~&",
+                    "inv &",
                 ))
             }
             (Some(wire), None) => {
@@ -2337,7 +2346,7 @@ mod tests {
 
     #[test]
     fn mut_wire_type_specs_work() {
-        let code = "~&int<5>";
+        let code = "inv &int<5>";
 
         let expected = TypeSpec::Inverted(Box::new(
             TypeSpec::Wire(Box::new(

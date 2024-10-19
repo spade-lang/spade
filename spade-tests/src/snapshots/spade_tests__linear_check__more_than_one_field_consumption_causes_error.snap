@@ -2,9 +2,9 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct port A {
-    x: ~& bool,
+    x: inv &bool,
 }
-entity x(a: A) -> (~& bool, ~& bool) {
+entity x(a: A) -> (inv &bool, inv &bool) {
     (a.x, a.x)
 }
 
