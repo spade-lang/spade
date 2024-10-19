@@ -152,7 +152,7 @@ pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
 }
 
 pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
-    let args = t
+    let args: Vec<Loc<GenericArg>> = t
         .generic_args
         .as_ref()
         .map(|args| &args.inner)
@@ -190,7 +190,39 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
 
     let new_thing = Path::ident(t.name.clone()).at_loc(&t.name.loc());
     ctx.symtab
-        .add_unique_type(new_thing, TypeSymbol::Declared(args, kind).at_loc(t))?;
+        .add_unique_type(new_thing, TypeSymbol::Declared(args.clone(), kind).at_loc(t))?;
+
+    // Port structs have some auxillary structs for accessing only the mutable or immutable
+    // wires of the struct. We add those here if the struct is a port
+    if let ast::TypeDeclKind::Struct(s) = &t.kind {
+        if s.is_port() {
+            ctx.symtab.push_namespace(t.name.clone());
+
+            let result = || {
+                let fwd_name = Path::from_strs(&["Fwd"]).at_loc(&t.name.loc());
+                ctx.symtab.add_unique_type(
+                    fwd_name,
+                    TypeSymbol::Declared(
+                        args.clone(),
+                        hir::symbol_table::TypeDeclKind::Struct { is_port: false },
+                    ).at_loc(t),
+                )?;
+
+                let back_name = Path::from_strs(&["Back"]).at_loc(&t.name.loc());
+                ctx.symtab.add_unique_type(
+                    back_name,
+                    TypeSymbol::Declared(
+                        args,
+                        hir::symbol_table::TypeDeclKind::Struct { is_port: false },
+                    ).at_loc(t),
+                )?;
+            }()?;
+
+            ctx.symtab.pop_namespace();
+
+            result?
+        }
+    }
 
     Ok(())
 }
@@ -479,4 +511,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     ctx.item_list.types.insert(declaration_id.inner, decl);
 
     Ok(())
+}
+
+/// Generates AST nodes for the auxillary structs for a struct port (`::Fwd`) and (`::Back`)
+fn generate_aux_structs(t: ast::Struct) -> Result<Vec<Loc<ast::TypeDeclaration>>> {
 }
