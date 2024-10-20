@@ -6,6 +6,7 @@ pub mod global_symbols;
 pub mod pipelines;
 pub mod testutil;
 pub mod types;
+mod macros;
 
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
