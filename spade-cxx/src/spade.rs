@@ -79,7 +79,7 @@ impl ComparisonResult {
     }
 }
 
-struct FieldRef(spade_simulation_ext::FieldRef);
+struct FieldRef(spade_simulation_ext::field_ref::FieldRef);
 
 fn setup_spade(uut_name: String, state_path: String) -> Result<Box<SimulationExt>> {
     Ok(Box::new(SimulationExt(spade_simulation_ext::Spade::new(

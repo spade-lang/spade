@@ -1,9 +1,53 @@
+// On return, .fwd should be readable, .back writeable
+// `inv SimpleIO` is sufficient
 struct port SimpleIO {
     fwd: &int<8>,
     back: inv &int<8>,
+}
+
+// On return .raw_fwd and inner.fwd should be readable, raw_back and inner.back should
+// be writable. Requires partial writes to the signal.
+// `inv SubStructs` should be sufficient for typeinference
+struct port SubStruct {
+    raw_fwd: &int<12>,
+    raw_back: inv &int<12>,
+    inner: SimpleIO,
+}
+
+// On return .raw_fwd and inner.back should be readable, raw_back and inner.fwd should
+// be writable. Requires partial writes to the signal.
+// `inv SubStructs` should be sufficient for typeinference
+struct port SubStructWithInv {
+    raw_fwd: &int<12>,
+    raw_back: inv &int<12>,
+    inner: inv SimpleIO,
 }
 
 entity simple_io() -> SimpleIO {
     let (fwd, back) = port;
     SimpleIO$(fwd, back)
 }
+
+
+entity substruct() -> SubStruct {
+    let (fwd, back) = port;
+    let (raw_fwd, raw_back) = port;
+    SubStruct$(raw_fwd, raw_back, inner: SimpleIO$(fwd, back))
+}
+
+struct Fields {
+    x: bool,
+    y: uint<8>,
+    z: uint<4>,
+    w: bool
+}
+
+entity fields(
+    x: bool,
+    y: uint<8>,
+    z: uint<4>,
+    w: bool
+) -> Fields {
+    Fields$(x, y, z, w)
+}
+

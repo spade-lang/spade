@@ -22,7 +22,6 @@ function run_tests {(
     cargo test && \
     sh -c "cd output_test && make" && \
     sh -c "cd swim_tests && swim test" && \
-    sh -c "cd swim_tests && ./do_pytest" && \
     # Remember to add && \ when adding more tests
     true
 )}

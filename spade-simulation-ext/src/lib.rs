@@ -1,21 +1,25 @@
+pub mod field_ref;
+pub mod range;
+
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::RwLock;
 
 use codespan_reporting::term::termcolor::Buffer;
-use color_eyre::eyre::{anyhow, Context};
+use color_eyre::eyre::{anyhow, bail, Context};
 use color_eyre::Result;
-use itertools::Itertools;
+use field_ref::{FieldRef, FieldSource};
 use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
-use ::spade::compiler_state::{type_of_hierarchical_value, CompilerState, MirContext};
+use ::spade::compiler_state::CompilerState;
+use range::UptoRange;
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_ast_lowering::SelfContext;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, NameID, Path as SpadePath};
+use spade_common::name::{Identifier, Path as SpadePath};
 use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::{LookupError, SymbolTable};
@@ -25,15 +29,14 @@ use spade_hir_lowering::monomorphisation::MonoState;
 use spade_hir_lowering::pipelines::MaybePipelineContext;
 use spade_hir_lowering::substitution::Substitutions;
 use spade_hir_lowering::{expr_to_mir, MirLowerable};
-use spade_mir::codegen::mangle_input;
+use spade_mir::codegen::{mangle_input, mangle_output};
 use spade_mir::eval::{eval_statements, Value};
-use spade_mir::unit_name::InstanceMap;
 use spade_parser::lexer;
 use spade_parser::Parser;
 use spade_typeinference::equation::{TypeVar, TypedExpression};
 use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::{GenericListSource, HasType, TypeState};
-use spade_types::ConcreteType;
+use spade_types::{ConcreteType, KnownType};
 use vcd_translate::translation::{self, inner_translate_value};
 
 trait Reportable {
@@ -143,17 +146,6 @@ impl ComparisonResult {
     }
 }
 
-#[cfg_attr(feature = "python", pyclass)]
-#[derive(Clone)]
-pub struct FieldRef {
-    #[cfg(feature = "python")]
-    #[pyo3(get)]
-    pub range: (u64, u64),
-    #[cfg(not(feature = "python"))]
-    pub range: (u64, u64),
-    pub ty: TypeVar,
-}
-
 #[cfg_attr(feature = "python", pyclass(subclass))]
 pub struct Spade {
     // state: CompilerState,
@@ -165,12 +157,7 @@ pub struct Spade {
     /// Type state used for new code written into the context of this struct.
     type_state: TypeState,
     uut_head: UnitHead,
-    uut_nameid: NameID,
-    instance_map: InstanceMap,
-    mir_context: HashMap<NameID, MirContext>,
-
     compilation_cache: HashMap<(TypeVar, String), Value>,
-    output_field_cache: HashMap<Vec<String>, Option<FieldRef>>,
 }
 
 impl Spade {
@@ -199,7 +186,7 @@ impl Spade {
             &mut diag_handler,
         )?;
 
-        let (uut_nameid, uut_head) = Self::lookup_function_like(&uut, state.symtab.symtab())
+        let uut_head = Self::lookup_function_like(&uut, state.symtab.symtab())
             .map_err(Diagnostic::from)
             .report_and_convert(&mut error_buffer, &code.read().unwrap(), &mut diag_handler)?;
 
@@ -232,11 +219,7 @@ impl Spade {
                 impl_idtracker: state.impl_idtracker,
             }),
             uut_head,
-            uut_nameid,
-            instance_map: state.instance_map,
-            mir_context: state.mir_context,
             compilation_cache: HashMap::new(),
-            output_field_cache: HashMap::new(),
         })
     }
 }
@@ -253,11 +236,13 @@ impl Spade {
         Self::new_impl(uut_name, state_path)
     }
 
-    pub fn port_value(&mut self, port: &str, expr: &str) -> Result<(String, BitString)> {
-        self.port_value_raw(port, expr)
+    pub fn arg_value(&mut self, arg: &str, expr: &str) -> Result<(String, BitString)> {
+        self.port_value_raw(arg, expr)
             .map(|(name, v)| (name, BitString(v.as_string())))
     }
 
+    /// Compares the value of the specified field against spade_expr
+    /// Requires the field to be a pure backward type, otherwise an error message is returned
     #[tracing::instrument(level = "trace", skip(self, field))]
     pub fn compare_field(
         &mut self,
@@ -268,19 +253,12 @@ impl Spade {
         // The bits of the whole output struct
         output_bits: &BitString,
     ) -> Result<ComparisonResult> {
-        let spade_bits = BitString(self.compile_expr(spade_expr, &field.ty)?.as_string());
+        let (relevant_bits, ty, concrete) = self.field_value_inner(field, output_bits)?;
 
-        let owned_state = self.owned.as_ref().unwrap();
-        let concrete = TypeState::ungenerify_type(
-            &field.ty,
-            owned_state.symtab.symtab(),
-            &owned_state.item_list.types,
-        )
-        .unwrap();
+        //  TODO(Performance): We can improve performance here by not compiling
+        // the human readable value unless needed
 
-        let relevant_bits = &BitString(
-            output_bits.inner()[field.range.0 as usize..field.range.1 as usize].to_owned(),
-        );
+        let spade_bits = BitString(self.compile_expr(spade_expr, &ty)?.as_string());
 
         Ok(ComparisonResult {
             expected_spade: spade_expr.to_string(),
@@ -290,6 +268,8 @@ impl Spade {
         })
     }
 
+    /// Computes a human readable representation of the specified field's value
+    /// Requires the field to be a pure backward type, otherwise an error message is returned
     pub fn field_value(
         &mut self,
         // The field to get the value of
@@ -297,20 +277,25 @@ impl Spade {
         // The bits of the whole output struct
         output_bits: &BitString,
     ) -> Result<String> {
-        let owned_state = self.owned.as_ref().unwrap();
-
-        let concrete = TypeState::ungenerify_type(
-            &field.ty,
-            owned_state.symtab.symtab(),
-            &owned_state.item_list.types,
-        )
-        .unwrap();
-
-        let relevant_bits = &BitString(
-            output_bits.inner()[field.range.0 as usize..field.range.1 as usize].to_owned(),
-        );
+        // TODO todo
+        let (relevant_bits, _ty, concrete) = self.field_value_inner(field, output_bits)?;
 
         Ok(val_to_spade(relevant_bits.inner(), concrete))
+    }
+
+    /// Compiles a a spade snippet into a value that matches the field
+    pub fn compile_field_value(&mut self, field: &FieldRef, value: &str) -> Result<BitString> {
+        let actual_ty = if matches!(field.source, FieldSource::Output {}) {
+            match &field.ty {
+                TypeVar::Known(_, KnownType::Inverted, inner) => &inner[0],
+                // TODO: Better error message
+                _ => bail!("Cannot set the value of forward values"),
+            }
+        } else {
+            &field.ty
+        };
+        self.compile_expr(&value, actual_ty)
+            .map(|v| BitString(v.as_string()))
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
@@ -339,33 +324,43 @@ impl Spade {
         )
         .unwrap();
 
-        let size = concrete.to_mir_type().size();
+        let fwd_size = concrete.to_mir_type().size();
+        let back_size = concrete.to_mir_type().backward_size();
 
         Ok(Some(FieldRef {
-            range: (
-                0,
-                size.to_u64()
-                    .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
-            ),
+            fwd_range: if fwd_size != BigUint::zero() {
+                Some(UptoRange {
+                    from: 0,
+                    to: fwd_size
+                        .to_u64()
+                        .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
+                })
+            } else {
+                None
+            },
+            back_range: if back_size != BigUint::zero() {
+                Some(UptoRange {
+                    from: 0,
+                    to: back_size
+                        .to_u64()
+                        .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
+                })
+            } else {
+                None
+            },
             ty,
+            path: vec!["o".to_string()],
+            source: FieldSource::Output {},
+            field_cache: HashMap::new(),
         }))
     }
 
-    /// Access a field of the DUT output or its subfields
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub fn output_field(&mut self, path: Vec<String>) -> Result<Option<FieldRef>> {
-        if let Some(cached) = self.output_field_cache.get(&path) {
+    pub fn field_of_field(&mut self, field: &mut FieldRef, next: &str) -> Result<FieldRef> {
+        if let Some(cached) = field.field_cache.get(next) {
             return Ok(cached.clone());
         }
-
-        if path.is_empty() {
-            return self.output_as_field_ref();
-        }
-
-        let output_type = match self.output_type()? {
-            Some(t) => t,
-            None => return Ok(None),
-        };
 
         // Create a new variable which is guaranteed to have the output type
         let owned_state = self.take_owned();
@@ -374,16 +369,7 @@ impl Spade {
         symtab.new_scope();
         let o_name = symtab.add_local_variable(Identifier("o".to_string()).nowhere());
 
-        let generic_list = self.type_state.create_generic_list(
-            GenericListSource::Anonymous,
-            &[],
-            &[],
-            None,
-            &[],
-        )?;
-        let ty =
-            self.type_state
-                .type_var_from_hir(output_type.loc(), &output_type, &generic_list)?;
+        let ty = &field.ty;
 
         // NOTE: safe unwrap, o_name is something we just created, so it can be any type
         let g = self.type_state.new_generic_any();
@@ -391,7 +377,7 @@ impl Spade {
             .add_equation(TypedExpression::Name(o_name.clone()), g);
         self.type_state.unify(
             &o_name,
-            &ty,
+            ty,
             &spade_typeinference::Context {
                 symtab: &symtab,
                 items: &owned_state.item_list,
@@ -401,7 +387,7 @@ impl Spade {
 
         // Now that we have a type which we can work with, we can create a virtual expression
         // which accesses the field in order to learn the type of the field
-        let expr = format!("o.{}", path.iter().join("."));
+        let expr = format!("o.{}", next);
         let file_id = self.code.add_file("py".to_string(), expr.clone());
         let mut parser = Parser::new(lexer::TokenKind::lexer(&expr), file_id);
 
@@ -437,8 +423,8 @@ impl Spade {
             None,
             &[],
         )?;
-        // NOTE: We need to actually have the type information about what we're assigning to here
-        // available
+        // NOTE: We need to actually have the type information about what we're
+        // assigning to available here
         self.type_state
             .visit_expression(&hir, &type_ctx, &generic_list)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -463,25 +449,51 @@ impl Spade {
         // Finally, we need to figure out the range of the field in in the
         // type. Since all previous steps passed, this can assume that
         // the types are good so we can do lots of unwrapping
-        let mut concrete = &self
+        let struct_ty = &self
             .type_state
             .name_type(&o_name.nowhere(), &ast_ctx.symtab, &ast_ctx.item_list.types)
             .unwrap();
-        let (mut start, mut end) = (BigUint::zero(), concrete.to_mir_type().size());
 
-        for field in &path {
-            let mut current_offset = BigUint::zero();
-            for (f, ty) in concrete.assume_struct().1 {
-                let self_size = ty.to_mir_type().size();
-                if f.0 == *field {
-                    concrete = ty;
-                    start = &start + current_offset;
-                    end = &start + self_size;
-                    break;
+        let get_range = |outer_range: Option<UptoRange>,
+                         size_fn: &dyn Fn(&ConcreteType) -> BigUint|
+         -> Result<Option<UptoRange>> {
+            if let Some(outer_range) = outer_range {
+                let mut start_in_outer = BigUint::zero();
+                let mut self_size = BigUint::zero();
+
+                for (f, ty) in struct_ty.assume_struct().1.iter() {
+                    if f.0 == *next {
+                        self_size = size_fn(ty);
+                        break;
+                    }
+                    start_in_outer += size_fn(ty)
                 }
-                current_offset += self_size;
+
+                let outer_start = outer_range.from + &start_in_outer;
+                let start = (outer_start.clone())
+                    .to_u64()
+                    .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?;
+                let end = (outer_start + &self_size)
+                    .to_u64()
+                    .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?;
+
+                // TODO: Test the case that require outer_range.is_full && ...
+                let is_full =
+                    outer_range.is_full && outer_range.from == start && outer_range.to == end;
+
+                if self_size != BigUint::zero() {
+                    Ok(Some(UptoRange {
+                        from: start,
+                        to: end,
+                        is_full,
+                    }))
+                } else {
+                    Ok(None)
+                }
+            } else {
+                Ok(None)
             }
-        }
+        };
 
         let spade_ast_lowering::Context {
             symtab,
@@ -500,43 +512,111 @@ impl Spade {
             impl_idtracker,
         });
 
-        let result = Some(FieldRef {
-            range: (
-                start
-                    .to_u64()
-                    .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
-                end.to_u64()
-                    .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
-            ),
-            ty: result_type,
-        });
+        let mut path = field.path.clone();
+        path.push(next.to_string());
 
-        self.output_field_cache.insert(path, result.clone());
+        let result = FieldRef {
+            fwd_range: get_range(field.fwd_range, &|ty| ty.to_mir_type().size())?,
+            back_range: get_range(field.back_range, &|ty| ty.to_mir_type().backward_size())?,
+            ty: result_type,
+            source: field.source.clone(),
+            path,
+            field_cache: HashMap::new(),
+        };
+
+        field.field_cache.insert(next.to_string(), result.clone());
+
         Ok(result)
     }
 
-    // Translate a value from a verilog instance path into a string value
-    pub fn translate_value(&self, path: &str, value: &str) -> Result<String> {
-        let owned_state = self.owned.as_ref().unwrap();
-        let hierarchy = path.split('.').map(str::to_string).collect::<Vec<_>>();
-        if hierarchy.is_empty() {
-            return Err(anyhow!("{path} is not a hierarchy path"));
+    /// Access a field of the DUT output or its subfields
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn output_field(&mut self, path: Vec<String>) -> Result<Option<FieldRef>> {
+        println!("output_field from {}", path.join("."));
+        self.output_as_field_ref()?
+            .map(|mut out| {
+                for field in path {
+                    out = self.field_of_field(&mut out, &field)?
+                }
+
+                Ok(out)
+            })
+            .transpose()
+    }
+
+    pub fn arg_as_field(&mut self, arg_name: &str) -> Result<FieldRef> {
+        let (source, ty) = self.get_arg(arg_name)?;
+
+        let owned_state = self.take_owned();
+
+        let concrete = TypeState::ungenerify_type(
+            &ty,
+            owned_state.symtab.symtab(),
+            &owned_state.item_list.types,
+        )
+        .unwrap();
+
+        let fwd_size = concrete.to_mir_type().size();
+        let back_size = concrete.to_mir_type().backward_size();
+
+        let result = FieldRef {
+            fwd_range: if fwd_size != BigUint::zero() {
+                Some(UptoRange {
+                    from: 0,
+                    to: fwd_size
+                        .to_u64()
+                        .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
+                })
+            } else {
+                None
+            },
+            back_range: if back_size != BigUint::zero() {
+                Some(UptoRange {
+                    from: 0,
+                    to: back_size
+                        .to_u64()
+                        .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
+                })
+            } else {
+                None
+            },
+            field_cache: HashMap::new(),
+            path: vec!["i".to_string(), arg_name.to_string()],
+            ty,
+            source,
         };
 
-        let concrete = type_of_hierarchical_value(
-            &self.uut_nameid,
-            &hierarchy,
-            &self.instance_map,
-            &self.mir_context,
-            owned_state.symtab.symtab(),
-            &owned_state.item_list,
-        )?;
+        self.return_owned(owned_state);
 
-        Ok(val_to_spade(value, concrete))
+        Ok(result)
     }
 }
 
 impl Spade {
+    pub fn field_value_inner(
+        &mut self,
+        field: FieldRef,
+        output_bits: &BitString,
+    ) -> Result<(BitString, TypeVar, ConcreteType)> {
+        let (range, ty) = field.backward_range_and_type()?;
+
+        let owned_state = self.owned.as_ref().unwrap();
+
+        let concrete = TypeState::ungenerify_type(
+            &ty,
+            owned_state.symtab.symtab(),
+            &owned_state.item_list.types,
+        )
+        .unwrap();
+
+        let relevant_bits =
+            BitString(output_bits.inner()[range.from as usize..range.to as usize].to_owned());
+
+        Ok((relevant_bits, ty, concrete))
+    }
+
     /// Computes expr as a value for port. If the type of expr does not match the expected an error
     /// is returned. Likewise if uut does not have such a port.
     ///
@@ -544,34 +624,28 @@ impl Spade {
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn port_value_raw(
         &mut self,
-        port: &str,
+        arg: &str,
         expr: &str,
     ) -> Result<(String, spade_mir::eval::Value)> {
-        let (port_name, port_ty) = self.get_port(port.into())?;
-
-        let mut type_state = TypeState::new();
-        let generic_list =
-            type_state.create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])?;
-        let ty = type_state.type_var_from_hir(port_ty.loc(), &port_ty, &generic_list)?;
+        let (source, ty) = self.get_arg(arg)?;
 
         let val = self.compile_expr(expr, &ty)?;
-        Ok((port_name, val))
+        // TODO(Performance). Does this string need to be owned
+        Ok((source.fwd_mangled().to_string(), val))
     }
 
     #[tracing::instrument(level = "trace", skip(symtab, name))]
     fn lookup_function_like(
         name: &Loc<SpadePath>,
         symtab: &SymbolTable,
-    ) -> Result<(NameID, UnitHead), LookupError> {
-        symtab
-            .lookup_unit(name)
-            .map(|(name, head)| (name, head.inner))
+    ) -> Result<UnitHead, LookupError> {
+        symtab.lookup_unit(name).map(|(_, head)| head.inner)
     }
 
     /// Tries to get the type and the name of the port in the generated verilog of the specified
     /// input port
     #[tracing::instrument(level = "trace", skip(self))]
-    fn get_port(&mut self, port: String) -> Result<(String, Loc<TypeSpec>)> {
+    fn get_arg(&mut self, arg: &str) -> Result<(FieldSource, TypeVar)> {
         let owned_state = self.owned.as_ref().unwrap();
         let symtab = owned_state.symtab.symtab();
         let head = Self::lookup_function_like(&self.uut, symtab)
@@ -582,19 +656,29 @@ impl Spade {
             name,
             ty,
             no_mangle,
-        } in &head.1.inputs.0
+        } in &head.inputs.0
         {
-            if port == name.0 {
-                let verilog_name = if no_mangle.is_some() {
-                    mangle_input(no_mangle, &port)
-                } else {
-                    port
+            if arg == name.0 {
+                let source = FieldSource::Input {
+                    mangled_fwd: mangle_input(no_mangle, &arg),
+                    mangled_back: mangle_output(no_mangle, &arg),
                 };
-                return Ok((verilog_name, ty.clone()));
+
+                let mut type_state = TypeState::new();
+                let generic_list = type_state.create_generic_list(
+                    GenericListSource::Anonymous,
+                    &[],
+                    &[],
+                    None,
+                    &[],
+                )?;
+                let ty = type_state.type_var_from_hir(ty.loc(), &ty, &generic_list)?;
+
+                return Ok((source, ty.clone()));
             }
         }
 
-        Err(anyhow!("{port} is not a port of {}", self.uut))
+        Err(anyhow!("{arg} is not a argument of {}", self.uut))
     }
 
     /// Evaluates the provided expression as the specified type and returns the result
