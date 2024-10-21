@@ -46,7 +46,7 @@ class InputPorts(object):
         if not name.endswith("__"):
             value = to_spade_value(value)
             # Ask the spade compiler if the DUT has this field
-            (port, val) = self.spade__.port_value(name, value)
+            (port, val) = self.spade__.arg_value(name, value)
 
             self.dut__._id(port, extended=False).value = LogicArray(val.inner())
         else:
@@ -59,6 +59,21 @@ class OutputField(object):
         self.path__ = path
         self.field_ref__ = field_ref
         self.dut__ = dut
+
+    # This is not intended to be called on this struct, instead, it should be called on the
+    # parent field since python does not allow overloading operator=
+    def set_value__(self, value):
+        result = self.spade__.compile_field_value(self.field_ref__, value)
+        fwd_range = self.field_ref__.fwd_range
+        print(f"{self.path__}: {fwd_range}")
+        value =  LogicArray(result.inner())
+        signal = self.dut__._id("input__", extended=False)
+        downto_range = fwd_range().as_downto(len(signal))
+        for (i, idx) in enumerate(range(downto_range[0], downto_range[1])):
+            print(i, " -> ", idx)
+            # TODO: Don't hard code input__ here
+            signal[idx].value = value[i]
+
 
     def assert_eq(self, expected: object):
         expected = to_spade_value(expected)
