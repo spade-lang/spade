@@ -104,7 +104,10 @@ pub fn flatten_aliases(entity: &mut Entity) {
             }
             Statement::Constant(_, _, _) => {}
             Statement::Assert(_) => {}
-            Statement::Set { .. } => {}
+            Statement::Set { target, value } => {
+                try_rename(target, &aliases);
+                try_rename(value, &aliases);
+            }
             Statement::WalTrace {
                 name,
                 val,

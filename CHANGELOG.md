@@ -24,6 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- [!353][!353] Fix codegen bug when using `port` on an expression with only
+  forward or backward wires
+- [!353][!353] Fix codegen bug when using `set` to an aliased value
+
 [!346]: https://gitlab.com/spade-lang/spade/-/merge_requests/346
 [!350]: https://gitlab.com/spade-lang/spade/-/merge_requests/350
 

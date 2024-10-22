@@ -1,0 +1,9 @@
+struct port SimpleIO {
+    fwd: &int<8>,
+    back: inv &int<8>,
+}
+
+entity simple_io() -> SimpleIO {
+    let (fwd, back) = port;
+    SimpleIO$(fwd, back)
+}

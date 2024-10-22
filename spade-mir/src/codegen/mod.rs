@@ -894,11 +894,13 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 Operator::Gray2Bin{..} => forward_expression.unwrap(),
                 Operator::Nop => String::new(),
                 Operator::FlipPort => {
+                    let has_fwd = binding.ty.size() != BigUint::zero();
+                    let has_back = binding.ty.backward_size() != BigUint::zero();
                     // The forward ports of the flipped port (op[0]) and and the original (self)
                     // should be mapped to the backward ports of the opposite port
                     code! {
-                        [0] format!("assign {} = {};", name, back_ops[0]);
-                        [0] format!("assign {} = {};", ops[0], back_name);
+                        [0] has_fwd.then(|| format!("assign {} = {};", name, back_ops[0]));
+                        [0] has_back.then(|| format!("assign {} = {};", ops[0], back_name));
                     }
                     .to_string()
                 }
