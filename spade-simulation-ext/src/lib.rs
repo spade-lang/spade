@@ -8,7 +8,7 @@ use std::sync::RwLock;
 use codespan_reporting::term::termcolor::Buffer;
 use color_eyre::eyre::{anyhow, bail, Context};
 use color_eyre::Result;
-use field_ref::FieldRef;
+use field_ref::{FieldRef, FieldSource};
 use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
 #[cfg(feature = "python")]
@@ -29,7 +29,7 @@ use spade_hir_lowering::monomorphisation::MonoState;
 use spade_hir_lowering::pipelines::MaybePipelineContext;
 use spade_hir_lowering::substitution::Substitutions;
 use spade_hir_lowering::{expr_to_mir, MirLowerable};
-use spade_mir::codegen::mangle_input;
+use spade_mir::codegen::{mangle_input, mangle_output};
 use spade_mir::eval::{eval_statements, Value};
 use spade_parser::lexer;
 use spade_parser::Parser;
@@ -285,7 +285,7 @@ impl Spade {
 
     /// Compiles a a spade snippet into a value that matches the field
     pub fn compile_field_value(&mut self, field: &FieldRef, value: &str) -> Result<BitString> {
-        let actual_ty = if field.is_output {
+        let actual_ty = if matches!(field.source, FieldSource::Output {}) {
             match &field.ty {
                 TypeVar::Known(_, KnownType::Inverted, inner) => &inner[0],
                 // TODO: Better error message
@@ -334,6 +334,7 @@ impl Spade {
                     to: fwd_size
                         .to_u64()
                         .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
                 })
             } else {
                 None
@@ -344,12 +345,14 @@ impl Spade {
                     to: back_size
                         .to_u64()
                         .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
                 })
             } else {
                 None
             },
             ty,
-            is_output: true,
+            path: vec!["o".to_string()],
+            source: FieldSource::Output {},
             field_cache: HashMap::new(),
         }))
     }
@@ -474,10 +477,15 @@ impl Spade {
                     .to_u64()
                     .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?;
 
+                // TODO: Test the case that require outer_range.is_full && ...
+                let is_full =
+                    outer_range.is_full && outer_range.from == start && outer_range.to == end;
+
                 if self_size != BigUint::zero() {
                     Ok(Some(UptoRange {
                         from: start,
                         to: end,
+                        is_full,
                     }))
                 } else {
                     Ok(None)
@@ -504,11 +512,15 @@ impl Spade {
             impl_idtracker,
         });
 
+        let mut path = field.path.clone();
+        path.push(next.to_string());
+
         let result = FieldRef {
             fwd_range: get_range(field.fwd_range, &|ty| ty.to_mir_type().size())?,
             back_range: get_range(field.back_range, &|ty| ty.to_mir_type().backward_size())?,
             ty: result_type,
-            is_output: true,
+            source: field.source.clone(),
+            path,
             field_cache: HashMap::new(),
         };
 
@@ -520,6 +532,7 @@ impl Spade {
     /// Access a field of the DUT output or its subfields
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn output_field(&mut self, path: Vec<String>) -> Result<Option<FieldRef>> {
+        println!("output_field from {}", path.join("."));
         self.output_as_field_ref()?
             .map(|mut out| {
                 for field in path {
@@ -530,6 +543,55 @@ impl Spade {
             })
             .transpose()
     }
+
+    pub fn arg_as_field(&mut self, arg_name: &str) -> Result<FieldRef> {
+        let (source, ty) = self.get_arg(arg_name)?;
+
+        let owned_state = self.take_owned();
+
+        let concrete = TypeState::ungenerify_type(
+            &ty,
+            owned_state.symtab.symtab(),
+            &owned_state.item_list.types,
+        )
+        .unwrap();
+
+        let fwd_size = concrete.to_mir_type().size();
+        let back_size = concrete.to_mir_type().backward_size();
+
+        let result = FieldRef {
+            fwd_range: if fwd_size != BigUint::zero() {
+                Some(UptoRange {
+                    from: 0,
+                    to: fwd_size
+                        .to_u64()
+                        .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
+                })
+            } else {
+                None
+            },
+            back_range: if back_size != BigUint::zero() {
+                Some(UptoRange {
+                    from: 0,
+                    to: back_size
+                        .to_u64()
+                        .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?,
+                    is_full: true,
+                })
+            } else {
+                None
+            },
+            field_cache: HashMap::new(),
+            path: vec!["i".to_string(), arg_name.to_string()],
+            ty,
+            source,
+        };
+
+        self.return_owned(owned_state);
+
+        Ok(result)
+    }
 }
 
 impl Spade {
@@ -538,7 +600,7 @@ impl Spade {
         field: FieldRef,
         output_bits: &BitString,
     ) -> Result<(BitString, TypeVar, ConcreteType)> {
-        let (range, ty) = Self::field_backward_range_and_type(&field)?;
+        let (range, ty) = field.backward_range_and_type()?;
 
         let owned_state = self.owned.as_ref().unwrap();
 
@@ -565,15 +627,11 @@ impl Spade {
         arg: &str,
         expr: &str,
     ) -> Result<(String, spade_mir::eval::Value)> {
-        let (arg_name, arg_ty) = self.get_arg(arg.into())?;
-
-        let mut type_state = TypeState::new();
-        let generic_list =
-            type_state.create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])?;
-        let ty = type_state.type_var_from_hir(arg_ty.loc(), &arg_ty, &generic_list)?;
+        let (source, ty) = self.get_arg(arg)?;
 
         let val = self.compile_expr(expr, &ty)?;
-        Ok((arg_name, val))
+        // TODO(Performance). Does this string need to be owned
+        Ok((source.fwd_mangled().to_string(), val))
     }
 
     #[tracing::instrument(level = "trace", skip(symtab, name))]
@@ -584,26 +642,10 @@ impl Spade {
         symtab.lookup_unit(name).map(|(_, head)| head.inner)
     }
 
-    pub fn field_backward_range_and_type(field: &FieldRef) -> Result<(UptoRange, TypeVar)> {
-        if field.is_output {
-            let range = field.forward_range()?;
-
-            Ok((range, field.ty.clone()))
-        } else {
-            let range = field.backward_range()?;
-
-            // TODO: This is probably wrong
-            match &field.ty {
-                TypeVar::Known(_, KnownType::Inverted, inner) => Ok((range, inner[0].clone())),
-                _ => bail!("Internal error: Backward type had non-inv field"),
-            }
-        }
-    }
-
     /// Tries to get the type and the name of the port in the generated verilog of the specified
     /// input port
     #[tracing::instrument(level = "trace", skip(self))]
-    fn get_arg(&mut self, arg: String) -> Result<(String, Loc<TypeSpec>)> {
+    fn get_arg(&mut self, arg: &str) -> Result<(FieldSource, TypeVar)> {
         let owned_state = self.owned.as_ref().unwrap();
         let symtab = owned_state.symtab.symtab();
         let head = Self::lookup_function_like(&self.uut, symtab)
@@ -617,12 +659,22 @@ impl Spade {
         } in &head.inputs.0
         {
             if arg == name.0 {
-                let verilog_name = if no_mangle.is_some() {
-                    mangle_input(no_mangle, &arg)
-                } else {
-                    arg
+                let source = FieldSource::Input {
+                    mangled_fwd: mangle_input(no_mangle, &arg),
+                    mangled_back: mangle_output(no_mangle, &arg),
                 };
-                return Ok((verilog_name, ty.clone()));
+
+                let mut type_state = TypeState::new();
+                let generic_list = type_state.create_generic_list(
+                    GenericListSource::Anonymous,
+                    &[],
+                    &[],
+                    None,
+                    &[],
+                )?;
+                let ty = type_state.type_var_from_hir(ty.loc(), &ty, &generic_list)?;
+
+                return Ok((source, ty.clone()));
             }
         }
 

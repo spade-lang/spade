@@ -1,8 +1,9 @@
 #top = enum_gating::enum_gating
 
 from cocotb.clock import Clock
-from spade import FallingEdge, SpadeExt
+from spade import SpadeExt
 from cocotb import cocotb
+from cocotb.triggers import FallingEdge
 
 @cocotb.test()
 async def test(dut):
