@@ -392,16 +392,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    both_range_index_is_expr_and_missing_end_is_error,
-    "
-        fn top() -> bool {
-            let a = [true, true, false];
-            a[1+1:]
-        }
-    "
-}
-
-snapshot_error! {
     incorrect_named_args_gives_good_error,
     "
         fn f(x: bool) -> bool {

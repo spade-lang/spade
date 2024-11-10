@@ -2573,8 +2573,8 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             let target = target.try_visit(visit_expression, ctx)?;
             Ok(hir::ExprKind::RangeIndex {
                 target: Box::new(target),
-                start: start.clone(),
-                end: end.clone(),
+                start: visit_const_generic(start, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
+                end: visit_const_generic(end, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
             })
         }
         ast::Expression::TupleIndex(tuple, index) => Ok(hir::ExprKind::TupleIndex(

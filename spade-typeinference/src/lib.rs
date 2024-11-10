@@ -28,9 +28,9 @@ use tracing::{info, trace};
 
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path};
-use spade_hir as hir;
 use spade_hir::param_util::{match_args_with_params, Argument};
 use spade_hir::symbol_table::{Patternable, PatternableKind, SymbolTable, TypeSymbol};
+use spade_hir::{self as hir, ConstGenericWithId};
 use spade_hir::{
     ArgumentList, Block, ExprKind, Expression, ItemList, Pattern, PatternArgument, Register,
     Statement, TraitName, TraitSpec, TypeParam, Unit,
@@ -1783,6 +1783,19 @@ impl TypeState {
         Ok(())
     }
 
+    pub fn visit_const_generic_with_id(
+        &mut self,
+        gen: &Loc<ConstGenericWithId>,
+        generic_list_token: &GenericListToken,
+        constraint_source: ConstraintSource,
+    ) -> Result<TypeVar> {
+        let var = self.new_generic_tlnumber(gen.loc());
+        let constraint = self.visit_const_generic(&gen.inner.inner, generic_list_token)?;
+        self.add_equation(TypedExpression::Id(gen.id), var.clone());
+        self.add_constraint(var.clone(), constraint, gen.loc(), &var, constraint_source);
+        Ok(var)
+    }
+
     #[trace_typechecker]
     pub fn visit_const_generic(
         &self,
@@ -1982,6 +1995,17 @@ impl TypeState {
                 current_stage: replace!(current_stage),
                 reference_offset: replace!(reference_offset),
             },
+            Requirement::RangeIndexInArray { index, size } => Requirement::RangeIndexInArray {
+                index: replace!(index),
+                size: replace!(size),
+            },
+            Requirement::RangeIndexEndAfterStart { expr, start, end } => {
+                Requirement::RangeIndexEndAfterStart {
+                    expr,
+                    start: replace!(start),
+                    end: replace!(end),
+                }
+            }
             Requirement::PositivePipelineDepth { depth } => Requirement::PositivePipelineDepth {
                 depth: replace!(depth),
             },

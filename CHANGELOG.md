@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - [!346][!346] The parser can now recover from errors in statements and items
 - [!346][!346] Add some additional diagnostics to missing `;`
+- [!354][!354] Allow reading `inv` wires in inputs and setting `inv` wire
+  values in outputs in cocotb tests.
+- [!354][!354] Allow assigning values to fields of strutcs in cocotb tests
+- [!356][!356] Allow const generics in array range indexing (`[x:y]`)
+
 
 ### Changed
 
@@ -30,6 +35,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 [!346]: https://gitlab.com/spade-lang/spade/-/merge_requests/346
 [!350]: https://gitlab.com/spade-lang/spade/-/merge_requests/350
+[!353]: https://gitlab.com/spade-lang/spade/-/merge_requests/353
+[!354]: https://gitlab.com/spade-lang/spade/-/merge_requests/354
+[!356]: https://gitlab.com/spade-lang/spade/-/merge_requests/356
 
 ## [0.10.0] - 2024-09-19
 

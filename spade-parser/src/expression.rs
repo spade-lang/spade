@@ -402,45 +402,14 @@ impl<'a> Parser<'a> {
                     // - an array index (`a[2]`) which allows an expression (`a[2+offset]`)
                     // - a range index (`a[1:2]`) which does not allow an expression
                     let start = s.expression()?;
-                    let start_loc = start.loc();
 
-                    if let Some(colon) = s.peek_and_eat(&TokenKind::Colon)? {
+                    if let Some(_) = s.peek_and_eat(&TokenKind::Colon)? {
                         // colon => range index: `[1:2]`
-                        // start must be integer literal
-                        let start = start.try_map(|x| {
-                            x.as_int_literal().ok_or_else(|| {
-                                Diagnostic::error(start_loc, "Range indices must be integers")
-                                    .primary_label("Range index is not an integer literal")
-                            })
-                        })?;
-                        if start.is_negative() {
-                            return Err(Diagnostic::error(
-                                start_loc,
-                                "Range indices must be non-negative",
-                            )
-                            .primary_label("Range index is negative"));
-                        }
-                        // safe unwrap: already checked that start is not negative
-                        let start = start.map(|x| x.as_unsigned().unwrap());
-                        let Some(end) = s.int_literal()? else {
-                            return Err(Diagnostic::error(s.peek()?, "Expected end of range")
-                                .primary_label("Expected end of range")
-                                .secondary_label(
-                                    ().between_locs(&start_loc, &colon.loc()),
-                                    "...since this index is a range",
-                                ));
-                        };
-                        let end_loc = end.loc();
-                        let end = end.try_map(|x| {
-                            x.as_unsigned().ok_or_else(|| {
-                                Diagnostic::error(end_loc, "Range indices must be non-negative")
-                                    .primary_label("Range index is negative")
-                            })
-                        })?;
+                        let end = s.expression()?;
                         Ok(Expression::RangeIndex {
                             target: Box::new(expr.clone()),
-                            start,
-                            end,
+                            start: Box::new(start),
+                            end: Box::new(end),
                         })
                     } else {
                         Ok(Expression::Index(Box::new(expr.clone()), Box::new(start)))

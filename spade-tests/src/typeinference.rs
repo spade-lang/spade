@@ -1105,7 +1105,7 @@ snapshot_error! {
 snapshot_error! {
     negative_range_index_is_error,
     "
-        fn test(x: [int<8>; 6]) -> [int<8>; 1] {
+        fn test(x: [int<8>; 6]) -> [int<8>; 6] {
             x[-1:5]
         }
     "

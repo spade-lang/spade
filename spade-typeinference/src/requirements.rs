@@ -66,6 +66,15 @@ pub enum Requirement {
     PositivePipelineDepth {
         depth: Loc<TypeVar>,
     },
+    RangeIndexEndAfterStart {
+        expr: Loc<()>,
+        start: Loc<TypeVar>,
+        end: Loc<TypeVar>,
+    },
+    RangeIndexInArray {
+        index: Loc<TypeVar>,
+        size: Loc<TypeVar>,
+    },
     /// The provided TypeVar should all share a base type
     SharedBase(Vec<Loc<TypeVar>>),
 }
@@ -115,6 +124,18 @@ impl Requirement {
                 TypeState::replace_type_var(definition_depth, from, to);
                 TypeState::replace_type_var(current_stage, from, to);
                 TypeState::replace_type_var(reference_offset, from, to);
+            }
+            Requirement::RangeIndexEndAfterStart {
+                expr: _,
+                start,
+                end,
+            } => {
+                TypeState::replace_type_var(start, from, to);
+                TypeState::replace_type_var(end, from, to);
+            }
+            Requirement::RangeIndexInArray { index, size } => {
+                TypeState::replace_type_var(index, from, to);
+                TypeState::replace_type_var(size, from, to);
             }
             Requirement::PositivePipelineDepth { depth } => {
                 TypeState::replace_type_var(depth, from, to)
@@ -400,6 +421,58 @@ impl Requirement {
                     Err(diag_anyhow!(depth, "Got non integer pipeline depth"))
                 }
                 TypeVar::Unknown(_, _, _, _) => Ok(RequirementResult::NoChange),
+            },
+            Requirement::RangeIndexEndAfterStart { expr, start, end } => {
+                match (&start.inner, &end.inner) {
+                    (
+                        TypeVar::Known(_, KnownType::Integer(start_val), _),
+                        TypeVar::Known(_, KnownType::Integer(end_val), _),
+                    ) => {
+                        if start_val > end_val {
+                            Err(Diagnostic::error(
+                                expr,
+                                "The end of the range must be after the start",
+                            )
+                            .primary_label("Range end before start")
+                            .secondary_label(start, format!("Start was inferred to be {start_val}"))
+                            .secondary_label(end, format!("End was inferred to be {end_val}"))
+                            .help("If you want to swap the order of the elements, you can use `std::conv::flip_array`"))
+                        } else {
+                            Ok(RequirementResult::Satisfied(vec![]))
+                        }
+                    }
+                    (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
+                        Ok(RequirementResult::NoChange)
+                    }
+                    (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
+                        start,
+                        "Got non-integer ranges ({start}:{end})"
+                    )),
+                }
+            }
+            Requirement::RangeIndexInArray { index, size } => match (&index.inner, &size.inner) {
+                (
+                    TypeVar::Known(_, KnownType::Integer(index_val), _),
+                    TypeVar::Known(_, KnownType::Integer(size_val), _),
+                ) => {
+                    if index_val > size_val {
+                        Err(Diagnostic::error(index, "Range index out of bounds")
+                            .primary_label(format!("Index `{index_val}` out of bounds"))
+                            .secondary_label(
+                                size,
+                                format!("The array only has {size_val} elements"),
+                            ))
+                    } else {
+                        Ok(RequirementResult::Satisfied(vec![]))
+                    }
+                }
+                (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
+                    Ok(RequirementResult::NoChange)
+                }
+                (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
+                    index,
+                    "Got non-integer index or size (index: {index}, size: {size})"
+                )),
             },
             Requirement::ValidPipelineOffset {
                 definition_depth,

@@ -142,6 +142,8 @@ pub enum ConstraintSource {
     PipelineRegOffset { reg: Loc<()>, total: Loc<()> },
     PipelineRegCount { reg: Loc<()>, total: Loc<()> },
     PipelineAvailDepth,
+    RangeIndex,
+    RangeIndexOutputSize,
     Where,
 }
 
@@ -154,6 +156,8 @@ impl std::fmt::Display for ConstraintSource {
             ConstraintSource::MemoryIndexing => write!(f, "MemoryIndexing"),
             ConstraintSource::Concatenation => write!(f, "Concatenation"),
             ConstraintSource::Where => write!(f, "Where"),
+            ConstraintSource::RangeIndex => write!(f, "RangeIndex"),
+            ConstraintSource::RangeIndexOutputSize => write!(f, "RangeIndexOutputSize"),
             ConstraintSource::PipelineRegOffset { .. } => write!(f, "PipelineRegOffset"),
             ConstraintSource::PipelineRegCount { .. } => write!(f, "PipelineRegOffset"),
             ConstraintSource::PipelineAvailDepth => write!(f, "PipelineAvailDepth"),

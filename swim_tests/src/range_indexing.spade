@@ -5,5 +5,10 @@ fn mid_range(a: [int<8>; 4]) -> [int<8>; 2] {
     a[1:3]
 }
 fn upper_range_bool(a: [bool; 8]) -> [bool; 2] {
-    a[6:8]
+    const_generic_range::<6, 8>(a)
+}
+
+
+fn const_generic_range<#uint Lower, #uint Upper>(a: [bool; 8]) -> [bool; 2] {
+    a[Lower:Upper]
 }

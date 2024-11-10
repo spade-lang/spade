@@ -1,4 +1,4 @@
-use num::{BigInt, One, Zero};
+use num::{BigInt, One};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigInt;
@@ -514,42 +514,33 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::RangeIndex{target, ref start, ref end} = &expression => {
+        assuming_kind!(ExprKind::RangeIndex{
+            target,
+            ref start,
+            ref end,
+        } = &expression => {
             self.visit_expression(target, ctx, generic_list)?;
             // Add constraints
             let inner_type = self.new_generic_type(target.loc());
 
-            let size = (&end.inner).to_bigint() - (&start.inner).to_bigint();
+            let start_var = self.visit_const_generic_with_id(start, generic_list, ConstraintSource::RangeIndex)?;
+            let end_var = self.visit_const_generic_with_id(end, generic_list, ConstraintSource::RangeIndex)?;
 
-            let size = if size < BigInt::zero() {
-                return Err(Diagnostic::error(
-                    ().between_locs(start, end),
-                    "Start index must be before end index"
-                )
-                    .primary_label("Start index after end"))
-            } else if size == BigInt::zero() {
-                return Err(Diagnostic::error(
-                    ().between_locs(start, end),
-                    "Range indexing creates array with 0 elements"
-                )
-                    .primary_label("this index creates 0 elements")
-                    .help("The start of the range is inclusive but the end is not")
-                )
-            } else {
-                size.to_biguint().unwrap()
-            };
+            let in_array_size = self.new_generic_tluint(target.loc());
+            let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone());
+            let out_array_size = self.new_generic_tluint(target.loc());
+            let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone());
 
+            let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
+            self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
 
-
-            let out_array_size = TypeVar::Known(expression.loc(), KnownType::Integer(size.to_bigint()), vec![]);
-            let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size);
+            self.add_requirement(Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start), end: end_var.clone().at_loc(end) });
+            self.add_requirement(Requirement::RangeIndexInArray { index: end_var.at_loc(end), size: in_array_size.at_loc(&target.loc()) });
 
             self.unify(&expression.inner, &out_array_type, ctx)
                 .into_default_diagnostic(expression)?;
 
 
-            let in_array_size = self.new_generic_tluint(target.loc());
-            let in_array_type = TypeVar::array(expression.loc(), inner_type, in_array_size);
             self.unify(&target.inner, &in_array_type, ctx)
                 .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
                     diag

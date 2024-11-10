@@ -6,12 +6,18 @@ fn test(x: [int<8>; 6]) -> [int<8>; 1] {
 }
 
 
-error: Range indexing creates array with 0 elements
-  ┌─ testinput:2:7
-  │
-2 │     x[7:7]
-  │       ^^^ this index creates 0 elements
-  │
-  = help: The start of the range is inclusive but the end is not
-
-
+error: Output type mismatch. Expected [int<8>; 1], got [int<8>; 0]
+  ┌─ testinput:1:40
+  │  
+1 │   fn test(x: [int<8>; 6]) -> [int<8>; 1] {
+  │                              ----------- [int<8>; 1] type specified here
+  │ ╭────────────────────────────────────────^
+2 │ │     x[7:7]
+  │ │     ------ Type 0 inferred here
+3 │ │ }
+  │ ╰─^ Found type [int<8>; 0]
+  │  
+  = note: Expected: 1
+                in: [int<8>; 1]
+               Got: 0
+                in: [int<8>; 0]

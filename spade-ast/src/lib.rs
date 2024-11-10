@@ -262,8 +262,9 @@ pub enum Expression {
     Index(Box<Loc<Expression>>, Box<Loc<Expression>>),
     RangeIndex {
         target: Box<Loc<Expression>>,
-        start: Loc<BigUint>,
-        end: Loc<BigUint>,
+        // NOTE: These are const generics
+        start: Box<Loc<Expression>>,
+        end: Box<Loc<Expression>>,
     },
     TupleLiteral(Vec<Loc<Expression>>),
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),

@@ -398,6 +398,19 @@ pub enum ConstGeneric {
 }
 impl WithLocation for ConstGeneric {}
 
+impl ConstGeneric {
+    pub fn with_id(self, id: u64) -> ConstGenericWithId {
+        ConstGenericWithId { id, inner: self }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct ConstGenericWithId {
+    pub id: u64,
+    pub inner: ConstGeneric,
+}
+impl WithLocation for ConstGenericWithId {}
+
 impl std::fmt::Display for ConstGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

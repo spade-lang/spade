@@ -1,4 +1,4 @@
-use crate::{Pattern, TypeExpression};
+use crate::{ConstGenericWithId, Pattern, TypeExpression};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -182,11 +182,8 @@ pub enum ExprKind {
     Index(Box<Loc<Expression>>, Box<Loc<Expression>>),
     RangeIndex {
         target: Box<Loc<Expression>>,
-        // NOTE: In several places in the code, start and end are wildcarded away. If changing
-        // this to a node that needs visiting, it is probably best to rename the field temporarily
-        // to catch all the wildcarded matches
-        start: Loc<BigUint>,
-        end: Loc<BigUint>,
+        start: Loc<ConstGenericWithId>,
+        end: Loc<ConstGenericWithId>,
     },
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),

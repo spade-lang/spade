@@ -1,4 +1,5 @@
 mod attributes;
+mod const_generic;
 pub mod error;
 mod linear_check;
 pub mod monomorphisation;
@@ -14,6 +15,7 @@ use std::collections::BTreeMap;
 
 use attributes::AttributeListExt;
 use attributes::LocAttributeExt;
+use const_generic::ConstGenericExt;
 use error::format_witnesses;
 use error::refutable_pattern_diagnostic;
 use error::undefined_variable;
@@ -1679,39 +1681,23 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::RangeIndex { target, start, end } => {
                 result.append(target.lower(ctx)?);
 
-                match target.get_type(ctx.types)? {
-                    TypeVar::Known(_, KnownType::Array, inner) => match &inner[1] {
-                        TypeVar::Known(_, KnownType::Integer(size), _) => {
-                            if &start.inner.clone().to_bigint() >= size {
-                                return Err(Diagnostic::error(start, "Array index out of bounds")
-                                    .primary_label("index out of bounds")
-                                    .secondary_label(
-                                        target.as_ref(),
-                                        format!("This array only has {size} elements"),
-                                    ));
-                            }
-                            if &end.inner.clone().to_bigint() > size {
-                                return Err(Diagnostic::error(end, "Array index out of bounds")
-                                    .primary_label("index out of bounds")
-                                    .secondary_label(
-                                        target.as_ref(),
-                                        format!("This array only has {size} elements"),
-                                    ));
-                            }
-                        }
-                        _ => {
-                            diag_bail!(self, "Array size was not integer")
-                        }
-                    },
-                    _ => diag_bail!(self, "Range indexing on non-array"),
-                };
+                let start_val = start.resolve_int(ctx)?;
+                let start = start_val.to_biguint().ok_or_else(|| {
+                    Diagnostic::error(start, "The start of a range cannot be negative")
+                        .primary_label(format!("Inferred negative range start ({start_val})"))
+                })?;
+                let end_val = end.resolve_int(ctx)?;
+                let end = end_val.to_biguint().ok_or_else(|| {
+                    Diagnostic::error(end, "The end of a range cannot be negative")
+                        .primary_label(format!("Inferred negative range end ({end_val})"))
+                })?;
 
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
                         name: self.variable(ctx)?,
                         operator: mir::Operator::RangeIndexArray {
-                            start: start.inner.clone(),
-                            end_exclusive: end.inner.clone(),
+                            start: start.clone(),
+                            end_exclusive: end.clone(),
                         },
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
