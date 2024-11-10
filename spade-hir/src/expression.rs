@@ -178,7 +178,7 @@ pub enum ExprKind {
     CreatePorts,
     TupleLiteral(Vec<Loc<Expression>>),
     ArrayLiteral(Vec<Loc<Expression>>),
-    ArrayShorthandLiteral(Box<Loc<Expression>>, Loc<BigUint>),
+    ArrayShorthandLiteral(Box<Loc<Expression>>, Loc<ConstGenericWithId>),
     Index(Box<Loc<Expression>>, Box<Loc<Expression>>),
     RangeIndex {
         target: Box<Loc<Expression>>,

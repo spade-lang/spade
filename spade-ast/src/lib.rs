@@ -258,7 +258,8 @@ pub enum Expression {
     /// `[1, 2, 3]`
     ArrayLiteral(Vec<Loc<Expression>>),
     /// `[<expr>; <amount>]`
-    ArrayShorthandLiteral(Box<Loc<Expression>>, Loc<BigUint>),
+    /// amount is a const generic
+    ArrayShorthandLiteral(Box<Loc<Expression>>, Box<Loc<Expression>>),
     Index(Box<Loc<Expression>>, Box<Loc<Expression>>),
     RangeIndex {
         target: Box<Loc<Expression>>,

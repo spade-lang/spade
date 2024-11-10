@@ -287,6 +287,9 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             "The size of a concatenation is the sum of the operand sizes"
                                 .to_string(),
                         ),
+                        ConstraintSource::ArraySize => {
+                            diag.note("The number of array elements must  match")
+                        }
                         ConstraintSource::RangeIndex => diag,
                         ConstraintSource::RangeIndexOutputSize => diag.note(
                             "The output of a range index is an array inferred from the indices",

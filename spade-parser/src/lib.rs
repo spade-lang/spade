@@ -265,11 +265,7 @@ impl<'a> Parser<'a> {
 
         let expr = if self.peek_and_eat(&TokenKind::Semi).unwrap().is_some() {
             // array shorthand ([<expr>; N])
-            let amount = self.eat_cond(TokenKind::is_integer, "integer")?;
-            Expression::ArrayShorthandLiteral(
-                Box::new(first),
-                amount.kind.as_biguint().unwrap().at_loc(&amount.loc()),
-            )
+            Expression::ArrayShorthandLiteral(Box::new(first), Box::new(self.expression()?))
         } else {
             // eat comma, if any
             let _ = self.peek_and_eat(&TokenKind::Comma)?;

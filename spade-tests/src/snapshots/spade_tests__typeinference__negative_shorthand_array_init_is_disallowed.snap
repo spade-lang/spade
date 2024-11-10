@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    let unsized = [true; -1];
+}
+
+
+error: Expected type #uint, got -1
+  ┌─ testinput:2:26
+  │
+2 │     let unsized = [true; -1];
+  │                          ^^ Expected #uint, got -1
+  │
+  = note: Expected: #uint
+                in: #uint
+               Got: -1
+                in: -1
+  = note: The number of array elements must  match

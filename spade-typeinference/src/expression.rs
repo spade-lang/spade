@@ -422,8 +422,13 @@ impl TypeState {
         assuming_kind!(ExprKind::ArrayShorthandLiteral(expr, amount) = &expression => {
             self.visit_expression(expr, ctx, generic_list)?;
 
+
             let inner_type = expr.get_type(self)?;
-            let size_type = TypeVar::Known(amount.loc(), KnownType::Integer(amount.inner.clone().to_bigint()), vec![]);
+            let size_type = self.visit_const_generic_with_id(amount, generic_list, ConstraintSource::ArraySize)?;
+            // Force the type to be a uint
+            let uint_type = self.new_generic_tluint(expression.loc());
+            self.unify(&size_type, &uint_type, ctx).into_default_diagnostic(expression.loc())?;
+
             let result_type = TypeVar::array(expression.loc(), inner_type, size_type);
 
             self.unify_expression_generic_error(expression, &result_type, ctx)?;

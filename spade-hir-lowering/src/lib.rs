@@ -1640,7 +1640,7 @@ impl ExprLocal for Loc<Expression> {
                 // This could be caught earlier, but if we for some reason want to allow
                 // arrays longer than usize::MAX elements (why?) we should report
                 // it as a diagnostic when we actually want to _use_ the amount as a usize.
-                let amount = amount.to_usize().ok_or_else(|| {
+                let amount = amount.resolve_int(ctx)?.to_usize().ok_or_else(|| {
                     Diagnostic::error(
                         amount,
                         format!(

@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn new_array<#uint N, #uint M>() -> [bool; N] {
+    [false; M]
+}
+
+fn test() -> [bool; 10] {
+    new_array::<10, 11>()
+}
+
+
+error: Expected type 10, got 11
+  ┌─ testinput:2:13
+  │
+2 │     [false; M]
+  │             ^ Expected 10, got 11
+  │
+  = note: Expected: 10
+                in: 10
+               Got: 11
+                in: 11
+  = note: The number of array elements must  match
+  = The error is in a generic unit instantiated at
+    ╰ testinput:6 new_array<10, 11>

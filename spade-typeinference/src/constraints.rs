@@ -144,6 +144,7 @@ pub enum ConstraintSource {
     PipelineAvailDepth,
     RangeIndex,
     RangeIndexOutputSize,
+    ArraySize,
     Where,
 }
 
@@ -158,6 +159,7 @@ impl std::fmt::Display for ConstraintSource {
             ConstraintSource::Where => write!(f, "Where"),
             ConstraintSource::RangeIndex => write!(f, "RangeIndex"),
             ConstraintSource::RangeIndexOutputSize => write!(f, "RangeIndexOutputSize"),
+            ConstraintSource::ArraySize => write!(f, "ArraySize"),
             ConstraintSource::PipelineRegOffset { .. } => write!(f, "PipelineRegOffset"),
             ConstraintSource::PipelineRegCount { .. } => write!(f, "PipelineRegOffset"),
             ConstraintSource::PipelineAvailDepth => write!(f, "PipelineAvailDepth"),

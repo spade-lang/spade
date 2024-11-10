@@ -1877,3 +1877,25 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    array_shorthand_can_use_type_params,
+    "
+        fn new_array<#uint N, #uint M>() -> [bool; N] {
+            [false; M]
+        }
+
+        fn test() -> [bool; 10] {
+            new_array::<10, 11>()
+        }
+    "
+}
+
+snapshot_error! {
+    negative_shorthand_array_init_is_disallowed,
+    "
+        fn test() {
+            let unsized = [true; -1];
+        }
+    "
+}

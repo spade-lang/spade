@@ -7,8 +7,10 @@ fn test() {
 }
 
 
-error: Unexpected `identifier`, expected `integer`
+error: Expected length to be a type
   ┌─ testinput:3:19
   │
+2 │     let length: uint<8> = 24;
+  │         ------ length is a variable
 3 │     let _ = [1u2; length];
-  │                   ^^^^^^ expected `integer`
+  │                   ^^^^^^ Expected a type
