@@ -679,10 +679,10 @@ impl TypeState {
         // that any error reporting number of arguments should be reduced by one
         is_method: bool,
         turbofish: Option<TurbofishCtx>,
-        old_generic_list: &GenericListToken,
+        generic_list: &GenericListToken,
     ) -> Result<()> {
         // Add new symbols for all the type parameters
-        let generic_list = self.create_generic_list(
+        let unit_generic_list = self.create_generic_list(
             GenericListSource::Expression(expression_id.inner),
             &head.unit_type_params,
             &head.scope_type_params,
@@ -702,8 +702,8 @@ impl TypeState {
                     depth_typeexpr_id: cdepth_typeexpr_id,
                 },
             ) => {
-                let definition_depth = self.hir_type_expr_to_var(udepth, &generic_list)?;
-                let call_depth = self.hir_type_expr_to_var(cdepth, old_generic_list)?;
+                let definition_depth = self.hir_type_expr_to_var(udepth, &unit_generic_list)?;
+                let call_depth = self.hir_type_expr_to_var(cdepth, generic_list)?;
 
                 // NOTE: We're not adding udepth_typeexpr_id here as that would break
                 // in the future if we try to do recursion. We will also never need to look
@@ -746,7 +746,7 @@ impl TypeState {
         // the borrow checker
         macro_rules! generic_arg {
             ($idx:expr) => {
-                self.get_generic_list(&generic_list)[&type_params[$idx].name_id()].clone()
+                self.get_generic_list(&unit_generic_list)[&type_params[$idx].name_id()].clone()
             };
         }
 
@@ -816,12 +816,12 @@ impl TypeState {
         };
 
         // Unify the types of the arguments
-        self.type_check_argument_list(&matched_args, ctx, &generic_list)?;
+        self.type_check_argument_list(&matched_args, ctx, &unit_generic_list)?;
 
         let return_type = head
             .output_type
             .as_ref()
-            .map(|o| self.type_var_from_hir(expression_id.loc(), o, &generic_list))
+            .map(|o| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
             .transpose()?
             .unwrap_or_else(|| TypeVar::Known(expression_id.loc(), t_void(ctx.symtab), vec![]));
 

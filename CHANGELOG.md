@@ -33,12 +33,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!353][!353] Fix codegen bug when using `port` on an expression with only
   forward or backward wires
 - [!353][!353] Fix codegen bug when using `set` to an aliased value
+- [!357][!357] Fix bug when using generic parameters in the argument list for generic units
 
 [!346]: https://gitlab.com/spade-lang/spade/-/merge_requests/346
 [!350]: https://gitlab.com/spade-lang/spade/-/merge_requests/350
 [!353]: https://gitlab.com/spade-lang/spade/-/merge_requests/353
 [!354]: https://gitlab.com/spade-lang/spade/-/merge_requests/354
 [!356]: https://gitlab.com/spade-lang/spade/-/merge_requests/356
+[!357]: https://gitlab.com/spade-lang/spade/-/merge_requests/357
 
 ## [0.10.0] - 2024-09-19
 

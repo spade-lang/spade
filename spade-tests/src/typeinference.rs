@@ -1899,3 +1899,20 @@ snapshot_error! {
         }
     "
 }
+
+code_compiles! {
+    outer_generic_params_can_be_used_in_inner_calls,
+    "
+        fn inner<#uint N>(x: uint<8>) {
+            let x: uint<N> = x;
+        }
+
+        fn outer<#uint K>() {
+            inner::<K>(K)
+        }
+
+        fn test() {
+            outer::<8>()
+        }
+    "
+}
