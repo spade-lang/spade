@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!346][!346] *Breaking change* Removed the `$comptime` system
 - [!350][!350] *Breaking change* Replaced `&mut` with `inv &`
 - [!350][!350] *Breaking change* Changed the syntax of inverted ports from `~T` to `inv T`
+- [!354][!354] Remove excessive indentation from messages in test benches
+- [!354][!354] Print a more user friendly error message when Spade related things fail in tests
 
 ### Fixed
 

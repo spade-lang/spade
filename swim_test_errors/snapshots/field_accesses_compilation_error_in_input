@@ -1,0 +1,23 @@
+error: Expected type uint<8>, got bool
+   ┌─ py:1:1
+   │
+ 1 │ true
+   │ ^^^^ Expected uint<8>
+   │
+   ┌─ src/main.spade:17:19
+   │
+17 │ entity test1(raw: uint<8>, tuple: (uint<8>, uint<8>), s: InputStruct) -> OutputStruct {
+   │                   ------- Type uint<8> inferred here
+   │
+   = note: Expected: uint<8>
+                Got: bool
+
+
+
+note: A Spade expression failed to compile
+    ┌─ field_accesses.py:35
+    │
+ 35 │ s.i.raw = "true"
+    │ ^^^^^^^^^^^^^^^^ When executing this
+
+

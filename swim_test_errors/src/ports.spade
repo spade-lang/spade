@@ -1,0 +1,24 @@
+struct port Inner {
+    fwd: &uint<8>,
+    back: inv &uint<8>
+}
+struct port Nested {
+    fwd: &uint<8>,
+    back: inv &uint<8>,
+    inner: Inner
+}
+
+entity dut(fwd: uint<8>, back: inv &uint<4>, nested: Nested) -> Nested {
+    set back = 0;
+    set nested.back = 0;
+    set nested.inner.back = 0;
+
+    Nested$(
+        fwd: &0,
+        back: port#1,
+        inner: Inner$(
+            fwd: &0,
+            back: port#1
+        )
+    )
+}

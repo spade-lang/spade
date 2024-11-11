@@ -1,0 +1,10 @@
+
+error: Cannot set the value of i.back because it is an input with type inv &uint<4>
+   ┌─ ports.py:8
+   │
+ 8 │ s.i.back = 0
+   │ ^^^^^^^^^^^^ i.back cannot be set
+
+  Help: The field has type inv &uint<4>
+  Help: Since this is an input, only signals with non-inv type can be set
+

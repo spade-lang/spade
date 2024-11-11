@@ -1,0 +1,10 @@
+
+error: swim_test_errors::main::test1 has no input missing
+    ┌─ field_accesses.py:20
+    │
+ 20 │ s.i.missing = "1"
+    │ ^^^^^^^^^^^^^^^^^ `missing` is not an input
+
+
+Traceback:
+  field_accesses.py:23

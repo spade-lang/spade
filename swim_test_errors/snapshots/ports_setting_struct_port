@@ -1,0 +1,9 @@
+
+error: i.nested with type swim_test_errors::ports::Nested has both forward and backward valeus
+    ┌��� ports.py:20
+    │
+ 20 │ s.i.nested = 0
+    │ ^^^^^^^^^^^^^^ swim_test_errors::ports::Nested has both forward and backward values
+
+  Help: Try reading or setting individual fields
+

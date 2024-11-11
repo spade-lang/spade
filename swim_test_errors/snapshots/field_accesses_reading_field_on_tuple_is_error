@@ -1,0 +1,9 @@
+
+error: Type (uint<8>, uint<8>) has no field x
+    ┌─ field_accesses.py:65
+    │
+ 65 │ s.i.tuple.x = 5
+    │ ^^^^^^^^^^^^^^^ No field `x` in (uint<8>, uint<8>)
+
+  Help: The full path of the field is `i.tuple.x`
+

@@ -1,0 +1,23 @@
+error: Expected type uint<8>, got bool
+  ┌─ py:1:1
+  │
+1 │ true
+  │ ^^^^ Expected uint<8>
+  │
+  ┌─ py:1:1
+  │
+1 │ o.x
+  │ --- Type uint<8> inferred here
+  │
+  = note: Expected: uint<8>
+               Got: bool
+
+
+
+note: A Spade expression failed to compile
+    ┌─ field_accesses.py:53
+    │
+ 53 │ _ = s.o.nested.x == "true"
+    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^ When executing this
+
+

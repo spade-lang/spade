@@ -1,0 +1,10 @@
+
+error: Cannot read the value of o.back because it is an output with type inv &uint<8>
+    ┌─ ports.py:26
+    │
+ 26 │ s.o.back.assert_eq("0")
+    │ ^^^^^^^^^^^^^^^^^^^^^^^ Cannot read from o.back
+
+  Help: The field has type inv &uint<8>
+  Help: Since this is an output, only signals with non-inv type can be read
+

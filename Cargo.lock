@@ -1221,6 +1221,7 @@ dependencies = [
  "spade-parser",
  "spade-typeinference",
  "spade-types",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
  "tracing-tree",

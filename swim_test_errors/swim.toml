@@ -1,0 +1,3 @@
+name = "swim_test_errors"
+
+compiler = {path = "../"}

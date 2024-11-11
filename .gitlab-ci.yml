@@ -136,6 +136,9 @@ test:swim-tests:
         - cargo install --git https://gitlab.com/spade-lang/swim --locked
         - cd swim_tests
         - $CARGO_HOME/bin/swim test
+        - cd ../swim_test_errors
+        - export PATH=$PATH:$CARGO_HOME/bin/
+        - python3 snapshot.py
 
 # Build static binaries of spade and vcd-translate
 build:static:

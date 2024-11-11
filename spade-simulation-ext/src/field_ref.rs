@@ -1,13 +1,11 @@
-use std::collections::HashMap;
-
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 use spade_typeinference::equation::TypeVar;
 use spade_types::KnownType;
 
-use crate::UptoRange;
-use color_eyre::eyre::{anyhow, bail};
-use color_eyre::Result;
+use crate::error::{Result, SourceCodeError};
+use crate::{maybe_pyclass, UptoRange};
+use color_eyre::eyre::anyhow;
 
 #[cfg_attr(feature = "python", pyclass)]
 #[derive(Clone, Debug)]
@@ -27,8 +25,6 @@ impl FieldSource {
                 mangled_fwd,
                 mangled_back: _,
             } => &mangled_fwd,
-            // TODO: Add a test that checks that this is done correctly since it did not
-            // trigger the test suite when this was output__
             FieldSource::Output {} => "input__",
         }
     }
@@ -39,29 +35,7 @@ impl FieldSource {
                 mangled_fwd: _,
                 mangled_back,
             } => &mangled_back,
-            // TODO: Add a test that checks that this is done correctly since it did not
-            // trigger the test suite when this was output__
             FieldSource::Output {} => "output__",
-        }
-    }
-}
-
-/// #[pyo3(get)] does not work unless the struct is #[pyclass]. Since we can build this crate both
-/// with and without python support, we therefore need to #[cfg] away the #[pyo3(get)] fields.
-/// THis macro removes that boilerplate
-macro_rules! maybe_pyclass {
-    ($( #[$sattr:meta] )* $svis:vis struct $sname:ident {
-        $( $(#[$mattr:meta])* $mvis:vis $mname:ident : $mty:ty),*$(,)?
-    }) => {
-        $(#[$sattr])*
-        $svis struct $sname {
-            $(
-                #[cfg(feature = "python")]
-                $(#[$mattr])*
-                $mvis $mname: $mty,
-                #[cfg(not(feature = "python"))]
-                $mvis $mname: $mty
-            ),*
         }
     }
 }
@@ -72,11 +46,8 @@ maybe_pyclass! {
     /// field originates from.
     /// fwd and back are in reference to *inputs*, so fwd is the non-inverted ports and back
     /// is the inverted ports.
-    // TODO: Verify that this is still correct when merging
-    /// The module output is transformed to an input by immediaetly inverting `ty` on creation.
-    /// This unifies the handling of the module output with the inputs.
     #[cfg_attr(feature = "python", pyclass)]
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct FieldRef {
         #[pyo3(get)]
         pub(crate) fwd_range: Option<UptoRange>,
@@ -89,11 +60,14 @@ maybe_pyclass! {
 
         pub ty: TypeVar,
         pub path: Vec<String>,
-        // TODO(performance): A field cache like this is not going to work very well since we clone the structure.
-        // Move this into the Spade struct
-        pub field_cache: HashMap<String, FieldRef>,
     }
 
+}
+
+pub enum BackRangeError {
+    OnlyForward,
+    Mixed,
+    Empty,
 }
 
 #[cfg_attr(feature = "python", pymethods)]
@@ -112,58 +86,122 @@ impl FieldRef {
         }
     }
 
-    pub fn backward_range(&self) -> Result<UptoRange> {
-        match (self.fwd_range, self.back_range) {
-            (None, Some(back)) => Ok(back),
-            // TODO: This probably needs a better error message
-            (Some(_), None) => Err(anyhow!(
-                "{} has type {} which only has forward values",
+    pub fn write_dir_range(&self) -> Result<UptoRange> {
+        let (fwd_range, back_range) = if matches!(self.source, FieldSource::Output {}) {
+            (self.back_range, self.fwd_range)
+        } else {
+            (self.fwd_range, self.back_range)
+        };
+        match (fwd_range, back_range) {
+            (Some(fwd), None) => Ok(fwd),
+            (None, Some(_)) => match &self.source {
+                FieldSource::Input { .. } => Err(SourceCodeError::new(format!(
+                    "Cannot set the value of {} because it is an input with type {}",
+                    self.path.join("."),
+                    self.ty
+                ))
+                .primary_label(format!("{} cannot be set", self.path.join(".")))
+                .note(format!("The field has type {}", self.ty))
+                .note("Since this is an input, only signals with non-inv type can be set")
+                .into()),
+                FieldSource::Output {} => Err(SourceCodeError::new(format!(
+                    "Cannot set the value of {} because it is an output with type {}",
+                    self.path.join("."),
+                    self.ty
+                ))
+                .primary_label(format!("{} cannot be set", self.path.join(".")))
+                .note(format!("The field has type {}", self.ty))
+                .note("Since this is an output, only signals with inv values can be set")
+                .into()),
+            },
+            (Some(_), Some(_)) => Err(SourceCodeError::new(format!(
+                "{} with type {} has both forward and backward valeus",
                 self.path.join("."),
                 self.ty
-            )),
-            (Some(_), Some(_)) => Err(anyhow!(
-                "{} has type {} which has both forward and backward values",
+            ))
+            .primary_label(format!("{} has both forward and backward values", self.ty))
+            .note("Try reading or setting individual fields")
+            .into()),
+            (None, None) => Err(SourceCodeError::new(format!(
+                "{} with type {} is a zero sized type",
                 self.path.join("."),
                 self.ty
-            )),
-            // TODO: Bad error message
-            (None, None) => Err(anyhow!("Cannot compare zero-sized fields")),
+            ))
+            .primary_label(format!("{} is a zero sized type", self.ty))
+            .into()),
         }
     }
 
-    pub fn forward_range(&self) -> Result<UptoRange> {
-        match (self.fwd_range, self.back_range) {
-            (Some(fwd), None) => Ok(fwd),
-            // TODO: This probably needs a better error message
-            (None, Some(_)) => Err(anyhow!(
-                "{} has type {} which only has backward values",
+    pub fn read_dir_range(&self) -> Result<UptoRange> {
+        let (fwd_range, back_range) = if matches!(self.source, FieldSource::Output {}) {
+            (self.back_range, self.fwd_range)
+        } else {
+            (self.fwd_range, self.back_range)
+        };
+        match (fwd_range, back_range) {
+            (None, Some(back)) => Ok(back),
+            (Some(_), None) => match &self.source {
+                FieldSource::Input { .. } => Err(SourceCodeError::new(format!(
+                    "Cannot read the value of {} because it is an input with type {}",
+                    self.path.join("."),
+                    self.ty
+                ))
+                .primary_label(format!("Cannot read the value of {}", self.path.join(".")))
+                .note(format!("The field has type {}", self.ty))
+                .note("Since this is an input, only signals with inv type can be read")
+                .into()),
+                FieldSource::Output {} => Err(SourceCodeError::new(format!(
+                    "Cannot read the value of {} because it is an output with type {}",
+                    self.path.join("."),
+                    self.ty
+                ))
+                .primary_label(format!("Cannot read from {}", self.path.join(".")))
+                .note(format!("The field has type {}", self.ty))
+                .note("Since this is an output, only signals with non-inv type can be read")
+                .into()),
+            },
+            (Some(_), Some(_)) => Err(SourceCodeError::new(format!(
+                "{} with type {} has both forward and backward valeus",
                 self.path.join("."),
                 self.ty
-            )),
-            (Some(_), Some(_)) => Err(anyhow!(
-                "{} has type {} which has both forward and backward values",
+            ))
+            .primary_label(format!("{} has both forward and backward values", self.ty))
+            .note("Try reading or setting individual fields")
+            .into()),
+            (None, None) => Err(SourceCodeError::new(format!(
+                "{} with type {} is a zero sized type",
                 self.path.join("."),
                 self.ty
-            )),
-            // TODO: Bad error message
-            (None, None) => Err(anyhow!("Cannot compare zero-sized fields")),
+            ))
+            .primary_label(format!("{} is a zero sized type", self.ty))
+            .into()),
         }
     }
 }
 
 impl FieldRef {
-    pub fn backward_range_and_type(&self) -> Result<(UptoRange, TypeVar)> {
+    pub fn write_range_and_type(&self) -> Result<(UptoRange, TypeVar)> {
+        let range = self.write_dir_range()?;
+
         if matches!(self.source, FieldSource::Output {}) {
-            let range = self.forward_range()?;
-
-            Ok((range, self.ty.clone()))
-        } else {
-            let range = self.backward_range()?;
-
-            // TODO: This is probably wrong
             match &self.ty {
                 TypeVar::Known(_, KnownType::Inverted, inner) => Ok((range, inner[0].clone())),
-                _ => bail!("Internal error: Backward type had non-inv field"),
+                _ => Err(anyhow!("Internal error: Backward type had non-inv field").into()),
+            }
+        } else {
+            Ok((range, self.ty.clone()))
+        }
+    }
+
+    pub fn read_range_and_type(&self) -> Result<(UptoRange, TypeVar)> {
+        let range = self.read_dir_range()?;
+
+        if matches!(self.source, FieldSource::Output {}) {
+            Ok((range, self.ty.clone()))
+        } else {
+            match &self.ty {
+                TypeVar::Known(_, KnownType::Inverted, inner) => Ok((range, inner[0].clone())),
+                _ => Err(anyhow!("Internal error: Backward type had non-inv field").into()),
             }
         }
     }

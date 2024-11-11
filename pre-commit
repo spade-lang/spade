@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOURCE_DIRS=('*/src/*')
+SOURCE_DIRS=('*/src/*' 'swim_test_project/test/*.py' 'swim_test_errors/test/*.py', 'swim_test_errors/snapshots/*')
 
 function maybe_typos {(
     if command -v typos &> /dev/null; then
@@ -22,6 +22,7 @@ function run_tests {(
     cargo test && \
     sh -c "cd output_test && make" && \
     sh -c "cd swim_tests && swim test" && \
+    sh -c "cd swim_test_errors && python3 snapshot.py"  && \
     # Remember to add && \ when adding more tests
     true
 )}

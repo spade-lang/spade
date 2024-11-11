@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
@@ -89,9 +90,10 @@ fn setup_spade(uut_name: String, state_path: String) -> Result<Box<SimulationExt
 
 impl SimulationExt {
     pub fn port_value(&mut self, port: &str, expr: &str) -> Result<Box<SignalValue>> {
-        self.0
+        Ok(self
+            .0
             .port_value_raw(port, expr)
-            .map(|(_, value)| Box::new(SignalValue(value)))
+            .map(|(_, value)| Box::new(SignalValue(value)))?)
     }
 
     pub fn compare_field(
@@ -103,9 +105,10 @@ impl SimulationExt {
         // The bits of the whole output struct
         output_bits: &BitString,
     ) -> Result<Box<ComparisonResult>> {
-        self.0
+        Ok(self
+            .0
             .compare_field(field.0.clone(), spade_expr, &output_bits.0)
-            .map(|o| Box::new(ComparisonResult(o)))
+            .map(|o| Box::new(ComparisonResult(o)))?)
     }
 
     pub fn assert_eq(
@@ -138,14 +141,15 @@ impl SimulationExt {
     }
 
     pub fn output_field(&mut self, path: &Vec<String>) -> Result<Box<FieldRef>> {
-        self.0.output_field(path.clone()).and_then(|o| match o {
+        let result = self.0.output_field(path.clone()).and_then(|o| match o {
             Some(field) => Ok(Box::new(FieldRef(field))),
-            None => bail!("Trying to access output field on a unit returning void"),
-        })
+            None => Err(anyhow!("Trying to access output field on a unit returning void").into()),
+        });
+        Ok(result?)
     }
 
     pub fn field_value(&mut self, field: &FieldRef, output_bits: &BitString) -> Result<String> {
-        self.0.field_value(field.0.clone(), &output_bits.0)
+        Ok(self.0.field_value(field.0.clone(), &output_bits.0)?)
     }
 }
 

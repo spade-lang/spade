@@ -1,0 +1,10 @@
+
+error: Cannot set the value of o.fwd because it is an output with type &uint<8>
+    ┌─ ports.py:32
+    │
+ 32 │ s.o.fwd = "0"
+    │ ^^^^^^^^^^^^^ o.fwd cannot be set
+
+  Help: The field has type &uint<8>
+  Help: Since this is an output, only signals with inv values can be set
+

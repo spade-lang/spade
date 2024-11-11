@@ -1,0 +1,10 @@
+
+error: Cannot set the value of i.nested.back because it is an input with type inv &uint<8>
+    ┌─ ports.py:14
+    │
+ 14 │ s.i.nested.back = 0
+    │ ^^^^^^^^^^^^^^^^^^^ i.nested.back cannot be set
+
+  Help: The field has type inv &uint<8>
+  Help: Since this is an input, only signals with non-inv type can be set
+

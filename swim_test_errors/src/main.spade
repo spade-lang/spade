@@ -1,0 +1,19 @@
+struct Nested {
+    x: uint<8>,
+    y: uint<8>,
+}
+struct InputStruct {
+    x: uint<8>,
+    y: uint<8>,
+    nested: Nested
+}
+
+struct OutputStruct {
+    a: uint<8>,
+    b: uint<8>,
+    nested: Nested
+}
+
+entity test1(raw: uint<8>, tuple: (uint<8>, uint<8>), s: InputStruct) -> OutputStruct {
+    OutputStruct(0, 0, Nested(0, 0))
+}

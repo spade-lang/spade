@@ -1,3 +1,4 @@
+pub mod error;
 pub mod field_ref;
 pub mod range;
 
@@ -6,8 +7,7 @@ use std::rc::Rc;
 use std::sync::RwLock;
 
 use codespan_reporting::term::termcolor::Buffer;
-use color_eyre::eyre::{anyhow, bail, Context};
-use color_eyre::Result;
+use color_eyre::eyre::{anyhow, Context};
 use field_ref::{FieldRef, FieldSource};
 use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
@@ -34,10 +34,13 @@ use spade_mir::eval::{eval_statements, Value};
 use spade_parser::lexer;
 use spade_parser::Parser;
 use spade_typeinference::equation::{TypeVar, TypedExpression};
+use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::{GenericListSource, HasType, TypeState};
-use spade_types::{ConcreteType, KnownType};
+use spade_types::ConcreteType;
 use vcd_translate::translation::{self, inner_translate_value};
+
+use crate::error::{Error, Result};
 
 trait Reportable {
     type Inner;
@@ -49,7 +52,7 @@ trait Reportable {
     ) -> Result<Self::Inner>;
 }
 
-impl<T, E> Reportable for Result<T, E>
+impl<T, E> Reportable for std::result::Result<T, E>
 where
     E: CompilationError,
 {
@@ -67,8 +70,31 @@ where
                 if !error_buffer.is_empty() {
                     println!("{}", String::from_utf8_lossy(error_buffer.as_slice()));
                 }
-                Err(anyhow!("Failed to compile spade"))
+                Err(error::Error::CompilationError {
+                    msg: "Failed to compile Spade code".to_string(),
+                })
             }
+        }
+    }
+}
+
+/// #[pyo3(get)] does not work unless the struct is #[pyclass]. Since we can build this crate both
+/// with and without python support, we therefore need to #[cfg] away the #[pyo3(get)] fields.
+/// THis macro removes that boilerplate
+#[macro_export]
+macro_rules! maybe_pyclass {
+    ($( #[$sattr:meta] )* $svis:vis struct $sname:ident {
+        $( $(#[$mattr:meta])* $mvis:vis $mname:ident : $mty:ty),*$(,)?
+    }) => {
+        $(#[$sattr])*
+        $svis struct $sname {
+            $(
+                #[cfg(feature = "python")]
+                $(#[$mattr])*
+                $mvis $mname: $mty,
+                #[cfg(not(feature = "python"))]
+                $mvis $mname: $mty
+            ),*
         }
     }
 }
@@ -158,6 +184,7 @@ pub struct Spade {
     type_state: TypeState,
     uut_head: UnitHead,
     compilation_cache: HashMap<(TypeVar, String), Value>,
+    field_cache: HashMap<Vec<String>, FieldRef>,
 }
 
 impl Spade {
@@ -220,6 +247,7 @@ impl Spade {
             }),
             uut_head,
             compilation_cache: HashMap::new(),
+            field_cache: HashMap::new(),
         })
     }
 }
@@ -253,9 +281,9 @@ impl Spade {
         // The bits of the whole output struct
         output_bits: &BitString,
     ) -> Result<ComparisonResult> {
-        let (relevant_bits, ty, concrete) = self.field_value_inner(field, output_bits)?;
+        let (relevant_bits, ty, concrete) = self.extract_field_read_bits(field, output_bits)?;
 
-        //  TODO(Performance): We can improve performance here by not compiling
+        //  FIXME(Performance): We can improve performance here by not compiling
         // the human readable value unless needed
 
         let spade_bits = BitString(self.compile_expr(spade_expr, &ty)?.as_string());
@@ -277,44 +305,38 @@ impl Spade {
         // The bits of the whole output struct
         output_bits: &BitString,
     ) -> Result<String> {
-        // TODO todo
-        let (relevant_bits, _ty, concrete) = self.field_value_inner(field, output_bits)?;
+        let (relevant_bits, _ty, concrete) = self.extract_field_read_bits(field, output_bits)?;
 
         Ok(val_to_spade(relevant_bits.inner(), concrete))
     }
 
     /// Compiles a a spade snippet into a value that matches the field
     pub fn compile_field_value(&mut self, field: &FieldRef, value: &str) -> Result<BitString> {
-        let actual_ty = if matches!(field.source, FieldSource::Output {}) {
-            match &field.ty {
-                TypeVar::Known(_, KnownType::Inverted, inner) => &inner[0],
-                // TODO: Better error message
-                _ => bail!("Cannot set the value of forward values"),
-            }
-        } else {
-            &field.ty
-        };
-        self.compile_expr(&value, actual_ty)
+        // We don't actually use the result here, but we want to pigyback off
+        // the error message
+        let (_, actual_ty) = field.write_range_and_type()?;
+        self.compile_expr(&value, &actual_ty)
             .map(|v| BitString(v.as_string()))
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn output_as_field_ref(&mut self) -> Result<Option<FieldRef>> {
+        if let Some(cached) = self.field_cache.get(&vec!["o".to_string()]) {
+            return Ok(Some(cached.clone()));
+        }
         let output_type = match self.output_type()? {
             Some(t) => t,
             None => return Ok(None),
         };
-        let generic_list = self.type_state.create_generic_list(
-            GenericListSource::Anonymous,
-            &[],
-            &[],
-            None,
-            &[],
-        )?;
+        let generic_list = self
+            .type_state
+            .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
-        let ty =
-            self.type_state
-                .type_var_from_hir(output_type.loc(), &output_type, &generic_list)?;
+        let ty = self
+            .type_state
+            .type_var_from_hir(output_type.loc(), &output_type, &generic_list)
+            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         let owned_state = self.owned.as_ref().unwrap();
         let concrete = TypeState::ungenerify_type(
@@ -327,7 +349,7 @@ impl Spade {
         let fwd_size = concrete.to_mir_type().size();
         let back_size = concrete.to_mir_type().backward_size();
 
-        Ok(Some(FieldRef {
+        let result = FieldRef {
             fwd_range: if fwd_size != BigUint::zero() {
                 Some(UptoRange {
                     from: 0,
@@ -353,12 +375,16 @@ impl Spade {
             ty,
             path: vec!["o".to_string()],
             source: FieldSource::Output {},
-            field_cache: HashMap::new(),
-        }))
+        };
+        self.field_cache
+            .insert(vec!["o".to_string()], result.clone());
+        Ok(Some(result))
     }
 
     pub fn field_of_field(&mut self, field: &mut FieldRef, next: &str) -> Result<FieldRef> {
-        if let Some(cached) = field.field_cache.get(next) {
+        let mut full_path = field.path.clone();
+        full_path.push(next.to_string());
+        if let Some(cached) = self.field_cache.get(&full_path) {
             return Ok(cached.clone());
         }
 
@@ -371,19 +397,38 @@ impl Spade {
 
         let ty = &field.ty;
 
+        let concrete = TypeState::ungenerify_type(ty, &symtab, &owned_state.item_list.types);
+        let has_field = concrete
+            .map(|c| concrete_ty_has_field(&c, next))
+            .unwrap_or_default();
+
+        if !has_field {
+            return Err(Error::NoSuchField {
+                ty: format!("{ty}"),
+                field: next.to_string(),
+                path: full_path.clone(),
+            });
+        }
+        // Even though we made sure the field exists, we don't know the non-concrete type of
+        // the field which we need later. So we'll need to invent an expression and infer the
+        // appropriate type
+
         // NOTE: safe unwrap, o_name is something we just created, so it can be any type
         let g = self.type_state.new_generic_any();
         self.type_state
             .add_equation(TypedExpression::Name(o_name.clone()), g);
-        self.type_state.unify(
-            &o_name,
-            ty,
-            &spade_typeinference::Context {
-                symtab: &symtab,
-                items: &owned_state.item_list,
-                trait_impls: &owned_state.trait_impls,
-            },
-        )?;
+        self.type_state
+            .unify(
+                &o_name,
+                ty,
+                &spade_typeinference::Context {
+                    symtab: &symtab,
+                    items: &owned_state.item_list,
+                    trait_impls: &owned_state.trait_impls,
+                },
+            )
+            .into_default_diagnostic(().nowhere())
+            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         // Now that we have a type which we can work with, we can create a virtual expression
         // which accesses the field in order to learn the type of the field
@@ -416,13 +461,10 @@ impl Spade {
             trait_impls: &owned_state.trait_impls,
         };
 
-        let generic_list = self.type_state.create_generic_list(
-            GenericListSource::Anonymous,
-            &[],
-            &[],
-            None,
-            &[],
-        )?;
+        let generic_list = self
+            .type_state
+            .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
         // NOTE: We need to actually have the type information about what we're
         // assigning to available here
         self.type_state
@@ -477,7 +519,6 @@ impl Spade {
                     .to_u64()
                     .ok_or(anyhow!("Field index exceeds {} bits", usize::MAX))?;
 
-                // TODO: Test the case that require outer_range.is_full && ...
                 let is_full =
                     outer_range.is_full && outer_range.from == start && outer_range.to == end;
 
@@ -521,10 +562,9 @@ impl Spade {
             ty: result_type,
             source: field.source.clone(),
             path,
-            field_cache: HashMap::new(),
         };
 
-        field.field_cache.insert(next.to_string(), result.clone());
+        self.field_cache.insert(full_path, result.clone());
 
         Ok(result)
     }
@@ -545,6 +585,10 @@ impl Spade {
     }
 
     pub fn arg_as_field(&mut self, arg_name: &str) -> Result<FieldRef> {
+        let path = vec!["i".to_string(), arg_name.to_string()];
+        if let Some(cached) = self.field_cache.get(&path) {
+            return Ok(cached.clone());
+        }
         let (source, ty) = self.get_arg(arg_name)?;
 
         let owned_state = self.take_owned();
@@ -582,11 +626,12 @@ impl Spade {
             } else {
                 None
             },
-            field_cache: HashMap::new(),
-            path: vec!["i".to_string(), arg_name.to_string()],
+            path: path.clone(),
             ty,
             source,
         };
+
+        self.field_cache.insert(path, result.clone());
 
         self.return_owned(owned_state);
 
@@ -595,12 +640,15 @@ impl Spade {
 }
 
 impl Spade {
-    pub fn field_value_inner(
+    /// Given a field, and `output_bits` as a binary value representing the whole field
+    /// source, returns the type of the field as well as a bit string that make up the
+    /// specified field
+    pub fn extract_field_read_bits(
         &mut self,
         field: FieldRef,
         output_bits: &BitString,
     ) -> Result<(BitString, TypeVar, ConcreteType)> {
-        let (range, ty) = field.backward_range_and_type()?;
+        let (range, ty) = field.read_range_and_type()?;
 
         let owned_state = self.owned.as_ref().unwrap();
 
@@ -630,7 +678,6 @@ impl Spade {
         let (source, ty) = self.get_arg(arg)?;
 
         let val = self.compile_expr(expr, &ty)?;
-        // TODO(Performance). Does this string need to be owned
         Ok((source.fwd_mangled().to_string(), val))
     }
 
@@ -638,7 +685,7 @@ impl Spade {
     fn lookup_function_like(
         name: &Loc<SpadePath>,
         symtab: &SymbolTable,
-    ) -> Result<UnitHead, LookupError> {
+    ) -> std::result::Result<UnitHead, LookupError> {
         symtab.lookup_unit(name).map(|(_, head)| head.inner)
     }
 
@@ -665,20 +712,29 @@ impl Spade {
                 };
 
                 let mut type_state = TypeState::new();
-                let generic_list = type_state.create_generic_list(
-                    GenericListSource::Anonymous,
-                    &[],
-                    &[],
-                    None,
-                    &[],
-                )?;
-                let ty = type_state.type_var_from_hir(ty.loc(), &ty, &generic_list)?;
+                let generic_list = type_state
+                    .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+                    .report_and_convert(
+                        &mut self.error_buffer,
+                        &self.code,
+                        &mut self.diag_handler,
+                    )?;
+                let ty = type_state
+                    .type_var_from_hir(ty.loc(), &ty, &generic_list)
+                    .report_and_convert(
+                        &mut self.error_buffer,
+                        &self.code,
+                        &mut self.diag_handler,
+                    )?;
 
                 return Ok((source, ty.clone()));
             }
         }
 
-        Err(anyhow!("{arg} is not a argument of {}", self.uut))
+        Err(crate::error::Error::NoSuchInput {
+            top: format!("{}", self.uut),
+            name: arg.to_string(),
+        })
     }
 
     /// Evaluates the provided expression as the specified type and returns the result
@@ -689,7 +745,14 @@ impl Spade {
         expr: &str,
         ty: &impl HasType,
     ) -> Result<spade_mir::eval::Value> {
-        let cache_key = (ty.get_type(&self.type_state)?, expr.to_string());
+        let cache_key = (
+            ty.get_type(&self.type_state).report_and_convert(
+                &mut self.error_buffer,
+                &self.code,
+                &mut self.diag_handler,
+            )?,
+            expr.to_string(),
+        );
         if let Some(cached) = self.compilation_cache.get(&cache_key) {
             return Ok(cached.clone());
         }
@@ -746,13 +809,10 @@ impl Spade {
             items: &item_list,
             trait_impls: &trait_impls,
         };
-        let generic_list = self.type_state.create_generic_list(
-            GenericListSource::Anonymous,
-            &[],
-            &[],
-            None,
-            &[],
-        )?;
+        let generic_list = self
+            .type_state
+            .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         self.type_state
             .visit_expression(&hir, &type_ctx, &generic_list)
@@ -833,4 +893,16 @@ fn val_to_spade(val: &str, ty: ConcreteType) -> String {
     let mut result = String::new();
     inner_translate_value(&mut result, &val_vcd, &ty);
     result
+}
+
+fn concrete_ty_has_field(ty: &ConcreteType, field: &str) -> bool {
+    match ty {
+        ConcreteType::Struct { name: _, members } => {
+            members.iter().find(|(n, _)| n.0 == field).is_some()
+        }
+        ConcreteType::Backward(inner) | ConcreteType::Wire(inner) => {
+            concrete_ty_has_field(inner, field)
+        }
+        _ => false,
+    }
 }
