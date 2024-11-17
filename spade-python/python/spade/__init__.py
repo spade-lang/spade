@@ -167,7 +167,7 @@ class Field(object):
         # This shares a bit of code with is_eq, but since we need access to intermediate
         # values, we'll duplicate things for now
         return self.spade__.field_value(
-            self.field_ref__, BitString(self.dut__.output__.value.binstr)
+            self.field_ref__, BitString(self.dut__._id(self.field_ref__.source.back_mangled(), extended=False).value.binstr)
         )
 
     def is_eq(self, other: object) -> bool:
@@ -180,7 +180,7 @@ class Field(object):
         try:
             value = to_spade_value(typing.cast(object, value))
             r = self.spade__.compare_field(
-                self.field_ref__, value, BitString(self.dut__.output__.value.binstr)
+                self.field_ref__, value, BitString(self.dut__._id(self.field_ref__.source.back_mangled(), extended=False).value.binstr)
             )
             expected_bits = r.expected_bits.inner()
             got_bits = r.got_bits.inner()

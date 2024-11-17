@@ -49,7 +49,7 @@ if args.command:
             pass
 
 
-print("Running swim test")
+print("[snapshot.py] Running swim test")
 test_result = subprocess.run(["swim", "test"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 ansi_escape_re = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]")

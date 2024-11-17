@@ -51,3 +51,13 @@ entity fields(
     Fields$(x, y, z, w)
 }
 
+
+struct port InvArgsOut {
+    x_inv: inv &uint<8>,
+    y_inv: inv &bool,
+    a: &uint<4>,
+    b: &uint<6>
+}
+entity inv_args(x_inv: inv &uint<8>, y_inv: inv &bool, a: &uint<4>, b: &uint<6>) -> InvArgsOut {
+    InvArgsOut$(x_inv, y_inv, a, b)
+}
