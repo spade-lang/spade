@@ -28,25 +28,35 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
         parser.set_item_context(head.unit_kind.clone())?;
 
         let allow_stages = head.unit_kind.is_pipeline();
-        let (block, block_span) = if let Some(block) = parser.block(allow_stages)? {
-            let (block, block_span) = block.separate();
-            (Some(block), block_span)
-        } else if parser.peek_kind(&TokenKind::Builtin)? {
-            let tok = parser.eat_unconditional()?;
+        let block_result = (|| {
+            if let Some(block) = parser.block(allow_stages)? {
+                let (block, block_span) = block.separate();
+                Ok((Some(block), block_span))
+            } else if parser.peek_kind(&TokenKind::Builtin)? {
+                let tok = parser.eat_unconditional()?;
 
-            (None, ().at(parser.file_id, &tok.span).span)
-        } else {
-            let next = parser.peek()?;
-            return Err(Diagnostic::error(
-                next.clone(),
-                format!(
-                    "Unexpected `{}`, expected body or `{}`",
-                    next.kind.as_str(),
-                    TokenKind::Builtin.as_str()
-                ),
-            )
-            .primary_label(format!("Unexpected {}", &next.kind.as_str()))
-            .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)));
+                Ok((None, ().at(parser.file_id, &tok.span).span))
+            } else {
+                let next = parser.peek()?;
+                Err(Diagnostic::error(
+                    next.clone(),
+                    format!(
+                        "Unexpected `{}`, expected body or `{}`",
+                        next.kind.as_str(),
+                        TokenKind::Builtin.as_str()
+                    ),
+                )
+                .primary_label(format!("Unexpected {}", &next.kind.as_str()))
+                .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)))
+            }
+        })();
+
+        let (block, block_span) = match block_result {
+            Ok(inner) => inner,
+            Err(e) => {
+                parser.clear_item_context();
+                return Err(e);
+            }
         };
 
         parser.clear_item_context();

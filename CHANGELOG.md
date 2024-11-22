@@ -37,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   forward or backward wires
 - [!353][!353] Fix codegen bug when using `set` to an aliased value
 - [!357][!357] Fix bug when using generic parameters in the argument list for generic units
+- [!348][!348] Fix an extra `Diagnostic::bug` appearing when failing to parse entity bodies
 
 [!346]: https://gitlab.com/spade-lang/spade/-/merge_requests/346
 [!350]: https://gitlab.com/spade-lang/spade/-/merge_requests/350

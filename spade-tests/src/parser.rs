@@ -741,3 +741,20 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    item_contexts_are_cleared_on_error_recovery,
+    "
+    use std::ports;
+
+    entity test() {}
+
+    entity int32_to_float32(input: int<32>) -> uint<32> {
+        test()
+        test()
+    }
+
+    entity top(input: int<32>) -> uint<32> {}
+        
+    "
+}
