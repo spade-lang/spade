@@ -9,7 +9,7 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.11.0] - 2024-11-28
 
 ### Added
 
@@ -353,7 +353,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.10.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.11.0...main
+[0.11.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.11.0...v0.10.0
 [0.10.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.10.0...v0.9.0
 [0.9.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.9.0...v0.8.0
 [0.8.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.8.0...v0.7.0

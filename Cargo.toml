@@ -10,7 +10,7 @@ resolver = "2"
 # Shared between internal crates. Can be overridden per-crate if needed.
 
 [workspace.package]
-version = "0.10.0"
+version = "0.11.0"
 license = "EUPL-1.2"
 edition = "2021"
 rust-version = "1.70" # is_terminal is stable from 1.70
