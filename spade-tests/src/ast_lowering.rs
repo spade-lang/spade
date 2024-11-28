@@ -579,14 +579,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    no_mangle_generics,
-    "
-    #[no_mangle]
-    fn mangling_time<#uint N>() -> int<N> __builtin__
-    "
-}
-
-snapshot_error! {
     duplicate_enum_variants,
     "
     enum E {

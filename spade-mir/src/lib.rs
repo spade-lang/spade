@@ -297,15 +297,18 @@ pub enum Operator {
     ReadMutWires,
 
     /// Instantiation of another module with the specified name. The operands are passed
-    /// by name to the entity. The operand name mapping is decided by the params field of
-    /// this variant. The first operand gets mapped to the first param, and so on.
+    /// by name to the entity. The operand name mapping is decided by the `argument_names` field of
+    /// this variant. The first operand gets mapped to the first argument name, and so on.
     /// The target module can only have a single output which must be the last argument.
     /// The location of the instantiation is optional but can be passed to improve
     /// critical path report readability
     Instance {
         name: UnitName,
-        /// The names of the parameters in the same order as the operands.
-        params: Vec<ParamName>,
+        params: Vec<(String, BigUint)>,
+        /// The names of the arguments in the same order as the operands.
+        /// For instance, if the `i`th argument name is "foo" and the `i`th [`Binding`] is
+        /// `my_port`, the verilog module will be instantiated with `.foo(my_port)`.
+        argument_names: Vec<ParamName>,
         #[derive_where(skip)]
         loc: Option<Loc<()>>,
     },
@@ -316,10 +319,11 @@ pub enum Operator {
 }
 
 impl Operator {
-    pub fn simple_instance(name: UnitName, params: Vec<&str>) -> Self {
+    pub fn simple_instance(name: UnitName, argument_names: Vec<&str>) -> Self {
         Self::Instance {
             name,
-            params: params
+            params: Vec::default(),
+            argument_names: argument_names
                 .iter()
                 .map(|p| ParamName {
                     name: p.to_string(),
@@ -429,11 +433,7 @@ impl std::fmt::Display for Operator {
                 end_exclusive: end,
             } => write!(f, "RangeIndexBits({start}, {end})"),
             Operator::IndexMemory => write!(f, "IndexMemory"),
-            Operator::Instance {
-                name,
-                params: _,
-                loc: _,
-            } => write!(f, "Instance({})", name.as_verilog()),
+            Operator::Instance { name, .. } => write!(f, "Instance({})", name.as_verilog()),
             Operator::Alias => write!(f, "Alias"),
             Operator::FlipPort => write!(f, "FlipPort"),
             Operator::ReadMutWires => write!(f, "ReadMutWires"),

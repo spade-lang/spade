@@ -1,0 +1,21 @@
+use std::ports;
+
+mod extern {
+    #[no_mangle]
+    entity add_constant<#uint N, #uint M>(
+        #[no_mangle] in: int<8>,
+        #[no_mangle] out: inv &int<8>
+    ) __builtin__
+}
+
+entity harness(input: int<8>, named: bool) -> int<8> {
+    if named {
+        let out = inst ports::new_mut_wire();
+        let _ = inst extern::add_constant::$<N: 1, M: 2>(input, out);
+        inst ports::read_mut_wire(out)
+    } else {
+        let out = inst ports::new_mut_wire();
+        let _ = inst extern::add_constant::<1, 2>(input, out);
+        inst ports::read_mut_wire(out)
+    }
+}

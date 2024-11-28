@@ -30,6 +30,7 @@ use hir::Parameter;
 use hir::TypeDeclKind;
 use hir::TypeSpec;
 use hir::WalTrace;
+use itertools::Itertools;
 use local_impl::local_impl;
 use mir::passes::MirPass;
 use num::ToPrimitive;
@@ -60,6 +61,7 @@ use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
 use spade_typeinference::GenericListToken;
 use spade_typeinference::HasType;
+use spade_types::meta_types::MetaType;
 use spade_types::KnownType;
 use statement_list::StatementList;
 use substitution::Substitution;
@@ -2088,7 +2090,7 @@ impl ExprLocal for Loc<Expression> {
                     unit_name
                 };
 
-                let params = args
+                let argument_names = args
                     .iter()
                     .zip(&u.head.inputs.0)
                     .map(|(_, input)| mir::ParamName {
@@ -2102,7 +2104,8 @@ impl ExprLocal for Loc<Expression> {
                         name: self.variable(ctx)?,
                         operator: mir::Operator::Instance {
                             name: instance_name.as_mir(),
-                            params,
+                            params: vec![],
+                            argument_names,
                             loc: Some(self.loc()),
                         },
                         operands: args
@@ -2121,19 +2124,57 @@ impl ExprLocal for Loc<Expression> {
             Some(hir::ExecutableItem::BuiltinUnit(name, head)) => {
                 let (unit_name, type_params) = (name, &head.get_type_params());
 
+                // Grab the number-like type vars and pair them with their monomorphized values
+                let verilog_parameters = type_params
+                    .iter()
+                    .flat_map(|type_param| {
+                        if matches!(
+                            type_param.inner.meta,
+                            MetaType::Int | MetaType::Uint | MetaType::Number
+                        ) {
+                            instance_list.get(&type_param.name_id).and_then(|type_var| {
+                                type_var
+                                    .expect_integer(
+                                        BigUint::try_from,
+                                        || unreachable!(),
+                                        |_| unreachable!(),
+                                    )
+                                    .ok()
+                                    .map(|value| (type_param.ident.inner.0.clone(), value))
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect_vec();
+
                 // NOTE: Ideally this check would be done earlier, when defining the generic
                 // builtin. However, at the moment, the compiler does not know if the generic
                 // is an intrinsic until here when it has gone through the list of intrinsics
-                if !type_params.is_empty() {
-                    return Err(Diagnostic::error(
+                if type_params.len() > verilog_parameters.len() {
+                    let mut error = Diagnostic::error(
                         self.loc(),
-                        "Generic builtins cannot be instantiated",
+                        "Generic builtins with non-number parameters cannot be instantiated",
                     )
                     .primary_label("Invalid instance")
-                    .secondary_label(head, "Because this is a generic __builtin__"));
+                    .secondary_label(
+                        head,
+                        "Because this generic __builtin__ has a type parameter",
+                    );
+
+                    if let Some(example) = type_params.iter().find(|type_param| {
+                        !matches!(
+                            type_param.inner.meta,
+                            MetaType::Int | MetaType::Uint | MetaType::Number,
+                        )
+                    }) {
+                        error = error.span_suggest_remove("Remove this parameter", example);
+                    }
+
+                    return Err(error);
                 }
 
-                let params = args
+                let argument_names = args
                     .iter()
                     .zip(&head.inputs.0)
                     .map(|(_, input)| mir::ParamName {
@@ -2149,7 +2190,8 @@ impl ExprLocal for Loc<Expression> {
                         name: self.variable(ctx)?,
                         operator: mir::Operator::Instance {
                             name: unit_name.as_mir(),
-                            params,
+                            params: verilog_parameters,
+                            argument_names,
                             loc: Some(self.loc()),
                         },
                         operands: args
@@ -2168,7 +2210,7 @@ impl ExprLocal for Loc<Expression> {
             None => {
                 unreachable!("Instantiating an item which is not known")
             }
-        }
+        };
         Ok(result)
     }
 

@@ -863,11 +863,19 @@ pub fn visit_unit(
         })),
         ast::Attribute::NoMangle => {
             if let Some(generic_list) = type_params {
-                Err(
-                    Diagnostic::error(attr, "no_mangle is not allowed on generic units")
-                        .primary_label("no_mangle not allowed here")
-                        .secondary_label(generic_list, "Because this unit is generic"),
-                )
+                // if it's a verilog extern (so `body.is_none()`), then we allow generics insofar
+                // as they are numbers (checked later on)
+                if body.is_some() {
+                    Err(
+                        Diagnostic::error(attr, "no_mangle is not allowed on generic units")
+                            .primary_label("no_mangle not allowed here")
+                            .secondary_label(generic_list, "Because this unit is generic"),
+                    )
+                } else {
+                    // yucky code duplication
+                    unit_name = hir::UnitName::Unmangled(name.0.clone(), id.clone().at_loc(name));
+                    Ok(None)
+                }
             } else if let Some(generic_list) = scope_type_params {
                 Err(Diagnostic::error(
                     attr,

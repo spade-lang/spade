@@ -20,8 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!354][!354] Allow assigning values to fields of strutcs in cocotb tests
 - [!356][!356] Allow const generics in array range indexing (`[x:y]`)
 - [!357][!357] Allow const generics in array shorthand initialization (`[value; amount]`)
-
-
+- [!360][!360] Support parametrization of external Verilog entities
 
 ### Changed
 

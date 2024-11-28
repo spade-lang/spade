@@ -8,13 +8,16 @@ fn main() -> int<32> {
 }
 
 
-error: Generic builtins cannot be instantiated
+error: Generic builtins with non-number parameters cannot be instantiated
   ┌─ testinput:4:5
   │
 1 │ fn a<T>() -> T __builtin__
-  │ -------------------------- Because this is a generic __builtin__
+  │ -------------------------- Because this generic __builtin__ has a type parameter
   ·
 4 │     a()
   │     ^^^ Invalid instance
-
-
+  │
+  = Remove this parameter
+  │
+1 │ fn a<T>() -> T __builtin__
+  │      -

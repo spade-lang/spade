@@ -827,12 +827,18 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
 
             // Unless this is a special operator, we just use assign value = expression
             let assignment = match &binding.operator {
-                Operator::Instance{name: module_name, params, loc} => {
+                Operator::Instance{name: module_name, params, argument_names, loc} => {
+                    let param_string = if params.is_empty() {
+                        "".into() 
+                    } else {
+                        let param_strings = params.iter().map(|(name, value)| format!(".{}({})", name, value)).collect::<Vec<_>>();
+                        format!("#({})", param_strings.join(", "))
+                    };
                     // Input args
                     let mut args = binding
                         .operands
                         .iter()
-                        .zip(params)
+                        .zip(argument_names)
                         .flat_map(|(port, ParamName{name, no_mangle})| {
                             let ty = &ctx.types[port];
 
@@ -872,8 +878,9 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     code!{
                         [0] source_attribute(loc, ctx.source_code);
                         [0] format!(
-                            "{} {}({});",
+                            "{}{} {}({});",
                             &module_name.as_verilog(),
+                            if param_string.is_empty() { "".into() } else { format!("{}", param_string)},
                             instance_name,
                             args.join(", ")
                         )
@@ -1835,7 +1842,8 @@ mod tests {
                 // Stage 0
                 (e(0); Type::int(16); Instance({
                     name: inst1_unit_name,
-                    params: vec![
+                    params: vec![],
+                    argument_names: vec![
                         ParamName{name: "a".to_string(), no_mangle: None},
                         ParamName{name: "b".to_string(), no_mangle: None},
                     ],
@@ -1843,7 +1851,8 @@ mod tests {
                 }););
                 (e(0); Type::int(16); Instance({
                     name: inst2_unit_name,
-                    params: vec![
+                    params: vec![],
+                    argument_names: vec![
                         ParamName{name: "a".to_string(), no_mangle: None},
                         ParamName{name: "b".to_string(), no_mangle: None},
                     ],
@@ -2527,7 +2536,8 @@ mod expression_tests {
         let stmt = statement!(
             e(0); Type::Bool; Instance({
                 name: inst_name,
-                params: vec![
+                params: vec![],
+                argument_names: vec![
                     ParamName{name: "a".to_string(), no_mangle: None},
                     ParamName{name: "b".to_string(), no_mangle: None},
                 ],
@@ -2562,7 +2572,8 @@ mod expression_tests {
         let ty = Type::Tuple(vec![Type::backward(Type::Bool), Type::Bool]);
         let stmt = statement!(e(0); ty; Instance({
             name: inst_name,
-            params: vec![
+            params: vec![],
+            argument_names: vec![
                 ParamName{name: "a".to_string(), no_mangle: None},
                 ParamName{name: "b".to_string(), no_mangle: None},
             ],
@@ -2594,7 +2605,8 @@ mod expression_tests {
         let ty = Type::backward(Type::Bool);
         let stmt = statement!(e(0); ty; Instance({
             name:UnitName::_test_from_strs(&["e_test"]),
-            params: vec![
+            params: vec![],
+            argument_names: vec![
                 ParamName{name: "a".to_string(), no_mangle: None},
                 ParamName{name: "b".to_string(), no_mangle: None},
             ],
@@ -2625,7 +2637,8 @@ mod expression_tests {
         let ty = Type::Bool;
         let stmt = statement!(e(0); ty; Instance({
             name:UnitName::_test_from_strs(&["test"]),
-            params: vec![
+            params: vec![],
+            argument_names: vec![
                 ParamName{name: "a".to_string(), no_mangle: None},
                 ParamName{name: "b".to_string(), no_mangle: None},
             ],
