@@ -36,7 +36,7 @@ check:clippy:
     image: "rust:$RUST_VERSION"
     before_script:
         - rustup component add clippy
-        - cargo install gitlab_clippy
+        - cargo install --locked gitlab_clippy
         - cargo clippy -V
     script:
         - cargo clippy --workspace --exclude spade-cxx -- --allow clippy::useless_format
