@@ -7,6 +7,7 @@
 [![GitLab contributors](https://img.shields.io/gitlab/contributors/spade-lang/spade)](https://img.shields.io/gitlab/contributors/spade-lang/spade)
 [![GitLab language count](https://img.shields.io/gitlab/languages/count/spade-lang/spade)](https://img.shields.io/gitlab/languages/count/spade-lang/spade)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7713114.svg)](https://doi.org/10.5281/zenodo.7713114)
+![Join Discord](https://img.shields.io/discord/962274366043873301?logo=discord&logoColor=white&label=Discord&color=5865F2)
 
 # Spade
 
@@ -28,9 +29,9 @@ To get started with Spade, see
 
 There are editor plugins for syntax highlighting available for some editors
 
- - vim: if you're using neovim with [lazy.nvim](https://github.com/folke/lazy.nvim), you can install https://github.com/ethanuppal/spade.nvim; otherwise, use https://gitlab.com/spade-lang/spade-vim, which requires a bit of manual setup
- - vscode: https://git.sr.ht/~acqrel/spade-vscode
- - emacs: https://git.sr.ht/~lucasklemmer/spade-mode
+- vim: if you're using neovim with [lazy.nvim](https://github.com/folke/lazy.nvim), you can install <https://github.com/ethanuppal/spade.nvim>; otherwise, use <https://gitlab.com/spade-lang/spade-vim>, which requires a bit of manual setup
+- vscode: <https://git.sr.ht/~acqrel/spade-vscode>
+- emacs: <https://git.sr.ht/~lucasklemmer/spade-mode>
 
 Note that most of these are maintained by third parties and may be out of date.
 If you make a plugin for your favourite editor, feel free to add it to the
