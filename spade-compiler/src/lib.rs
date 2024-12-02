@@ -99,7 +99,7 @@ pub struct ErrorHandler<'a> {
 }
 
 impl<'a> ErrorHandler<'a> {
-    fn report(&mut self, err: &impl CompilationError) {
+    pub fn report(&mut self, err: &impl CompilationError) {
         self.failed = true;
         err.report(
             self.error_buffer,
