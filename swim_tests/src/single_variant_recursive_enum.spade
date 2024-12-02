@@ -8,3 +8,7 @@ entity match_one_variant(val: Option<OneVariant>) -> bool {
         None => false
     }
 }
+
+entity construction() -> Option<OneVariant> {
+    Some(OneVariant::Variant)
+}

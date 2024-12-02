@@ -9,6 +9,22 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+### Fixed
+
+- [!365][!365] Fix a few codegen bugs around enums with 1 variant and no members
+
+### Changed
+
+
+### Removed
+
+<!--Links:-->
+[!365]: https://gitlab.com/spade-lang/spade/-/merge_requests/365
+
 ## [0.11.0] - 2024-11-28
 
 ### Added

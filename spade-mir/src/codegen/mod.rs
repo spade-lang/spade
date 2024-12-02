@@ -536,9 +536,23 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
 
             // Compute the amount of undefined bits to put at the end of the literal.
             // First compute the size of this variant
-            let variant_member_size = match &binding.ty {
+            let (variant_member_size, included_members) = match &binding.ty {
                 crate::types::Type::Enum(options) => {
-                    options[*variant].iter().map(|t| t.size()).sum::<BigUint>()
+                    let members = &options[*variant];
+                    let size = members.iter().map(|t| t.size()).sum::<BigUint>();
+
+                    let included_members = members
+                        .iter()
+                        .zip(op_names)
+                        .filter_map(|(ty, name)| {
+                            if ty.size() != BigUint::ZERO {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    (size, included_members)
                 }
                 _ => panic!("Attempted enum construction of non-enum"),
             };
@@ -551,13 +565,13 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
                 String::new()
             };
 
-            let ops_text = if op_names.is_empty() {
+            let ops_text = if included_members.is_empty() {
                 String::new()
             } else {
                 format!(
                     "{}{}",
                     if tag_size != 0 { ", " } else { "" },
-                    op_names.join(", ")
+                    included_members.join(", ")
                 )
             };
 
