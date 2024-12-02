@@ -70,7 +70,7 @@ fn statement_declaration(
                         if inner_w > 1u32.to_biguint() {
                             format!("logic[{inner_w}-1:0] {name}[{length}-1:0];")
                         } else {
-                            logic(&name, &binding.ty.size())
+                            format!("logic[{length}-1:0] {name};")
                         }
                     }
                     _ => logic(&name, &binding.ty.size()),

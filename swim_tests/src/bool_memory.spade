@@ -1,0 +1,5 @@
+entity test(clk: clock, addr: uint<16>, we: bool, write: bool) -> bool {
+    let mem: Memory<bool, 65536> = inst std::mem::clocked_memory(clk, [(we, addr, write)]);
+    reg(clk) out = inst std::mem::read_memory(mem, addr);
+    out
+}

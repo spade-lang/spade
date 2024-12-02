@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - [!365][!365] Fix a few codegen bugs around enums with 1 variant and no members
+- [!365][!365] Correctly generate code for memories with bool elements
 
 ### Changed
 
