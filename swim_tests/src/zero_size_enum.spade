@@ -1,0 +1,13 @@
+enum T {
+    A,
+}
+
+fn test(t: T) -> bool {
+    match t {
+        T::A => true,
+    }
+}
+
+fn instantiation() -> T {
+    T::A
+}

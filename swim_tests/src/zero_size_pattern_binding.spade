@@ -1,0 +1,8 @@
+struct ZeroSized {}
+
+entity match_zs(val: Option<ZeroSized>) -> bool {
+    match val {
+        Some(inner_val) => true,
+        None => false
+    }
+}

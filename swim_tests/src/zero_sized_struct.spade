@@ -1,0 +1,5 @@
+struct T {}
+
+fn test() {
+    let t = T();
+}

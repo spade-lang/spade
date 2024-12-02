@@ -1,0 +1,10 @@
+enum OneVariant {
+    Variant
+}
+
+entity match_one_variant(val: Option<OneVariant>) -> bool {
+    match val {
+        Some(inner_val) => true,
+        None => false
+    }
+}

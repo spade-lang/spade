@@ -570,23 +570,28 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             format!("{{{tag}{ops_text}{padding_text}}}")
         }
         Operator::IsEnumVariant { variant, enum_type } => {
-            let tag_size = enum_util::tag_size(enum_type.assume_enum().len());
-            let total_size = enum_type.size();
-
-            let tag_end = &total_size - 1u32.to_biguint();
-            let tag_start = &total_size - tag_size as u64;
-
-            if tag_size == 0 {
+            // Special case for fully zero sized enum
+            if enum_type.size() == BigUint::ZERO {
                 "1".to_string()
-            } else if total_size == 1u32.to_biguint() {
-                format!("{} == 1'd{}", op_names[0], variant)
-            } else if tag_end == tag_start {
-                format!("{}[{}] == {}'d{}", op_names[0], tag_end, tag_size, variant)
             } else {
-                format!(
-                    "{}[{}:{}] == {}'d{}",
-                    op_names[0], tag_end, tag_start, tag_size, variant
-                )
+                let tag_size = enum_util::tag_size(enum_type.assume_enum().len());
+                let total_size = enum_type.size();
+
+                let tag_end = &total_size - 1u32.to_biguint();
+                let tag_start = &total_size - tag_size as u64;
+
+                if tag_size == 0 {
+                    "1".to_string()
+                } else if total_size == 1u32.to_biguint() {
+                    format!("{} == 1'd{}", op_names[0], variant)
+                } else if tag_end == tag_start {
+                    format!("{}[{}] == {}'d{}", op_names[0], tag_end, tag_size, variant)
+                } else {
+                    format!(
+                        "{}[{}:{}] == {}'d{}",
+                        op_names[0], tag_end, tag_start, tag_size, variant
+                    )
+                }
             }
         }
         Operator::EnumMember {
