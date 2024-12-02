@@ -28,7 +28,7 @@ To get started with Spade, see
 
 There are editor plugins for syntax highlighting available for some editors
 
- - vim: https://gitlab.com/spade-lang/spade-vim
+ - vim: if you're using neovim with [lazy.nvim](https://github.com/folke/lazy.nvim), you can install https://github.com/ethanuppal/spade.nvim; otherwise, use https://gitlab.com/spade-lang/spade-vim, which requires a bit of manual setup
  - vscode: https://git.sr.ht/~acqrel/spade-vscode
  - emacs: https://git.sr.ht/~lucasklemmer/spade-mode
 
