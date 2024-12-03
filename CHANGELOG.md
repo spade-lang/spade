@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - [!365][!365] Fix a few codegen bugs around enums with 1 variant and no members
 - [!365][!365] Correctly generate code for memories with bool elements
+- [!368][!368] Fix panic when pattern matching arrays of integers with more than 4 elements
+- [!368][!368] Report error when integer patterns are out of bounds
 
 ### Changed
 
@@ -27,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!--Links:-->
 [!365]: https://gitlab.com/spade-lang/spade/-/merge_requests/365
+[!368]: https://gitlab.com/spade-lang/spade/-/merge_requests/368
 [!370]: https://gitlab.com/spade-lang/spade/-/merge_requests/370
 [!371]: https://gitlab.com/spade-lang/spade/-/merge_requests/371
 

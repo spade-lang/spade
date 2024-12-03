@@ -1234,8 +1234,12 @@ impl TypeState {
         let new_type = self.new_generic_type(pattern.loc());
         self.add_equation(TypedExpression::Id(pattern.inner.id), new_type);
         match &pattern.inner.kind {
-            hir::PatternKind::Integer(_) => {
+            hir::PatternKind::Integer(val) => {
                 let (num_t, _) = &self.new_generic_number(pattern.loc(), ctx);
+                self.add_requirement(Requirement::FitsIntLiteral {
+                    value: ConstantInt::Literal(val.clone()),
+                    target_type: num_t.clone().at_loc(pattern),
+                });
                 self.unify(pattern, num_t, ctx)
                     .expect("Failed to unify new_generic with int");
             }
@@ -1288,8 +1292,6 @@ impl TypeState {
                     let inner_t = inner[0].get_type(self)?;
 
                     for pattern in inner.iter().skip(1) {
-                        // We get a more refined type in each iteration and need to use that
-                        // which is why we continuously update inner_t
                         self.unify(pattern, &inner_t, ctx)
                             .into_default_diagnostic(pattern)?;
                     }

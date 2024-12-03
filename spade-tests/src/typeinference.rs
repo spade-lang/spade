@@ -1940,3 +1940,15 @@ code_compiles! {
         }
     "
 }
+
+snapshot_error! {
+    integer_patterns_are_bounds_checked,
+    "
+        fn test(x: uint<8>) -> bool {
+            match x {
+                512 => false,
+                _ => false,
+            }
+        }
+    "
+}
