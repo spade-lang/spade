@@ -1288,12 +1288,11 @@ impl TypeState {
                     let inner_t = inner[0].get_type(self)?;
 
                     for pattern in inner.iter().skip(1) {
+                        // We get a more refined type in each iteration and need to use that
+                        // which is why we continuously update inner_t
                         self.unify(pattern, &inner_t, ctx)
                             .into_default_diagnostic(pattern)?;
                     }
-
-                    // The for loop may give us a more refined type which we need to inherit here.
-                    let inner_t = inner[0].get_type(self)?;
 
                     self.unify(
                         pattern,
@@ -1841,7 +1840,8 @@ impl TypeState {
 
     fn check_var_for_replacement(&self, var: TypeVar) -> TypeVar {
         if let Some(new) = self.replacements.get(&var) {
-            return new.clone();
+            // We need to do this recursively if we have multiple long lived vars
+            return self.check_var_for_replacement(new.clone());
         };
         match var {
             TypeVar::Known(loc, base, params) => TypeVar::Known(

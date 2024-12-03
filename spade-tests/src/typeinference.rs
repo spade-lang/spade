@@ -1916,3 +1916,27 @@ code_compiles! {
         }
     "
 }
+
+code_compiles! {
+    array_match_correctly_propagates_types,
+    "
+        entity buggy(clk: clock, a: [uint<8>; 5]) -> bool {
+            match a {
+                [1,2,3,4,5] => false,
+                _ => false
+            }
+        }
+    "
+}
+
+code_compiles! {
+    big_array_match_correctly_propagates_types,
+    "
+        entity buggy(clk: clock, a: [uint<8>; 32]) -> bool {
+            match a {
+                [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8] => false,
+                _ => false
+            }
+        }
+    "
+}
