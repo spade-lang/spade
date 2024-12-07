@@ -13,11 +13,11 @@ enum OpBindingPower {
     LogicalOr,
     LogicalAnd,
     LogicalXor,
+    Equality,
+    RelationalCmp,
     BitwiseOr,
     BitwiseXor,
     BitwiseAnd,
-    Equality,
-    RelationalCmp,
     Shift,
     AddLike,
     MulLike,
@@ -96,6 +96,7 @@ impl<'a> Parser<'a> {
             TokenKind::Not => Some(UnaryOperator::Not),
             TokenKind::Tilde => Some(UnaryOperator::BitwiseNot),
             TokenKind::Ampersand => Some(UnaryOperator::Reference),
+            TokenKind::Asterisk => Some(UnaryOperator::Dereference),
             _ => None,
         }
     }
@@ -243,8 +244,6 @@ impl<'a> Parser<'a> {
             Ok(if_expr)
         } else if let Some(match_expr) = self.match_expression()? {
             Ok(match_expr)
-        } else if let Some(operator) = self.unary_operator()? {
-            Ok(operator)
         } else if let Some(stageref) = self.pipeline_reference()? {
             Ok(stageref)
         } else if let Some(create_ports) = self.peek_and_eat(&TokenKind::Port)? {
@@ -284,32 +283,6 @@ impl<'a> Parser<'a> {
         }?;
 
         self.expression_suffix(expr)
-    }
-
-    fn unary_operator(&mut self) -> Result<Option<Loc<Expression>>> {
-        let t = self.peek()?;
-        let operator = match t.kind {
-            TokenKind::Minus => Some(UnaryOperator::Sub.at(self.file_id, &t.span)),
-            TokenKind::Not => Some(UnaryOperator::Not.at(self.file_id, &t.span)),
-            TokenKind::Tilde => Some(UnaryOperator::BitwiseNot.at(self.file_id, &t.span)),
-            TokenKind::Asterisk => Some(UnaryOperator::Dereference.at(self.file_id, &t.span)),
-            _ => None,
-        };
-
-        Ok(match operator {
-            Some(op) => {
-                self.eat_unconditional()?;
-                let expr = self.expression()?;
-                Some(
-                    Expression::UnaryOperator(op.inner.clone(), Box::new(expr.clone())).between(
-                        self.file_id,
-                        &op,
-                        &expr,
-                    ),
-                )
-            }
-            None => None,
-        })
     }
 
     #[trace_parser]
@@ -1162,6 +1135,24 @@ mod test {
         .nowhere();
 
         check_parse!("*a", expression, Ok(expected));
+    }
+
+    #[test]
+    fn deref_operator_precedence() {
+        let expected = Expression::BinaryOperator(
+            Box::new(
+                Expression::UnaryOperator(
+                    UnaryOperator::Dereference,
+                    Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+                )
+                .nowhere(),
+            ),
+            BinaryOperator::Add.nowhere(),
+            Box::new(Expression::Identifier(ast_path("b")).nowhere()),
+        )
+        .nowhere();
+
+        check_parse!("*a + b", expression, Ok(expected));
     }
 
     #[test]
