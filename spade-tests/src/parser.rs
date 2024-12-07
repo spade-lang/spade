@@ -212,6 +212,32 @@ snapshot_error!(
     }"
 );
 
+snapshot_error!(
+    missing_if_block_a,
+    "entity a() -> int<32> {
+        if true 5 else { 4 }
+    }"
+);
+
+snapshot_error!(
+    missing_if_block_b,
+    "entity a() -> int<32> {
+        if true { 0 } else 4
+    }"
+);
+
+snapshot_error!(
+    else_match,
+    "entity a() -> int<32> {
+        if true {
+            0
+        } else match 5_i16 {
+            0 => 1,
+            x => x,
+        }
+    }"
+);
+
 snapshot_error! {
     using_empty_identifier_a,
     "

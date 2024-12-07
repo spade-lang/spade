@@ -1,15 +1,12 @@
 ---
 source: spade-tests/src/parser.rs
-assertion_line: 173
 ---
 entity a() -> int<32> {
     if 0 else {4};
 }
 
-error: Unexpected `else`, expected expression
+error: Unexpected `else`, expected a block
   ┌─ testinput:2:10
   │
 2 │     if 0 else {4};
-  │          ^^^^ expected expression here
-
-
+  │          ^^^^ expected a block here

@@ -156,7 +156,7 @@ mod fifo_impl {
         set to_w.read_ptr = read_ptr;
 
         FifoRead$(
-            read: &if !empty {Some(out)} else None,
+            read: &if !empty { Some(out) } else { None },
             ack,
             num_elements: &num_elements,
         )

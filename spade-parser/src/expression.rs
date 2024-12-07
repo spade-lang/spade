@@ -797,22 +797,6 @@ mod test {
     }
 
     #[test]
-    fn if_expressions_do_not_require_blocks() {
-        let code = r#"
-        if a b else c
-        "#;
-
-        let expected = Expression::If(
-            Box::new(Expression::Identifier(ast_path("a")).nowhere()),
-            Box::new(Expression::Identifier(ast_path("b")).nowhere()),
-            Box::new(Expression::Identifier(ast_path("c")).nowhere()),
-        )
-        .nowhere();
-
-        check_parse!(code, expression, Ok(expected));
-    }
-
-    #[test]
     fn match_expressions_work() {
         let code = r#"
         match x {

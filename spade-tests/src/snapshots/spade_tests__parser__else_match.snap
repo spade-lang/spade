@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity a() -> int<32> {
+    if true {
+        0
+    } else match 5_i16 {
+        0 => 1,
+        x => x,
+    }
+}
+
+error: Unexpected `match`, expected `if` or a block
+  ┌─ testinput:4:12
+  │
+4 │     } else match 5_i16 {
+  │            ^^^^^ expected a block here

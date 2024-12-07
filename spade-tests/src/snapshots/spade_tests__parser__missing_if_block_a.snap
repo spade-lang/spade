@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity a() -> int<32> {
+    if true 5 else { 4 }
+}
+
+error: Unexpected `integer`, expected a block
+  ┌─ testinput:2:13
+  │
+2 │     if true 5 else { 4 }
+  │             ^ expected a block here

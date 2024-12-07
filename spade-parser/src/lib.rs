@@ -382,9 +382,34 @@ impl<'a> Parser<'a> {
 
         let cond = self.expression()?;
 
-        let on_true = self.expression()?;
+        let on_true = if let Some(block) = self.block(false)? {
+            block.map(Box::new).map(Expression::Block)
+        } else {
+            let got = self.peek()?;
+            return Err(Diagnostic::error(
+                got.loc(),
+                format!("Unexpected `{}`, expected a block", got.kind.as_str()),
+            )
+            .primary_label("expected a block here"));
+        };
+
         self.eat(&TokenKind::Else)?;
-        let (on_false, end_span) = self.expression()?.separate();
+        let on_false = if let Some(block) = self.block(false)? {
+            block.map(Box::new).map(Expression::Block)
+        } else if let Some(expr) = self.if_expression()? {
+            expr
+        } else {
+            let got = self.peek()?;
+            return Err(Diagnostic::error(
+                got.loc(),
+                format!(
+                    "Unexpected `{}`, expected `if` or a block",
+                    got.kind.as_str()
+                ),
+            )
+            .primary_label("expected a block here"));
+        };
+        let end_span = on_false.span;
 
         Ok(Some(
             Expression::If(Box::new(cond), Box::new(on_true), Box::new(on_false)).between(

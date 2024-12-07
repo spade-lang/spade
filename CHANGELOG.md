@@ -21,12 +21,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - [!370][!370] Increased the precedence of dereference and bitwise operators
+- [!371][!371] Require braces around the cases in `if` expressions
 
 ### Removed
 
 <!--Links:-->
 [!365]: https://gitlab.com/spade-lang/spade/-/merge_requests/365
 [!370]: https://gitlab.com/spade-lang/spade/-/merge_requests/370
+[!371]: https://gitlab.com/spade-lang/spade/-/merge_requests/371
 
 ## [0.11.0] - 2024-11-28
 

@@ -1,0 +1,3 @@
+fn operator_after_else(cond: bool, a: uint<8>, b: uint<8>, c: uint<8>) -> uint<9> {
+    if cond { a } else { b } + c
+}
