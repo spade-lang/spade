@@ -1,5 +1,6 @@
 ---
 source: spade-tests/src/integration.rs
+snapshot_kind: text
 ---
 struct X<T> {}
 impl<T> X<T> {
@@ -11,7 +12,7 @@ impl X<(bool, bool)> {
 }
 
 
-error: X already has a method named method
+error: X<(bool, bool)> already has a method named method
   ┌─ testinput:7:5
   │
 3 │     fn method(self) {}

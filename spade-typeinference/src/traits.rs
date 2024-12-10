@@ -1,6 +1,5 @@
 use crate::equation::TypeVar;
-use spade_common::name::NameID;
-use spade_hir::{ImplBlock, TraitName};
+use spade_hir::{ImplBlock, ImplTarget, TraitName};
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -12,7 +11,7 @@ pub struct TraitImpl {
 
 #[derive(Clone)]
 pub struct TraitImplList {
-    pub inner: HashMap<NameID, Vec<TraitImpl>>,
+    pub inner: HashMap<ImplTarget, Vec<TraitImpl>>,
 }
 
 impl TraitImplList {

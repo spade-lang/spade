@@ -16,6 +16,7 @@ use spade_types::meta_types::MetaType;
 
 use crate::{
     attributes::{AttributeListExt, LocAttributeExt},
+    impls::create_trait_from_unit_heads,
     types::IsPort,
     visit_parameter_list, visit_trait_spec, visit_type_spec, Context, Result, TypeSpecKind,
 };
@@ -89,7 +90,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
                 Thing::Trait(def.name.clone()),
             )?;
 
-            crate::create_trait_from_unit_heads(
+            create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.type_params,
                 &def.where_clauses,

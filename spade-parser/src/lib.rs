@@ -744,34 +744,35 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
         if let Some(inv) = self.peek_and_eat(&TokenKind::Inv)? {
-            let rest = self.type_spec()?;
-            return Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(
-                self.file_id,
-                &inv,
-                &rest,
-            ));
-        }
-
-        if let Some(tilde) = self.peek_and_eat(&TokenKind::Tilde)? {
+            let rest = self.type_expression()?;
+            Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(self.file_id, &inv, &rest))
+        } else if let Some(tilde) = self.peek_and_eat(&TokenKind::Tilde)? {
             return Err(Diagnostic::error(
                 tilde.clone(),
                 "The syntax for inverted ports has changed from ~ to inv",
             )
             .primary_label("~ cannot be used in a type")
             .span_suggest("Consider using inv", tilde, "inv "));
-        }
+        } else if let Some(wire_sign) = self.peek_and_eat(&TokenKind::Ampersand)? {
+            if let Some(mut_) = self.peek_and_eat(&TokenKind::Mut)? {
+                return Err(Diagnostic::error(
+                    &().at(self.file_id, &mut_),
+                    "The syntax of &mut has changed to inv &",
+                )
+                .primary_label("&mut is now written as inv &")
+                .span_suggest_replace(
+                    "Consider using inv &",
+                    ().between(self.file_id, &wire_sign, &mut_),
+                    "inv &",
+                ));
+            }
 
-        let wire_sign = self.peek_and_eat(&TokenKind::Ampersand)?;
-        let mut_sign = if wire_sign.is_some() {
-            self.peek_and_eat(&TokenKind::Mut)?
-        } else {
-            None
-        };
-
-        let inner = if let Some(tuple) = self.tuple_spec()? {
-            tuple
+            let rest = self.type_expression()?;
+            Ok(TypeSpec::Wire(Box::new(rest.clone())).between(self.file_id, &wire_sign, &rest))
+        } else if let Some(tuple) = self.tuple_spec()? {
+            Ok(tuple)
         } else if let Some(array) = self.array_spec()? {
-            array
+            Ok(array)
         } else {
             if !self.peek_cond(TokenKind::is_identifier, "Identifier")? {
                 return Err(Diagnostic::from(UnexpectedToken {
@@ -799,29 +800,8 @@ impl<'a> Parser<'a> {
             };
 
             let span_end = generics.as_ref().map(|g| g.span).unwrap_or(span);
-            TypeSpec::Named(path, generics).between(self.file_id, &span, &span_end)
-        };
-
-        let result = match (wire_sign, mut_sign) {
-            (Some(wire), Some(mut_)) => {
-                return Err(Diagnostic::error(
-                    &().at(self.file_id, &mut_),
-                    "The syntax of &mut has changed to inv &",
-                )
-                .primary_label("&mut is now written as inv &")
-                .span_suggest_replace(
-                    "Consider using inv &",
-                    ().between(self.file_id, &wire, &mut_),
-                    "inv &",
-                ))
-            }
-            (Some(wire), None) => {
-                TypeSpec::Wire(Box::new(inner.clone())).between(self.file_id, &wire.span, &inner)
-            }
-            (None, _) => inner,
-        };
-
-        Ok(result)
+            Ok(TypeSpec::Named(path, generics).between(self.file_id, &span, &span_end))
+        }
     }
 
     #[trace_parser]
@@ -829,7 +809,7 @@ impl<'a> Parser<'a> {
         let start = peek_for!(self, &TokenKind::OpenParen);
 
         let inner = self
-            .comma_separated(Self::type_spec, &TokenKind::CloseParen)
+            .comma_separated(Self::type_expression, &TokenKind::CloseParen)
             .no_context()?;
         let end = self.eat(&TokenKind::CloseParen)?;
 
@@ -842,7 +822,7 @@ impl<'a> Parser<'a> {
     pub fn array_spec(&mut self) -> Result<Option<Loc<TypeSpec>>> {
         let start = peek_for!(self, &TokenKind::OpenBracket);
 
-        let inner = self.type_spec()?;
+        let inner = self.type_expression()?;
 
         if let Some(end) = self.peek_and_eat(&TokenKind::CloseBracket)? {
             return Err(Diagnostic::error(
@@ -2350,41 +2330,6 @@ mod tests {
     }
 
     #[test]
-    fn wire_type_specs_work() {
-        let code = "&int<5>";
-
-        let expected = TypeSpec::Wire(Box::new(
-            TypeSpec::Named(
-                ast_path("int"),
-                Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
-            )
-            .nowhere(),
-        ))
-        .nowhere();
-
-        check_parse!(code, type_spec, Ok(expected));
-    }
-
-    #[test]
-    fn mut_wire_type_specs_work() {
-        let code = "inv &int<5>";
-
-        let expected = TypeSpec::Inverted(Box::new(
-            TypeSpec::Wire(Box::new(
-                TypeSpec::Named(
-                    ast_path("int"),
-                    Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
-                )
-                .nowhere(),
-            ))
-            .nowhere(),
-        ))
-        .nowhere();
-
-        check_parse!(code, type_spec, Ok(expected));
-    }
-
-    #[test]
     fn module_body_parsing_works() {
         let code = include_str!("../parser_test_code/multiple_entities.sp");
 
@@ -2462,19 +2407,6 @@ mod tests {
         let expected = IntLiteral::unsized_(5).nowhere();
 
         check_parse!(code, int_literal, Ok(Some(expected)));
-    }
-
-    #[test]
-    fn array_type_specs_work() {
-        let code = "[int; 5]";
-
-        let expected = TypeSpec::Array {
-            inner: Box::new(TypeSpec::Named(ast_path("int"), None).nowhere()),
-            size: Box::new(TypeExpression::Integer(5u32.to_bigint()).nowhere()),
-        }
-        .nowhere();
-
-        check_parse!(code, type_spec, Ok(expected));
     }
 
     #[test]

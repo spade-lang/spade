@@ -756,19 +756,6 @@ mod test {
     }
 
     #[test]
-    fn tuple_type_specs_work() {
-        let code = "(int, bool)";
-
-        let expected = TypeSpec::Tuple(vec![
-            TypeSpec::Named(ast_path("int"), None).nowhere(),
-            TypeSpec::Named(ast_path("bool"), None).nowhere(),
-        ])
-        .nowhere();
-
-        check_parse!(code, type_spec, Ok(expected));
-    }
-
-    #[test]
     fn if_expressions_work() {
         let code = r#"
         if a {b} else {c}

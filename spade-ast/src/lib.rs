@@ -46,9 +46,9 @@ impl WithLocation for TurbofishInner {}
 /// of fields in a struct etc.
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeSpec {
-    Tuple(Vec<Loc<TypeSpec>>),
+    Tuple(Vec<Loc<TypeExpression>>),
     Array {
-        inner: Box<Loc<TypeSpec>>,
+        inner: Box<Loc<TypeExpression>>,
         size: Box<Loc<TypeExpression>>,
     },
     Named(Loc<Path>, Option<Loc<Vec<Loc<TypeExpression>>>>),
@@ -58,8 +58,8 @@ pub enum TypeSpec {
     /// T` Inversions cancel each other, i.e. `~~&T` is effectively `&T` Inverted signals are
     /// ports.
     /// If applied to a struct port, all fields are inverted.
-    Inverted(Box<Loc<TypeSpec>>),
-    Wire(Box<Loc<TypeSpec>>),
+    Inverted(Box<Loc<TypeExpression>>),
+    Wire(Box<Loc<TypeExpression>>),
     Wildcard,
 }
 impl WithLocation for TypeSpec {}
@@ -79,7 +79,7 @@ impl std::fmt::Display for TypeSpec {
                 write!(f, "{name}{args}")
             }
             TypeSpec::Unit(_) => write!(f, "()"),
-            TypeSpec::Inverted(inner) => write!(f, "~{inner}"),
+            TypeSpec::Inverted(inner) => write!(f, "inv {inner}"),
             TypeSpec::Wire(inner) => write!(f, "&{inner}"),
             TypeSpec::Wildcard => write!(f, "_"),
         }

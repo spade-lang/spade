@@ -17,6 +17,7 @@ use hir::{
     UnitHead, UnitKind, WalTrace, WhereClause,
 };
 use itertools::Itertools;
+use method_resolution::IntoImplTarget;
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -30,7 +31,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path};
 use spade_hir::param_util::{match_args_with_params, Argument};
 use spade_hir::symbol_table::{Patternable, PatternableKind, SymbolTable, TypeSymbol};
-use spade_hir::{self as hir, ConstGenericWithId};
+use spade_hir::{self as hir, ConstGenericWithId, ImplTarget};
 use spade_hir::{
     ArgumentList, Block, ExprKind, Expression, ItemList, Pattern, PatternArgument, Register,
     Statement, TraitName, TraitSpec, TypeParam, Unit,
@@ -89,7 +90,7 @@ pub enum GenericListSource<'a> {
     /// their body
     Definition(&'a NameID),
     ImplBlock {
-        target: &'a NameID,
+        target: &'a ImplTarget,
         id: u64,
     },
     /// For expressions which instantiate generic items
@@ -101,7 +102,7 @@ pub enum GenericListSource<'a> {
 pub enum GenericListToken {
     Anonymous(usize),
     Definition(NameID),
-    ImplBlock(NameID, u64),
+    ImplBlock(ImplTarget, u64),
     Expression(u64),
 }
 
@@ -2537,11 +2538,16 @@ impl TypeState {
         }
 
         match var {
-            TypeVar::Known(_, KnownType::Named(name), _) => {
+            TypeVar::Known(_, known, _) if known.into_impl_target().is_some() => {
+                let Some(target) = known.into_impl_target() else {
+                    unreachable!()
+                };
+
                 let unsatisfied = traits
                     .inner
                     .iter()
                     .filter(|trait_req| {
+                        // TODO: Can we get rid of this?
                         // Number is special cased for now because we can't impl traits
                         // on generic types
                         if trait_req.name.name_loc().is_some_and(|n| n.inner == number) {
@@ -2556,9 +2562,10 @@ impl TypeState {
                                 .expect("The type uint was not in the symtab")
                                 .0;
 
-                            !(name == int_type || name == uint_type)
+                            !(target == ImplTarget::Named(int_type.clone())
+                                || target == ImplTarget::Named(uint_type.clone()))
                         } else {
-                            if let Some(impld) = self.trait_impls.inner.get(name) {
+                            if let Some(impld) = self.trait_impls.inner.get(&target) {
                                 !impld.iter().any(|trait_impl| {
                                     trait_impl.name == trait_req.name
                                         && trait_impl.type_params == trait_req.type_params

@@ -1,5 +1,6 @@
 ---
 source: spade-tests/src/integration.rs
+snapshot_kind: text
 ---
 impl<T> uint<T> {
     fn method(self) {}
@@ -10,7 +11,7 @@ impl uint<16> {
 }
 
 
-error: uint already has a method named method
+error: uint<16> already has a method named method
   ┌─ testinput:6:5
   │
 2 │     fn method(self) {}

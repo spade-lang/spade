@@ -743,6 +743,59 @@ pub struct TraitDef {
 }
 impl WithLocation for TraitDef {}
 
+#[derive(PartialEq, Hash, Eq, Debug, Clone, Serialize, Deserialize)]
+pub enum ImplTarget {
+    Array,
+    Inverted,
+    Wire,
+    Named(NameID),
+}
+
+impl ImplTarget {
+    pub fn display(&self, args: &[TypeExpression]) -> String {
+        match self {
+            ImplTarget::Array => {
+                format!(
+                    "[{}; {}]",
+                    args.get(0)
+                        .map(|a| format!("{}", a))
+                        .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
+                    args.get(1)
+                        .map(|a| format!("{}", a))
+                        .unwrap_or_else(|| "<(bug) Missing param 1>".to_string())
+                )
+            }
+            ImplTarget::Wire => {
+                format!(
+                    "&{}",
+                    args.get(0)
+                        .map(|a| format!("{}", a))
+                        .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
+                )
+            }
+            ImplTarget::Inverted => {
+                format!(
+                    "inv {}",
+                    args.get(0)
+                        .map(|a| format!("{}", a))
+                        .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
+                )
+            }
+            ImplTarget::Named(name) => {
+                format!(
+                    "{}{}",
+                    name,
+                    if args.is_empty() {
+                        format!("")
+                    } else {
+                        format!("<{}>", args.iter().map(|arg| format!("{}", arg)).join(", "))
+                    }
+                )
+            }
+        }
+    }
+}
+
 /// A list of all the items present in the whole AST, flattened to remove module
 /// hierarchies.
 ///
@@ -761,7 +814,7 @@ pub struct ItemList {
     /// by name. Anonymous impl blocks are also members here, but their name is never
     /// visible to the user.
     pub traits: HashMap<TraitName, TraitDef>,
-    pub impls: HashMap<NameID, HashMap<(TraitName, Vec<TypeExpression>), Loc<ImplBlock>>>,
+    pub impls: HashMap<ImplTarget, HashMap<(TraitName, Vec<TypeExpression>), Loc<ImplBlock>>>,
 }
 
 impl Default for ItemList {

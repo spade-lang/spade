@@ -1,11 +1,23 @@
 use hir::symbol_table::{SymbolTable, TypeDeclKind, TypeSymbol};
 use local_impl::local_impl;
-use spade_ast as ast;
+use spade_ast::{self as ast, TypeExpression};
 use spade_hir as hir;
 
 use crate::Result;
 
-#[local_impl]
+pub trait IsPort {
+    fn is_port(&self, symtab: &SymbolTable) -> Result<bool>;
+}
+impl IsPort for TypeExpression {
+    fn is_port(&self, symtab: &SymbolTable) -> Result<bool> {
+        match self {
+            TypeExpression::TypeSpec(s) => s.is_port(symtab),
+            TypeExpression::Integer(_) => Ok(false),
+            TypeExpression::ConstGeneric(_) => Ok(false),
+        }
+    }
+}
+
 impl IsPort for ast::TypeSpec {
     #[tracing::instrument(skip(symtab))]
     fn is_port(&self, symtab: &SymbolTable) -> Result<bool> {

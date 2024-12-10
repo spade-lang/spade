@@ -3,11 +3,28 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID};
 
 use spade_diagnostics::Diagnostic;
-use spade_hir::{TypeExpression, TypeSpec};
+use spade_hir::{ImplTarget, TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
 use crate::equation::TypeVar;
 use crate::traits::{TraitImpl, TraitImplList};
+
+pub trait IntoImplTarget {
+    fn into_impl_target(&self) -> Option<ImplTarget>;
+}
+
+impl IntoImplTarget for KnownType {
+    fn into_impl_target(&self) -> Option<ImplTarget> {
+        match self {
+            KnownType::Named(name) => Some(ImplTarget::Named(name.clone())),
+            KnownType::Integer(_) => None,
+            KnownType::Tuple => None,
+            KnownType::Array => Some(ImplTarget::Array),
+            KnownType::Wire => Some(ImplTarget::Wire),
+            KnownType::Inverted => Some(ImplTarget::Inverted),
+        }
+    }
+}
 
 /// Attempts to look up which function to call when calling `method` on a var
 /// of type `self_type`.
@@ -19,19 +36,15 @@ pub fn select_method(
     method: &Loc<Identifier>,
     trait_impls: &TraitImplList,
 ) -> Result<Option<Loc<NameID>>, Diagnostic> {
-    let type_name = self_type.expect_named(
-        |name, _params| Ok(name.clone()),
-        || Err(Diagnostic::bug(expr, "Generic type")),
-        |other| {
-            Err(Diagnostic::bug(
-                expr,
-                format!("{other} cannot have methods"),
-            ))
-        },
-    )?;
+    let target = self_type
+        .expect_known::<_, _, _, Option<ImplTarget>>(
+            |ktype, _params| ktype.into_impl_target(),
+            || None,
+        )
+        .ok_or_else(|| Diagnostic::bug(expr, format!("{self_type} cannot have methods")))?;
 
     // Go to the item list to check if this name has any methods
-    let impls = trait_impls.inner.get(&type_name).cloned().unwrap_or(vec![]);
+    let impls = trait_impls.inner.get(&target).cloned().unwrap_or(vec![]);
 
     // Gather all the candidate methods which we may want to call.
     let (matched_candidates, maybe_candidates, unmatched_candidates): (Vec<_>, Vec<_>, Vec<_>) =

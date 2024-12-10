@@ -1,12 +1,13 @@
 ---
 source: spade-tests/src/integration.rs
+snapshot_kind: text
 ---
 impl<T> T {
     fn method(self) {}
 }
 
 
-error: Impl blocks cannot currently be used on generic types
+error: Impl target must be a concrete type
   ┌─ testinput:1:9
   │
 1 │ impl<T> T {
