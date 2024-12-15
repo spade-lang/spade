@@ -23,19 +23,8 @@ at [https://docs.spade-lang.org](https://docs.spade-lang.org)
 ## Getting started
 
 To get started with Spade, see
-[https://docs.spade-lang.org/introduction.html](https://docs.spade-lang.org/introduction.html)
-
-## Editor integration
-
-There are editor plugins for syntax highlighting available for some editors
-
-- vim: if you're using neovim with [lazy.nvim](https://github.com/folke/lazy.nvim), you can install <https://github.com/ethanuppal/spade.nvim>; otherwise, use <https://gitlab.com/spade-lang/spade-vim>, which requires a bit of manual setup
-- vscode: <https://git.sr.ht/~acqrel/spade-vscode>
-- emacs: <https://git.sr.ht/~lucasklemmer/spade-mode>
-
-Note that most of these are maintained by third parties and may be out of date.
-If you make a plugin for your favourite editor, feel free to add it to the
-list!
+[https://docs.spade-lang.org/introduction.html](https://docs.spade-lang.org/introduction.html).
+You should start by [installing Spade](https://docs.spade-lang.org/installation.html) and then [setting up your editor](https://docs.spade-lang.org/editor-setup.html).
 
 ## Development and Community
 
