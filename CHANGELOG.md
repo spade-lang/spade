@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- [!372][!372] Allow traits on arrays, wires and inverted types
+
 ### Fixed
 
 - [!365][!365] Fix a few codegen bugs around enums with 1 variant and no members
@@ -38,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [!368]: https://gitlab.com/spade-lang/spade/-/merge_requests/368
 [!370]: https://gitlab.com/spade-lang/spade/-/merge_requests/370
 [!371]: https://gitlab.com/spade-lang/spade/-/merge_requests/371
+[!372]: https://gitlab.com/spade-lang/spade/-/merge_requests/372
 [!374]: https://gitlab.com/spade-lang/spade/-/merge_requests/374
 [!376]: https://gitlab.com/spade-lang/spade/-/merge_requests/376
 [!377]: https://gitlab.com/spade-lang/spade/-/merge_requests/377

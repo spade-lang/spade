@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/ast_lowering.rs
+snapshot_kind: text
+---
+fn test(x: inv 2) {}
+
+
+error: Inverted inner types must be types, not type level integers
+  ┌─ testinput:1:16
+  │
+1 │ fn test(x: inv 2) {}
+  │                ^ Non-type cannot be inverted

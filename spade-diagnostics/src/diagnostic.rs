@@ -429,7 +429,7 @@ macro_rules! diag_assert {
 #[macro_export]
 macro_rules! diag_anyhow {
     ($span:expr, $($arg:tt)*) => {
-        Diagnostic::bug($span, format!($($arg)*))
+        spade_diagnostics::Diagnostic::bug($span, format!($($arg)*))
             .note(format!("Triggered at {}:{}", file!(), line!()))
     }
 }

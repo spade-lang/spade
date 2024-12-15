@@ -197,7 +197,7 @@ impl TypeState {
                 !invert,
             ),
             TypeSpec::TraitSelf(_) => panic!("Trying to concretize HIR TraitSelf type"),
-            TypeSpec::Wildcard => panic!("Trying to concretize HIR Wildcard type"),
+            TypeSpec::Wildcard(_) => panic!("Trying to concretize HIR Wildcard type"),
         }
     }
 

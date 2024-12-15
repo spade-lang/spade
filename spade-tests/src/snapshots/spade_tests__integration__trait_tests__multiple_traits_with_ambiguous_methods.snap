@@ -1,0 +1,28 @@
+---
+source: spade-tests/src/integration.rs
+snapshot_kind: text
+---
+trait A {
+    fn method(self);
+}
+trait B {
+    fn method(self);
+}
+
+fn test<T>(x: T)
+    where T: A + B
+{
+    x.method()
+}
+
+
+error: Multiple traits have a method `method` 
+   ┌─ testinput:11:5
+   │
+11 │     x.method()
+   │     ^^^^^^^^^^
+   │     │
+   │     Ambiguous method call
+   │     This has type A+B
+   │
+   = note: The method `method` exists on all these traits: A and B

@@ -1165,3 +1165,52 @@ snapshot_error! {
         impl<T> X<T> for S {}
     "
 }
+
+code_compiles! {
+    impls_on_arrays_work,
+    "
+        impl [bool; 8] {
+            fn func(self) {}
+        }
+
+        fn test() {
+            [true; 8].func()
+        }
+    "
+}
+
+snapshot_error! {
+    trait_spec_match_check_is_structural,
+    "
+        struct X {}
+
+        trait T {
+            fn generic<T1, T2>(self, x: (T1, T2));
+        }
+
+        impl T for X {
+            fn generic<T2, T1>(self, x: (T1, T2)) {}
+        }
+    "
+}
+
+snapshot_error! {
+    tuple_members_must_be_types,
+    "
+        fn test(x: (bool, 2)) {}
+    "
+}
+
+snapshot_error! {
+    wire_targets_must_be_types,
+    "
+        fn test(x: &2) {}
+    "
+}
+
+snapshot_error! {
+    inv_targets_must_be_types,
+    "
+        fn test(x: inv 2) {}
+    "
+}

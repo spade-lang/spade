@@ -16,23 +16,17 @@ use crate::{
     visit_type_spec, visit_unit, visit_where_clauses, Context, SelfContext, TypeSpecKind,
 };
 
-#[tracing::instrument(skip(ctx))]
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
-    let mut result = vec![];
-
     ctx.symtab.new_scope();
+    let result = visit_impl_inner(block, ctx);
+    ctx.symtab.close_scope();
+    ctx.self_ctx = SelfContext::FreeStanding;
+    result
+}
 
-    let self_path = Loc::new(Path::from_strs(&["Self"]), block.span, block.file_id);
-
-    let target_path = if let ast::TypeSpec::Named(path, _) = &block.target.inner {
-        ctx.symtab.add_alias(self_path, path.clone())?;
-        path
-    } else {
-        return Err(
-            Diagnostic::error(&block.target, "Impl target is not a named type")
-                .primary_label("Not a named type"),
-        );
-    };
+#[tracing::instrument(skip(ctx))]
+pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
+    let mut result = vec![];
 
     let mut impl_type_params = vec![];
 
@@ -43,56 +37,23 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
         }
     }
 
+    let target_type = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
+
+    let self_path = Path::from_strs(&["Self"]);
+    ctx.symtab.add_type(
+        self_path,
+        TypeSymbol::Alias(
+            hir::TypeExpression::TypeSpec(target_type.inner.clone()).at_loc(&block.target),
+        )
+        .at_loc(&block.target),
+    );
+
     let (target, target_args) = get_impl_target(block, ctx)?;
 
     let visited_where_clauses = visit_where_clauses(&block.where_clauses, ctx)?;
 
     let impl_block_id = ctx.impl_idtracker.next();
-    let (trait_name, trait_spec) = if let Some(trait_spec) = &block.r#trait {
-        let (name, loc) = ctx.symtab.lookup_trait(&trait_spec.inner.path)?;
-        (
-            TraitName::Named(name.at_loc(&loc)),
-            visit_trait_spec(trait_spec, &TypeSpecKind::ImplTrait, ctx)?,
-        )
-    } else {
-        // Create an anonymous trait which we will impl
-        let trait_name = TraitName::Anonymous(impl_block_id);
-
-        create_trait_from_unit_heads(
-            trait_name.clone(),
-            &block.type_params,
-            &block.where_clauses,
-            &block
-                .units
-                .iter()
-                .map(|u| u.head.clone().at_loc(u))
-                .collect::<Vec<_>>(),
-            ctx,
-        )?;
-
-        let type_params = match &block.type_params {
-            Some(params) => {
-                let mut type_expressions = vec![];
-                for param in &params.inner {
-                    let (name, _) = ctx.symtab.lookup_type_symbol(
-                        &param.map_ref(|_| Path::ident(param.inner.name().clone())),
-                    )?;
-                    let spec = hir::TypeSpec::Generic(name.at_loc(param));
-                    type_expressions.push(hir::TypeExpression::TypeSpec(spec).at_loc(param));
-                }
-                Some(type_expressions.at_loc(params))
-            }
-            None => None,
-        };
-
-        let spec = hir::TraitSpec {
-            name: trait_name.clone(),
-            type_params,
-        }
-        .nowhere();
-
-        (trait_name, spec)
-    };
+    let (trait_name, trait_spec) = get_or_create_trait(block, impl_block_id, ctx)?;
 
     let trait_def = ctx
         .item_list
@@ -109,12 +70,10 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
 
     let trait_methods = &trait_def.fns;
 
-    let target_type_spec = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
-
     let mut trait_members = vec![];
     let mut trait_impl = HashMap::new();
 
-    ctx.self_ctx = SelfContext::ImplBlock(target_type_spec);
+    ctx.self_ctx = SelfContext::ImplBlock(target_type.clone());
 
     let mut missing_methods = trait_methods.keys().collect::<HashSet<_>>();
 
@@ -137,7 +96,7 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
             ));
         };
 
-        check_is_no_function_on_port_type(unit, block, ctx)?;
+        check_is_no_function_on_port_type(unit, &target_type, ctx)?;
 
         let path_suffix = Some(Path(vec![
             Identifier(format!("impl_{}", impl_block_id)).nowhere()
@@ -181,19 +140,18 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
         check_type_params_for_impl_method_and_trait_method_match(impl_method, trait_method)?;
 
         let trait_method_mono =
-            monomorphise_trait_method(trait_method, impl_method, &trait_def, &trait_spec, ctx)?;
+            map_trait_method_parameters(trait_method, impl_method, &trait_def, &trait_spec, ctx)?;
 
         check_output_type_for_impl_method_and_trait_method_matches(
             impl_method,
             &trait_method_mono,
-            &target,
+            &target_type.inner,
         )?;
 
         check_params_for_impl_method_and_trait_method_match(
             impl_method,
             &trait_method_mono,
-            target_path,
-            ctx,
+            &target_type.inner,
         )?;
 
         missing_methods.remove(&unit.head.name.inner);
@@ -202,8 +160,6 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
     }
 
     check_no_missing_methods(block, missing_methods)?;
-
-    let target_type = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
 
     let trait_type_params = if let Some(trait_type_params) = &trait_spec.type_params {
         trait_type_params
@@ -271,10 +227,59 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
             .note("The impls only differ by type parameters of the trait, which is currently not supported"));
     }
 
-    ctx.self_ctx = SelfContext::FreeStanding;
-    ctx.symtab.close_scope();
-
     Ok(result)
+}
+
+pub fn get_or_create_trait(
+    block: &Loc<ast::ImplBlock>,
+    impl_block_id: u64,
+    ctx: &mut Context,
+) -> Result<(TraitName, Loc<hir::TraitSpec>)> {
+    if let Some(trait_spec) = &block.r#trait {
+        let (name, loc) = ctx.symtab.lookup_trait(&trait_spec.inner.path)?;
+        Ok((
+            TraitName::Named(name.at_loc(&loc)),
+            visit_trait_spec(trait_spec, &TypeSpecKind::ImplTrait, ctx)?,
+        ))
+    } else {
+        // Create an anonymous trait which we will impl
+        let trait_name = TraitName::Anonymous(impl_block_id);
+
+        create_trait_from_unit_heads(
+            trait_name.clone(),
+            &block.type_params,
+            &block.where_clauses,
+            &block
+                .units
+                .iter()
+                .map(|u| u.head.clone().at_loc(u))
+                .collect::<Vec<_>>(),
+            ctx,
+        )?;
+
+        let type_params = match &block.type_params {
+            Some(params) => {
+                let mut type_expressions = vec![];
+                for param in &params.inner {
+                    let (name, _) = ctx.symtab.lookup_type_symbol(
+                        &param.map_ref(|_| Path::ident(param.inner.name().clone())),
+                    )?;
+                    let spec = hir::TypeSpec::Generic(name.at_loc(param));
+                    type_expressions.push(hir::TypeExpression::TypeSpec(spec).at_loc(param));
+                }
+                Some(type_expressions.at_loc(params))
+            }
+            None => None,
+        };
+
+        let spec = hir::TraitSpec {
+            name: trait_name.clone(),
+            type_params,
+        }
+        .nowhere();
+
+        Ok((trait_name, spec))
+    }
 }
 
 pub fn get_impl_target(
@@ -417,7 +422,7 @@ pub fn create_trait_from_unit_heads(
         .map(|head| {
             Ok((
                 head.name.inner.clone(),
-                unit_head(head, type_params, &visited_where_clauses, ctx)?,
+                unit_head(head, type_params, &visited_where_clauses, ctx)?.at_loc(head),
             ))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -510,18 +515,16 @@ fn check_generic_params_match_trait_def(
 
 fn check_is_no_function_on_port_type(
     unit: &Loc<ast::Unit>,
-    block: &Loc<ast::ImplBlock>,
+    target_type: &Loc<hir::TypeSpec>,
     ctx: &mut Context,
 ) -> Result<()> {
-    if matches!(unit.head.unit_kind.inner, ast::UnitKind::Function)
-        && block.target.is_port(&ctx.symtab)?
-    {
+    if matches!(unit.head.unit_kind.inner, ast::UnitKind::Function) && target_type.is_port(ctx)? {
         Err(Diagnostic::error(
             &unit.head.unit_kind,
             "Functions are not allowed on port types",
         )
         .primary_label("Function on port type")
-        .secondary_label(block.target.clone(), "This is a port type")
+        .secondary_label(target_type.clone(), "This is a port type")
         .span_suggest_replace(
             "Consider making this an entity",
             &unit.head.unit_kind,
@@ -673,33 +676,32 @@ fn check_type_params_for_impl_method_and_trait_method_match(
     }
 }
 
+fn resolve_trait_self<'a>(
+    trait_ty: &'a hir::TypeSpec,
+    impl_target_type: &'a hir::TypeSpec,
+) -> &'a hir::TypeSpec {
+    if matches!(trait_ty, hir::TypeSpec::TraitSelf(_)) {
+        &impl_target_type
+    } else {
+        &trait_ty
+    }
+}
+
 fn check_output_type_for_impl_method_and_trait_method_matches(
     impl_method: &hir::UnitHead,
     trait_method: &hir::UnitHead,
-    target_name: &hir::ImplTarget,
+    target_type: &hir::TypeSpec,
 ) -> Result<()> {
-    if impl_method.output_type() != trait_method.output_type() {
-        let returns_trait_self = matches!(
-            trait_method.output_type().inner,
-            hir::TypeSpec::TraitSelf(_)
-        );
-        let impl_output_type = match impl_method.output_type().inner {
-            hir::TypeSpec::Declared(name, _) => Some(name),
-            hir::TypeSpec::Generic(name) => Some(name),
-            _ => None,
-        };
+    let trait_output = trait_method.output_type().inner;
+    let trait_output = resolve_trait_self(&trait_output, &target_type);
 
-        // TODO: This'll need a good bit of testing
-        if !(returns_trait_self
-            && impl_output_type.is_some_and(|it| &hir::ImplTarget::Named(it.inner) == target_name))
-        {
-            return Err(Diagnostic::error(
-                impl_method.output_type(),
-                "Return type does not match trait",
-            )
-            .primary_label(format!("Expected {}", trait_method.output_type()))
-            .secondary_label(trait_method.output_type(), "To match the trait"));
-        }
+    if &impl_method.output_type().inner != trait_output {
+        return Err(Diagnostic::error(
+            impl_method.output_type(),
+            "Return type does not match trait",
+        )
+        .primary_label(format!("Expected {}", trait_method.output_type()))
+        .secondary_label(trait_method.output_type(), "To match the trait"));
     }
     Ok(())
 }
@@ -707,8 +709,7 @@ fn check_output_type_for_impl_method_and_trait_method_matches(
 fn check_params_for_impl_method_and_trait_method_match(
     impl_method: &hir::UnitHead,
     trait_method: &hir::UnitHead,
-    target_path: &Loc<Path>,
-    ctx: &Context,
+    impl_target_type: &hir::TypeSpec,
 ) -> Result<()> {
     for (i, pair) in impl_method
         .inputs
@@ -739,17 +740,8 @@ fn check_params_for_impl_method_and_trait_method_match(
                         ));
                 }
 
-                let i_spec_name = match &i_spec.inner {
-                    hir::TypeSpec::Declared(name, _) => Some(&name.inner),
-                    _ => None,
-                };
-
-                let (target_name, _) = ctx.symtab.lookup_type_symbol(target_path)?;
-
-                if !(matches!(&t_spec.inner, hir::TypeSpec::TraitSelf(_))
-                    && i_spec_name.is_some_and(|path| path == &target_name))
-                    && t_spec != i_spec
-                {
+                let trait_type = resolve_trait_self(&t_spec.inner, impl_target_type);
+                if trait_type != &i_spec.inner {
                     return Err(Diagnostic::error(i_spec, "Argument type mismatch")
                         .primary_label(format!("Expected {t_spec}"))
                         .secondary_label(
@@ -789,7 +781,7 @@ fn check_params_for_impl_method_and_trait_method_match(
 /// Replaces the generic type parameters in a trait method with the corresponding generic type parameters of the impl block.
 /// This is used to check if the method signature of the impl block matches the method signature of the trait.
 /// e.g. `fn foo<T>(self, a: T) -> T` in the trait would be replaced with `fn foo<U>(self, a: U) -> U` in the impl block.
-fn monomorphise_trait_method(
+fn map_trait_method_parameters(
     trait_method: &hir::UnitHead,
     impl_method: &hir::UnitHead,
     trait_def: &hir::TraitDef,
@@ -822,7 +814,7 @@ fn monomorphise_trait_method(
             .0
             .iter()
             .map(|param| {
-                monomorphise_type_spec(
+                map_type_spec_to_trait(
                     &param.ty,
                     trait_type_params.as_slice(),
                     trait_method_type_params.as_slice(),
@@ -841,7 +833,7 @@ fn monomorphise_trait_method(
     })?;
 
     let output_type = if let Some(ty) = trait_method.output_type.as_ref() {
-        Some(monomorphise_type_spec(
+        Some(map_type_spec_to_trait(
             ty,
             trait_type_params.as_slice(),
             trait_method_type_params.as_slice(),
@@ -860,7 +852,7 @@ fn monomorphise_trait_method(
     })
 }
 
-fn monomorphise_type_expr(
+fn map_type_expr_to_trait(
     te: &Loc<hir::TypeExpression>,
     trait_type_params: &[Loc<hir::TypeParam>],
     trait_method_type_params: &[Loc<hir::TypeParam>],
@@ -871,7 +863,7 @@ fn monomorphise_type_expr(
     match &te.inner {
         hir::TypeExpression::Integer(_) => Ok(te.clone()),
         hir::TypeExpression::TypeSpec(s) => {
-            let (inner, loc) = monomorphise_type_spec(
+            let (inner, loc) = map_type_spec_to_trait(
                 &s.clone().at_loc(te),
                 trait_type_params,
                 trait_method_type_params,
@@ -886,7 +878,7 @@ fn monomorphise_type_expr(
     }
 }
 
-fn monomorphise_type_spec(
+fn map_type_spec_to_trait(
     ty: &Loc<hir::TypeSpec>,
     trait_type_params: &[Loc<hir::TypeParam>],
     trait_method_type_params: &[Loc<hir::TypeParam>],
@@ -899,7 +891,7 @@ fn monomorphise_type_spec(
             let mono_tes = te
                 .iter()
                 .map(|te| {
-                    monomorphise_type_expr(
+                    map_type_expr_to_trait(
                         te,
                         trait_type_params,
                         trait_method_type_params,
@@ -961,7 +953,7 @@ fn monomorphise_type_spec(
             let mono_elems = specs
                 .iter()
                 .map(|spec| {
-                    monomorphise_type_spec(
+                    map_type_spec_to_trait(
                         spec,
                         trait_type_params,
                         trait_method_type_params,
@@ -975,7 +967,7 @@ fn monomorphise_type_spec(
             Ok(hir::TypeSpec::Tuple(mono_elems).at_loc(ty))
         }
         hir::TypeSpec::Array { inner, size } => {
-            let mono_inner = monomorphise_type_spec(
+            let mono_inner = map_type_spec_to_trait(
                 inner,
                 trait_type_params,
                 trait_method_type_params,
@@ -983,7 +975,7 @@ fn monomorphise_type_spec(
                 impl_method_type_params,
                 ctx,
             )?;
-            let mono_size = monomorphise_type_expr(
+            let mono_size = map_type_expr_to_trait(
                 size,
                 trait_type_params,
                 trait_method_type_params,
@@ -999,7 +991,7 @@ fn monomorphise_type_spec(
             .at_loc(ty))
         }
         hir::TypeSpec::Inverted(inner) => {
-            let mono_inner = monomorphise_type_spec(
+            let mono_inner = map_type_spec_to_trait(
                 inner,
                 trait_type_params,
                 trait_method_type_params,
@@ -1010,7 +1002,7 @@ fn monomorphise_type_spec(
             Ok(hir::TypeSpec::Inverted(Box::from(mono_inner)).at_loc(ty))
         }
         hir::TypeSpec::Wire(inner) => {
-            let mono_inner = monomorphise_type_spec(
+            let mono_inner = map_type_spec_to_trait(
                 inner,
                 trait_type_params,
                 trait_method_type_params,
@@ -1031,7 +1023,7 @@ pub fn ensure_unique_anonymous_traits(item_list: &hir::ItemList) -> Vec<Diagnost
     item_list
         .impls
         .iter()
-        .flat_map(|(impl_target, impls)| {
+        .flat_map(|(_impl_target, impls)| {
             let mut fns = impls
                 .iter()
                 .filter(|(t, _)| t.0.is_anonymous())
@@ -1046,7 +1038,6 @@ pub fn ensure_unique_anonymous_traits(item_list: &hir::ItemList) -> Vec<Diagnost
             fns.sort_by_key(|(f, _target)| f.1 .1.span);
 
             let mut set: HashMap<&Identifier, (Loc<()>, Vec<&hir::TypeSpec>)> = HashMap::new();
-            // TODO: Report the overlapee
 
             let mut duplicate_errs = vec![];
             for ((f, f_loc), target) in fns {
@@ -1114,7 +1105,9 @@ fn type_specs_overlap(l: &hir::TypeSpec, r: &hir::TypeSpec) -> bool {
         }
         (hir::TypeSpec::Wire(_), _) => false,
         (hir::TypeSpec::TraitSelf(_), _) => unreachable!("Self type cannot be checked for overlap"),
-        (hir::TypeSpec::Wildcard, _) => unreachable!("Wildcard type cannot be checked for overlap"),
+        (hir::TypeSpec::Wildcard(_), _) => {
+            unreachable!("Wildcard type cannot be checked for overlap")
+        }
     }
 }
 

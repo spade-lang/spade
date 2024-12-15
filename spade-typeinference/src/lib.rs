@@ -17,7 +17,7 @@ use hir::{
     UnitHead, UnitKind, WalTrace, WhereClause,
 };
 use itertools::Itertools;
-use method_resolution::IntoImplTarget;
+use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -284,7 +284,7 @@ impl TypeState {
                 loc,
                 self.type_var_from_hir(loc, inner, generic_list_token)?,
             )),
-            hir::TypeSpec::Wildcard => Ok(self.new_generic_any()),
+            hir::TypeSpec::Wildcard(_) => Ok(self.new_generic_any()),
             hir::TypeSpec::TraitSelf(_) => {
                 panic!("Trying to convert TraitSelf to type inference type var")
             }
@@ -630,7 +630,7 @@ impl TypeState {
                 self.handle_function_like(
                     expression.map_ref(|e| e.id),
                     &expression.get_type(self)?,
-                    &callee.inner,
+                    &FunctionLikeName::Free(callee.inner.clone()),
                     &head,
                     kind,
                     args,
@@ -667,7 +667,7 @@ impl TypeState {
         &mut self,
         expression_id: Loc<u64>,
         expression_type: &TypeVar,
-        name: &NameID,
+        name: &FunctionLikeName,
         head: &Loc<UnitHead>,
         call_kind: &CallKind,
         args: &Loc<ArgumentList<Expression>>,
@@ -734,7 +734,7 @@ impl TypeState {
                     let path = Path(vec![$(Identifier($path.to_string()).nowhere()),*]).nowhere();
                     if ctx.symtab
                         .try_lookup_final_id(&path)
-                        .map(|n| &n == name)
+                        .map(|n| &FunctionLikeName::Free(n) == name)
                         .unwrap_or(false)
                     {
                         $handler
@@ -2175,6 +2175,12 @@ impl TypeState {
                             (TypeSymbol::GenericMeta(_), TypeSymbol::GenericArg { traits: _ }) => {
                                 todo!()
                             }
+                            (TypeSymbol::Alias(_), _) | (_, TypeSymbol::Alias(_)) => {
+                                return Err(UnificationError::Specific(Diagnostic::bug(
+                                    ().nowhere(),
+                                    "Encountered a raw type alias during unification",
+                                )))
+                            }
                             (TypeSymbol::GenericMeta(_), TypeSymbol::GenericMeta(_)) => todo!(),
                         }
                     }
@@ -2547,7 +2553,6 @@ impl TypeState {
                     .inner
                     .iter()
                     .filter(|trait_req| {
-                        // TODO: Can we get rid of this?
                         // Number is special cased for now because we can't impl traits
                         // on generic types
                         if trait_req.name.name_loc().is_some_and(|n| n.inner == number) {

@@ -11,7 +11,6 @@ pub mod types;
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
 use impls::visit_impl;
-use itertools::{EitherOrBoth, Itertools};
 use num::{BigInt, Zero};
 use pipelines::PipelineContext;
 use spade_diagnostics::{diag_bail, Diagnostic};
@@ -22,22 +21,20 @@ use crate::attributes::AttributeListExt;
 pub use crate::impls::ensure_unique_anonymous_traits;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::{IsPort, IsSelf};
-use ast::{Binding, CallKind, ParameterList, UnitKind};
+use ast::{Binding, CallKind, ParameterList};
 use comptime::ComptimeCondExt;
 use hir::expression::{BinaryOperator, IntLiteralKind};
 use hir::param_util::ArgumentError;
 use hir::symbol_table::DeclarationState;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
 use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
-use spade_ast::{self as ast, ImplBlock, TypeParam, Unit, WhereClause};
+use spade_ast::{self as ast, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, NameID, Path};
-use spade_hir::{
-    self as hir, ItemList, Module, TraitDef, TraitSpec, TypeExpression, TypeSpec, UnitHead,
-};
-use std::collections::{HashMap, HashSet};
+use spade_common::name::{Identifier, Path};
+use spade_hir::{self as hir, ItemList, Module, TraitSpec, TypeExpression};
+use std::collections::HashSet;
 
 use error::Result;
 
@@ -293,6 +290,20 @@ pub fn visit_type_spec(
                         Ok(hir::TypeSpec::Generic(base_id.at_loc(path)))
                     }
                 }
+                TypeSymbol::Alias(expr) => {
+                    println!("Resolving alias from {path} to {expr:?}");
+                    match &expr.inner {
+                        TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
+                        TypeExpression::Integer(_) | TypeExpression::ConstGeneric(_) => {
+                            Err(Diagnostic::error(
+                                t,
+                                "Type aliases to integers and const generics are currently unsupported",
+                            )
+                            .primary_label("Alias to non-type")
+                            .secondary_label(expr, "Type alias points here"))
+                        }
+                    }
+                }
             }
         }
         ast::TypeSpec::Array { inner, size } => {
@@ -311,37 +322,6 @@ pub fn visit_type_spec(
             Ok(hir::TypeSpec::Array { inner, size })
         }
         ast::TypeSpec::Tuple(inner) => {
-            // Check if this tuple is a port by checking if any of the contained types
-            // are ports. If they are, retain the first one to use as a witness for this fact
-            // for error reporting
-            let transitive_port_witness = inner
-                .iter()
-                .map(|p| {
-                    if p.is_port(&ctx.symtab)? {
-                        Ok(Some(p))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .collect::<Result<Vec<_>>>()?
-                .into_iter()
-                .find_map(|x| x);
-
-            if let Some(witness) = transitive_port_witness {
-                // Since this type has 1 port, all members must be ports
-                for ty in inner {
-                    if !ty.is_port(&ctx.symtab)? {
-                        return Err(Diagnostic::error(
-                            ty,
-                            "Cannot mix ports and non-ports in a tuple",
-                        )
-                        .primary_label("This is not a port")
-                        .secondary_label(witness, "This is a port")
-                        .note("A tuple must either contain only ports or no ports"));
-                    }
-                }
-            }
-
             let inner = inner
                 .iter()
                 .map(|p| match visit_type_expression(p, kind, ctx)? {
@@ -356,17 +336,41 @@ pub fn visit_type_spec(
                 })
                 .collect::<Result<Vec<_>>>()?;
 
+            // Check if this tuple is a port by checking if any of the contained types
+            // are ports. If they are, retain the first one to use as a witness for this fact
+            // for error reporting
+            let transitive_port_witness = inner
+                .iter()
+                .map(|p| {
+                    if p.is_port(ctx)? {
+                        Ok(Some(p))
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .find_map(|x| x);
+
+            if let Some(witness) = transitive_port_witness {
+                // Since this type has 1 port, all members must be ports
+                for ty in &inner {
+                    if !ty.is_port(ctx)? {
+                        return Err(Diagnostic::error(
+                            ty,
+                            "Cannot mix ports and non-ports in a tuple",
+                        )
+                        .primary_label("This is not a port")
+                        .secondary_label(witness, "This is a port")
+                        .note("A tuple must either contain only ports or no ports"));
+                    }
+                }
+            }
+
             Ok(hir::TypeSpec::Tuple(inner))
         }
         ast::TypeSpec::Unit(w) => Ok(hir::TypeSpec::Unit(*w)),
         ast::TypeSpec::Wire(inner) => {
-            if inner.is_port(&ctx.symtab)? {
-                return Err(Diagnostic::from(error::WireOfPort {
-                    full_type: t.loc(),
-                    inner_type: inner.loc(),
-                }));
-            }
-
             let inner = match visit_type_expression(inner, kind, ctx)? {
                 hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
                 _ => {
@@ -378,25 +382,32 @@ pub fn visit_type_spec(
                 }
             };
 
+            if inner.is_port(&ctx)? {
+                return Err(Diagnostic::from(error::WireOfPort {
+                    full_type: t.loc(),
+                    inner_type: inner.loc(),
+                }));
+            }
+
             Ok(hir::TypeSpec::Wire(Box::new(inner)))
         }
         ast::TypeSpec::Inverted(inner) => {
-            if !inner.is_port(&ctx.symtab)? {
-                return Err(Diagnostic::error(t, "A non-port type can not be inverted")
-                    .primary_label("Inverting non-port")
-                    .secondary_label(inner.as_ref(), "This is not a port"));
-            } else {
-                let inner = match visit_type_expression(inner, kind, ctx)? {
-                    hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
-                    _ => {
-                        return Err(Diagnostic::error(
-                            inner.as_ref(),
-                            "Inverted inner types must be types, not type level integers",
-                        )
-                        .primary_label("Non-type cannot be inverted"))
-                    }
-                };
+            let inner = match visit_type_expression(inner, kind, ctx)? {
+                hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
+                _ => {
+                    return Err(Diagnostic::error(
+                        inner.as_ref(),
+                        "Inverted inner types must be types, not type level integers",
+                    )
+                    .primary_label("Non-type cannot be inverted"))
+                }
+            };
 
+            if !inner.is_port(ctx)? {
+                Err(Diagnostic::error(t, "A non-port type can not be inverted")
+                    .primary_label("Inverting non-port")
+                    .secondary_label(inner, "This is not a port"))
+            } else {
                 Ok(hir::TypeSpec::Inverted(Box::new(inner)))
             }
         }
@@ -418,7 +429,9 @@ pub fn visit_type_spec(
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bound", "trait bound")
                 }
-                TypeSpecKind::Turbofish | TypeSpecKind::BindingType => Ok(hir::TypeSpec::Wildcard),
+                TypeSpecKind::Turbofish | TypeSpecKind::BindingType => {
+                    Ok(hir::TypeSpec::Wildcard(t.loc()))
+                }
             }
         }
     };
@@ -560,7 +573,7 @@ pub fn unit_head(
                 continue;
             };
 
-            if ty.is_port(&ctx.symtab)? {
+            if visit_type_spec(ty, &TypeSpecKind::Argument, ctx)?.is_port(&ctx)? {
                 port_error = Err(Diagnostic::error(ty, "Port argument in function")
                     .primary_label("This is a port")
                     .note("Only entities and pipelines can take ports as arguments")
@@ -650,6 +663,10 @@ pub fn visit_const_generic(
                 TypeSymbol::GenericMeta(_) => {
                     ConstGeneric::Name(name.at_loc(t))
                 },
+                TypeSymbol::Alias(a) => {
+                    return Err(Diagnostic::error(t, "Type aliases are not supported in const generics").primary_label("Type alias in const generic")
+                    .secondary_label(a, "Alias defined here"))
+                }
             }
         }
         ast::Expression::IntLiteral(val) => ConstGeneric::Const(val.clone().as_signed()),
@@ -797,6 +814,17 @@ pub fn visit_where_clauses(
                         )
                         .secondary_label(sym, format!("`{target}` is a type declared here")));
                     }
+                    TypeSymbol::Alias(a) => {
+                        return Err(Diagnostic::error(
+                                &sym, "Type aliases are not supported in where clauses"
+                            )
+                            .primary_label("Type alias in where clause")
+                            .secondary_label(a, "Alias defined here")
+                            .note(
+                                "This is a soft limitation in the compiler. If you need this feature, open an issue at https://gitlab.com/spade-lang/spade/"
+                            )
+                        )
+                    }
                 }
             }
             WhereClause::TraitBounds { target, traits } => {
@@ -842,6 +870,17 @@ pub fn visit_where_clauses(
                     TypeSymbol::Declared { .. } => {
                         return Err(make_diag("Declared type in trait bound".into())
                             .secondary_label(sym, format!("{target} is a type declared here")));
+                    }
+                    TypeSymbol::Alias(a) => {
+                        return Err(Diagnostic::error(
+                                &sym, "Type aliases are not supported in where clauses"
+                            )
+                            .primary_label("Type alias in where clause")
+                            .secondary_label(a, "Alias defined here")
+                            .note(
+                                "This is a soft limitation in the compiler. If you need this feature, open an issue at https://gitlab.com/spade-lang/spade/"
+                            )
+                        )
                     }
                 };
             }
@@ -1796,11 +1835,10 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
                                 "#uint ",
                             ))
                         }
-                        TypeSymbol::Declared(_, _) => Err(Diagnostic::error(
-                            path,
-                            format!("Type {name} is used as a value"),
-                        )
-                        .primary_label(format!("{name} is a type"))),
+                        TypeSymbol::Declared(_, _) | TypeSymbol::Alias(_) => Err(
+                            Diagnostic::error(path, format!("Type {name} is used as a value"))
+                                .primary_label(format!("{name} is a type")),
+                        ),
                     }
                 }
                 Err(LookupError::NotAVariable(path, ref was @ Thing::EnumVariant(_)))

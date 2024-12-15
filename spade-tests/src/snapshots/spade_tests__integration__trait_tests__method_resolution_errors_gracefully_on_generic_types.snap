@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/integration.rs
+snapshot_kind: text
+---
+impl [bool; 8] {
+    fn method(self) {}
+}
+
+fn test() {
+    [0; 8].method()
+}
+
+
+error: Type of expression is not fully known
+  ┌─ testinput:6:5
+  │
+6 │     [0; 8].method()
+  │     ^^^^^^ The type of this expression is not fully known
+  │
+  = note: Found incomplete type: [Number<_>; 8]

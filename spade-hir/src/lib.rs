@@ -279,7 +279,7 @@ pub enum TypeSpec {
     TraitSelf(Loc<()>),
     /// A wildcard, cannot occur everywhere, but ast lowering enusres that wildcards are valid,
     /// i.e. it is safe to emit a Diagnostic::bug if this is encountered where it is invalid
-    Wildcard,
+    Wildcard(Loc<()>),
 }
 impl WithLocation for TypeSpec {}
 
@@ -324,7 +324,7 @@ impl std::fmt::Display for TypeSpec {
             TypeSpec::Inverted(inner) => format!("~{inner}"),
             TypeSpec::Wire(inner) => format!("&{inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),
-            TypeSpec::Wildcard => "_".into(),
+            TypeSpec::Wildcard(_) => "_".into(),
         };
         write!(f, "{str}")
     }
@@ -739,7 +739,7 @@ impl WithLocation for ImplBlock {}
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TraitDef {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
-    pub fns: HashMap<Identifier, UnitHead>,
+    pub fns: HashMap<Identifier, Loc<UnitHead>>,
 }
 impl WithLocation for TraitDef {}
 
@@ -854,7 +854,7 @@ impl ItemList {
         &mut self,
         name: TraitName,
         type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
-        members: Vec<(Identifier, UnitHead)>,
+        members: Vec<(Identifier, Loc<UnitHead>)>,
     ) -> Result<(), Diagnostic> {
         if let Some((prev, _)) = self.traits.get_key_value(&name) {
             Err(

@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/ast_lowering.rs
+snapshot_kind: text
+---
+fn test(x: &2) {}
+
+
+error: Wire inner types must be types, not type level integers
+  ┌─ testinput:1:13
+  │
+1 │ fn test(x: &2) {}
+  │             ^ Wires cannot contain non-types

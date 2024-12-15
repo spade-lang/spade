@@ -9,6 +9,20 @@ use spade_types::KnownType;
 use crate::equation::TypeVar;
 use crate::traits::{TraitImpl, TraitImplList};
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum FunctionLikeName {
+    Method(Identifier),
+    Free(NameID),
+}
+impl std::fmt::Display for FunctionLikeName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionLikeName::Method(n) => write!(f, "{n}"),
+            FunctionLikeName::Free(n) => write!(f, "{n}"),
+        }
+    }
+}
+
 pub trait IntoImplTarget {
     fn into_impl_target(&self) -> Option<ImplTarget>;
 }
@@ -41,7 +55,7 @@ pub fn select_method(
             |ktype, _params| ktype.into_impl_target(),
             || None,
         )
-        .ok_or_else(|| Diagnostic::bug(expr, format!("{self_type} cannot have methods")))?;
+        .ok_or_else(|| Diagnostic::error(expr, format!("{self_type} does not have any methods")))?;
 
     // Go to the item list to check if this name has any methods
     let impls = trait_impls.inner.get(&target).cloned().unwrap_or(vec![]);
@@ -247,6 +261,6 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVar) -> Overlap {
         (TypeSpec::TraitSelf(_), TypeVar::Known(_, _, _)) => {
             unreachable!("Trait self in impl target")
         }
-        (TypeSpec::Wildcard, _) => unreachable!("Wildcard during type spec overlap check"),
+        (TypeSpec::Wildcard(_), _) => unreachable!("Wildcard during type spec overlap check"),
     }
 }

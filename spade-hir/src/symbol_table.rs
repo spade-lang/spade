@@ -14,7 +14,9 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path};
 use spade_diagnostics::diagnostic::Diagnostic;
 
-use crate::{FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec, UnitHead, UnitKind};
+use crate::{
+    FunctionKind, ParameterList, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LookupError {
@@ -348,6 +350,9 @@ pub enum TypeSymbol {
         traits: Vec<Loc<TraitSpec>>,
     },
     GenericMeta(MetaType),
+    /// A type alias. This is lowered during initial AST lowering, so subsequent compilation
+    /// stages can bail on finding this
+    Alias(Loc<TypeExpression>),
 }
 impl WithLocation for TypeSymbol {}
 

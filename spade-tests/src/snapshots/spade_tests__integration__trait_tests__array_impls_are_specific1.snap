@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/integration.rs
+snapshot_kind: text
+---
+impl [bool; 8] {
+    fn method(self) {}
+}
+
+fn test() {
+    [0u8; 8].method()
+}
+
+
+error: `[uint<8>; 8]` has no method `method`
+  ┌─ testinput:6:14
+  │
+6 │     [0u8; 8].method()
+  │     ---------^^^^^^--
+  │     │        │
+  │     │        No such method
+  │     This has type `[uint<8>; 8]`
+  │
+  = help: The method exists for `[bool; 8]`

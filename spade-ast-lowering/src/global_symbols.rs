@@ -311,8 +311,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
 
                 // Ensure that we don't have any port types in the enum variants
                 for (_, _, ty) in args {
-                    visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
-                    if ty.is_port(&ctx.symtab)? {
+                    let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
+                    if ty.is_port(&ctx)? {
                         return Err(Diagnostic::error(ty, "Port in enum")
                             .primary_label("This is a port")
                             .secondary_label(&e.name, "This is an enum"));
@@ -370,8 +370,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             // if it is not
             if s.is_port() {
                 for (_, f, ty) in &s.members.args {
-                    visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
-                    if !ty.is_port(&ctx.symtab)? {
+                    let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
+                    if !hir_ty.is_port(ctx)? {
                         return Err(Diagnostic::error(ty, "Non-port in port struct")
                             .primary_label("This is not a port type")
                             .secondary_label(
@@ -388,8 +388,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 }
             } else {
                 for (_, _, ty) in &s.members.args {
-                    visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
-                    if ty.is_port(&ctx.symtab)? {
+                    let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
+                    if hir_ty.is_port(ctx)? {
                         return Err(Diagnostic::error(ty, "Port in non-port struct")
                             .primary_label("This is a port")
                             .secondary_label(&s.name, "This is not a port struct")

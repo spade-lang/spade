@@ -2,7 +2,6 @@ use local_impl::local_impl;
 use num::BigInt;
 use spade_common::location_info::Loc;
 use spade_diagnostics::diag_bail;
-use spade_diagnostics::Diagnostic;
 use spade_hir::ConstGenericWithId;
 use spade_types::ConcreteType;
 

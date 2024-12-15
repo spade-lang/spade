@@ -1,54 +1,66 @@
-use hir::symbol_table::{SymbolTable, TypeDeclKind, TypeSymbol};
+use hir::symbol_table::{TypeDeclKind, TypeSymbol};
 use local_impl::local_impl;
-use spade_ast::{self as ast, TypeExpression};
+use spade_ast as ast;
+use spade_diagnostics::diag_bail;
 use spade_hir as hir;
 
-use crate::Result;
+use crate::{Context, Result, SelfContext};
 
 pub trait IsPort {
-    fn is_port(&self, symtab: &SymbolTable) -> Result<bool>;
+    fn is_port(&self, symtab: &Context) -> Result<bool>;
 }
-impl IsPort for TypeExpression {
-    fn is_port(&self, symtab: &SymbolTable) -> Result<bool> {
+
+impl IsPort for hir::TypeExpression {
+    fn is_port(&self, ctx: &Context) -> Result<bool> {
         match self {
-            TypeExpression::TypeSpec(s) => s.is_port(symtab),
-            TypeExpression::Integer(_) => Ok(false),
-            TypeExpression::ConstGeneric(_) => Ok(false),
+            spade_hir::TypeExpression::Integer(_) => Ok(false),
+            spade_hir::TypeExpression::TypeSpec(s) => s.is_port(ctx),
+            spade_hir::TypeExpression::ConstGeneric(_) => Ok(false),
         }
     }
 }
 
-impl IsPort for ast::TypeSpec {
-    #[tracing::instrument(skip(symtab))]
-    fn is_port(&self, symtab: &SymbolTable) -> Result<bool> {
-        match self {
-            ast::TypeSpec::Tuple(inner) => {
-                for t in inner {
-                    if t.is_port(symtab)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-            ast::TypeSpec::Array { inner, size: _ } => inner.is_port(symtab),
-            ast::TypeSpec::Named(name, _) => {
-                let (_, symbol) = symtab.lookup_type_symbol(name)?;
+impl IsPort for hir::TypeSpec {
+    fn is_port(&self, ctx: &Context) -> Result<bool> {
+        let result = match self {
+            spade_hir::TypeSpec::Declared(name, _) => {
+                let symbol = ctx.symtab.type_symbol_by_id(name);
 
                 match &symbol.inner {
                     TypeSymbol::Declared(_, kind) => match kind {
-                        TypeDeclKind::Struct { is_port } => Ok(*is_port),
-                        TypeDeclKind::Enum => Ok(false),
-                        TypeDeclKind::Primitive { is_port } => Ok(*is_port),
+                        TypeDeclKind::Struct { ref is_port } => *is_port,
+                        TypeDeclKind::Enum => false,
+                        TypeDeclKind::Primitive { ref is_port } => *is_port,
                     },
-                    TypeSymbol::GenericArg { traits: _ } => Ok(false),
-                    TypeSymbol::GenericMeta(_) => Ok(false),
+                    TypeSymbol::GenericArg { traits: _ } => false,
+                    TypeSymbol::GenericMeta(_) => false,
+                    TypeSymbol::Alias(expr) => expr.is_port(ctx)?,
                 }
             }
-            ast::TypeSpec::Unit(_) => Ok(false),
-            ast::TypeSpec::Inverted(_) => Ok(true),
-            ast::TypeSpec::Wire(_) => Ok(true),
-            ast::TypeSpec::Wildcard => unreachable!("Checking if wildcard type is port"),
-        }
+            spade_hir::TypeSpec::Generic(_) => false,
+            spade_hir::TypeSpec::Tuple(specs) => specs
+                .iter()
+                .map(|s| s.is_port(ctx))
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .all(|x| x),
+            spade_hir::TypeSpec::Array { inner, size: _ } => inner.is_port(ctx)?,
+            spade_hir::TypeSpec::Unit(_) => false,
+            spade_hir::TypeSpec::Inverted(_) => true,
+            spade_hir::TypeSpec::Wire(_) => true,
+            spade_hir::TypeSpec::TraitSelf(s) => match &ctx.self_ctx {
+                SelfContext::FreeStanding => diag_bail!(
+                    s,
+                    "Called is_port on self type but no self type was present"
+                ),
+                SelfContext::ImplBlock(target) => target.is_port(ctx)?,
+                SelfContext::TraitDefinition(_) => {
+                    diag_bail!(s, "Called is_port on self type while in a trait definition")
+                }
+            },
+            spade_hir::TypeSpec::Wildcard(s) => diag_bail!(s, "Calling is_port on wildcard type"),
+        };
+        Ok(result)
     }
 }
 

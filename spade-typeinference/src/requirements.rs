@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use num::traits::Pow;
 use num::{BigInt, ToPrimitive, Zero};
 use spade_common::location_info::WithLocation;
@@ -12,7 +13,7 @@ use spade_types::KnownType;
 
 use crate::equation::{TraitList, TypeVar};
 use crate::error::{Result, TypeMismatch, UnificationErrorExt};
-use crate::method_resolution::select_method;
+use crate::method_resolution::{select_method, FunctionLikeName};
 use crate::trace_stack::TraceStackEntry;
 use crate::{Context, GenericListSource, GenericListToken, TurbofishCtx, TypeState};
 
@@ -193,6 +194,10 @@ impl Requirement {
                                 .primary_label(format!("Expected struct found {target_type}"))
                                 .note("Field access is only allowed on structs"))
                             }
+                            TypeSymbol::Alias(_) => diag_bail!(
+                                target_type,
+                                "Found a type alias that wasn't lowered during AST lowering"
+                            ),
                         }
 
                         // Get the struct, find the type of the field and unify
@@ -266,8 +271,8 @@ impl Requirement {
                 turbofish,
                 prev_generic_list,
                 call_kind,
-            } => target_type.expect_named(
-                |_type_name, _params| {
+            } => match &target_type.inner {
+                TypeVar::Known(_, _, _) => {
                     let Some(implementor) =
                         select_method(expr.loc(), target_type, method, &type_state.trait_impls)?
                     else {
@@ -279,7 +284,7 @@ impl Requirement {
                     type_state.handle_function_like(
                         *expr_id,
                         &expr.inner,
-                        &implementor,
+                        &FunctionLikeName::Method(method.inner.clone()),
                         &fn_head,
                         call_kind,
                         args,
@@ -294,15 +299,63 @@ impl Requirement {
                         prev_generic_list,
                     )?;
                     Ok(RequirementResult::Satisfied(vec![]))
-                },
-                || Ok(RequirementResult::NoChange),
-                |other| {
-                    Err(Diagnostic::error(
-                        expr,
-                        format!("{other} does not have any methods"),
-                    ))
-                },
-            ),
+                }
+                TypeVar::Unknown(_, _, traits, _) => {
+                    let candidates = traits
+                        .inner
+                        .iter()
+                        .filter_map(|r#trait| {
+                            ctx.items
+                                .get_trait(&r#trait.name)
+                                .and_then(|t| t.fns.get(method))
+                                .map(|method| (r#trait, method))
+                        })
+                        .collect::<Vec<_>>();
+
+                    match candidates.as_slice() {
+                        [] => {
+                            return Err(Diagnostic::error(
+                                expr_id,
+                                format!("{target_type} has no method `{method}`"),
+                            ))
+                        }
+                        [head] => {
+                            type_state.handle_function_like(
+                                *expr_id,
+                                &expr.inner,
+                                &FunctionLikeName::Method(method.inner.clone()),
+                                &head.1,
+                                call_kind,
+                                args,
+                                ctx,
+                                false,
+                                true,
+                                turbofish.as_ref().map(|turbofish| TurbofishCtx {
+                                    turbofish,
+                                    prev_generic_list,
+                                    type_ctx: ctx,
+                                }),
+                                prev_generic_list,
+                            )?;
+                            Ok(RequirementResult::Satisfied(vec![]))
+                        }
+                        multiple => Err(Diagnostic::error(
+                            expr_id,
+                            format!("Multiple traits have a method `{method}` "),
+                        )
+                        .primary_label("Ambiguous method call")
+                        .secondary_label(target_type, format!("This has type {target_type}"))
+                        .note(format!(
+                            "The method `{method}` exists on all these traits: {} and {}",
+                            multiple[0..multiple.len() - 1]
+                                .iter()
+                                .map(|(t, _)| format!("{t}"))
+                                .join(", "),
+                            multiple[multiple.len() - 1].0
+                        ))),
+                    }
+                }
+            },
             Requirement::FitsIntLiteral { value, target_type } => {
                 let int_type = ctx
                     .symtab

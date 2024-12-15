@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/ast_lowering.rs
+snapshot_kind: text
+---
+struct X {}
+
+trait T {
+    fn generic<T1, T2>(self, x: (T1, T2));
+}
+
+impl T for X {
+    fn generic<T2, T1>(self, x: (T1, T2)) {}
+}
+
+
+error: Argument type mismatch
+  ┌─ testinput:8:33
+  │
+4 │     fn generic<T1, T2>(self, x: (T1, T2));
+  │                                 -------- Because of the type of x in the trait
+  ·
+8 │     fn generic<T2, T1>(self, x: (T1, T2)) {}
+  │                                 ^^^^^^^^ Expected (T2, T1)

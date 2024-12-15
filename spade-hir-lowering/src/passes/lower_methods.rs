@@ -30,12 +30,17 @@ impl<'a> Pass for LowerMethods<'a> {
                     Diagnostic::bug(self_.as_ref(), format!("did not find a type ({e})"))
                 })?;
 
+                // Method resolution requires fully known types, so we'll do a throwaway MIR
+                // conversion here
+                self.type_state
+                    .expr_type(self_, self.symtab.symtab(), &self.items.types)?;
+
                 let Some(method) =
                     select_method(self_.loc(), &self_type, name, &self.type_state.trait_impls)?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
-                        format!("Ambiguous method call. Multiple candidates exist for {self_type}"),
+                        format!("Incorrect method call. None or Multiple candidates exist for {self_type}"),
                     ));
                 };
 

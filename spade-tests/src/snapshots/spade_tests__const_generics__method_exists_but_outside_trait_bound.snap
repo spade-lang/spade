@@ -1,5 +1,6 @@
 ---
 source: spade-tests/src/const_generics.rs
+snapshot_kind: text
 ---
 trait X {}
 impl X for bool {}
@@ -12,3 +13,10 @@ fn test<T: X>(it: T) {
 fn main() {
     test(false)
 }
+
+
+error: X has no method `test`
+  ┌─ testinput:7:5
+  │
+7 │     it.test()
+  │     ^^^^^^^^^

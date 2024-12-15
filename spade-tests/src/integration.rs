@@ -256,7 +256,7 @@ snapshot_error! {
 
 #[cfg(test)]
 mod trait_tests {
-    use crate::{build_items, build_items_with_stdlib, snapshot_error};
+    use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
 
     snapshot_error! {
         ast_lowering_errors_are_caught_in_impl_blocks,
@@ -608,7 +608,7 @@ mod trait_tests {
 
             impl X for A {
                 fn a(self, x: Self) -> Self {
-                    Self()
+                    A()
                 }
             }
 
@@ -1126,6 +1126,106 @@ mod trait_tests {
         impl_on_unnamed_type,
         "
             impl (bool, bool) {}
+        "
+    }
+
+    snapshot_error! {
+        struct_impls_are_specific,
+        "
+            struct Struct<T1, T2> {x: T1, y: T2}
+
+            impl Struct<bool, bool> {
+                fn method(self) {}
+            }
+
+            fn test() {
+                Struct(true, 0u8).method()
+            }
+        "
+    }
+
+    snapshot_error! {
+        array_impls_are_specific1,
+        "
+            impl [bool; 8] {
+                fn method(self) {}
+            }
+
+            fn test() {
+                [0u8; 8].method()
+            }
+        "
+    }
+
+    snapshot_error! {
+        method_resolution_errors_gracefully_on_generic_types,
+        "
+            impl [bool; 8] {
+                fn method(self) {}
+            }
+
+            fn test() {
+                [0; 8].method()
+            }
+        "
+    }
+
+    snapshot_error! {
+        multiple_traits_with_ambiguous_methods,
+        "
+            trait A {
+                fn method(self);
+            }
+            trait B {
+                fn method(self);
+            }
+
+            fn test<T>(x: T)
+                where T: A + B
+            {
+                x.method()
+            }
+        "
+    }
+
+    code_compiles! {
+        method_call_on_array_works,
+        "
+            impl [bool; 8] {
+                fn method(self) {}
+            }
+
+            fn test() {
+                [true; 8].method()
+            }
+        "
+    }
+
+    code_compiles! {
+        method_call_on_wire_works,
+        "
+            impl &bool {
+                entity method(self) {}
+            }
+
+            entity test() {
+                (&true).inst method()
+            }
+        "
+    }
+
+    code_compiles! {
+        method_call_on_inv_wire_works,
+        "
+            impl inv &bool {
+                entity method(self) {
+                    set self = true;
+                }
+            }
+
+            entity test(x: inv& bool) {
+                x.inst method()
+            }
         "
     }
 }

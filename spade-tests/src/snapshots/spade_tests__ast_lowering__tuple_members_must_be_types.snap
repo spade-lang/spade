@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/ast_lowering.rs
+snapshot_kind: text
+---
+fn test(x: (bool, 2)) {}
+
+
+error: Tuple elements must be types, not type level integers
+  ┌─ testinput:1:19
+  │
+1 │ fn test(x: (bool, 2)) {}
+  │                   ^ Tuples cannot contain non-types
