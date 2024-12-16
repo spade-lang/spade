@@ -1,5 +1,0 @@
-use std::conv::trunc;
-
-entity a(x: int<16>) -> int<24> {
-    trunc(x)
-}
