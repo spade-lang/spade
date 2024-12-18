@@ -9,6 +9,7 @@ use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 pub use spade_common::namespace::ModuleNamespace;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
+use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
 use std::collections::{BTreeMap, HashMap};
@@ -195,13 +196,16 @@ pub fn compile(
             }
         })
         .collect::<Result<Vec<_>, _>>();
-    let opt_passes = match opt_passes {
+    let mut opt_passes = match opt_passes {
         Ok(p) => p,
         Err(e) => {
             errors.error_buffer.write_all(e.as_bytes()).unwrap();
             return Err(unfinished_artefacts);
         }
     };
+    // This is a non-optional pass that prevents codegen bugs
+    let deduplicate_mut_wires = DeduplicateMutWires {};
+    opt_passes.push(&deduplicate_mut_wires);
 
     if errors.failed {
         return Err(unfinished_artefacts);

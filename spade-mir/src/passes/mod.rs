@@ -5,6 +5,7 @@ use spade_common::id_tracker::ExprIdTracker;
 use crate::Statement;
 
 pub mod auto_clock_gating;
+pub mod deduplicate_mut_wires;
 
 pub trait MirPass {
     fn name(&self) -> &'static str;

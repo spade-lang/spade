@@ -1,0 +1,18 @@
+struct port Inner {
+    x: inv &bool,
+    y: inv &bool
+}
+
+struct port Outer {
+    w: Inner
+}
+
+entity test_struct(_struct: Outer, x: bool, y: bool) -> (bool, bool) {
+    set _struct.w.x = x;
+    set _struct.w.y = y;
+
+    (
+        inst std::ports::read_mut_wire(_struct.w.x),
+        inst std::ports::read_mut_wire(_struct.w.y)
+    )
+}

@@ -1,7 +1,7 @@
 use num::{BigUint, Zero};
 use spade_common::num_ext::InfallibleToBigUint;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Type {
     Int(BigUint),
     UInt(BigUint),

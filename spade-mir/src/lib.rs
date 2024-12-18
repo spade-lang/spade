@@ -28,7 +28,7 @@ use spade_common::num_ext::InfallibleToBigInt;
 
 pub use unit_name::UnitName;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq, Hash)]
 pub enum ConstantValue {
     Int(BigInt),
     Bool(bool),
@@ -154,13 +154,13 @@ impl std::fmt::Display for ValueName {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ParamName {
     pub name: String,
     pub no_mangle: Option<Loc<()>>,
 }
 
-#[derive_where(PartialEq)]
+#[derive_where(PartialEq, Eq, Hash)]
 #[derive(Clone, Debug)]
 pub enum Operator {
     // Binary arithmetic operators
@@ -443,7 +443,7 @@ impl std::fmt::Display for Operator {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Binding {
     pub name: ValueName,
     pub operator: Operator,
@@ -469,7 +469,7 @@ impl std::fmt::Display for Binding {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Register {
     pub name: ValueName,
     pub ty: Type,
@@ -510,7 +510,7 @@ impl std::fmt::Display for Register {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Statement {
     Binding(Binding),
     Register(Register),

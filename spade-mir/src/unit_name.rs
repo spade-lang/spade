@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use derive_where::derive_where;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use spade_common::name::{NameID, Path};
@@ -98,7 +99,7 @@ impl InstanceNameTracker {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
 /// The name of a verilog module
 pub enum UnitNameKind {
     /// A string that will be directly emitted in verilog. Must be a valid verilog
@@ -111,44 +112,12 @@ pub enum UnitNameKind {
     Escaped { name: String, path: Vec<String> },
 }
 
+#[derive_where(PartialOrd, Ord, PartialEq, Eq, Hash)]
 #[derive(Clone, Debug)]
 pub struct UnitName {
     pub kind: UnitNameKind,
+    #[derive_where(skip)]
     pub source: NameID,
-}
-
-impl PartialEq for UnitName {
-    fn eq(&self, other: &Self) -> bool {
-        let Self {
-            kind: skind,
-            source: _,
-        } = self;
-        let Self {
-            kind: okind,
-            source: _,
-        } = other;
-        skind == okind
-    }
-}
-
-impl PartialOrd for UnitName {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Eq for UnitName {}
-impl Ord for UnitName {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let Self {
-            kind: skind,
-            source: _,
-        } = self;
-        let Self {
-            kind: okind,
-            source: _,
-        } = other;
-        skind.cmp(okind)
-    }
 }
 
 impl UnitName {
