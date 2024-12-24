@@ -56,6 +56,12 @@ pub enum Requirement {
         /// The generic list of the context where this is instantiated
         prev_generic_list: GenericListToken,
     },
+    ImplsTraits {
+        var: TypeVar,
+        traits: TraitList,
+        trait_is_expected: bool,
+        trait_list_loc: Loc<()>,
+    },
     /// The type should be an integer large enough to fit the specified value
     FitsIntLiteral {
         value: ConstantInt,
@@ -117,6 +123,10 @@ impl Requirement {
                 TypeState::replace_type_var(target_type, from, to);
                 TypeState::replace_type_var(expr, from, to);
             }
+            Requirement::ImplsTraits { var, traits, trait_is_expected: _, trait_list_loc: _ } => {
+                TypeState::replace_type_var(var, from, to);
+                traits.replace_type_vars(from, to);
+            },
             Requirement::FitsIntLiteral { value, target_type } => {
                 match value {
                     ConstantInt::Generic(var) => TypeState::replace_type_var(var, from, to),
@@ -371,6 +381,13 @@ impl Requirement {
                     }
                 }
             },
+            Requirement::ImplsTraits { var, traits, trait_is_expected, trait_list_loc } => {
+                // We only add this requirement once type vars have been converted to known
+                // types.
+                if let TypeVar::Unknown(loc, _, _, _) = var {
+                    diag_bail!(loc, "Got a Requirement::ImplsTrait for an unknown type")
+                }
+            }
             Requirement::FitsIntLiteral { value, target_type } => {
                 let int_type = ctx
                     .symtab

@@ -1,4 +1,4 @@
-use crate::equation::TypeVar;
+use crate::{equation::TypeVar, TypeState};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::{Loc, WithLocation};
@@ -25,7 +25,6 @@ impl TraitImplList {
     }
 }
 
-
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TraitReq {
     pub name: TraitName,
@@ -47,6 +46,13 @@ impl TraitReq {
                     .map(|t| format!("{}", t.display_with_meta(display_meta)))
                     .join(", ")
             )
+        }
+    }
+
+    fn replace_type_vars(&mut self, from: &TypeVar, to: &TypeVar) {
+        let  Self { name: _, type_params } = self;
+        for param in type_params {
+            TypeState::replace_type_var(param, from, to)
         }
     }
 }
@@ -83,6 +89,13 @@ impl TraitList {
 
     pub fn from_vec(inner: Vec<Loc<TraitReq>>) -> Self {
         Self { inner }
+    }
+
+    pub fn replace_type_vars(&mut self, from: &TypeVar, to: &TypeVar) {
+        let Self { inner } = self;
+        for req in inner {
+            req.replace_type_vars(from, to);
+        }
     }
 
     pub fn get_trait(&self, name: &TraitName) -> Option<&Loc<TraitReq>> {
@@ -151,4 +164,3 @@ impl std::fmt::Debug for TraitList {
         write!(f, "{}", self.display_with_meta(true))
     }
 }
-
