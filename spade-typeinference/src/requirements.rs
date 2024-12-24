@@ -12,10 +12,11 @@ use spade_hir::symbol_table::{TypeDeclKind, TypeSymbol};
 use spade_hir::{ArgumentList, Expression, TypeExpression};
 use spade_types::KnownType;
 
-use crate::equation::{TraitList, TypeVar};
+use crate::equation::TypeVar;
 use crate::error::{Result, TypeMismatch, UnificationErrorExt};
 use crate::method_resolution::{select_method, FunctionLikeName};
 use crate::trace_stack::TraceStackEntry;
+use crate::traits::TraitList;
 use crate::{Context, GenericListSource, GenericListToken, TurbofishCtx, TypeState};
 
 #[derive(Clone, Debug)]

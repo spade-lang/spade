@@ -42,13 +42,14 @@ use spade_types::KnownType;
 use constraints::{
     bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintRhs, ConstraintSource, TypeConstraints,
 };
-use equation::{TraitList, TraitReq, TypeEquations, TypeVar, TypedExpression};
+use equation::{TypeEquations, TypeVar, TypedExpression};
 use error::{
     error_pattern_type_mismatch, Result, UnificationError, UnificationErrorExt, UnificationTrace,
 };
 use fixed_types::{t_bool, t_clock, t_int, t_uint};
 use requirements::{Replacement, Requirement};
 use trace_stack::{format_trace_stack, TraceStackEntry};
+use traits::{TraitList, TraitReq};
 
 use crate::error::TypeMismatch as Tm;
 use crate::requirements::ConstantInt;

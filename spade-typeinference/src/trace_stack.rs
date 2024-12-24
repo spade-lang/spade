@@ -6,10 +6,7 @@ use spade_common::name::NameID;
 use spade_types::KnownType;
 
 use crate::{
-    constraints::ConstraintRhs,
-    equation::{TraitList, TypeVar, TypedExpression},
-    requirements::Requirement,
-    TypeState,
+    constraints::ConstraintRhs, equation::{TypeVar, TypedExpression}, requirements::Requirement, traits::TraitList, TypeState
 };
 
 pub struct TraceStack {

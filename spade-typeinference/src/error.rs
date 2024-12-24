@@ -3,9 +3,9 @@ use itertools::Itertools;
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
-use crate::constraints::ConstraintSource;
+use crate::{constraints::ConstraintSource, traits::TraitReq};
 
-use super::equation::{TraitReq, TypeVar};
+use super::equation::TypeVar;
 
 /// A trace of a unification error. The `failing` field indicates which exact type failed to unify,
 /// while the `inside` is the "top level" type which failed to unify if it's not the same as
