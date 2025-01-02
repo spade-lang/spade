@@ -1021,12 +1021,16 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 ConstantValue::HighImp => "'bz".to_string(),
             };
 
-            let size = localparam_size_spec(&t.size());
+            if t.size() != BigUint::ZERO {
+                let size = localparam_size_spec(&t.size());
 
-            let assignment = format!("localparam{size} {name} = {expression};");
+                let assignment = format!("localparam{size} {name} = {expression};");
 
-            code! {
-                [0] &assignment
+                code! {
+                    [0] &assignment
+                }
+            } else {
+                code! {}
             }
         }
         Statement::Assert(val) => {

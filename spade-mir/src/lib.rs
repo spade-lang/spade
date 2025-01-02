@@ -163,7 +163,7 @@ pub struct ParamName {
 #[derive_where(PartialEq)]
 #[derive(Clone, Debug)]
 pub enum Operator {
-    /// Binary arithmetic operators
+    // Binary arithmetic operators
     Add,
     UnsignedAdd,
     Sub,

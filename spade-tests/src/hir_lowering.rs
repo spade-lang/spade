@@ -1,4 +1,4 @@
-use crate::snapshot_error;
+use crate::{build_items, code_compiles, snapshot_error};
 
 #[cfg(test)]
 mod tests {
@@ -3089,6 +3089,26 @@ snapshot_error! {
     "
         fn top() {
             let _ = [0u2; 11111111111111111111111111111111111111111111111111];
+        }
+    "
+}
+
+code_compiles! {
+    zero_width_int_does_not_panic,
+    "
+        fn test() {
+            let x: uint<0> = 0;
+        }
+    "
+}
+
+code_compiles! {
+    zero_width_multiplication_behaves_ok,
+    "
+        fn test() {
+            let x: uint<0> = 0;
+            let y = 10u8;
+            let z = x * y;
         }
     "
 }
