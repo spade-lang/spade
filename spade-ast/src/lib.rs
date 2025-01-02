@@ -293,7 +293,7 @@ pub enum Expression {
         Box<Loc<Expression>>,
         Loc<Vec<(Loc<Pattern>, Loc<Expression>)>>,
     ),
-    UnaryOperator(UnaryOperator, Box<Loc<Expression>>),
+    UnaryOperator(Loc<UnaryOperator>, Box<Loc<Expression>>),
     BinaryOperator(
         Box<Loc<Expression>>,
         Loc<BinaryOperator>,

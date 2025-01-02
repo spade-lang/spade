@@ -1,5 +1,6 @@
 ---
 source: spade-tests/src/hir_lowering.rs
+snapshot_kind: text
 ---
 pipeline(1) x(clk: clock) -> bool {
         let x = 0;
@@ -15,5 +16,3 @@ error: Type of x is not fully known
   │             ^ The type of x is not fully known
   │
   = note: Found incomplete type: Number<_>
-
-

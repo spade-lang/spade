@@ -1,20 +1,19 @@
 ---
 source: spade-tests/src/typeinference.rs
+snapshot_kind: text
 ---
 fn a() -> int<32> {
     decl x;
     let a = x.a;
-    let x = 0;
+    let x = 0u8;
     a
 }
 
 
-error: Type of expression is not fully known
+error: Field access on a primitive type
   ┌─ testinput:3:13
   │
 3 │     let a = x.a;
-  │             ^ The type of this expression is not fully known
+  │             ^ expected a struct, got uint
   │
-  = note: Found incomplete type: Number<_>
-
-
+  = note: Field access is only allowed on structs

@@ -1,0 +1,64 @@
+---
+source: spade-tests/src/hir_lowering.rs
+snapshot_kind: text
+---
+fn test() {
+    let x: uint<0> = 0;
+    let y = 10u8;
+    let z = x * y;
+}
+
+fn test2() {
+    let _ = 0u0 + 0u0;
+}
+
+fn test3() {
+    let _ = match 0u0 {
+        0 => 0u8,
+        _ => 0
+    };
+}
+
+fn test4() {
+    let _ = 0u0 >> 0;
+}
+
+fn test5() {
+    let _ = ~0u0;
+}
+fn test6() {
+    let _ = - 0i0;
+}
+
+
+error: Operator * does not support zero size operands
+  ┌─ testinput:4:13
+  │
+4 │     let z = x * y;
+  │             ^ - is not supported by this operator
+  │             │  
+  │             Zero size operand
+
+error: Operator + does not support zero size operands
+  ┌─ testinput:8:13
+  │
+8 │     let _ = 0u0 + 0u0;
+  │             ^^^ - is not supported by this operator
+  │             │    
+  │             Zero size operand
+
+error: Operator << does not support zero size operands
+   ┌─ testinput:19:13
+   │
+19 │     let _ = 0u0 >> 0;
+   │             ^^^ -- is not supported by this operator
+   │             │    
+   │             Zero size operand
+
+error: Operator ~ does not support zero size operands
+   ┌─ testinput:23:14
+   │
+23 │     let _ = ~0u0;
+   │             -^^^ Zero size operand
+   │             │ 
+   │             is not supported by ~

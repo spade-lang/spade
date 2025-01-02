@@ -81,14 +81,21 @@ pub(crate) fn split_wildcard(
                     _ => unreachable!(),
                 };
 
-                let min = -(1.to_bigint() << (bits - 1));
-                let max = (1.to_bigint() << (bits - 1)) - 1;
-                split_int_range(
-                    min,
-                    max,
-                    // Recursively split wildcards into ranges
-                    other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
-                )
+                if bits == 0 {
+                    vec![Constructor::IntRange {
+                        min: BigInt::ZERO,
+                        max: BigInt::ZERO,
+                    }]
+                } else {
+                    let min = -(1.to_bigint() << (bits - 1));
+                    let max = (1.to_bigint() << (bits - 1)) - 1;
+                    split_int_range(
+                        min,
+                        max,
+                        // Recursively split wildcards into ranges
+                        other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
+                    )
+                }
             }
             spade_types::PrimitiveType::Uint => {
                 let bits = match &params[0] {
@@ -100,14 +107,21 @@ pub(crate) fn split_wildcard(
                     _ => unreachable!(),
                 };
 
-                let min = 0.to_bigint();
-                let max = (1.to_bigint() << (bits)) - 1;
-                split_int_range(
-                    min,
-                    max,
-                    // Recursively split wildcards into ranges
-                    other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
-                )
+                if bits == 0 {
+                    vec![Constructor::IntRange {
+                        min: BigInt::ZERO,
+                        max: BigInt::ZERO,
+                    }]
+                } else {
+                    let min = 0.to_bigint();
+                    let max = (1.to_bigint() << (bits)) - 1;
+                    split_int_range(
+                        min,
+                        max,
+                        // Recursively split wildcards into ranges
+                        other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
+                    )
+                }
             }
             spade_types::PrimitiveType::Bool => {
                 let all_ctors = vec![Constructor::Bool(false), Constructor::Bool(true)];

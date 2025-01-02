@@ -18,6 +18,7 @@ use crate::error::Result;
 use crate::generate_unit;
 use crate::name_map::NameSourceMap;
 use crate::passes::disallow_inout_bindings::InOutChecks;
+use crate::passes::disallow_zero_size::DisallowZeroSize;
 use crate::passes::flatten_regs::FlattenRegs;
 use crate::passes::lower_methods::LowerMethods;
 use crate::passes::pass::{Pass, Passable};
@@ -222,6 +223,11 @@ pub fn compile_items(
                         symtab,
                     } as &mut dyn Pass,
                     &mut InOutChecks {
+                        type_state: &type_state,
+                        items: item_list,
+                        symtab,
+                    } as &mut dyn Pass,
+                    &mut DisallowZeroSize {
                         type_state: &type_state,
                         items: item_list,
                         symtab,

@@ -600,7 +600,7 @@ impl<'a> Parser<'a> {
                 let offset = self.expression()?;
                 let texpr = TypeExpression::ConstGeneric(Box::new(
                     Expression::UnaryOperator(
-                        spade_ast::UnaryOperator::Sub,
+                        spade_ast::UnaryOperator::Sub.at(self.file_id, &next.span),
                         Box::new(offset.clone()),
                     )
                     .between(self.file_id, &start, &offset),

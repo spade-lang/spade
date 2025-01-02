@@ -633,7 +633,7 @@ pub fn visit_const_generic(
         ast::Expression::UnaryOperator(op, operand) => {
             let operand = visit_const_generic(operand, ctx)?;
 
-            match &op {
+            match &op.inner {
                 ast::UnaryOperator::Sub => ConstGeneric::Sub(
                     Box::new(ConstGeneric::Const(BigInt::zero()).at_loc(&operand)),
                     Box::new(operand),
@@ -2537,8 +2537,10 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         ast::Expression::UnaryOperator(operator, operand) => {
             let operand = operand.try_visit(visit_expression, ctx)?;
 
-            let unop = |op| hir::ExprKind::UnaryOperator(op, Box::new(operand));
-            match operator {
+            let unop = |op: hir::expression::UnaryOperator| {
+                hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand))
+            };
+            match operator.inner {
                 ast::UnaryOperator::Sub => Ok(unop(hir::expression::UnaryOperator::Sub)),
                 ast::UnaryOperator::Not => Ok(unop(hir::expression::UnaryOperator::Not)),
                 ast::UnaryOperator::BitwiseNot => {
@@ -3325,11 +3327,11 @@ mod expression_visiting {
             #[test]
             fn $test_name() {
                 let input = ast::Expression::UnaryOperator(
-                    spade_ast::UnaryOperator::$token,
+                    spade_ast::UnaryOperator::$token.nowhere(),
                     Box::new(ast::Expression::int_literal_signed(456).nowhere()),
                 );
                 let expected = hir::ExprKind::UnaryOperator(
-                    hir::expression::UnaryOperator::$op,
+                    hir::expression::UnaryOperator::$op.nowhere(),
                     Box::new(hir::ExprKind::int_literal(456).idless().nowhere()),
                 )
                 .idless();

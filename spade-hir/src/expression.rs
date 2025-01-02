@@ -71,6 +71,22 @@ pub enum UnaryOperator {
     FlipPort,
 }
 
+impl WithLocation for UnaryOperator {}
+
+impl std::fmt::Display for UnaryOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOperator::Sub => write!(f, "-"),
+            UnaryOperator::Not => write!(f, "!"),
+            UnaryOperator::BitwiseNot => write!(f, "~"),
+            UnaryOperator::Dereference => write!(f, "*"),
+            UnaryOperator::Reference => write!(f, "&"),
+            // FIXME: I don't think this is used, try removing the operator
+            UnaryOperator::FlipPort => write!(f, "~"),
+        }
+    }
+}
+
 // Named arguments are used for both type parameters in turbofishes and in argument lists. T is the
 // right hand side of a binding, i.e. an expression in an argument list
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -205,7 +221,7 @@ pub enum ExprKind {
         Loc<BinaryOperator>,
         Box<Loc<Expression>>,
     ),
-    UnaryOperator(UnaryOperator, Box<Loc<Expression>>),
+    UnaryOperator(Loc<UnaryOperator>, Box<Loc<Expression>>),
     Match(Box<Loc<Expression>>, Vec<(Loc<Pattern>, Loc<Expression>)>),
     Block(Box<Block>),
     If(
@@ -343,7 +359,7 @@ impl LocExprExt for Loc<Expression> {
                 if let Some(witness) = operand.runtime_requirement_witness() {
                     Some(witness)
                 } else {
-                    match op {
+                    match op.inner {
                         UnaryOperator::Sub => None,
                         UnaryOperator::Not
                         | UnaryOperator::BitwiseNot

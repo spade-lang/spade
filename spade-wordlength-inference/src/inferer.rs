@@ -99,7 +99,7 @@ impl<'a> Inferer<'a> {
             ExprKind::TypeLevelInteger(_) => todo!(),
 
             ExprKind::BinaryOperator(lhs, op, rhs) => self.binary_operator(lhs, op.inner, rhs)?,
-            ExprKind::UnaryOperator(op, v) => self.unary_operator(*op, v)?,
+            ExprKind::UnaryOperator(op, v) => self.unary_operator(op.inner, v)?,
             ExprKind::Match(value, patterns) => self.match_(value, patterns)?,
             ExprKind::Block(block) => self.block(block)?,
             ExprKind::If(value, true_, false_) => self.if_(value, true_, false_)?,

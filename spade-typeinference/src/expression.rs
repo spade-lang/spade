@@ -803,7 +803,7 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::UnaryOperator(op, operand) = &expression => {
             self.visit_expression(operand, ctx, generic_list)?;
-            match op {
+            match &op.inner {
                 UnaryOperator::Sub => {
                     let int_type = self.new_generic_int(expression.loc(), ctx.symtab);
                     self.unify_expression_generic_error(operand, &int_type, ctx)?;

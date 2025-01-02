@@ -19,7 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!365][!365] Correctly generate code for memories with bool elements
 - [!368][!368] Fix panic when pattern matching arrays of integers with more than 4 elements
 - [!368][!368] Report error when integer patterns are out of bounds
-- [!376][!376] Fix Line Comments at end
+- [!376][!376] Fix line comments at end of file
+- [!377][!377] Emit an error for zero size types that would otherwise cause codegen bugs
+- [!377][!377] Fix codegen bug when matching on zero size literals
+- [!377][!377] Fix codegen bug when using zero size integers
 
 ### Changed
 
@@ -35,6 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [!370]: https://gitlab.com/spade-lang/spade/-/merge_requests/370
 [!371]: https://gitlab.com/spade-lang/spade/-/merge_requests/371
 [!376]: https://gitlab.com/spade-lang/spade/-/merge_requests/376
+[!377]: https://gitlab.com/spade-lang/spade/-/merge_requests/377
 
 ## [0.11.0] - 2024-11-28
 

@@ -1,0 +1,23 @@
+struct Zss {
+    x: uint<0>,
+}
+
+pipeline(1) test(clk: clock) {
+    let x: uint<0> = 0;
+    
+reg;
+
+    let _ = (
+        if true {x} else {0},
+        0u0,
+        [0u0],
+        [0u0; 10],
+        (0u0, 0u0),
+        [0u0, 0u0][0],
+        [0u0, 0u0][0:1],
+        (0u0, 0u0)#0,
+        Zss(0u0).x,
+        {0u0},
+        stage(-1).x
+    );
+}

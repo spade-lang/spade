@@ -6,7 +6,7 @@ use crate::name_map::NameSource;
 use crate::name_map::NameSourceMap;
 
 pub struct StatementList {
-    stmts: Vec<Statement>,
+    pub(crate) stmts: Vec<Statement>,
     name_map: NameSourceMap,
 }
 

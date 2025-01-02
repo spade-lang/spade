@@ -1436,7 +1436,7 @@ impl ExprLocal for Loc<Expression> {
                     Ok(())
                 };
                 use mir::Operator::*;
-                match op {
+                match &op.inner {
                     hir::expression::UnaryOperator::Sub => unop_builder(USub)?,
                     hir::expression::UnaryOperator::Not => unop_builder(Not)?,
                     hir::expression::UnaryOperator::FlipPort => unop_builder(FlipPort)?,
@@ -1925,6 +1925,7 @@ impl ExprLocal for Loc<Expression> {
                 diag_bail!(self, "Null expression found during hir lowering")
             }
         }
+
         Ok(result)
     }
 
@@ -2211,6 +2212,7 @@ impl ExprLocal for Loc<Expression> {
                 unreachable!("Instantiating an item which is not known")
             }
         };
+
         Ok(result)
     }
 

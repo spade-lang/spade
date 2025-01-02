@@ -3102,13 +3102,35 @@ code_compiles! {
     "
 }
 
-code_compiles! {
+snapshot_error! {
     zero_width_multiplication_behaves_ok,
     "
         fn test() {
             let x: uint<0> = 0;
             let y = 10u8;
             let z = x * y;
+        }
+
+        fn test2() {
+            let _ = 0u0 + 0u0;
+        }
+
+        fn test3() {
+            let _ = match 0u0 {
+                0 => 0u8,
+                _ => 0
+            };
+        }
+
+        fn test4() {
+            let _ = 0u0 >> 0;
+        }
+
+        fn test5() {
+            let _ = ~0u0;
+        }
+        fn test6() {
+            let _ = - 0i0;
         }
     "
 }

@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
                 Ok(Expression::IntLiteral(int))
             }
             (op, rhs) => Ok(Expression::UnaryOperator(
-                op,
+                op.at_loc(&op_loc),
                 Box::new(rhs.at_loc(&rhs_loc)),
             )),
         };
@@ -429,7 +429,7 @@ mod test {
     #[test]
     fn unary_suptraction_works() {
         let expected_value = Expression::UnaryOperator(
-            UnaryOperator::Sub,
+            UnaryOperator::Sub.nowhere(),
             Box::new(Expression::Identifier(ast_path("b")).nowhere()),
         )
         .nowhere();
@@ -440,7 +440,7 @@ mod test {
     #[test]
     fn not_operator_works() {
         let expected_value = Expression::UnaryOperator(
-            UnaryOperator::Not,
+            UnaryOperator::Not.nowhere(),
             Box::new(Expression::Identifier(ast_path("b")).nowhere()),
         )
         .nowhere();
@@ -1012,7 +1012,7 @@ mod test {
     #[test]
     fn not_function_call_does_not_invert_function() {
         let expected_value = Expression::UnaryOperator(
-            UnaryOperator::Not,
+            UnaryOperator::Not.nowhere(),
             Box::new(
                 Expression::Call {
                     kind: CallKind::Function,
@@ -1048,7 +1048,7 @@ mod test {
     #[test]
     fn not_index_result_inverts_whole_result() {
         let expected_value = Expression::UnaryOperator(
-            UnaryOperator::Not,
+            UnaryOperator::Not.nowhere(),
             Box::new(
                 Expression::Index(
                     Box::new(Expression::Identifier(ast_path("a")).nowhere()),
@@ -1067,7 +1067,7 @@ mod test {
         let expected_value = Expression::BinaryOperator(
             Box::new(
                 Expression::UnaryOperator(
-                    UnaryOperator::Sub,
+                    UnaryOperator::Sub.nowhere(),
                     Box::new(Expression::Identifier(ast_path("a")).nowhere()),
                 )
                 .nowhere(),
@@ -1087,7 +1087,7 @@ mod test {
             BinaryOperator::Add.nowhere(),
             Box::new(
                 Expression::UnaryOperator(
-                    UnaryOperator::Sub,
+                    UnaryOperator::Sub.nowhere(),
                     Box::new(Expression::Identifier(ast_path("a")).nowhere()),
                 )
                 .nowhere(),
@@ -1113,7 +1113,7 @@ mod test {
     #[test]
     fn deref_operator_works() {
         let expected = Expression::UnaryOperator(
-            UnaryOperator::Dereference,
+            UnaryOperator::Dereference.nowhere(),
             Box::new(Expression::Identifier(ast_path("a")).nowhere()),
         )
         .nowhere();
@@ -1126,7 +1126,7 @@ mod test {
         let expected = Expression::BinaryOperator(
             Box::new(
                 Expression::UnaryOperator(
-                    UnaryOperator::Dereference,
+                    UnaryOperator::Dereference.nowhere(),
                     Box::new(Expression::Identifier(ast_path("a")).nowhere()),
                 )
                 .nowhere(),
@@ -1142,7 +1142,7 @@ mod test {
     #[test]
     fn ref_operator_works() {
         let expected = Expression::UnaryOperator(
-            UnaryOperator::Reference,
+            UnaryOperator::Reference.nowhere(),
             Box::new(Expression::Identifier(ast_path("a")).nowhere()),
         )
         .nowhere();
