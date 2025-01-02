@@ -385,6 +385,25 @@ fn reset_and_initial_in_either_order_is_valid() {
 }
 
 #[test]
+fn line_comment_is_handled_correctly() {
+    let code = "
+        // this is my comment
+        struct A {}
+    ";
+
+    build_items(code);
+}
+
+#[test]
+fn line_comment_is_handled_correctly_without_newline() {
+    let code = "
+        struct A {}
+        // this is my comment";
+
+    build_items(code);
+}
+
+#[test]
 fn block_comment_is_ignored() {
     let code = "
         /* this is an error */

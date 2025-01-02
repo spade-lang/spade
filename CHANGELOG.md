@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!365][!365] Correctly generate code for memories with bool elements
 - [!368][!368] Fix panic when pattern matching arrays of integers with more than 4 elements
 - [!368][!368] Report error when integer patterns are out of bounds
+- [!376][!376] Fix Line Comments at end
 
 ### Changed
 
@@ -28,10 +29,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Removed
 
 <!--Links:-->
+
 [!365]: https://gitlab.com/spade-lang/spade/-/merge_requests/365
 [!368]: https://gitlab.com/spade-lang/spade/-/merge_requests/368
 [!370]: https://gitlab.com/spade-lang/spade/-/merge_requests/370
 [!371]: https://gitlab.com/spade-lang/spade/-/merge_requests/371
+[!376]: https://gitlab.com/spade-lang/spade/-/merge_requests/376
 
 ## [0.11.0] - 2024-11-28
 
@@ -48,9 +51,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- [!346][!346] *Breaking change* Removed the `$comptime` system
-- [!350][!350] *Breaking change* Replaced `&mut` with `inv &`
-- [!350][!350] *Breaking change* Changed the syntax of inverted ports from `~T` to `inv T`
+- [!346][!346] _Breaking change_ Removed the `$comptime` system
+- [!350][!350] _Breaking change_ Replaced `&mut` with `inv &`
+- [!350][!350] _Breaking change_ Changed the syntax of inverted ports from `~T` to `inv T`
 - [!354][!354] Remove excessive indentation from messages in test benches
 - [!354][!354] Print a more user friendly error message when Spade related things fail in tests
 
