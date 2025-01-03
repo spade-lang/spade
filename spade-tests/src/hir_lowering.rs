@@ -3129,8 +3129,16 @@ snapshot_error! {
         fn test5() {
             let _ = ~0u0;
         }
+
         fn test6() {
             let _ = - 0i0;
+        }
+
+        fn test7() {
+            let _ = match 0u8 {
+                0 => 0u0,
+                _ => 0
+            };
         }
     "
 }

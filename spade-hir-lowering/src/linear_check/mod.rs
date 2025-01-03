@@ -294,7 +294,6 @@ fn visit_expression(
                     linear_state.consume_expression(operand)?;
                 }
                 UnaryOperator::Dereference => {}
-                UnaryOperator::FlipPort => {}
             }
         }
         spade_hir::ExprKind::Match(cond, variants) => {

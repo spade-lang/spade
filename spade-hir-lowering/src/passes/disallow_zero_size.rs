@@ -78,8 +78,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
                         }
                     }
                     spade_hir::expression::UnaryOperator::Dereference
-                    | spade_hir::expression::UnaryOperator::Reference
-                    | spade_hir::expression::UnaryOperator::FlipPort => Ok(()),
+                    | spade_hir::expression::UnaryOperator::Reference => Ok(()),
                 }
             }
             spade_hir::ExprKind::Match(_cond, operands) => {

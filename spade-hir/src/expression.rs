@@ -68,7 +68,6 @@ pub enum UnaryOperator {
     BitwiseNot,
     Dereference,
     Reference,
-    FlipPort,
 }
 
 impl WithLocation for UnaryOperator {}
@@ -81,8 +80,6 @@ impl std::fmt::Display for UnaryOperator {
             UnaryOperator::BitwiseNot => write!(f, "~"),
             UnaryOperator::Dereference => write!(f, "*"),
             UnaryOperator::Reference => write!(f, "&"),
-            // FIXME: I don't think this is used, try removing the operator
-            UnaryOperator::FlipPort => write!(f, "~"),
         }
     }
 }
@@ -364,8 +361,7 @@ impl LocExprExt for Loc<Expression> {
                         UnaryOperator::Not
                         | UnaryOperator::BitwiseNot
                         | UnaryOperator::Dereference
-                        | UnaryOperator::Reference
-                        | UnaryOperator::FlipPort => Some(self.clone()),
+                        | UnaryOperator::Reference => Some(self.clone()),
                     }
                 }
             }

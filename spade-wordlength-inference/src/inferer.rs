@@ -350,13 +350,7 @@ impl<'a> Inferer<'a> {
             (UnaryOperator::BitwiseNot, Some(v)) => Some(Equation::BitManpi(Box::new(v))),
             (UnaryOperator::BitwiseNot, _) => None,
 
-            (
-                UnaryOperator::Not
-                | UnaryOperator::Dereference
-                | UnaryOperator::Reference
-                | UnaryOperator::FlipPort,
-                _,
-            ) => None,
+            (UnaryOperator::Not | UnaryOperator::Dereference | UnaryOperator::Reference, _) => None,
         })
     }
 

@@ -830,12 +830,6 @@ impl TypeState {
                     self.unify_expression_generic_error(operand, &result_type, ctx)?;
                     self.unify_expression_generic_error(expression, &reference_type, ctx)?
                 }
-                UnaryOperator::FlipPort => {
-                    let inner_type = self.new_generic_type(expression.loc());
-                    let inverted_type = TypeVar::inverted(expression.loc(), inner_type.clone());
-                    self.unify_expression_generic_error(operand, &inner_type, ctx)?;
-                    self.unify_expression_generic_error(expression, &inverted_type, ctx)?
-                }
             }
         });
         Ok(())

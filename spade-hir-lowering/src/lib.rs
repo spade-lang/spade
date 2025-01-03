@@ -1439,7 +1439,6 @@ impl ExprLocal for Loc<Expression> {
                 match &op.inner {
                     hir::expression::UnaryOperator::Sub => unop_builder(USub)?,
                     hir::expression::UnaryOperator::Not => unop_builder(Not)?,
-                    hir::expression::UnaryOperator::FlipPort => unop_builder(FlipPort)?,
                     hir::expression::UnaryOperator::BitwiseNot => unop_builder(BitwiseNot)?,
                     // Dereferences do nothing for codegen of the actual operator. It only
                     // prevents pipelining, hence Alias is fine here

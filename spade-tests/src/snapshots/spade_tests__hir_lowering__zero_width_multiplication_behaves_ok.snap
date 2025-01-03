@@ -26,8 +26,16 @@ fn test4() {
 fn test5() {
     let _ = ~0u0;
 }
+
 fn test6() {
     let _ = - 0i0;
+}
+
+fn test7() {
+    let _ = match 0u8 {
+        0 => 0u0,
+        _ => 0
+    };
 }
 
 
@@ -62,3 +70,9 @@ error: Operator ~ does not support zero size operands
    │             -^^^ Zero size operand
    │             │ 
    │             is not supported by ~
+
+error: Match expressions cannot produce zero size values
+   ┌─ testinput:32:14
+   │
+32 │         0 => 0u0,
+   │              ^^^ Zero size value
