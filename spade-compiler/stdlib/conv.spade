@@ -92,6 +92,16 @@ mod unsafe {
     }
 }
 
+impl<#uint N> [bool; N] {
+    fn to_uint(self) -> uint<N> {
+        bits_to_uint(self)
+    }
+
+    fn to_int(self) -> int<N> {
+        bits_to_int(self)
+    }
+}
+
 impl<#uint N> int<N> {
     fn to_uint(self) -> uint<N> {
         int_to_uint(self)
@@ -101,7 +111,7 @@ impl<#uint N> int<N> {
     ///
     /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
     /// are written LSB first, while integers are written MSB first
-    fn bits(self) -> [bool; N] {
+    fn to_bits(self) -> [bool; N] {
         int_to_bits(self)
     }
 }
@@ -115,7 +125,7 @@ impl<#uint N> uint<N> {
     ///
     /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
     /// are written LSB first, while integers are written MSB first
-    fn bits(self) -> [bool; N] {
+    fn to_bits(self) -> [bool; N] {
         uint_to_bits(self)
     }
 }

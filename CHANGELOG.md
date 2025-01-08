@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - [!372][!372] Allow traits on arrays, wires and inverted types
+- [!379][!379] Add `to_int` and `to_uint` to arrays of bool
 
 ### Fixed
 
@@ -31,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - [!370][!370] Increased the precedence of dereference and bitwise operators
 - [!371][!371] Require braces around the cases in `if` expressions
+- [!379][!379] Change `.bits` to `.to_bits` in int and uint
 
 ### Removed
 
@@ -44,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [!374]: https://gitlab.com/spade-lang/spade/-/merge_requests/374
 [!376]: https://gitlab.com/spade-lang/spade/-/merge_requests/376
 [!377]: https://gitlab.com/spade-lang/spade/-/merge_requests/377
+[!379]: https://gitlab.com/spade-lang/spade/-/merge_requests/379
 
 ## [0.11.0] - 2024-11-28
 
