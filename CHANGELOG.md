@@ -9,7 +9,7 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.12.0] - 2025-01-09
 
 ### Added
 
@@ -33,8 +33,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!370][!370] Increased the precedence of dereference and bitwise operators
 - [!371][!371] Require braces around the cases in `if` expressions
 - [!379][!379] Change `.bits` to `.to_bits` in int and uint
-
-### Removed
 
 <!--Links:-->
 
@@ -392,7 +390,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.11.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.12.0...main
+[0.12.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.12.0...v0.11.0
 [0.11.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.11.0...v0.10.0
 [0.10.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.10.0...v0.9.0
 [0.9.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.9.0...v0.8.0
