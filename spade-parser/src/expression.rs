@@ -103,11 +103,7 @@ impl<'a> Parser<'a> {
 
     #[tracing::instrument(skip(self))]
     pub fn expression(&mut self) -> Result<Loc<Expression>> {
-        let comptime = self.maybe_comptime(&Self::non_comptime_expression)?;
-
-        Ok(comptime
-            .inner
-            .transpose(|i| Expression::Comptime(Box::new(i.clone())).at_loc(&i)))
+        self.non_comptime_expression()
     }
 
     /// We need a function like this in order to not run into parser conflicts when

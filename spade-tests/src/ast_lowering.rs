@@ -836,61 +836,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    comptime_pipeline_depth_missing_depth_gives_decent_error,
-    r#"
-        $config X = 0
-
-        pipeline($if X == 1 {3}) test(clk: clock) -> bool {
-            reg*2;
-                true
-        }
-    "#
-}
-
-snapshot_error! {
-    comptime_pipeline_inst_depth_works,
-    r#"
-        $config X = 1
-
-        pipeline(2) test(clk: clock) -> bool {
-            reg*2;
-                true
-        }
-
-        entity main(clk: clock) -> bool {
-            inst($if X == 1 {3} $else {2}) test(clk)
-        }
-    "#
-}
-
-snapshot_error! {
-    comptime_pipeline_inst_depth_missing_depth_gives_decent_error,
-    r#"
-        $config X = 0
-
-        pipeline(2) test(clk: clock) -> bool {
-            reg*2;
-                true
-        }
-
-        entity main(clk: clock) -> bool {
-            inst($if X == 1 {3}) test(clk)
-        }
-    "#
-}
-
-snapshot_error! {
-    good_error_message_on_empty_comptime_expression,
-    "
-        $config X = 0
-        fn a() -> bool {
-            let _ = $if X == 1 {true};
-            true
-        }
-    "
-}
-
-snapshot_error! {
     enum_variant_pattern_without_arguments_one,
     "
         enum E {

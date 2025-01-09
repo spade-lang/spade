@@ -1,6 +1,5 @@
 mod attributes;
 pub mod builtins;
-mod comptime;
 pub mod error;
 pub mod global_symbols;
 mod impls;
@@ -22,7 +21,6 @@ pub use crate::impls::ensure_unique_anonymous_traits;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::{IsPort, IsSelf};
 use ast::{Binding, CallKind, ParameterList};
-use comptime::ComptimeCondExt;
 use hir::expression::{BinaryOperator, IntLiteralKind};
 use hir::param_util::ArgumentError;
 use hir::symbol_table::DeclarationState;
@@ -592,13 +590,6 @@ pub fn unit_head(
             ast::UnitKind::Entity => hir::UnitKind::Entity,
             ast::UnitKind::Pipeline(depth) => hir::UnitKind::Pipeline {
                 depth: depth
-                    .inner
-                    .maybe_unpack(&ctx.symtab)?
-                    .ok_or_else(|| {
-                        Diagnostic::error(depth, "Missing pipeline depth")
-                            .primary_label("Missing pipeline depth")
-                            .note("The current comptime branch does not specify a depth")
-                    })?
                     .try_map_ref(|t| visit_type_expression(t, &TypeSpecKind::PipelineDepth, ctx))?,
                 depth_typeexpr_id: ctx.idtracker.next(),
             },
@@ -1486,19 +1477,6 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
 
             Ok(vec![hir::Statement::Assert(expr).at_loc(s)])
         }
-        ast::Statement::Comptime(condition) => {
-            if let Some(ast_statements) = condition.maybe_unpack(&ctx.symtab)? {
-                Ok(ast_statements
-                    .iter()
-                    .map(|s| visit_statement(s, ctx))
-                    .collect::<Result<Vec<_>>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect())
-            } else {
-                Ok(vec![])
-            }
-        }
         ast::Statement::Set { target, value } => {
             let target = target.try_visit(visit_expression, ctx)?;
             let value = value.try_visit(visit_expression, ctx)?;
@@ -1559,12 +1537,6 @@ pub fn visit_call_kind(
         ast::CallKind::Entity(loc) => hir::expression::CallKind::Entity(*loc),
         ast::CallKind::Pipeline(loc, depth) => {
             let depth = depth
-                .clone()
-                .maybe_unpack(&ctx.symtab)?
-                .ok_or_else(|| {
-                    Diagnostic::error(depth, "Expected pipeline depth")
-                        .help("The current comptime branch did not specify a depth")
-                })?
                 .try_map_ref(|e| visit_type_expression(e, &TypeSpecKind::PipelineDepth, ctx))?;
             hir::expression::CallKind::Pipeline {
                 inst_loc: *loc,
@@ -1926,13 +1898,6 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
                 declares_name,
                 depth_typeexpr_id: ctx.idtracker.next(),
             })
-        }
-        ast::Expression::Comptime(inner) => {
-            let inner = inner.maybe_unpack(&ctx.symtab)?.ok_or_else(|| {
-                Diagnostic::error(inner.as_ref(), "Missing expression")
-                    .help("The current comptime branch has no expression")
-            })?;
-            Ok(visit_expression(&inner, ctx)?.kind)
         }
         ast::Expression::StageReady => Ok(hir::ExprKind::StageReady),
         ast::Expression::StageValid => Ok(hir::ExprKind::StageValid),

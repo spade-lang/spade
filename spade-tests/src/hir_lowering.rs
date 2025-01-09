@@ -10,7 +10,6 @@ mod tests {
     use spade_common::{
         location_info::WithLocation,
         name::{NameID, Path},
-        num_ext::InfallibleToBigInt,
         num_ext::InfallibleToBigUint,
     };
     use spade_mir::{self, entity, statement, types::Type, ConstantValue};
@@ -2013,29 +2012,6 @@ mod tests {
         }"
     }
 
-    #[test]
-    fn comptime_expression_works() {
-        let code = r#"
-            $config X = 0
-
-            fn main() -> int<3> {
-                let x = $if X == 0 {
-                    1
-                };
-                x
-            }
-        "#;
-        let result = build_entity!(code);
-
-        let expected = entity!(&["main"]; (
-        ) -> Type::Int(3u32.to_biguint()); {
-            (const 0; Type::Int(3u32.to_biguint()); ConstantValue::Int(1.to_bigint()));
-            (n(0, "x"); Type::Int(3u32.to_biguint()); Alias; e(0))
-        } => n(0, "x"));
-
-        assert_same_mir!(&result, &expected);
-    }
-
     snapshot_error! {
         non_const_memory_elements_is_error,
         "
@@ -2826,18 +2802,6 @@ mod tests {
                     true
             }
         "
-    }
-
-    snapshot_error! {
-        comptime_pipeline_depth_works,
-        r#"
-            $config X = 1
-
-            pipeline($if X == 1 {3} $else {2}) test(clk: clock) -> bool {
-                reg*2;
-                    true
-            }
-        "#
     }
 
     snapshot_error! {

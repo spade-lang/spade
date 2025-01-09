@@ -1,4 +1,3 @@
-mod comptime;
 pub mod error;
 mod expression;
 pub mod item_type;
@@ -325,7 +324,7 @@ impl<'a> Parser<'a> {
         let pipeline_depth = if self.peek_kind(&TokenKind::OpenParen)? {
             Some(self.surrounded(
                 &TokenKind::OpenParen,
-                |s| s.maybe_comptime(&|s| s.type_expression()),
+                |s| s.type_expression(),
                 &TokenKind::CloseParen,
             )?)
         } else {
@@ -1189,16 +1188,14 @@ impl<'a> Parser<'a> {
                 self.eat_unconditional()?;
                 let (depth, depth_span) = self.surrounded(
                     &TokenKind::OpenParen,
-                    |s| {
-                        s.maybe_comptime(&|s| match s.type_expression() {
-                            Ok(t) => Ok(t),
-                            Err(diag) => {
-                                return Err(diag.secondary_label(
-                                    ().at(s.file_id, &start_token),
-                                    "Pipelines require a pipeline depth",
-                                ))
-                            }
-                        })
+                    |s| match s.type_expression() {
+                        Ok(t) => Ok(t),
+                        Err(diag) => {
+                            return Err(diag.secondary_label(
+                                ().at(s.file_id, &start_token),
+                                "Pipelines require a pipeline depth",
+                            ))
+                        }
                     },
                     &TokenKind::CloseParen,
                 )?;
@@ -2239,7 +2236,6 @@ pub fn format_parse_stack(stack: &[ParseStackEntry]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use ast::comptime::{ComptimeCondOp, ComptimeCondition};
     use spade_ast as ast;
     use spade_ast::testutil::{ast_ident, ast_path};
     use spade_ast::*;
@@ -2592,29 +2588,5 @@ mod tests {
         };
 
         check_parse!(code, module_body, Ok(expected));
-    }
-
-    #[test]
-    fn comptime_expression_works() {
-        let code = r#"
-            $if x == 0 {
-                1
-            }
-            $else {
-                0
-            }
-        "#;
-
-        let expected = Expression::Comptime(Box::new(
-            ComptimeCondition {
-                condition: (ast_path("x"), ComptimeCondOp::Eq, 0.to_bigint().nowhere()),
-                on_true: Box::new(Expression::int_literal_signed(1).nowhere()),
-                on_false: Some(Box::new(Expression::int_literal_signed(0).nowhere())),
-            }
-            .nowhere(),
-        ))
-        .nowhere();
-
-        check_parse!(code, expression, Ok(expected));
     }
 }
