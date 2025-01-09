@@ -6,7 +6,7 @@ use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 use spade_types::meta_types::MetaType;
 
-use crate::{comptime::ComptimeCondExt, error::Result, Context};
+use crate::{error::Result, Context};
 
 pub struct PipelineContext {
     /// Scope of the pipeline body
@@ -26,13 +26,6 @@ fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Re
         ast::Statement::PipelineRegMarker(_, _) => {}
         ast::Statement::Register(_) => {}
         ast::Statement::Assert(_) => {}
-        ast::Statement::Comptime(inner) => {
-            if let Some(inner_stmts) = inner.maybe_unpack(&ctx.symtab)? {
-                for inner_stmt in inner_stmts {
-                    visit_pipeline_statement(&inner_stmt, ctx)?;
-                }
-            }
-        }
         ast::Statement::Set { .. } => {}
     };
     Ok(())

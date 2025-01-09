@@ -1,4 +1,3 @@
-use comptime::{ComptimeCondition, MaybeComptime};
 use itertools::Itertools;
 use num::{BigInt, BigUint, Signed, Zero};
 use spade_common::{
@@ -7,7 +6,6 @@ use spade_common::{
     num_ext::InfallibleToBigInt,
 };
 use std::fmt::Display;
-pub mod comptime;
 pub mod testutil;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -237,7 +235,7 @@ pub enum PipelineStageReference {
 pub enum CallKind {
     Function,
     Entity(Loc<()>),
-    Pipeline(Loc<()>, Loc<MaybeComptime<Loc<TypeExpression>>>),
+    Pipeline(Loc<()>, Loc<TypeExpression>),
 }
 impl WithLocation for CallKind {}
 
@@ -320,7 +318,6 @@ pub enum Expression {
     },
     StageValid,
     StageReady,
-    Comptime(Box<Loc<ComptimeCondition<Loc<Expression>>>>),
 }
 impl WithLocation for Expression {}
 
@@ -368,7 +365,6 @@ impl Expression {
             Expression::PipelineReference { .. } => "pipeline reference",
             Expression::StageValid => "stage.valid",
             Expression::StageReady => "stage.ready",
-            Expression::Comptime { .. } => "comptime",
         }
     }
 }
@@ -460,7 +456,6 @@ pub enum Statement {
         value: Loc<Expression>,
     },
     Assert(Loc<Expression>),
-    Comptime(ComptimeCondition<Vec<Loc<Statement>>>),
 }
 impl WithLocation for Statement {}
 
@@ -603,7 +598,7 @@ impl ParameterList {
 pub enum UnitKind {
     Function,
     Entity,
-    Pipeline(Loc<MaybeComptime<Loc<TypeExpression>>>),
+    Pipeline(Loc<TypeExpression>),
 }
 impl WithLocation for UnitKind {}
 
