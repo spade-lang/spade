@@ -287,6 +287,11 @@ pub enum Expression {
         Box<Loc<Expression>>,
         Box<Loc<Expression>>,
     ),
+    TypeLevelIf(
+        Box<Loc<Expression>>,
+        Box<Loc<Expression>>,
+        Box<Loc<Expression>>,
+    ),
     Match(
         Box<Loc<Expression>>,
         Loc<Vec<(Loc<Pattern>, Loc<Expression>)>>,
@@ -356,6 +361,7 @@ impl Expression {
             Expression::TupleIndex(_, _) => "tuple index",
             Expression::FieldAccess(_, _) => "field access",
             Expression::If(_, _, _) => "if",
+            Expression::TypeLevelIf(_, _, _) => "type level if",
             Expression::Match(_, _) => "match",
             Expression::Call { .. } => "call",
             Expression::MethodCall { .. } => "method call",

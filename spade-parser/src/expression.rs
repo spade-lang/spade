@@ -238,6 +238,8 @@ impl<'a> Parser<'a> {
             Ok(block.map(Box::new).map(Expression::Block))
         } else if let Some(if_expr) = self.if_expression()? {
             Ok(if_expr)
+        } else if let Some(if_expr) = self.type_level_if()? {
+            Ok(if_expr)
         } else if let Some(match_expr) = self.match_expression()? {
             Ok(match_expr)
         } else if let Some(stageref) = self.pipeline_reference()? {

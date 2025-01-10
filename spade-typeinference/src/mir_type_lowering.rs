@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hir::symbol_table::SymbolTable;
 use hir::{Parameter, TypeExpression, TypeSpec};
-use spade_common::location_info::Loc;
+use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::NameID;
 use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
@@ -314,16 +314,15 @@ impl TypeState {
         )
     }
 
-    /// Returns the type of the expression as a concrete type. If the type is not
-    /// fully ungenerified, returns an error
-    pub fn expr_type(
+    // TODO: Can we use this function elsewhere instead of type_of_id
+    pub fn type_of_id_result(
         &self,
-        expr: &Loc<hir::Expression>,
+        id: Loc<u64>,
         symtab: &SymbolTable,
         types: &TypeList,
     ) -> Result<ConcreteType, Diagnostic> {
-        let t = self.type_of(&TypedExpression::Id(expr.id)).map_err(|_| {
-            Diagnostic::bug(expr, "Expression had no type")
+        let t = self.type_of(&TypedExpression::Id(id.inner)).map_err(|_| {
+            Diagnostic::bug(id, "Expression had no type")
                 .primary_label("This expression had no type")
         })?;
 
@@ -334,11 +333,22 @@ impl TypeState {
                 println!("The incomplete type is {t:?}")
             }
             Err(
-                Diagnostic::error(expr, "Type of expression is not fully known")
+                Diagnostic::error(id, "Type of expression is not fully known")
                     .primary_label("The type of this expression is not fully known")
                     .note(format!("Found incomplete type: {t}")),
             )
         }
+    }
+
+    /// Returns the type of the expression as a concrete type. If the type is not
+    /// fully ungenerified, returns an error
+    pub fn expr_type(
+        &self,
+        expr: &Loc<hir::Expression>,
+        symtab: &SymbolTable,
+        types: &TypeList,
+    ) -> Result<ConcreteType, Diagnostic> {
+        self.type_of_id_result(expr.id.at_loc(expr), symtab, types)
     }
 
     /// Returns the type of the name as a concrete type. If the type is not

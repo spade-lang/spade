@@ -655,6 +655,19 @@ impl TypeState {
                     ctx,
                 )?;
             }
+            ExprKind::TypeLevelIf(cond, on_true, on_false) => {
+                self.visit_const_generic_with_id(
+                    cond,
+                    generic_list,
+                    ConstraintSource::TypeLevelIf,
+                )?;
+
+                self.visit_expression(on_true, ctx, generic_list)?;
+                self.visit_expression(on_false, ctx, generic_list)?;
+
+                self.unify_expression_generic_error(expression, on_true.as_ref(), ctx)?;
+                self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
+            }
             ExprKind::Null => {}
         }
         Ok(())

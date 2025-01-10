@@ -5,6 +5,7 @@ pub mod global_symbols;
 mod impls;
 pub mod pipelines;
 pub mod testutil;
+mod type_level_if;
 pub mod types;
 
 use attributes::LocAttributeExt;
@@ -14,7 +15,8 @@ use num::{BigInt, Zero};
 use pipelines::PipelineContext;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_types::meta_types::MetaType;
-use tracing::{event, info, Level};
+use tracing::{event, Level};
+use type_level_if::expand_type_level_if;
 
 use crate::attributes::AttributeListExt;
 pub use crate::impls::ensure_unique_anonymous_traits;
@@ -162,6 +164,7 @@ pub enum TypeSpecKind {
     Turbofish,
     PipelineDepth,
     TraitBound,
+    TypeLevelIf,
 }
 
 pub fn visit_type_expression(
@@ -195,6 +198,7 @@ pub fn visit_type_expression(
                     default_error("Traits used in trait bounds", "trait bound")
                 }
                 TypeSpecKind::Turbofish
+                | TypeSpecKind::TypeLevelIf
                 | TypeSpecKind::BindingType
                 | TypeSpecKind::PipelineDepth => {
                     visit_const_generic(expr.as_ref(), ctx).map(hir::TypeExpression::ConstGeneric)
@@ -427,7 +431,7 @@ pub fn visit_type_spec(
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bound", "trait bound")
                 }
-                TypeSpecKind::Turbofish | TypeSpecKind::BindingType => {
+                TypeSpecKind::TypeLevelIf | TypeSpecKind::Turbofish | TypeSpecKind::BindingType => {
                     Ok(hir::TypeSpec::Wildcard(t.loc()))
                 }
             }
@@ -1038,9 +1042,7 @@ pub fn visit_unit(
 
     ctx.symtab.close_scope();
 
-    info!("Checked all function arguments");
-
-    Ok(hir::Item::Unit(
+    Ok(hir::Item::Unit(expand_type_level_if(
         hir::Unit {
             name: unit_name,
             head: head.clone().inner,
@@ -1049,7 +1051,8 @@ pub fn visit_unit(
             body,
         }
         .at_loc(unit),
-    ))
+        ctx,
+    )?))
 }
 
 #[tracing::instrument(skip_all, fields(name=?trait_spec.path))]
@@ -1728,6 +1731,17 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
 
             Ok(hir::ExprKind::If(
                 Box::new(cond),
+                Box::new(ontrue),
+                Box::new(onfalse),
+            ))
+        }
+        ast::Expression::TypeLevelIf(cond, ontrue, onfalse) => {
+            let cond = visit_const_generic(cond, ctx)?;
+            let ontrue = ontrue.try_visit(visit_expression, ctx)?;
+            let onfalse = onfalse.try_visit(visit_expression, ctx)?;
+
+            Ok(hir::ExprKind::TypeLevelIf(
+                cond.map(|cond| cond.with_id(ctx.idtracker.next())),
                 Box::new(ontrue),
                 Box::new(onfalse),
             ))

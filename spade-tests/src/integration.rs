@@ -1,4 +1,4 @@
-use crate::{build_items, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error!(
     trait_self_wrong_impl_return_type,
@@ -251,6 +251,23 @@ snapshot_error! {
             let x = 5;
             let y: uint<{x+5}> = 0;
         }
+    "
+}
+
+code_compiles! {
+    type_level_if_works,
+    "
+    fn inner<#uint N>() -> uint<8> {
+        $if N {
+            0
+        } $else {
+            1
+        }
+    }
+
+    fn test() -> uint<8> {
+        inner::<0>()
+    }
     "
 }
 

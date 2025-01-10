@@ -103,6 +103,7 @@ impl<'a> Inferer<'a> {
             ExprKind::Match(value, patterns) => self.match_(value, patterns)?,
             ExprKind::Block(block) => self.block(block)?,
             ExprKind::If(value, true_, false_) => self.if_(value, true_, false_)?,
+            ExprKind::TypeLevelIf(_value, _true, _false) => todo!(),
 
             // These are all opaque types, they say nothing of the structure of integers (well,
             // they might but we don't have that kind of information). The inference will

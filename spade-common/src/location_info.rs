@@ -322,13 +322,7 @@ where
     T: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "l({:3}..{:3})[{:?}]",
-            self.span.start(),
-            self.span.end(),
-            self.inner
-        )
+        self.inner.fmt(f)
     }
 }
 

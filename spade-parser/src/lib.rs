@@ -419,6 +419,50 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    // TODO: Let's unify these
+    pub fn type_level_if(&mut self) -> Result<Option<Loc<Expression>>> {
+        let start = peek_for!(self, &TokenKind::ComptimeIf);
+
+        let cond = self.expression()?;
+
+        let on_true = if let Some(block) = self.block(false)? {
+            block.map(Box::new).map(Expression::Block)
+        } else {
+            let got = self.peek()?;
+            return Err(Diagnostic::error(
+                got.loc(),
+                format!("Unexpected `{}`, expected a block", got.kind.as_str()),
+            )
+            .primary_label("expected a block here"));
+        };
+
+        self.eat(&TokenKind::ComptimeElse)?;
+        let on_false = if let Some(block) = self.block(false)? {
+            block.map(Box::new).map(Expression::Block)
+        } else if let Some(expr) = self.type_level_if()? {
+            expr
+        } else {
+            let got = self.peek()?;
+            return Err(Diagnostic::error(
+                got.loc(),
+                format!(
+                    "Unexpected `{}`, expected `if` or a block",
+                    got.kind.as_str()
+                ),
+            )
+            .primary_label("expected a block here"));
+        };
+        let end_span = on_false.span;
+
+        Ok(Some(
+            Expression::TypeLevelIf(Box::new(cond), Box::new(on_true), Box::new(on_false)).between(
+                self.file_id,
+                &start.span,
+                &end_span,
+            ),
+        ))
+    }
+
     #[trace_parser]
     pub fn match_expression(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Match);

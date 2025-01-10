@@ -646,6 +646,10 @@ impl PipelineAvailability for ExprKind {
             } => Ok(0),
             ExprKind::If(_, t, f) => try_compute_availability(&[t.as_ref(), f.as_ref()], ctx),
             ExprKind::PipelineRef { .. } => Ok(0),
+            ExprKind::TypeLevelIf(cond, _, _) => diag_bail!(
+                cond,
+                "Type level if should already have been lowered by this point"
+            ),
             ExprKind::MethodCall { name, .. } => diag_bail!(
                 name,
                 "Method call should already have been lowered by this point"

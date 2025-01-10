@@ -166,6 +166,7 @@ impl Passable for Loc<Expression> {
                 }
             }
             ExprKind::If(cond, on_true, on_false) => subnodes!(cond, on_true, on_false),
+            ExprKind::TypeLevelIf(_cond, on_true, on_false) => subnodes!(on_true, on_false),
             ExprKind::PipelineRef {
                 stage: _,
                 name: _,
