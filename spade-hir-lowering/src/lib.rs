@@ -1195,6 +1195,10 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::StageReady => Ok(None),
             ExprKind::StageValid => Ok(None),
             ExprKind::Call { .. } => Ok(None),
+            ExprKind::TypeLevelIf(_, _, _) => diag_bail!(
+                self,
+                "Type level if should have been lowered to function by this point"
+            ),
             ExprKind::MethodCall { .. } => diag_bail!(
                 self,
                 "method call should have been lowered to function by this point"
@@ -1913,6 +1917,12 @@ impl ExprLocal for Loc<Expression> {
                         self,
                     ),
                 }
+            }
+            ExprKind::TypeLevelIf(_, _, _) => {
+                diag_bail!(
+                    self,
+                    "Type level if should already have been lowered at this point"
+                )
             }
             ExprKind::MethodCall { .. } => {
                 diag_bail!(

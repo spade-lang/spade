@@ -1,6 +1,6 @@
 use num::BigUint;
 use spade_common::location_info::Loc;
-use spade_diagnostics::Diagnostic;
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, Expression, ItemList};
 use spade_typeinference::TypeState;
 
@@ -95,6 +95,9 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             }
             spade_hir::ExprKind::Block(_) => Ok(()),
             spade_hir::ExprKind::If(_, _, _) => Ok(()),
+            spade_hir::ExprKind::TypeLevelIf(_, _, _) => {
+                diag_bail!(expression.loc(), "Type level if should have been lowered")
+            }
             spade_hir::ExprKind::PipelineRef { .. } => Ok(()),
             spade_hir::ExprKind::StageValid => Ok(()),
             spade_hir::ExprKind::StageReady => Ok(()),

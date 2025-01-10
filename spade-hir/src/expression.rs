@@ -226,6 +226,12 @@ pub enum ExprKind {
         Box<Loc<Expression>>,
         Box<Loc<Expression>>,
     ),
+    TypeLevelIf(
+        // FIXME: Having a random u64 is not great, let's make TypeExpressions always have associated ids
+        Loc<ConstGenericWithId>,
+        Box<Loc<Expression>>,
+        Box<Loc<Expression>>,
+    ),
     PipelineRef {
         stage: Loc<PipelineRefKind>,
         name: Loc<NameID>,
@@ -368,6 +374,7 @@ impl LocExprExt for Loc<Expression> {
             ExprKind::Match(_, _) => Some(self.clone()),
             ExprKind::Block(_) => Some(self.clone()),
             ExprKind::If(_, _, _) => Some(self.clone()),
+            ExprKind::TypeLevelIf(_, _, _) => Some(self.clone()),
             ExprKind::PipelineRef { .. } => Some(self.clone()),
             ExprKind::StageReady => None,
             ExprKind::StageValid => None,
