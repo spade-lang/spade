@@ -801,8 +801,8 @@ impl SymbolTable {
         }
     }
 
-    /// Look up the previous definition of `name` returning None if no
-    /// such definition exists. Only an absolute path in the root name space is checked
+    /// Look up the previous definition of `name` returning a "Multiple items with the same name" error if
+    /// such definition already exists. Only an absolute path in the root name space is checked
     /// as this is intended to be used for item definitions
     pub fn ensure_is_unique(&self, name: &Loc<Path>) -> Result<(), Diagnostic> {
         let full_path = self.current_namespace().join(name.inner.clone());
@@ -864,6 +864,15 @@ impl SymbolTable {
             .ok_or_else(|| LookupError::NoSuchSymbol(name.clone()))
     }
 
+    pub fn lookup_id_with_forbidden(
+        &self,
+        name: &Loc<Path>,
+        forbidden: &[NameID],
+    ) -> Result<NameID, LookupError> {
+        self.try_lookup_id_with_forbidden(name, forbidden)
+            .ok_or_else(|| LookupError::NoSuchSymbol(name.clone()))
+    }
+
     /// Returns the name ID of the provided path if that path exists and resolving
     /// all aliases along the way.
     pub fn try_lookup_final_id(&self, name: &Loc<Path>) -> Option<NameID> {
@@ -885,6 +894,15 @@ impl SymbolTable {
 
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn try_lookup_id(&self, name: &Loc<Path>) -> Option<NameID> {
+        self.try_lookup_id_with_forbidden(name, &[])
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn try_lookup_id_with_forbidden(
+        &self,
+        name: &Loc<Path>,
+        forbidden: &[NameID],
+    ) -> Option<NameID> {
         // The behaviour depends on whether or not the path is a library relative path (starting
         // with `lib`) or not. If it is, an absolute lookup of the path obtained by
         // substituting `lib` for the current `base_path` should be performed.
@@ -907,6 +925,9 @@ impl SymbolTable {
             let local_path = self.namespace.join(name.inner.clone());
             for tab in self.symbols.iter().rev() {
                 if let Some(id) = tab.get(&local_path) {
+                    if forbidden.iter().contains(id) {
+                        continue;
+                    }
                     return Some(id.clone());
                 }
             }
@@ -914,9 +935,14 @@ impl SymbolTable {
             if name.inner.0.len() > 1 {
                 let base_name = name.inner.0.first().unwrap();
 
-                if let Some(alias_id) =
-                    self.try_lookup_id(&Path(vec![base_name.clone()]).at_loc(base_name))
-                {
+                if let Some(alias_id) = self.try_lookup_id_with_forbidden(
+                    &Path(vec![base_name.clone()]).at_loc(base_name),
+                    forbidden,
+                ) {
+                    // Extend forbidden slice with newly used alias
+                    let mut forbidden = forbidden.to_vec();
+                    forbidden.push(alias_id.clone());
+
                     match self.things.get(&alias_id) {
                         Some(Thing::Alias {
                             path: alias_path,
@@ -933,19 +959,17 @@ impl SymbolTable {
                             // i.e. `mod a {use x;}` looks up `a::x`
                             let path_in_namespace = in_namespace.join(full_path.clone());
 
-                            // Avoid an infinite loop if we search for the same thing again.
-                            return if path_in_namespace == name.inner {
-                                if full_path == name.inner {
-                                    None
-                                } else {
-                                    self.try_lookup_id(&full_path.at_loc(name))
-                                }
-                            } else if full_path == name.inner {
-                                self.try_lookup_id(&path_in_namespace.at_loc(name))
-                            } else {
-                                self.try_lookup_id(&path_in_namespace.at_loc(name))
-                                    .or_else(|| self.try_lookup_id(&full_path.at_loc(name)))
-                            };
+                            return self
+                                .try_lookup_id_with_forbidden(
+                                    &path_in_namespace.at_loc(name),
+                                    &forbidden,
+                                )
+                                .or_else(|| {
+                                    self.try_lookup_id_with_forbidden(
+                                        &full_path.at_loc(name),
+                                        &forbidden,
+                                    )
+                                });
                         }
                         _ => {}
                     }
@@ -958,7 +982,9 @@ impl SymbolTable {
         // Then look up things in the absolute namespace. This is only needed at the
         // top scope as that's where all top level will be defined
         if let Some(id) = self.symbols.first().unwrap().get(&absolute_path) {
-            return Some(id.clone());
+            if !forbidden.contains(id) {
+                return Some(id.clone());
+            }
         }
         None
     }

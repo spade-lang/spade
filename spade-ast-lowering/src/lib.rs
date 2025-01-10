@@ -1114,7 +1114,8 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             ctx.symtab.pop_namespace();
             result.map(|_| vec![])
         }
-        ast::Item::Use(s) => match ctx.symtab.lookup_id(&s.path) {
+        // We can leave the forbidden slice empty, because even after resolving to itself for the first time, it will add itself as forbidden for the next time
+        ast::Item::Use(s) => match ctx.symtab.lookup_id_with_forbidden(&s.path, &[]) {
             Ok(_) => Ok(vec![]),
             Err(lookup_error) => Err(lookup_error.into()),
         },

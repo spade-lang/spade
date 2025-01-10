@@ -177,6 +177,21 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    simple_self_referential_use_lookup_breaks,
+    "
+    use x::x;
+    "
+}
+
+snapshot_error! {
+    extended_self_referential_use_lookup_breaks,
+    "
+    use x::y;
+    use y::x;
+    "
+}
+
+snapshot_error! {
     match_expressions_open_new_scopes,
     "
     fn test(x: int<32>) -> int<32> {

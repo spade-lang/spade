@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+use x::x;
+
+
+error: Use of undeclared name x::x
+  ┌─ testinput:1:5
+  │
+1 │ use x::x;
+  │     ^^^^ Undeclared name
