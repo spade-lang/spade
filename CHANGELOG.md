@@ -9,6 +9,22 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+### Fixed
+
+- [!375][!375] Fix infinite recursion with `use` with remembering already used `use`s.
+
+### Changed
+
+### Removed
+
+<!-- Links -->
+
+[!375]: https://gitlab.com/spade-lang/spade/-/merge_requests/375
+
 ## [0.12.0] - 2025-01-09
 
 ### Added
@@ -23,7 +39,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!368][!368] Fix panic when pattern matching arrays of integers with more than 4 elements
 - [!368][!368] Report error when integer patterns are out of bounds
 - [!374][!374] Fix codegen bug when indexing nested inv wire structures
-- [!375][!375] Fix infinite recursion with `use` with remembering already used `use`s.
 - [!376][!376] Fix line comments at end of file
 - [!377][!377] Emit an error for zero size types that would otherwise cause codegen bugs
 - [!377][!377] Fix codegen bug when matching on zero size literals
@@ -43,7 +58,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [!371]: https://gitlab.com/spade-lang/spade/-/merge_requests/371
 [!372]: https://gitlab.com/spade-lang/spade/-/merge_requests/372
 [!374]: https://gitlab.com/spade-lang/spade/-/merge_requests/374
-[!375]: https://gitlab.com/spade-lang/spade/-/merge_requests/375
 [!376]: https://gitlab.com/spade-lang/spade/-/merge_requests/376
 [!377]: https://gitlab.com/spade-lang/spade/-/merge_requests/377
 [!379]: https://gitlab.com/spade-lang/spade/-/merge_requests/379
