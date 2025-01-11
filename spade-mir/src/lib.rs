@@ -246,7 +246,9 @@ pub enum Operator {
         initial: Option<Vec<Vec<Statement>>>,
     },
     /// Index an array with elements of the specified size
-    IndexArray,
+    IndexArray {
+        array_size: BigUint,
+    },
     IndexMemory,
     /// Indexes an array to extract a range of elements
     RangeIndexArray {
@@ -422,7 +424,7 @@ impl std::fmt::Display for Operator {
                     String::new()
                 }
             ),
-            Operator::IndexArray => write!(f, "IndexArray"),
+            Operator::IndexArray { array_size } => write!(f, "IndexArray({array_size})"),
             Operator::IndexTuple(idx, ty) => write!(f, "IndexTuple({}, {ty:?})", idx),
             Operator::RangeIndexArray {
                 start,
