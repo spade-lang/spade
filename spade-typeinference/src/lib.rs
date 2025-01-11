@@ -2025,6 +2025,15 @@ impl TypeState {
             Requirement::PositivePipelineDepth { depth } => Requirement::PositivePipelineDepth {
                 depth: replace!(depth),
             },
+            Requirement::ArrayIndexeeIsNonZero {
+                index,
+                array,
+                array_size,
+            } => Requirement::ArrayIndexeeIsNonZero {
+                index,
+                array: replace!(array),
+                array_size: replace!(array_size),
+            },
             Requirement::SharedBase(types) => {
                 Requirement::SharedBase(types.iter().map(|ty| replace!(ty)).collect())
             }

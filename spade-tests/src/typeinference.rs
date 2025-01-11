@@ -1952,3 +1952,12 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    indexing_zero_element_array_is_not_allowed,
+    "
+        fn test(a: [uint<8>; 0]) -> uint<8> {
+            a[0]
+        }
+    "
+}

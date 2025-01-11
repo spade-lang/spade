@@ -13,9 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- [!382][!382] Add type level if `$if` which allow conditional compilation based on type variables
+
 ### Fixed
 
 - [!375][!375] Fix infinite recursion with `use` with remembering already used `use`s.
+- [!382][!382] Fix codegen bug when indexing single element arrays
+- [!382][!382] Emit an error when indexing zero-size arrays
 
 ### Changed
 
@@ -24,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 <!-- Links -->
 
 [!375]: https://gitlab.com/spade-lang/spade/-/merge_requests/375
+[!382]: https://gitlab.com/spade-lang/spade/-/merge_requests/382
 
 ## [0.12.0] - 2025-01-09
 
