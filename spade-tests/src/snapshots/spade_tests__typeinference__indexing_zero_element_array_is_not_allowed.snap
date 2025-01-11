@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/typeinference.rs
+snapshot_kind: text
+---
+fn test(a: [uint<8>; 0]) -> uint<8> {
+    a[0]
+}
+
+
+error: Arrays without elements cannot be indexed
+  ┌─ testinput:2:7
+  │
+2 │     a[0]
+  │     - ^ Indexing zero-element array
+  │     │  
+  │     This has type [uint<8>; 0]

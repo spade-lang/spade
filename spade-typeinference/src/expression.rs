@@ -499,8 +499,13 @@ impl TypeState {
             let array_type = TypeVar::array(
                 expression.loc(),
                 expression.get_type(self)?,
-                array_size
+                array_size.clone()
             );
+            self.add_requirement(Requirement::ArrayIndexeeIsNonZero {
+                index: index.loc(),
+                array: array_type.clone().at_loc(target),
+                array_size: array_size.clone().at_loc(index)
+            });
             self.unify(&target.inner, &array_type, ctx)
                 .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
                     diag

@@ -76,6 +76,11 @@ pub enum Requirement {
         index: Loc<TypeVar>,
         size: Loc<TypeVar>,
     },
+    ArrayIndexeeIsNonZero {
+        index: Loc<()>,
+        array: Loc<TypeVar>,
+        array_size: Loc<TypeVar>,
+    },
     /// The provided TypeVar should all share a base type
     SharedBase(Vec<Loc<TypeVar>>),
 }
@@ -137,6 +142,14 @@ impl Requirement {
             Requirement::RangeIndexInArray { index, size } => {
                 TypeState::replace_type_var(index, from, to);
                 TypeState::replace_type_var(size, from, to);
+            }
+            Requirement::ArrayIndexeeIsNonZero {
+                index: _,
+                array,
+                array_size,
+            } => {
+                TypeState::replace_type_var(array_size, from, to);
+                TypeState::replace_type_var(array, from, to);
             }
             Requirement::PositivePipelineDepth { depth } => {
                 TypeState::replace_type_var(depth, from, to)
@@ -526,6 +539,25 @@ impl Requirement {
                     index,
                     "Got non-integer index or size (index: {index}, size: {size})"
                 )),
+            },
+            Requirement::ArrayIndexeeIsNonZero {
+                index,
+                array,
+                array_size,
+            } => match &array_size.inner {
+                TypeVar::Known(_, KnownType::Integer(size), _) => {
+                    if size == &BigInt::ZERO {
+                        Err(
+                            Diagnostic::error(index, "Arrays without elements cannot be indexed")
+                                .primary_label("Indexing zero-element array")
+                                .secondary_label(array, format!("This has type {}", array)),
+                        )
+                    } else {
+                        Ok(RequirementResult::Satisfied(vec![]))
+                    }
+                }
+                TypeVar::Unknown(_, _, _, _) => Ok(RequirementResult::NoChange),
+                other => diag_bail!(index, "Inferred non-integer array size ({other})"),
             },
             Requirement::ValidPipelineOffset {
                 definition_depth,
