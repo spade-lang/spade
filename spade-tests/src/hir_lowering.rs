@@ -639,7 +639,7 @@ mod tests {
         ) -> Type::int(2); {
             (const 0; Type::uint(3); ConstantValue::int(2));
             (n(1, "idx"); Type::uint(3); Alias; e(0));
-            (e(4); Type::int(2); IndexArray; n(0, "a"), n(1, "idx"));
+            (e(4); Type::int(2); IndexArray({array_size: 5u32.to_biguint()}); n(0, "a"), n(1, "idx"));
         } => e(4));
 
         assert_same_mir!(&build_entity!(code), &expected);

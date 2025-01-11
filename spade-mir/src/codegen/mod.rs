@@ -404,16 +404,20 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
                     .join(", ")
             )
         }
-        Operator::IndexArray => {
+        Operator::IndexArray { array_size } => {
             let member_size = self_type.size();
-            if member_size == 1u32.to_biguint() {
-                format!("{}[{}]", op_names[0], op_names[1])
-            } else {
-                let end_index = format!("{} * {}", op_names[1], member_size);
-                let offset = member_size;
+            if array_size != &BigUint::one() {
+                if member_size == 1u32.to_biguint() {
+                    format!("{}[{}]", op_names[0], op_names[1])
+                } else {
+                    let end_index = format!("{} * {}", op_names[1], member_size);
+                    let offset = member_size;
 
-                // Strange indexing explained here https://stackoverflow.com/questions/18067571/indexing-vectors-and-arrays-with#18068296
-                format!("{}[{}+:{}]", op_names[0], end_index, offset)
+                    // Strange indexing explained here https://stackoverflow.com/questions/18067571/indexing-vectors-and-arrays-with#18068296
+                    format!("{}[{}+:{}]", op_names[0], end_index, offset)
+                }
+            } else {
+                format!("{}", op_names[0])
             }
         }
         Operator::RangeIndexArray {
@@ -743,16 +747,20 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
                     .join(", ")
             )
         }
-        Operator::IndexArray => {
+        Operator::IndexArray { array_size } => {
             let member_size = self_type.backward_size();
-            if member_size == 1u32.to_biguint() {
-                format!("{}[{}]", op_names[0], fwd_op_names[1])
-            } else {
-                let end_index = format!("{} * {}", fwd_op_names[1], member_size);
-                let offset = member_size;
+            if array_size != &BigUint::one() {
+                if member_size == 1u32.to_biguint() {
+                    format!("{}[{}]", op_names[0], fwd_op_names[1])
+                } else {
+                    let end_index = format!("{} * {}", fwd_op_names[1], member_size);
+                    let offset = member_size;
 
-                // Strange indexing explained here https://stackoverflow.com/questions/18067571/indexing-vectors-and-arrays-with#18068296
-                format!("{}[{}+:{}]", op_names[0], end_index, offset)
+                    // Strange indexing explained here https://stackoverflow.com/questions/18067571/indexing-vectors-and-arrays-with#18068296
+                    format!("{}[{}+:{}]", op_names[0], end_index, offset)
+                }
+            } else {
+                op_names[0].clone()
             }
         }
         Operator::RangeIndexArray {
@@ -2513,7 +2521,8 @@ mod expression_tests {
 
     #[test]
     fn array_indexing_works() {
-        let statement = statement!(e(0); Type::int(3); IndexArray; e(1), e(2));
+        let statement =
+            statement!(e(0); Type::int(3); IndexArray({array_size: 3u32.to_biguint()}); e(1), e(2));
 
         let expected = indoc!(
             r#"
@@ -2534,12 +2543,56 @@ mod expression_tests {
 
     #[test]
     fn array_indexing_works_for_1_bit_values() {
-        let statement = statement!(e(0); Type::Bool; IndexArray; e(1), e(2));
+        let statement =
+            statement!(e(0); Type::Bool; IndexArray({array_size: 4u32.to_biguint()}); e(1), e(2));
 
         let expected = indoc!(
             r#"
             logic _e_0;
             assign _e_0 = _e_1[_e_2];"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &statement,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn array_indexing_works_for_1_element_bool_arrays() {
+        let statement =
+            statement!(e(0); Type::Bool; IndexArray({array_size: 1u32.to_biguint()}); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic _e_0;
+            assign _e_0 = _e_1;"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &statement,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn array_indexing_works_for_1_element_int_arrays() {
+        let statement = statement!(e(0); Type::Int(10u32.to_biguint()); IndexArray({array_size: 1u32.to_biguint()}); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic[9:0] _e_0;
+            assign _e_0 = _e_1;"#
         );
 
         assert_same_code!(

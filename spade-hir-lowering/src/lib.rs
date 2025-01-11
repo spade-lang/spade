@@ -300,6 +300,7 @@ impl PatternLocal for Loc<Pattern> {
                 }
             }
             hir::PatternKind::Array(inner) => {
+                let array_size = inner.len().to_biguint();
                 let index_ty =
                     MirType::Int((((inner.len() as f32).log2().floor() + 1.) as u128).to_biguint());
                 for (i, p) in inner.iter().enumerate() {
@@ -316,7 +317,9 @@ impl PatternLocal for Loc<Pattern> {
                     result.push_primary(
                         mir::Statement::Binding(mir::Binding {
                             name: p.value_name(),
-                            operator: mir::Operator::IndexArray,
+                            operator: mir::Operator::IndexArray {
+                                array_size: array_size.clone(),
+                            },
                             operands: vec![self_name.clone(), ValueName::Expr(idx_id)],
                             ty: ctx
                                 .types
@@ -1679,10 +1682,21 @@ impl ExprLocal for Loc<Expression> {
                 result.append(target.lower(ctx)?);
                 result.append(index.lower(ctx)?);
 
+                let array_size =
+                    match ctx
+                        .types
+                        .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    {
+                        ConcreteType::Array { inner: _, size } => size
+                            .to_biguint()
+                            .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
+                        other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
+                    };
+
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
                         name: self.variable(ctx)?,
-                        operator: mir::Operator::IndexArray,
+                        operator: mir::Operator::IndexArray { array_size },
                         operands: vec![target.variable(ctx)?, index.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),

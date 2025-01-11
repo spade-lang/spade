@@ -290,7 +290,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                         Value::Concat(ops.iter().rev().map(|op| name_vals[op].clone()).collect())
                     }
                     Operator::DeclClockedMemory { .. } => todo!(),
-                    Operator::IndexArray => todo!(),
+                    Operator::IndexArray { .. } => todo!(),
                     Operator::IndexMemory => todo!(),
                     Operator::RangeIndexArray { .. } => todo!(),
                     Operator::RangeIndexBits { .. } => todo!(),

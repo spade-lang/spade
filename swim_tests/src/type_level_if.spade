@@ -1,8 +1,8 @@
 fn addone<#uint N>(seq: [uint<8>; N]) -> [uint<9>; N] {
-    $if N-2 {
+    $if N {
         [seq[0] + 1] `concat_arrays` addone(seq[1:N])
     } $else {
-        [seq[0] + 1, seq[1] + 1]
+        []
     }
 }
 

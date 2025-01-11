@@ -46,7 +46,9 @@ impl ConstraintExpr {
                 _ => self.clone(),
             },
             ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate() {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(
+                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(if val == BigInt::ZERO {
+                    BigInt::ZERO
+                } else {
                     // NOTE: This might fail, but it will only do so for massive
                     // constraints. If this turns out to be an issue, we need to
                     // look into doing log2 on BigInt, which as of right now, is
@@ -58,8 +60,8 @@ impl ConstraintExpr {
                     .floor() as i128
                         + 1)
                     .to_bigint()
-                    .unwrap(),
-                ),
+                    .unwrap()
+                }),
                 _ => self.clone(),
             },
         }
