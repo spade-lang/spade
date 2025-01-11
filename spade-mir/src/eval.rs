@@ -268,7 +268,6 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     Operator::BitwiseAnd => todo!(),
                     Operator::BitwiseOr => todo!(),
                     Operator::BitwiseXor => todo!(),
-                    Operator::Bitreverse => todo!(),
                     Operator::USub => Value::Int {
                         size: ty.size(),
                         val: -name_vals[&ops[0]].assume_int(),

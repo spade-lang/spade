@@ -1707,6 +1707,17 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::RangeIndex { target, start, end } => {
                 result.append(target.lower(ctx)?);
 
+                let in_array_size =
+                    match ctx
+                        .types
+                        .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    {
+                        ConcreteType::Array { inner: _, size } => size
+                            .to_biguint()
+                            .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
+                        other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
+                    };
+
                 let start_val = start.resolve_int(ctx)?;
                 let start = start_val.to_biguint().ok_or_else(|| {
                     Diagnostic::error(start, "The start of a range cannot be negative")
@@ -1724,6 +1735,7 @@ impl ExprLocal for Loc<Expression> {
                         operator: mir::Operator::RangeIndexArray {
                             start: start.clone(),
                             end_exclusive: end.clone(),
+                            in_array_size,
                         },
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
@@ -2056,7 +2068,6 @@ impl ExprLocal for Loc<Expression> {
             ["std", "conv", "zext"] => handle_zext,
             ["std", "conv", "concat"] => handle_concat,
             ["std", "conv", "unsafe", "unsafe_cast"] => handle_unsafe_cast {allow_port},
-            ["std", "conv", "flip_array"] => handle_flip_array,
             ["std", "ops", "div_pow2"] => handle_div_pow2,
             ["std", "ops", "gray_to_bin"] => handle_gray_to_bin,
             ["std", "ops", "reduce_and"] => handle_reduce_and,
@@ -2665,36 +2676,6 @@ impl ExprLocal for Loc<Expression> {
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
                 operator: mir::Operator::ZeroExtend { extra_bits },
-                operands: vec![args[0].value.variable(ctx)?],
-                ty: self_type,
-                loc: None,
-            }),
-            self,
-        );
-
-        Ok(result)
-    }
-
-    fn handle_flip_array(
-        &self,
-        _path: &Loc<NameID>,
-        result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
-        ctx: &mut Context,
-    ) -> Result<StatementList> {
-        let mut result = result;
-
-        assert_eq!(args.len(), 1);
-
-        let self_type = ctx
-            .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-            .to_mir_type();
-
-        result.push_primary(
-            mir::Statement::Binding(mir::Binding {
-                name: self.variable(ctx)?,
-                operator: mir::Operator::Bitreverse,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,

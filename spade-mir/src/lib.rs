@@ -201,7 +201,6 @@ pub enum Operator {
     Not,
     ReadPort,
     BitwiseNot,
-    Bitreverse,
     // Divide op[0] by 2**op[1] rounding towards 0
     DivPow2,
     /// Convert the operand from gray code representation to binary
@@ -254,6 +253,7 @@ pub enum Operator {
     RangeIndexArray {
         start: BigUint,
         end_exclusive: BigUint,
+        in_array_size: BigUint,
     },
     /// Compiles to verilog [end_exclusive:start]. Supports single bit indexing, (when
     /// end_exclusive == start + 1, in which case it compiles to [start]
@@ -373,7 +373,6 @@ impl std::fmt::Display for Operator {
             Operator::ReduceAnd => write!(f, "ReduceAnd"),
             Operator::ReduceOr => write!(f, "ReduceOr"),
             Operator::ReduceXor => write!(f, "ReduceXor"),
-            Operator::Bitreverse => write!(f, "Bitreverse"),
             Operator::USub => write!(f, "USub"),
             Operator::Not => write!(f, "Not"),
             Operator::Select => write!(f, "Select"),
@@ -429,6 +428,7 @@ impl std::fmt::Display for Operator {
             Operator::RangeIndexArray {
                 start,
                 end_exclusive: end,
+                in_array_size: _,
             } => write!(f, "RangeIndexArray({start}, {end})"),
             Operator::RangeIndexBits {
                 start,

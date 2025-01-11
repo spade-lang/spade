@@ -423,13 +423,16 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
         Operator::RangeIndexArray {
             start,
             end_exclusive: end,
+            in_array_size,
         } => {
             let member_size = match self_type {
                 Type::Array { inner, length: _ } => inner.size(),
                 _ => panic!("Range index with non-array output"),
             };
             let num_elems = end - start;
-            if member_size == BigUint::one() && num_elems == BigUint::one() {
+            if in_array_size == &BigUint::one() {
+                op_names[0].clone()
+            } else if member_size == BigUint::one() && num_elems == BigUint::one() {
                 format!("{}[{}]", op_names[0], start)
             } else {
                 let end_index = (end * &member_size) - BigUint::one();
@@ -659,10 +662,6 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             // NOTE: dummy. Set in the next match statement
             String::new()
         }
-        Operator::Bitreverse => {
-            // NOTE Dummy. Set in the next match statement
-            String::new()
-        }
         Operator::Alias => {
             // NOTE Dummy. Set in the next match statement
             String::new()
@@ -709,7 +708,6 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
         | Operator::BitwiseAnd
         | Operator::BitwiseOr
         | Operator::BitwiseXor
-        | Operator::Bitreverse
         | Operator::USub
         | Operator::Not
         | Operator::BitwiseNot
@@ -766,10 +764,13 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
         Operator::RangeIndexArray {
             start,
             end_exclusive: end,
+            in_array_size,
         } => {
             let member_size = self_type.backward_size();
             let elems = end - start;
-            if member_size == BigUint::one() && elems == BigUint::one() {
+            if in_array_size == &BigUint::one() {
+                op_names[0].clone()
+            } else if member_size == BigUint::one() && elems == BigUint::one() {
                 format!("{}[{}]", op_names[0], start)
             } else {
                 let end_index = format!("{} * {}", start, member_size);
@@ -947,16 +948,6 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     .to_string()
                 }
                 Operator::DeclClockedMemory { .. } => forward_expression.unwrap(),
-                Operator::Bitreverse => {
-                    let genvar = format!("{}_i", name);
-                    let type_size = binding.ty.size();
-                    code! {
-                        [0] format!("genvar {genvar};");
-                        [0] format!("for ({genvar} = 0; {genvar} < {type_size}; {genvar} = {genvar} + 1) begin");
-                        [1]     format!("assign {name}[{genvar}] = {}[{type_size} - 1 - {genvar}];", ops[0]);
-                        [0] "end";
-                    }.to_string()
-                }
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
                     [0] backward_expression.map(|b| format!("assign {} = {};", b, back_name));
@@ -2588,6 +2579,93 @@ mod expression_tests {
     #[test]
     fn array_indexing_works_for_1_element_int_arrays() {
         let statement = statement!(e(0); Type::Int(10u32.to_biguint()); IndexArray({array_size: 1u32.to_biguint()}); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic[9:0] _e_0;
+            assign _e_0 = _e_1;"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &statement,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn range_array_indexing_works() {
+        let ty = Type::Array {
+            inner: Box::new(Type::int(10)),
+            length: 2u32.to_biguint(),
+        };
+        let statement = statement!(e(0); ty; RangeIndexArray({
+            start: 1u32.to_biguint(),
+            end_exclusive: 2u32.to_biguint(),
+            in_array_size: 4u32.to_biguint()
+        }); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic[19:0] _e_0;
+            assign _e_0 = _e_1[19-:10];"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &statement,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn range_array_indexing_on_bool_array_works() {
+        let ty = Type::Array {
+            inner: Box::new(Type::Bool),
+            length: 2u32.to_biguint(),
+        };
+        let statement = statement!(e(0); ty; RangeIndexArray({
+            start: 1u32.to_biguint(),
+            end_exclusive: 2u32.to_biguint(),
+            in_array_size: 4u32.to_biguint()
+        }); e(1), e(2));
+
+        let expected = indoc!(
+            r#"
+            logic[1:0] _e_0;
+            assign _e_0 = _e_1[1];"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &statement,
+                &TypeList::empty(),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn range_array_indexing_on_single_element_array_works() {
+        let ty = Type::Array {
+            inner: Box::new(Type::int(10)),
+            length: 1u32.to_biguint(),
+        };
+        let statement = statement!(e(0); ty; RangeIndexArray({
+            start: 1u32.to_biguint(),
+            end_exclusive: 2u32.to_biguint(),
+            in_array_size: 1u32.to_biguint()
+        }); e(1), e(2));
 
         let expected = indoc!(
             r#"

@@ -20,8 +20,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!375][!375] Fix infinite recursion with `use` with remembering already used `use`s.
 - [!382][!382] Fix codegen bug when indexing single element arrays
 - [!382][!382] Emit an error when indexing zero-size arrays
+- [!348][!348] Fix `std::conv::flip_array` flip bits in elements as well
 
 ### Changed
+
+- [!384][!384] Rewrite `std::conv::flip_array` as a non-intrinsic
 
 ### Removed
 
@@ -29,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 [!375]: https://gitlab.com/spade-lang/spade/-/merge_requests/375
 [!382]: https://gitlab.com/spade-lang/spade/-/merge_requests/382
+[!384]: https://gitlab.com/spade-lang/spade/-/merge_requests/384
 
 ## [0.12.0] - 2025-01-09
 
