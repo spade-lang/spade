@@ -1952,3 +1952,17 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    unknown_type_level_constants_are_reported_nicely,
+    "
+        fn test<#uint V, #uint N>() -> uint<8> {
+            V
+        }
+
+        fn tester() -> uint<8> {
+            test::<_, 1>()
+        }
+    "
+}
+

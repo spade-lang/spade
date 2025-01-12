@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/typeinference.rs
+snapshot_kind: text
+---
+fn test<#uint V, #uint N>() -> uint<8> {
+    V
+}
+
+fn tester() -> uint<8> {
+    test::<_, 1>()
+}
+
+
+error: This type level value is not fully known
+  ┌─ testinput:2:5
+  │
+2 │     V
+  │     ^ Unknown type level value
+  │
+  = The error is in a generic unit instantiated at
+    ╰ testinput:6 test<_, 1>

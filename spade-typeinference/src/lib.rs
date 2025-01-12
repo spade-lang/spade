@@ -1843,6 +1843,9 @@ impl TypeState {
 
     fn check_var_for_replacement(&self, var: TypeVar) -> TypeVar {
         if let Some(new) = self.replacements.get(&var) {
+            if new == &var {
+                panic!("Type var {new} has been replaced by itself");
+            }
             // We need to do this recursively if we have multiple long lived vars
             return self.check_var_for_replacement(new.clone());
         };

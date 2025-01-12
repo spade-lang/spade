@@ -1249,7 +1249,13 @@ impl ExprLocal for Loc<Expression> {
                     ) {
                         Some(ConcreteType::Integer(value)) => value,
                         Some(other) => diag_bail!(self, "Inferred {other} for type level integer"),
-                        None => diag_bail!(self, "Did not find a type for {name}"),
+                        None => {
+                            return Err(Diagnostic::error(
+                                self,
+                                "This type level value is not fully known",
+                            )
+                            .primary_label("Unknown type level value"))
+                        }
                     };
 
                     result.push_primary(
