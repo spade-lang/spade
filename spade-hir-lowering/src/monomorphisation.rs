@@ -5,13 +5,13 @@ use mir::passes::MirPass;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
-use spade_diagnostics::{DiagHandler, Diagnostic};
+use spade_diagnostics::{diag_anyhow, diag_bail, DiagHandler, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::trace_stack::{format_trace_stack, TraceStackEntry};
-use spade_typeinference::{GenericListToken, TypeState};
+use spade_typeinference::{GenericListToken, HasType, TypeState};
 use spade_wordlength_inference as wordlength_inference;
 
 use crate::error::Result;
@@ -187,6 +187,13 @@ pub fn compile_items(
                     for (source_param, new) in
                         u.head.get_type_params().iter().zip(item.params.iter())
                     {
+                        if TypeState::ungenerify_type(new, symtab.symtab(), &item_list.types)
+                            .is_none()
+                        {
+                            result.push(Err(diag_anyhow!(u, "The type of {source_param:?} is not fully known when instantiating this unit")));
+                            continue;
+                        }
+
                         let source_var = &generic_list[&source_param.name_id()];
 
                         type_state

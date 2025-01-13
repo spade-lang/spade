@@ -5,6 +5,7 @@ build
 .ecp5.d
 swim_tests/pytest/__pycache__
 swim_tests/build
+swim_test_errors/swim.toml
 
 .env
 .coverage

@@ -1961,3 +1961,21 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    tlif_does_not_cause_phantom_types,
+    "
+        fn test<#uint V, #uint N>() -> uint<8> {
+            $if N {
+                V
+            } $else {
+                V
+            }
+        }
+
+        fn tester() -> uint<8> {
+            test::<5, 1>()
+        }
+    ",
+    false
+}

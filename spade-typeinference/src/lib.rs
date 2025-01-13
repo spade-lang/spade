@@ -394,6 +394,7 @@ impl TypeState {
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all, fields(%entity.name))]
     pub fn visit_unit(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
+        self.trace_stack.push(TraceStackEntry::Message(format!("visiting {}", entity.name)));
         self.trait_impls = ctx.trait_impls.clone();
 
         let generic_list = self.create_generic_list(
