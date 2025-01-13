@@ -1966,3 +1966,17 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    unknown_type_vars_are_not_propagated_between_units,
+    "
+        fn inner<#uint A, #uint B, #uint C>() -> uint<8> {
+            let _: uint<A> = 0u8;
+            C
+        }
+        fn outer() -> uint<8> {
+            let x = inner();
+            x
+        }
+    ",
+    false
+}

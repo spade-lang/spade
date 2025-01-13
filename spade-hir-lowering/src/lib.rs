@@ -57,6 +57,7 @@ use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::num_ext::InfallibleToBigUint;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::{diag_assert, diag_bail, DiagHandler, Diagnostic};
+use spade_hir::UnitHead;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
 use spade_typeinference::GenericListToken;
@@ -1815,7 +1816,7 @@ impl ExprLocal for Loc<Expression> {
                 match (kind, &head.unit_kind.inner) {
                     (CallKind::Function, UnitKind::Function(_))
                     | (CallKind::Entity(_), UnitKind::Entity) => {
-                        result.append(self.handle_call(callee, &args, ctx)?);
+                        result.append(self.handle_call(callee, &args, &head, ctx)?);
                     }
                     (
                         CallKind::Pipeline {
@@ -1828,7 +1829,7 @@ impl ExprLocal for Loc<Expression> {
                             depth_typeexpr_id: _,
                         },
                     ) => {
-                        result.append(self.handle_call(callee, &args, ctx)?);
+                        result.append(self.handle_call(callee, &args, &head, ctx)?);
                     }
                     (CallKind::Function, other) => {
                         return Err(expect_function(callee, head.loc(), other))
@@ -1938,6 +1939,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         name: &Loc<NameID>,
         args: &[Argument<Expression, TypeSpec>],
+        unit_head: &Loc<UnitHead>,
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = StatementList::new();
@@ -1947,6 +1949,29 @@ impl ExprLocal for Loc<Expression> {
 
         let tok = GenericListToken::Expression(self.id);
         let instance_list = ctx.types.get_generic_list(&tok);
+
+        for (param, var) in unit_head
+            .get_type_params()
+            .iter()
+            .map(|p| (p, instance_list.get(&p.name_id)))
+        {
+            let param_name = &param.name_id;
+            let Some(var) = var else {
+                diag_bail!(self, "Did not find a type for {param_name}");
+            };
+
+            if TypeState::ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types).is_none()
+            {
+                return Err(Diagnostic::error(
+                    self,
+                    format!("The type of {param_name} is not fully known in this call"),
+                )
+                .primary_label(format!("Type of type parameter {param_name} is not fully known"))
+                .secondary_label(param, format!("{param_name} is defined here"))
+                .help("Consider specifying the type parameters explicitly https://docs.spade-lang.org/units.html#brief-intro-to-generic-parameters"));
+            };
+        }
+
         let generic_port_check = || {
             // Check if this is a call to something generic. If so we need to ensure that the
             // generic arguments were not mapped to ports

@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/typeinference.rs
+snapshot_kind: text
+---
+fn inner<#uint A, #uint B, #uint C>() -> uint<8> {
+    let _: uint<A> = 0u8;
+    C
+}
+fn outer() -> uint<8> {
+    let x = inner();
+    x
+}
+
+
+error: The type of A is not fully known in this call
+  ┌─ testinput:6:13
+  │
+1 │ fn inner<#uint A, #uint B, #uint C>() -> uint<8> {
+  │           ------ A is defined here
+  ·
+6 │     let x = inner();
+  │             ^^^^^^^ Type of type parameter A is not fully known
+  │
+  = help: Consider specifying the type parameters explicitly https://docs.spade-lang.org/units.html#brief-intro-to-generic-parameters

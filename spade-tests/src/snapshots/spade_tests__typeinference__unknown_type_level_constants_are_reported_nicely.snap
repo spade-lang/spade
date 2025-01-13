@@ -11,11 +11,13 @@ fn tester() -> uint<8> {
 }
 
 
-error: This type level value is not fully known
-  ┌─ testinput:2:5
+error: The type of V is not fully known in this call
+  ┌─ testinput:6:5
   │
-2 │     V
-  │     ^ Unknown type level value
+1 │ fn test<#uint V, #uint N>() -> uint<8> {
+  │          ------ V is defined here
+  ·
+6 │     test::<_, 1>()
+  │     ^^^^^^^^^^^^^^ Type of type parameter V is not fully known
   │
-  = The error is in a generic unit instantiated at
-    ╰ testinput:6 test<_, 1>
+  = help: Consider specifying the type parameters explicitly https://docs.spade-lang.org/units.html#brief-intro-to-generic-parameters
