@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+template="
+<!--
+ Thanks for the MR! Please add lines describing your changes in the appropriate section
+
+ For example:
+
+## Added
+- Added some more fish
+## Fixed
+ a generic parameter-->
+
+## Added
+
+## Fixed
+
+## Changed
+
+## Removed
+
+"
+
+pr_num=$1
+
+if test -z "$pr_num" ; then
+  echo "Please specify the merge request number or a descriptive name (For example 1234 or fix_all_bugs)"
+  exit 1
+fi
+
+file="changelogs/${pr_num}.md"
+if [ ! -f "$file" ]; then
+  echo "$template" > "$file"
+fi
+
+echo "Created $file, opening your $EDITOR"
+${EDITOR:-nano} "$file"
+
+echo -e "\nDon't forget to \033[34mgit add $file\033[m the file once you're done"
