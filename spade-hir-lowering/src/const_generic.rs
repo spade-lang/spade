@@ -13,7 +13,7 @@ impl ConstGenericExt for Loc<ConstGenericWithId> {
     fn resolve_int(&self, ctx: &Context) -> Result<BigInt> {
         let ty = ctx
             .types
-            .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types);
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
         let start = match ty {
             ConcreteType::Integer(value) => value,

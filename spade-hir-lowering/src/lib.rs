@@ -289,7 +289,7 @@ impl PatternLocal for Loc<Pattern> {
                             operands: vec![self_name.clone()],
                             ty: ctx
                                 .types
-                                .type_of_id(p.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                                .concrete_type_of(p, ctx.symtab.symtab(), &ctx.item_list.types)?
                                 .to_mir_type(),
                             loc: None,
                         }),
@@ -323,7 +323,7 @@ impl PatternLocal for Loc<Pattern> {
                             operands: vec![self_name.clone(), ValueName::Expr(idx_id)],
                             ty: ctx
                                 .types
-                                .type_of_id(p.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                                .concrete_type_of(p, ctx.symtab.symtab(), &ctx.item_list.types)?
                                 .to_mir_type(),
                             loc: None,
                         }),
@@ -341,7 +341,7 @@ impl PatternLocal for Loc<Pattern> {
 
                         let mir_type = &ctx
                             .types
-                            .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type();
                         let inner_types = if let mir::types::Type::Struct(inner) = mir_type {
                             inner.iter().map(|s| s.1.clone()).collect::<Vec<_>>()
@@ -367,11 +367,11 @@ impl PatternLocal for Loc<Pattern> {
                                     operands: vec![self_name.clone()],
                                     ty: ctx
                                         .types
-                                        .type_of_id(
-                                            value.id,
+                                        .concrete_type_of(
+                                            value,
                                             ctx.symtab.symtab(),
                                             &ctx.item_list.types,
-                                        )
+                                        )?
                                         .to_mir_type(),
                                     loc: None,
                                 }),
@@ -385,7 +385,7 @@ impl PatternLocal for Loc<Pattern> {
                         let enum_variant = ctx.symtab.symtab().enum_variant_by_id(path);
                         let self_type = ctx
                             .types
-                            .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type();
 
                         for (i, p) in args.iter().enumerate() {
@@ -400,11 +400,11 @@ impl PatternLocal for Loc<Pattern> {
                                     operands: vec![self_name.clone()],
                                     ty: ctx
                                         .types
-                                        .type_of_id(
-                                            p.value.id,
+                                        .concrete_type_of(
+                                            &p.value,
                                             ctx.symtab.symtab(),
                                             &ctx.item_list.types,
-                                        )
+                                        )?
                                         .to_mir_type(),
                                     loc: None,
                                 }),
@@ -431,7 +431,7 @@ impl PatternLocal for Loc<Pattern> {
             hir::PatternKind::Integer(val) => {
                 let self_type =
                     ctx.types
-                        .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types);
+                        .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
                 let const_id = ctx.idtracker.next();
                 let statements = vec![
                     mir::Statement::Constant(
@@ -513,7 +513,7 @@ impl PatternLocal for Loc<Pattern> {
 
                 let self_type = ctx
                     .types
-                    .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type();
 
                 let self_condition_id = ctx.idtracker.next();
@@ -967,7 +967,7 @@ impl StatementLocal for Statement {
 
                 let concrete_ty =
                     ctx.types
-                        .type_of_id(pattern.id, ctx.symtab.symtab(), &ctx.item_list.types);
+                        .concrete_type_of(pattern, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
                 let mir_ty = concrete_ty.to_mir_type();
 
@@ -1022,7 +1022,7 @@ impl StatementLocal for Statement {
 
                 let ty =
                     ctx.types
-                        .type_of_id(pattern.id, ctx.symtab.symtab(), &ctx.item_list.types);
+                        .concrete_type_of(pattern, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
                 if ty.is_port() {
                     return Err(
@@ -1065,7 +1065,7 @@ impl StatementLocal for Statement {
                         name: pattern.value_name(),
                         ty: ctx
                             .types
-                            .type_of_id(pattern.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                            .concrete_type_of(pattern, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         clock: clock.variable(ctx)?,
                         reset: reset
