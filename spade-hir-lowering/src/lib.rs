@@ -604,9 +604,11 @@ impl PatternLocal for Loc<Pattern> {
     /// values it binds to
     #[tracing::instrument(level = "trace", skip(self, ctx))]
     fn is_refutable(&self, ctx: &Context) -> Usefulness {
-        let operand_ty = ctx
-            .types
-            .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types);
+        let operand_ty = ctx.types.concrete_type_of_infallible(
+            self.id,
+            ctx.symtab.symtab(),
+            &ctx.item_list.types,
+        );
 
         let pat_stacks = vec![PatStack::new(vec![DeconstructedPattern::from_hir(
             self, ctx,
@@ -965,9 +967,11 @@ impl StatementLocal for Statement {
                     ));
                 }
 
-                let concrete_ty =
-                    ctx.types
-                        .concrete_type_of(pattern, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                let concrete_ty = ctx.types.concrete_type_of(
+                    pattern,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )?;
 
                 let mir_ty = concrete_ty.to_mir_type();
 
@@ -1020,9 +1024,11 @@ impl StatementLocal for Statement {
                     ));
                 }
 
-                let ty =
-                    ctx.types
-                        .concrete_type_of(pattern, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                let ty = ctx.types.concrete_type_of(
+                    pattern,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )?;
 
                 if ty.is_port() {
                     return Err(
@@ -1225,9 +1231,9 @@ impl ExprLocal for Loc<Expression> {
     fn lower(&self, ctx: &mut Context) -> Result<StatementList> {
         let mut result = StatementList::new();
 
-        let hir_type = ctx
-            .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
+        let hir_type =
+            ctx.types
+                .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
         let self_type = hir_type.to_mir_type();
 
         match &self.kind {
@@ -1322,7 +1328,7 @@ impl ExprLocal for Loc<Expression> {
 
                         let op = match &ctx
                             .types
-                            .expr_type(lhs, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(lhs, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type()
                         {
                             mir::types::Type::Int(_) => $sop,
@@ -1484,7 +1490,7 @@ impl ExprLocal for Loc<Expression> {
 
                 let types = if let mir::types::Type::Tuple(inner) = &ctx
                     .types
-                    .expr_type(tup, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    .concrete_type_of(tup, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type()
                 {
                     inner.clone()
@@ -1584,9 +1590,11 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::FieldAccess(target, field) => {
                 result.append(target.lower(ctx)?);
 
-                let ctype =
-                    ctx.types
-                        .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                let ctype = ctx.types.concrete_type_of(
+                    target,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )?;
 
                 let member_types =
                     if let mir::types::Type::Struct(members) = &ctype.clone().to_mir_type() {
@@ -1682,16 +1690,16 @@ impl ExprLocal for Loc<Expression> {
                 result.append(target.lower(ctx)?);
                 result.append(index.lower(ctx)?);
 
-                let array_size =
-                    match ctx
-                        .types
-                        .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    {
-                        ConcreteType::Array { inner: _, size } => size
-                            .to_biguint()
-                            .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
-                        other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
-                    };
+                let array_size = match ctx.types.concrete_type_of(
+                    target,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )? {
+                    ConcreteType::Array { inner: _, size } => size
+                        .to_biguint()
+                        .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
+                    other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
+                };
 
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
@@ -1707,16 +1715,16 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::RangeIndex { target, start, end } => {
                 result.append(target.lower(ctx)?);
 
-                let in_array_size =
-                    match ctx
-                        .types
-                        .expr_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    {
-                        ConcreteType::Array { inner: _, size } => size
-                            .to_biguint()
-                            .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
-                        other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
-                    };
+                let in_array_size = match ctx.types.concrete_type_of(
+                    target,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )? {
+                    ConcreteType::Array { inner: _, size } => size
+                        .to_biguint()
+                        .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
+                    other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
+                };
 
                 let start_val = start.resolve_int(ctx)?;
                 let start = start_val.to_biguint().ok_or_else(|| {
@@ -1770,7 +1778,7 @@ impl ExprLocal for Loc<Expression> {
                         ],
                         ty: ctx
                             .types
-                            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
                     }),
@@ -1778,9 +1786,11 @@ impl ExprLocal for Loc<Expression> {
                 );
             }
             ExprKind::Match(operand, branches) => {
-                let operand_ty =
-                    ctx.types
-                        .expr_type(operand, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                let operand_ty = ctx.types.concrete_type_of(
+                    operand,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )?;
 
                 // Check for missing branches
                 let pat_stacks = branches
@@ -1826,7 +1836,7 @@ impl ExprLocal for Loc<Expression> {
                         operands,
                         ty: ctx
                             .types
-                            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
                     }),
@@ -2097,7 +2107,7 @@ impl ExprLocal for Loc<Expression> {
                         name: self.variable(ctx)?,
                         ty: ctx
                             .types
-                            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         operator: mir::Operator::ConstructEnum {
                             variant: *variant,
@@ -2117,7 +2127,7 @@ impl ExprLocal for Loc<Expression> {
                     name: self.variable(ctx)?,
                     ty: ctx
                         .types
-                        .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                        .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                         .to_mir_type(),
                     operator: mir::Operator::ConstructTuple,
                     operands: args
@@ -2180,7 +2190,7 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: ctx
                             .types
-                            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
                     }),
@@ -2266,7 +2276,7 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: ctx
                             .types
-                            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
                     }),
@@ -2317,7 +2327,7 @@ impl ExprLocal for Loc<Expression> {
             params,
         } =
             ctx.types
-                .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
         {
             if let ConcreteType::Integer(size) = params[1].clone() {
                 size
@@ -2360,7 +2370,7 @@ impl ExprLocal for Loc<Expression> {
         // Figure out the sizes of the operands
         let port_t =
             ctx.types
-                .expr_type(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                .concrete_type_of(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
         if let ConcreteType::Array { inner, size } = port_t {
             if let ConcreteType::Tuple(tup_inner) = *inner {
                 assert!(
@@ -2397,7 +2407,7 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<Vec<_>>>()?,
                         ty: ctx
                             .types
-                            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
                     }),
@@ -2429,7 +2439,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2457,12 +2467,12 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let input_type = ctx
             .types
-            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         if self_type.size() > input_type.size() {
@@ -2483,7 +2493,7 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: ctx
                     .types
-                    .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type(),
                 loc: Some(self.loc()),
             }),
@@ -2504,12 +2514,12 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let input_type = ctx
             .types
-            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         if self_type.size() < input_type.size() {
@@ -2565,12 +2575,12 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let input_type = ctx
             .types
-            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         if self_type.size() < input_type.size() {
@@ -2620,14 +2630,14 @@ impl ExprLocal for Loc<Expression> {
     ) -> Result<StatementList> {
         let mut result = result;
 
-        let self_type_hir = ctx
-            .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
+        let self_type_hir =
+            ctx.types
+                .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
         let self_type = self_type_hir.to_mir_type();
 
         let input_type_hir =
             ctx.types
-                .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
         let input_type = input_type_hir.to_mir_type();
 
         if self_type.backward_size() != BigUint::zero() {
@@ -2697,16 +2707,16 @@ impl ExprLocal for Loc<Expression> {
 
         let arg0_type = ctx
             .types
-            .expr_type(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
         let arg1_type = ctx
             .types
-            .expr_type(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         if self_type.size() != arg0_type.size() + arg1_type.size() {
@@ -2744,7 +2754,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2772,7 +2782,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2802,7 +2812,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2830,7 +2840,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2858,7 +2868,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2886,7 +2896,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let operator = match self_type {
@@ -2925,7 +2935,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         let operator = match self_type {
@@ -2966,7 +2976,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -2996,7 +3006,7 @@ impl ExprLocal for Loc<Expression> {
 
         let self_type = ctx
             .types
-            .expr_type(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
         result.push_primary(
@@ -3127,7 +3137,7 @@ pub fn generate_unit<'a>(
 
     let output_t = ctx
         .types
-        .expr_type(&unit.body, ctx.symtab.symtab(), &item_list.types)?
+        .concrete_type_of(&unit.body, ctx.symtab.symtab(), &item_list.types)?
         .to_mir_type();
 
     linear_check::check_linear_types(

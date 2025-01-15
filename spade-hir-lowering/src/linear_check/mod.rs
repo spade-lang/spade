@@ -226,7 +226,10 @@ fn visit_expression(
             visit_expression(target, linear_state, ctx)?;
             visit_expression(idx_expr, linear_state, ctx)?;
 
-            if is_linear(&ctx.type_state.expr_type(target, ctx.symtab, ctx.types)?) {
+            if is_linear(
+                &ctx.type_state
+                    .concrete_type_of(target, ctx.symtab, ctx.types)?,
+            ) {
                 let idx = match &idx_expr.kind {
                     ExprKind::IntLiteral(value, _) => value,
                     _ => {

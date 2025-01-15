@@ -72,7 +72,10 @@ impl PatternKind {
     }
 
     pub fn idless(self) -> Pattern {
-        Pattern { id: ExprID(0), kind: self }
+        Pattern {
+            id: ExprID(0),
+            kind: self,
+        }
     }
 }
 impl std::fmt::Display for PatternKind {

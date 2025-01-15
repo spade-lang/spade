@@ -32,8 +32,11 @@ impl<'a> Pass for LowerMethods<'a> {
 
                 // Method resolution requires fully known types, so we'll do a throwaway MIR
                 // conversion here
-                self.type_state
-                    .expr_type(self_, self.symtab.symtab(), &self.items.types)?;
+                self.type_state.concrete_type_of(
+                    &self_,
+                    self.symtab.symtab(),
+                    &self.items.types,
+                )?;
 
                 let Some(method) =
                     select_method(self_.loc(), &self_type, name, &self.type_state.trait_impls)?

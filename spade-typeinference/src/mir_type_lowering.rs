@@ -17,9 +17,28 @@ pub trait HasConcreteType {
     fn into_typed_expression(&self) -> Loc<TypedExpression>;
 }
 
-impl<T> HasConcreteType for &T where T: HasConcreteType {
+impl<T> HasConcreteType for &mut T
+where
+    T: HasConcreteType,
+{
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        (**self).into_typed_expression()
+    }
+}
+impl<T> HasConcreteType for &T
+where
+    T: HasConcreteType,
+{
     fn into_typed_expression(&self) -> Loc<TypedExpression> {
         (*self).into_typed_expression()
+    }
+}
+impl<T> HasConcreteType for Box<T>
+where
+    T: HasConcreteType,
+{
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        self.as_ref().into_typed_expression()
     }
 }
 
@@ -39,7 +58,6 @@ impl HasConcreteType for Loc<ConstGenericWithId> {
         TypedExpression::Id(self.id).at_loc(self)
     }
 }
-
 
 impl TypeState {
     pub fn type_decl_to_concrete(
@@ -323,7 +341,12 @@ impl TypeState {
 
     /// Returns the type of the specified expression ID as a concrete type. If the type is not
     /// known, or the type is Generic, panics
-    pub fn type_of_id(&self, id: ExprID, symtab: &SymbolTable, type_list: &TypeList) -> ConcreteType {
+    pub fn concrete_type_of_infallible(
+        &self,
+        id: ExprID,
+        symtab: &SymbolTable,
+        type_list: &TypeList,
+    ) -> ConcreteType {
         self.try_get_type_of_id(id, symtab, type_list)
             .expect("Expr had generic type")
     }
@@ -367,17 +390,6 @@ impl TypeState {
                     .note(format!("Found incomplete type: {t}")),
             )
         }
-    }
-
-    /// Returns the type of the expression as a concrete type. If the type is not
-    /// fully ungenerified, returns an error
-    pub fn expr_type(
-        &self,
-        expr: &Loc<hir::Expression>,
-        symtab: &SymbolTable,
-        types: &TypeList,
-    ) -> Result<ConcreteType, Diagnostic> {
-        self.concrete_type_of(expr, symtab, types)
     }
 
     /// Returns the type of the name as a concrete type. If the type is not

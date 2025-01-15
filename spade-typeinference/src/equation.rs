@@ -4,7 +4,9 @@ use std::collections::{BTreeSet, HashMap};
 use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    id_tracker::ExprID, location_info::{Loc, WithLocation}, name::NameID
+    id_tracker::ExprID,
+    location_info::{Loc, WithLocation},
+    name::NameID,
 };
 use spade_hir::TraitName;
 use spade_types::{meta_types::MetaType, KnownType};

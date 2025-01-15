@@ -96,7 +96,6 @@ impl WithLocation for ExprID {}
 pub struct ImplID(pub u64);
 impl WithLocation for ImplID {}
 
-
 def_typed_id_tracker!(ExprIdTracker, ExprID);
 def_typed_id_tracker!(ImplIdTracker, ImplID);
 def_id_tracker!(NameIdTracker);

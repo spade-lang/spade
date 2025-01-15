@@ -5,7 +5,9 @@ use spade_diagnostics::Diagnostic;
 use tracing::trace;
 
 use spade_common::{
-    id_tracker::ExprID, location_info::{Loc, WithLocation}, name::{Identifier, NameID}
+    id_tracker::ExprID,
+    location_info::{Loc, WithLocation},
+    name::{Identifier, NameID},
 };
 use spade_hir::{Expression, Pattern, PatternKind};
 use spade_types::ConcreteType;
@@ -435,7 +437,6 @@ impl LinearState {
         self.trees.insert(reference.inner.clone(), tree);
     }
 
-    
     // Inserts a new [LinearTree] for the specified expression.
     pub fn push_new_expression(&mut self, expr_id: &Loc<ExprID>, ctx: &LinearCtx) {
         // Generic arguments cannot be linear types, so we can ignore non-fully known types
@@ -499,11 +500,20 @@ impl LinearState {
         Ok(())
     }
 
-    pub fn add_alias_name(&mut self, from: Loc<ExprID>, to: &Loc<NameID>) -> Result<(), Diagnostic> {
+    pub fn add_alias_name(
+        &mut self,
+        from: Loc<ExprID>,
+        to: &Loc<NameID>,
+    ) -> Result<(), Diagnostic> {
         self.merge(ItemReference::anonymous(&from), ItemReference::name(to))
     }
 
-    fn alias_subtree<F>(&mut self, to: Loc<ExprID>, base_expr: ExprID, idx: F) -> Result<(), Diagnostic>
+    fn alias_subtree<F>(
+        &mut self,
+        to: Loc<ExprID>,
+        base_expr: ExprID,
+        idx: F,
+    ) -> Result<(), Diagnostic>
     where
         F: Fn(&LinearTree) -> Rc<RefCell<LinearTree>>,
     {

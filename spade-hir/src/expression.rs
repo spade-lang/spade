@@ -4,7 +4,10 @@ use super::{Block, NameID};
 use num::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    id_tracker::ExprID, location_info::{Loc, WithLocation}, name::{Identifier, Path}, num_ext::InfallibleToBigInt
+    id_tracker::ExprID,
+    location_info::{Loc, WithLocation},
+    name::{Identifier, Path},
+    num_ext::InfallibleToBigInt,
 };
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
@@ -253,7 +256,10 @@ impl ExprKind {
 
     // FIXME: These really should be #[cfg(test)]'d away
     pub fn idless(self) -> Expression {
-        Expression { kind: self, id: ExprID(0) }
+        Expression {
+            kind: self,
+            id: ExprID(0),
+        }
     }
 
     pub fn int_literal(val: i32) -> Self {

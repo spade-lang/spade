@@ -351,7 +351,11 @@ impl DeconstructedPattern {
 
                         let self_type = ctx
                             .types
-                            .type_of_id(pat.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                            .concrete_type_of_infallible(
+                                pat.id,
+                                ctx.symtab.symtab(),
+                                &ctx.item_list.types,
+                            )
                             .to_mir_type();
 
                         let variant = enum_variant.option;
@@ -367,9 +371,11 @@ impl DeconstructedPattern {
             }
         };
 
-        let ty = ctx
-            .types
-            .type_of_id(pat.id, ctx.symtab.symtab(), &ctx.item_list.types);
+        let ty = ctx.types.concrete_type_of_infallible(
+            pat.id,
+            ctx.symtab.symtab(),
+            &ctx.item_list.types,
+        );
 
         Self { ctor, fields, ty }
     }

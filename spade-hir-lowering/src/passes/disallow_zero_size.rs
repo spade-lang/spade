@@ -18,7 +18,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
     fn visit_expression(&mut self, expression: &mut Loc<Expression>) -> crate::error::Result<()> {
         let type_of = |expr: &Loc<Expression>| -> Result<_, Diagnostic> {
             self.type_state
-                .expr_type(expr, self.symtab.symtab(), &self.items.types)
+                .concrete_type_of(expr, self.symtab.symtab(), &self.items.types)
                 .map(|t| t.to_mir_type())
         };
 
