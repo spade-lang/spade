@@ -493,7 +493,7 @@ impl Spade {
         // the types are good so we can do lots of unwrapping
         let struct_ty = &self
             .type_state
-            .name_type(&o_name.nowhere(), &ast_ctx.symtab, &ast_ctx.item_list.types)
+            .concrete_type_of_name(&o_name.nowhere(), &ast_ctx.symtab, &ast_ctx.item_list.types)
             .unwrap();
 
         let get_range = |outer_range: Option<UptoRange>,

@@ -34,20 +34,20 @@ impl<'a> Pass for FlattenRegs<'a> {
                     count,
                     count_typeexpr_id,
                 }) => {
-                    let ty = self.type_state.try_get_type_of_id(
-                        *count_typeexpr_id,
+                    let ty = self.type_state.concrete_type_of(
+                        count_typeexpr_id.at_loc(count),
                         self.symtab.symtab(),
                         &self.items.types,
                     );
                     let count = match ty {
-                        Some(ConcreteType::Integer(val)) => val.to_usize().ok_or_else(|| {
+                        Ok(ConcreteType::Integer(val)) => val.to_usize().ok_or_else(|| {
                             diag_anyhow!(count, "Repetition count exceeds usize::MAX")
                         }),
-                        Some(_) => Err(diag_anyhow!(
+                        Ok(_) => Err(diag_anyhow!(
                             count,
                             "Inferred non-integer count for register repetition"
                         )),
-                        None => Err(Diagnostic::error(count, "Could not infer register count")
+                        Err(_) => Err(Diagnostic::error(count, "Could not infer register count")
                             .primary_label("Unknown register count")),
                     }?;
 

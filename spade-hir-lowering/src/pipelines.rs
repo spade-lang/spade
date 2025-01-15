@@ -5,6 +5,7 @@ use num::ToPrimitive;
 use local_impl::local_impl;
 use mir::ValueName;
 use mir::ValueNameSource;
+use spade_common::location_info::WithLocation;
 use spade_common::name::Path;
 use spade_common::{location_info::Loc, name::NameID};
 use spade_diagnostics::diag_anyhow;
@@ -76,9 +77,11 @@ pub fn handle_statement(
         }) => {
             let time = expr.inner.kind.available_in(ctx)?;
             for name in pat.get_names() {
-                let ty = ctx
-                    .types
-                    .name_type(&name, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                let ty = ctx.types.concrete_type_of_name(
+                    &name,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )?;
 
                 ctx.subs.set_available(name, time, ty)
             }
@@ -86,9 +89,11 @@ pub fn handle_statement(
         Statement::Register(reg) => {
             let time = reg.value.kind.available_in(ctx)?;
             for name in reg.pattern.get_names() {
-                let ty = ctx
-                    .types
-                    .name_type(&name, ctx.symtab.symtab(), &ctx.item_list.types)?;
+                let ty = ctx.types.concrete_type_of_name(
+                    &name,
+                    ctx.symtab.symtab(),
+                    &ctx.item_list.types,
+                )?;
 
                 ctx.subs.set_available(name, time, ty)
             }
@@ -123,7 +128,11 @@ pub fn handle_statement(
 
                 let reg_type = ctx
                     .types
-                    .name_type(&reg.original, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    .concrete_type_of_name(
+                        &reg.original,
+                        ctx.symtab.symtab(),
+                        &ctx.item_list.types,
+                    )?
                     .to_mir_type();
                 // If this stage has an enable signal, generate a mux to optionally select
                 // the previous value, otherwise use the previous value right away
@@ -206,9 +215,9 @@ pub fn lower_pipeline<'a>(
     };
 
     for (name, _) in hir_inputs {
-        let ty = ctx
-            .types
-            .name_type(name, ctx.symtab.symtab(), &ctx.item_list.types)?;
+        let ty =
+            ctx.types
+                .concrete_type_of_name(name, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
         ctx.subs.set_available(name.clone(), 0, ty)
     }
@@ -620,16 +629,16 @@ impl PipelineAvailability for ExprKind {
                 // let arg_availability = try_compute_availability(
                 //     &args.iter().map(|arg| &arg.value).collect::<Vec<_>>(),
                 // )?;
-                match ctx.types.try_get_type_of_id(
-                    *depth_typeexpr_id,
+                match ctx.types.concrete_type_of(
+                    depth_typeexpr_id.at_loc(depth),
                     ctx.symtab.symtab(),
                     &ctx.item_list.types,
                 ) {
-                    Some(ConcreteType::Integer(val)) => Ok(val.to_usize().ok_or_else(|| {
+                    Ok(ConcreteType::Integer(val)) => Ok(val.to_usize().ok_or_else(|| {
                         diag_anyhow!(inst_loc, "Inferred more than `usize::MAX` pipeline stages")
                     })?),
-                    Some(_) => diag_bail!(depth, "Found non-integer for pipeline depth"),
-                    None => Err(Diagnostic::error(
+                    Ok(_) => diag_bail!(depth, "Found non-integer for pipeline depth"),
+                    Err(_) => Err(Diagnostic::error(
                         depth,
                         "The latency of this pipeline instantiation is not known",
                     )

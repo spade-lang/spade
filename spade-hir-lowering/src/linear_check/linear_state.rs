@@ -440,9 +440,9 @@ impl LinearState {
     // Inserts a new [LinearTree] for the specified expression.
     pub fn push_new_expression(&mut self, expr_id: &Loc<ExprID>, ctx: &LinearCtx) {
         // Generic arguments cannot be linear types, so we can ignore non-fully known types
-        if let Some(ty) = &ctx
+        if let Ok(ty) = &ctx
             .type_state
-            .try_get_type_of_id(expr_id.inner, ctx.symtab, ctx.types)
+            .concrete_type_of(expr_id, ctx.symtab, ctx.types)
         {
             let reference = ItemReference::Anonymous(expr_id.inner).at_loc(expr_id);
             self.push_type(reference, ty);
@@ -452,10 +452,7 @@ impl LinearState {
     #[tracing::instrument(level = "trace", skip_all, fields(%name))]
     pub fn push_new_name(&mut self, name: &Loc<NameID>, ctx: &LinearCtx) {
         // Generic arguments cannot be linear types, so we can ignore non-fully known types
-        if let Some(ty) = &ctx
-            .type_state
-            .try_get_type_of_name(name, ctx.symtab, ctx.types)
-        {
+        if let Ok(ty) = &ctx.type_state.concrete_type_of(name, ctx.symtab, ctx.types) {
             let reference = ItemReference::Name(name.inner.clone()).at_loc(name);
             self.push_type(reference, ty);
         }

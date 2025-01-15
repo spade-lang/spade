@@ -1103,7 +1103,7 @@ impl StatementLocal for Statement {
             Statement::WalSuffixed { suffix, target } => {
                 let ty = ctx
                     .types
-                    .name_type(target, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    .concrete_type_of_name(target, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type();
 
                 result.push_anonymous(mir::Statement::WalTrace {
@@ -1177,16 +1177,16 @@ impl ExprLocal for Loc<Expression> {
                 declares_name: _,
                 depth_typeexpr_id,
             } => {
-                let depth = match ctx.types.try_get_type_of_id(
-                    *depth_typeexpr_id,
+                let depth = match ctx.types.concrete_type_of(
+                    depth_typeexpr_id.at_loc(stage),
                     ctx.symtab.symtab(),
                     &ctx.item_list.types
                 ) {
-                    Some(ConcreteType::Integer(val)) => val.to_usize().ok_or_else(|| {
+                    Ok(ConcreteType::Integer(val)) => val.to_usize().ok_or_else(|| {
                         diag_anyhow!(stage, "Inferred a pipeline offset that does not fit in usize::MAX ({val})")
                     })?,
-                    Some(_) => diag_bail!(stage, "Inferred non-integer for pipeline ref offset"),
-                    None => return Err(Diagnostic::error(stage, "Could not infer pipeline stage offset")
+                    Ok(_) => diag_bail!(stage, "Inferred non-integer for pipeline ref offset"),
+                    Err(_) => return Err(Diagnostic::error(stage, "Could not infer pipeline stage offset")
                         .primary_label("Unknown pipeline stage offset")
                         .help("This is likely caused by a type variable that is not fully known being used."))
                 };
@@ -3076,7 +3076,7 @@ pub fn generate_unit<'a>(
                 let name = name_id.1.tail().to_string();
                 let val_name = name_id.value_name();
                 let ty = types
-                    .name_type(name_id, symtab.symtab(), &item_list.types)?
+                    .concrete_type_of_name(name_id, symtab.symtab(), &item_list.types)?
                     .to_mir_type();
 
                 if ty.backward_size() != BigUint::zero() && ty.size() != BigUint::zero() {

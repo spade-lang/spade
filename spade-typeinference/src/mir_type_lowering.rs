@@ -25,6 +25,7 @@ where
         (**self).into_typed_expression()
     }
 }
+
 impl<T> HasConcreteType for &T
 where
     T: HasConcreteType,
@@ -33,12 +34,19 @@ where
         (*self).into_typed_expression()
     }
 }
+
 impl<T> HasConcreteType for Box<T>
 where
     T: HasConcreteType,
 {
     fn into_typed_expression(&self) -> Loc<TypedExpression> {
         self.as_ref().into_typed_expression()
+    }
+}
+
+impl HasConcreteType for Loc<ExprID> {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        TypedExpression::Id(self.inner).at_loc(self)
     }
 }
 
@@ -56,6 +64,12 @@ impl HasConcreteType for Loc<hir::Pattern> {
 impl HasConcreteType for Loc<ConstGenericWithId> {
     fn into_typed_expression(&self) -> Loc<TypedExpression> {
         TypedExpression::Id(self.id).at_loc(self)
+    }
+}
+
+impl HasConcreteType for Loc<NameID> {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        TypedExpression::Name(self.inner.clone()).at_loc(self)
     }
 }
 
@@ -321,24 +335,6 @@ impl TypeState {
         Self::inner_ungenerify_type(var, symtab, type_list, false)
     }
 
-    /// Returns the type of the specified name as a concrete type. If the type is not known,
-    /// or the type is generic, panics
-    #[tracing::instrument(level = "trace", skip(self, symtab, type_list))]
-    pub fn try_get_type_of_name(
-        &self,
-        name: &NameID,
-        symtab: &SymbolTable,
-        type_list: &TypeList,
-    ) -> Option<ConcreteType> {
-        Self::ungenerify_type(
-            &self
-                .type_of(&TypedExpression::Name(name.clone()))
-                .expect("Expression had no specified type"),
-            symtab,
-            type_list,
-        )
-    }
-
     /// Returns the type of the specified expression ID as a concrete type. If the type is not
     /// known, or the type is Generic, panics
     pub fn concrete_type_of_infallible(
@@ -347,25 +343,12 @@ impl TypeState {
         symtab: &SymbolTable,
         type_list: &TypeList,
     ) -> ConcreteType {
-        self.try_get_type_of_id(id, symtab, type_list)
+        self.concrete_type_of(id.nowhere(), symtab, type_list)
             .expect("Expr had generic type")
     }
 
-    pub fn try_get_type_of_id(
-        &self,
-        id: ExprID,
-        symtab: &SymbolTable,
-        type_list: &TypeList,
-    ) -> Option<ConcreteType> {
-        Self::ungenerify_type(
-            &self
-                .type_of(&TypedExpression::Id(id))
-                .expect("Expression had no specified type"),
-            symtab,
-            type_list,
-        )
-    }
-
+    /// Returns the concrete type of anything that might have a concrete type. Errors
+    /// if the type is not fully known.
     pub fn concrete_type_of(
         &self,
         id: impl HasConcreteType,
@@ -392,9 +375,9 @@ impl TypeState {
         }
     }
 
-    /// Returns the type of the name as a concrete type. If the type is not
-    /// fully ungenerified, returns an error
-    pub fn name_type(
+    /// Like `concrete_type_of` but reports an error message that mentions names
+    /// instead of an expression
+    pub fn concrete_type_of_name(
         &self,
         name: &Loc<NameID>,
         symtab: &SymbolTable,

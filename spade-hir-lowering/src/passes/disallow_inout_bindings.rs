@@ -19,13 +19,11 @@ impl<'a> Pass for InOutChecks<'a> {
         // this check for now and just let the next step fail.
         // FIXME: A better option may be to have a pass that checks
         // for incomplete types, in the monomorphization stage
-        let ty = self.type_state.try_get_type_of_id(
-            unit.body.id,
-            self.symtab.symtab(),
-            &self.items.types,
-        );
+        let ty =
+            self.type_state
+                .concrete_type_of(&unit.body, self.symtab.symtab(), &self.items.types);
         match ty {
-            Some(spade_types::ConcreteType::Single {
+            Ok(spade_types::ConcreteType::Single {
                 base: PrimitiveType::InOut,
                 params: _,
             }) => {
@@ -50,12 +48,12 @@ impl<'a> Pass for InOutChecks<'a> {
         {
             let ty =
                 self.type_state
-                    .try_get_type_of_name(name, self.symtab.symtab(), &self.items.types);
+                    .concrete_type_of(name, self.symtab.symtab(), &self.items.types);
 
             match (no_mangle, ty) {
                 (
                     None,
-                    Some(spade_types::ConcreteType::Single {
+                    Ok(spade_types::ConcreteType::Single {
                         base: PrimitiveType::InOut,
                         params: _,
                     }),
@@ -93,13 +91,13 @@ impl<'a> Pass for InOutChecks<'a> {
                             // this check for now and just let the next step fail.
                             // FIXME: A better option may be to have a pass that checks
                             // for incomplete types, in the monomorphization stage
-                            let ty = self.type_state.try_get_type_of_id(
-                                pattern.id,
+                            let ty = self.type_state.concrete_type_of(
+                                pattern,
                                 self.symtab.symtab(),
                                 &self.items.types,
                             );
                             match ty {
-                                Some(spade_types::ConcreteType::Single {
+                                Ok(spade_types::ConcreteType::Single {
                                     base: PrimitiveType::InOut,
                                     params: _,
                                 }) => {
