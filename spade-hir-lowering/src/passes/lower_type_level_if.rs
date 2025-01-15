@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use num::BigInt;
-use spade_common::location_info::{Loc, WithLocation};
+use spade_common::{id_tracker::ExprID, location_info::Loc};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExprKind, Expression, ItemList};
 use spade_typeinference::TypeState;
@@ -15,7 +15,7 @@ pub struct LowerTypeLevelIf<'a> {
     pub items: &'a ItemList,
     pub symtab: &'a FrozenSymtab,
 
-    pub allowed_ids: HashSet<u64>,
+    pub allowed_ids: HashSet<ExprID>,
 }
 
 impl<'a> Pass for LowerTypeLevelIf<'a> {
@@ -30,8 +30,8 @@ impl<'a> Pass for LowerTypeLevelIf<'a> {
                     .primary_label("Type level if is not allowed here"));
                 }
 
-                let t = self.type_state.type_of_id_result(
-                    cond.id.at_loc(cond),
+                let t = self.type_state.concrete_type_of(
+                    cond,
                     self.symtab.symtab(),
                     &self.items.types,
                 )?;

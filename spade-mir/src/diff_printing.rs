@@ -7,20 +7,21 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
+use spade_common::id_tracker::ExprID;
 
 use crate::{diff::VarMap, Entity};
 use crate::{Binding, MirInput, Register, Statement, ValueName};
 
 pub fn translate_expr(
-    name: u64,
-    lhs_trans: &impl Fn(u64) -> Option<u64>,
-    rhs_trans: &impl Fn(u64) -> Option<u64>,
+    name: ExprID,
+    lhs_trans: &impl Fn(ExprID) -> Option<ExprID>,
+    rhs_trans: &impl Fn(ExprID) -> Option<ExprID>,
 ) -> String {
     let lhs = lhs_trans(name)
-        .map(|n| format!("{}", n))
+        .map(|n| format!("{}", n.0))
         .unwrap_or_else(|| "?".to_string());
     let rhs = rhs_trans(name)
-        .map(|n| format!("{}", n))
+        .map(|n| format!("{}", n.0))
         .unwrap_or_else(|| "?".to_string());
 
     format!("e({}|{})", lhs, rhs)
@@ -43,7 +44,7 @@ pub fn translate_name(
 
 pub struct NameTranslator<F, G>
 where
-    F: Fn(u64) -> Option<u64>,
+    F: Fn(ExprID) -> Option<ExprID>,
     G: Fn(u64) -> Option<u64>,
 {
     expr: F,
@@ -51,7 +52,7 @@ where
 }
 
 pub fn identity_name_translator(
-) -> NameTranslator<impl Fn(u64) -> Option<u64>, impl Fn(u64) -> Option<u64>> {
+) -> NameTranslator<impl Fn(ExprID) -> Option<ExprID>, impl Fn(u64) -> Option<u64>> {
     NameTranslator {
         expr: Some,
         name: Some,
@@ -59,9 +60,9 @@ pub fn identity_name_translator(
 }
 
 pub fn map_name_translator(
-    expr: HashMap<u64, u64>,
+    expr: HashMap<ExprID, ExprID>,
     name: HashMap<u64, u64>,
-) -> NameTranslator<impl Fn(u64) -> Option<u64>, impl Fn(u64) -> Option<u64>> {
+) -> NameTranslator<impl Fn(ExprID) -> Option<ExprID>, impl Fn(u64) -> Option<u64>> {
     NameTranslator {
         expr: move |x| expr.get(&x).cloned(),
         name: move |x| name.get(&x).cloned(),
@@ -74,9 +75,9 @@ pub fn translate_val_name<LF, LG, RF, RG>(
     rhs_trans: &NameTranslator<RF, RG>,
 ) -> String
 where
-    LF: Fn(u64) -> Option<u64>,
+    LF: Fn(ExprID) -> Option<ExprID>,
     LG: Fn(u64) -> Option<u64>,
-    RF: Fn(u64) -> Option<u64>,
+    RF: Fn(ExprID) -> Option<ExprID>,
     RG: Fn(u64) -> Option<u64>,
 {
     match name {
@@ -91,9 +92,9 @@ pub fn translate_statement<LF, LG, RF, RG>(
     rhs_trans: &NameTranslator<RF, RG>,
 ) -> String
 where
-    LF: Fn(u64) -> Option<u64>,
+    LF: Fn(ExprID) -> Option<ExprID>,
     LG: Fn(u64) -> Option<u64>,
-    RF: Fn(u64) -> Option<u64>,
+    RF: Fn(ExprID) -> Option<ExprID>,
     RG: Fn(u64) -> Option<u64>,
 {
     match statement {
@@ -187,9 +188,9 @@ pub fn translate_entity<LF, LG, RF, RG>(
     rhs_trans: &NameTranslator<RF, RG>,
 ) -> String
 where
-    LF: Fn(u64) -> Option<u64>,
+    LF: Fn(ExprID) -> Option<ExprID>,
     LG: Fn(u64) -> Option<u64>,
-    RF: Fn(u64) -> Option<u64>,
+    RF: Fn(ExprID) -> Option<ExprID>,
     RG: Fn(u64) -> Option<u64>,
 {
     let Entity {

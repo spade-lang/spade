@@ -4,9 +4,7 @@ use super::{Block, NameID};
 use num::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    location_info::{Loc, WithLocation},
-    name::{Identifier, Path},
-    num_ext::InfallibleToBigInt,
+    id_tracker::ExprID, location_info::{Loc, WithLocation}, name::{Identifier, Path}, num_ext::InfallibleToBigInt
 };
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
@@ -155,7 +153,7 @@ pub enum CallKind {
         depth: Loc<TypeExpression>,
         /// An expression ID for which the type inferer will infer the depth of the instantiated
         /// pipeline, i.e. inst(<this>)
-        depth_typeexpr_id: u64,
+        depth_typeexpr_id: ExprID,
     },
 }
 impl WithLocation for CallKind {}
@@ -238,7 +236,7 @@ pub enum ExprKind {
         declares_name: bool,
         /// An expression ID which after typeinference will contain the absolute depth
         /// of this referenced value
-        depth_typeexpr_id: u64,
+        depth_typeexpr_id: ExprID,
     },
     StageValid,
     StageReady,
@@ -249,12 +247,13 @@ pub enum ExprKind {
 impl WithLocation for ExprKind {}
 
 impl ExprKind {
-    pub fn with_id(self, id: u64) -> Expression {
+    pub fn with_id(self, id: ExprID) -> Expression {
         Expression { kind: self, id }
     }
 
+    // FIXME: These really should be #[cfg(test)]'d away
     pub fn idless(self) -> Expression {
-        Expression { kind: self, id: 0 }
+        Expression { kind: self, id: ExprID(0) }
     }
 
     pub fn int_literal(val: i32) -> Self {
@@ -266,14 +265,14 @@ impl ExprKind {
 pub struct Expression {
     pub kind: ExprKind,
     // This ID is used to associate types with the expression
-    pub id: u64,
+    pub id: ExprID,
 }
 impl WithLocation for Expression {}
 
 impl Expression {
     /// Create a new expression referencing an identifier with the specified
     /// id and name
-    pub fn ident(expr_id: u64, name_id: u64, name: &str) -> Expression {
+    pub fn ident(expr_id: ExprID, name_id: u64, name: &str) -> Expression {
         ExprKind::Identifier(NameID(name_id, Path::from_strs(&[name]))).with_id(expr_id)
     }
 

@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use itertools::{EitherOrBoth, Itertools};
 use spade_ast as ast;
+use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_diagnostics::{diag_bail, Diagnostic};
@@ -99,7 +100,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         check_is_no_function_on_port_type(unit, &target_type, ctx)?;
 
         let path_suffix = Some(Path(vec![
-            Identifier(format!("impl_{}", impl_block_id)).nowhere()
+            Identifier(format!("impl_{}", impl_block_id.0)).nowhere()
         ]));
 
         global_symbols::visit_unit(
@@ -232,7 +233,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
 pub fn get_or_create_trait(
     block: &Loc<ast::ImplBlock>,
-    impl_block_id: u64,
+    impl_block_id: ImplID,
     ctx: &mut Context,
 ) -> Result<(TraitName, Loc<hir::TraitSpec>)> {
     if let Some(trait_spec) = &block.r#trait {

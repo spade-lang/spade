@@ -1331,6 +1331,7 @@ macro_rules! assert_same_code {
 mod tests {
     use super::*;
     use colored::Colorize;
+    use spade_common::id_tracker::ExprID;
     use spade_common::location_info::WithLocation;
     use spade_common::name::Path;
 
@@ -1515,7 +1516,7 @@ mod tests {
                 ty: Type::Bool,
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(0),
+            output: ValueName::Expr(ExprID(0)),
             output_type: Type::Bool,
             statements: vec![],
         };
@@ -1562,7 +1563,7 @@ mod tests {
                 ty: Type::Backward(Box::new(Type::Bool)),
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(0),
+            output: ValueName::Expr(ExprID(0)),
             output_type: Type::Bool,
             statements: vec![],
         };
@@ -1915,6 +1916,7 @@ mod tests {
 mod backward_expression_tests {
     use super::*;
     use colored::Colorize;
+    use spade_common::id_tracker::ExprID;
 
     use crate as spade_mir;
     use crate::{statement, types::Type};
@@ -1997,8 +1999,8 @@ mod backward_expression_tests {
         let stmt = statement!(e(0); ty; ConstructTuple; e(1), e(2));
 
         let type_list = TypeList::empty()
-            .with(ValueName::Expr(1), Type::backward(Type::int(8)))
-            .with(ValueName::Expr(2), Type::backward(Type::int(4)));
+            .with(ValueName::Expr(ExprID(1)), Type::backward(Type::int(8)))
+            .with(ValueName::Expr(ExprID(2)), Type::backward(Type::int(4)));
 
         let expected = indoc! {
             r#"
@@ -2032,12 +2034,12 @@ mod backward_expression_tests {
         };
 
         let type_list = TypeList::empty()
-            .with(ValueName::Expr(1), Type::backward(Type::int(8)))
+            .with(ValueName::Expr(ExprID(1)), Type::backward(Type::int(8)))
             .with(
-                ValueName::Expr(2),
+                ValueName::Expr(ExprID(2)),
                 Type::Tuple(vec![Type::backward(Type::int(4)), Type::int(4)]),
             )
-            .with(ValueName::Expr(3), Type::int(3));
+            .with(ValueName::Expr(ExprID(3)), Type::int(3));
 
         assert_same_code!(
             &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
@@ -2077,6 +2079,7 @@ mod expression_tests {
     use super::*;
     use codespan::Span;
     use colored::Colorize;
+    use spade_common::id_tracker::ExprID;
     use spade_common::location_info::WithLocation;
     use spade_common::num_ext::InfallibleToBigInt;
 
@@ -2277,8 +2280,8 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &TypeList::empty()
-                    .with(ValueName::Expr(1), Type::int(6))
-                    .with(ValueName::Expr(2), Type::int(3)),
+                    .with(ValueName::Expr(ExprID(1)), Type::int(6))
+                    .with(ValueName::Expr(ExprID(2)), Type::int(3)),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2711,8 +2714,8 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &TypeList::empty()
-                    .with(ValueName::Expr(1), Type::Bool)
-                    .with(ValueName::Expr(2), Type::Bool),
+                    .with(ValueName::Expr(ExprID(1)), Type::Bool)
+                    .with(ValueName::Expr(ExprID(2)), Type::Bool),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2745,8 +2748,8 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &TypeList::empty()
-                    .with(ValueName::Expr(1), Type::Bool)
-                    .with(ValueName::Expr(2), Type::Bool),
+                    .with(ValueName::Expr(ExprID(1)), Type::Bool)
+                    .with(ValueName::Expr(ExprID(2)), Type::Bool),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2777,8 +2780,8 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &TypeList::empty()
-                    .with(ValueName::Expr(1), Type::Bool)
-                    .with(ValueName::Expr(2), Type::Bool),
+                    .with(ValueName::Expr(ExprID(1)), Type::Bool)
+                    .with(ValueName::Expr(ExprID(2)), Type::Bool),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2807,10 +2810,10 @@ mod expression_tests {
 
         let type_list = TypeList::empty()
             .with(
-                ValueName::Expr(1),
+                ValueName::Expr(ExprID(1)),
                 Type::Tuple(vec![Type::Bool, Type::backward(Type::Bool)]),
             )
-            .with(ValueName::Expr(2), Type::backward(Type::Bool));
+            .with(ValueName::Expr(ExprID(2)), Type::backward(Type::Bool));
 
         assert_same_code!(
             &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
@@ -3302,7 +3305,7 @@ mod expression_tests {
                 ty: Type::InOut(Box::new(Type::Bool)),
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(0),
+            output: ValueName::Expr(ExprID(0)),
             output_type: Type::Void,
             statements: vec![],
         };

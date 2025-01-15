@@ -9,7 +9,7 @@ impl ValueName {
             ValueName::Named(_, _, _) => {
                 format!("{self}")
             }
-            ValueName::Expr(id) => format!("_e_{id}"),
+            ValueName::Expr(id) => format!("_e_{}", id.0),
         }
     }
 
@@ -39,7 +39,7 @@ impl ValueName {
                 }
             }
             ValueName::Expr(id) => {
-                format!("_e_{}_mut", id)
+                format!("_e_{}_mut", id.0)
             }
         }
     }

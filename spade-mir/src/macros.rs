@@ -7,7 +7,7 @@ macro_rules! value_name {
         spade_mir::ValueName::_test_named($id, $debug_name.to_string())
     };
     (e($id:expr)) => {
-        spade_mir::ValueName::Expr($id)
+        spade_mir::ValueName::Expr(spade_common::id_tracker::ExprID($id))
     };
 }
 
@@ -44,7 +44,7 @@ macro_rules! statement {
     (
         const $id:expr; $ty:expr; $value:expr
     ) => {
-        spade_mir::Statement::Constant($id, $ty, $value)
+        spade_mir::Statement::Constant(spade_common::id_tracker::ExprID($id), $ty, $value)
     };
     // Bindings
     (
@@ -194,6 +194,7 @@ macro_rules! assert_same_mir {
 
 #[cfg(test)]
 mod tests {
+    use spade_common::id_tracker::ExprID;
     use spade_common::name::{NameID, Path};
     use spade_mir::unit_name::UnitNameKind;
 
@@ -206,16 +207,16 @@ mod tests {
             value_name!(n(0, "test")),
             ValueName::_test_named(0, "test".to_string())
         );
-        assert_eq!(value_name!(e(0)), ValueName::Expr(0));
+        assert_eq!(value_name!(e(0)), ValueName::Expr(ExprID(0)));
     }
 
     #[test]
     fn binding_parsing_works() {
         let expected = Statement::Binding(Binding {
-            name: ValueName::Expr(0),
+            name: ValueName::Expr(ExprID(0)),
             operator: Operator::Add,
             operands: vec![
-                ValueName::Expr(1),
+                ValueName::Expr(ExprID(1)),
                 ValueName::_test_named(1, "test".to_string()),
             ],
             ty: Type::Bool,
@@ -234,7 +235,7 @@ mod tests {
             name: ValueName::_test_named(0, "string".to_string()),
             operator: Operator::Add,
             operands: vec![
-                ValueName::Expr(1),
+                ValueName::Expr(ExprID(1)),
                 ValueName::_test_named(1, "test".to_string()),
             ],
             ty: Type::Bool,
@@ -255,9 +256,9 @@ mod tests {
             clock: ValueName::_test_named(1, "clk".into()),
             reset: None,
             initial: None,
-            value: ValueName::Expr(0),
+            value: ValueName::Expr(ExprID(0)),
             loc: None,
-            traced: Some(ValueName::Expr(2)),
+            traced: Some(ValueName::Expr(ExprID(2))),
         });
 
         assert_eq!(
@@ -272,9 +273,9 @@ mod tests {
             name: ValueName::_test_named(0, "test".into()),
             ty: Type::int(5),
             clock: ValueName::_test_named(1, "clk".into()),
-            reset: Some((ValueName::Expr(1), ValueName::Expr(2))),
+            reset: Some((ValueName::Expr(ExprID(1)), ValueName::Expr(ExprID(2)))),
             initial: None,
-            value: ValueName::Expr(0),
+            value: ValueName::Expr(ExprID(0)),
             loc: None,
             traced: None,
         });
@@ -319,7 +320,7 @@ mod tests {
 
     #[test]
     fn constant_parsing_works() {
-        let expected = Statement::Constant(0, Type::int(10), ConstantValue::int(6));
+        let expected = Statement::Constant(ExprID(0), Type::int(10), ConstantValue::int(6));
 
         let result = statement!(const 0; Type::int(10); ConstantValue::int(6));
 

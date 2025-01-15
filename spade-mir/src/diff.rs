@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use spade_common::id_tracker::ExprID;
+
 use crate::{Entity, MirInput, Register, Statement, ValueName};
 
 macro_rules! check {
@@ -13,8 +15,8 @@ macro_rules! check {
 /// Functions for diffing and comparing mir code while ignoring exact variable IDs
 
 pub struct VarMap {
-    pub expr_map: HashMap<u64, u64>,
-    pub expr_map_rev: HashMap<u64, u64>,
+    pub expr_map: HashMap<ExprID, ExprID>,
+    pub expr_map_rev: HashMap<ExprID, ExprID>,
     pub name_map: HashMap<u64, u64>,
     pub name_map_rev: HashMap<u64, u64>,
 }
@@ -35,7 +37,7 @@ impl VarMap {
         }
     }
 
-    pub fn map_expr(&mut self, lhs: u64, rhs: u64) {
+    pub fn map_expr(&mut self, lhs: ExprID, rhs: ExprID) {
         self.expr_map.insert(lhs, rhs);
         self.expr_map_rev.insert(rhs, lhs);
     }
@@ -79,7 +81,7 @@ impl VarMap {
             .unwrap_or(false)
     }
 
-    fn compare_exprs(&self, lhs: u64, rhs: u64) -> bool {
+    fn compare_exprs(&self, lhs: ExprID, rhs: ExprID) -> bool {
         self.expr_map.get(&lhs).map(|v| v == &rhs).unwrap_or(false)
     }
 
@@ -305,7 +307,7 @@ mod statement_comparison_tests {
     fn identical_bindings_update_expr_map() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 2);
+        map.map_expr(ExprID(1), ExprID(2));
         map.map_name(2, 3);
 
         let lhs = statement!(e(0); Type::int(5); Add; e(1), n(2, "test"));
@@ -314,14 +316,14 @@ mod statement_comparison_tests {
         populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
-        assert!(map.compare_exprs(0, 3))
+        assert!(map.compare_exprs(ExprID(0), ExprID(3)))
     }
 
     #[test]
     fn identical_bindings_update_name_map() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 2);
+        map.map_expr(ExprID(1), ExprID(2));
         map.map_name(2, 3);
 
         let lhs = statement!(n(0, "a"); Type::int(5); Add; e(1), n(2, "test"));
@@ -337,7 +339,7 @@ mod statement_comparison_tests {
     fn identical_bindings_with_differing_string_name_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 2);
+        map.map_expr(ExprID(1), ExprID(2));
         map.map_name(2, 3);
 
         let lhs = statement!(n(0, "a"); Type::int(5); Add; e(1), n(2, "test"));
@@ -350,8 +352,8 @@ mod statement_comparison_tests {
     fn bindings_with_mismatched_types_are_different() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
 
         let lhs = statement!(e(0); Type::int(5); Add; e(1), e(2));
         let rhs = statement!(e(3); Type::int(4); Add; e(1), e(2));
@@ -365,8 +367,8 @@ mod statement_comparison_tests {
     fn bindings_with_mismatched_operators_are_different() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
 
         let lhs = statement!(e(0); Type::int(5); Add; e(1), e(2));
         let rhs = statement!(e(3); Type::int(5); Select; e(1), e(2));
@@ -380,8 +382,8 @@ mod statement_comparison_tests {
     fn bindings_with_mismatched_operands_are_different() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
 
         let lhs = statement!(e(0); Type::int(5); Add; e(2), e(1));
         let rhs = statement!(e(3); Type::int(5); Add; e(1), e(2));
@@ -395,8 +397,8 @@ mod statement_comparison_tests {
     fn bindings_with_unmapped_names_are_different() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
 
         let lhs = statement!(e(0); Type::int(5); Add; e(2), e(1));
         let rhs = statement!(e(3); Type::int(5); Add; e(1), e(3));
@@ -411,10 +413,10 @@ mod statement_comparison_tests {
     fn identical_registers_with_reset_do_not_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(5); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
@@ -428,10 +430,10 @@ mod statement_comparison_tests {
     fn identical_registers_with_reset_do_not_diff_and_update_names() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(5); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
@@ -440,17 +442,17 @@ mod statement_comparison_tests {
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
-        assert!(map.compare_exprs(0, 5));
+        assert!(map.compare_exprs(ExprID(0), ExprID(5)));
     }
 
     #[test]
     fn identical_registers_update_name_table() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg n(0, "test"); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg n(5, "test"); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
@@ -466,10 +468,10 @@ mod statement_comparison_tests {
     fn mismatched_register_clocks_causes_a_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(3)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
@@ -483,10 +485,10 @@ mod statement_comparison_tests {
     fn mismatched_register_reset_trig_causes_a_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(3)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(3)); reset(e(2), e(4)); e(1));
@@ -500,10 +502,10 @@ mod statement_comparison_tests {
     fn mismatched_register_value_causes_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(5)); e(1));
@@ -517,10 +519,10 @@ mod statement_comparison_tests {
     fn identical_registers_with_mismatched_value_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(2));
@@ -534,10 +536,10 @@ mod statement_comparison_tests {
     fn identical_registers_with_mismatched_initial_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)) initial(vec![statement!(e(0); Type::Bool; Alias; e(3))]); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)) initial(vec![statement!(e(0); Type::Bool; Alias; e(2))]); e(1));
@@ -551,10 +553,10 @@ mod statement_comparison_tests {
     fn identical_registers_with_initial_is_different_from_without() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)) initial(vec![statement!(e(0); Type::Bool; Alias; e(2))]); e(1));
@@ -568,10 +570,10 @@ mod statement_comparison_tests {
     fn missing_register_causes_a_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); e(1));
@@ -585,10 +587,10 @@ mod statement_comparison_tests {
     fn mismatched_types_causes_register_diff() {
         let mut map = VarMap::new();
 
-        map.map_expr(1, 1);
-        map.map_expr(2, 2);
-        map.map_expr(3, 3);
-        map.map_expr(4, 4);
+        map.map_expr(ExprID(1), ExprID(1));
+        map.map_expr(ExprID(2), ExprID(2));
+        map.map_expr(ExprID(3), ExprID(3));
+        map.map_expr(ExprID(4), ExprID(4));
 
         let lhs = statement!(reg e(0); Type::int(6); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(5); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
@@ -623,7 +625,7 @@ mod statement_comparison_tests {
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
-        assert!(map.compare_exprs(0, 1));
+        assert!(map.compare_exprs(ExprID(0), ExprID(1)));
     }
 
     #[test]

@@ -181,7 +181,7 @@ fn visit_expression(
     };
 
     if produces_new_resource {
-        trace!("Pushing expression {}", expr.id);
+        trace!("Pushing expression {}", expr.id.0);
         linear_state.push_new_expression(&expr.map_ref(|e| e.id), ctx);
     }
 
@@ -310,7 +310,7 @@ fn visit_expression(
             }
             if let Some(result) = &b.result {
                 visit_expression(result, linear_state, ctx)?;
-                trace!("Consuming block {}", expr.id);
+                trace!("Consuming block {}", expr.id.0);
                 linear_state.consume_expression(result)?;
             }
         }

@@ -2206,6 +2206,7 @@ mod statement_visiting {
     use super::*;
 
     use crate::testutil::test_context;
+    use id_tracker::ExprID;
     use pretty_assertions::assert_eq;
     use spade_ast::testutil::{ast_ident, ast_path};
     use spade_common::location_info::WithLocation;
@@ -2254,7 +2255,7 @@ mod statement_visiting {
                 .idless()
                 .nowhere(),
             clock: hir::ExprKind::Identifier(name_id(0, "clk").inner)
-                .with_id(0)
+                .with_id(ExprID(0))
                 .nowhere(),
             reset: None,
             initial: None,
@@ -2927,7 +2928,7 @@ mod register_visiting {
                 .idless()
                 .nowhere(),
             clock: hir::ExprKind::Identifier(name_id(0, "clk").inner)
-                .with_id(0)
+                .idless()
                 .nowhere(),
             reset: Some((
                 hir::ExprKind::Identifier(name_id(1, "rst").inner)

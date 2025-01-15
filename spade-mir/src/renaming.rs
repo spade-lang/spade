@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use spade_common::name::NameID;
+use spade_common::{id_tracker::ExprID, name::NameID};
 
 use crate::{Binding, Entity, MirInput, Register, ValueName};
 
@@ -44,8 +44,8 @@ impl VerilogNameMap {
 pub enum VerilogNameSource {
     ForwardName(NameID),
     BackwardName(NameID),
-    ForwardExpr(u64),
-    BackwardExpr(u64),
+    ForwardExpr(ExprID),
+    BackwardExpr(ExprID),
 }
 
 #[derive(Clone)]

@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use num::traits::Pow;
 use num::{BigInt, ToPrimitive, Zero};
+use spade_common::id_tracker::ExprID;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Path;
 use spade_common::num_ext::InfallibleToBigInt;
@@ -36,7 +37,7 @@ pub enum Requirement {
     HasMethod {
         call_kind: CallKind,
         /// The ID of the expression which causes this requirement
-        expr_id: Loc<u64>,
+        expr_id: Loc<ExprID>,
         /// The type which should have the associated method
         target_type: Loc<TypeVar>,
         /// For method call on monomorphised generic with trait bounds

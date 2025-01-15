@@ -4,8 +4,7 @@ use std::collections::{BTreeSet, HashMap};
 use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    location_info::{Loc, WithLocation},
-    name::NameID,
+    id_tracker::ExprID, location_info::{Loc, WithLocation}, name::NameID
 };
 use spade_hir::TraitName;
 use spade_types::{meta_types::MetaType, KnownType};
@@ -394,15 +393,17 @@ impl std::fmt::Display for TypeVar {
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Serialize, Deserialize)]
 pub enum TypedExpression {
-    Id(u64),
+    Id(ExprID),
     Name(NameID),
 }
+
+impl WithLocation for TypedExpression {}
 
 impl std::fmt::Display for TypedExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypedExpression::Id(i) => {
-                write!(f, "%{}", i)
+                write!(f, "%{}", i.0)
             }
             TypedExpression::Name(p) => {
                 write!(f, "{}#{}", p, p.0)

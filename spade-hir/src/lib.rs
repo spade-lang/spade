@@ -10,6 +10,7 @@ pub use expression::{Argument, ArgumentKind, ArgumentList, ExprKind, Expression}
 use itertools::Itertools;
 use num::BigInt;
 use serde::{Deserialize, Serialize};
+use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID, Path},
@@ -66,12 +67,12 @@ impl PatternKind {
     }
 }
 impl PatternKind {
-    pub fn with_id(self, id: u64) -> Pattern {
+    pub fn with_id(self, id: ExprID) -> Pattern {
         Pattern { id, kind: self }
     }
 
     pub fn idless(self) -> Pattern {
-        Pattern { id: 0, kind: self }
+        Pattern { id: ExprID(0), kind: self }
     }
 }
 impl std::fmt::Display for PatternKind {
@@ -103,7 +104,7 @@ impl std::fmt::Display for PatternKind {
 pub struct Pattern {
     // Unique ID of the pattern for use in type inference. Shared with expressions
     // meaning there are no expression/pattern id collisions
-    pub id: u64,
+    pub id: ExprID,
     pub kind: PatternKind,
 }
 impl WithLocation for Pattern {}
@@ -154,7 +155,7 @@ pub enum PipelineRegMarkerExtra {
     Condition(Loc<Expression>),
     Count {
         count: Loc<TypeExpression>,
-        count_typeexpr_id: u64,
+        count_typeexpr_id: ExprID,
     },
 }
 
@@ -179,7 +180,7 @@ impl WithLocation for Statement {}
 
 impl Statement {
     /// NOTE: For use in tests
-    pub fn named_let(pattern_id: u64, name_id: Loc<NameID>, val: Expression) -> Self {
+    pub fn named_let(pattern_id: ExprID, name_id: Loc<NameID>, val: Expression) -> Self {
         Self::Binding(Binding {
             pattern: PatternKind::name(name_id).with_id(pattern_id).nowhere(),
             ty: None,
@@ -399,14 +400,14 @@ pub enum ConstGeneric {
 impl WithLocation for ConstGeneric {}
 
 impl ConstGeneric {
-    pub fn with_id(self, id: u64) -> ConstGenericWithId {
+    pub fn with_id(self, id: ExprID) -> ConstGenericWithId {
         ConstGenericWithId { id, inner: self }
     }
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct ConstGenericWithId {
-    pub id: u64,
+    pub id: ExprID,
     pub inner: ConstGeneric,
 }
 impl WithLocation for ConstGenericWithId {}
@@ -587,7 +588,7 @@ pub enum UnitKind {
     Entity,
     Pipeline {
         depth: Loc<TypeExpression>,
-        depth_typeexpr_id: u64,
+        depth_typeexpr_id: ExprID,
     },
 }
 impl WithLocation for UnitKind {}
@@ -670,7 +671,7 @@ pub type TypeList = HashMap<NameID, Loc<TypeDeclaration>>;
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum TraitName {
     Named(Loc<NameID>),
-    Anonymous(u64),
+    Anonymous(ImplID),
 }
 
 impl TraitName {
@@ -691,7 +692,7 @@ impl std::fmt::Display for TraitName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TraitName::Named(n) => write!(f, "{n}"),
-            TraitName::Anonymous(id) => write!(f, "Anonymous({id})"),
+            TraitName::Anonymous(id) => write!(f, "Anonymous({})", id.0),
         }
     }
 }
@@ -732,7 +733,7 @@ pub struct ImplBlock {
     pub fns: HashMap<Identifier, (NameID, Loc<()>)>,
     pub type_params: Vec<Loc<TypeParam>>,
     pub target: Loc<TypeSpec>,
-    pub id: u64,
+    pub id: ImplID,
 }
 impl WithLocation for ImplBlock {}
 

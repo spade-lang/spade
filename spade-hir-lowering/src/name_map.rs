@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use spade_common::{location_info::Loc, name::NameID};
+use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_hir::{Expression, Pattern};
 use spade_mir::ValueName;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum NameSource {
     Name(Loc<NameID>),
-    Expr(Loc<u64>),
+    Expr(Loc<ExprID>),
 }
 
 impl std::fmt::Display for NameSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NameSource::Name(n) => write!(f, "{n}"),
-            NameSource::Expr(id) => write!(f, "e{id}"),
+            NameSource::Expr(id) => write!(f, "e{}", id.0),
         }
     }
 }
@@ -26,8 +26,8 @@ impl From<&Loc<NameID>> for NameSource {
     }
 }
 
-impl From<&Loc<u64>> for NameSource {
-    fn from(e: &Loc<u64>) -> Self {
+impl From<&Loc<ExprID>> for NameSource {
+    fn from(e: &Loc<ExprID>) -> Self {
         NameSource::Expr(*e)
     }
 }

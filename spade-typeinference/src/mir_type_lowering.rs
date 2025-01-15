@@ -2,15 +2,44 @@ use std::collections::HashMap;
 
 use hir::symbol_table::SymbolTable;
 use hir::{Parameter, TypeExpression, TypeSpec};
+use spade_common::id_tracker::ExprID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::NameID;
 use spade_diagnostics::Diagnostic;
-use spade_hir as hir;
+use spade_hir::{self as hir, ConstGenericWithId};
 use spade_hir::{TypeDeclaration, TypeList};
 use spade_types::{ConcreteType, KnownType};
 
 use crate::equation::{TypeVar, TypedExpression};
 use crate::TypeState;
+
+pub trait HasConcreteType {
+    fn into_typed_expression(&self) -> Loc<TypedExpression>;
+}
+
+impl<T> HasConcreteType for &T where T: HasConcreteType {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        (*self).into_typed_expression()
+    }
+}
+
+impl HasConcreteType for Loc<hir::Expression> {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        TypedExpression::Id(self.id).at_loc(self)
+    }
+}
+
+impl HasConcreteType for Loc<hir::Pattern> {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        TypedExpression::Id(self.id).at_loc(self)
+    }
+}
+impl HasConcreteType for Loc<ConstGenericWithId> {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        TypedExpression::Id(self.id).at_loc(self)
+    }
+}
+
 
 impl TypeState {
     pub fn type_decl_to_concrete(
@@ -294,14 +323,14 @@ impl TypeState {
 
     /// Returns the type of the specified expression ID as a concrete type. If the type is not
     /// known, or the type is Generic, panics
-    pub fn type_of_id(&self, id: u64, symtab: &SymbolTable, type_list: &TypeList) -> ConcreteType {
+    pub fn type_of_id(&self, id: ExprID, symtab: &SymbolTable, type_list: &TypeList) -> ConcreteType {
         self.try_get_type_of_id(id, symtab, type_list)
             .expect("Expr had generic type")
     }
 
     pub fn try_get_type_of_id(
         &self,
-        id: u64,
+        id: ExprID,
         symtab: &SymbolTable,
         type_list: &TypeList,
     ) -> Option<ConcreteType> {
@@ -314,14 +343,15 @@ impl TypeState {
         )
     }
 
-    pub fn type_of_id_result(
+    pub fn concrete_type_of(
         &self,
-        id: Loc<u64>,
+        id: impl HasConcreteType,
         symtab: &SymbolTable,
         types: &TypeList,
     ) -> Result<ConcreteType, Diagnostic> {
-        let t = self.type_of(&TypedExpression::Id(id.inner)).map_err(|_| {
-            Diagnostic::bug(id, "Expression had no type")
+        let id = id.into_typed_expression();
+        let t = self.type_of(&id.inner).map_err(|_| {
+            Diagnostic::bug(id.clone(), "Expression had no type")
                 .primary_label("This expression had no type")
         })?;
 
@@ -347,7 +377,7 @@ impl TypeState {
         symtab: &SymbolTable,
         types: &TypeList,
     ) -> Result<ConcreteType, Diagnostic> {
-        self.type_of_id_result(expr.id.at_loc(expr), symtab, types)
+        self.concrete_type_of(expr, symtab, types)
     }
 
     /// Returns the type of the name as a concrete type. If the type is not

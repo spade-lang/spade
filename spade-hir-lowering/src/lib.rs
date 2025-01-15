@@ -273,7 +273,7 @@ impl PatternLocal for Loc<Pattern> {
             hir::PatternKind::Tuple(inner) => {
                 let inner_types = if let mir::types::Type::Tuple(inner) = &ctx
                     .types
-                    .type_of_id(self.id, ctx.symtab.symtab(), &ctx.item_list.types)
+                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type()
                 {
                     inner.clone()
@@ -1522,7 +1522,7 @@ impl ExprLocal for Loc<Expression> {
                     let self_tvar = ctx
                         .types
                         .type_of(&TypedExpression::Id(self.id))
-                        .unwrap_or_else(|_| panic!("Found no type for {}", self.id));
+                        .unwrap_or_else(|_| panic!("Found no type for {}", self.id.0));
 
                     let inner_tvar = match &self_tvar {
                         TypeVar::Known(_, KnownType::Tuple, inner) => {

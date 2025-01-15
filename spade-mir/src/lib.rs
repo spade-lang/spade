@@ -20,6 +20,7 @@ use itertools::Itertools;
 use num::{BigInt, BigUint};
 use renaming::VerilogNameSource;
 use serde::{Deserialize, Serialize};
+use spade_common::id_tracker::ExprID;
 use types::Type;
 
 use spade_common::location_info::{Loc, WithLocation};
@@ -54,7 +55,7 @@ impl std::fmt::Display for ConstantValue {
 #[derive(Clone, PartialEq, Debug, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ValueNameSource {
     Name(NameID),
-    Expr(u64),
+    Expr(ExprID),
 }
 
 impl From<NameID> for ValueNameSource {
@@ -96,7 +97,7 @@ pub enum ValueName {
     ),
     // FIXME: Consider renaming this since it's now used for both patterns and expressions
     /// An un-named expression. In the resulting verilog, this is called _e_$id
-    Expr(u64),
+    Expr(ExprID),
 }
 
 impl WithLocation for ValueName {}
@@ -149,7 +150,7 @@ impl std::fmt::Display for ValueName {
                     write!(f, "{s}_n{id}")
                 }
             }
-            ValueName::Expr(id) => write!(f, "e{id}"),
+            ValueName::Expr(id) => write!(f, "e{}", id.0),
         }
     }
 }
@@ -517,7 +518,7 @@ pub enum Statement {
     Binding(Binding),
     Register(Register),
     /// A constant expression with the specified ID and value
-    Constant(u64, Type, ConstantValue),
+    Constant(ExprID, Type, ConstantValue),
     Assert(Loc<ValueName>),
     Set {
         target: Loc<ValueName>,
@@ -551,7 +552,7 @@ impl std::fmt::Display for Statement {
         match self {
             Statement::Binding(b) => write!(f, "{b}"),
             Statement::Register(r) => write!(f, "{r}"),
-            Statement::Constant(id, ty, val) => write!(f, "const e{id}: {ty} = {val}"),
+            Statement::Constant(id, ty, val) => write!(f, "const e{id}: {ty} = {val}", id = id.0),
             Statement::Assert(val) => write!(f, "assert {val}"),
             Statement::Set { target, value } => write!(f, "set {target} = {value}"),
             Statement::WalTrace {

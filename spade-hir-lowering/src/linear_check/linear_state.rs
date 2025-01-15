@@ -5,8 +5,7 @@ use spade_diagnostics::Diagnostic;
 use tracing::trace;
 
 use spade_common::{
-    location_info::{Loc, WithLocation},
-    name::{Identifier, NameID},
+    id_tracker::ExprID, location_info::{Loc, WithLocation}, name::{Identifier, NameID}
 };
 use spade_hir::{Expression, Pattern, PatternKind};
 use spade_types::ConcreteType;
@@ -363,12 +362,12 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ItemReference {
     Name(NameID),
-    Anonymous(u64),
+    Anonymous(ExprID),
 }
 impl WithLocation for ItemReference {}
 
 impl ItemReference {
-    fn anonymous(n: &Loc<u64>) -> Loc<Self> {
+    fn anonymous(n: &Loc<ExprID>) -> Loc<Self> {
         Self::Anonymous(n.inner).at_loc(n)
     }
     fn name(n: &Loc<NameID>) -> Loc<Self> {
@@ -380,7 +379,7 @@ impl std::fmt::Display for ItemReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ItemReference::Name(n) => write!(f, "{n}"),
-            ItemReference::Anonymous(id) => write!(f, "{id}"),
+            ItemReference::Anonymous(id) => write!(f, "{}", id.0),
         }
     }
 }
@@ -436,9 +435,9 @@ impl LinearState {
         self.trees.insert(reference.inner.clone(), tree);
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(%expr_id))]
+    
     // Inserts a new [LinearTree] for the specified expression.
-    pub fn push_new_expression(&mut self, expr_id: &Loc<u64>, ctx: &LinearCtx) {
+    pub fn push_new_expression(&mut self, expr_id: &Loc<ExprID>, ctx: &LinearCtx) {
         // Generic arguments cannot be linear types, so we can ignore non-fully known types
         if let Some(ty) = &ctx
             .type_state
@@ -500,12 +499,11 @@ impl LinearState {
         Ok(())
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(%from, %to))]
-    pub fn add_alias_name(&mut self, from: Loc<u64>, to: &Loc<NameID>) -> Result<(), Diagnostic> {
+    pub fn add_alias_name(&mut self, from: Loc<ExprID>, to: &Loc<NameID>) -> Result<(), Diagnostic> {
         self.merge(ItemReference::anonymous(&from), ItemReference::name(to))
     }
 
-    fn alias_subtree<F>(&mut self, to: Loc<u64>, base_expr: u64, idx: F) -> Result<(), Diagnostic>
+    fn alias_subtree<F>(&mut self, to: Loc<ExprID>, base_expr: ExprID, idx: F) -> Result<(), Diagnostic>
     where
         F: Fn(&LinearTree) -> Rc<RefCell<LinearTree>>,
     {
@@ -528,11 +526,10 @@ impl LinearState {
 
     /// Adds `from` as an alias to the tree at `base_expr#tuple_member`. Panics if base_expr is not
     /// a tuple with at least idx elements
-    #[tracing::instrument(level = "trace", skip_all, fields(%base_expr, %idx, %to))]
     pub fn alias_tuple_member(
         &mut self,
-        to: Loc<u64>,
-        base_expr: u64,
+        to: Loc<ExprID>,
+        base_expr: ExprID,
         idx: &Loc<u128>,
     ) -> Result<(), Diagnostic> {
         self.alias_subtree(to, base_expr, |base_tree| {
@@ -543,11 +540,10 @@ impl LinearState {
 
     /// Adds `from` as an alias to the tree at `base_expr[idx]`. Panics if base_expr is not
     /// a tuple with at least idx elements
-    #[tracing::instrument(level = "trace", skip_all, fields(%base_expr, %idx, %to))]
     pub fn alias_array_member(
         &mut self,
-        to: Loc<u64>,
-        base_expr: u64,
+        to: Loc<ExprID>,
+        base_expr: ExprID,
         idx: &Loc<u128>,
     ) -> Result<(), Diagnostic> {
         self.alias_subtree(to, base_expr, |base_tree| {
@@ -558,11 +554,10 @@ impl LinearState {
 
     /// Adds `from` as an alias to the tree at `base_expr#tuple_member`. Panics if base_expr is not
     /// a tuple with at least idx elements
-    #[tracing::instrument(level = "trace", skip_all, fields(%base_expr, %field, %to))]
     pub fn alias_struct_member(
         &mut self,
-        to: Loc<u64>,
-        base_expr: u64,
+        to: Loc<ExprID>,
+        base_expr: ExprID,
         field: &Loc<Identifier>,
     ) -> Result<(), Diagnostic> {
         self.alias_subtree(to, base_expr, |base_tree| {
@@ -607,8 +602,7 @@ impl LinearState {
         self.consume_id(expr.map_ref(|e| e.id))
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(%id))]
-    pub fn consume_id(&mut self, id: Loc<u64>) -> crate::error::Result<()> {
+    pub fn consume_id(&mut self, id: Loc<ExprID>) -> crate::error::Result<()> {
         // NOTE: This is fairly inefficient at the moment. It might be better to try
         // and use something like a multi-map for several references to the same tree
 

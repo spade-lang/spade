@@ -20,6 +20,7 @@ use itertools::Itertools;
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
+use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_macros::trace_typechecker;
@@ -91,10 +92,10 @@ pub enum GenericListSource<'a> {
     Definition(&'a NameID),
     ImplBlock {
         target: &'a ImplTarget,
-        id: u64,
+        id: ImplID,
     },
     /// For expressions which instantiate generic items
-    Expression(u64),
+    Expression(ExprID),
 }
 
 /// Stored version of GenericListSource
@@ -102,8 +103,8 @@ pub enum GenericListSource<'a> {
 pub enum GenericListToken {
     Anonymous(usize),
     Definition(NameID),
-    ImplBlock(ImplTarget, u64),
-    Expression(u64),
+    ImplBlock(ImplTarget, ImplID),
+    Expression(ExprID),
 }
 
 pub struct TurbofishCtx<'a> {
@@ -678,7 +679,7 @@ impl TypeState {
     #[trace_typechecker]
     fn handle_function_like(
         &mut self,
-        expression_id: Loc<u64>,
+        expression_id: Loc<ExprID>,
         expression_type: &TypeVar,
         name: &FunctionLikeName,
         head: &Loc<UnitHead>,
@@ -847,7 +848,7 @@ impl TypeState {
 
     pub fn handle_concat(
         &mut self,
-        expression_id: Loc<u64>,
+        expression_id: Loc<ExprID>,
         source_lhs_ty: TypeVar,
         source_rhs_ty: TypeVar,
         source_result_ty: TypeVar,
@@ -897,7 +898,7 @@ impl TypeState {
 
     pub fn handle_trunc(
         &mut self,
-        expression_id: Loc<u64>,
+        expression_id: Loc<ExprID>,
         source_in_ty: TypeVar,
         source_result_ty: TypeVar,
         args: &[Argument<Expression, TypeSpec>],
