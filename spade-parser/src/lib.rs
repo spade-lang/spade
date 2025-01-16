@@ -374,6 +374,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // FIXME: Before changing this, merge it with type_level_if
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn if_expression(&mut self) -> Result<Option<Loc<Expression>>> {
@@ -419,7 +420,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    // TODO: Let's unify these
+    // FIXME: Before changing this, merge it with if_expression
     pub fn type_level_if(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::ComptimeIf);
 

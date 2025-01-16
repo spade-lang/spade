@@ -227,6 +227,7 @@ pub fn compile_items(
                         type_state: &type_state,
                         items: item_list,
                         symtab,
+                        allowed_ids: Default::default(),
                     } as &mut dyn Pass,
                     &mut InOutChecks {
                         type_state: &type_state,

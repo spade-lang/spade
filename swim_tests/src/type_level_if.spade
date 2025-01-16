@@ -9,3 +9,48 @@ fn addone<#uint N>(seq: [uint<8>; N]) -> [uint<9>; N] {
 fn addone_test(seq: [uint<8>; 4]) -> [uint<9>; 4] {
     addone(seq)
 }
+
+fn nested<#uint N>() -> uint<8> {
+    $if N {
+        $if N-1 {
+            2
+        } $else {
+            1
+        }
+    } $else {
+        0
+    }
+}
+
+    
+struct Methodee<#uint M> {}
+impl<#uint M> Methodee<M> {
+    fn inner<#uint N>(self) -> uint<8> {
+        $if M {
+            $if N {
+                2
+            } $else {
+                1
+            }
+        } $else {
+            0
+        }
+    }
+}
+
+struct MultOut {
+    nested: (uint<8>, uint<8>, uint<8>),
+    method: (uint<8>, uint<8>, uint<8>, uint<8>)
+}
+
+fn multiple_tests() -> MultOut {
+    MultOut(
+        (nested::<0>(), nested::<1>(), nested::<2>()),
+        (
+            Methodee::<0>().inner::<0>(),
+            Methodee::<0>().inner::<1>(),
+            Methodee::<1>().inner::<0>(),
+            Methodee::<1>().inner::<1>(),
+        )
+    )
+}

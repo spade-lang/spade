@@ -60,7 +60,6 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             },
         };
 
-        // TODO: What does this do we are in a method
         let args = ArgumentList::Positional(
             unit.inputs
                 .iter()
@@ -76,11 +75,13 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
         let turbofish = Some(
             ArgumentList::Positional(
                 unit.head
-                    .get_type_params()
+                    .unit_type_params
                     .iter()
                     .map(|p| {
-                        TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(p.name_id.clone().at_loc(p)))
-                            .at_loc(p)
+                        TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(
+                            p.name_id.clone().at_loc(p),
+                        ))
+                        .at_loc(p)
                     })
                     .collect(),
             )

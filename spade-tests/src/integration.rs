@@ -271,6 +271,90 @@ code_compiles! {
     "
 }
 
+code_compiles! {
+    type_level_if_works_in_methods,
+    "
+    struct Methodee {}
+    impl Methodee {
+        fn inner<#uint N>(self) -> uint<8> {
+            $if N {
+                0
+            } $else {
+                1
+            }
+        }
+    }
+
+    fn test() -> uint<8> {
+        Methodee().inner::<0>()
+    }
+    "
+}
+
+code_compiles! {
+    type_level_if_works_in_methods_on_generic_types,
+    "
+    struct Methodee<#uint M> {}
+    impl<#uint M> Methodee<M> {
+        fn inner<#uint N>(self) -> uint<8> {
+            $if N {
+                $if M {
+                    2
+                } $else {
+                    1
+                }
+            } $else {
+                0
+            }
+        }
+    }
+
+    fn test() -> uint<8> {
+        Methodee::<1>().inner::<0>()
+    }
+    "
+}
+
+code_compiles! {
+    chained_type_level_ifs_work,
+    "
+    fn inner<#uint N>() -> uint<8> {
+        $if N {
+            0
+        } $else $if N-1 {
+            1
+        } $else {
+            2
+        }
+    }
+
+    fn test() -> uint<8> {
+        inner::<0>()
+    }
+    "
+}
+
+code_compiles! {
+    nested_type_level_ifs_work,
+    "
+    fn inner<#uint N>() -> uint<8> {
+        $if N {
+            $if N-1 {
+                1
+            } $else {
+                0
+            }
+        } $else {
+            2
+        }
+    }
+
+    fn test() -> uint<8> {
+        inner::<1>()
+    }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

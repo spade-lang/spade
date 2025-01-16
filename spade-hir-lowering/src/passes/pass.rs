@@ -182,8 +182,8 @@ impl Passable for Loc<Expression> {
 
 impl Passable for Unit {
     fn apply(&mut self, pass: &mut dyn Pass) -> Result<()> {
-        self.body.apply(pass)?;
         pass.visit_unit(self)?;
+        self.body.apply(pass)?;
         Ok(())
     }
 }

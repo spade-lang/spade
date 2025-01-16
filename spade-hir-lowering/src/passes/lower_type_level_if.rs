@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use num::BigInt;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::diag_bail;
-use spade_hir::{symbol_table::FrozenSymtab, ExprKind, ItemList};
+use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_hir::{symbol_table::FrozenSymtab, ExprKind, Expression, ItemList};
 use spade_typeinference::TypeState;
 
 use crate::error::Result;
@@ -12,14 +14,22 @@ pub struct LowerTypeLevelIf<'a> {
     pub type_state: &'a TypeState,
     pub items: &'a ItemList,
     pub symtab: &'a FrozenSymtab,
+
+    pub allowed_ids: HashSet<u64>,
 }
 
 impl<'a> Pass for LowerTypeLevelIf<'a> {
     fn visit_expression(&mut self, expression: &mut Loc<spade_hir::Expression>) -> Result<()> {
-        // TODO: Somehow Make sure no TLIfs are in the wrong place
         match &expression.kind {
             ExprKind::TypeLevelIf(cond, on_true, on_false) => {
-                // TODO: Promote this to a function
+                if !self.allowed_ids.contains(&expression.id) {
+                    return Err(Diagnostic::error(
+                        &*expression,
+                        "Type level if can only appear as the return value of a unit",
+                    )
+                    .primary_label("Type level if is not allowed here"));
+                }
+
                 let t = self.type_state.type_of_id_result(
                     cond.id.at_loc(cond),
                     self.symtab.symtab(),
@@ -35,7 +45,6 @@ impl<'a> Pass for LowerTypeLevelIf<'a> {
                         }
                         Ok(())
                     }
-                    // TODO: Make sure this isn't triggered trivially
                     _ => diag_bail!(cond, "Inferred non type level integer for type level if"),
                 }
             }
@@ -43,7 +52,28 @@ impl<'a> Pass for LowerTypeLevelIf<'a> {
         }
     }
 
-    fn visit_unit(&mut self, _unit: &mut spade_hir::Unit) -> Result<()> {
+    fn visit_unit(&mut self, unit: &mut spade_hir::Unit) -> Result<()> {
+        if let Some(result) = &unit.body.assume_block().result {
+            self.mark_allowed_tlifs(result);
+        }
         Ok(())
+    }
+}
+
+impl<'a> LowerTypeLevelIf<'a> {
+    fn mark_allowed_tlifs(&mut self, expr: &Expression) {
+        match &expr.kind {
+            ExprKind::TypeLevelIf(_loc, loc1, loc2) => {
+                self.allowed_ids.insert(expr.id);
+                self.mark_allowed_tlifs(loc1);
+                self.mark_allowed_tlifs(loc2);
+            }
+            ExprKind::Block(block) => {
+                if let Some(result) = &block.result {
+                    self.mark_allowed_tlifs(result);
+                }
+            }
+            _ => {}
+        }
     }
 }

@@ -1988,3 +1988,29 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    type_level_ifs_have_to_be_numbers,
+    "
+        fn test() -> uint<8> {
+            $if bool {
+                0
+            } $else {
+                1
+            }
+        }
+    "
+}
+
+code_compiles! {
+    type_level_ifs_support_ints,
+    "
+        fn test<#int N>() -> uint<8> {
+            $if N {
+                0
+            } $else {
+                1
+            }
+        }
+    "
+}

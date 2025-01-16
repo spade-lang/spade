@@ -314,7 +314,6 @@ impl TypeState {
         )
     }
 
-    // TODO: Can we use this function elsewhere instead of type_of_id
     pub fn type_of_id_result(
         &self,
         id: Loc<u64>,

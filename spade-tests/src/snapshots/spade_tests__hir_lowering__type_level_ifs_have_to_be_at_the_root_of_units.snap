@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+fn test() {
+    let x = $if 0 {1} $else {0};
+}
+
+
+error: Type level if can only appear as the return value of a unit
+  ┌─ testinput:2:13
+  │
+2 │     let x = $if 0 {1} $else {0};
+  │             ^^^^^^^^^^^^^^^^^^^ Type level if is not allowed here
