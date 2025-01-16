@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "format! (\"{}\", items [0])"
+---
+entity \test ((clk, clk_n1, bool), (x, x_n2, ((uint<8>, uint<8>), uint<8>))) -> ((uint<8>, uint<8>), uint<8>) {
+	let e3: (uint<8>, uint<8>) = IndexTuple(0, [Tuple([UInt(8), UInt(8)]), UInt(8)])(x_n2)
+	let e5: uint<8> = IndexTuple(0, [UInt(8), UInt(8)])(e3)
+	reg(clk_n1) e6: uint<8> = e5
+	let e7: uint<8> = IndexTuple(1, [UInt(8), UInt(8)])(e3)
+	reg(clk_n1) e8: uint<8> = e7
+	let e4: (uint<8>, uint<8>) = ConstructTuple(e6, e8)
+	let e9: uint<8> = IndexTuple(1, [Tuple([UInt(8), UInt(8)]), UInt(8)])(x_n2)
+	reg(clk_n1) e10: uint<8> = e9
+	let s1_x_n3: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e4, e10)
+} => s1_x_n3

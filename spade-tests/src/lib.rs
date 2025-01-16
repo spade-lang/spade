@@ -171,6 +171,18 @@ macro_rules! code_compiles {
 }
 
 #[macro_export]
+macro_rules! snapshot_mir {
+    ($fn:ident, $src:literal) => {
+        #[test]
+        fn $fn() {
+            let code = $src;
+            let items = build_items(code);
+            insta::assert_snapshot!(format!("{}", items[0]))
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! snapshot_inference_error {
     ($fn:ident, $kind:literal, $src:literal) => {
         #[test]

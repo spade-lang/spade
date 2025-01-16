@@ -1,4 +1,4 @@
-use crate::{build_items, code_compiles, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 
 #[cfg(test)]
 mod tests {
@@ -3248,6 +3248,57 @@ code_compiles! {
 
         entity test(clk: clock) {
             let _ = inst(3) par_multiply(clk, [[0; 2]; 4]);
+        }
+    "
+}
+
+snapshot_mir! {
+    tuples_are_split_by_split_compound_regs,
+    "
+        #[optimize(split_compound_regs)]
+        pipeline(1) test(clk: clock, x: (uint<8>, uint<8>)) -> (uint<8>, uint<8>) {
+        reg;
+            x
+        }
+    "
+}
+
+snapshot_mir! {
+    split_compound_regs_is_recursive,
+    "
+        #[optimize(split_compound_regs)]
+        pipeline(1) test(clk: clock, x: ((uint<8>, uint<8>), uint<8>)) -> ((uint<8>, uint<8>), uint<8>) {
+        reg;
+            x
+        }
+    "
+}
+
+snapshot_mir! {
+    structs_are_split_by_split_compound_regs,
+    "
+        struct X {
+            a: uint<8>,
+            b: uint<8>,
+        }
+        #[optimize(split_compound_regs)]
+        pipeline(1) test(clk: clock, x: X) -> X {
+        reg;
+            x
+        }
+    "
+}
+
+// NOTE: Arrays are currently split as if they were tuples. This means that
+// things will be a bit weird in the MIR, but it does make codegen for all this
+// much easier as it doesn't require generating array indices as runtime constants.
+snapshot_mir! {
+    arrays_are_split_by_split_compound_regs,
+    "
+        #[optimize(split_compound_regs)]
+        pipeline(1) test(clk: clock, x: [uint<8>; 3]) -> [uint<8>; 3] {
+        reg;
+            x
         }
     "
 }

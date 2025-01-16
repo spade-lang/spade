@@ -1,0 +1,12 @@
+struct Val {
+    x: uint<8>,
+    y: uint<8>,
+    z: (uint<8>, uint<8>),
+    w: [uint<8>; 8]
+}
+
+#[optimize(split_compound_regs)]
+entity test(clk: clock, val: Val) -> Val {
+    reg(clk) result = val;
+    result
+}
