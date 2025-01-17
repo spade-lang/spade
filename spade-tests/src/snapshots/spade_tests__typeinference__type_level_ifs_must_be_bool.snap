@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    $if 0 {}
+    $else {}
+}
+
+
+error: gen if conditions must be #bool, got _
+  ┌─ testinput:2:9
+  │
+2 │     $if 0 {}
+  │         ^ Expected #bool
+  │
+  = note: Expected: #bool
+               Got: #number

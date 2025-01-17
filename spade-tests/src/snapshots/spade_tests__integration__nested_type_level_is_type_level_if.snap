@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/integration.rs
+---
+fn test(x: bool) {
+    gen if 0 == 0 {
+    } else if x {}
+    else {}
+}
+
+
+error: Expected x to be a type
+  ┌─ testinput:3:15
+  │
+1 │ fn test(x: bool) {
+  │         - x is a variable
+2 │     gen if 0 == 0 {
+3 │     } else if x {}
+  │               ^ Expected a type

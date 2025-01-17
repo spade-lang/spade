@@ -671,7 +671,12 @@ impl TypeState {
                     ctx,
                 )?;
                 let t_bool = self.new_generic_tlbool(cond.loc());
-                self.unify(&cond_var, &t_bool, ctx).into_default_diagnostic(cond)?;
+                self.unify(&cond_var, &t_bool, ctx).into_diagnostic(
+                    cond,
+                    |diag, Tm { e: _, g }| {
+                        diag.message(format!("gen if conditions must be #bool, got {g}"))
+                    },
+                )?;
 
                 self.visit_expression(on_true, ctx, generic_list)?;
                 self.visit_expression(on_false, ctx, generic_list)?;
@@ -1858,13 +1863,15 @@ impl TypeState {
                         .secondary_label(ty, "Alias defined here"))
                     }
                 }
-            } // Check the name
+            }
             ConstGeneric::Const(_)
             | ConstGeneric::Add(_, _)
             | ConstGeneric::Sub(_, _)
             | ConstGeneric::Mul(_, _)
             | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
-            ConstGeneric::Eq(_, _) => self.new_generic_tlbool(gen.loc()),
+            ConstGeneric::Eq(_, _) | ConstGeneric::NotEq(_, _) => {
+                self.new_generic_tlbool(gen.loc())
+            }
         };
         let constraint = self.visit_const_generic(&gen.inner.inner, generic_list_token)?;
         self.add_equation(TypedExpression::Id(gen.id), var.clone());
@@ -1899,6 +1906,10 @@ impl TypeState {
                 Box::new(self.visit_const_generic(rhs, generic_list)?),
             ),
             ConstGeneric::Eq(lhs, rhs) => ConstraintExpr::Eq(
+                Box::new(self.visit_const_generic(lhs, generic_list)?),
+                Box::new(self.visit_const_generic(rhs, generic_list)?),
+            ),
+            ConstGeneric::NotEq(lhs, rhs) => ConstraintExpr::NotEq(
                 Box::new(self.visit_const_generic(lhs, generic_list)?),
                 Box::new(self.visit_const_generic(rhs, generic_list)?),
             ),
@@ -1981,6 +1992,10 @@ impl TypeState {
                 Box::new(self.check_expr_for_replacement(*rhs)),
             ),
             ConstraintExpr::Eq(lhs, rhs) => ConstraintExpr::Eq(
+                Box::new(self.check_expr_for_replacement(*lhs)),
+                Box::new(self.check_expr_for_replacement(*rhs)),
+            ),
+            ConstraintExpr::NotEq(lhs, rhs) => ConstraintExpr::NotEq(
                 Box::new(self.check_expr_for_replacement(*lhs)),
                 Box::new(self.check_expr_for_replacement(*rhs)),
             ),
@@ -2766,6 +2781,10 @@ impl TypeState {
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
             ConstraintExpr::Eq(lhs, rhs) => {
+                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
+                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
+            }
+            ConstraintExpr::NotEq(lhs, rhs) => {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }

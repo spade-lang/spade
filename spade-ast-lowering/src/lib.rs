@@ -674,6 +674,7 @@ pub fn visit_const_generic(
                 ast::BinaryOperator::Sub => ConstGeneric::Sub(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Mul => ConstGeneric::Mul(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Equals => ConstGeneric::Eq(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::NotEquals => ConstGeneric::NotEq(Box::new(lhs), Box::new(rhs)),
                 other => {
                     return Err(Diagnostic::error(
                         op,

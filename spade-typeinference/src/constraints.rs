@@ -14,6 +14,7 @@ pub enum ConstraintExpr {
     Product(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Sub(Box<ConstraintExpr>),
     Eq(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    NotEq(Box<ConstraintExpr>, Box<ConstraintExpr>),
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
     UintBitsToRepresent(Box<ConstraintExpr>),
@@ -53,9 +54,13 @@ impl ConstraintExpr {
                 (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
                     ConstraintExpr::Bool(l == r)
                 }
-                _ => {
-                    self.clone()
-                },
+                _ => self.clone(),
+            },
+            ConstraintExpr::NotEq(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
+                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                    ConstraintExpr::Bool(l != r)
+                }
+                _ => self.clone(),
             },
             ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate() {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(if val == BigInt::ZERO {
@@ -130,6 +135,7 @@ impl std::fmt::Display for ConstraintExpr {
             ConstraintExpr::Difference(rhs, lhs) => write!(f, "({rhs} - {lhs})"),
             ConstraintExpr::Product(rhs, lhs) => write!(f, "({rhs} * {lhs})"),
             ConstraintExpr::Eq(rhs, lhs) => write!(f, "({rhs} == {lhs})"),
+            ConstraintExpr::NotEq(rhs, lhs) => write!(f, "({rhs} != {lhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
             ConstraintExpr::UintBitsToRepresent(val) => write!(f, "UintBitsToRepresent({val})"),
         }
@@ -250,6 +256,7 @@ impl TypeConstraints {
                     ConstraintExpr::Var(_)
                     | ConstraintExpr::Sum(_, _)
                     | ConstraintExpr::Eq(_, _)
+                    | ConstraintExpr::NotEq(_, _)
                     | ConstraintExpr::Difference(_, _)
                     | ConstraintExpr::Product(_, _)
                     | ConstraintExpr::UintBitsToRepresent(_)
