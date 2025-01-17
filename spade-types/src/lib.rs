@@ -55,6 +55,7 @@ pub enum ConcreteType {
         params: Vec<ConcreteType>,
     },
     Integer(BigInt),
+    Bool(bool),
     Backward(Box<ConcreteType>),
     Wire(Box<ConcreteType>),
 }
@@ -83,7 +84,7 @@ impl ConcreteType {
                 ..
             } => true,
             ConcreteType::Single { .. } => false,
-            ConcreteType::Integer(_) => false,
+            ConcreteType::Integer(_) | ConcreteType::Bool(_) => false,
             ConcreteType::Backward(_) => true,
             ConcreteType::Wire(_) => true,
         }
@@ -145,10 +146,13 @@ impl std::fmt::Display for ConcreteType {
                 format!("{}{}", base, params_str)
             }
             ConcreteType::Integer(size) => {
-                format!("#{}", size)
+                format!("{}", size)
+            }
+            ConcreteType::Bool(val) => {
+                format!("{}", val)
             }
             ConcreteType::Backward(inner) => {
-                format!("&mut {}", inner)
+                format!("inv &{}", inner)
             }
             ConcreteType::Wire(inner) => {
                 format!("&{}", inner)
@@ -163,6 +167,7 @@ impl std::fmt::Display for ConcreteType {
 pub enum KnownType {
     Named(NameID),
     Integer(BigInt),
+    Bool(bool),
     Tuple,
     Array,
     Wire,

@@ -346,14 +346,21 @@ impl TypeState {
         TypeVar::Unknown(().nowhere(), id, TraitList::empty(), MetaType::Any)
     }
 
+    pub fn new_generic_tlbool(&mut self, loc: Loc<()>) -> TypeVar {
+        let id = self.new_typeid();
+        TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Bool)
+    }
+
     pub fn new_generic_tluint(&mut self, loc: Loc<()>) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Uint)
     }
+
     pub fn new_generic_tlint(&mut self, loc: Loc<()>) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Int)
     }
+
     pub fn new_generic_tlnumber(&mut self, loc: Loc<()>) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Number)
@@ -2281,6 +2288,7 @@ impl TypeState {
                     }
                     Some(MetaType::Int) => self.new_generic_tlint(*new_loc),
                     Some(MetaType::Uint) => self.new_generic_tluint(*new_loc),
+                    Some(MetaType::Bool) => self.new_generic_tlbool(*new_loc),
                     None => return Err(meta_err_producer!()),
                 };
                 Ok((new_t, vec![v1, v2]))
@@ -2336,6 +2344,7 @@ impl TypeState {
                     | (KnownType::Tuple, MetaType::Type)
                     | (KnownType::Array, MetaType::Type)
                     | (KnownType::Wire, MetaType::Type)
+                    | (KnownType::Bool(_), MetaType::Bool)
                     | (KnownType::Inverted, MetaType::Type)
                     // Integers match ints and numbers
                     | (KnownType::Integer(_), MetaType::Int)
@@ -2359,6 +2368,10 @@ impl TypeState {
 
                     // Integer with type
                     (KnownType::Integer(_), MetaType::Type) => Err(meta_err_producer!()),
+
+                    // Bools only unify with any or bool
+                    (_, MetaType::Bool) => Err(meta_err_producer!()),
+                    (KnownType::Bool(_), _) => Err(meta_err_producer!()),
 
                     // Type with integer
                     (KnownType::Named(_), MetaType::Int | MetaType::Number | MetaType::Uint)

@@ -179,6 +179,9 @@ impl MirLowerable for ConcreteType {
             CType::Integer(_) => {
                 unreachable!("Found an integer at the base level of a type")
             }
+            CType::Bool(_) => {
+                unreachable!("Found a bool at the base level of a type")
+            }
             CType::Enum { options } => {
                 let inner = options
                     .iter()

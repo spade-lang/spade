@@ -279,10 +279,15 @@ impl TypeState {
                     .get(t)
                     .map(|t| Self::type_decl_to_concrete(&t.inner, type_list, params, invert))
             }
-            TypeVar::Known(_, KnownType::Integer(size), params) => {
+            TypeVar::Known(_, KnownType::Integer(val), params) => {
                 assert!(params.is_empty(), "integers cannot have type parameters");
 
-                Some(ConcreteType::Integer(size.clone()))
+                Some(ConcreteType::Integer(val.clone()))
+            }
+            TypeVar::Known(_, KnownType::Bool(val), params) => {
+                assert!(params.is_empty(), "type level bools cannot have type parameters");
+
+                Some(ConcreteType::Bool(*val))
             }
             TypeVar::Known(_, KnownType::Array, inner) => {
                 let value = Self::inner_ungenerify_type(&inner[0], symtab, type_list, invert);

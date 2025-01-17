@@ -296,6 +296,9 @@ impl TypeVar {
             TypeVar::Known(_, KnownType::Integer(inner), _) => {
                 format!("{inner}")
             }
+            TypeVar::Known(_, KnownType::Bool(inner), _) => {
+                format!("{inner}")
+            }
             TypeVar::Known(_, KnownType::Tuple, params) => {
                 format!(
                     "({})",
@@ -360,6 +363,9 @@ impl std::fmt::Debug for TypeVar {
                 write!(f, "{}{}", t, generics)
             }
             TypeVar::Known(_, KnownType::Integer(inner), _) => {
+                write!(f, "{inner}")
+            }
+            TypeVar::Known(_, KnownType::Bool(inner), _) => {
                 write!(f, "{inner}")
             }
             TypeVar::Known(_, KnownType::Tuple, params) => {

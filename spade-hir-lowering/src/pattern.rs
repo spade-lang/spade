@@ -140,6 +140,7 @@ pub(crate) fn split_wildcard(
         ConcreteType::Backward(_) => vec![Constructor::Single],
         ConcreteType::Wire(_) => vec![Constructor::Single],
         ConcreteType::Integer(_) => unreachable!("Pattern matching on type level integer"),
+        ConcreteType::Bool(_) => unreachable!("Pattern matching on type level bool"),
     }
 }
 
@@ -260,6 +261,7 @@ impl Constructor {
                 }
                 ConcreteType::Single { .. } => vec![],
                 ConcreteType::Integer(_) => unreachable!("Pattern matching on type level integer"),
+                ConcreteType::Bool(_) => unreachable!("Pattern matching on type level bool"),
                 ConcreteType::Backward(_) => vec![],
                 ConcreteType::Wire(_) => vec![],
             },
@@ -418,6 +420,7 @@ impl std::fmt::Display for DeconstructedPattern {
                 ConcreteType::Enum { .. } => unreachable!(),
                 ConcreteType::Single { .. } => write!(f, "_"),
                 ConcreteType::Integer(_) => unreachable!("Pattern on type level integer"),
+                ConcreteType::Bool(_) => unreachable!("Pattern on type level bool"),
                 ConcreteType::Backward(_) => unreachable!("Pattern on backward type"),
                 ConcreteType::Wire(_) => unreachable!("Pattern on backward type"),
             },

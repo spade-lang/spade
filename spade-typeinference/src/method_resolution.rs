@@ -31,7 +31,7 @@ impl IntoImplTarget for KnownType {
     fn into_impl_target(&self) -> Option<ImplTarget> {
         match self {
             KnownType::Named(name) => Some(ImplTarget::Named(name.clone())),
-            KnownType::Integer(_) => None,
+            KnownType::Integer(_) | KnownType::Bool(_) => None,
             KnownType::Tuple => None,
             KnownType::Array => Some(ImplTarget::Array),
             KnownType::Wire => Some(ImplTarget::Wire),
