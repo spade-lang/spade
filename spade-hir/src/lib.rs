@@ -399,6 +399,7 @@ pub enum ConstGeneric {
     Sub(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     Mul(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     UintBitsToFit(Box<Loc<ConstGeneric>>),
+    Eq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
 }
 impl WithLocation for ConstGeneric {}
 
@@ -423,6 +424,7 @@ impl std::fmt::Display for ConstGeneric {
             ConstGeneric::Add(l, r) => write!(f, "({l} + {r})"),
             ConstGeneric::Sub(l, r) => write!(f, "({l} - {r})"),
             ConstGeneric::Mul(l, r) => write!(f, "({l} * {r})"),
+            ConstGeneric::Eq(l, r) => write!(f, "({l} == {r})"),
             ConstGeneric::UintBitsToFit(a) => write!(f, "uint_bits_to_fit({a})"),
         }
     }

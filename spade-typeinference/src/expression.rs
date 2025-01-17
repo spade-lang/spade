@@ -424,7 +424,7 @@ impl TypeState {
 
 
             let inner_type = expr.get_type(self)?;
-            let size_type = self.visit_const_generic_with_id(amount, generic_list, ConstraintSource::ArraySize)?;
+            let size_type = self.visit_const_generic_with_id(amount, generic_list, ConstraintSource::ArraySize, ctx)?;
             // Force the type to be a uint
             let uint_type = self.new_generic_tluint(expression.loc());
             self.unify(&size_type, &uint_type, ctx).into_default_diagnostic(expression.loc())?;
@@ -533,8 +533,8 @@ impl TypeState {
             // Add constraints
             let inner_type = self.new_generic_type(target.loc());
 
-            let start_var = self.visit_const_generic_with_id(start, generic_list, ConstraintSource::RangeIndex)?;
-            let end_var = self.visit_const_generic_with_id(end, generic_list, ConstraintSource::RangeIndex)?;
+            let start_var = self.visit_const_generic_with_id(start, generic_list, ConstraintSource::RangeIndex, ctx)?;
+            let end_var = self.visit_const_generic_with_id(end, generic_list, ConstraintSource::RangeIndex, ctx)?;
 
             let in_array_size = self.new_generic_tluint(target.loc());
             let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone());

@@ -285,7 +285,10 @@ impl TypeState {
                 Some(ConcreteType::Integer(val.clone()))
             }
             TypeVar::Known(_, KnownType::Bool(val), params) => {
-                assert!(params.is_empty(), "type level bools cannot have type parameters");
+                assert!(
+                    params.is_empty(),
+                    "type level bools cannot have type parameters"
+                );
 
                 Some(ConcreteType::Bool(*val))
             }

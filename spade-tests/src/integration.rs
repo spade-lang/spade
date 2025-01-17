@@ -258,7 +258,7 @@ code_compiles! {
     type_level_if_works,
     "
     fn inner<#uint N>() -> uint<8> {
-        $if N {
+        $if N == 0 {
             0
         } $else {
             1
@@ -277,7 +277,7 @@ code_compiles! {
     struct Methodee {}
     impl Methodee {
         fn inner<#uint N>(self) -> uint<8> {
-            $if N {
+            $if N == 1 {
                 0
             } $else {
                 1
@@ -297,8 +297,8 @@ code_compiles! {
     struct Methodee<#uint M> {}
     impl<#uint M> Methodee<M> {
         fn inner<#uint N>(self) -> uint<8> {
-            $if N {
-                $if M {
+            $if N == 1 {
+                $if M == 2 {
                     2
                 } $else {
                     1
@@ -319,9 +319,9 @@ code_compiles! {
     chained_type_level_ifs_work,
     "
     fn inner<#uint N>() -> uint<8> {
-        $if N {
+        $if N == 0 {
             0
-        } $else $if N-1 {
+        } $else $if N == 1 {
             1
         } $else {
             2
@@ -338,8 +338,8 @@ code_compiles! {
     nested_type_level_ifs_work,
     "
     fn inner<#uint N>() -> uint<8> {
-        $if N {
-            $if N-1 {
+        $if N == 0 {
+            $if N == 1 {
                 1
             } $else {
                 0
@@ -352,6 +352,16 @@ code_compiles! {
     fn test() -> uint<8> {
         inner::<1>()
     }
+    "
+}
+
+code_compiles! {
+    type_level_if_bool_works,
+    "
+        fn test() {
+            $if 0 == 0 {
+            } $else {}
+        }
     "
 }
 

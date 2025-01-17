@@ -1,16 +1,19 @@
 use num::{bigint::ToBigInt, BigInt, ToPrimitive};
 use spade_common::location_info::{Loc, WithLocation};
+use spade_types::KnownType;
 
 use crate::equation::TypeVar;
 
 #[derive(Debug, Clone)]
 pub enum ConstraintExpr {
+    Bool(bool),
     Integer(BigInt),
     Var(TypeVar),
     Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Difference(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Product(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Sub(Box<ConstraintExpr>),
+    Eq(Box<ConstraintExpr>, Box<ConstraintExpr>),
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
     UintBitsToRepresent(Box<ConstraintExpr>),
@@ -22,6 +25,7 @@ impl ConstraintExpr {
     fn evaluate(&self) -> ConstraintExpr {
         match self {
             ConstraintExpr::Integer(_) => self.clone(),
+            ConstraintExpr::Bool(_) => self.clone(),
             ConstraintExpr::Var(_) => self.clone(),
             ConstraintExpr::Sum(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
                 (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
@@ -44,6 +48,14 @@ impl ConstraintExpr {
             ConstraintExpr::Sub(inner) => match inner.evaluate() {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
                 _ => self.clone(),
+            },
+            ConstraintExpr::Eq(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
+                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                    ConstraintExpr::Bool(l == r)
+                }
+                _ => {
+                    self.clone()
+                },
             },
             ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate() {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(if val == BigInt::ZERO {
@@ -112,10 +124,12 @@ impl std::fmt::Display for ConstraintExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ConstraintExpr::Integer(val) => write!(f, "{val}"),
+            ConstraintExpr::Bool(val) => write!(f, "{val}"),
             ConstraintExpr::Var(var) => write!(f, "{var}"),
             ConstraintExpr::Sum(rhs, lhs) => write!(f, "({rhs} + {lhs})"),
             ConstraintExpr::Difference(rhs, lhs) => write!(f, "({rhs} - {lhs})"),
             ConstraintExpr::Product(rhs, lhs) => write!(f, "({rhs} * {lhs})"),
+            ConstraintExpr::Eq(rhs, lhs) => write!(f, "({rhs} == {lhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
             ConstraintExpr::UintBitsToRepresent(val) => write!(f, "UintBitsToRepresent({val})"),
         }
@@ -196,7 +210,9 @@ impl TypeConstraints {
 
     /// Calls `evaluate` on all constraints. If any constraints are now `T = Integer(val)`,
     /// those updated values are returned. Such constraints are then removed
-    pub fn update_int_constraints(&mut self) -> Vec<Loc<(TypeVar, ConstraintReplacement)>> {
+    pub fn update_type_level_value_constraints(
+        &mut self,
+    ) -> Vec<Loc<(TypeVar, ConstraintReplacement)>> {
         let mut new_known = vec![];
         self.inner = self
             .inner
@@ -211,7 +227,19 @@ impl TypeConstraints {
                         // in a known Loc. This is done to avoid having to impl WithLocation for
                         // the unusual tuple used here
                         let replacement = ConstraintReplacement {
-                            val: val.clone(),
+                            val: KnownType::Integer(val.clone()),
+                            context: rhs.context.clone(),
+                        };
+                        new_known
+                            .push(().at_loc(&rhs).map(|_| (expr.clone(), replacement.clone())));
+
+                        None
+                    }
+                    // NOTE: If we add more branches that look like this, combine it with
+                    // Integer
+                    ConstraintExpr::Bool(val) => {
+                        let replacement = ConstraintReplacement {
+                            val: KnownType::Bool(val.clone()),
                             context: rhs.context.clone(),
                         };
                         new_known
@@ -221,6 +249,7 @@ impl TypeConstraints {
                     }
                     ConstraintExpr::Var(_)
                     | ConstraintExpr::Sum(_, _)
+                    | ConstraintExpr::Eq(_, _)
                     | ConstraintExpr::Difference(_, _)
                     | ConstraintExpr::Product(_, _)
                     | ConstraintExpr::UintBitsToRepresent(_)
@@ -236,7 +265,7 @@ impl TypeConstraints {
 #[derive(Clone, Debug)]
 pub struct ConstraintReplacement {
     /// The actual constraint
-    pub val: BigInt,
+    pub val: KnownType,
     pub context: ConstraintContext,
 }
 
