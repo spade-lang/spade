@@ -1115,7 +1115,6 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             Ok(_) => Ok(vec![]),
             Err(lookup_error) => Err(lookup_error.into()),
         },
-        ast::Item::Config(_) => Ok(vec![]),
     }
 }
 

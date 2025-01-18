@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use colored::Colorize;
 use itertools::Itertools;
-use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_types::meta_types::MetaType;
 use tap::prelude::*;
@@ -220,7 +219,6 @@ pub enum Thing {
         in_namespace: Path,
     },
     PipelineStage(Loc<Identifier>),
-    ComptimeConfig(Loc<BigInt>),
     Module(Loc<Identifier>),
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
@@ -236,7 +234,6 @@ impl Thing {
             Thing::EnumVariant(_) => "enum variant",
             Thing::Alias { .. } => "alias",
             Thing::PipelineStage(_) => "pipeline stage",
-            Thing::ComptimeConfig(_) => "$config",
             Thing::Trait(_) => "trait",
             Thing::Module(_) => "module",
         }
@@ -254,7 +251,6 @@ impl Thing {
                 in_namespace: _,
             } => path.loc(),
             Thing::PipelineStage(i) => i.loc(),
-            Thing::ComptimeConfig(val) => val.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
         }
@@ -272,7 +268,6 @@ impl Thing {
                 in_namespace: _,
             } => path.loc(),
             Thing::PipelineStage(_) => todo!(),
-            Thing::ComptimeConfig(_) => todo!(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
         }
@@ -747,9 +742,6 @@ impl SymbolTable {
         struct_by_id, lookup_struct, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
-        comptime_config_by_id, lookup_comptime_config, BigInt, NotAComptimeValue {
-            Thing::ComptimeConfig(val) => val.clone()
-        },
         trait_by_id, lookup_trait, Identifier, NotATrait {
             Thing::Trait(t) => t.clone()
         }
@@ -1020,7 +1012,6 @@ impl SymbolTable {
                     println!("{}", format!("alias => {path} in {in_namespace}").green())
                 }
                 Thing::PipelineStage(stage) => println!("'{stage}"),
-                Thing::ComptimeConfig(val) => println!("$config {}", val),
                 Thing::Trait(name) => println!("trait {}", name),
                 Thing::Module(name) => println!("mod {name}"),
             }

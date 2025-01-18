@@ -23,7 +23,7 @@ use spade_ast::{
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_common::num_ext::InfallibleToBigInt;
-use spade_diagnostics::Diagnostic;
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
 
 use crate::error::{
@@ -422,41 +422,30 @@ impl<'a> Parser<'a> {
 
     // FIXME: Before changing this, merge it with if_expression
     pub fn type_level_if(&mut self) -> Result<Option<Loc<Expression>>> {
-        let start = peek_for!(self, &TokenKind::ComptimeIf);
+        let start = peek_for!(self, &TokenKind::Gen);
 
-        let cond = self.expression()?;
-
-        let on_true = if let Some(block) = self.block(false)? {
-            block.map(Box::new).map(Expression::Block)
-        } else {
-            let got = self.peek()?;
-            return Err(Diagnostic::error(
-                got.loc(),
-                format!("Unexpected `{}`, expected a block", got.kind.as_str()),
-            )
-            .primary_label("expected a block here"));
+        let Some(inner) = self.if_expression()? else {
+            return Err(
+                Diagnostic::error(self.peek()?, "gen must be followed by if")
+                    .primary_label("Expected if")
+                    .secondary_label(start, "Because of this gen"),
+            );
+        };
+        let end_span = inner.loc();
+        let Expression::If(cond, on_true, on_false) = inner.inner else {
+            diag_bail!(inner, "if_expression did not return an if")
         };
 
-        self.eat(&TokenKind::ComptimeElse)?;
-        let on_false = if let Some(block) = self.block(false)? {
-            block.map(Box::new).map(Expression::Block)
-        } else if let Some(expr) = self.type_level_if()? {
-            expr
-        } else {
-            let got = self.peek()?;
-            return Err(Diagnostic::error(
-                got.loc(),
-                format!(
-                    "Unexpected `{}`, expected `if` or a block",
-                    got.kind.as_str()
-                ),
-            )
-            .primary_label("expected a block here"));
+        let on_false = match &on_false.inner {
+            Expression::If(cond, on_true, on_false) => Box::new(
+                Expression::TypeLevelIf(cond.clone(), on_true.clone(), on_false.clone())
+                    .at_loc(&on_false),
+            ),
+            _ => on_false,
         };
-        let end_span = on_false.span;
 
         Ok(Some(
-            Expression::TypeLevelIf(Box::new(cond), Box::new(on_true), Box::new(on_false)).between(
+            Expression::TypeLevelIf(cond, on_true, on_false).between(
                 self.file_id,
                 &start.span,
                 &end_span,
@@ -1669,7 +1658,6 @@ impl<'a> Parser<'a> {
                 Box::new(items::EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::ModuleParser {}.map(|inner| Ok(Item::Module(inner)))),
                 Box::new(items::UseParser {}.map(|inner| Ok(Item::Use(inner)))),
-                Box::new(items::ComptimeConfigParser {}.map(|inner| Ok(Item::Config(inner)))),
             ],
             true,
             vec![],

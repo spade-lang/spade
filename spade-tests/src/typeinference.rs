@@ -1993,9 +1993,9 @@ snapshot_error! {
     type_level_ifs_have_to_be_numbers,
     "
         fn test() -> uint<8> {
-            $if bool {
+            gen if bool {
                 0
-            } $else {
+            } else {
                 1
             }
         }
@@ -2006,8 +2006,8 @@ snapshot_error! {
     type_level_ifs_must_be_bool,
     "
         fn test() {
-            $if 0 {}
-            $else {}
+            gen if 0 {}
+            else {}
         }
     "
 }

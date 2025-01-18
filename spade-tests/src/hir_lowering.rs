@@ -3111,7 +3111,7 @@ snapshot_error! {
     type_level_ifs_have_to_be_at_the_root_of_units,
     "
         fn test() {
-            let x = $if 0 == 0 {1} $else {0};
+            let x = gen if 0 == 0 {1} else {0};
         }
     "
 }

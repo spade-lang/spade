@@ -33,9 +33,9 @@ fn bit_to_bool(b: bit) -> bool {
 /// Completely reverses the order of the elements in the `in` array
 /// For example, [1, 2, 3] becomes [3, 2, 1]
 fn flip_array<T, #uint N>(in: [T; N]) -> [T; N] {
-    $if N == 0 {
+    gen if N == 0 {
         []
-    } $else {
+    } else {
         in[N-1:N] `concat_arrays` flip_array(in[0:N-1])
     }
     // $if N {
