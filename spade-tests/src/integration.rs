@@ -258,9 +258,9 @@ code_compiles! {
     type_level_if_works,
     "
     fn inner<#uint N>() -> uint<8> {
-        $if N == 0 {
+        gen if N == 0 {
             0
-        } $else {
+        } else {
             1
         }
     }
@@ -277,9 +277,9 @@ code_compiles! {
     struct Methodee {}
     impl Methodee {
         fn inner<#uint N>(self) -> uint<8> {
-            $if N == 1 {
+            gen if N == 1 {
                 0
-            } $else {
+            } else {
                 1
             }
         }
@@ -297,13 +297,13 @@ code_compiles! {
     struct Methodee<#uint M> {}
     impl<#uint M> Methodee<M> {
         fn inner<#uint N>(self) -> uint<8> {
-            $if N == 1 {
-                $if M == 2 {
+            gen if N == 1 {
+                gen if M == 2 {
                     2
-                } $else {
+                } else {
                     1
                 }
-            } $else {
+            } else {
                 0
             }
         }
@@ -319,11 +319,11 @@ code_compiles! {
     chained_type_level_ifs_work,
     "
     fn inner<#uint N>() -> uint<8> {
-        $if N == 0 {
+        gen if N == 0 {
             0
-        } $else $if N == 1 {
+        } else if N == 1 {
             1
-        } $else {
+        } else {
             2
         }
     }
@@ -338,13 +338,13 @@ code_compiles! {
     nested_type_level_ifs_work,
     "
     fn inner<#uint N>() -> uint<8> {
-        $if N == 0 {
-            $if N == 1 {
+        gen if N == 0 {
+            gen if N == 1 {
                 1
-            } $else {
+            } else {
                 0
             }
-        } $else {
+        } else {
             2
         }
     }
@@ -359,8 +359,19 @@ code_compiles! {
     type_level_if_bool_works,
     "
         fn test() {
-            $if 0 == 0 {
-            } $else {}
+            gen if 0 == 0 {
+            } else {}
+        }
+    "
+}
+
+snapshot_error! {
+    nested_type_level_is_type_level_if,
+    "
+        fn test(x: bool) {
+            gen if 0 == 0 {
+            } else if x {}
+            else {}
         }
     "
 }

@@ -1,14 +1,13 @@
+use spade_ast::Module;
 use spade_ast::{
-    AttributeList, ComptimeConfig, Enum, Expression, ImplBlock, IntLiteral, Module, Struct,
-    TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
+    AttributeList, Enum, Expression, ImplBlock, Struct, TraitDef, TraitSpec, TypeDeclKind,
+    TypeDeclaration, TypeSpec, Unit, UseStatement,
 };
 use spade_common::location_info::{AsLabel, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
 use crate::{
-    error::{CSErrorTransformations, UnexpectedToken},
-    lexer::TokenKind,
-    KeywordPeekingParser, Parser, Result,
+    error::CSErrorTransformations, lexer::TokenKind, KeywordPeekingParser, Parser, Result,
 };
 
 pub(crate) struct UnitParser {}
@@ -304,40 +303,5 @@ impl KeywordPeekingParser<Loc<UseStatement>> for UseParser {
         let end = parser.eat(&TokenKind::Semi)?;
 
         Ok(UseStatement { path, alias }.between(parser.file_id, &start.span(), &end.span()))
-    }
-}
-
-pub(crate) struct ComptimeConfigParser {}
-
-impl KeywordPeekingParser<Loc<ComptimeConfig>> for ComptimeConfigParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::ComptimeConfig]
-    }
-
-    fn parse(
-        &self,
-        parser: &mut Parser,
-        attributes: &AttributeList,
-    ) -> Result<Loc<ComptimeConfig>> {
-        let start = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start)?;
-
-        let name = parser.identifier()?;
-        parser.eat(&TokenKind::Assignment)?;
-
-        let val = if let Some(v) = parser.int_literal()? {
-            v.map(IntLiteral::as_signed)
-        } else {
-            return Err(Diagnostic::from(UnexpectedToken {
-                got: parser.eat_unconditional()?,
-                expected: vec!["integer"],
-            }));
-        };
-
-        Ok(ComptimeConfig {
-            name,
-            val: val.clone(),
-        }
-        .between(parser.file_id, &start.span(), &val.span()))
     }
 }
