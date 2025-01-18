@@ -294,6 +294,9 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
         ConcreteType::Integer(_) => {
             panic!("Found a variable with type level integer in the vcd file")
         }
+        ConcreteType::Bool(_) => {
+            panic!("Found a variable with type level bool in the vcd file")
+        }
         ConcreteType::Backward(inner) => inner_translate_value(result, in_value, inner),
         ConcreteType::Wire(inner) => inner_translate_value(result, in_value, inner),
     }

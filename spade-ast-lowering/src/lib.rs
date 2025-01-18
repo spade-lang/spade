@@ -673,6 +673,8 @@ pub fn visit_const_generic(
                 ast::BinaryOperator::Add => ConstGeneric::Add(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Sub => ConstGeneric::Sub(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Mul => ConstGeneric::Mul(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::Equals => ConstGeneric::Eq(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::NotEquals => ConstGeneric::NotEq(Box::new(lhs), Box::new(rhs)),
                 other => {
                     return Err(Diagnostic::error(
                         op,
@@ -1113,7 +1115,6 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             Ok(_) => Ok(vec![]),
             Err(lookup_error) => Err(lookup_error.into()),
         },
-        ast::Item::Config(_) => Ok(vec![]),
     }
 }
 

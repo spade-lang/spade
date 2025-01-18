@@ -66,6 +66,7 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
             spade_types::PrimitiveType::InOut => true,
         },
         ConcreteType::Integer(_) => false,
+        ConcreteType::Bool(_) => false,
         ConcreteType::Backward(_) => true,
         ConcreteType::Wire(_) => false,
     }
@@ -355,7 +356,7 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
             spade_types::PrimitiveType::Void => LinearTree::leaf(false),
             spade_types::PrimitiveType::InOut => LinearTree::leaf(true),
         },
-        ConcreteType::Integer(_) => LinearTree::leaf(false),
+        ConcreteType::Integer(_) | ConcreteType::Bool(_) => LinearTree::leaf(false),
         ConcreteType::Backward(_) => LinearTree::leaf(true),
         ConcreteType::Wire(_) => LinearTree::leaf(false),
     }

@@ -1,5 +1,5 @@
 fn addone<#uint N>(seq: [uint<8>; N]) -> [uint<9>; N] {
-    $if N {
+    $if N != 0 {
         [seq[0] + 1] `concat_arrays` addone(seq[1:N])
     } $else {
         []
@@ -11,14 +11,14 @@ fn addone_test(seq: [uint<8>; 4]) -> [uint<9>; 4] {
 }
 
 fn nested<#uint N>() -> uint<8> {
-    $if N {
-        $if N-1 {
+    $if N == 0 {
+        0
+    } $else {
+        $if N != 1 {
             2
         } $else {
             1
         }
-    } $else {
-        0
     }
 }
 
@@ -26,8 +26,8 @@ fn nested<#uint N>() -> uint<8> {
 struct Methodee<#uint M> {}
 impl<#uint M> Methodee<M> {
     fn inner<#uint N>(self) -> uint<8> {
-        $if M {
-            $if N {
+        $if M != 0 {
+            $if N != 0 {
                 2
             } $else {
                 1

@@ -47,12 +47,6 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                 // FIXME: When we end up needing to refer to traits, we should add them
                 // to the symtab here
             }
-            ast::Item::Config(cfg) => {
-                ctx.symtab.add_unique_thing(
-                    Path::ident(cfg.name.clone()).at_loc(&cfg.name),
-                    Thing::ComptimeConfig(cfg.val.clone()),
-                )?;
-            }
             ast::Item::Use(u) => {
                 let new_name = match &u.alias {
                     Some(name) => name.clone(),
@@ -111,7 +105,6 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             ctx.symtab.pop_namespace();
         }
         ast::Item::Use(_) => {}
-        ast::Item::Config(_) => {}
     }
     Ok(())
 }

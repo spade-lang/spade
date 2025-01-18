@@ -72,21 +72,25 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
         )
         .at_loc(&unit.head.inputs);
 
-        let turbofish = Some(
-            ArgumentList::Positional(
-                unit.head
-                    .unit_type_params
-                    .iter()
-                    .map(|p| {
-                        TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(
-                            p.name_id.clone().at_loc(p),
-                        ))
-                        .at_loc(p)
-                    })
-                    .collect(),
+        let turbofish = if !unit.head.unit_type_params.is_empty() {
+            Some(
+                ArgumentList::Positional(
+                    unit.head
+                        .unit_type_params
+                        .iter()
+                        .map(|p| {
+                            TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(
+                                p.name_id.clone().at_loc(p),
+                            ))
+                            .at_loc(p)
+                        })
+                        .collect(),
+                )
+                .at_loc(&unit),
             )
-            .at_loc(&unit),
-        );
+        } else {
+            None
+        };
 
         ExprKind::Call {
             kind,

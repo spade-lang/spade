@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use num::BigInt;
 use spade_common::{id_tracker::ExprID, location_info::Loc};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExprKind, Expression, ItemList};
@@ -37,15 +36,15 @@ impl<'a> Pass for LowerTypeLevelIf<'a> {
                 )?;
 
                 match t {
-                    spade_types::ConcreteType::Integer(val) => {
-                        if val == BigInt::ZERO {
-                            *expression = on_false.as_ref().clone()
-                        } else {
+                    spade_types::ConcreteType::Bool(val) => {
+                        if val {
                             *expression = on_true.as_ref().clone()
+                        } else {
+                            *expression = on_false.as_ref().clone()
                         }
                         Ok(())
                     }
-                    _ => diag_bail!(cond, "Inferred non type level integer for type level if"),
+                    _ => diag_bail!(cond, "Inferred non type level bool for type level if"),
                 }
             }
             _ => Ok(()),

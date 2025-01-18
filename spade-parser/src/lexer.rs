@@ -122,12 +122,8 @@ pub enum TokenKind {
     #[token("where")]
     Where,
 
-    #[token("$config")]
-    ComptimeConfig,
-    #[token("$if")]
-    ComptimeIf,
-    #[token("$else")]
-    ComptimeElse,
+    #[token("gen")]
+    Gen,
 
     // Math operators
     #[token("+")]
@@ -278,9 +274,7 @@ impl TokenKind {
             TokenKind::Inv => "inv",
             TokenKind::Where => "where",
 
-            TokenKind::ComptimeConfig => "$config",
-            TokenKind::ComptimeIf => "$if",
-            TokenKind::ComptimeElse => "$else",
+            TokenKind::Gen => "gen",
 
             TokenKind::Assignment => "=",
             TokenKind::Plus => "+",

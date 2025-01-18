@@ -2,10 +2,11 @@ use std::{collections::HashMap, sync::RwLock};
 
 use colored::*;
 use itertools::Itertools;
-use num::BigInt;
 use spade_common::name::NameID;
+use spade_types::KnownType;
 
 use crate::{
+    constraints::ConstraintRhs,
     equation::{TraitList, TypeVar, TypedExpression},
     requirements::Requirement,
     TypeState,
@@ -46,8 +47,9 @@ pub enum TraceStackEntry {
     AddRequirement(Requirement),
     ResolvedRequirement(Requirement),
     NewGenericList(HashMap<NameID, TypeVar>),
+    AddingConstraint(TypeVar, ConstraintRhs),
     /// Inferring more from constraints
-    InferringFromConstraints(TypeVar, BigInt),
+    InferringFromConstraints(TypeVar, KnownType),
     AddingPipelineLabel(NameID, TypeVar),
     RecoveringPipelineLabel(NameID, TypeVar),
     PreAddingPipelineLabel(NameID, TypeVar),
@@ -110,10 +112,13 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
             }
             TraceStackEntry::InferringFromConstraints(lhs, rhs) => {
                 format!(
-                    "{} {lhs} as {rhs} from constraints",
+                    "{} {lhs} as {rhs:?} from constraints",
                     "inferring".purple(),
                     lhs = maybe_replaced(lhs),
                 )
+            }
+            TraceStackEntry::AddingConstraint(lhs, rhs) => {
+                format!("adding constraint {lhs} {rhs:?}", lhs = maybe_replaced(lhs))
             }
             TraceStackEntry::NewGenericList(mapping) => {
                 format!(

@@ -22,7 +22,7 @@ use num::{BigInt, Zero};
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
-use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{unify_meta, MetaType};
 use trace_stack::TraceStack;
@@ -346,14 +346,21 @@ impl TypeState {
         TypeVar::Unknown(().nowhere(), id, TraitList::empty(), MetaType::Any)
     }
 
+    pub fn new_generic_tlbool(&mut self, loc: Loc<()>) -> TypeVar {
+        let id = self.new_typeid();
+        TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Bool)
+    }
+
     pub fn new_generic_tluint(&mut self, loc: Loc<()>) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Uint)
     }
+
     pub fn new_generic_tlint(&mut self, loc: Loc<()>) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Int)
     }
+
     pub fn new_generic_tlnumber(&mut self, loc: Loc<()>) -> TypeVar {
         let id = self.new_typeid();
         TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Number)
@@ -657,10 +664,18 @@ impl TypeState {
                 )?;
             }
             ExprKind::TypeLevelIf(cond, on_true, on_false) => {
-                self.visit_const_generic_with_id(
+                let cond_var = self.visit_const_generic_with_id(
                     cond,
                     generic_list,
                     ConstraintSource::TypeLevelIf,
+                    ctx,
+                )?;
+                let t_bool = self.new_generic_tlbool(cond.loc());
+                self.unify(&cond_var, &t_bool, ctx).into_diagnostic(
+                    cond,
+                    |diag, Tm { e: _, g }| {
+                        diag.message(format!("gen if conditions must be #bool, got {g}"))
+                    },
                 )?;
 
                 self.visit_expression(on_true, ctx, generic_list)?;
@@ -1804,8 +1819,60 @@ impl TypeState {
         gen: &Loc<ConstGenericWithId>,
         generic_list_token: &GenericListToken,
         constraint_source: ConstraintSource,
+        ctx: &Context,
     ) -> Result<TypeVar> {
-        let var = self.new_generic_tlnumber(gen.loc());
+        let var = match &gen.inner.inner {
+            ConstGeneric::Name(name) => {
+                let ty = &ctx.symtab.type_symbol_by_id(&name);
+                match &ty.inner {
+                    TypeSymbol::Declared(_, _) => {
+                        return Err(Diagnostic::error(
+                            name,
+                            "{type_decl_kind} cannot be used in a const generic expression",
+                        )
+                        .primary_label("Type in  const generic")
+                        .secondary_label(ty, "{name} is declared here"))
+                    }
+                    TypeSymbol::GenericArg { .. } | TypeSymbol::GenericMeta(MetaType::Type) => {
+                        return Err(Diagnostic::error(
+                            name,
+                            "Generic types cannot be used in const generic expressions",
+                        )
+                        .primary_label("Type in  const generic")
+                        .secondary_label(ty, "{name} is declared here")
+                        .span_suggest_insert_before(
+                            "Consider making this a value",
+                            ty.loc(),
+                            "#uint ",
+                        ))
+                    }
+                    TypeSymbol::GenericMeta(MetaType::Number) => {
+                        self.new_generic_tlnumber(gen.loc())
+                    }
+                    TypeSymbol::GenericMeta(MetaType::Int) => self.new_generic_tlint(gen.loc()),
+                    TypeSymbol::GenericMeta(MetaType::Uint) => self.new_generic_tluint(gen.loc()),
+                    TypeSymbol::GenericMeta(MetaType::Bool) => self.new_generic_tlbool(gen.loc()),
+                    TypeSymbol::GenericMeta(MetaType::Any) => {
+                        diag_bail!(gen, "Found any meta type")
+                    }
+                    TypeSymbol::Alias(_) => {
+                        return Err(Diagnostic::error(
+                            gen,
+                            "Aliases are not currently supported in const generics",
+                        )
+                        .secondary_label(ty, "Alias defined here"))
+                    }
+                }
+            }
+            ConstGeneric::Const(_)
+            | ConstGeneric::Add(_, _)
+            | ConstGeneric::Sub(_, _)
+            | ConstGeneric::Mul(_, _)
+            | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
+            ConstGeneric::Eq(_, _) | ConstGeneric::NotEq(_, _) => {
+                self.new_generic_tlbool(gen.loc())
+            }
+        };
         let constraint = self.visit_const_generic(&gen.inner.inner, generic_list_token)?;
         self.add_equation(TypedExpression::Id(gen.id), var.clone());
         self.add_constraint(var.clone(), constraint, gen.loc(), &var, constraint_source);
@@ -1818,32 +1885,39 @@ impl TypeState {
         constraint: &ConstGeneric,
         generic_list: &GenericListToken,
     ) -> Result<ConstraintExpr> {
-        match constraint {
+        let constraint = match constraint {
             ConstGeneric::Name(n) => {
                 let var = self.get_generic_list(generic_list).get(n).ok_or_else(|| {
                     Diagnostic::bug(n, "Found non-generic argument in where clause")
                 })?;
-                Ok(ConstraintExpr::Var(
-                    self.check_var_for_replacement(var.clone()),
-                ))
+                ConstraintExpr::Var(self.check_var_for_replacement(var.clone()))
             }
-            ConstGeneric::Const(val) => Ok(ConstraintExpr::Integer(val.clone())),
-            ConstGeneric::Add(lhs, rhs) => Ok(ConstraintExpr::Sum(
+            ConstGeneric::Const(val) => ConstraintExpr::Integer(val.clone()),
+            ConstGeneric::Add(lhs, rhs) => ConstraintExpr::Sum(
                 Box::new(self.visit_const_generic(lhs, generic_list)?),
                 Box::new(self.visit_const_generic(rhs, generic_list)?),
-            )),
-            ConstGeneric::Sub(lhs, rhs) => Ok(ConstraintExpr::Difference(
+            ),
+            ConstGeneric::Sub(lhs, rhs) => ConstraintExpr::Difference(
                 Box::new(self.visit_const_generic(lhs, generic_list)?),
                 Box::new(self.visit_const_generic(rhs, generic_list)?),
-            )),
-            ConstGeneric::Mul(lhs, rhs) => Ok(ConstraintExpr::Product(
+            ),
+            ConstGeneric::Mul(lhs, rhs) => ConstraintExpr::Product(
                 Box::new(self.visit_const_generic(lhs, generic_list)?),
                 Box::new(self.visit_const_generic(rhs, generic_list)?),
-            )),
-            ConstGeneric::UintBitsToFit(a) => Ok(ConstraintExpr::UintBitsToRepresent(Box::new(
+            ),
+            ConstGeneric::Eq(lhs, rhs) => ConstraintExpr::Eq(
+                Box::new(self.visit_const_generic(lhs, generic_list)?),
+                Box::new(self.visit_const_generic(rhs, generic_list)?),
+            ),
+            ConstGeneric::NotEq(lhs, rhs) => ConstraintExpr::NotEq(
+                Box::new(self.visit_const_generic(lhs, generic_list)?),
+                Box::new(self.visit_const_generic(rhs, generic_list)?),
+            ),
+            ConstGeneric::UintBitsToFit(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
                 self.visit_const_generic(a, generic_list)?,
-            ))),
-        }
+            )),
+        };
+        Ok(constraint)
     }
 }
 
@@ -1903,6 +1977,7 @@ impl TypeState {
         // then just replacing the inner values, this is error prone when copy pasting
         match val {
             v @ ConstraintExpr::Integer(_) => v,
+            v @ ConstraintExpr::Bool(_) => v,
             ConstraintExpr::Var(var) => ConstraintExpr::Var(self.check_var_for_replacement(var)),
             ConstraintExpr::Sum(lhs, rhs) => ConstraintExpr::Sum(
                 Box::new(self.check_expr_for_replacement(*lhs)),
@@ -1913,6 +1988,14 @@ impl TypeState {
                 Box::new(self.check_expr_for_replacement(*rhs)),
             ),
             ConstraintExpr::Product(lhs, rhs) => ConstraintExpr::Product(
+                Box::new(self.check_expr_for_replacement(*lhs)),
+                Box::new(self.check_expr_for_replacement(*rhs)),
+            ),
+            ConstraintExpr::Eq(lhs, rhs) => ConstraintExpr::Eq(
+                Box::new(self.check_expr_for_replacement(*lhs)),
+                Box::new(self.check_expr_for_replacement(*rhs)),
+            ),
+            ConstraintExpr::NotEq(lhs, rhs) => ConstraintExpr::NotEq(
                 Box::new(self.check_expr_for_replacement(*lhs)),
                 Box::new(self.check_expr_for_replacement(*rhs)),
             ),
@@ -1954,6 +2037,11 @@ impl TypeState {
             .check_expr_for_replacement(rhs)
             .with_context(&replaces, &inside.clone(), source)
             .at_loc(&loc);
+
+        self.trace_stack.push(TraceStackEntry::AddingConstraint(
+            lhs.clone(),
+            rhs.inner.clone(),
+        ));
 
         self.constraints.add_int_constraint(lhs, rhs);
     }
@@ -2281,6 +2369,7 @@ impl TypeState {
                     }
                     Some(MetaType::Int) => self.new_generic_tlint(*new_loc),
                     Some(MetaType::Uint) => self.new_generic_tluint(*new_loc),
+                    Some(MetaType::Bool) => self.new_generic_tlbool(*new_loc),
                     None => return Err(meta_err_producer!()),
                 };
                 Ok((new_t, vec![v1, v2]))
@@ -2336,6 +2425,7 @@ impl TypeState {
                     | (KnownType::Tuple, MetaType::Type)
                     | (KnownType::Array, MetaType::Type)
                     | (KnownType::Wire, MetaType::Type)
+                    | (KnownType::Bool(_), MetaType::Bool)
                     | (KnownType::Inverted, MetaType::Type)
                     // Integers match ints and numbers
                     | (KnownType::Integer(_), MetaType::Int)
@@ -2359,6 +2449,10 @@ impl TypeState {
 
                     // Integer with type
                     (KnownType::Integer(_), MetaType::Type) => Err(meta_err_producer!()),
+
+                    // Bools only unify with any or bool
+                    (_, MetaType::Bool) => Err(meta_err_producer!()),
+                    (KnownType::Bool(_), _) => Err(meta_err_producer!()),
 
                     // Type with integer
                     (KnownType::Named(_), MetaType::Int | MetaType::Number | MetaType::Uint)
@@ -2452,7 +2546,7 @@ impl TypeState {
         // more type inference information. Try to do unification of those new constraints too
         loop {
             trace!("Updating constraints");
-            let new_info = self.constraints.update_int_constraints();
+            let new_info = self.constraints.update_type_level_value_constraints();
 
             if new_info.is_empty() {
                 break;
@@ -2476,7 +2570,7 @@ impl TypeState {
                 let var = self.check_var_for_replacement(var);
 
                 // NOTE: safe unwrap. We already checked the constraint above
-                let expected_type = &KnownType::Integer(replacement.val.clone());
+                let expected_type = replacement.val;
                 let result = self.unify_inner(&expected_type.clone().at_loc(&loc), &var, ctx);
                 let is_meta_error = matches!(result, Err(UnificationError::MetaMismatch { .. }));
                 match result {
@@ -2663,6 +2757,7 @@ impl TypeState {
     ) {
         match in_constraint {
             ConstraintExpr::Integer(_) => {}
+            ConstraintExpr::Bool(_) => {}
             ConstraintExpr::Var(v) => {
                 Self::replace_type_var(v, from, replacement);
 
@@ -2682,6 +2777,14 @@ impl TypeState {
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
             ConstraintExpr::Product(lhs, rhs) => {
+                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
+                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
+            }
+            ConstraintExpr::Eq(lhs, rhs) => {
+                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
+                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
+            }
+            ConstraintExpr::NotEq(lhs, rhs) => {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }

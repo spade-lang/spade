@@ -2,19 +2,19 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test() -> uint<8> {
-    $if bool {
+    gen if bool {
         0
-    } $else {
+    } else {
         1
     }
 }
 
 
 error: bool is not a type level integer but is used in a const generic expression.
-  ┌─ testinput:2:9
+  ┌─ testinput:2:12
   │
-2 │     $if bool {
-  │         ^^^^ Expected type level integer
+2 │     gen if bool {
+  │            ^^^^ Expected type level integer
   │
   ┌─ <str>:1:1
   │
