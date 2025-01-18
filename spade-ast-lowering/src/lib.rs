@@ -294,20 +294,17 @@ pub fn visit_type_spec(
                         Ok(hir::TypeSpec::Generic(base_id.at_loc(path)))
                     }
                 }
-                TypeSymbol::Alias(expr) => {
-                    println!("Resolving alias from {path} to {expr:?}");
-                    match &expr.inner {
-                        TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
-                        TypeExpression::Integer(_) | TypeExpression::ConstGeneric(_) => {
-                            Err(Diagnostic::error(
-                                t,
-                                "Type aliases to integers and const generics are currently unsupported",
-                            )
-                            .primary_label("Alias to non-type")
-                            .secondary_label(expr, "Type alias points here"))
-                        }
+                TypeSymbol::Alias(expr) => match &expr.inner {
+                    TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
+                    TypeExpression::Integer(_) | TypeExpression::ConstGeneric(_) => {
+                        Err(Diagnostic::error(
+                            t,
+                            "Type aliases to integers and const generics are currently unsupported",
+                        )
+                        .primary_label("Alias to non-type")
+                        .secondary_label(expr, "Type alias points here"))
                     }
-                }
+                },
             }
         }
         ast::TypeSpec::Array { inner, size } => {
