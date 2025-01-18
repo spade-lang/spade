@@ -275,7 +275,6 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     Operator::Not => todo!(),
                     Operator::BitwiseNot => todo!(),
                     Operator::DivPow2 => todo!(),
-                    Operator::Gray2Bin { .. } => todo!(),
                     Operator::ReduceAnd { .. } => todo!(),
                     Operator::ReduceOr { .. } => todo!(),
                     Operator::ReduceXor { .. } => todo!(),

@@ -59,9 +59,18 @@ fn bin_to_gray<#uint N>(x: uint<N>) -> uint<N> {
     (x >> 1) ^ x
 }
 
-//NOTE: Implemented as a builtin because we don't support generate loops yet
 /// Returns the binary value of the given gray code value
-fn gray_to_bin<#uint N>(x: uint<N>) -> uint<N> __builtin__
+fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
+    gen if N == 0 {
+        gray
+    } else if N == 1 {
+        gray
+    } else {
+        let high_bit: uint<N> = gray & (1_u1 `concat` 0);
+        let lower_gray: uint<{N - 1}> = trunc(gray ^ (high_bit >> 1));
+        high_bit | zext(gray_to_bin(lower_gray))
+    }
+}
 
 
 /// Equivalent to verilog and reduction operator &(x)

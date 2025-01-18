@@ -12,9 +12,9 @@ error: Argument type mismatch. Expected Number<_> got bool
  2 │     true `std::ops::comb_div` true
    │     ^^^^ expected Number<_>
    │
-   ┌─ <compiler dir>/stdlib/ops.spade:86:13
+   ┌─ <compiler dir>/stdlib/ops.spade:95:13
    │
-86 │ fn comb_div<N>(x: N, y: N) -> N __builtin__
+95 │ fn comb_div<N>(x: N, y: N) -> N __builtin__
    │             - Type Number<_> inferred here
    │
    = note: Expected: Number<_>

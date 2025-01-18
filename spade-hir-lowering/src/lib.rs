@@ -2082,7 +2082,6 @@ impl ExprLocal for Loc<Expression> {
             ["std", "conv", "concat"] => handle_concat,
             ["std", "conv", "unsafe", "unsafe_cast"] => handle_unsafe_cast {allow_port},
             ["std", "ops", "div_pow2"] => handle_div_pow2,
-            ["std", "ops", "gray_to_bin"] => handle_gray_to_bin,
             ["std", "ops", "reduce_and"] => handle_reduce_and,
             ["std", "ops", "reduce_or"] => handle_reduce_or,
             ["std", "ops", "reduce_xor"] => handle_reduce_xor,
@@ -2765,36 +2764,6 @@ impl ExprLocal for Loc<Expression> {
                 name: self.variable(ctx)?,
                 operator: mir::Operator::DivPow2,
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
-                ty: self_type,
-                loc: Some(self.loc()),
-            }),
-            self,
-        );
-
-        Ok(result)
-    }
-
-    fn handle_gray_to_bin(
-        &self,
-        _path: &Loc<NameID>,
-        result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
-        ctx: &mut Context,
-    ) -> Result<StatementList> {
-        let mut result = result;
-
-        let self_type = ctx
-            .types
-            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-            .to_mir_type();
-
-        result.push_primary(
-            mir::Statement::Binding(mir::Binding {
-                name: self.variable(ctx)?,
-                operator: mir::Operator::Gray2Bin {
-                    num_bits: self_type.size(),
-                },
-                operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
             }),

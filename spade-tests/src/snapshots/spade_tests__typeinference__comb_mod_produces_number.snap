@@ -7,15 +7,15 @@ fn test() -> bool {
 
 
 error: Argument type mismatch. Expected Number<_> got bool
-   ┌─ testinput:2:5
-   │
- 2 │     true `std::ops::comb_mod` true
-   │     ^^^^ expected Number<_>
-   │
-   ┌─ <compiler dir>/stdlib/ops.spade:95:13
-   │
-95 │ fn comb_mod<N>(x: N, y: N) -> N __builtin__
-   │             - Type Number<_> inferred here
-   │
-   = note: Expected: Number<_>
-                Got: bool
+    ┌─ testinput:2:5
+    │
+  2 │     true `std::ops::comb_mod` true
+    │     ^^^^ expected Number<_>
+    │
+    ┌─ <compiler dir>/stdlib/ops.spade:104:13
+    │
+104 │ fn comb_mod<N>(x: N, y: N) -> N __builtin__
+    │             - Type Number<_> inferred here
+    │
+    = note: Expected: Number<_>
+                 Got: bool

@@ -285,27 +285,6 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
                 [0] "end";
             }.to_string()
         }
-        Operator::Gray2Bin { num_bits } => {
-            // From https://www.edaboard.com/threads/verilog-code-for-n-bit-gray-to-binary-conversion.366673/post-1569928
-            let op = &op_names[0];
-            let num_bits = num_bits
-                .to_u128()
-                .expect("Cannot run gray2bin on operand with more than 2^128 bits");
-            let first = format!("{name}[{n}] = {op}[{n}];", n = { num_bits - 1 });
-            let rest = (0..=(num_bits - 2))
-                .map(|i| {
-                    let n = (num_bits - 2) - i;
-                    format!("{name}[{n}] = {op}[{n}] ^ {name}[{}];", n + 1)
-                })
-                .join("\n");
-            code! {
-                [0] "always_comb begin";
-                [1]     first;
-                [1]     rest;
-                [0] "end"
-            }
-            .to_string()
-        }
         Operator::Truncate => {
             format!(
                 "{}[{}:0]",
@@ -712,7 +691,6 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
         | Operator::Not
         | Operator::BitwiseNot
         | Operator::DivPow2
-        | Operator::Gray2Bin { .. }
         | Operator::ReduceAnd { .. }
         | Operator::ReduceOr { .. }
         | Operator::ReduceXor { .. }
@@ -926,7 +904,6 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 },
                 Operator::Match => forward_expression.unwrap(),
                 Operator::DivPow2 => forward_expression.unwrap(),
-                Operator::Gray2Bin{..} => forward_expression.unwrap(),
                 Operator::Nop => String::new(),
                 Operator::FlipPort => {
                     let has_fwd = binding.ty.size() != BigUint::zero();
