@@ -14,19 +14,21 @@ mod mem {
 }
 
 
-error: Expected type 8, got 9
-  ┌─ testinput:4:5
-  │  
-4 │ ╭     fn test<#uint N>() {
-5 │ │         let a: int<N> = produce_something::<8>();
-  │ │                                             - Type 8 inferred here
-6 │ │     }
-  │ ╰─────^ Expected 8
-  ·  
-9 │           test::<9>()
-  │                  - Type 9 inferred here
-  │  
-  = note: Expected: 8
-               Got: 9
+error: Expected type int<9>, got int<8>
+  ┌─ testinput:5:25
+  │
+5 │         let a: int<N> = produce_something::<8>();
+  │                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  │                         │                   │
+  │                         │                   Type 8 inferred here
+  │                         Expected int<9>
+  ·
+9 │         test::<9>()
+  │                - Type 9 inferred here
+  │
+  = note: Expected: 9
+                in: int<9>
+               Got: 8
+                in: int<8>
   = The error is in a generic unit instantiated at
     ╰ testinput:9 mem::test<9>

@@ -12,14 +12,20 @@ entity a(clk: clock) -> bool {
 }
 
 
-error: Expected 10 in this pipeline.
-  ┌─ testinput:1:10
-  │
-1 │ pipeline(N) p<#int N>(clk: clock, x: bool) -> bool {
-  │          ^ Expected 10 stages
-2 │     reg * {N-2};
-3 │     reg;
-  │     --- This final register is number 9
-  │
+error: Pipeline depth mismatch. Expected 10 got 9
+  ┌─ testinput:1:1
+  │  
+1 │ ╭ pipeline(N) p<#int N>(clk: clock, x: bool) -> bool {
+2 │ │     reg * {N-2};
+3 │ │     reg;
+4 │ │         x
+5 │ │ }
+  │ ╰─^ Found 9 stages in this pipeline
+  ·  
+8 │       inst(10) p(clk, false)
+  │            -- Type 10 inferred here
+  │  
+  = note: Expected: 9
+               Got: 10
   = The error is in a generic unit instantiated at
     ╰ testinput:8 p<10>

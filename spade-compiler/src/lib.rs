@@ -294,7 +294,7 @@ pub fn compile(
                     .set_wordlength_inferece(opts.wl_infer_method.is_some());
 
                 if let Ok(()) = type_state
-                    .visit_unit(u, &type_inference_ctx)
+                    .visit_unit(u, None, &type_inference_ctx)
                     .report(&mut errors)
                 {
                     if opts.print_type_traceback {
@@ -336,7 +336,6 @@ pub fn compile(
         &mut name_source_map,
         &item_list,
         &mut errors.diag_handler,
-        opts.wl_infer_method,
         &opt_passes,
     );
 

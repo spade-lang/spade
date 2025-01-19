@@ -2034,3 +2034,35 @@ code_compiles! {
         }
     "
 }
+
+snapshot_error! {
+    viloated_where_clause,
+    "
+        fn test<#uint N, #uint M>()
+            where N: {M+1}
+        {
+            let x: uint<N> = 0;
+            let y: uint<M> = x;
+        }
+
+        fn trigger() {
+            test::<8,9>()
+        }
+    "
+}
+
+snapshot_error! {
+    viloated_where_clause_in_body,
+    "
+        fn test<#uint N, #uint M>()
+            where N: {M+1}
+        {
+            let x: uint<N> = 0;
+            let y: uint<M> = x;
+        }
+
+        fn trigger() {
+            test::<10,9>()
+        }
+    "
+}

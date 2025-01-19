@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test<#uint N, #uint M>()
+    where N: {M+1}
+{
+    let x: uint<N> = 0;
+    let y: uint<M> = x;
+}
+
+fn trigger() {
+    test::<10,9>()
+}
+
+
+error: Expected type uint<9>, got uint<10>
+  ┌─ testinput:5:22
+  │
+5 │     let y: uint<M> = x;
+  │                      ^ Expected uint<9>
+  ·
+9 │     test::<10,9>()
+  │            -- - Type 9 inferred here
+  │            │   
+  │            Type 10 inferred here
+  │
+  = note: Expected: 9
+                in: uint<9>
+               Got: 10
+                in: uint<10>
+  = The error is in a generic unit instantiated at
+    ╰ testinput:9 test<10, 9>

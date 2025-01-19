@@ -262,6 +262,25 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             .map(|o| o.display_with_meta(is_meta_error)),
                     );
 
+                    let diag = match source {
+                        ConstraintSource::Where => diag.secondary_label(
+                            unification_point,
+                            "The error occurred while inferring types here",
+                        ),
+                        ConstraintSource::AdditionOutput
+                        | ConstraintSource::MultOutput
+                        | ConstraintSource::ArrayIndexing
+                        | ConstraintSource::MemoryIndexing
+                        | ConstraintSource::Concatenation
+                        | ConstraintSource::PipelineRegOffset { .. }
+                        | ConstraintSource::PipelineRegCount { .. }
+                        | ConstraintSource::PipelineAvailDepth
+                        | ConstraintSource::RangeIndex
+                        | ConstraintSource::RangeIndexOutputSize
+                        | ConstraintSource::ArraySize
+                        | ConstraintSource::TypeLevelIf => diag,
+                    };
+
                     match source {
                         ConstraintSource::AdditionOutput => diag.note(
                             "Addition creates one more output bit than the input to avoid overflow"

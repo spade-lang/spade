@@ -401,7 +401,12 @@ impl TypeState {
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all, fields(%entity.name))]
-    pub fn visit_unit(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
+    pub fn visit_unit(
+        &mut self,
+        entity: &Loc<Unit>,
+        generic_map: Option<HashMap<Loc<NameID>, TypeVar>>,
+        ctx: &Context,
+    ) -> Result<()> {
         self.trait_impls = ctx.trait_impls.clone();
 
         let generic_list = self.create_generic_list(
@@ -413,6 +418,22 @@ impl TypeState {
             // is probably redundant
             &entity.head.where_clauses,
         )?;
+
+        if let Some(map) = generic_map {
+            for (name, outer_var) in map {
+                let generic_list = self.get_generic_list(&generic_list);
+                let inner_var = generic_list.get(&name).ok_or_else(|| {
+                    diag_anyhow!(name.clone(), "Did not find a generic type for {name}")
+                })?;
+
+                if matches!(outer_var, TypeVar::Unknown(_, _, _, _)) {
+                    diag_bail!(name, "Found a generic type parameter during mono")
+                }
+
+                self.unify(&inner_var.clone(), &outer_var, ctx)
+                    .into_default_diagnostic(name)?;
+            }
+        }
 
         // Add equations for the inputs
         for (name, t) in &entity.inputs {

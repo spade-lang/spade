@@ -3017,6 +3017,7 @@ pub struct Context<'a> {
 pub fn generate_unit<'a>(
     unit: &Unit,
     name: UnitName,
+    // TODO: Try changing this to not be mut
     types: &mut TypeState,
     symtab: &mut FrozenSymtab,
     idtracker: &mut ExprIdTracker,

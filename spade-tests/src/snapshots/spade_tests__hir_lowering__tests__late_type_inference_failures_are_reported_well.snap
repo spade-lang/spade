@@ -12,19 +12,20 @@ fn main() -> int<33> {
 }
 
 
-error: Expected type 32, got 16
-  ┌─ testinput:1:1
-  │  
-1 │ ╭ fn a<#uint N>(x: int<N>, y: int<32>) -> int<33> {
-  │                                   -- Type 32 inferred here
-2 │ │     x + y
-3 │ │ }
-  │ ╰─^ Expected 32
-  ·  
-6 │       let x: int<16> = 0;
-  │                  -- Type 16 inferred here
-  │  
+error: Expected type int<32>, got int<16>
+  ┌─ testinput:2:5
+  │
+1 │ fn a<#uint N>(x: int<N>, y: int<32>) -> int<33> {
+  │                                 -- Type 32 inferred here
+2 │     x + y
+  │     ^ Expected int<32>
+  ·
+6 │     let x: int<16> = 0;
+  │                -- Type 16 inferred here
+  │
   = note: Expected: 32
+                in: int<32>
                Got: 16
+                in: int<16>
   = The error is in a generic unit instantiated at
     ╰ testinput:8 a<16>

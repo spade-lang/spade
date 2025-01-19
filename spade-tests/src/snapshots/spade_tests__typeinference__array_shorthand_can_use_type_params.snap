@@ -10,16 +10,20 @@ fn test() -> [bool; 10] {
 }
 
 
-error: Expected type 10, got 11
-  ┌─ testinput:2:13
-  │
-2 │     [false; M]
-  │             ^ Expected 10, got 11
-  │
+error: Output type mismatch. Expected [bool; 10], got [bool; 11]
+  ┌─ testinput:1:47
+  │  
+1 │   fn new_array<#uint N, #uint M>() -> [bool; N] {
+  │                                       --------- [bool; 10] type specified here
+  │ ╭───────────────────────────────────────────────^
+2 │ │     [false; M]
+  │ │             - Type 11 inferred here
+3 │ │ }
+  │ ╰─^ Found type [bool; 11]
+  │  
   = note: Expected: 10
-                in: 10
+                in: [bool; 10]
                Got: 11
-                in: 11
-  = note: The number of array elements must  match
+                in: [bool; 11]
   = The error is in a generic unit instantiated at
     ╰ testinput:6 new_array<10, 11>

@@ -9,10 +9,8 @@ use spade_diagnostics::{DiagHandler, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
 use spade_typeinference::equation::TypeVar;
-use spade_typeinference::error::UnificationErrorExt;
-use spade_typeinference::trace_stack::{format_trace_stack, TraceStackEntry};
+use spade_typeinference::trace_stack::format_trace_stack;
 use spade_typeinference::{GenericListToken, TypeState};
-use spade_wordlength_inference as wordlength_inference;
 
 use crate::error::Result;
 use crate::generate_unit;
@@ -142,7 +140,6 @@ pub fn compile_items(
     name_source_map: &mut NameSourceMap,
     item_list: &ItemList,
     diag_handler: &mut DiagHandler,
-    wordlength_inference_method: Option<wordlength_inference::InferMethod>,
     opt_passes: &[&dyn MirPass],
 ) -> Vec<Result<MirOutput>> {
     // Build a map of items to use for compilation later. Also push all non
@@ -175,36 +172,25 @@ pub fn compile_items(
                     items: item_list,
                     trait_impls: &old_type_state.trait_impls,
                 };
-                let mut type_state = old_type_state.clone();
-                let generic_list_token = if !u.head.get_type_params().is_empty() {
-                    Some(GenericListToken::Definition(u.name.name_id().inner.clone()))
-                } else {
-                    None
-                };
+                // If the unit is generic, we're going to re-do type inference from scratch
+                // with the known types from the outer context
+                let (mut type_state, generic_list_token) = if !u.head.get_type_params().is_empty() {
+                    let mut type_state = TypeState::new();
+                    let generic_map = u
+                        .head
+                        .get_type_params()
+                        .iter()
+                        .zip(item.params.iter())
+                        .map(|(param, outer_var)| {
+                            (param.name_id().at_loc(param), outer_var.clone())
+                        })
+                        .collect();
 
-                if let Some(generic_list_token) = &generic_list_token {
-                    let generic_list = type_state.get_generic_list(generic_list_token).clone();
-                    for (source_param, new) in
-                        u.head.get_type_params().iter().zip(item.params.iter())
-                    {
-                        let source_var = &generic_list[&source_param.name_id()];
-
-                        type_state
-                            .trace_stack
-                            .push(TraceStackEntry::Message(format!(
-                                "Performing mono replacement of {source_var:?} -> {new:?}"
-                            )));
-
-                        match type_state
-                            .unify(new, source_var, type_ctx)
-                            .into_default_diagnostic(u)
-                            .and_then(|_| type_state.check_requirements(type_ctx))
-                        {
-                            Ok(_) => {}
-                            Err(e) => {
-                                result.push(Err(state.add_mono_traceback(e, &item)));
-                                continue 'item_loop;
-                            }
+                    match type_state.visit_unit(u, Some(generic_map), type_ctx) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            result.push(Err(state.add_mono_traceback(e, &item)));
+                            continue 'item_loop;
                         }
                     }
 
@@ -213,7 +199,13 @@ pub fn compile_items(
                         type_state.print_equations();
                         println!("{}", format_trace_stack(&type_state));
                     }
-                }
+
+                    let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
+
+                    (type_state, tok)
+                } else {
+                    (old_type_state.clone(), None)
+                };
 
                 // Apply passes to the type checked module
                 let mut u = u.clone();
@@ -250,19 +242,6 @@ pub fn compile_items(
                     if let Err(e) = pass_result {
                         result.push(Err(e));
                         continue 'item_loop;
-                    }
-                }
-
-                if let Some(method) = wordlength_inference_method {
-                    let infer_result = wordlength_inference::infer_and_check(
-                        method,
-                        &mut type_state,
-                        &u,
-                        type_ctx,
-                    );
-                    if let Err(e) = infer_result {
-                        result.push(Err(state.add_mono_traceback(e, &item)));
-                        continue;
                     }
                 }
 
