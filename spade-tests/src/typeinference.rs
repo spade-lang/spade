@@ -2011,3 +2011,26 @@ snapshot_error! {
         }
     "
 }
+
+code_compiles! {
+    method_unknown_type_regression,
+    "
+        struct Some<T> {val: T}
+
+        struct Command {}
+        impl Command {
+            fn into_bytes(self) {}
+        }
+
+        entity i2c_controller(
+            command: Some<Command>,
+        ) {
+            let _ = match command {
+                Some(command) => {
+                    let _ = command.into_bytes();
+                    true
+                },
+            };
+        }
+    "
+}

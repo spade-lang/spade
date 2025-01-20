@@ -636,10 +636,11 @@ impl TypeState {
 
             for (i, (pattern, result)) in branches.iter().enumerate() {
                 self.visit_pattern(pattern, ctx, generic_list)?;
-                self.visit_expression(result, ctx, generic_list)?;
 
                 self.unify(pattern, &cond.inner, ctx)
                     .into_default_diagnostic(pattern)?;
+
+                self.visit_expression(result, ctx, generic_list)?;
 
                 if i != 0 {
                     self.unify(&branches[0].1, result, ctx).into_diagnostic(
