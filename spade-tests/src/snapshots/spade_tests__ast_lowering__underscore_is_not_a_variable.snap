@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test() {
+    let _ = 8u8;
+    let y = _;
+}
+
+
+error: `_` is not a variable.
+  ┌─ testinput:3:13
+  │
+3 │     let y = _;
+  │             ^ `_` is not a variable

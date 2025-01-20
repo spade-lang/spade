@@ -1229,3 +1229,22 @@ snapshot_error! {
         fn test(x: inv 2) {}
     "
 }
+
+snapshot_error! {
+    underscore_is_not_a_variable,
+    "
+        fn test() {
+            let _ = 8u8;
+            let y = _;
+        }
+    "
+}
+
+snapshot_error! {
+    const_generic_underscore_is_not_a_variable,
+    "
+        fn test<#uint _>() {
+            let x: uint<{_}> = 0;
+        }
+    "
+}

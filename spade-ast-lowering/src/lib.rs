@@ -746,6 +746,10 @@ pub fn visit_const_generic(
 ) -> Result<Loc<ConstGeneric>> {
     let kind = match &t.inner {
         ast::Expression::Identifier(name) => {
+            if name.tail() == Identifier("_".to_string()) {
+                return Err(Diagnostic::error(name, "Wildcard cannot be used in a const expression.")
+                    .primary_label("`_` cannot be used here."))
+            }
             let (name, sym) = ctx.symtab.lookup_type_symbol(name)?;
             match &sym.inner {
                 TypeSymbol::Declared(_, _) => {
@@ -1915,6 +1919,11 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             })
         }
         ast::Expression::Identifier(path) => {
+            if path.tail() == Identifier("_".to_string()) {
+                return Err(Diagnostic::error(path, "`_` is not a variable.")
+                    .primary_label("`_` is not a variable"))
+            }
+
             // If the identifier isn't a valid variable, report as "expected value".
             match ctx.symtab.lookup_variable(path) {
                 Ok(id) => Ok(hir::ExprKind::Identifier(id)),

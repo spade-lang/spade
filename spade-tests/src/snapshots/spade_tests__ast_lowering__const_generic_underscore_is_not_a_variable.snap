@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test<#uint _>() {
+    let x: uint<{_}> = 0;
+}
+
+
+error: Wildcard cannot be used in a const expression.
+  ┌─ testinput:2:18
+  │
+2 │     let x: uint<{_}> = 0;
+  │                  ^ `_` cannot be used here.
