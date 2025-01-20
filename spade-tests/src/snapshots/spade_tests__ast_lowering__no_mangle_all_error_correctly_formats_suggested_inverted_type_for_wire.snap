@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[no_mangle(all)]
+entity foo() -> &int<8> {
+    let (a, a_inv) = port;
+    a
+}
+
+error: Cannot apply `#[no_mangle(all)]`
+  ┌─ testinput:2:17
+  │
+2 │ entity foo() -> &int<8> {
+  │                 ^^^^^^^ Output types are always mangled
+  │
+  = Consider replacing the output with an inverted input
+  │
+2 │ entity foo(out: inv &int<8>) -> &int<8> {
+  │           ~~~~~~~~~~~~~~~~~~ ----------
+  = Remember to `set` the inverted input instead of ending the block with an output
+  │
+4 │     a
+  │     -

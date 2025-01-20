@@ -1260,8 +1260,8 @@ impl<'a> Parser<'a> {
         let inputs = inputs.at_loc(&inputs_loc);
 
         // Return type
-        let output_type = if self.peek_and_eat(&TokenKind::SlimArrow)?.is_some() {
-            Some(self.type_spec()?)
+        let output_type = if let Some(arrow) = self.peek_and_eat(&TokenKind::SlimArrow)? {
+            Some((arrow.loc(), self.type_spec()?))
         } else {
             None
         };
@@ -1270,7 +1270,7 @@ impl<'a> Parser<'a> {
 
         let end = output_type
             .as_ref()
-            .map(|o| o.loc())
+            .map(|o| o.1.loc())
             .unwrap_or(inputs.loc());
 
         Ok(Some(
@@ -1562,7 +1562,24 @@ impl<'a> Parser<'a> {
         }
 
         match start.inner.0.as_str() {
-            "no_mangle" => Ok(Attribute::NoMangle),
+            "no_mangle" => {
+                if self.peek_kind(&TokenKind::OpenParen)? {
+                    let (all, _) = self.surrounded(
+                        &TokenKind::OpenParen,
+                        Self::identifier,
+                        &TokenKind::CloseParen,
+                    )?;
+                    if all.inner.0.as_str() != "all" {
+                        Err(Diagnostic::error(&all, "Invalid attribute syntax")
+                            .primary_label("Unexpected parameter to `#[no_mangle])")
+                            .span_suggest_replace("Did you mean `#[no_mangle(all)]`?", all, "all"))
+                    } else {
+                        Ok(Attribute::NoMangle { all: true })
+                    }
+                } else {
+                    Ok(Attribute::NoMangle { all: false })
+                }
+            }
             "fsm" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (state, _) = self.surrounded(

@@ -13,6 +13,8 @@ use global_symbols::visit_meta_type;
 use impls::visit_impl;
 use num::{BigInt, Zero};
 use pipelines::PipelineContext;
+use spade_diagnostics::codespan::Span;
+use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_types::meta_types::MetaType;
 use tracing::{event, Level};
@@ -28,12 +30,12 @@ use hir::param_util::ArgumentError;
 use hir::symbol_table::DeclarationState;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
 use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
-use spade_ast::{self as ast, TypeParam, WhereClause};
+use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
-use spade_common::location_info::{Loc, WithLocation};
+use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
-use spade_hir::{self as hir, ItemList, Module, TraitSpec, TypeExpression};
+use spade_hir::{self as hir, ItemList, Module, TraitSpec, TypeExpression, TypeSpec};
 use std::collections::HashSet;
 
 use error::Result;
@@ -454,6 +456,7 @@ pub enum SelfContext {
 fn visit_parameter_list(
     l: &Loc<ParameterList>,
     ctx: &mut Context,
+    no_mangle_all: Option<Loc<()>>,
 ) -> Result<Loc<hir::ParameterList>> {
     let mut arg_names: HashSet<Loc<Identifier>> = HashSet::new();
     let mut result = vec![];
@@ -511,7 +514,10 @@ fn visit_parameter_list(
         let t = visit_type_spec(input_type, &TypeSpecKind::Argument, ctx)?;
 
         let mut attrs = attrs.clone();
-        let no_mangle = attrs.consume_no_mangle().map(|ident| ident.loc());
+        let no_mangle = attrs
+            .consume_no_mangle()
+            .map(|ident| ident.loc())
+            .or(no_mangle_all);
         attrs.report_unused("a parameter")?;
 
         result.push(hir::Parameter {
@@ -523,6 +529,95 @@ fn visit_parameter_list(
     Ok(hir::ParameterList(result).at_loc(l))
 }
 
+/// Builds a diagnostic for a `#[no_mangle(all)]`-marked unit with a non-unit output type.
+fn build_no_mangle_all_output_diagnostic(
+    head: &ast::UnitHead,
+    output_type: &Loc<TypeSpec>,
+    body_for_diagnostics: Option<&Loc<Expression>>,
+) -> Diagnostic {
+    let suffix_length = head
+        .inputs
+        .args
+        .iter()
+        .filter_map(|(_, name, _)| {
+            if name.0.contains("out") {
+                Some(name.0.len())
+            } else {
+                None
+            }
+        })
+        .max()
+        .unwrap_or(2)
+        - 2;
+    let suggested_name = format!("out{}", "_".repeat(suffix_length));
+    let output_is_wire = output_type.to_string().starts_with("&");
+    let suggested_type = format!(
+        "inv {}{}",
+        if output_is_wire {
+            // ports shouldn't have duplicate & (thanks Astrid)
+            ""
+        } else {
+            "&"
+        },
+        output_type
+    );
+
+    let mut diagnostic = Diagnostic::error(output_type, "Cannot apply `#[no_mangle(all)]`")
+        .primary_label("Output types are always mangled");
+
+    let output_arrow_span = &head.output_type.as_ref().unwrap().0.span;
+    let output_type_full_span: FullSpan = output_type.into();
+    let mut first_suggestion = SuggestionParts::new().part(
+        (
+            Span::new(output_arrow_span.start(), output_type_full_span.0.end()),
+            output_type_full_span.1,
+        ),
+        "",
+    );
+    if head.inputs.args.is_empty() {
+        let (span, file) = (head.inputs.span, head.inputs.file_id);
+        first_suggestion = first_suggestion.part(
+            (span, file),
+            format!("({}: {})", suggested_name, suggested_type),
+        );
+    } else {
+        let last_parameter = &head.inputs.args.last().unwrap().2;
+        let (span, file) = (last_parameter.span, last_parameter.file_id);
+        first_suggestion.push_part(
+            (Span::new(span.end(), span.end()), file),
+            format!(", {}: {}", suggested_name, suggested_type),
+        );
+    }
+
+    diagnostic.push_span_suggest_multipart(
+        "Consider replacing the output with an inverted input",
+        first_suggestion,
+    );
+
+    // add the set suggestion for non-builtins
+    if let Some(block) = body_for_diagnostics {
+        let block = block.assume_block();
+        if let Some(result) = block.result.as_ref() {
+            if output_is_wire {
+                diagnostic = diagnostic.span_suggest_remove("Remember to `set` the inverted input instead of ending the block with an output", result);
+            } else {
+                let (span, file) = (result.span, result.file_id);
+                diagnostic.push_span_suggest_multipart(
+                    "...and `set` the inverted input to the return value",
+                    SuggestionParts::new()
+                        .part(
+                            (Span::new(span.start(), span.start()), file),
+                            format!("set {} = ", suggested_name),
+                        )
+                        .part((Span::new(span.end(), span.end()), file), ";"),
+                );
+            }
+        }
+    }
+
+    diagnostic
+}
+
 /// Visit the head of an entity to generate an entity head
 #[tracing::instrument(skip_all, fields(name=%head.name))]
 pub fn unit_head(
@@ -530,6 +625,7 @@ pub fn unit_head(
     scope_type_params: &Option<Loc<Vec<Loc<TypeParam>>>>,
     scope_where_clauses: &[Loc<hir::WhereClause>],
     ctx: &mut Context,
+    body_for_diagnostics: Option<&Loc<Expression>>,
 ) -> Result<hir::UnitHead> {
     ctx.symtab.new_scope();
 
@@ -554,7 +650,7 @@ pub fn unit_head(
 
     let output_type = if let Some(output_type) = &head.output_type {
         Some(visit_type_spec(
-            output_type,
+            &output_type.1,
             &TypeSpecKind::OutputType,
             ctx,
         )?)
@@ -562,7 +658,31 @@ pub fn unit_head(
         None
     };
 
-    let inputs = visit_parameter_list(&head.inputs, ctx)?;
+    let no_mangle_all = head
+        .attributes
+        .0
+        .iter()
+        .find(|attribute| matches!(attribute.inner, Attribute::NoMangle { all: true }))
+        .map(|attribute| ().at_loc(attribute));
+
+    // we only care if we're trying to no_mangle_all a type with a non-unit output type
+    if no_mangle_all.is_some()
+        && output_type
+            .as_ref()
+            .map(|output_type| {
+                !(matches!(&**output_type, TypeSpec::Unit(_))
+                    || matches!(&**output_type, TypeSpec::Tuple(inner) if inner.is_empty()))
+            })
+            .unwrap_or(false)
+    {
+        return Err(build_no_mangle_all_output_diagnostic(
+            head,
+            output_type.as_ref().unwrap(),
+            body_for_diagnostics,
+        ));
+    }
+
+    let inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
 
     // Check for ports in functions
     // We need to have the scope open to check this, but we also need to close
@@ -937,7 +1057,7 @@ pub fn visit_unit(
         ast::Attribute::Optimize { passes } => Ok(Some(hir::Attribute::Optimize {
             passes: passes.clone(),
         })),
-        ast::Attribute::NoMangle => {
+        ast::Attribute::NoMangle { .. } => {
             if let Some(generic_list) = type_params {
                 // if it's a verilog extern (so `body.is_none()`), then we allow generics insofar
                 // as they are numbers (checked later on)
@@ -1423,7 +1543,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                     }
                     Ok(None)
                 }
-                ast::Attribute::NoMangle
+                ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
                 | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
@@ -2109,7 +2229,7 @@ mod entity_visiting {
                 where_clauses: vec![],
             },
             attributes: hir::AttributeList::empty(),
-            inputs: vec![((name_id(1, "a"), hir::TypeSpec::unit().nowhere()))],
+            inputs: vec![(name_id(1, "a"), hir::TypeSpec::unit().nowhere())],
             body: hir::ExprKind::Block(Box::new(hir::Block {
                 statements: vec![hir::Statement::binding(
                     hir::PatternKind::name(name_id(2, "var")).idless().nowhere(),

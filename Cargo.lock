@@ -178,7 +178,7 @@ checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 [[package]]
 name = "codespan"
 version = "0.12.0"
-source = "git+https://gitlab.com/spade-lang/codespan.git?branch=master#a5656af9ed33460258fd1921bc6bede1ba0fb00e"
+source = "git+https://gitlab.com/spade-lang/codespan.git?branch=master#0b7d0e51cbafa5c88c07dd0db18ea94757e11be1"
 dependencies = [
  "codespan-reporting 0.12.0",
  "serde",
@@ -197,7 +197,7 @@ dependencies = [
 [[package]]
 name = "codespan-reporting"
 version = "0.12.0"
-source = "git+https://gitlab.com/spade-lang/codespan.git?branch=master#a5656af9ed33460258fd1921bc6bede1ba0fb00e"
+source = "git+https://gitlab.com/spade-lang/codespan.git?branch=master#0b7d0e51cbafa5c88c07dd0db18ea94757e11be1"
 dependencies = [
  "serde",
  "termcolor",

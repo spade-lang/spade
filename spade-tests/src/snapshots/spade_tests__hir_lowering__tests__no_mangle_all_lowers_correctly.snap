@@ -1,0 +1,128 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: build_items(code)
+---
+[
+    Entity {
+        name: UnitName {
+            kind: Unescaped(
+                "x",
+            ),
+            source: x#0,
+        },
+        inputs: [
+            MirInput {
+                name: "a",
+                val_name: Named(
+                    1,
+                    "a",
+                    Name(
+                        a#1,
+                    ),
+                ),
+                ty: Int(
+                    8,
+                ),
+                no_mangle: Some(
+                    (),
+                ),
+            },
+            MirInput {
+                name: "b",
+                val_name: Named(
+                    2,
+                    "b",
+                    Name(
+                        b#2,
+                    ),
+                ),
+                ty: Backward(
+                    UInt(
+                        8,
+                    ),
+                ),
+                no_mangle: Some(
+                    (),
+                ),
+            },
+            MirInput {
+                name: "c",
+                val_name: Named(
+                    3,
+                    "c",
+                    Name(
+                        c#3,
+                    ),
+                ),
+                ty: Bool,
+                no_mangle: Some(
+                    (),
+                ),
+            },
+            MirInput {
+                name: "d",
+                val_name: Named(
+                    4,
+                    "d",
+                    Name(
+                        d#4,
+                    ),
+                ),
+                ty: Bool,
+                no_mangle: Some(
+                    (),
+                ),
+            },
+            MirInput {
+                name: "e",
+                val_name: Named(
+                    5,
+                    "e",
+                    Name(
+                        e#5,
+                    ),
+                ),
+                ty: Array {
+                    inner: Bool,
+                    length: 8,
+                },
+                no_mangle: Some(
+                    (),
+                ),
+            },
+        ],
+        output: Expr(
+            ExprID(
+                0,
+            ),
+        ),
+        output_type: Void,
+        statements: [
+            Constant(
+                ExprID(
+                    2,
+                ),
+                UInt(
+                    8,
+                ),
+                Int(
+                    137,
+                ),
+            ),
+            Set {
+                target: Named(
+                    2,
+                    "b",
+                    Name(
+                        b#2,
+                    ),
+                ),
+                value: Expr(
+                    ExprID(
+                        2,
+                    ),
+                ),
+            },
+        ],
+    },
+]

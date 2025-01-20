@@ -1,0 +1,5 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[no_mangle(all)]
+entity foo() {}

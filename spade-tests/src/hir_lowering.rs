@@ -7,6 +7,7 @@ mod tests {
         snapshot_error,
     };
     use colored::Colorize;
+    use insta::assert_debug_snapshot;
     use spade_common::{
         location_info::WithLocation,
         name::{NameID, Path},
@@ -2103,6 +2104,17 @@ mod tests {
             }
         ";
         build_items(code);
+    }
+
+    #[test]
+    fn no_mangle_all_lowers_correctly() {
+        let code = "
+            #[no_mangle(all)]
+            entity x(a: int<8>, b: inv &uint<8>, c: clock, d: bool, e: [bool; 8]) {
+                set b = 137; // ty Astrid
+            }
+        ";
+        assert_debug_snapshot!(build_items(code));
     }
 
     #[test]

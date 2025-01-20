@@ -117,7 +117,13 @@ pub fn visit_unit(
     scope_where_clauses: &[Loc<WhereClause>],
     ctx: &mut Context,
 ) -> Result<()> {
-    let head = crate::unit_head(&unit.head, scope_type_params, scope_where_clauses, ctx)?;
+    let head = crate::unit_head(
+        &unit.head,
+        scope_type_params,
+        scope_where_clauses,
+        ctx,
+        unit.inner.body.as_ref(),
+    )?;
 
     let new_path = extra_path
         .as_ref()
@@ -287,7 +293,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 let parameter_list = option
                     .1
                     .clone()
-                    .map(|l| visit_parameter_list(&l, ctx))
+                    .map(|l| visit_parameter_list(&l, ctx, None))
                     .unwrap_or_else(|| Ok(hir::ParameterList(vec![]).nowhere()))?;
 
                 let args = option
@@ -395,7 +401,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 }
             }
 
-            let members = visit_parameter_list(&s.members, ctx)?;
+            let members = visit_parameter_list(&s.members, ctx, None)?;
 
             let self_type =
                 hir::TypeSpec::Declared(declaration_id.clone(), output_type_exprs.clone())
@@ -442,7 +448,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     Ok(None)
                 }
                 ast::Attribute::Optimize { .. }
-                | ast::Attribute::NoMangle
+                | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),

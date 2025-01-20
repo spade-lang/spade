@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[no_mangle(all)]
+entity foo() -> int<8> { 0 }
+
+error: Cannot apply `#[no_mangle(all)]`
+  ┌─ testinput:2:17
+  │
+2 │ entity foo() -> int<8> { 0 }
+  │                 ^^^^^^ Output types are always mangled
+  │
+  = Consider replacing the output with an inverted input
+  │
+2 │ entity foo(out: inv &int<8>) -> int<8> { 0 }
+  │           ~~~~~~~~~~~~~~~~~~ ---------
+  = ...and `set` the inverted input to the return value
+  │
+2 │ entity foo() -> int<8> { set out = 0; }
+  │                          ++++++++++ +

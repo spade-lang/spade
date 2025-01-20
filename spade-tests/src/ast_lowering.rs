@@ -933,6 +933,61 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    no_mangle_can_only_take_all,
+    "#[no_mangle(notall)]
+    entity foo() {}"
+}
+
+snapshot_error! {
+    no_mangle_all_compiles_with_no_ports,
+    "#[no_mangle(all)]
+    entity foo() {}"
+}
+
+snapshot_error! {
+    no_mangle_all_compiles_with_ports,
+    "#[no_mangle(all)]
+    entity foo(foo: int<8>) {}"
+}
+
+snapshot_error! {
+    no_mangle_all_errors_on_output_type,
+    "#[no_mangle(all)]
+    entity foo() -> int<8> { 0 }"
+}
+
+snapshot_error! {
+    no_mangle_all_errors_on_output_type_with_valid_suggestion,
+    "#[no_mangle(all)]
+    entity foo(out: int<8>) -> int<8> {
+        let a = out;
+        let b = trunc(out + 1);
+        b
+    }"
+}
+
+snapshot_error! {
+    no_mangle_all_error_correctly_formats_suggested_inverted_type_for_wire,
+    "#[no_mangle(all)]
+    entity foo() -> &int<8> {
+        let (a, a_inv) = port;
+        a
+    }"
+}
+
+snapshot_error! {
+    no_mangle_all_errors_on_output_type_with_valid_suggestion_multiline,
+    "#[no_mangle(all)]
+    entity foo(
+        a: int<8>,
+        out: int<8>,
+    ) -> int<8> {
+        let b = trunc(a + out);
+        b
+    }"
+}
+
+snapshot_error! {
     structs_can_not_be_fsm,
     "#[fsm]
     struct X {

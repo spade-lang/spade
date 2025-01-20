@@ -14,7 +14,7 @@ impl AttributeListExt for AttributeList {
     fn consume_no_mangle(&mut self) -> Option<Loc<()>> {
         let mut mangle_attribute = None;
         self.0.retain(|attr| match attr.inner {
-            Attribute::NoMangle => {
+            Attribute::NoMangle { .. } => {
                 mangle_attribute = Some(attr.loc());
                 false
             }

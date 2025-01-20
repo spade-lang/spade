@@ -179,7 +179,12 @@ impl SuggestionParts {
         self.0.push((span.into(), code.into()));
         self
     }
+
+    pub fn push_part(&mut self, span: impl Into<FullSpan>, code: impl Into<String>) {
+        self.0.push((span.into(), code.into()));
+    }
 }
+
 impl Diagnostic {
     fn new(level: DiagnosticLevel, span: impl Into<FullSpan>, message: impl Into<Message>) -> Self {
         Self {

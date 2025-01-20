@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[no_mangle(notall)]
+entity foo() {}
+
+error: Invalid attribute syntax
+  ┌─ testinput:1:13
+  │
+1 │ #[no_mangle(notall)]
+  │             ^^^^^^ Unexpected parameter to `#[no_mangle])
+  │
+  = Did you mean `#[no_mangle(all)]`?
+  │
+1 │ #[no_mangle(all)]
+  │             ~~~

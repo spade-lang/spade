@@ -423,7 +423,7 @@ pub fn create_trait_from_unit_heads(
         .map(|head| {
             Ok((
                 head.name.inner.clone(),
-                unit_head(head, type_params, &visited_where_clauses, ctx)?.at_loc(head),
+                unit_head(head, type_params, &visited_where_clauses, ctx, None)?.at_loc(head),
             ))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -835,7 +835,7 @@ fn map_trait_method_parameters(
 
     let output_type = if let Some(ty) = trait_method.output_type.as_ref() {
         Some(map_type_spec_to_trait(
-            ty,
+            &ty,
             trait_type_params.as_slice(),
             trait_method_type_params.as_slice(),
             impl_type_params.as_slice(),

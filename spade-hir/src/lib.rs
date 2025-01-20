@@ -620,6 +620,7 @@ impl UnitKind {
 pub struct UnitHead {
     pub name: Loc<Identifier>,
     pub inputs: Loc<ParameterList>,
+    /// (-> token, type)
     pub output_type: Option<Loc<TypeSpec>>,
     pub unit_type_params: Vec<Loc<TypeParam>>,
     pub scope_type_params: Vec<Loc<TypeParam>>,

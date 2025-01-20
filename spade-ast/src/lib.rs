@@ -525,7 +525,9 @@ pub enum Attribute {
     Optimize {
         passes: Vec<Loc<String>>,
     },
-    NoMangle,
+    NoMangle {
+        all: bool,
+    },
     Fsm {
         state: Option<Loc<Identifier>>,
     },
@@ -548,7 +550,7 @@ impl Attribute {
     pub fn name(&self) -> &str {
         match self {
             Attribute::Optimize { passes: _ } => "optimize",
-            Attribute::NoMangle => "no_mangle",
+            Attribute::NoMangle { .. } => "no_mangle",
             Attribute::Fsm { state: _ } => "fsm",
             Attribute::WalTraceable { .. } => "wal_traceable",
             Attribute::WalTrace { .. } => "wal_trace",
@@ -634,7 +636,7 @@ pub struct UnitHead {
     pub unit_kind: Loc<UnitKind>,
     pub name: Loc<Identifier>,
     pub inputs: Loc<ParameterList>,
-    pub output_type: Option<Loc<TypeSpec>>,
+    pub output_type: Option<(Loc<()>, Loc<TypeSpec>)>,
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
 }

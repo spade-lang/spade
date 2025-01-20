@@ -1,0 +1,30 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[no_mangle(all)]
+entity foo(
+    a: int<8>,
+    out: int<8>,
+) -> int<8> {
+    let b = trunc(a + out);
+    b
+}
+
+error: Cannot apply `#[no_mangle(all)]`
+  ┌─ testinput:5:6
+  │
+5 │ ) -> int<8> {
+  │      ^^^^^^ Output types are always mangled
+  │
+  ┌─ testinput:4:16
+  │  
+4 │       out: int<8>,
+  │ ╭────────────────'
+5 │ │ ) -> int<8> {
+  │ ╰───────────' Consider replacing the output with an inverted input
+  │  
+  = ...and `set` the inverted input to the return value
+  │
+7 │     set out_ = b;
+  │     +++++++++++ +
+  = (Note: ignored 1 multi-line suggestion)

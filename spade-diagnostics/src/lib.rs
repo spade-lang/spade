@@ -282,6 +282,7 @@ use codespan_reporting::term::termcolor::Buffer;
 
 use spade_common::location_info::{AsLabel, Loc};
 
+pub use codespan;
 pub use diagnostic::Diagnostic;
 pub use emitter::Emitter;
 
