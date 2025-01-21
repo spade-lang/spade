@@ -940,7 +940,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
             let name = reg.name.var_name();
             let main_body = if let Some((rst_trig, rst_val)) = &reg.reset {
                 code! {
-                    [0] &format!("always @(posedge {}, posedge {}) begin", reg.clock.var_name(), rst_trig.var_name());
+                    [0] &format!("always @(posedge {}) begin", reg.clock.var_name());
                     [1]     &format!("if ({}) begin", rst_trig.var_name());
                     [2]         &format!("{} <= {};", name, rst_val.var_name());
                     [1]     &"end";
@@ -1389,7 +1389,7 @@ mod tests {
         let expected = indoc!(
             r#"
                 reg[6:0] \r ;
-                always @(posedge _e_0, posedge _e_2) begin
+                always @(posedge _e_0) begin
                     if (_e_2) begin
                         \r  <= _e_3;
                     end
