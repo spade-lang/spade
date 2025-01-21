@@ -348,11 +348,13 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
                 ))
             }
 
+            let fallback = format!("{}'dx", self_type.size());
+
             code! (
                 [0] "always_comb begin";
                 [1]     format!("priority casez ({{{}}})", conditions.join(", "));
                 [2]         cases;
-                [2]         format!("{num_branches}'b?: {name} = 'x;");
+                [2]         format!("{num_branches}'b?: {name} = {fallback};");
                 [1]     "endcase";
                 [0] "end";
             )
@@ -2206,7 +2208,7 @@ mod expression_tests {
                 priority casez ({_e_1, _e_3})
                     2'b1?: _e_0 = _e_2;
                     2'b01: _e_0 = _e_4;
-                    2'b?: _e_0 = 'x;
+                    2'b?: _e_0 = 2'dx;
                 endcase
             end"#
         );
