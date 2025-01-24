@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use spade_mir::Statement;
-use spade_mir::ValueName;
 
 use crate::name_map::NameSource;
 use crate::name_map::NameSourceMap;
@@ -35,7 +34,7 @@ impl StatementList {
         let name = match &stmt {
             Statement::Binding(b) => Some(b.name.clone()),
             Statement::Register(r) => Some(r.name.clone()),
-            Statement::Constant(id, _, _) => Some(ValueName::Expr(*id)),
+            Statement::Constant(name, _, _) => Some(name.clone()),
             Statement::Assert(_) => None,
             Statement::Set { .. } => None,
             Statement::WalTrace { .. } => None,
@@ -59,7 +58,7 @@ impl StatementList {
         let name = match &stmt {
             Statement::Binding(b) => Some(b.name.clone()),
             Statement::Register(r) => Some(r.name.clone()),
-            Statement::Constant(id, _, _) => Some(ValueName::Expr(*id)),
+            Statement::Constant(name, _, _) => Some(name.clone()),
             Statement::Assert(_) => None,
             Statement::Set { .. } => None,
             Statement::WalTrace { .. } => None,

@@ -15,6 +15,7 @@ use spade_common::location_info::{Loc, WithLocation};
 pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::DiagList;
 use spade_hir::expression::Safety;
+use spade_hir_lowering::inline::do_inlining;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
@@ -342,6 +343,12 @@ pub fn compile(
         &mapped_trait_impls,
     );
 
+    let type_inference_ctx = typeinference::Context {
+        symtab: frozen_symtab.symtab(),
+        items: &item_list,
+        trait_impls: &mapped_trait_impls,
+    };
+
     let CodegenArtefacts {
         bumpy_mir_entities,
         flat_mir_entities,
@@ -349,7 +356,7 @@ pub fn compile(
         mir_code,
         instance_map,
         mir_context,
-    } = codegen(mir_entities, Arc::clone(&code), &mut errors, &idtracker);
+    } = codegen(mir_entities, Arc::clone(&code), &mut errors, &idtracker, );
 
     let state = CompilerState {
         code: code
@@ -536,6 +543,16 @@ fn codegen(
     error_handler: &mut ErrorHandler,
     idtracker: &Arc<ExprIdTracker>,
 ) -> CodegenArtefacts {
+    let mir_entities: Vec<_> = mir_entities
+        .into_iter()
+        .filter_map(|result_mir| result_mir.or_report(errors))
+        .collect();
+
+    let mir_entities = do_inlining(mir_entities, idtracker, type_ctx)
+        .or_report(errors)
+        .unwrap_or_default();
+
+
     let codegen_results = mir_entities
         .into_iter()
         .filter_map(|m| match m {
@@ -611,6 +628,11 @@ fn codegen(
     let mut instance_map = InstanceMap::new();
     let mut mir_context = HashMap::default();
 
+    // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
+    // defined, for example if a zero-sized wire is used.
+    module_code.push("`default_nettype none".into());
+
+
     for CodegenArtefact {
         bumpy_mir_entity,
         flat_mir_entity,
@@ -632,10 +654,6 @@ fn codegen(
             .extend(&mut local_instance_map.inner.into_iter());
         mir_context.insert(local_mir_context.0, local_mir_context.1);
     }
-
-    // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
-    // defined, for example if a zero-sized wire is used.
-    module_code.push("`default_nettype none".into());
 
     CodegenArtefacts {
         bumpy_mir_entities,

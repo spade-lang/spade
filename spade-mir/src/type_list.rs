@@ -1,6 +1,7 @@
 use crate::{types::Type, Entity, MirInput, Statement, ValueName};
 use rustc_hash::FxHashMap as HashMap;
 
+#[derive(Debug)]
 pub struct TypeList {
     inner: HashMap<ValueName, Type>,
 }
@@ -40,7 +41,7 @@ impl TypeList {
                     self.inner.insert(reg.name.clone(), reg.ty.clone());
                 }
                 Statement::Constant(idx, ty, _) => {
-                    self.inner.insert(ValueName::Expr(*idx), ty.clone());
+                    self.inner.insert(idx.clone(), ty.clone());
                 }
                 Statement::Assert(_) => {}
                 Statement::Set { .. } => {

@@ -246,7 +246,7 @@ fn populate_var_map(
                 var_map.try_update_name(&r1.name, &r2.name)
             }
             (Statement::Constant(e1, _, _), Statement::Constant(e2, _, _)) => {
-                var_map.try_update_name(&ValueName::Expr(*e1), &ValueName::Expr(*e2))
+                var_map.try_update_name(&*e1, &*e2)
             }
             (Statement::WalTrace { .. }, Statement::WalTrace { .. }) => Ok(()),
             (Statement::Assert(_), Statement::Assert(_)) => Ok(()),

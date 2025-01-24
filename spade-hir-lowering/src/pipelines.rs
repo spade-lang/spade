@@ -466,7 +466,7 @@ impl MaybeConst {
                 let new_name = mir::ValueName::Expr(id);
 
                 statements.push_anonymous(mir::Statement::Constant(
-                    id,
+                    new_name.clone(),
                     mir::types::Type::Bool,
                     mir::ConstantValue::Bool(v),
                 ));
