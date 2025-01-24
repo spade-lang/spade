@@ -1352,6 +1352,7 @@ pub fn visit_unit(
         })),
         ast::Attribute::Deprecated { .. } => Ok(None),
         ast::Attribute::Documentation { .. } => Ok(None),
+        ast::Attribute::Inline => Ok(Some(hir::Attribute::Inline)),
         _ => Err(attr.report_unused("a unit")),
     })?;
 
@@ -1913,6 +1914,7 @@ fn try_visit_statement(
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::SpadecParenSugar
+                | ast::Attribute::Inline
                 | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
             })?;
 
@@ -1945,6 +1947,7 @@ fn try_visit_statement(
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::SpadecParenSugar
+                | ast::Attribute::Inline
                 | ast::Attribute::WalTraceable { .. } => {
                     Err(attr.report_unused("expression statement"))
                 }

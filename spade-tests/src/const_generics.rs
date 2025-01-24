@@ -1,6 +1,4 @@
-use insta::assert_debug_snapshot;
-
-use crate::{build_items, snapshot_error};
+use crate::{build_items, snapshot_error, snapshot_mir};
 
 #[test]
 fn constrained_ints_in_where_clause_compiles() {
@@ -415,17 +413,15 @@ snapshot_error! {
     "
 }
 
-#[test]
-fn type_expressions_in_generic_parameter_lower_correctly() {
-    let code = "
-        fn foo<#uint N>(value: uint<{N + 1}>) {}
+snapshot_mir! {
+    type_expressions_in_generic_parameter_lower_correctly,
+    "
+    fn foo<#uint N>(value: uint<{N + 1}>) {}
 
-        fn bar() {
-            let _ = foo::<2>(0u3);
-            let _ = foo::<3>(0u4);
-        }
-    ";
-    assert_debug_snapshot!(build_items(code));
+    fn bar() {
+        let _ = foo::<2>(0u3);
+        let _ = foo::<3>(0u4);
+    }"
 }
 
 snapshot_error! {

@@ -44,7 +44,7 @@ macro_rules! statement {
     (
         const $id:expr; $ty:expr; $value:expr
     ) => {
-        spade_mir::Statement::Constant(spade_common::id_tracker::ExprID($id), $ty, $value)
+        spade_mir::Statement::Constant(spade_mir::ValueName::Expr(spade_common::id_tracker::ExprID($id)), $ty, $value)
     };
     // Bindings
     (
@@ -147,6 +147,7 @@ macro_rules! entity {
     ) => {
         spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name($name),
+            inline: false,
             inputs: vec![
                 $(
                     spade_mir::MirInput {
@@ -297,6 +298,7 @@ mod tests {
                 },
                 source: NameID(0, Path::from_strs(&["pong"])),
             },
+            inline: false,
             inputs: vec![MirInput {
                 name: "_i_clk".to_string(),
                 val_name: ValueName::_test_named(0, "clk".to_string()),
@@ -322,7 +324,11 @@ mod tests {
 
     #[test]
     fn constant_parsing_works() {
-        let expected = Statement::Constant(ExprID(0), Type::int(10), ConstantValue::int(6));
+        let expected = Statement::Constant(
+            ValueName::Expr(ExprID(0)),
+            Type::int(10),
+            ConstantValue::int(6),
+        );
 
         let result = statement!(const 0; Type::int(10); ConstantValue::int(6));
 

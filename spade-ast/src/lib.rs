@@ -635,6 +635,7 @@ pub enum Attribute {
         content: String,
     },
     SurferTranslator(String),
+    Inline,
 }
 
 impl Attribute {
@@ -651,6 +652,7 @@ impl Attribute {
             Attribute::WalSuffix { .. } => "wal_suffix",
             Attribute::Documentation { .. } => "doc",
             Attribute::SurferTranslator(_) => "surfer_translator",
+            Attribute::Inline => "inline",
         }
     }
 }

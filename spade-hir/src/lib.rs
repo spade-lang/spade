@@ -941,6 +941,7 @@ pub enum Attribute {
     WalTraceable {
         suffix: Identifier,
     },
+    Inline,
 }
 impl Attribute {
     pub fn name(&self) -> &str {
@@ -949,6 +950,7 @@ impl Attribute {
             Attribute::Optimize { passes: _ } => "optimize",
             Attribute::Fsm { state: _ } => "fsm",
             Attribute::WalTraceable { suffix: _ } => "suffix",
+            Attribute::Inline => "inline",
         }
     }
 }

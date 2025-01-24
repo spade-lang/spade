@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/inline.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \not_inlined () -> uint<8> {
+	const e2: uint<8> = 0
+} => e2
+entity \test () -> uint<8> {
+	let e4: uint<8> = Instance(\not_inlined )()
+} => e4

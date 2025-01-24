@@ -14,7 +14,7 @@ use crate::aliasing::flatten_aliases;
 use crate::assertion_codegen::AssertedExpression;
 use crate::eval::eval_statements;
 use crate::renaming::{make_names_predictable, VerilogNameMap};
-use crate::type_list::TypeList;
+use crate::type_list::MirTypeList;
 use crate::types::Type;
 use crate::unit_name::{InstanceMap, InstanceNameTracker};
 use crate::verilog::{self, assign, localparam_size_spec, logic, size_spec};
@@ -28,7 +28,7 @@ pub mod util;
 pub use util::{escape_path, mangle_entity, mangle_input, mangle_output, TupleIndex};
 
 struct Context<'a> {
-    types: &'a TypeList,
+    types: &'a MirTypeList,
     source_code: &'a Option<CodeBundle>,
     instance_names: &'a mut InstanceNameTracker,
     instance_map: &'a mut InstanceMap,
@@ -135,7 +135,8 @@ fn statement_declaration(
                 code! {}
             }
         }
-        Statement::Constant(_, _, _) => {
+        Statement::Constant(name, ty, _) => {
+            add_to_name_map(name_map, name, ty);
             // Constants codegen as localparams in statement_code
             code! {}
         }
@@ -185,7 +186,7 @@ fn compute_tuple_index(idx: u64, sizes: &[BigUint]) -> TupleIndex {
     }
 }
 
-fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName]) -> String {
+fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueName]) -> String {
     let self_type = &binding.ty;
     let op_names = ops.iter().map(|op| op.var_name()).collect::<Vec<_>>();
 
@@ -691,7 +692,7 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
     }
 }
 
-fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName]) -> String {
+fn backward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueName]) -> String {
     let self_type = &binding.ty;
     let op_names = ops
         .iter()
@@ -1050,8 +1051,8 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 [0] main_body
             }
         }
-        Statement::Constant(id, t, value) => {
-            let name = ValueName::Expr(*id).var_name();
+        Statement::Constant(name, t, value) => {
+            let name = name.var_name();
 
             let expression = match value {
                 ConstantValue::Int(val) => {
@@ -1168,7 +1169,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
 #[cfg(test)]
 fn statement_code_and_declaration(
     statement: &Statement,
-    types: &TypeList,
+    types: &MirTypeList,
     source_code: &CodeBundle,
 ) -> Code {
     use spade_common::name::Path;
@@ -1253,7 +1254,7 @@ pub fn entity_code(
 
     let verilog_attr_groups = codegen_verilog_attr_groups(&entity.verilog_attr_groups);
 
-    let types = &TypeList::from_entity(entity);
+    let types = &MirTypeList::from_entity(entity);
 
     let entity_name = entity.name.as_verilog();
 
@@ -1457,7 +1458,7 @@ mod tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &binding,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -1478,7 +1479,7 @@ mod tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &binding,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -1501,7 +1502,7 @@ mod tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &reg,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -1529,7 +1530,7 @@ mod tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &reg,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -1560,7 +1561,7 @@ mod tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &reg,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -1649,6 +1650,7 @@ mod tests {
     fn no_mangle_input_does_not_clash() {
         let input = spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
                 val_name: ValueName::_test_named(0, "a".to_string()),
@@ -1689,6 +1691,7 @@ mod tests {
     fn no_mangle_output_does_not_clash() {
         let input = spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
                 val_name: ValueName::_test_named(0, "a".to_string()),
@@ -1840,7 +1843,7 @@ mod tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &input,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2028,7 +2031,7 @@ mod backward_expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2051,7 +2054,7 @@ mod backward_expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), Type::Tuple(tuple_members)),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), Type::Tuple(tuple_members)),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2075,7 +2078,7 @@ mod backward_expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2089,7 +2092,7 @@ mod backward_expression_tests {
         let ty = Type::Tuple(tuple_members);
         let stmt = statement!(e(0); ty; ConstructTuple; e(1), e(2));
 
-        let type_list = TypeList::empty()
+        let type_list = MirTypeList::empty()
             .with(ValueName::Expr(ExprID(1)), Type::backward(Type::int(8)))
             .with(ValueName::Expr(ExprID(2)), Type::backward(Type::int(4)));
 
@@ -2124,7 +2127,7 @@ mod backward_expression_tests {
             assign {_e_1_mut, _e_2_mut} = _e_0_mut;"#
         };
 
-        let type_list = TypeList::empty()
+        let type_list = MirTypeList::empty()
             .with(ValueName::Expr(ExprID(1)), Type::backward(Type::int(8)))
             .with(
                 ValueName::Expr(ExprID(2)),
@@ -2156,7 +2159,7 @@ mod backward_expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2191,7 +2194,7 @@ mod expression_tests {
                     assign _e_0 = _e_1 {} _e_2;"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &TypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
             }
         }
     }
@@ -2208,7 +2211,7 @@ mod expression_tests {
                     assign _e_0 = $signed(_e_1) {} $signed(_e_2);"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &TypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
             }
         }
     }
@@ -2225,7 +2228,7 @@ mod expression_tests {
                     assign _e_0 = {}_e_1;"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &TypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
             }
         }
     }
@@ -2280,7 +2283,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2301,7 +2304,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2328,7 +2331,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2348,7 +2351,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2370,7 +2373,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::int(6))
                     .with(ValueName::Expr(ExprID(2)), Type::int(3)),
                 &CodeBundle::new("".to_string())
@@ -2394,7 +2397,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2416,7 +2419,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2438,7 +2441,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2460,7 +2463,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2486,7 +2489,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2508,7 +2511,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2529,7 +2532,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2551,7 +2554,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2571,7 +2574,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2596,7 +2599,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -2617,7 +2620,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::int(3)),
@@ -2644,7 +2647,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::Bool),
@@ -2671,7 +2674,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::Bool),
@@ -2698,7 +2701,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::int(10)),
@@ -2732,7 +2735,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::int(10)),
@@ -2766,7 +2769,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::Bool),
@@ -2800,7 +2803,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &statement,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(1)),
                     Type::Array {
                         inner: Box::new(Type::int(10)),
@@ -2842,7 +2845,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::Bool)
                     .with(ValueName::Expr(ExprID(2)), Type::Bool),
                 &CodeBundle::new("".to_string())
@@ -2878,7 +2881,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::Bool)
                     .with(ValueName::Expr(ExprID(2)), Type::Bool),
                 &CodeBundle::new("".to_string())
@@ -2912,7 +2915,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::Bool)
                     .with(ValueName::Expr(ExprID(2)), Type::Bool),
                 &CodeBundle::new("".to_string())
@@ -2943,7 +2946,7 @@ mod expression_tests {
             \test  \test_0 (.a_i(_e_1), .a_o(_e_1_mut), .b_o(_e_2_mut), .output__(_e_0));"#
         );
 
-        let type_list = TypeList::empty()
+        let type_list = MirTypeList::empty()
             .with(
                 ValueName::Expr(ExprID(1)),
                 Type::Tuple(vec![Type::Bool, Type::backward(Type::Bool)]),
@@ -2983,7 +2986,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(2)),
                     Type::Array {
                         inner: Box::new(Type::Tuple(vec![Type::Bool, Type::uint(4), Type::int(6)])),
@@ -3018,7 +3021,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(2)),
                     Type::Array {
                         inner: Box::new(Type::Tuple(vec![Type::Bool, Type::uint(1), Type::int(6)])),
@@ -3055,7 +3058,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(2)),
                     Type::Array {
                         inner: Box::new(Type::Tuple(vec![Type::Bool, Type::uint(4), Type::Bool])),
@@ -3104,7 +3107,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty().with(
+                &MirTypeList::empty().with(
                     ValueName::Expr(ExprID(2)),
                     Type::Array {
                         inner: Box::new(Type::Tuple(vec![Type::Bool, Type::uint(4), Type::int(6)])),
@@ -3131,7 +3134,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -3152,7 +3155,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::Int(5_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::Int(3_u32.to_biguint())),
                 &CodeBundle::new("".to_string())
@@ -3174,7 +3177,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::Int(4_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::Int(3_u32.to_biguint())),
                 &CodeBundle::new("".to_string())
@@ -3196,7 +3199,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::Int(3_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::Int(3_u32.to_biguint())),
                 &CodeBundle::new("".to_string())
@@ -3219,7 +3222,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::UInt(5_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::UInt(3_u32.to_biguint())),
                 &CodeBundle::new("".to_string())
@@ -3241,7 +3244,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::UInt(4_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::UInt(3_u32.to_biguint())),
                 &CodeBundle::new("".to_string())
@@ -3264,7 +3267,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::UInt(3_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::UInt(3_u32.to_biguint())),
                 &CodeBundle::new("".to_string())
@@ -3294,7 +3297,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -3315,7 +3318,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -3354,7 +3357,7 @@ mod expression_tests {
         let source_code = CodeBundle::new("abcd".to_string());
 
         assert_same_code!(
-            &statement_code_and_declaration(&stmt, &TypeList::empty(), &source_code).to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &source_code).to_string(),
             expected
         );
     }
@@ -3374,7 +3377,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty()
+                &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::backward(Type::Bool))
                     .with(ValueName::Expr(ExprID(1)), Type::Bool),
                 &CodeBundle::new("".to_string())
@@ -3397,7 +3400,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -3417,7 +3420,7 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -3447,6 +3450,7 @@ mod expression_tests {
     fn inout_codegens_as_inout() {
         let input = spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
                 val_name: ValueName::_test_named(0, "a".to_string()),
@@ -3501,6 +3505,7 @@ mod expression_tests {
                     ("key".into(), Some("val".into())),
                 ],
             ],
+            inline: false,
         };
 
         let expected = indoc!(
@@ -3558,6 +3563,7 @@ mod expression_tests {
                 loc: None,
             })],
             verilog_attr_groups: vec![],
+            inline: false,
         };
 
         let expected = indoc!(

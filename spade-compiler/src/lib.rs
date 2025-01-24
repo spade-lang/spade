@@ -15,6 +15,7 @@ use spade_common::location_info::{Loc, WithLocation};
 pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::DiagList;
 use spade_hir::expression::Safety;
+use spade_hir_lowering::inline::do_inlining;
 use spade_mir::codegen::{cocotb_code, prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
@@ -547,16 +548,16 @@ fn codegen(
     error_handler: &mut ErrorHandler,
     idtracker: &Arc<ExprIdTracker>,
 ) -> CodegenArtefacts {
-    let codegen_results = mir_entities
+    let mir_entities: Vec<_> = mir_entities
         .into_iter()
-        .filter_map(|m| match m {
-            Ok(mir) => Some(mir),
-            Err(e) => {
-                e.or_report(error_handler);
-                None
-            }
-        })
-        .collect::<Vec<_>>()
+        .filter_map(|result_mir| result_mir.or_report(error_handler))
+        .collect();
+
+    let mir_entities = do_inlining(mir_entities, idtracker)
+        .or_report(error_handler)
+        .unwrap_or_default();
+
+    let codegen_results = mir_entities
         .into_par_iter()
         .enumerate()
         .filter_map(

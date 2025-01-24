@@ -1548,7 +1548,7 @@ mod tests {
         extern entity foo(clk: clock, clk_out: inv clock);
 
         entity main(clk_in: clock, clk_out: inv clock) {
-            inst foo(clk_in, clk_out);
+            inst foo(clk_in, clk_out)
         }
         "#,
         all
@@ -2137,8 +2137,10 @@ mod tests {
             (n(1, "a"); Type::uint(8); Alias; e(1));
             (e(4); Type::uint(9); UnsignedAdd; n(1, "a"), n(1, "a"));
             (n(2, "_"); Type::uint(9); Alias; e(4));
+            (e(10); Type::unit(); Nop; );
             (e(9); Type::uint(9); UnsignedAdd; n(1, "a"), n(1, "a"));
             (n(3, "_"); Type::uint(9); Alias; e(9));
+            (e(11); Type::unit(); Nop; );
         } => n(1, "a"));
 
         assert_same_mir!(&result, &expected);

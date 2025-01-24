@@ -343,7 +343,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                 (name.clone(), val)
             }
             Statement::Register(_) => panic!("trying to evaluate a register"),
-            Statement::Constant(id, ty, val) => {
+            Statement::Constant(name, ty, val) => {
                 let val = match val {
                     crate::ConstantValue::Int(i) => Value::Int {
                         size: ty.size(),
@@ -353,9 +353,8 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     crate::ConstantValue::String(_) => todo!(),
                     crate::ConstantValue::HighImp => todo!(),
                 };
-                let name = ValueName::Expr(*id);
                 name_types.insert(name.clone(), ty.clone());
-                (name, val)
+                (name.clone(), val)
             }
             Statement::Assert(_) => panic!("trying to evaluate an assert statement"),
             Statement::Set { .. } => panic!("trying to evaluate a `set` statement"),

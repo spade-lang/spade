@@ -106,6 +106,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
             output_type: _,
             statements,
             verilog_attr_groups: _,
+            inline: _,
         } = e;
 
         for input in inputs {
@@ -131,7 +132,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     loc: _,
                     traced: _,
                 }) => state.push(name),
-                crate::Statement::Constant(_, _, _) => {}
+                crate::Statement::Constant(name, _, _) => state.push(name),
                 crate::Statement::Assert(_) => {}
                 crate::Statement::Set {
                     target: _,
@@ -152,6 +153,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
             output_type: _,
             statements,
             verilog_attr_groups: _,
+            inline: _,
         } = e;
 
         for MirInput {
@@ -200,7 +202,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     *value = state.get(value);
                     traced.as_mut().map(|traced| *traced = state.get(traced));
                 }
-                crate::Statement::Constant(_, _, _) => {}
+                crate::Statement::Constant(name, _, _) => *name = state.get(name),
                 crate::Statement::Assert(val) => val.inner = state.get(val),
                 crate::Statement::Set { target, value } => {
                     target.inner = state.get(target);

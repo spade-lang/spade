@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/inline.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> uint<9> {
+	const e14: uint<8> = 1
+	let val_n20: uint<8> = Alias(e14)
+	const e25: uint<8> = 2
+	let e28: uint<9> = UnsignedAdd(val_n20, e25)
+	let e24: uint<9> = Alias(e28)
+	let e16: uint<9> = Alias(e24)
+} => e16
+entity \test_inner () -> uint<9> {
+	const e7: uint<8> = 0
+	const e8: uint<8> = 1
+	let e22: uint<9> = UnsignedAdd(e7, e8)
+	let e6: uint<9> = Alias(e22)
+} => e6
