@@ -4,7 +4,7 @@ SOURCE_DIRS=('*/src/*' 'swim_test_project/test/*.py' 'swim_test_errors/test/*.py
 
 function maybe_typos {(
     if command -v typos &> /dev/null; then
-        typos
+        typos --exclude yowasp/*
     fi
 )}
 

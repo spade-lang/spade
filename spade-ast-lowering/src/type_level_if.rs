@@ -4,6 +4,7 @@ use spade_common::name::Identifier;
 use spade_hir::expression::CallKind;
 use spade_hir::symbol_table::Thing;
 use spade_hir::ArgumentList;
+use spade_hir::Attribute;
 use spade_hir::Block;
 use spade_hir::ExecutableItem;
 use spade_hir::Expression;
@@ -21,6 +22,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
     let expand_body =
         |new_body: &Loc<Expression>, name_suffix: &str, ctx: &mut Context| -> Result<_> {
             let mut new_unit = unit.clone();
+            new_unit.attributes.0.push(Attribute::Inline.at_loc(&unit));
             new_unit.body = ExprKind::Block(Box::new(Block {
                 statements: body.statements.clone(),
                 result: Some(new_body.clone()),
@@ -121,6 +123,9 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             }))
             .with_id(ctx.idtracker.next())
             .at_loc(&unit.body);
+
+            let loc = unit.loc();
+            unit.attributes.0.push(Attribute::Inline.at_loc(&loc));
 
             Ok(unit)
         }

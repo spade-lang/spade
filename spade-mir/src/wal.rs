@@ -67,7 +67,7 @@ pub fn insert_wal_signals(
                         } else {
                             let id = expr_idtracker.next();
                             result.push(Statement::Constant(
-                                id,
+                                ValueName::Expr(id),
                                 Type::Bool,
                                 ConstantValue::Bool(false),
                             ));

@@ -513,7 +513,7 @@ pub enum Statement {
     Binding(Binding),
     Register(Register),
     /// A constant expression with the specified ID and value
-    Constant(ExprID, Type, ConstantValue),
+    Constant(ValueName, Type, ConstantValue),
     Assert(Loc<ValueName>),
     Set {
         target: Loc<ValueName>,
@@ -547,7 +547,7 @@ impl std::fmt::Display for Statement {
         match self {
             Statement::Binding(b) => write!(f, "{b}"),
             Statement::Register(r) => write!(f, "{r}"),
-            Statement::Constant(id, ty, val) => write!(f, "const e{id}: {ty} = {val}", id = id.0),
+            Statement::Constant(id, ty, val) => write!(f, "const e{id}: {ty} = {val}"),
             Statement::Assert(val) => write!(f, "assert {val}"),
             Statement::Set { target, value } => write!(f, "set {target} = {value}"),
             Statement::WalTrace {
@@ -576,6 +576,7 @@ pub struct Entity {
     pub output: ValueName,
     pub output_type: Type,
     pub statements: Vec<Statement>,
+    pub inline: bool,
 }
 
 impl std::fmt::Display for Entity {
@@ -586,6 +587,7 @@ impl std::fmt::Display for Entity {
             output,
             output_type,
             statements,
+            inline,
         } = self;
 
         let inputs = inputs
@@ -609,8 +611,9 @@ impl std::fmt::Display for Entity {
 
         writeln!(
             f,
-            "entity {name}({inputs}) -> {output_type} {{",
-            name = name.as_verilog()
+            "{inline} entity {name}({inputs}) -> {output_type} {{",
+            name = name.as_verilog(),
+            inline = if *inline { "inline" } else { "" }
         )?;
         write!(f, "{statements}")?;
         write!(f, "}} => {output}")

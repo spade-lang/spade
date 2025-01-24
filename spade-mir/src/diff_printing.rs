@@ -156,7 +156,7 @@ where
             format!("{traced}reg {name}: {ty} clock {clock}{reset}{initial} {value}",)
         }
         Statement::Constant(name, ty, value) => {
-            let name = translate_expr(*name, &lhs_trans.expr, &rhs_trans.expr);
+            let name = translate_val_name(name, &lhs_trans, &rhs_trans);
 
             format!("const {}: {} = {}", name, ty, value)
         }
@@ -199,6 +199,7 @@ where
         output,
         output_type,
         statements,
+        inline: _,
     } = entity;
 
     let inputs = inputs

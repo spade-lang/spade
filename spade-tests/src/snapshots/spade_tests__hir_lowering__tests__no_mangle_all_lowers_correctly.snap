@@ -99,8 +99,10 @@ expression: build_items(code)
         output_type: Void,
         statements: [
             Constant(
-                ExprID(
-                    2,
+                Expr(
+                    ExprID(
+                        2,
+                    ),
                 ),
                 UInt(
                     8,
@@ -123,6 +125,22 @@ expression: build_items(code)
                     ),
                 ),
             },
+            Binding(
+                Binding {
+                    name: Expr(
+                        ExprID(
+                            0,
+                        ),
+                    ),
+                    operator: Nop,
+                    operands: [],
+                    ty: Void,
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
         ],
+        inline: false,
     },
 ]

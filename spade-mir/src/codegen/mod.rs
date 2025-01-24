@@ -132,7 +132,8 @@ fn statement_declaration(
                 code! {}
             }
         }
-        Statement::Constant(_, _, _) => {
+        Statement::Constant(name, ty, _) => {
+            add_to_name_map(name_map, name, ty);
             // Constants codegen as localparams in statement_code
             code! {}
         }
@@ -972,8 +973,8 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 [0] main_body
             }
         }
-        Statement::Constant(id, t, value) => {
-            let name = ValueName::Expr(*id).var_name();
+        Statement::Constant(name, t, value) => {
+            let name = name.var_name();
 
             let expression = match value {
                 ConstantValue::Int(val) => {
@@ -1487,6 +1488,7 @@ mod tests {
     fn no_mangle_input_does_not_clash() {
         let input = spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
                 val_name: ValueName::_test_named(0, "a".to_string()),
@@ -1534,6 +1536,7 @@ mod tests {
     fn no_mangle_output_does_not_clash() {
         let input = spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
                 val_name: ValueName::_test_named(0, "a".to_string()),
@@ -3276,6 +3279,7 @@ mod expression_tests {
     fn inout_codegens_as_inout() {
         let input = spade_mir::Entity {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
                 val_name: ValueName::_test_named(0, "a".to_string()),

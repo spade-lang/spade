@@ -376,6 +376,23 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    type_level_if_bool_with_output_works,
+    "
+        fn nested<#uint N>(x: uint<8>, y: uint<8>) -> uint<8> {
+            gen if N == 0 {
+                x
+            } else {
+                y
+            }
+        }
+
+        fn mutliple_tests() -> (uint<8>, uint<8>) {
+            (nested::<0>(0, 1), 0)
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

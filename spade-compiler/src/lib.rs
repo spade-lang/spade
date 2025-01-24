@@ -8,6 +8,7 @@ use logos::Logos;
 use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 pub use spade_common::namespace::ModuleNamespace;
+use spade_hir_lowering::inline::do_inlining;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
@@ -339,6 +340,12 @@ pub fn compile(
         &opt_passes,
     );
 
+    let type_inference_ctx = typeinference::Context {
+        symtab: frozen_symtab.symtab(),
+        items: &item_list,
+        trait_impls: &mapped_trait_impls,
+    };
+
     let CodegenArtefacts {
         bumpy_mir_entities,
         flat_mir_entities,
@@ -346,7 +353,13 @@ pub fn compile(
         mir_code,
         instance_map,
         mir_context,
-    } = codegen(mir_entities, Rc::clone(&code), &mut errors, &mut idtracker);
+    } = codegen(
+        mir_entities,
+        Rc::clone(&code),
+        &mut errors,
+        &mut idtracker,
+        &type_inference_ctx,
+    );
 
     let state = CompilerState {
         code: code.read().unwrap().dump_files(),
@@ -502,7 +515,17 @@ fn codegen(
     code: Rc<RwLock<CodeBundle>>,
     errors: &mut ErrorHandler,
     idtracker: &mut ExprIdTracker,
+    type_ctx: &spade_typeinference::Context,
 ) -> CodegenArtefacts {
+    let mir_entities: Vec<_> = mir_entities
+        .into_iter()
+        .filter_map(|result_mir| result_mir.or_report(errors))
+        .collect();
+
+    let mir_entities = do_inlining(mir_entities, idtracker, type_ctx)
+        .or_report(errors)
+        .unwrap_or_default();
+
     let mut bumpy_mir_entities = vec![];
     let mut flat_mir_entities = vec![];
     let mut module_code = vec![];
@@ -511,40 +534,39 @@ fn codegen(
     let mut mir_context = HashMap::new();
 
     for mir in mir_entities {
-        if let Some(MirOutput {
+        let MirOutput {
             mir,
             type_state,
             reg_name_map,
-        }) = mir.or_report(errors)
-        {
-            bumpy_mir_entities.push(mir.clone());
+        } = mir;
 
-            let codegenable = prepare_codegen(mir, idtracker);
+        bumpy_mir_entities.push(mir.clone());
 
-            let code = spade_mir::codegen::entity_code(
-                &codegenable,
-                &mut instance_map,
-                &Some(code.read().unwrap().clone()),
-            );
+        let codegenable = prepare_codegen(mir, idtracker);
 
-            mir_code.push(format!("{}", codegenable.0));
+        let code = spade_mir::codegen::entity_code(
+            &codegenable,
+            &mut instance_map,
+            &Some(code.read().unwrap().clone()),
+        );
 
-            flat_mir_entities.push(codegenable.clone());
+        mir_code.push(format!("{}", codegenable.0));
 
-            let (code, name_map) = code;
-            module_code.push(code.to_string());
+        flat_mir_entities.push(codegenable.clone());
 
-            mir_context.insert(
-                codegenable.0.name.source,
-                MirContext {
-                    reg_name_map: reg_name_map.clone(),
-                    // lifeguard spade#254
-                    // FIXME: Insert pipeline register stuff into the type map
-                    type_map: type_state.into(),
-                    verilog_name_map: name_map,
-                },
-            );
-        }
+        let (code, name_map) = code;
+        module_code.push(code.to_string());
+
+        mir_context.insert(
+            codegenable.0.name.source,
+            MirContext {
+                reg_name_map: reg_name_map.clone(),
+                // lifeguard spade#254
+                // FIXME: Insert pipeline register stuff into the type map
+                type_map: type_state.into(),
+                verilog_name_map: name_map,
+            },
+        );
     }
 
     CodegenArtefacts {
