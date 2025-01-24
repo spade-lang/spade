@@ -1,6 +1,6 @@
 ---
 source: spade-tests/src/parser.rs
-expression: "format! (\"{}\", items [0])"
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test () -> () {
 	const e3: uint<8> = 97
@@ -11,4 +11,5 @@ entity \test () -> () {
 	let x_n14: [uint<8>; 4] = Alias(e2)
 	const e8: uint<8> = 39
 	let y_n15: uint<8> = Alias(e8)
+	let e1: () = Nop()
 } => e1

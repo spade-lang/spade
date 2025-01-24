@@ -2051,3 +2051,11 @@ snapshot_error! {
         impl X<impl T> {}
     "
 }
+
+code_compiles! {
+    inline_attribute_compiles,
+    "
+        #[inline]
+        fn test() {}
+    "
+}

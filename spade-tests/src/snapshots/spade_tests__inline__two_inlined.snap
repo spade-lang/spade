@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/inline.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> () {
+	const e20: bool = true
+	let e18: bool = Alias(e20)
+	let e19: () = Nop()
+	let e16: () = Alias(e19)
+	let e7: () = Alias(e16)
+	let __n17: () = Alias(e7)
+	const e30: bool = true
+	let e28: bool = Alias(e30)
+	let e29: () = Nop()
+	let e26: () = Alias(e29)
+	let e9: () = Alias(e26)
+	let __n18: () = Alias(e9)
+	let e6: () = Nop()
+} => e6

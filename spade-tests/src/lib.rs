@@ -15,6 +15,8 @@ mod const_generics;
 #[cfg(test)]
 mod hir_lowering;
 #[cfg(test)]
+mod inline;
+#[cfg(test)]
 mod integration;
 #[cfg(test)]
 mod linear_check;
@@ -192,8 +194,12 @@ macro_rules! snapshot_mir {
         #[test]
         fn $fn() {
             let code = $src;
-            let items = build_items(code);
-            insta::assert_snapshot!(format!("{}", items[0]))
+            let mut items = build_items(code);
+            items.sort_by_key(|item| item.name.clone());
+            insta::assert_snapshot!(itertools::Itertools::join(
+                &mut items.iter().map(|item| format!("{item}")),
+                "\n"
+            ))
         }
     };
 }

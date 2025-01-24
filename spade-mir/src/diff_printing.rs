@@ -23,7 +23,7 @@ pub fn translate_expr(
         .map(|n| format!("{}", n.0))
         .unwrap_or_else(|| "?".to_string());
 
-    format!("e({}|{})", lhs, rhs)
+    format!("({}|{})", lhs, rhs)
 }
 
 pub fn translate_name(
@@ -155,7 +155,9 @@ where
             format!("{traced}reg {name}: {ty} clock {clock}{reset}{initial} {value}",)
         }
         Statement::Constant(name, ty, value) => {
-            let name = translate_expr(*name, &lhs_trans.expr, &rhs_trans.expr);
+            let name = translate_val_name(name, &lhs_trans, &rhs_trans);
+
+            println!("{name}");
 
             format!("const {}: {} = {}", name, ty, value)
         }
@@ -202,6 +204,7 @@ where
         output_type,
         statements,
         verilog_attr_groups: _,
+        inline: _,
     } = entity;
 
     let inputs = inputs

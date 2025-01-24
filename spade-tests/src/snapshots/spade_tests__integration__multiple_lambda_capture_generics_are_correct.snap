@@ -17,6 +17,7 @@ entity \test () -> () {
 	let a_n26: uint<8> = Alias(e10)
 	let e12: uint<8> = Instance(\generic[33] )()
 	let b_n27: uint<8> = Alias(e12)
+	let e9: () = Nop()
 } => e9
 entity \impl#0::call[34] ((self, self_n24, {}), (args, args_n25, ())) -> uint<8> {
 	const e4: uint<8> = 10

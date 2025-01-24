@@ -1,0 +1,51 @@
+---
+source: spade-tests/src/inline.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> () {
+	const e50: uint<10> = 3
+	let e49: uint<10> = Alias(e50)
+	const e78: uint<10> = 2
+	let e76: uint<10> = Alias(e78)
+	const e115: uint<10> = 1
+	let e113: uint<10> = Alias(e115)
+	const e162: uint<10> = 0
+	let e160: uint<10> = Alias(e162)
+	const e159: uint<8> = 0
+	let e134: uint<8> = Alias(e159)
+	let e136: uint<8> = Alias(e134)
+	let e116: uint<8> = Alias(e136)
+	let e97: uint<8> = Alias(e116)
+	let e94: uint<8> = Alias(e97)
+	let e79: uint<8> = Alias(e94)
+	let e65: uint<8> = Alias(e79)
+	let e62: uint<8> = Alias(e65)
+	let e51: uint<8> = Alias(e62)
+	let e46: uint<8> = Alias(e51)
+	let e45: uint<8> = Alias(e46)
+	let e19: uint<8> = Alias(e45)
+	let __n20: uint<8> = Alias(e19)
+	const e191: uint<10> = 3
+	let e190: uint<10> = Alias(e191)
+	const e219: uint<10> = 2
+	let e217: uint<10> = Alias(e219)
+	const e256: uint<10> = 1
+	let e254: uint<10> = Alias(e256)
+	const e303: uint<10> = 0
+	let e301: uint<10> = Alias(e303)
+	const e300: uint<8> = 0
+	let e275: uint<8> = Alias(e300)
+	let e277: uint<8> = Alias(e275)
+	let e257: uint<8> = Alias(e277)
+	let e238: uint<8> = Alias(e257)
+	let e235: uint<8> = Alias(e238)
+	let e220: uint<8> = Alias(e235)
+	let e206: uint<8> = Alias(e220)
+	let e203: uint<8> = Alias(e206)
+	let e192: uint<8> = Alias(e203)
+	let e187: uint<8> = Alias(e192)
+	let e186: uint<8> = Alias(e187)
+	let e21: uint<8> = Alias(e186)
+	let __n21: uint<8> = Alias(e21)
+	let e18: () = Nop()
+} => e18

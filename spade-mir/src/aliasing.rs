@@ -41,9 +41,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
                 }
             }
             Statement::Register(_) => {}
-            Statement::Constant(id, _, _) => {
-                unaliasable.insert(ValueName::Expr(*id).clone());
-            }
+            Statement::Constant(_, _, _) => {}
             Statement::Assert(_) => {}
             Statement::Set { .. } => {}
             Statement::WalTrace { .. } => {}
@@ -102,8 +100,10 @@ pub fn flatten_aliases(entity: &mut Entity) {
                 try_rename(&mut reg.name, &aliases);
                 try_rename(&mut reg.value, &aliases);
             }
-            Statement::Constant(_, _, _) => {}
-            Statement::Assert(_) => {}
+            Statement::Constant(name, _, _) => {
+                try_rename(name, &aliases);
+            }
+            Statement::Assert(ref mut name) => try_rename(name, &aliases),
             Statement::Set { target, value } => {
                 try_rename(target, &aliases);
                 try_rename(value, &aliases);
@@ -131,7 +131,7 @@ mod tests {
     use crate::assert_same_mir;
     use crate::entity;
     use crate::Type;
-    use crate::{self as spade_mir, ConstantValue};
+    use crate::{self as spade_mir};
     use colored::Colorize;
 
     #[test]
@@ -218,25 +218,6 @@ mod tests {
 
         let expected = entity!("pong"; ("_i_op", n(0, "op"), Type::int(6)) -> Type::int(6); {
             (reg n(1, "a"); Type::int(6); clock (n(0, "clk")); n(2, "b"))
-        } => e(10));
-
-        flatten_aliases(&mut input);
-
-        assert_eq!(input, expected);
-    }
-
-    // NOTE: This is purely a limitation based on the fact that constants cannot have names,
-    // only IDs. If this is lifted we should probably alias them too
-    #[test]
-    fn aliasing_does_not_replace_constants() {
-        let mut input = entity!("pong"; ("_i_op", n(0, "op"), Type::int(6)) -> Type::int(6); {
-            (const 0; Type::int(10); ConstantValue::int(6));
-            (n(1, "a"); Type::int(6); Alias; e(0));
-        } => e(10));
-
-        let expected = entity!("pong"; ("_i_op", n(0, "op"), Type::int(6)) -> Type::int(6); {
-            (const 0; Type::int(10); ConstantValue::int(6));
-            (n(1, "a"); Type::int(6); Alias; e(0));
         } => e(10));
 
         flatten_aliases(&mut input);

@@ -1,6 +1,7 @@
 mod attributes;
 mod const_generic;
 pub mod error;
+pub mod inline;
 mod linear_check;
 pub mod monomorphisation;
 pub mod name_map;
@@ -359,7 +360,7 @@ pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::State
         let id = ctx.idtracker.next();
         (
             vec![mir::Statement::Constant(
-                id,
+                ValueName::Expr(id),
                 MirType::Bool,
                 ConstantValue::Bool(true),
             )],
@@ -437,7 +438,7 @@ impl PatternLocal for Loc<Pattern> {
                     let idx_id = ctx.idtracker.next();
                     result.push_secondary(
                         mir::Statement::Constant(
-                            idx_id,
+                            ValueName::Expr(idx_id),
                             index_ty.clone(),
                             mir::ConstantValue::Int(i.to_bigint()),
                         ),
@@ -584,7 +585,7 @@ impl PatternLocal for Loc<Pattern> {
                         let intermediate_name = ValueName::Expr(ctx.idtracker.next());
                         vec![
                             mir::Statement::Constant(
-                                const_id,
+                                ValueName::Expr(const_id),
                                 self_type.to_mir_type(),
                                 ConstantValue::Int(val.clone()),
                             ),
@@ -606,7 +607,7 @@ impl PatternLocal for Loc<Pattern> {
                     }
                     None => vec![
                         mir::Statement::Constant(
-                            const_id,
+                            ValueName::Expr(const_id),
                             self_type.to_mir_type(),
                             ConstantValue::Int(val.clone()),
                         ),
@@ -684,7 +685,7 @@ impl PatternLocal for Loc<Pattern> {
             }),
             (hir::PatternKind::Name { .. }, None) => Ok(PatternCondition {
                 statements: vec![mir::Statement::Constant(
-                    output_id,
+                    ValueName::Expr(output_id),
                     MirType::Bool,
                     mir::ConstantValue::Bool(true),
                 )],
@@ -735,7 +736,7 @@ impl PatternLocal for Loc<Pattern> {
                         })
                     }
                     PatternableKind::Struct => mir::Statement::Constant(
-                        self_condition_id,
+                        ValueName::Expr(self_condition_id),
                         MirType::Bool,
                         ConstantValue::Bool(true),
                     ),
@@ -1282,6 +1283,7 @@ impl StatementLocal for Statement {
                         traced = Some(state.value_name());
                         Ok(())
                     }
+                    Attribute::Inline => Err(attr.report_unused("register")),
                     Attribute::VerilogAttrs { .. }
                     | Attribute::WalTraceable { .. }
                     | Attribute::Optimize { .. } => Err(attr.report_unused("register")),
@@ -1532,7 +1534,11 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::IntLiteral(value, _) => {
                 let ty = self_type;
                 result.push_primary(
-                    mir::Statement::Constant(self.id, ty, mir::ConstantValue::Int(value.clone())),
+                    mir::Statement::Constant(
+                        ValueName::Expr(self.id),
+                        ty,
+                        mir::ConstantValue::Int(value.clone()),
+                    ),
                     self,
                 );
             }
@@ -1563,7 +1569,7 @@ impl ExprLocal for Loc<Expression> {
 
                     result.push_primary(
                         mir::Statement::Constant(
-                            self.id,
+                            ValueName::Expr(self.id),
                             ty,
                             mir::ConstantValue::Int(value.clone()),
                         ),
@@ -1579,7 +1585,11 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::BoolLiteral(value) => {
                 let ty = self_type;
                 result.push_primary(
-                    mir::Statement::Constant(self.id, ty, mir::ConstantValue::Bool(*value)),
+                    mir::Statement::Constant(
+                        ValueName::Expr(self.id),
+                        ty,
+                        mir::ConstantValue::Bool(*value),
+                    ),
                     self,
                 );
             }
@@ -1590,7 +1600,10 @@ impl ExprLocal for Loc<Expression> {
                     TriLiteral::High => mir::ConstantValue::Bool(true),
                     TriLiteral::HighImp => mir::ConstantValue::HighImp,
                 };
-                result.push_primary(mir::Statement::Constant(self.id, ty, cv), self);
+                result.push_primary(
+                    mir::Statement::Constant(ValueName::Expr(self.id), ty, cv),
+                    self,
+                );
             }
             ExprKind::BinaryOperator(lhs, op, rhs) => {
                 macro_rules! binop_builder {
@@ -2016,6 +2029,17 @@ impl ExprLocal for Loc<Expression> {
                 }
                 if let Some(block_result) = &block.result {
                     result.append(block_result.lower(ctx)?);
+                } else {
+                    result.push_primary(
+                        mir::Statement::Binding(mir::Binding {
+                            name: self.variable(ctx)?,
+                            operator: spade_mir::Operator::Nop,
+                            operands: vec![],
+                            ty: MirType::unit(),
+                            loc: Some(self.loc()),
+                        }),
+                        self,
+                    )
                 }
 
                 // Empty. The block result will always be the last expression
@@ -2340,7 +2364,7 @@ impl ExprLocal for Loc<Expression> {
                     }
                     None => result.push_primary(
                         mir::Statement::Constant(
-                            self.id,
+                            ValueName::Expr(self.id),
                             mir::types::Type::Bool,
                             mir::ConstantValue::Bool(true),
                         ),
@@ -2375,7 +2399,7 @@ impl ExprLocal for Loc<Expression> {
                     }
                     None => result.push_primary(
                         mir::Statement::Constant(
-                            self.id,
+                            ValueName::Expr(self.id),
                             mir::types::Type::Bool,
                             mir::ConstantValue::Bool(true),
                         ),
@@ -3552,6 +3576,7 @@ pub fn generate_unit<'a>(
     let mut local_passes = opt_passes.to_vec();
     let mut verilog_attr_groups = vec![];
     let pass_impls = spade_mir::passes::mir_passes();
+    let mut inline = false;
     unit.attributes.lower(&mut |attr| match &attr.inner {
         Attribute::Optimize { passes: new_passes } => {
             for new_pass in new_passes {
@@ -3580,6 +3605,10 @@ pub fn generate_unit<'a>(
             verilog_attr_groups.push(group);
             Ok(())
         }
+        Attribute::Inline => {
+            inline = true;
+            Ok(())
+        }
         Attribute::Fsm { .. } | Attribute::WalTraceable { .. } => Err(attr.report_unused("unit")),
     })?;
 
@@ -3596,5 +3625,6 @@ pub fn generate_unit<'a>(
         output_type: output_t,
         verilog_attr_groups,
         statements,
+        inline,
     })
 }

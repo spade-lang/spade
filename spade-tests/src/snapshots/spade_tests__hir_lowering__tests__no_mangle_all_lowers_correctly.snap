@@ -102,8 +102,10 @@ expression: build_items(code)
         verilog_attr_groups: [],
         statements: [
             Constant(
-                ExprID(
-                    4,
+                Expr(
+                    ExprID(
+                        4,
+                    ),
                 ),
                 UInt(
                     8,
@@ -149,6 +151,24 @@ expression: build_items(code)
                     ),
                 ),
             },
+            Binding(
+                Binding {
+                    name: Expr(
+                        ExprID(
+                            1,
+                        ),
+                    ),
+                    operator: Nop,
+                    operands: [],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
         ],
+        inline: false,
     },
 ]

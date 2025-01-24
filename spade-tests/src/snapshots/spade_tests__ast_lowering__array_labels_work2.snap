@@ -1,9 +1,10 @@
 ---
 source: spade-tests/src/ast_lowering.rs
-expression: "format! (\"{}\", items [0])"
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test::test () -> () {
 	const e3: uint<8> = 0
 	let e2: [uint<8>; 1] = ConstructArray(e3)
 	let __n16: [uint<8>; 1] = Alias(e2)
+	let e1: () = Nop()
 } => e1

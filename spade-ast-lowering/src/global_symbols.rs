@@ -62,6 +62,7 @@ pub fn handle_external_modules(
                         | ast::Attribute::WalTrace { .. }
                         | ast::Attribute::WalSuffix { .. }
                         | ast::Attribute::Documentation { .. }
+                        | ast::Attribute::Inline
                         | ast::Attribute::SurferTranslator(_) => {
                             Err(attr.report_unused("external module"))
                         }
@@ -188,6 +189,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     | ast::Attribute::WalTrace { .. }
                     | ast::Attribute::WalSuffix { .. }
                     | ast::Attribute::Documentation { .. }
+                    | ast::Attribute::Inline
                     | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("module")),
                 })?;
 
@@ -217,6 +219,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
                     | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::Inline
                     | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
                 })?;
                 ctx.symtab.add_unique_thing(
@@ -253,6 +256,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     | ast::Attribute::WalTrace { .. }
                     | ast::Attribute::WalSuffix { .. }
                     | ast::Attribute::Documentation { .. }
+                    | ast::Attribute::Inline
                     | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("use")),
                 })?;
 
@@ -294,14 +298,26 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::TraitDef(ref def) => {
             let (name, _) = ctx.symtab.lookup_trait_ignore_metadata(&Path::ident_with_loc(def.name.clone())).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
 
-            let paren_sugar = def
-                .attributes
-                .0
-                .iter()
-                .any(|attr| matches!(attr.inner, ast::Attribute::SpadecParenSugar));
+            let mut paren_sugar = false;
 
             let documentation = def.attributes.merge_docs();
-
+            let _ = def.attributes.lower(&mut |attr| match &attr.inner {
+                ast::Attribute::Documentation { .. } => Ok(None),
+                ast::Attribute::SpadecParenSugar => {
+                    paren_sugar = true;
+                    Ok(None)
+                }
+                ast::Attribute::VerilogAttrs { .. }
+                | ast::Attribute::Optimize { .. }
+                | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::WalTraceable { .. }
+                | ast::Attribute::NoMangle { .. }
+                | ast::Attribute::Fsm { .. }
+                | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::Inline
+                | ast::Attribute::Deprecated { .. }
+                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
+            })?;
             create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.type_params,
@@ -600,6 +616,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
                     | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::Inline
                     | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum variant")),
                 })?;
 
@@ -653,6 +670,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::Inline
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum")),
             })?;
 
@@ -752,6 +770,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::Inline
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
             })?;
 

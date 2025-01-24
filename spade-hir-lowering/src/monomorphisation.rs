@@ -205,6 +205,7 @@ impl MonoState {
     }
 }
 
+#[derive(Clone)]
 pub struct MirOutput {
     pub mir: mir::Entity,
     pub type_state: TypeState,

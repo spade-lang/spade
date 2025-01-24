@@ -84,7 +84,7 @@ impl From<&ValueName> for ValueNameSource {
 /// A name of a value. Can either come from the NameID of the underlying
 /// variable, or the id of the underlying expression
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[derive_where(Hash, Eq, PartialEq)]
+#[derive_where(Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum ValueName {
     /// A named value in the code with with an index to make that name locally unique
     Named(
@@ -480,7 +480,7 @@ pub enum Statement {
     Binding(Binding),
     Register(Register),
     /// A constant expression with the specified ID and value
-    Constant(ExprID, Type, ConstantValue),
+    Constant(ValueName, Type, ConstantValue),
     Assert(Loc<ValueName>),
     Set {
         target: Loc<ValueName>,
@@ -515,7 +515,7 @@ impl std::fmt::Display for Statement {
         match self {
             Statement::Binding(b) => write!(f, "{b}"),
             Statement::Register(r) => write!(f, "{r}"),
-            Statement::Constant(id, ty, val) => write!(f, "const e{id}: {ty} = {val}", id = id.0),
+            Statement::Constant(id, ty, val) => write!(f, "const {id}: {ty} = {val}"),
             Statement::Assert(val) => write!(f, "assert {val}"),
             Statement::Set { target, value } => write!(f, "set {target} = {value}"),
             Statement::WalTrace {
@@ -546,6 +546,7 @@ pub struct Entity {
     pub output_type: Type,
     pub verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
     pub statements: Vec<Statement>,
+    pub inline: bool,
 }
 
 impl std::fmt::Display for Entity {
@@ -557,6 +558,7 @@ impl std::fmt::Display for Entity {
             output_type,
             statements,
             verilog_attr_groups,
+            inline,
         } = self;
 
         let inputs = inputs
@@ -592,8 +594,9 @@ impl std::fmt::Display for Entity {
 
         writeln!(
             f,
-            "entity {name}({inputs}) -> {output_type} {{",
-            name = name.as_verilog()
+            "{inline}entity {name}({inputs}) -> {output_type} {{",
+            name = name.as_verilog(),
+            inline = if *inline { "inline " } else { "" }
         )?;
         write!(f, "{statements}")?;
         write!(f, "}} => {output}")

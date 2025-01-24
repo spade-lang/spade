@@ -9,6 +9,7 @@ entity \test () -> () {
 	let e10: ({value: bool}) = ConstructTuple(e11)
 	let e2: bool = Instance(\impl#0::call[31] )(e3, e10)
 	let x_n26: bool = Alias(e2)
+	let e1: () = Nop()
 } => e1
 entity \impl#0::call[31] ((self, self_n24, {}), (args, args_n25, ({value: bool}))) -> bool {
 	let e15: {value: bool} = IndexTuple(0)(args_n25)
