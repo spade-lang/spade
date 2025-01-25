@@ -3,15 +3,14 @@ use std::collections::HashMap;
 use colored::Colorize;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use spade_types::meta_types::MetaType;
 use tap::prelude::*;
-use thiserror::Error;
 use tracing::trace;
 
 use spade_common::id_tracker::NameIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path};
 use spade_diagnostics::diagnostic::Diagnostic;
+use spade_types::meta_types::MetaType;
 
 use crate::{
     FunctionKind, ParameterList, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
@@ -153,9 +152,9 @@ impl LookupError {
     }
 }
 
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UniqueNameError {
-    #[error("Multiple definitions of {new}")]
+    // #[error("Multiple definitions of {new}")]
     MultipleDefinitions { new: Loc<Path>, prev: Loc<()> },
 }
 

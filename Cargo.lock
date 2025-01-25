@@ -1119,7 +1119,6 @@ dependencies = [
  "spade-diagnostics",
  "spade-types",
  "tap",
- "thiserror",
  "tracing",
 ]
 
