@@ -1838,26 +1838,6 @@ impl<'a> Parser<'a> {
         ret
     }
 
-    #[inline]
-    fn keyword_peeking_parser_single<T>(
-        &mut self,
-        parsers: &[Box<dyn KeywordPeekingParser<T>>],
-        support_attributes: bool,
-        additional_continuations: &[TokenKind],
-    ) -> RecoveryResult<Option<T>> {
-        self._keyword_peeking_parser_inner(
-            parsers,
-            support_attributes,
-            parsers
-                .iter()
-                .map(|p| p.leading_tokens())
-                .flatten()
-                .chain(additional_continuations.iter().cloned())
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
-    }
-
     fn keyword_peeking_parser_seq<T>(
         &mut self,
         parsers: Vec<Box<dyn KeywordPeekingParser<T>>>,
