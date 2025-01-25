@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use thiserror::Error;
 
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
@@ -341,7 +340,7 @@ fn add_known_type_context(
     }
 }
 
-#[derive(Debug, Error, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TypeMismatch {
     /// Expected type
     pub e: UnificationTrace,
@@ -368,21 +367,16 @@ impl std::fmt::Display for TypeMismatch {
     }
 }
 
-#[derive(Debug, Error, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum UnificationError {
-    #[error("Unification error")]
     Normal(TypeMismatch),
-    #[error("Meta type mismatch")]
     MetaMismatch(TypeMismatch),
-    #[error("")]
-    Specific(#[from] spade_diagnostics::Diagnostic),
-    #[error("Unsatisfied traits")]
+    Specific(spade_diagnostics::Diagnostic),
     UnsatisfiedTraits {
         var: TypeVar,
         traits: Vec<Loc<TraitReq>>,
         target_loc: Loc<()>,
     },
-    #[error("Unification error from constraints")]
     FromConstraints {
         expected: UnificationTrace,
         got: UnificationTrace,

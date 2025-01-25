@@ -154,7 +154,7 @@ pub fn ce_int(v: BigInt) -> ConstraintExpr {
     ConstraintExpr::Integer(v)
 }
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConstraintSource {
     AdditionOutput,
     MultOutput,
