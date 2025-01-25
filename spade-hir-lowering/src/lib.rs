@@ -189,7 +189,11 @@ impl MirLowerable for ConcreteType {
                     .collect();
                 Type::Enum(inner)
             }
-            CType::Struct { name: _, members } => {
+            CType::Struct {
+                name: _,
+                is_port: _,
+                members,
+            } => {
                 let members = members
                     .iter()
                     .map(|(n, t)| (n.0.clone(), t.to_mir_type()))
@@ -674,7 +678,12 @@ pub fn do_wal_trace_lowering(
     check_clk_or_rst(clk, *uses_clk, "clock", "clk")?;
     check_clk_or_rst(rst, *uses_rst, "reset", "rst")?;
 
-    if let ConcreteType::Struct { name: _, members } = ty {
+    if let ConcreteType::Struct {
+        name: _,
+        is_port: _,
+        members,
+    } = ty
+    {
         let inner_types = members
             .iter()
             .map(|(_, t)| t.to_mir_type())
@@ -1606,7 +1615,12 @@ impl ExprLocal for Loc<Expression> {
                         unreachable!("Field access on non-struct {:?}", self_type)
                     };
 
-                let field_index = if let ConcreteType::Struct { name: _, members } = ctype {
+                let field_index = if let ConcreteType::Struct {
+                    name: _,
+                    is_port: _,
+                    members,
+                } = ctype
+                {
                     let field_indices = members
                         .iter()
                         .enumerate()

@@ -248,9 +248,11 @@ impl Constructor {
         match &self {
             Constructor::Single => match ty {
                 ConcreteType::Tuple(i) => i.clone(),
-                ConcreteType::Struct { name: _, members } => {
-                    members.iter().map(|m| m.1.clone()).collect()
-                }
+                ConcreteType::Struct {
+                    name: _,
+                    is_port: _,
+                    members,
+                } => members.iter().map(|m| m.1.clone()).collect(),
                 ConcreteType::Array { inner, size } => (0..size
                     .to_u128()
                     .expect("Arrays with more than 2^128 elements are unsupported"))
@@ -399,7 +401,11 @@ impl std::fmt::Display for DeconstructedPattern {
                     "({})",
                     self.fields.iter().map(|f| format!("{f}")).join(", ")
                 ),
-                ConcreteType::Struct { name, members } => {
+                ConcreteType::Struct {
+                    name,
+                    is_port: _,
+                    members,
+                } => {
                     write!(
                         f,
                         "{name}({})",

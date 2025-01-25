@@ -50,7 +50,11 @@ impl MutWireWitness {
 pub fn is_linear(ty: &ConcreteType) -> bool {
     match ty {
         ConcreteType::Tuple(inner) => inner.iter().any(is_linear),
-        ConcreteType::Struct { name: _, members } => members.iter().any(|(_, ty)| is_linear(ty)),
+        ConcreteType::Struct {
+            name: _,
+            is_port: _, // TODO: aren't all ports linear types?
+            members,
+        } => members.iter().any(|(_, ty)| is_linear(ty)),
         ConcreteType::Array { inner, size: _ } => is_linear(inner),
         ConcreteType::Enum { .. } => false,
         ConcreteType::Single { base, params: _ } => match base {
@@ -323,7 +327,11 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
                 .collect();
             LinearTree::tuple(inner)
         }
-        ConcreteType::Struct { name: _, members } => {
+        ConcreteType::Struct {
+            name: _,
+            is_port: _,
+            members,
+        } => {
             let inner = members
                 .iter()
                 .map(|(name, ty)| {

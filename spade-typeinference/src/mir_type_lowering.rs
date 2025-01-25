@@ -142,6 +142,7 @@ impl TypeState {
 
                 ConcreteType::Struct {
                     name: decl.name.inner.clone(),
+                    is_port: s.is_port,
                     members,
                 }
             }

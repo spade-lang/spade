@@ -2063,6 +2063,19 @@ mod tests {
         assert_same_mir!(&result, &expected);
     }
 
+    #[test]
+    fn empty_port_pair_creation_works() {
+        let code = "
+            struct port P { }
+
+            entity x() -> (P, inv P) {
+                port
+            }
+        ";
+
+        build_items(code);
+    }
+
     snapshot_error! {
         port_expression_does_not_create_non_ports,
         "
