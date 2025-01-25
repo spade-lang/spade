@@ -27,7 +27,10 @@ impl<'a> Pass for LowerMethods<'a> {
                 turbofish: _,
             } => {
                 let self_type = self_.get_type(self.type_state).map_err(|e| {
-                    Diagnostic::bug(self_.as_ref(), format!("did not find a type ({e})"))
+                    Diagnostic::bug(
+                        self_.as_ref(),
+                        format!("{}\ndid not find a type", e.labels.message.as_str()),
+                    )
                 })?;
 
                 // Method resolution requires fully known types, so we'll do a throwaway MIR

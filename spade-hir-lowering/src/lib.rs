@@ -864,7 +864,8 @@ pub fn do_wal_trace_lowering(
                 .map_err(|e| {
                     diag_anyhow!(
                         wal_trace,
-                        "{e}\n Unification error while laundering a struct"
+                        "{}\nUnification error while laundering a struct",
+                        e.labels.message.as_str(),
                     )
                 })?;
 
