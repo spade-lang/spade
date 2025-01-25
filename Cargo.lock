@@ -1187,7 +1187,6 @@ dependencies = [
  "spade-common",
  "spade-diagnostics",
  "spade-macros",
- "thiserror",
  "tracing",
 ]
 
