@@ -154,7 +154,6 @@ impl LookupError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniqueNameError {
-    // #[error("Multiple definitions of {new}")]
     MultipleDefinitions { new: Loc<Path>, prev: Loc<()> },
 }
 
