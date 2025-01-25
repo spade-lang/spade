@@ -1562,6 +1562,10 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
             );
             Ok(stmts)
         }
+        ast::Statement::Expression(expr) => {
+            let value = expr.try_visit(visit_expression, ctx)?;
+            Ok(vec![hir::Statement::Expression(value).at_loc(expr)])
+        }
         ast::Statement::Register(inner) => visit_register(inner, ctx),
         ast::Statement::PipelineRegMarker(count, cond) => {
             let cond = match cond {

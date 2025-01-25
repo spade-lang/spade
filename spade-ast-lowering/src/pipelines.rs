@@ -23,6 +23,7 @@ fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Re
         }
         ast::Statement::Declaration(_) => {}
         ast::Statement::Binding(_) => {}
+        ast::Statement::Expression(_) => {}
         ast::Statement::PipelineRegMarker(_, _) => {}
         ast::Statement::Register(_) => {}
         ast::Statement::Assert(_) => {}

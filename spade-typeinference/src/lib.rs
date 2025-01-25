@@ -1493,6 +1493,7 @@ impl TypeState {
 
                 Ok(())
             }
+            Statement::Expression(expr) => self.visit_expression(expr, ctx, generic_list),
             Statement::Register(reg) => self.visit_register(reg, ctx, generic_list),
             Statement::Declaration(names) => {
                 for name in names {

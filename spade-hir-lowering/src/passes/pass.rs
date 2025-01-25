@@ -117,6 +117,7 @@ impl Passable for Loc<Expression> {
                             value,
                             wal_trace: _,
                         }) => value.apply(pass)?,
+                        Statement::Expression(expr) => expr.apply(pass)?,
                         Statement::Register(reg) => {
                             let Register {
                                 pattern: _,

@@ -200,6 +200,9 @@ impl<'a> Inferer<'a> {
                 }
                 self.expression(value)?;
             }
+            Statement::Expression(expr) => {
+                self.expression(expr)?;
+            }
             Statement::Assert(expr) => {
                 self.expression(expr)?;
             }

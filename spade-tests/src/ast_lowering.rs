@@ -791,6 +791,16 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    expect_function_got_entity_error_works_stmt,
+    "entity x() -> bool {true}
+
+    entity test() -> bool {
+        x();
+        false
+    }"
+}
+
+snapshot_error! {
     expect_function_got_pipeline_error_works,
     "pipeline(0) x(clk: clock) -> bool {true}
 

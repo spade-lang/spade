@@ -996,6 +996,9 @@ impl StatementLocal for Statement {
 
                 result.append(pattern.lower(value.variable(ctx)?, ctx)?);
             }
+            Statement::Expression(expr) => {
+                result.append(expr.lower(ctx)?);
+            }
             Statement::Register(register) => {
                 let hir::Register {
                     clock,

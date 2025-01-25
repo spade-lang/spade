@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+entity x() -> bool {true}
+
+entity test() -> bool {
+    x();
+    false
+}
+
+error: Expected x to be a function
+  ┌─ testinput:4:5
+  │
+1 │ entity x() -> bool {true}
+  │ ------------------------- x is an entity
+  ·
+4 │     x();
+  │     ^ Expected function
+  │
+  = consider adding inst
+  │
+4 │     inst x();
+  │     +++++

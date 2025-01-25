@@ -165,6 +165,7 @@ pub enum PipelineRegMarkerExtra {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Statement {
     Binding(Binding),
+    Expression(Loc<Expression>),
     Register(Register),
     Declaration(Vec<Loc<NameID>>),
     PipelineRegMarker(Option<PipelineRegMarkerExtra>),

@@ -244,7 +244,7 @@ pub enum ExprKind {
     StageValid,
     StageReady,
     // This is a special case expression which is never created in user code, but which can be used
-    // in type inferecne to create virtual expressions with specific IDs
+    // in type inference to create virtual expressions with specific IDs
     Null,
 }
 impl WithLocation for ExprKind {}
