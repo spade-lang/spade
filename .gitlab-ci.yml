@@ -289,4 +289,13 @@ yowaspPublish:
       when: always
     - when: never
 
+yowaspPlayground:
+  needs: [yowaspPublish]
+  trigger: spade-lang/playground
+  rules:
+    # only publish on the main branch
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
+      when: always
+    - when: never
+
 
