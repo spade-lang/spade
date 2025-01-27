@@ -277,8 +277,7 @@ yowaspPublish:
   before_script:
     - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ npm
   script:
-    - "[[ '1' == $(ls npmjs/dist | wc -l) ]]"
-    - echo ${TEST_VAR}
+    - "[[ '1' == $(ls yowasp/npmjs/dist | wc -l) ]]"
     # NOTE: If NPM_ACCESS_TOKEN is set to protected and the CI flow is running on a non-protected
     # branch, it will silently fail. Make sure to use a protected branch for this step
     - npm config set //registry.npmjs.org/:_authToken ${NPM_ACCESS_TOKEN}
