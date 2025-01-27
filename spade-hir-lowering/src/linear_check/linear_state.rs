@@ -52,7 +52,7 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
         ConcreteType::Tuple(inner) => inner.iter().any(is_linear),
         ConcreteType::Struct {
             name: _,
-            is_port: _, // TODO: aren't all ports linear types?
+            is_port: _,
             members,
         } => members.iter().any(|(_, ty)| is_linear(ty)),
         ConcreteType::Array { inner, size: _ } => is_linear(inner),
