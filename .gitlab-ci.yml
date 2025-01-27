@@ -238,3 +238,47 @@ trawler:
     variables:
         UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     trigger: spade-lang/trawler
+
+
+yowaspBuild:
+  image: alpine:latest
+  variables:
+    CARGO_HOME: null
+  before_script:
+    - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ curl npm git
+    - apk add build-base rustup python3
+    - rustup-init --default-toolchain stable -y
+    - source $HOME/.cargo/env
+  script:
+    - rustup toolchain install stable
+    - rustup target add wasm32-wasip1
+    # We want to be able to pre-build this on merge requests, setting the
+    # UPSTREAM_BRANCH variable in a job that triggers this one allows changing the
+    # configuration
+    - cd yowasp
+    - ./build.sh
+    - ./package-npmjs.sh
+  artifacts:
+    paths:
+      # Path of our artifacts
+      - yowasp/npmjs/dist
+
+publish:
+  needs: [yowaspBuild]
+  before_script:
+    - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ npm
+  script:
+    - "[[ '1' == $(ls npmjs/dist | wc -l) ]]"
+    - echo ${TEST_VAR}
+    # NOTE: If NPM_ACCESS_TOKEN is set to protected and the CI flow is running on a non-protected
+    # branch, it will silently fail. Make sure to use a protected branch for this step
+    - npm config set //registry.npmjs.org/:_authToken ${NPM_ACCESS_TOKEN}
+    - cat ~/.npmrc
+    - npm publish yowasp/npmjs/dist/$(ls yowasp/npmjs/dist)
+  rules:
+    # only publish on the main branch
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
+      when: always
+    - when: never
+
+
