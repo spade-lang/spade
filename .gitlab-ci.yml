@@ -271,8 +271,9 @@ yowaspBuild:
       # Path of our artifacts
       - yowasp/npmjs/dist
 
-publish:
+yowaspPublish:
   needs: [yowaspBuild]
+  image: alpine:latest
   before_script:
     - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ npm
   script:
