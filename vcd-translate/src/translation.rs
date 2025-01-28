@@ -416,6 +416,7 @@ mod tests {
     fn struct_translation_works() {
         let ty = ConcreteType::Struct {
             name: name_id(0, "X").inner,
+            is_port: false,
             members: vec![
                 (
                     ast_ident("a").inner,
