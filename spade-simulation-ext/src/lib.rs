@@ -897,9 +897,11 @@ fn val_to_spade(val: &str, ty: ConcreteType) -> String {
 
 fn concrete_ty_has_field(ty: &ConcreteType, field: &str) -> bool {
     match ty {
-        ConcreteType::Struct { name: _, members } => {
-            members.iter().find(|(n, _)| n.0 == field).is_some()
-        }
+        ConcreteType::Struct {
+            name: _,
+            is_port: _,
+            members,
+        } => members.iter().find(|(n, _)| n.0 == field).is_some(),
         ConcreteType::Backward(inner) | ConcreteType::Wire(inner) => {
             concrete_ty_has_field(inner, field)
         }
