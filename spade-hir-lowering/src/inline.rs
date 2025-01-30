@@ -39,7 +39,7 @@ fn perform_inlining(
                             loc: _iloc,
                         },
                     operands,
-                    ty,
+                    ty: _,
                     loc,
                 }) => {
                     let Some(target) = name_map.get(iname) else {
@@ -47,8 +47,6 @@ fn perform_inlining(
                     };
 
                     let target = perform_inlining(&target, name_map, inlined, idtracker, type_ctx)?;
-
-                    // println!("Inlining {target}\n---------\ninto\n{entity}", target=target.mir, entity=entity.mir);
 
                     if target.mir.inline {
                         if !params.is_empty() {
@@ -106,15 +104,11 @@ fn perform_inlining(
                                 }
                                 ValueName::Expr(expr_id) => TypedExpression::Id(*expr_id),
                             };
-                            let new_ty = entity.type_state.new_generic_type(().nowhere());
-                            entity
-                                .type_state
-                                .add_equation(dest_type.clone(), new_ty.clone());
-                            let source_ty = target.type_state.type_of(&source_type)?;
-                            entity
-                                .type_state
-                                .unify(&source_ty, &dest_type, type_ctx)
-                                .unwrap();
+                            if let Ok(source_ty) = target.type_state.type_of(&source_type) {
+                                entity
+                                    .type_state
+                                    .add_equation(dest_type.clone(), source_ty);
+                            };
                         }
 
                         let expr_map = input_expr_map
@@ -248,14 +242,18 @@ pub fn do_inlining(
 
     mir_entities
         .iter_mut()
-        .map(|entity| {
-            Ok(perform_inlining(
-                entity,
-                &name_map,
-                &mut inlined,
-                idtracker,
-                type_ctx,
-            )?)
+        .filter_map(|entity| {
+            if !entity.mir.inline {
+                Some(perform_inlining(
+                    entity,
+                    &name_map,
+                    &mut inlined,
+                    idtracker,
+                    type_ctx,
+                ))
+            } else {
+                None
+            }
         })
         .collect()
 }

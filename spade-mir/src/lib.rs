@@ -592,9 +592,9 @@ impl std::fmt::Display for Entity {
 
         writeln!(
             f,
-            "{inline} entity {name}({inputs}) -> {output_type} {{",
+            "{inline}entity {name}({inputs}) -> {output_type} {{",
             name = name.as_verilog(),
-            inline = if *inline { "inline" } else { "" }
+            inline = if *inline { "inline " } else { "" }
         )?;
         write!(f, "{statements}")?;
         write!(f, "}} => {output}")
