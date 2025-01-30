@@ -1191,11 +1191,13 @@ mod tests {
 
         let expected = vec![
             entity! {&["unwrap_or_0"]; ("e", n(0, "e"), mir_type.clone()) -> Type::int(16); {
+                (e(20); mir_type.clone(); Alias; n(0, "e"));
                 // Conditions for branches
                 (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0, enum_type: mir_type.clone()}); n(0, "e"));
-                (e(2); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type}); n(0, "e"));
+                (e(2); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type.clone()}); n(0, "e"));
                 (const 10; Type::Bool; ConstantValue::Bool(true));
                 (e(11); Type::Bool; LogicalAnd; e(2), e(10));
+                (n(21, "other"); mir_type.clone(); Alias; n(0, "e"));
                 (const 3; Type::Bool; ConstantValue::Bool(true));
                 (const 5; Type::int(16); ConstantValue::int(0));
                 (e(6); Type::int(16); Match; e(11), n(1, "x"), e(3), e(5));
@@ -1218,8 +1220,10 @@ mod tests {
 
         let expected = vec![
             entity! {&["uwu"]; ("e", n(0, "e"), Type::Bool) -> Type::Bool; {
+                (e(10); Type::Bool; Alias; n(0, "e"));
                 // Conditions for branches
                 (const 3; Type::Bool; ConstantValue::Bool(false));
+                (e(11); Type::Bool; Alias; n(0, "e"));
                 (e(2); Type::Bool; LogicalNot; n(0, "e"));
                 (const 4; Type::Bool; ConstantValue::Bool(true));
                 (e(6); Type::Bool; Match; n(0, "e"), e(3), e(2), e(4));
@@ -1242,10 +1246,12 @@ mod tests {
 
         let expected = vec![
             entity! {&["uwu"]; ("e", n(0, "e"), Type::int(16)) -> Type::Bool; {
+                (e(10); Type::int(16); Alias; n(0, "e"));
                 // Conditions for branches
                 (const 1; Type::int(16); ConstantValue::int(0));
                 (e(2); Type::Bool; Eq; n(0, "e"), e(1));
                 (const 4; Type::Bool; ConstantValue::Bool(true));
+                (n(11, "_"); Type::int(16); Alias; n(0, "e"));
                 (const 5; Type::Bool; ConstantValue::Bool(true));
                 (const 6; Type::Bool; ConstantValue::Bool(false));
                 (e(6); Type::Bool; Match; e(2), e(4), e(5), e(6));
@@ -1270,17 +1276,20 @@ mod tests {
         let tup_inner = vec![Type::Bool, Type::Bool];
         let tup_type = Type::Tuple(tup_inner.clone());
         let expected = entity! {&["name"]; (
-                "a", n(0, "a"), tup_type
+                "a", n(0, "a"), tup_type.clone()
             ) -> Type::int(16); {
+                (e(50); tup_type.clone(); Alias; n(0, "a"));
                 (e(0); Type::Bool; IndexTuple((0, tup_inner.clone())); n(0, "a"));
                 (e(1); Type::Bool; IndexTuple((1, tup_inner.clone())); n(0, "a"));
                 (e(3); Type::Bool; LogicalAnd; e(0), e(1));
                 (const 10; Type::int(16); ConstantValue::int(0));
+                (e(51); tup_type.clone(); Alias; n(0, "a"));
                 (e(20); Type::Bool; IndexTuple((0, tup_inner.clone())); n(0, "a"));
                 (e(21); Type::Bool; IndexTuple((1, tup_inner)); n(0, "a"));
                 (e(4); Type::Bool; LogicalNot; e(20));
                 (e(5); Type::Bool; LogicalAnd; e(4), e(21));
                 (const 11; Type::int(16); ConstantValue::int(1));
+                (n(52, "_"); tup_type.clone(); Alias; n(0, "a"));
                 (const 12; Type::Bool; ConstantValue::Bool(true));
                 (const 13; Type::int(16); ConstantValue::int(2));
                 // Condition for branch 1
@@ -1307,6 +1316,7 @@ mod tests {
 
         let expected = vec![
             entity! {&["unwrap_or_0"]; ("e", n(0, "e"), mir_type.clone()) -> Type::int(16); {
+                (e(100); mir_type.clone(); Alias; n(0, "e"));
                 // Conditions for branch 1
                 (e(11); Type::int(16); EnumMember({variant: 1, member_index: 0, enum_type: mir_type.clone()}); n(0, "e"));
                 (e(15); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type.clone()}); n(0, "e"));
@@ -1315,12 +1325,14 @@ mod tests {
                 (e(14); Type::Bool; LogicalAnd; e(15), e(12));
                 (const 13; Type::int(16); ConstantValue::int(5));
 
+                (e(101); mir_type.clone(); Alias; n(0, "e"));
                 // Condition for branch 2
                 (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0, enum_type: mir_type.clone()}); n(0, "e"));
-                (e(2); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type}); n(0, "e"));
+                (e(2); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type.clone()}); n(0, "e"));
                 (const 3; Type::Bool; ConstantValue::Bool(true));
                 (e(20); Type::Bool; LogicalAnd; e(2), e(3));
 
+                (n(102, "other"); mir_type.clone(); Alias; n(0, "e"));
                 (const 21; Type::Bool; ConstantValue::Bool(true));
                 (const 5; Type::int(16); ConstantValue::int(0));
                 (e(6); Type::int(16); Match; e(14), e(13), e(20), n(1, "x"), e(21), e(5));
@@ -1349,10 +1361,12 @@ mod tests {
 
         let expected = vec![
             entity! {&["test"]; ("x", n(0, "x"), ty.clone()) -> Type::int(10); {
+                (e(20); ty.clone(); Alias; n(0, "x"));
                 (e(1); Type::Bool; IndexTuple((0, vec![Type::Bool])); n(0, "x"));
                 (const 10; Type::Bool; ConstantValue::Bool(true));
                 (e(11); Type::Bool; LogicalAnd; e(10), e(1));
                 (const 0; Type::int(10); ConstantValue::int(10));
+                (n(21, "_"); ty.clone(); Alias; n(0, "x"));
                 (const 4; Type::Bool; ConstantValue::Bool(true));
                 (const 2; Type::int(10); ConstantValue::int(0));
                 (e(3); Type::int(10); Match; e(11), e(0), e(4), e(2));
@@ -2089,6 +2103,7 @@ mod tests {
         let expected = entity!(&["name"]; (
             "x", n(1, "x"), Type::unit(),
         ) -> Type::int(8); {
+            (e(10); Type::unit(); Alias; n(1, "x"));
             (const 7; Type::Bool; ConstantValue::Bool(true));
             (const 5; Type::int(8); ConstantValue::int(42));
             (e(1); Type::int(8); Match; e(7), e(5));

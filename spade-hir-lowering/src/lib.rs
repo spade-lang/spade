@@ -267,12 +267,15 @@ pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::State
 
 #[local_impl]
 impl PatternLocal for Loc<Pattern> {
-    /// Lower a pattern to its individual parts. Requires the `Pattern::id` to be
-    /// present in the code before this
-    /// self_name is the name of the operand which this pattern matches
-    #[tracing::instrument(name = "Pattern::lower", level = "trace", skip(self, ctx))]
-    fn lower(&self, self_name: ValueName, ctx: &mut Context) -> Result<StatementList> {
+    /// Does the same thing as lower but does not create an alias binding for
+    /// self_name. Used if this is handled elsehwere
+    fn lower_no_initial_binding(
+        &self,
+        self_name: ValueName,
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
         let mut result = StatementList::new();
+
         match &self.kind {
             hir::PatternKind::Integer(_) => {}
             hir::PatternKind::Bool(_) => {}
@@ -289,21 +292,23 @@ impl PatternLocal for Loc<Pattern> {
                 };
 
                 for (i, p) in inner.iter().enumerate() {
+                    let ty = ctx
+                        .types
+                        .concrete_type_of(p, ctx.symtab.symtab(), &ctx.item_list.types)?
+                        .to_mir_type();
+
                     result.push_primary(
                         mir::Statement::Binding(mir::Binding {
                             name: p.value_name(),
                             operator: mir::Operator::IndexTuple(i as u64, inner_types.clone()),
                             operands: vec![self_name.clone()],
-                            ty: ctx
-                                .types
-                                .concrete_type_of(p, ctx.symtab.symtab(), &ctx.item_list.types)?
-                                .to_mir_type(),
+                            ty,
                             loc: None,
                         }),
                         p,
                     );
 
-                    result.append(p.lower(p.value_name(), ctx)?)
+                    result.append(p.lower_no_initial_binding(p.value_name(), ctx)?)
                 }
             }
             hir::PatternKind::Array(inner) => {
@@ -337,7 +342,7 @@ impl PatternLocal for Loc<Pattern> {
                         p,
                     );
 
-                    result.append(p.lower(p.value_name(), ctx)?)
+                    result.append(p.lower_no_initial_binding(p.value_name(), ctx)?)
                 }
             }
             hir::PatternKind::Type(path, args) => {
@@ -385,7 +390,7 @@ impl PatternLocal for Loc<Pattern> {
                                 value,
                             );
 
-                            result.append(value.lower(value.value_name(), ctx)?)
+                            result.append(value.lower_no_initial_binding(value.value_name(), ctx)?)
                         }
                     }
                     PatternableKind::Enum => {
@@ -418,12 +423,43 @@ impl PatternLocal for Loc<Pattern> {
                                 &p.value,
                             );
 
-                            result.append(p.value.lower(p.value.value_name(), ctx)?)
+                            result.append(
+                                p.value
+                                    .lower_no_initial_binding(p.value.value_name(), ctx)?,
+                            )
                         }
                     }
                 }
             }
         }
+
+        Ok(result)
+    }
+
+    /// Lower a pattern to its individual parts. Requires the `Pattern::id` to be
+    /// present in the code before this
+    /// self_name is the name of the operand which this pattern matches
+    #[tracing::instrument(name = "Pattern::lower", level = "trace", skip(self, self_ty, ctx))]
+    fn lower(
+        &self,
+        self_name: ValueName,
+        self_ty: MirType,
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = StatementList::new();
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.value_name(),
+                operator: mir::Operator::Alias,
+                operands: vec![self_name.clone()],
+                ty: self_ty.clone(),
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
+
+        result.append(self.lower_no_initial_binding(self_name, ctx)?);
 
         Ok(result)
     }
@@ -982,22 +1018,11 @@ impl StatementLocal for Statement {
 
                 let mir_ty = concrete_ty.to_mir_type();
 
-                result.push_primary(
-                    mir::Statement::Binding(mir::Binding {
-                        name: pattern.value_name(),
-                        operator: mir::Operator::Alias,
-                        operands: vec![value.variable(ctx)?],
-                        ty: mir_ty.clone(),
-                        loc: Some(pattern.loc()),
-                    }),
-                    pattern,
-                );
+                result.append(pattern.lower(value.variable(ctx)?, mir_ty, ctx)?);
 
                 if let Some(wal_trace) = wal_trace {
                     lower_wal_trace(pattern, wal_trace, ctx, &mut result, &concrete_ty)?;
                 }
-
-                result.append(pattern.lower(value.variable(ctx)?, ctx)?);
             }
             Statement::Expression(expr) => {
                 result.append(expr.lower(ctx)?);
@@ -1117,7 +1142,7 @@ impl StatementLocal for Statement {
                     pattern,
                 );
 
-                result.append(pattern.lower(pattern.value_name(), ctx)?);
+                result.append(pattern.lower_no_initial_binding(pattern.value_name(), ctx)?);
             }
             Statement::Declaration(_) => {}
             Statement::PipelineRegMarker(_cond) => {
@@ -1862,7 +1887,11 @@ impl ExprLocal for Loc<Expression> {
                 result.append(operand.lower(ctx)?);
                 let mut operands = vec![];
                 for (pat, result_expr) in branches {
-                    result.append(pat.lower(operand.variable(ctx)?, ctx)?);
+                    let pat_ty = ctx
+                        .types
+                        .concrete_type_of(pat, ctx.symtab.symtab(), &ctx.item_list.types)?
+                        .to_mir_type();
+                    result.append(pat.lower(operand.variable(ctx)?, pat_ty, ctx)?);
 
                     let cond = pat.condition(&operand.variable(ctx)?, ctx)?;
                     result.append_secondary(cond.statements, pat, "Pattern condition");
