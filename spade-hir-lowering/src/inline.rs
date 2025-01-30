@@ -48,8 +48,6 @@ fn perform_inlining(
 
                     let target = perform_inlining(&target, name_map, inlined, idtracker, type_ctx)?;
 
-                    // println!("Inlining {target}\n---------\ninto\n{entity}", target=target.mir, entity=entity.mir);
-
                     if target.mir.inline {
                         if !params.is_empty() {
                             diag_bail!(
@@ -110,11 +108,12 @@ fn perform_inlining(
                             entity
                                 .type_state
                                 .add_equation(dest_type.clone(), new_ty.clone());
-                            let source_ty = target.type_state.type_of(&source_type)?;
-                            entity
-                                .type_state
-                                .unify(&source_ty, &dest_type, type_ctx)
-                                .unwrap();
+                            if let Ok(source_ty) = target.type_state.type_of(&source_type) {
+                                entity
+                                    .type_state
+                                    .unify(&source_ty, &dest_type, type_ctx)
+                                    .unwrap();
+                            };
                         }
 
                         let expr_map = input_expr_map

@@ -300,7 +300,7 @@ impl TypeState {
                 return Ok(t.clone());
             }
         }
-        panic!("Tried looking up the type of {expr:?} but it was not found")
+        diag_bail!(().nowhere(), "Tried looking up the type of {expr:?} but it was not found")
     }
 
     pub fn new_generic_int(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVar {
