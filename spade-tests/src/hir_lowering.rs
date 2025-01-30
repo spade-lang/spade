@@ -2152,6 +2152,40 @@ mod tests {
     }
 
     #[test]
+    fn expression_statement_lowers_correctly() {
+        let code = "
+            entity x() {
+                let a: uint<8> = 42;
+                a + a;
+                a + a;
+            }
+        ";
+
+        let result = build_entity!(code);
+
+        /*let intype_inner = vec![
+            ("x".to_string(), Type::Bool),
+            ("y".to_string(), Type::Backward(Box::new(Type::int(2)))),
+        ];
+        let intype = Type::Struct(intype_inner.clone());
+        let outtype = Type::Struct(vec![
+            ("x".to_string(), Type::Backward(Box::new(Type::Bool))),
+            ("y".to_string(), Type::int(2)),
+        ]);
+        let tuple_type = Type::Tuple(vec![intype.clone(), outtype.clone()]);
+
+        let expected = entity!(&["x"]; () -> tuple_type.clone(); {
+            (e(1); intype; Nop;);
+            (e(2); outtype; FlipPort; e(1));
+            (e(3); tuple_type; ConstructTuple; e(1), e(2))
+        } => e(3));
+
+        assert_same_mir!(&result, &expected);*/
+        println!("{}", result);
+        panic!()
+    }
+
+    #[test]
     fn traced_fsm_is_traced() {
         let code = r#"
         entity name(clk: clock, x: bool) -> bool {
