@@ -2154,35 +2154,37 @@ mod tests {
     #[test]
     fn expression_statement_lowers_correctly() {
         let code = "
-            entity x() {
+            entity x() -> uint<8> {
                 let a: uint<8> = 42;
-                a + a;
-                a + a;
+                { let _ = a + a; };
+                { let _ = a + a; };
+                a
             }
         ";
 
         let result = build_entity!(code);
 
-        /*let intype_inner = vec![
-            ("x".to_string(), Type::Bool),
-            ("y".to_string(), Type::Backward(Box::new(Type::int(2)))),
-        ];
-        let intype = Type::Struct(intype_inner.clone());
-        let outtype = Type::Struct(vec![
-            ("x".to_string(), Type::Backward(Box::new(Type::Bool))),
-            ("y".to_string(), Type::int(2)),
-        ]);
-        let tuple_type = Type::Tuple(vec![intype.clone(), outtype.clone()]);
+        /*
+        entity \x () -> uint<8> {
+                const e1: uint<8> = 42
+                let a_n1: uint<8> = Alias(e1)
+                let e4: uint<9> = UnsignedAdd(a_n1, a_n1)
+                let __n2: uint<9> = Alias(e4)
+                let e9: uint<9> = UnsignedAdd(a_n1, a_n1)
+                let __n3: uint<9> = Alias(e9)
+        } => a_n1
+         */
 
-        let expected = entity!(&["x"]; () -> tuple_type.clone(); {
-            (e(1); intype; Nop;);
-            (e(2); outtype; FlipPort; e(1));
-            (e(3); tuple_type; ConstructTuple; e(1), e(2))
-        } => e(3));
+        let expected = entity!(&["x"]; () -> Type::uint(8); {
+            (const 1; Type::uint(8); ConstantValue::int(42));
+            (n(1, "a"); Type::uint(8); Alias; e(1));
+            (e(4); Type::uint(9); UnsignedAdd; n(1, "a"), n(1, "a"));
+            (n(2, "_"); Type::uint(9); Alias; e(4));
+            (e(9); Type::uint(9); UnsignedAdd; n(1, "a"), n(1, "a"));
+            (n(3, "_"); Type::uint(9); Alias; e(9));
+        } => n(1, "a"));
 
-        assert_same_mir!(&result, &expected);*/
-        println!("{}", result);
-        panic!()
+        assert_same_mir!(&result, &expected);
     }
 
     #[test]
