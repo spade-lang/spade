@@ -86,7 +86,6 @@ pub fn handle_statement(
                 ctx.subs.set_available(name, time, ty)
             }
         }
-        // TODO: Do I have to do something here for expression?
         Statement::Expression(_) => {}
         Statement::Register(reg) => {
             let time = reg.value.kind.available_in(ctx)?;
