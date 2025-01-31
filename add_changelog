@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-template="
-<!--
+template="<!--
  Thanks for the MR! Please add lines describing your changes in the appropriate section
 
  For example:
@@ -9,7 +8,8 @@ template="
 ## Added
 - Added some more fish
 ## Fixed
- a generic parameter-->
+ a generic parameter
+-->
 
 ## Added
 
