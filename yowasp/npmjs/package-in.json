@@ -1,0 +1,39 @@
+{
+    "name": "@spade-lang/spade",
+    "version": "__VERSION__",
+    "description": "Spade HDL (YoWASP package)",
+    "author": "Frans Skarman <frans.skarman@liu.se>",
+    "license": "ISC",
+    "homepage": "https://spade-lang.org/",
+    "repository": {
+        "type": "git",
+        "url": "git+https://gitlab.com/spade-lang/yowasp.git"
+    },
+    "bugs": {
+        "url": "https://github.com/spade-lang/spade/issues"
+    },
+    "type": "module",
+    "files": [
+        "lib/api.d.ts",
+        "gen/bundle.js",
+        "gen/resources-*.js",
+        "gen/*.wasm",
+        "gen/share/"
+    ],
+    "exports": {
+        "types": "./lib/api.d.ts",
+        "default": "./gen/bundle.js"
+    },
+    "types": "./lib/api.d.ts",
+    "devDependencies": {
+        "@bytecodealliance/jco": "1.0.0",
+        "@yowasp/runtime": "8.0.40",
+        "esbuild": "^0.19.8"
+    },
+    "scripts": {
+        "transpile": "jco new ../../target/wasm32-wasip1/release/spade.wasm --wasi-command --output spade.wasm && jco transpile spade.wasm --instantiation sync --no-typescript --no-namespaced-exports --map 'wasi:io/*=runtime#io' --map 'wasi:cli/*=runtime#cli' --map 'wasi:clocks/*=runtime#*' --map 'wasi:filesystem/*=runtime#fs' --map 'wasi:random/*=runtime#random' --out-dir gen/",
+        "pack": "yowasp-pack-resources gen/resources-spade.js gen",
+        "build": "esbuild --bundle lib/api.js --outfile=gen/bundle.js --format=esm --platform=node --external:./resources-*.js",
+        "all": "npm run transpile && npm run pack && npm run build"
+    }
+}

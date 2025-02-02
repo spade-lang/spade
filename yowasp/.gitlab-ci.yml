@@ -1,0 +1,54 @@
+image: alpine:latest
+variables:
+  # This variable will ensure that the CI runner pulls in your theme from the submodule
+  GIT_SUBMODULE_STRATEGY: recursive
+
+build:
+  before_script:
+    - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ curl npm git
+    - apk add build-base rustup python3
+    - rustup-init --default-toolchain stable -y
+    - source $HOME/.cargo/env
+  script:
+    - rustup toolchain install stable
+    - rustup target add wasm32-wasip1
+    # We want to be able to pre-build this on merge requests, setting the
+    # UPSTREAM_BRANCH variable in a job that triggers this one allows changing the
+    # configuration
+    - cd spade && git switch -d $([[ "$UPSTREAM_BRANCH" == "" ]] && echo "main" || echo "$UPSTREAM_BRANCH")
+    - cd ..
+    - ./build.sh
+    - ./package-npmjs.sh
+  artifacts:
+    paths:
+      # Path of our artifacts
+      - npmjs/dist
+
+show_vars:
+  script:
+    - export
+
+publish:
+  needs: [build]
+  before_script:
+    - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ npm
+  script:
+    - "[[ '1' == $(ls npmjs/dist | wc -l) ]]"
+    - echo ${TEST_VAR}
+    # NOTE: If NPM_ACCESS_TOKEN is set to protected and the CI flow is running on a non-protected
+    # branch, it will silently fail. Make sure to use a protected branch for this step
+    - npm config set //registry.npmjs.org/:_authToken ${NPM_ACCESS_TOKEN}
+    - cat ~/.npmrc
+    - npm publish npmjs/dist/$(ls npmjs/dist)
+  rules:
+    # If the pipeline was triggered from a local build, we want to publish
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $UPSTREAM_BRANCH == null'
+      when: always
+    # If the pipeline was triggered from an upstream build on `main`, we want to publish
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $UPSTREAM_BRANCH == "main"'
+      when: always
+    # In any other case, we're being triggered from upstream CI but not from main, we don't
+    # want to publish in this case.
+    - when: never
+
+

@@ -1096,6 +1096,9 @@ pub fn visit_unit(
             wal_suffix = Some(suffix.clone());
             Ok(None)
         }
+        ast::Attribute::Inline => {
+            Ok(Some(hir::Attribute::Inline))
+        }
         _ => Err(attr.report_unused("a unit")),
     })?;
 
@@ -1546,6 +1549,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                 ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
+                | ast::Attribute::Inline 
                 | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
             })?;
 

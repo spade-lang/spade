@@ -544,6 +544,7 @@ pub enum Attribute {
     WalSuffix {
         suffix: Loc<Identifier>,
     },
+    Inline,
 }
 
 impl Attribute {
@@ -555,6 +556,7 @@ impl Attribute {
             Attribute::WalTraceable { .. } => "wal_traceable",
             Attribute::WalTrace { .. } => "wal_trace",
             Attribute::WalSuffix { .. } => "wal_suffix",
+            Attribute::Inline => "inline",
         }
     }
 }

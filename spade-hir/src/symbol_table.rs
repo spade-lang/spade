@@ -3,15 +3,14 @@ use std::collections::HashMap;
 use colored::Colorize;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use spade_types::meta_types::MetaType;
 use tap::prelude::*;
-use thiserror::Error;
 use tracing::trace;
 
 use spade_common::id_tracker::NameIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path};
 use spade_diagnostics::diagnostic::Diagnostic;
+use spade_types::meta_types::MetaType;
 
 use crate::{
     FunctionKind, ParameterList, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
@@ -153,9 +152,8 @@ impl LookupError {
     }
 }
 
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UniqueNameError {
-    #[error("Multiple definitions of {new}")]
     MultipleDefinitions { new: Loc<Path>, prev: Loc<()> },
 }
 
@@ -658,6 +656,7 @@ macro_rules! thing_accessors {
     (
         $(
             $by_id_name:ident,
+            $maybe_by_id_name:ident,
             $lookup_name:ident,
             $result:path,
             $err:ident $(,)?
@@ -674,6 +673,16 @@ macro_rules! thing_accessors {
                     )*,
                     Some(other) => panic!("attempted to look up {} but it was {:?}", stringify!($result), other),
                     None => panic!("No thing entry found for {:?}", id)
+                }
+            }
+
+            pub fn $maybe_by_id_name(&self, id: &NameID) -> Option<Loc<$result>> {
+                match self.things.get(&id) {
+                    $(
+                        Some($thing) => {Some($conversion)}
+                    )*,
+                    Some(_) => None,
+                    None => None
                 }
             }
 
@@ -721,15 +730,15 @@ impl SymbolTable {
     // lookup_* looks up items by path, and returns the NameID and item if successful.
     // If the path is not in scope, or the item is not the right kind, returns an error.
     thing_accessors! {
-        unit_by_id, lookup_unit, UnitHead, NotAUnit {
+        unit_by_id, maybe_unit_by_id, lookup_unit, UnitHead, NotAUnit {
             Thing::Unit(head) => head.clone(),
             Thing::EnumVariant(variant) => variant.as_unit_head().at_loc(variant),
             Thing::Struct(s) => s.as_unit_head().at_loc(s),
         },
-        enum_variant_by_id, lookup_enum_variant, EnumVariant, NotAnEnumVariant {
+        enum_variant_by_id, maybe_enum_variant_by_id, lookup_enum_variant, EnumVariant, NotAnEnumVariant {
             Thing::EnumVariant(variant) => variant.clone()
         },
-        patternable_type_by_id, lookup_patternable_type, Patternable, NotAPatternableType {
+        patternable_type_by_id, maybe_patternable_by_id, lookup_patternable_type, Patternable, NotAPatternableType {
             Thing::EnumVariant(variant) => Patternable{
                 kind: PatternableKind::Enum,
                 params: variant.params.clone()
@@ -739,10 +748,10 @@ impl SymbolTable {
                 params: variant.params.clone()
             }.at_loc(variant),
         },
-        struct_by_id, lookup_struct, StructCallable, NotAStruct {
+        struct_by_id, maybe_struct_by_id, lookup_struct, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
-        trait_by_id, lookup_trait, Identifier, NotATrait {
+        trait_by_id, maybe_trait_by_id, lookup_trait, Identifier, NotATrait {
             Thing::Trait(t) => t.clone()
         }
     }

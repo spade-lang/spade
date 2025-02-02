@@ -2063,6 +2063,19 @@ mod tests {
         assert_same_mir!(&result, &expected);
     }
 
+    #[test]
+    fn empty_port_pair_creation_works() {
+        let code = "
+            struct port P { }
+
+            entity x() -> (P, inv P) {
+                port
+            }
+        ";
+
+        build_items(code);
+    }
+
     snapshot_error! {
         port_expression_does_not_create_non_ports,
         "
@@ -3124,6 +3137,76 @@ snapshot_error! {
     "
         fn test() {
             let x = gen if 0 == 0 {1} else {0};
+        }
+    "
+}
+
+snapshot_error! {
+    function_is_not_constexpr,
+    "
+        fn func() -> uint<8> {0}
+
+        entity test(clk: clock) {
+            reg(clk) a initial(func()) = a;
+        }
+    "
+}
+
+code_compiles! {
+    enum_variants_are_constexpr,
+    "
+        enum A {
+            X{val: uint<8>},
+            Y
+        }
+
+        entity test(clk: clock) {
+            reg(clk) a initial((A::X(0), A::Y)) = a;
+        }
+    "
+}
+
+code_compiles! {
+    structs_are_constexpr,
+    "
+        struct A {
+            val: uint<8>,
+        }
+
+        entity test(clk: clock) {
+            reg(clk) a initial(A(0)) = a;
+        }
+    "
+}
+
+snapshot_error! {
+    enum_args_must_be_constexpr_for_constexpr,
+    "
+        enum A {
+            X{val: uint<8>},
+            Y
+        }
+
+        fn func() -> uint<8> {0}
+
+        entity test(clk: clock) {
+            reg(clk) a initial((A::X(func()), A::Y)) = a;
+        }
+    "
+}
+
+
+snapshot_error! {
+    struct_args_must_be_constexpr_for_constexpr,
+    "
+        struct A {
+            val: uint<8>,
+        }
+
+        fn func() -> uint<8> {0}
+
+        entity test(clk: clock) {
+            reg(clk) a initial(A(func())) = a;
         }
     "
 }

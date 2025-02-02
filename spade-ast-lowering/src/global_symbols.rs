@@ -451,6 +451,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::Inline
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
             })?;
 

@@ -16,7 +16,6 @@ codespan.workspace = true
 colored.workspace = true
 local-impl.workspace = true
 logos.workspace = true
-thiserror.workspace = true
 tracing.workspace = true
 num.workspace = true
 itertools.workspace = true

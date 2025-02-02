@@ -33,7 +33,13 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
                 let mut root_parser = Parser::new(lexer::TokenKind::lexer(parts[0]), 0);
                 root_parser
                     .path()
-                    .map_err(|e| format!("\nwhen parsing '{}': {}", parts[0], e))?
+                    .map_err(|e| {
+                        format!(
+                            "\nwhen parsing '{}': {}",
+                            parts[0],
+                            e.labels.message.as_str()
+                        )
+                    })?
                     .inner
             };
 
@@ -44,7 +50,13 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
                 let mut namespace_parser = Parser::new(lexer::TokenKind::lexer(parts[1]), 0);
                 namespace_parser
                     .path()
-                    .map_err(|e| format!("\nwhen parsing '{}': {}", parts[1], e))?
+                    .map_err(|e| {
+                        format!(
+                            "\nwhen parsing '{}': {}",
+                            parts[1],
+                            e.labels.message.as_str()
+                        )
+                    })?
                     .inner
             };
 

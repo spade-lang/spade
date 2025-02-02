@@ -2,7 +2,6 @@ use local_impl::local_impl;
 use spade_common::location_info::Loc;
 use spade_diagnostics::Diagnostic;
 use spade_macros::{IntoDiagnostic, IntoSubdiagnostic};
-use thiserror::Error;
 
 use crate::{lexer::TokenKind, Token};
 
@@ -77,12 +76,9 @@ impl From<UnexpectedToken> for Diagnostic {
 
 // Error returned by the comma_separated function. Must be explicitly converted
 // to the general Error using one of the member methods
-#[derive(Error, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum TokenSeparatedError {
-    #[error("Inner")]
-    Inner(#[from] Diagnostic),
-
-    #[error("Unexpected token")]
+    Inner(Diagnostic),
     UnexpectedToken {
         got: Token,
         separator: TokenKind,
@@ -115,6 +111,12 @@ impl TokenSeparatedError {
 
     pub fn no_context(self) -> Diagnostic {
         self.extra_expected(vec![])
+    }
+}
+
+impl From<Diagnostic> for TokenSeparatedError {
+    fn from(value: Diagnostic) -> Self {
+        TokenSeparatedError::Inner(value)
     }
 }
 

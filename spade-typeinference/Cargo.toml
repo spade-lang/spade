@@ -16,7 +16,6 @@ colored.workspace = true
 itertools.workspace = true
 num.workspace = true
 serde.workspace = true
-thiserror.workspace = true
 tracing.workspace = true
 
 spade-common = {path = "../spade-common"}

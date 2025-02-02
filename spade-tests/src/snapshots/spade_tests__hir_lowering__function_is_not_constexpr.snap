@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+fn func() -> uint<8> {0}
+
+entity test(clk: clock) {
+    reg(clk) a initial(func()) = a;
+}
+
+
+error: Register initial values must be known at compile time
+  ┌─ testinput:4:24
+  │
+4 │     reg(clk) a initial(func()) = a;
+  │                        ^^^^^^
+  │                        │
+  │                        Value not known at compile time
+  │                        This subexpression cannot be computed at compile time

@@ -1229,3 +1229,11 @@ snapshot_error! {
         fn test(x: inv 2) {}
     "
 }
+
+code_compiles! {
+    inline_attribute_compiles,
+    "
+        #[inline]
+        fn test() {}
+    "
+}

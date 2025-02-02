@@ -22,7 +22,9 @@ module counter_tb();
 
     initial begin
         rst <= 1;
-        #1
+        #1;
+        #1;
+        #1;
         rst <= 0;
 
         `ASSERT_EQ(result, 0);

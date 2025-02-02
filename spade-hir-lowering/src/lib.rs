@@ -190,7 +190,11 @@ impl MirLowerable for ConcreteType {
                     .collect();
                 Type::Enum(inner)
             }
-            CType::Struct { name: _, members } => {
+            CType::Struct {
+                name: _,
+                is_port: _,
+                members,
+            } => {
                 let members = members
                     .iter()
                     .map(|(n, t)| (n.0.clone(), t.to_mir_type()))
@@ -711,7 +715,12 @@ pub fn do_wal_trace_lowering(
     check_clk_or_rst(clk, *uses_clk, "clock", "clk")?;
     check_clk_or_rst(rst, *uses_rst, "reset", "rst")?;
 
-    if let ConcreteType::Struct { name: _, members } = ty {
+    if let ConcreteType::Struct {
+        name: _,
+        is_port: _,
+        members,
+    } = ty
+    {
         let inner_types = members
             .iter()
             .map(|(_, t)| t.to_mir_type())
@@ -892,7 +901,8 @@ pub fn do_wal_trace_lowering(
                 .map_err(|e| {
                     diag_anyhow!(
                         wal_trace,
-                        "{e}\n Unification error while laundering a struct"
+                        "{}\nUnification error while laundering a struct",
+                        e.labels.message.as_str(),
                     )
                 })?;
 
@@ -1079,7 +1089,7 @@ impl StatementLocal for Statement {
                 })?;
 
                 let initial = if let Some(init) = initial {
-                    if let Some(witness) = init.runtime_requirement_witness() {
+                    if let Some(witness) = init.runtime_requirement_witness(ctx.symtab.symtab()) {
                         return Err(Diagnostic::error(
                             init,
                             "Register initial values must be known at compile time",
@@ -1644,7 +1654,12 @@ impl ExprLocal for Loc<Expression> {
                         unreachable!("Field access on non-struct {:?}", self_type)
                     };
 
-                let field_index = if let ConcreteType::Struct { name: _, members } = ctype {
+                let field_index = if let ConcreteType::Struct {
+                    name: _,
+                    is_port: _,
+                    members,
+                } = ctype
+                {
                     let field_indices = members
                         .iter()
                         .enumerate()
@@ -2396,7 +2411,7 @@ impl ExprLocal for Loc<Expression> {
         let initial = if has_initial {
             let initial_arg = &args[2];
 
-            if let Some(witness) = initial_arg.value.runtime_requirement_witness() {
+            if let Some(witness) = initial_arg.value.runtime_requirement_witness(ctx.symtab.symtab()) {
                 return Err(Diagnostic::error(
                     initial_arg.value,
                     "Memory initial values must be known at compile time",

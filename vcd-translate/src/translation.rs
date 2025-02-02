@@ -184,7 +184,11 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
             }
             result.push(')')
         }
-        ConcreteType::Struct { name: _, members } => {
+        ConcreteType::Struct {
+            name: _,
+            is_port: _,
+            members,
+        } => {
             let mut offset = 0;
 
             result.push('{');
@@ -412,6 +416,7 @@ mod tests {
     fn struct_translation_works() {
         let ty = ConcreteType::Struct {
             name: name_id(0, "X").inner,
+            is_port: false,
             members: vec![
                 (
                     ast_ident("a").inner,

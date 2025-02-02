@@ -1609,6 +1609,9 @@ impl<'a> Parser<'a> {
                         .collect(),
                 })
             }
+            "inline" => {
+                Ok(Attribute::Inline)
+            }
             "wal_trace" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     Ok(attribute_arg_parser!(

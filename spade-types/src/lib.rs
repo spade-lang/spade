@@ -41,6 +41,7 @@ pub enum ConcreteType {
     Tuple(Vec<ConcreteType>),
     Struct {
         name: NameID,
+        is_port: bool,
         members: Vec<(Identifier, ConcreteType)>,
     },
     Array {
@@ -63,7 +64,11 @@ pub enum ConcreteType {
 impl ConcreteType {
     pub fn assume_struct(&self) -> (&NameID, &Vec<(Identifier, ConcreteType)>) {
         match self {
-            ConcreteType::Struct { name, members } => (name, members),
+            ConcreteType::Struct {
+                name,
+                is_port: _,
+                members,
+            } => (name, members),
             t => unreachable!("Assumed {} was a struct", t),
         }
     }
@@ -71,7 +76,11 @@ impl ConcreteType {
     pub fn is_port(&self) -> bool {
         match self {
             ConcreteType::Tuple(inner) => inner.iter().any(Self::is_port),
-            ConcreteType::Struct { name: _, members } => members.iter().any(|(_, t)| t.is_port()),
+            ConcreteType::Struct {
+                name: _,
+                is_port,
+                members: _,
+            } => *is_port,
             ConcreteType::Array { inner, size: _ } => inner.is_port(),
             // Enums cannot be ports
             ConcreteType::Enum { .. } => false,
@@ -104,9 +113,14 @@ impl std::fmt::Display for ConcreteType {
                         .join(", ")
                 )
             }
-            ConcreteType::Struct { name, members } => {
+            ConcreteType::Struct {
+                name,
+                is_port,
+                members,
+            } => {
+                let port = if *is_port { "port " } else { "" };
                 format!(
-                    "struct {name} {{{}}}",
+                    "struct {port}{name} {{{}}}",
                     members
                         .iter()
                         .map(|(name, t)| format!("{}: {}", name, t))

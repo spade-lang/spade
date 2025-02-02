@@ -6,37 +6,33 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 use spade_diagnostics::Diagnostic;
-use thiserror::Error;
 
 use spade_common::{location_info::Loc, name::Identifier};
 
 use crate::expression::NamedArgument;
 use crate::{ArgumentList, ParameterList, TypeParam, TypeSpec};
 
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ArgumentError {
-    #[error("Too few arguments")]
     TooFewArguments {
         got: usize,
         expected: usize,
         missing: Vec<Identifier>,
         at: Loc<()>,
     },
-    #[error("Too many arguments")]
     TooManyArguments {
         got: usize,
         expected: usize,
         extra: Vec<Loc<()>>,
         at: Loc<()>,
     },
-    #[error("No argument named {name}")]
-    NoSuchArgument { name: Loc<Identifier> },
-    #[error("Missing arguments")]
+    NoSuchArgument {
+        name: Loc<Identifier>,
+    },
     MissingArguments {
         missing: Vec<Identifier>,
         at: Loc<()>,
     },
-    #[error("{new} was bound more than once")]
     DuplicateNamedBindings {
         new: Loc<Identifier>,
         prev_loc: Loc<()>,
