@@ -1,4 +1,4 @@
-use crate::{ConstGenericWithId, Pattern, TypeExpression};
+use crate::{symbol_table::SymbolTable, ConstGenericWithId, Pattern, TypeExpression};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -299,7 +299,7 @@ impl PartialEq for Expression {
 }
 
 pub trait LocExprExt {
-    fn runtime_requirement_witness(&self) -> Option<Loc<Expression>>;
+    fn runtime_requirement_witness(&self, symtab: &SymbolTable) -> Option<Loc<Expression>>;
 }
 
 impl LocExprExt for Loc<Expression> {
@@ -308,34 +308,50 @@ impl LocExprExt for Loc<Expression> {
     ///
     /// If this method returns None, `.eval()` on the resulting list of mir statements is
     /// guaranteed to work
-    fn runtime_requirement_witness(&self) -> Option<Loc<Expression>> {
+    fn runtime_requirement_witness(&self, symtab: &SymbolTable) -> Option<Loc<Expression>> {
         match &self.kind {
             ExprKind::Identifier(_) => Some(self.clone()),
             ExprKind::TypeLevelInteger(_) => None,
             ExprKind::IntLiteral(_, _) => None,
             ExprKind::BoolLiteral(_) => None,
             ExprKind::BitLiteral(_) => Some(self.clone()),
-            ExprKind::TupleLiteral(inner) => {
-                inner.iter().find_map(Self::runtime_requirement_witness)
-            }
-            ExprKind::ArrayLiteral(inner) => {
-                inner.iter().find_map(Self::runtime_requirement_witness)
-            }
-            ExprKind::ArrayShorthandLiteral(inner, _) => inner.runtime_requirement_witness(),
+            ExprKind::TupleLiteral(inner) => inner
+                .iter()
+                .find_map(|e| e.runtime_requirement_witness(symtab)),
+            ExprKind::ArrayLiteral(inner) => inner
+                .iter()
+                .find_map(|e| e.runtime_requirement_witness(symtab)),
+            ExprKind::ArrayShorthandLiteral(inner, _) => inner.runtime_requirement_witness(symtab),
             ExprKind::CreatePorts => Some(self.clone()),
             ExprKind::Index(l, r) => l
-                .runtime_requirement_witness()
-                .or_else(|| r.runtime_requirement_witness()),
+                .runtime_requirement_witness(symtab)
+                .or_else(|| r.runtime_requirement_witness(symtab)),
             ExprKind::RangeIndex { .. } => Some(self.clone()),
-            ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(),
-            ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(),
+            ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(symtab),
+            ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(symtab),
             // NOTE: We probably shouldn't see this here since we'll have lowered
             // methods at this point, but this function doesn't throw
-            ExprKind::MethodCall { .. } | ExprKind::Call { .. } => Some(self.clone()),
+            ExprKind::MethodCall { .. } => Some(self.clone()),
+            ExprKind::Call {
+                kind: _,
+                callee,
+                args,
+                turbofish: _,
+            } => {
+                if symtab.maybe_enum_variant_by_id(callee).is_some()
+                    || symtab.maybe_struct_by_id(callee).is_some()
+                {
+                    args.expressions()
+                        .iter()
+                        .find_map(|e| e.runtime_requirement_witness(symtab))
+                } else {
+                    Some(self.clone())
+                }
+            }
             ExprKind::BinaryOperator(l, operator, r) => {
                 if let Some(witness) = l
-                    .runtime_requirement_witness()
-                    .or_else(|| r.runtime_requirement_witness())
+                    .runtime_requirement_witness(symtab)
+                    .or_else(|| r.runtime_requirement_witness(symtab))
                 {
                     Some(witness)
                 } else {
@@ -364,7 +380,7 @@ impl LocExprExt for Loc<Expression> {
                 }
             }
             ExprKind::UnaryOperator(op, operand) => {
-                if let Some(witness) = operand.runtime_requirement_witness() {
+                if let Some(witness) = operand.runtime_requirement_witness(symtab) {
                     Some(witness)
                 } else {
                     match op.inner {

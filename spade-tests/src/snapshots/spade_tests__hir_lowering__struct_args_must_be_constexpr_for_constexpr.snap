@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+struct A {
+    val: uint<8>,
+}
+
+fn func() -> uint<8> {0}
+
+entity test(clk: clock) {
+    reg(clk) a initial(A(func())) = a;
+}
+
+
+error: Register initial values must be known at compile time
+  ┌─ testinput:8:24
+  │
+8 │     reg(clk) a initial(A(func())) = a;
+  │                        ^^^^^^^^^
+  │                        │ │
+  │                        │ This subexpression cannot be computed at compile time
+  │                        Value not known at compile time
