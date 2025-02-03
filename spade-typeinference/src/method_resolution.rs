@@ -245,11 +245,6 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVar) -> Overlap {
         .into_iter()
         .all_overlap(),
         (TypeSpec::Array { .. }, _) => Overlap::No,
-        // Unit types cannot have methods right now and KnownType cannot be `unit`, so
-        // for now we'll always return false from this
-        // FIXME: Type inference ignores TypeSpec::Unit, so presumably those are very unsupported
-        // anyway
-        (TypeSpec::Unit(_), _) => Overlap::No,
         (TypeSpec::Inverted(sinner), TypeVar::Known(_, KnownType::Inverted, vinner))
         | (TypeSpec::Wire(sinner), TypeVar::Known(_, KnownType::Wire, vinner)) => {
             spec_is_overlapping(sinner, &vinner[0])

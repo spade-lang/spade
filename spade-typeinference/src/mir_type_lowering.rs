@@ -236,7 +236,6 @@ impl TypeState {
                     size,
                 }
             }
-            TypeSpec::Unit(_) => todo!("Handle unit type"),
             TypeSpec::Wire(inner) => {
                 let inner = Box::new(Self::type_spec_to_concrete(
                     inner,

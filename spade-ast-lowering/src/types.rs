@@ -38,6 +38,7 @@ impl IsPort for hir::TypeSpec {
                 }
             }
             spade_hir::TypeSpec::Generic(_) => false,
+            spade_hir::TypeSpec::Tuple(unit) if unit.is_empty() => false,
             spade_hir::TypeSpec::Tuple(specs) => specs
                 .iter()
                 .map(|s| s.is_port(ctx))
@@ -45,7 +46,6 @@ impl IsPort for hir::TypeSpec {
                 .into_iter()
                 .all(|x| x),
             spade_hir::TypeSpec::Array { inner, size: _ } => inner.is_port(ctx)?,
-            spade_hir::TypeSpec::Unit(_) => false,
             spade_hir::TypeSpec::Inverted(_) => true,
             spade_hir::TypeSpec::Wire(_) => true,
             spade_hir::TypeSpec::TraitSelf(s) => match &ctx.self_ctx {

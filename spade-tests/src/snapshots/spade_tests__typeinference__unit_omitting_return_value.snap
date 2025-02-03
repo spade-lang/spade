@@ -12,31 +12,31 @@ pipeline(4) empty3(clk: clock, c: bool) -> bool {
 }
 
 
-error: Output type mismatch. Expected bool, got void
+error: Output type mismatch. Expected bool, got ()
   ┌─ testinput:1:27
   │  
 1 │   fn empty(a: bool) -> bool {
   │                        ---- bool type specified here
   │ ╭───────────────────────────^
 2 │ │ }
-  │ ╰─^ Found type void
+  │ ╰─^ Found type ()
   │  
   = note: Expected: bool
-               Got: void
+               Got: ()
 
-error: Output type mismatch. Expected bool, got void
+error: Output type mismatch. Expected bool, got ()
   ┌─ testinput:4:44
   │  
 4 │   entity empty2(clk: clock, b: bool) -> bool {
   │                                         ---- bool type specified here
   │ ╭────────────────────────────────────────────^
 5 │ │ }
-  │ ╰─^ Found type void
+  │ ╰─^ Found type ()
   │  
   = note: Expected: bool
-               Got: void
+               Got: ()
 
-error: Output type mismatch. Expected bool, got void
+error: Output type mismatch. Expected bool, got ()
   ┌─ testinput:7:49
   │  
 7 │   pipeline(4) empty3(clk: clock, c: bool) -> bool {
@@ -44,9 +44,7 @@ error: Output type mismatch. Expected bool, got void
   │ ╭─────────────────────────────────────────────────^
 8 │ │     reg*4;
 9 │ │ }
-  │ ╰─^ Found type void
+  │ ╰─^ Found type ()
   │  
   = note: Expected: bool
-               Got: void
-
-
+               Got: ()

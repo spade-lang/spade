@@ -373,7 +373,6 @@ pub fn visit_type_spec(
 
             Ok(hir::TypeSpec::Tuple(inner))
         }
-        ast::TypeSpec::Unit(w) => Ok(hir::TypeSpec::Unit(*w)),
         ast::TypeSpec::Wire(inner) => {
             let inner = match visit_type_expression(inner, kind, ctx)? {
                 hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
@@ -670,8 +669,7 @@ pub fn unit_head(
         && output_type
             .as_ref()
             .map(|output_type| {
-                !(matches!(&**output_type, TypeSpec::Unit(_))
-                    || matches!(&**output_type, TypeSpec::Tuple(inner) if inner.is_empty()))
+                !(matches!(&**output_type, TypeSpec::Tuple(inner) if inner.is_empty()))
             })
             .unwrap_or(false)
     {
@@ -2193,7 +2191,7 @@ mod entity_visiting {
                 name: Identifier("test".to_string()).nowhere(),
                 inputs: ParameterList::without_self(vec![(
                     ast_ident("a"),
-                    ast::TypeSpec::Unit(().nowhere()).nowhere(),
+                    ast::TypeSpec::Tuple(Vec::new()).nowhere(),
                 )])
                 .nowhere(),
                 output_type: None,
@@ -2206,7 +2204,7 @@ mod entity_visiting {
                 ast::Expression::Block(Box::new(ast::Block {
                     statements: vec![ast::Statement::binding(
                         ast::Pattern::name("var"),
-                        Some(ast::TypeSpec::Unit(().nowhere()).nowhere()),
+                        Some(ast::TypeSpec::Tuple(Vec::new()).nowhere()),
                         ast::Expression::int_literal_signed(0).nowhere(),
                     )
                     .nowhere()],
@@ -2339,7 +2337,7 @@ mod statement_visiting {
 
         let input = ast::Statement::binding(
             ast::Pattern::name("a"),
-            Some(ast::TypeSpec::Unit(().nowhere()).nowhere()),
+            Some(ast::TypeSpec::Tuple(Vec::new()).nowhere()),
             ast::Expression::int_literal_signed(0).nowhere(),
         )
         .nowhere();
@@ -2644,9 +2642,9 @@ mod expression_visiting {
 
         let enum_variant = EnumVariant {
             name: Identifier("".to_string()).nowhere(),
-            output_type: hir::TypeSpec::Unit(().nowhere()).nowhere(),
+            output_type: hir::TypeSpec::unit().nowhere(),
             option: 0,
-            params: hparams![("x", hir::TypeSpec::Unit(().nowhere()).nowhere())].nowhere(),
+            params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
             type_params: vec![],
         }
         .nowhere();
@@ -2706,9 +2704,9 @@ mod expression_visiting {
 
         let enum_variant = EnumVariant {
             name: Identifier("".to_string()).nowhere(),
-            output_type: hir::TypeSpec::Unit(().nowhere()).nowhere(),
+            output_type: hir::TypeSpec::unit().nowhere(),
             option: 0,
-            params: hparams![("x", hir::TypeSpec::Unit(().nowhere()).nowhere())].nowhere(),
+            params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
             type_params: vec![],
         }
         .nowhere();
@@ -3039,7 +3037,7 @@ mod register_visiting {
             )),
             initial: Some(ast::Expression::int_literal_signed(0).nowhere()),
             value: ast::Expression::int_literal_signed(1).nowhere(),
-            value_type: Some(ast::TypeSpec::Unit(().nowhere()).nowhere()),
+            value_type: Some(ast::TypeSpec::Tuple(Vec::new()).nowhere()),
             attributes: ast::AttributeList::empty(),
         }
         .nowhere();

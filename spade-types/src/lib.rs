@@ -16,7 +16,6 @@ pub enum PrimitiveType {
     Bool,
     Bit,
     Memory,
-    Void,
     InOut,
 }
 
@@ -29,7 +28,6 @@ impl std::fmt::Display for PrimitiveType {
             PrimitiveType::Bool => "bool",
             PrimitiveType::Bit => "bit",
             PrimitiveType::Memory => "Memory",
-            PrimitiveType::Void => "()",
             PrimitiveType::InOut => "inout",
         };
         write!(f, "{str}")

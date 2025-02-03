@@ -13,7 +13,7 @@ use spade_types::KnownType;
 use crate::constraints::{bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintSource};
 use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{TypeMismatch as Tm, UnificationErrorExt};
-use crate::fixed_types::{t_bit, t_bool, t_void};
+use crate::fixed_types::{t_bit, t_bool};
 use crate::requirements::{ConstantInt, Requirement};
 use crate::{Context, GenericListToken, HasType, Result, TraceStackEntry, TypeState};
 
@@ -580,8 +580,8 @@ impl TypeState {
                     // that might just be spammy.
                     .into_default_diagnostic(result)?;
             } else {
-                // Block without return value. Unify with void type.
-                self.unify(&expression.inner, &t_void(ctx.symtab).at_loc(expression), ctx)
+                // Block without return value. Unify with unit type.
+                self.unify(&expression.inner, &TypeVar::unit(expression.loc()), ctx)
                     .into_diagnostic(Loc::nowhere(()), |err, Tm{g: _, e: _}| {
                         diag_anyhow!(
                             Loc::nowhere(()),

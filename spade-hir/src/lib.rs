@@ -274,7 +274,6 @@ pub enum TypeSpec {
         inner: Box<Loc<TypeSpec>>,
         size: Box<Loc<TypeExpression>>,
     },
-    Unit(Loc<()>),
     Inverted(Box<Loc<TypeSpec>>),
     Wire(Box<Loc<TypeSpec>>),
     /// The type of the `self` parameter in a trait method spec. Should not
@@ -290,7 +289,7 @@ impl WithLocation for TypeSpec {}
 // Quick functions for creating types without typing so much
 impl TypeSpec {
     pub fn unit() -> Self {
-        TypeSpec::Unit(().nowhere())
+        TypeSpec::Tuple(Vec::new())
     }
 }
 
@@ -324,7 +323,6 @@ impl std::fmt::Display for TypeSpec {
                 )
             }
             TypeSpec::Array { inner, size } => format!("[{inner}; {size}]"),
-            TypeSpec::Unit(_) => "()".into(),
             TypeSpec::Inverted(inner) => format!("~{inner}"),
             TypeSpec::Wire(inner) => format!("&{inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),
@@ -635,7 +633,7 @@ impl UnitHead {
             Some(t) => t.clone(),
             None => {
                 // FIXME: We should point to the end of the argument list here
-                TypeSpec::Unit(self.name.loc()).at_loc(&self.name.loc())
+                TypeSpec::unit().at_loc(&self.name.loc())
             }
         }
     }

@@ -3283,7 +3283,7 @@ mod expression_tests {
                 no_mangle: Some(().nowhere()),
             }],
             output: ValueName::Expr(ExprID(0)),
-            output_type: Type::Void,
+            output_type: Type::unit(),
             statements: vec![],
         };
 

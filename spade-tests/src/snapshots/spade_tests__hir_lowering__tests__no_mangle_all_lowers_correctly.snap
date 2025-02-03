@@ -96,7 +96,9 @@ expression: build_items(code)
                 0,
             ),
         ),
-        output_type: Void,
+        output_type: Tuple(
+            [],
+        ),
         statements: [
             Constant(
                 ExprID(

@@ -318,12 +318,6 @@ pub fn get_impl_target(
                     .collect::<Result<_>>()?,
             ))
         }
-        spade_ast::TypeSpec::Unit(_) => {
-            return Err(
-                Diagnostic::error(&block.target, "Impls on void is currently unsupported")
-                    .primary_label("Impl target cannot be void"),
-            );
-        }
         spade_ast::TypeSpec::Inverted(inner) => Ok((
             hir::ImplTarget::Inverted,
             vec![visit_type_expression(
@@ -1095,8 +1089,6 @@ fn type_specs_overlap(l: &hir::TypeSpec, r: &hir::TypeSpec) -> bool {
             },
         ) => type_specs_overlap(linner, rinner) && type_exprs_overlap(lsize, rsize),
         (hir::TypeSpec::Array { .. }, _) => false,
-        (hir::TypeSpec::Unit(_), hir::TypeSpec::Unit(_)) => true,
-        (hir::TypeSpec::Unit(_), _) => false,
         (hir::TypeSpec::Inverted(linner), hir::TypeSpec::Inverted(rinner)) => {
             type_specs_overlap(&linner.inner, &rinner.inner)
         }

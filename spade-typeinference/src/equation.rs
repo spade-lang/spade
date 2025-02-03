@@ -164,6 +164,10 @@ impl TypeVar {
         TypeVar::Known(loc, KnownType::Tuple, inner)
     }
 
+    pub fn unit(loc: Loc<()>) -> Self {
+        TypeVar::Known(loc, KnownType::Tuple, Vec::new())
+    }
+
     pub fn wire(loc: Loc<()>, inner: TypeVar) -> Self {
         TypeVar::Known(loc, KnownType::Wire, vec![inner])
     }

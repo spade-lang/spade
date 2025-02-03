@@ -166,10 +166,6 @@ impl MirLowerable for ConcreteType {
                 t => unreachable!("{:?} is an invalid generic parameter for a memory", t),
             },
             CType::Single {
-                base: PrimitiveType::Void,
-                params: _,
-            } => Type::Void,
-            CType::Single {
                 base: PrimitiveType::InOut,
                 params,
             } => match params.as_slice() {
@@ -487,11 +483,6 @@ impl PatternLocal for Loc<Pattern> {
                 result_name,
             }),
             hir::PatternKind::Tuple(branches) | hir::PatternKind::Array(branches) => {
-                assert!(
-                    !branches.is_empty(),
-                    "Tuple/array patterns without any subpatterns are unsupported"
-                );
-
                 let subpatterns = branches
                     .iter()
                     .map(|pat| pat.condition(&pat.value_name(), ctx))

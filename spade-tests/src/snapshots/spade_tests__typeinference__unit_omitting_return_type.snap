@@ -27,7 +27,7 @@ error: Output type mismatch
   │  
   = note: The function does not specify a return type.
           Add a return type, or remove the return value.
-  = note: Expected: void
+  = note: Expected: ()
                Got: bool
 
 error: Output type mismatch
@@ -42,7 +42,7 @@ error: Output type mismatch
   │  
   = note: The entity does not specify a return type.
           Add a return type, or remove the return value.
-  = note: Expected: void
+  = note: Expected: ()
                Got: bool
 
 error: Output type mismatch
@@ -58,7 +58,5 @@ error: Output type mismatch
    │  
    = note: The pipeline does not specify a return type.
            Add a return type, or remove the return value.
-   = note: Expected: void
+   = note: Expected: ()
                 Got: bool
-
-

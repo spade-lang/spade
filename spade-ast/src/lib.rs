@@ -50,7 +50,6 @@ pub enum TypeSpec {
         size: Box<Loc<TypeExpression>>,
     },
     Named(Loc<Path>, Option<Loc<Vec<Loc<TypeExpression>>>>),
-    Unit(Loc<()>),
     /// An inverted signal (`~`), its "direction" is the inverse of normal. A `~&T` taken as an
     /// argument is an output, and a returned `~&T` is an input. This used to be expressed as `&mut
     /// T` Inversions cancel each other, i.e. `~~&T` is effectively `&T` Inverted signals are
@@ -76,7 +75,6 @@ impl std::fmt::Display for TypeSpec {
                 };
                 write!(f, "{name}{args}")
             }
-            TypeSpec::Unit(_) => write!(f, "()"),
             TypeSpec::Inverted(inner) => write!(f, "inv {inner}"),
             TypeSpec::Wire(inner) => write!(f, "&{inner}"),
             TypeSpec::Wildcard => write!(f, "_"),

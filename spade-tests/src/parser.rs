@@ -76,13 +76,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    unit_value_fails_gracefully,
-    "fn a() -> bool {
-        ()
-    }"
-}
-
-snapshot_error! {
     missing_pipeline_depth_parens_is_an_error,
     "pipeline a(clk: clock) -> bool {
         true
@@ -282,6 +275,35 @@ fn square_wave_readme_example() {
     "#;
 
     build_items(code);
+}
+
+#[test]
+fn unit_type_is_allowed_to_be_created() {
+    let code = r#"
+    entity x() -> () { 
+        () 
+    }
+    "#;
+
+    build_items(code);
+}
+
+snapshot_error! {
+    unit_type_error_span_correct,
+    "
+    entity x() -> uint<8> {
+        ()
+    }
+    "
+}
+
+snapshot_error! {
+    negated_single_tuple_span_correct,
+    "
+    entity x() -> uint<8> {
+        !(false)
+    }
+    "
 }
 
 #[test]

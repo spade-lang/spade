@@ -2131,6 +2131,27 @@ mod tests {
     }
 
     #[test]
+    fn empty_tuple_match_works() {
+        let code = "
+        entity name(x: ()) -> int<8> {
+            match x {
+                () => { 42 }
+            }
+        }
+        ";
+
+        let expected = entity!(&["name"]; (
+            "x", n(1, "x"), Type::unit(),
+        ) -> Type::int(8); {
+            (const 7; Type::Bool; ConstantValue::Bool(true));
+            (const 5; Type::int(8); ConstantValue::int(42));
+            (e(1); Type::int(8); Match; e(7), e(5));
+        } => e(1));
+
+        assert_same_mir!(&build_entity!(code), &expected);
+    }
+
+    #[test]
     fn traced_fsm_is_traced() {
         let code = r#"
         entity name(clk: clock, x: bool) -> bool {

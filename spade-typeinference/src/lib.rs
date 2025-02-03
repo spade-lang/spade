@@ -51,7 +51,6 @@ use requirements::{Replacement, Requirement};
 use trace_stack::{format_trace_stack, TraceStackEntry};
 
 use crate::error::TypeMismatch as Tm;
-use crate::fixed_types::t_void;
 use crate::requirements::ConstantInt;
 use crate::traits::{TraitImpl, TraitImplList};
 
@@ -274,9 +273,6 @@ impl TypeState {
 
                 Ok(TypeVar::array(loc, inner, size))
             }
-            hir::TypeSpec::Unit(_) => {
-                todo!("Support unit type in type inference")
-            }
             hir::TypeSpec::Wire(inner) => Ok(TypeVar::wire(
                 loc,
                 self.type_var_from_hir(loc, inner, generic_list_token)?,
@@ -492,7 +488,7 @@ impl TypeState {
             // No output type, so unify with the unit type.
             self.unify(
                 &TypedExpression::Id(entity.body.inner.id),
-                &t_void(ctx.symtab).at_loc(&entity.head.name),
+                &TypeVar::unit(entity.head.name.loc()),
                 ctx
             )
             .into_diagnostic_no_expected_source(entity.body.loc(), |diag, Tm{g: got, e: _expected}| {
@@ -853,7 +849,7 @@ impl TypeState {
             .as_ref()
             .map(|o| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
             .transpose()?
-            .unwrap_or_else(|| TypeVar::Known(expression_id.loc(), t_void(ctx.symtab), vec![]));
+            .unwrap_or_else(|| TypeVar::Known(expression_id.loc(), KnownType::Tuple, vec![]));
 
         self.unify(expression_type, &return_type, ctx)
             .into_default_diagnostic(expression_id.loc())?;

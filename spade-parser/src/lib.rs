@@ -288,26 +288,17 @@ impl<'a> Parser<'a> {
         let mut inner = self
             .comma_separated(Self::expression, &TokenKind::CloseParen)
             .no_context()?;
-        let result = if inner.is_empty() {
-            let end = self.eat_unconditional()?;
-            // NOTE: Early return because we have now consumed the closing paren
-            return Err(Diagnostic::error(
-                ().between(self.file_id, &start, &end),
-                "Tuples with no elements are not supported",
-            ));
-        } else if inner.len() == 1 {
+
+        let end = self.eat(&TokenKind::CloseParen)?;
+        let span = lspan(start.span).merge(lspan(end.span));
+
+        let result = if inner.len() == 1 {
             // NOTE: safe unwrap, we know the size of the array
-            Ok(inner.pop().unwrap())
+            Ok(inner.pop().unwrap().inner)
         } else {
-            let span = inner
-                .first()
-                .unwrap()
-                .span
-                .merge(inner.last().unwrap().span);
-            Ok(Expression::TupleLiteral(inner).at(self.file_id, &span))
+            Ok(Expression::TupleLiteral(inner))
         };
-        self.eat(&TokenKind::CloseParen)?;
-        result.map(Some)
+        result.map(|expr| Some(expr.at(self.file_id, &span)))
     }
 
     #[trace_parser]

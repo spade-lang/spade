@@ -6,8 +6,6 @@ pub enum Type {
     Int(BigUint),
     UInt(BigUint),
     Bool,
-    /// An "empty" type.
-    Void,
     Tuple(Vec<Type>),
     Struct(Vec<(String, Type)>),
     Array {
@@ -36,13 +34,15 @@ impl Type {
     pub fn backward(inner: Type) -> Self {
         Self::Backward(Box::new(inner))
     }
+    pub fn unit() -> Self {
+        Self::Tuple(Vec::new())
+    }
 
     pub fn size(&self) -> BigUint {
         match self {
             Type::Int(len) => len.clone(),
             Type::UInt(len) => len.clone(),
             Type::Bool => 1u32.to_biguint(),
-            Type::Void => BigUint::zero(),
             Type::Tuple(inner) => inner.iter().map(Type::size).sum::<BigUint>(),
             Type::Struct(inner) => inner.iter().map(|(_, t)| t.size()).sum::<BigUint>(),
             Type::Enum(inner) => {
@@ -66,7 +66,7 @@ impl Type {
     pub fn backward_size(&self) -> BigUint {
         match self {
             Type::Backward(inner) => inner.size(),
-            Type::Int(_) | Type::UInt(_) | Type::Bool | Type::Void => BigUint::zero(),
+            Type::Int(_) | Type::UInt(_) | Type::Bool => BigUint::zero(),
             Type::Array { inner, length } => inner.backward_size() * length,
             Type::Enum(inner) => {
                 for v in inner {
@@ -108,7 +108,6 @@ impl std::fmt::Display for Type {
             Type::Int(val) => write!(f, "int<{}>", val),
             Type::UInt(val) => write!(f, "uint<{}>", val),
             Type::Bool => write!(f, "bool"),
-            Type::Void => write!(f, "void"),
             Type::Tuple(inner) => {
                 let inner = inner
                     .iter()

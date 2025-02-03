@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity x() -> uint<8> {
+    ()
+}
+
+
+error: Output type mismatch. Expected uint<8>, got ()
+  ┌─ testinput:1:23
+  │  
+1 │   entity x() -> uint<8> {
+  │                 ------- uint<8> type specified here
+  │ ╭───────────────────────^
+2 │ │     ()
+  │ │     -- Type () inferred here
+3 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: uint<8>
+               Got: ()

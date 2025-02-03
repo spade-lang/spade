@@ -125,7 +125,7 @@ fn entities_with_void_return_type_typechecks() {
     // NOTE: instantiating an entity without a return type is still a type error,
     // see 'instantiating_entities_without_return_type_errors'.
     let code = r#"
-    entity no_output(clk: clock) -> void {}
+    entity no_output(clk: clock) -> () {}
     "#;
 
     build_items(code);
