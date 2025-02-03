@@ -5,6 +5,7 @@ authors = ["TheZoq2 <frans.skarman@protonmail.com>"]
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Helper crate for https://spade-lang.org/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

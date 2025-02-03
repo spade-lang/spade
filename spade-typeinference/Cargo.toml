@@ -5,6 +5,7 @@ authors = ["TheZoq2 <frans.skarman@protonmail.com>"]
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Helper crate for https://spade-lang.org/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,11 +19,11 @@ num.workspace = true
 serde.workspace = true
 tracing.workspace = true
 
-spade-common = {path = "../spade-common"}
-spade-diagnostics = {path = "../spade-diagnostics"}
-spade-hir = {path = "../spade-hir"}
-spade-macros = {path = "../spade-macros"}
-spade-types = {path = "../spade-types"}
+spade-common.workspace = true
+spade-diagnostics.workspace = true
+spade-hir.workspace = true
+spade-macros.workspace = true
+spade-types.workspace = true
 
 [dev-dependencies]
 spade-ast = {path = "../spade-ast"}

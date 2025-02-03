@@ -14,7 +14,7 @@ use tracing_tree::HierarchicalLayer;
 
 use spade::{
     namespaced_file::{dummy_file, namespaced_file, NamespacedFile},
-    wordlength_inference_method, ModuleNamespace,
+    ModuleNamespace,
 };
 
 #[derive(Deserialize, Parser)]
@@ -37,13 +37,6 @@ pub struct Opt {
     /// Do not include color in the error report
     #[structopt(long = "no-color")]
     pub no_color: bool,
-
-    /// Use (currently experimental) affine arithmetic to check integer bounds stricter than
-    /// previously possible. Expects either "IA", "AA" or "AAIA" - leave empty for a sane default
-    /// value. This flag overwrites the `SPADE_INFER_METHOD` environment variable.
-    #[serde(skip)]
-    #[structopt(long = "wl-infer-method", value_parser(wordlength_inference_method))]
-    pub wl_infer_method: Option<spade_wordlength_inference::InferMethod>,
 
     /// Write the compiler state required to continue adding modules to the project
     /// formatted in ron https://github.com/ron-rs/ron
@@ -154,11 +147,6 @@ fn main() -> Result<()> {
         item_list_file: opts.item_list,
         print_type_traceback: opts.print_type_traceback,
         print_parse_traceback: opts.print_parse_traceback,
-        wl_infer_method: opts.wl_infer_method.or_else(|| {
-            std::env::var("SPADE_INFER_METHOD")
-                .ok()
-                .and_then(|x| wordlength_inference_method(&x).ok())
-        }),
         opt_passes: opts.opt_passes,
     };
 

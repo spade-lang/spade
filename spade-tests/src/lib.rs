@@ -107,7 +107,6 @@ macro_rules! snapshot_error {
                 item_list_file: None,
                 print_type_traceback: std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok(),
                 print_parse_traceback: std::env::var("SPADE_TRACE_PARSER").is_ok(),
-                wl_infer_method: None,
                 opt_passes: vec![]
             };
 
@@ -283,7 +282,6 @@ pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
         item_list_file: None,
         print_type_traceback: std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok(),
         print_parse_traceback: false,
-        wl_infer_method: None,
         opt_passes: vec![],
     };
 

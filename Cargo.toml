@@ -16,6 +16,19 @@ edition = "2021"
 rust-version = "1.70" # is_terminal is stable from 1.70
 
 [workspace.dependencies]
+spade-ast = {path = "spade-ast", version = "0.12.1"}
+spade-ast-lowering = {path = "spade-ast-lowering", version = "0.12.1"}
+spade-common = {path = "spade-common", version = "0.12.1"}
+spade-diagnostics = { path = "spade-diagnostics" , version = "0.12.1"}
+spade-hir = {path = "spade-hir", version = "0.12.1"}
+spade-hir-lowering = {path = "spade-hir-lowering", version = "0.12.1"}
+spade-macros = {path = "spade-macros", version = "0.12.1"}
+spade-mir = {path = "spade-mir", version = "0.12.1"}
+spade-parser = {path = "spade-parser", version = "0.12.1"}
+spade-typeinference = {path = "spade-typeinference", version = "0.12.1"}
+spade-wordlength-inference = {path = "spade-wordlength-inference", version = "0.12.1"}
+spade-types = {path = "spade-types", version = "0.12.1"}
+
 clap = { version = "4.4", features = ["derive"] }
 color-eyre = "0.6.1"
 spade-codespan = {version = "0.12.0", features = ["serde"]}

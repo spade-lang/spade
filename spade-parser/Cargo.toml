@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+description = "Helper crate for https://spade-lang.org/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -20,7 +21,7 @@ tracing.workspace = true
 num.workspace = true
 itertools.workspace = true
 
-spade-ast = {path = "../spade-ast"}
-spade-common = {path = "../spade-common"}
-spade-diagnostics = {path = "../spade-diagnostics"}
-spade-macros = {path = "../spade-macros"}
+spade-ast.workspace = true
+spade-common.workspace = true
+spade-diagnostics.workspace = true
+spade-macros.workspace = true

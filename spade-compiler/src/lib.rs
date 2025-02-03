@@ -38,22 +38,6 @@ use spade_parser::Parser;
 use spade_typeinference as typeinference;
 use spade_typeinference::trace_stack::format_trace_stack;
 
-pub fn wordlength_inference_method(
-    arg: &str,
-) -> Result<spade_wordlength_inference::InferMethod, String> {
-    Ok(match arg.to_lowercase().as_str() {
-        "aa" => spade_wordlength_inference::InferMethod::AA,
-        "ia" => spade_wordlength_inference::InferMethod::IA,
-        "aaia" => spade_wordlength_inference::InferMethod::AAIA,
-        _ => {
-            return Err(
-                "Expected one of: \"AA\", \"IA\" or \"AAIA\" - leave empty for old method"
-                    .to_string(),
-            )
-        }
-    })
-}
-
 pub struct Opt<'b> {
     pub error_buffer: &'b mut Buffer,
     pub outfile: Option<PathBuf>,
@@ -63,7 +47,6 @@ pub struct Opt<'b> {
     pub item_list_file: Option<PathBuf>,
     pub print_type_traceback: bool,
     pub print_parse_traceback: bool,
-    pub wl_infer_method: Option<spade_wordlength_inference::InferMethod>,
     pub opt_passes: Vec<String>,
 }
 
@@ -316,8 +299,7 @@ pub fn compile(
         .iter()
         .filter_map(|(name, item)| match item {
             ExecutableItem::Unit(u) => {
-                let mut type_state = typeinference::TypeState::new()
-                    .set_wordlength_inferece(opts.wl_infer_method.is_some());
+                let mut type_state = typeinference::TypeState::new();
 
                 if let Ok(()) = type_state
                     .visit_unit(u, &type_inference_ctx)
@@ -362,7 +344,6 @@ pub fn compile(
         &mut name_source_map,
         &item_list,
         &mut errors.diag_handler,
-        opts.wl_infer_method,
         &opt_passes,
     );
 
