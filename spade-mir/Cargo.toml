@@ -12,7 +12,7 @@ rust-version.workspace = true
 doctest = false
 
 [dependencies]
-codespan-reporting.workspace = true
+spade-codespan-reporting.workspace = true
 derive-where = "1.2.7"
 indoc.workspace = true
 itertools.workspace = true
@@ -25,6 +25,6 @@ spade-diagnostics = { path = "../spade-diagnostics" }
 
 [dev-dependencies]
 colored.workspace = true
-codespan.workspace = true
+spade-codespan.workspace = true
 prettydiff.workspace = true
 pretty_assertions.workspace = true

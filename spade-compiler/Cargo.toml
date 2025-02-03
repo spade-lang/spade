@@ -1,17 +1,25 @@
 [package]
-name = "spade"
+name = "spade-lang"
 version.workspace = true
 authors = ["TheZoq2 <frans.skarman@protonmail.com>"]
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[[bin]]
+name = "spade"
+path = "src/main.rs"
+
+[lib]
+name = "spade"
+path = "src/lib.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap.workspace = true
-codespan-reporting.workspace = true
-codespan.workspace = true
+spade-codespan-reporting.workspace = true
+spade-codespan.workspace = true
 color-eyre.workspace = true
 colored.workspace = true
 indoc.workspace = true

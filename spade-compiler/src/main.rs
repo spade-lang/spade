@@ -3,9 +3,9 @@ use std::io::{prelude::*, stderr, IsTerminal};
 use std::path::PathBuf;
 
 use clap::Parser;
-use codespan_reporting::term::termcolor::Buffer;
 use color_eyre::eyre::{anyhow, bail, Context, Result};
 use serde::Deserialize;
+use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::DiagHandler;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};

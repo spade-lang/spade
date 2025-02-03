@@ -12,7 +12,7 @@ rust-version.workspace = true
 doctest = false
 
 [dependencies]
-codespan.workspace = true
+spade-codespan.workspace = true
 colored.workspace = true
 local-impl.workspace = true
 logos.workspace = true

@@ -12,8 +12,8 @@ rust-version.workspace = true
 doctest = false
 
 [dependencies]
-codespan.workspace = true
-codespan-reporting.workspace = true
+spade-codespan = {version = "0.12.0", features = ["serialization"]}
+spade-codespan-reporting = {version = "0.12.0", features = ["serde"]}
 logos.workspace = true
 serde.workspace = true
 num.workspace = true

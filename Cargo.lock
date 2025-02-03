@@ -176,32 +176,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
-name = "codespan"
-version = "0.12.0"
-source = "git+https://gitlab.com/spade-lang/codespan.git?branch=master#0b7d0e51cbafa5c88c07dd0db18ea94757e11be1"
-dependencies = [
- "codespan-reporting 0.12.0",
- "serde",
-]
-
-[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
 dependencies = [
  "termcolor",
- "unicode-width",
-]
-
-[[package]]
-name = "codespan-reporting"
-version = "0.12.0"
-source = "git+https://gitlab.com/spade-lang/codespan.git?branch=master#0b7d0e51cbafa5c88c07dd0db18ea94757e11be1"
-dependencies = [
- "serde",
- "termcolor",
- "unicode-width",
+ "unicode-width 0.1.12",
 ]
 
 [[package]]
@@ -277,7 +258,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9327c7f9fbd6329a200a5d4aa6f674c60ab256525ff0084b52a889d4e4c60cee"
 dependencies = [
  "cc",
- "codespan-reporting 0.11.1",
+ "codespan-reporting",
  "once_cell",
  "proc-macro2",
  "quote",
@@ -705,7 +686,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2ad9b889f1b12e0b9ee24db044b5129150d5eada288edc800f789928dc8c0e3"
 dependencies = [
- "unicode-width",
+ "unicode-width 0.1.12",
 ]
 
 [[package]]
@@ -1011,42 +992,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
-name = "spade"
-version = "0.12.0"
-dependencies = [
- "clap",
- "codespan",
- "codespan-reporting 0.12.0",
- "color-eyre",
- "colored",
- "indoc",
- "itertools",
- "logos",
- "pretty_assertions",
- "prettydiff",
- "ron",
- "serde",
- "serde_json",
- "spade-ast",
- "spade-ast-lowering",
- "spade-common",
- "spade-diagnostics",
- "spade-hir",
- "spade-hir-lowering",
- "spade-macros",
- "spade-mir",
- "spade-parser",
- "spade-typeinference",
- "spade-types",
- "spade-wordlength-inference",
- "tracing",
- "tracing-subscriber",
- "tracing-tree",
-]
-
-[[package]]
 name = "spade-ast"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "itertools",
  "num",
@@ -1055,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "spade-ast-lowering"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "itertools",
  "local-impl",
@@ -1072,14 +1019,35 @@ dependencies = [
 ]
 
 [[package]]
-name = "spade-common"
+name = "spade-codespan"
 version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a555a20c7418a13173066e6f75c895e1efd2e953175b512e0fa66e423f44c1a"
 dependencies = [
- "codespan",
- "codespan-reporting 0.12.0",
+ "serde",
+ "spade-codespan-reporting",
+]
+
+[[package]]
+name = "spade-codespan-reporting"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cca921204e75137850d7557cbd6467d1357af0e2d82f9a8cad75ba941fccb1e2"
+dependencies = [
+ "serde",
+ "termcolor",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
+name = "spade-common"
+version = "0.12.1"
+dependencies = [
  "logos",
  "num",
  "serde",
+ "spade-codespan",
+ "spade-codespan-reporting",
 ]
 
 [[package]]
@@ -1091,25 +1059,25 @@ dependencies = [
  "cxx-build",
  "num",
  "ron",
- "spade",
+ "spade-lang",
  "spade-mir",
  "spade-simulation-ext",
 ]
 
 [[package]]
 name = "spade-diagnostics"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
- "codespan",
- "codespan-reporting 0.12.0",
  "insta",
  "itertools",
+ "spade-codespan",
+ "spade-codespan-reporting",
  "spade-common",
 ]
 
 [[package]]
 name = "spade-hir"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "colored",
  "itertools",
@@ -1124,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "spade-hir-lowering"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "colored",
  "itertools",
@@ -1144,8 +1112,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "spade-lang"
+version = "0.12.1"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "colored",
+ "indoc",
+ "itertools",
+ "logos",
+ "pretty_assertions",
+ "prettydiff",
+ "ron",
+ "serde",
+ "serde_json",
+ "spade-ast",
+ "spade-ast-lowering",
+ "spade-codespan",
+ "spade-codespan-reporting",
+ "spade-common",
+ "spade-diagnostics",
+ "spade-hir",
+ "spade-hir-lowering",
+ "spade-macros",
+ "spade-mir",
+ "spade-parser",
+ "spade-typeinference",
+ "spade-types",
+ "spade-wordlength-inference",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-tree",
+]
+
+[[package]]
 name = "spade-macros"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1155,10 +1157,8 @@ dependencies = [
 
 [[package]]
 name = "spade-mir"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
- "codespan",
- "codespan-reporting 0.12.0",
  "colored",
  "derive-where",
  "indoc",
@@ -1168,21 +1168,23 @@ dependencies = [
  "pretty_assertions",
  "prettydiff",
  "serde",
+ "spade-codespan",
+ "spade-codespan-reporting",
  "spade-common",
  "spade-diagnostics",
 ]
 
 [[package]]
 name = "spade-parser"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
- "codespan",
  "colored",
  "itertools",
  "local-impl",
  "logos",
  "num",
  "spade-ast",
+ "spade-codespan",
  "spade-common",
  "spade-diagnostics",
  "spade-macros",
@@ -1191,22 +1193,22 @@ dependencies = [
 
 [[package]]
 name = "spade-python"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
- "codespan-reporting 0.12.0",
  "color-eyre",
  "itertools",
  "logos",
  "num",
  "pyo3",
  "ron",
- "spade",
  "spade-ast",
  "spade-ast-lowering",
+ "spade-codespan-reporting",
  "spade-common",
  "spade-diagnostics",
  "spade-hir",
  "spade-hir-lowering",
+ "spade-lang",
  "spade-mir",
  "spade-parser",
  "spade-simulation-ext",
@@ -1220,22 +1222,22 @@ dependencies = [
 
 [[package]]
 name = "spade-simulation-ext"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
- "codespan-reporting 0.12.0",
  "color-eyre",
  "itertools",
  "logos",
  "num",
  "pyo3",
  "ron",
- "spade",
  "spade-ast",
  "spade-ast-lowering",
+ "spade-codespan-reporting",
  "spade-common",
  "spade-diagnostics",
  "spade-hir",
  "spade-hir-lowering",
+ "spade-lang",
  "spade-mir",
  "spade-parser",
  "spade-typeinference",
@@ -1249,21 +1251,21 @@ dependencies = [
 
 [[package]]
 name = "spade-tests"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
- "codespan-reporting 0.12.0",
  "colored",
  "indoc",
  "insta",
  "logos",
  "pretty_assertions",
  "prettydiff",
- "spade",
  "spade-ast-lowering",
+ "spade-codespan-reporting",
  "spade-common",
  "spade-diagnostics",
  "spade-hir",
  "spade-hir-lowering",
+ "spade-lang",
  "spade-mir",
  "spade-parser",
  "spade-typeinference",
@@ -1277,7 +1279,7 @@ dependencies = [
 
 [[package]]
 name = "spade-typeinference"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "assert_matches",
  "colored",
@@ -1296,7 +1298,7 @@ dependencies = [
 
 [[package]]
 name = "spade-types"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "num",
  "serde",
@@ -1305,7 +1307,7 @@ dependencies = [
 
 [[package]]
 name = "spade-wordlength-inference"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "num",
  "spade-common",
@@ -1528,6 +1530,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6"
 
 [[package]]
+name = "unicode-width"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
+
+[[package]]
 name = "unindent"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1560,10 +1568,10 @@ dependencies = [
  "itertools",
  "num",
  "ron",
- "spade",
  "spade-ast",
  "spade-common",
  "spade-hir-lowering",
+ "spade-lang",
  "spade-mir",
  "spade-typeinference",
  "spade-types",

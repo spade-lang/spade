@@ -10,8 +10,8 @@ rust-version.workspace = true
 [lib]
 
 [dependencies]
-codespan.workspace = true
-codespan-reporting.workspace = true
+spade-codespan.workspace = true
+spade-codespan-reporting.workspace = true
 itertools.workspace = true
 
 spade-common = {path = "../spade-common"}

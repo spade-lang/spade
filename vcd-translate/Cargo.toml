@@ -20,5 +20,5 @@ spade-types = {path = "../spade-types"}
 spade-typeinference = {path = "../spade-typeinference"}
 spade-hir-lowering = {path = "../spade-hir-lowering"}
 spade-common = {path = "../spade-common"}
-spade = {path = "../spade-compiler"}
+spade-lang = {path = "../spade-compiler"}
 spade-ast = {path = "../spade-ast"}

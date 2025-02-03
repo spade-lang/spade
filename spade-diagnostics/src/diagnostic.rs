@@ -1,5 +1,5 @@
-use codespan::Span;
-use codespan_reporting::diagnostic::Severity;
+use spade_codespan::Span;
+use spade_codespan_reporting::diagnostic::Severity;
 
 use spade_common::location_info::FullSpan;
 

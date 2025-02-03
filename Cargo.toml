@@ -10,7 +10,7 @@ resolver = "2"
 # Shared between internal crates. Can be overridden per-crate if needed.
 
 [workspace.package]
-version = "0.12.0"
+version = "0.12.1"
 license = "EUPL-1.2"
 edition = "2021"
 rust-version = "1.70" # is_terminal is stable from 1.70
@@ -18,8 +18,8 @@ rust-version = "1.70" # is_terminal is stable from 1.70
 [workspace.dependencies]
 clap = { version = "4.4", features = ["derive"] }
 color-eyre = "0.6.1"
-codespan = { git = "https://gitlab.com/spade-lang/codespan.git", branch = "master", features = ["serialization"] }
-codespan-reporting = { git = "https://gitlab.com/spade-lang/codespan.git", branch = "master" }
+spade-codespan = {version = "0.12.0", features = ["serde"]}
+spade-codespan-reporting = {version = "0.12.0", features = ["serde"]}
 colored = "3.0"
 indoc = "2.0"
 insta = "1.14.0"

@@ -1,7 +1,7 @@
-use codespan::{ByteOffset, Span};
-use codespan_reporting::diagnostic::Label;
 use num::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
+use spade_codespan::{ByteOffset, Span};
+use spade_codespan_reporting::diagnostic::Label;
 
 pub trait AsLabel {
     fn file_id(&self) -> usize;

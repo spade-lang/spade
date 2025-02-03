@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use codespan_reporting::term::termcolor::Buffer;
+use spade_codespan_reporting::term::termcolor::Buffer;
 
 use spade::Artefacts;
 use spade_diagnostics::emitter::CodespanEmitter;
@@ -91,7 +91,7 @@ macro_rules! snapshot_error {
             tracing_subscriber::registry().with(layer).try_init().ok();
 
             let source = unindent::unindent($src);
-            let mut buffer = codespan_reporting::term::termcolor::Buffer::no_color();
+            let mut buffer = spade_codespan_reporting::term::termcolor::Buffer::no_color();
             let opts = spade::Opt {
                 error_buffer: &mut buffer,
                 outfile: None,
@@ -247,8 +247,8 @@ fn build_items_inner(code: &str, with_stdlib: bool) -> Vec<spade_mir::Entity> {
 
 pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
     let source = unindent::unindent(code);
-    let mut buffer = codespan_reporting::term::termcolor::BufferWriter::stdout(
-        codespan_reporting::term::termcolor::ColorChoice::Never,
+    let mut buffer = spade_codespan_reporting::term::termcolor::BufferWriter::stdout(
+        spade_codespan_reporting::term::termcolor::ColorChoice::Never,
     )
     .buffer();
     let opts = spade::Opt {

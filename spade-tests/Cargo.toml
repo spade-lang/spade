@@ -12,7 +12,7 @@ rust-version.workspace = true
 doctest = false
 
 [dependencies]
-codespan-reporting.workspace = true
+spade-codespan-reporting.workspace = true
 logos.workspace = true
 indoc.workspace = true
 tracing.workspace = true
@@ -29,7 +29,7 @@ spade-hir-lowering = {path = "../spade-hir-lowering"}
 spade-typeinference = {path = "../spade-typeinference"}
 spade-types = {path = "../spade-types"}
 spade-wordlength-inference = {path = "../spade-wordlength-inference"}
-spade = {path = "../spade-compiler"}
+spade-lang = {path = "../spade-compiler"}
 unindent = "0.2.1"
 
 [dev-dependencies]

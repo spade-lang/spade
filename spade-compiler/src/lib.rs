@@ -2,11 +2,11 @@ pub mod compiler_state;
 mod name_dump;
 pub mod namespaced_file;
 
-use codespan_reporting::term::termcolor::Buffer;
 use compiler_state::{CompilerState, MirContext};
 use logos::Logos;
 use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
+use spade_codespan_reporting::term::termcolor::Buffer;
 pub use spade_common::namespace::ModuleNamespace;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;

@@ -12,7 +12,7 @@ doc = false # "spade" conflicts with the spade compiler doc target
 crate-type = ["cdylib"]
 
 [dependencies]
-codespan-reporting.workspace = true
+spade-codespan-reporting.workspace = true
 color-eyre.workspace = true
 itertools.workspace = true
 logos.workspace = true
@@ -23,7 +23,7 @@ tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 tracing.workspace = true
 
-spade = {path = "../spade-compiler"}
+spade-lang = {path = "../spade-compiler"}
 spade-ast = {path = "../spade-ast"}
 spade-ast-lowering = {path = "../spade-ast-lowering"}
 spade-common = {path = "../spade-common"}

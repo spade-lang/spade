@@ -1,12 +1,13 @@
 use std::io::Write;
 
-use codespan_reporting::diagnostic::{
+use spade_codespan_reporting as codespan_reporting;
+use spade_codespan_reporting::diagnostic::{
     Diagnostic as CodespanDiagnostic, SpannedNote, Subdiagnostic as CodespanSubdiagnostic,
     Suggestion, SuggestionPart,
 };
-use codespan_reporting::files::Files;
-use codespan_reporting::term::termcolor::{Color, ColorChoice, ColorSpec, WriteColor};
-use codespan_reporting::term::{self, termcolor::Buffer};
+use spade_codespan_reporting::files::Files;
+use spade_codespan_reporting::term::termcolor::{Color, ColorChoice, ColorSpec, WriteColor};
+use spade_codespan_reporting::term::{self, termcolor::Buffer};
 
 use itertools::Itertools;
 use spade_common::location_info::AsLabel;

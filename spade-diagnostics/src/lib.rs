@@ -10,7 +10,7 @@
 //! [`Diagnostic`]s are created using builders. The simplest compiler error looks like this:
 //!
 //! ```
-//! # use codespan_reporting::term::termcolor::Buffer;
+//! # use spade_codespan_reporting::term::termcolor::Buffer;
 //! # use spade_diagnostics::{CodeBundle, Diagnostic};
 //! # use spade_diagnostics::emitter::{CodespanEmitter, Emitter};
 //! # let mut emitter = CodespanEmitter;
@@ -18,7 +18,7 @@
 //! let code = CodeBundle::new("hello ocean!".to_string());
 //! // Spans are never created manually like this. They are created by the lexer
 //! // and need to be combined with each other to form bigger spans.
-//! let span = (codespan::Span::from(6..11), 0);
+//! let span = (spade_codespan::Span::from(6..11), 0);
 //! let diag = Diagnostic::error(span, "something's fishy :spadesquint:");
 //! emitter.emit_diagnostic(&diag, &mut buffer, &code);
 //! # println!("{}", String::from_utf8_lossy(buffer.as_slice()));
@@ -56,7 +56,7 @@
 //! ```
 //!
 //! ```
-//! # use codespan_reporting::term::termcolor::Buffer;
+//! # use spade_codespan_reporting::term::termcolor::Buffer;
 //! # use spade_common::location_info::WithLocation;
 //! # use spade_diagnostics::{CodeBundle, Diagnostic};
 //! # use spade_diagnostics::emitter::{CodespanEmitter, Emitter};
@@ -103,7 +103,7 @@
 //! ```
 //!
 //! ```
-//! # use codespan_reporting::term::termcolor::Buffer;
+//! # use spade_codespan_reporting::term::termcolor::Buffer;
 //! # use spade_common::location_info::WithLocation;
 //! # use spade_diagnostics::{CodeBundle, Diagnostic};
 //! # use spade_diagnostics::emitter::{CodespanEmitter, Emitter};
@@ -150,7 +150,7 @@
 //! ```
 //!
 //! ```
-//! # use codespan_reporting::term::termcolor::Buffer;
+//! # use spade_codespan_reporting::term::termcolor::Buffer;
 //! # use spade_common::location_info::WithLocation;
 //! # use spade_diagnostics::{CodeBundle, Diagnostic};
 //! # use spade_diagnostics::emitter::{CodespanEmitter, Emitter};
@@ -216,7 +216,7 @@
 //! ```
 //!
 //! ```
-//! # use codespan_reporting::term::termcolor::Buffer;
+//! # use spade_codespan_reporting::term::termcolor::Buffer;
 //! # use spade_common::location_info::WithLocation;
 //! # use spade_diagnostics::{CodeBundle, Diagnostic};
 //! # use spade_diagnostics::diagnostic::{SuggestionParts};
@@ -277,14 +277,14 @@
 
 use std::io::Write;
 
-use codespan_reporting::files::{Files, SimpleFiles};
-use codespan_reporting::term::termcolor::Buffer;
+use spade_codespan_reporting::files::{Files, SimpleFiles};
+use spade_codespan_reporting::term::termcolor::Buffer;
 
 use spade_common::location_info::{AsLabel, Loc};
 
-pub use codespan;
 pub use diagnostic::Diagnostic;
 pub use emitter::Emitter;
+pub use spade_codespan as codespan;
 
 pub mod diagnostic;
 pub mod emitter;
@@ -322,7 +322,7 @@ impl CodeBundle {
         loop {
             match self.files.get(all_files.len()) {
                 Ok(file) => all_files.push((file.name().clone(), file.source().clone())),
-                Err(codespan_reporting::files::Error::FileMissing) => break,
+                Err(spade_codespan_reporting::files::Error::FileMissing) => break,
                 Err(e) => {
                     panic!("{e}")
                 }
@@ -384,7 +384,7 @@ impl DiagHandler {
 
 #[cfg(test)]
 mod tests {
-    use codespan_reporting::term::termcolor::Buffer;
+    use spade_codespan_reporting::term::termcolor::Buffer;
 
     use crate::emitter::CodespanEmitter;
     use crate::{CodeBundle, Diagnostic, Emitter};

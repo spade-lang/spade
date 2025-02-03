@@ -14,7 +14,7 @@ ron.workspace = true
 num.workspace = true
 cxx = "1.0"
 
-spade = {path = "../spade-compiler"}
+spade-lang = {path = "../spade-compiler"}
 spade-mir = {path = "../spade-mir"}
 spade-simulation-ext = {path = "../spade-simulation-ext"}
 

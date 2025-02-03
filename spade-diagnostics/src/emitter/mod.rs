@@ -1,4 +1,4 @@
-use codespan_reporting::term::termcolor::Buffer;
+use spade_codespan_reporting::term::termcolor::Buffer;
 
 use crate::diagnostic::Diagnostic;
 use crate::CodeBundle;

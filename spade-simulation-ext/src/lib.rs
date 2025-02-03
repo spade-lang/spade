@@ -6,13 +6,13 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::RwLock;
 
-use codespan_reporting::term::termcolor::Buffer;
 use color_eyre::eyre::{anyhow, Context};
 use field_ref::{FieldRef, FieldSource};
 use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
+use spade_codespan_reporting::term::termcolor::Buffer;
 
 use ::spade::compiler_state::CompilerState;
 use range::UptoRange;

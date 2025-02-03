@@ -56,7 +56,7 @@ impl Token {
 }
 
 impl HasCodespan for Token {
-    fn codespan(&self) -> codespan::Span {
+    fn codespan(&self) -> spade_codespan::Span {
         self.span().codespan()
     }
 }

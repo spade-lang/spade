@@ -1,6 +1,6 @@
-use codespan_reporting::term::termcolor;
 use itertools::Itertools;
 use nesty::{code, Code};
+use spade_codespan_reporting::term::termcolor;
 
 use num::{BigInt, BigUint, One, Signed, ToPrimitive, Zero};
 use spade_common::id_tracker::ExprIdTracker;
@@ -2054,8 +2054,8 @@ mod backward_expression_tests {
 #[cfg(test)]
 mod expression_tests {
     use super::*;
-    use codespan::Span;
     use colored::Colorize;
+    use spade_codespan::Span;
     use spade_common::id_tracker::ExprID;
     use spade_common::location_info::WithLocation;
     use spade_common::num_ext::InfallibleToBigInt;

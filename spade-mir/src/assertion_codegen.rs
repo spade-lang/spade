@@ -1,5 +1,5 @@
-use codespan_reporting::diagnostic::Diagnostic;
-use codespan_reporting::term::{self, termcolor::Buffer};
+use spade_codespan_reporting::diagnostic::Diagnostic;
+use spade_codespan_reporting::term::{self, termcolor::Buffer};
 
 use spade_common::location_info::{AsLabel, Loc};
 use spade_diagnostics::emitter::codespan_config;
