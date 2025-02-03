@@ -2187,6 +2187,18 @@ mod tests {
         assert_same_mir!(&result, &expected);
     }
 
+    snapshot_error! {
+        expression_statement_must_use_errors,
+        "
+        entity x() -> uint<8> {
+            let a: uint<8> = 42;
+            { a + a };
+            a + a;
+            a
+        }
+        "
+    }
+
     #[test]
     fn traced_fsm_is_traced() {
         let code = r#"

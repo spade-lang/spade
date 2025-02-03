@@ -998,6 +998,25 @@ impl StatementLocal for Statement {
             }
             Statement::Expression(expr) => {
                 result.append(expr.lower(ctx)?);
+
+                let concrete_ty =
+                    ctx.types
+                        .concrete_type_of(expr, ctx.symtab.symtab(), &ctx.item_list.types)?;
+
+                let mir_ty = concrete_ty.to_mir_type();
+
+                if mir_ty.must_use() {
+                    return Err(Diagnostic::error(
+                        expr,
+                        format!("Values of type {mir_ty} must be used"),
+                    )
+                    .primary_label("This must be used")
+                    .span_suggest_insert_before(
+                        "consider discarding value explicitly",
+                        expr,
+                        "let _ = ",
+                    ));
+                }
             }
             Statement::Register(register) => {
                 let hir::Register {

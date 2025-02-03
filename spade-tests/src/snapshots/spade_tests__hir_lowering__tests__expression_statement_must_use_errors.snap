@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+entity x() -> uint<8> {
+    let a: uint<8> = 42;
+    { a + a };
+    a + a;
+    a
+}
+
+
+error: Values of type uint<9> must be used
+  ┌─ testinput:3:5
+  │
+3 │     { a + a };
+  │     ^^^^^^^^^ This must be used
+  │
+  = consider discarding value explicitly
+  │
+3 │     let _ = { a + a };
+  │     ++++++++

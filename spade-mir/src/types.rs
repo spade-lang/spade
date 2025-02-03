@@ -100,6 +100,13 @@ impl Type {
             panic!("Assumed enum for a type which was not")
         }
     }
+
+    pub fn must_use(&self) -> bool {
+        match self {
+            Type::Tuple(unit) if unit.is_empty() => false,
+            _ => true,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
