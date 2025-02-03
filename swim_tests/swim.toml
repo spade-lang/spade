@@ -1,5 +1,6 @@
 name = "proj"
-extra_verilog = ["src/parametrized.sv"]
+
+verilog.sources = ["src/parametrized.sv"]
 
 [compiler]
 path = ".."
