@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    - id: check-yaml
+    - id: end-of-file-fixer
+    - id: trailing-whitespace
+    - id: check-merge-conflict
+    - id: check-toml
+    - id: mixed-line-ending
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.22.9
+    hooks:
+    - id: typos
+      args: []
+  - repo: https://github.com/DevinR528/cargo-sort
+    rev: v1.0.9
+    hooks:
+      - id: cargo-sort
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+    - id: fmt
+      types: ["rust"]
+    - id: cargo-check
+      types: ["rust"]
+  - repo: local
+    hooks:
+      - id: cargo-test
+        name: Run tests
+        entry: cargo test
+        language: system
+        pass_filenames: false
+        types_or: ["rust", "toml"]

@@ -1,0 +1,30 @@
+[package]
+name = "spade-language-server"
+version = "0.1.0"
+edition = "2021"
+license = "EUPL-1.2"
+rust-version = "1.77.1"
+
+[dependencies]
+spade-lang.path = "../spade-compiler"
+spade-common.path = "../spade-common"
+spade-types.path = "../spade-types"
+spade-diagnostics.path = "../spade-diagnostics"
+spade-hir.path = "../spade-hir"
+spade-typeinference.path = "../spade-typeinference"
+swim = { git = "https://gitlab.com/spade-lang/swim"}
+
+
+async-recursion = "1.1.1"
+camino = "1.1.1"
+spade-codespan-reporting = "0.12.0"
+color-eyre = "0.6.1"
+tokio = { version = "1.21.2", features = ["full"] }
+tower-lsp = "0.17.0"
+
+[dev-dependencies]
+assert_fs = "1.1.1"
+spade-codespan = "0.12.0"
+regex = "1.10.5"
+smart-default = "0.7.1"
+tap = "1.0.1"

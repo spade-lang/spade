@@ -117,7 +117,7 @@ test:output-test:
     stage: test
     before_script:
         - apt update
-        - apt install -y iverilog curl gcc make python$APT_PYTHON_VERSION
+        - apt install -y iverilog curl gcc make python$APT_PYTHON_VERSION libssl-dev
         # pyo3 expects exactly `python3` in the path.
         - command -v /usr/bin/python3 || ln -s /usr/bin/python$APT_PYTHON_VERSION /usr/bin/python3
         - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
@@ -153,7 +153,7 @@ build:static:
   image: "rust:$RUST_VERSION-alpine"
   stage: test
   before_script:
-    - apk add git musl-dev g++
+    - apk add git musl-dev g++ openssl
   script:
     - cargo build --release --workspace --exclude spade-python --target x86_64-unknown-linux-musl
     - strip target/x86_64-unknown-linux-musl/release/spade

@@ -1,0 +1,108 @@
+variables:
+  CACHE_COMPRESSION_LEVEL: fast
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_FASTZIP: "true"
+
+.deny-warnings:
+  variables:
+    RUSTFLAGS: "-D warnings"
+
+# Only run pipelines for merge requests, tags, and the default branch.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  # Cache is unique per job and Cargo.lock.
+  # Meaning: one cache per job, invalidated when Cargo.lock changes.
+  cache:
+    key:
+      prefix: "$CI_JOB_NAME"
+      files:
+        - Cargo.lock
+    paths:
+      - target
+      - $CARGO_HOME
+
+check:clippy:
+  image: "rust:latest"
+  stage: test
+  before_script:
+    - rustup component add clippy
+    - cargo install gitlab_clippy
+    - cargo clippy -V
+  script:
+    - cargo clippy
+  after_script:
+    - cargo clippy --message-format=json | $CARGO_HOME/bin/gitlab-clippy > gl-code-quality-report.json
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+    expire_in: 1 week
+
+check:pre-commit:
+  image: "rust:latest"
+  stage: test
+  cache:
+    paths:
+      - ${PRE_COMMIT_HOME}
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  before_script:
+    - apt update -y
+    - apt install pre-commit -y
+    - pre-commit install
+    - rustup component add rustfmt
+    - git fetch origin ${CI_DEFAULT_BRANCH}
+  script:
+    - SKIP=cargo-test,cargo-check pre-commit run --from-ref origin/${CI_DEFAULT_BRANCH} --to-ref HEAD
+
+check:coverage:
+  image: xd009642/tarpaulin
+  stage: test
+  script:
+    - cargo tarpaulin --out Xml --root . --manifest-path Cargo.toml --skip-clean --color Always
+  coverage: '/^\d+.\d+% coverage/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cobertura.xml
+    expire_in: 1 week
+
+test:stable:
+  image: "rust:latest"
+  stage: test
+  extends: .deny-warnings
+  before_script:
+    - cargo -V
+    - rustc -V
+  script:
+    - cargo test --color=always
+
+test:beta:
+  image: "alpine:latest"
+  stage: test
+  extends: .deny-warnings
+  allow_failure: true
+  before_script:
+    - apk add build-base rustup pkgconf libressl-dev
+    - rustup-init --default-toolchain beta -y
+    - source cargo/env
+  script:
+    - cargo test --color=always
+
+test:nightly:
+  image: "alpine:latest"
+  stage: test
+  extends: .deny-warnings
+  allow_failure: true
+  before_script:
+    - apk add build-base rustup pkgconf libressl-dev
+    - rustup-init --default-toolchain nightly -y
+    - source cargo/env
+  script:
+    - cargo test --color=always
