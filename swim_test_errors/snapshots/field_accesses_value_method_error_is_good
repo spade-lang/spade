@@ -1,9 +1,9 @@
 
-error: Type swim_test_errors::main::OutputStruct has no field inner
+error: Type swim_test_errors::OutputStruct has no field inner
     ┌─ field_accesses.py:59
     │
  59 │ _ = s.o.inner.x.value()
-    │ ^^^^^^^^^^^^^^^^^^^^^^^ No field `inner` in swim_test_errors::main::OutputStruct
+    │ ^^^^^^^^^^^^^^^^^^^^^^^ No field `inner` in swim_test_errors::OutputStruct
 
   Help: The full path of the field is `o.inner`
 

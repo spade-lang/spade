@@ -76,7 +76,7 @@ test:linux-nightly:
         - rustup-init --default-toolchain nightly -y
         - source cargo/env
     script:
-        - cargo build -p spade
+        - cargo build -p spade-lang
         - cargo test --color=always
         - cargo doc --no-deps
 

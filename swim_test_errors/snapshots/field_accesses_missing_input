@@ -1,5 +1,5 @@
 
-error: swim_test_errors::main::test1 has no input missing
+error: swim_test_errors::test1 has no input missing
    ┌─ field_accesses.py:8
    │
  8 │ s.i.missing = "1"

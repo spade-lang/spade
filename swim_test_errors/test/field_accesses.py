@@ -1,4 +1,4 @@
-#top = main::test1
+#top = test1
 import cocotb
 from spade import SpadeExt
 

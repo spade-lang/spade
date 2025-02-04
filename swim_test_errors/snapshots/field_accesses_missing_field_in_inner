@@ -1,9 +1,9 @@
 
-error: Type swim_test_errors::main::InputStruct has no field missing
+error: Type swim_test_errors::InputStruct has no field missing
     ┌─ field_accesses.py:14
     │
  14 │ s.i.s.missing = "1"
-    │ ^^^^^^^^^^^^^^^^^^^ No field `missing` in swim_test_errors::main::InputStruct
+    │ ^^^^^^^^^^^^^^^^^^^ No field `missing` in swim_test_errors::InputStruct
 
   Help: The full path of the field is `i.s.missing`
 
