@@ -4,4 +4,5 @@ use crate::name::Path;
 pub struct ModuleNamespace {
     pub namespace: Path,
     pub base_namespace: Path,
+    pub file: String,
 }

@@ -19,6 +19,8 @@ mod integration;
 #[cfg(test)]
 mod linear_check;
 #[cfg(test)]
+mod mod_namespacing;
+#[cfg(test)]
 mod parser;
 #[cfg(test)]
 mod ports_integration;
@@ -73,7 +75,12 @@ macro_rules! snapshot_error {
     ($fn:ident, $src:literal) => {
         snapshot_error!($fn, $src, true);
     };
-    ($fn:ident, $src:literal, $include_stdlib:expr) => {
+    ($fn:ident, {$({
+        $namespace:expr,
+        $base_namespace:expr,
+        $src_file:literal,
+        $src_content:literal$(,)*
+    }),*$(,)?}, $include_stdlib:expr) => {
         #[test]
         fn $fn() {
             use tracing_subscriber::filter::{EnvFilter, LevelFilter};
@@ -90,7 +97,6 @@ macro_rules! snapshot_error {
 
             tracing_subscriber::registry().with(layer).try_init().ok();
 
-            let source = unindent::unindent($src);
             let mut buffer = spade_codespan_reporting::term::termcolor::Buffer::no_color();
             let opts = spade::Opt {
                 error_buffer: &mut buffer,
@@ -105,14 +111,17 @@ macro_rules! snapshot_error {
                 opt_passes: vec![]
             };
 
-            let files = vec![(
+            let files = vec![
+                $((
                     spade::ModuleNamespace {
-                        namespace: spade_common::name::Path(vec![]),
-                        base_namespace: spade_common::name::Path(vec![]),
+                        namespace: $namespace,
+                        base_namespace: $base_namespace,
+                        file: $src_file.to_string(),
                     },
-                    "testinput".to_string(),
-                    source.to_string(),
-                )];
+                    $src_file.to_string(),
+                    unindent::unindent($src_content),
+                )),*
+            ];
 
             let _ = spade::compile(
                 files,
@@ -127,13 +136,27 @@ macro_rules! snapshot_error {
                 // FIXME: Why can't we set 'description => source' here?
                 omit_expression => true,
             }, {
+                let all_code = vec![
+                    $(unindent::unindent($src_content)),*
+                ].join("\n");
                 insta::assert_snapshot!(format!(
                     "{}\n\n{}",
-                    source,
+                    all_code,
                     std::str::from_utf8(buffer.as_slice()).expect("error contains invalid utf-8")
                 ));
             });
         }
+    };
+    ($fn:ident, $src:literal, $include_stdlib:expr) => {
+        snapshot_error!(
+            $fn, {
+                {
+                    spade_common::name::Path(vec![]),
+                    spade_common::name::Path(vec![]),
+                    "testinput",
+                    $src,
+                }
+            }, $include_stdlib);
     };
 }
 
@@ -268,6 +291,7 @@ pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
         spade::ModuleNamespace {
             namespace: spade_common::name::Path(vec![]),
             base_namespace: spade_common::name::Path(vec![]),
+            file: "testinput".to_string(),
         },
         "testinput".to_string(),
         source,

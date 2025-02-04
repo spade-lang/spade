@@ -7,6 +7,7 @@ use logos::Logos;
 use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
+use spade_common::location_info::Loc;
 pub use spade_common::namespace::ModuleNamespace;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
@@ -220,13 +221,38 @@ pub fn compile(
         self_ctx: SelfContext::FreeStanding,
     };
 
+    let mut missing_namespace_set = module_asts
+        .iter()
+        .map(|(ns, _ast)| (ns.namespace.clone(), ns.file.clone()))
+        .collect::<HashMap<_, _>>();
+
     for (namespace, module_ast) in &module_asts {
-        if !namespace.namespace.0.is_empty() {
-            ctx.symtab.add_thing(
-                namespace.namespace.clone(),
-                spade_hir::symbol_table::Thing::Module(namespace.namespace.0[0].clone()),
-            );
-        }
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::handle_external_modules(
+                &namespace.file,
+                None,
+                module_ast,
+                &mut missing_namespace_set,
+                ctx,
+            )
+            .or_report(&mut errors);
+        })
+    }
+
+    if errors.failed {
+        return Err(unfinished_artefacts);
+    }
+
+    for err in global_symbols::report_missing_mod_declarations(&module_asts, &missing_namespace_set)
+    {
+        errors.report(&err);
+    }
+
+    if errors.failed {
+        return Err(unfinished_artefacts);
+    }
+
+    for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
             global_symbols::gather_types(module_ast, ctx).or_report(&mut errors);
         })
@@ -442,7 +468,7 @@ fn parse(
     code: Rc<RwLock<CodeBundle>>,
     print_parse_traceback: bool,
     errors: &mut ErrorHandler,
-) -> Vec<(ModuleNamespace, ModuleBody)> {
+) -> Vec<(ModuleNamespace, Loc<ModuleBody>)> {
     let mut module_asts = vec![];
     // Read and parse input files
     for (namespace, name, content) in sources {
@@ -474,7 +500,7 @@ fn parse(
 
 #[tracing::instrument(skip_all)]
 fn lower_ast(
-    module_asts: &[(ModuleNamespace, ModuleBody)],
+    module_asts: &[(ModuleNamespace, Loc<ModuleBody>)],
     ctx: &mut AstLoweringCtx,
     errors: &mut ErrorHandler,
 ) {
@@ -569,6 +595,7 @@ pub fn stdlib_and_prelude() -> Vec<(ModuleNamespace, String, String)> {
                         ModuleNamespace {
                             namespace: SpadePath::from_strs(&$namespace),
                             base_namespace: SpadePath::from_strs(&$base_namespace),
+                            file: String::from($filename).replace("../", "<compiler dir>/")
                         },
                         String::from($filename).replace("../", "<compiler dir>/"),
                         String::from(include_str!($filename))
@@ -580,13 +607,14 @@ pub fn stdlib_and_prelude() -> Vec<(ModuleNamespace, String, String)> {
 
     sources! {
         ([], [], "../prelude/prelude.spade"),
+        (["std"], ["std"], "../stdlib/main.spade"),
         (["std"], ["std", "conv"], "../stdlib/conv.spade"),
         (["std"], ["std", "io"], "../stdlib/io.spade"),
         (["std"], ["std", "mem"], "../stdlib/mem.spade"),
         (["std"], ["std", "ops"], "../stdlib/ops.spade"),
         (["std"], ["std", "ports"], "../stdlib/ports.spade"),
-        (["std"], ["std", "option"], "../stdlib/option.spade"),
         (["std"], ["std", "cdc"], "../stdlib/cdc.spade"),
+        (["std"], ["std", "option"], "../stdlib/option.spade"),
     }
 }
 

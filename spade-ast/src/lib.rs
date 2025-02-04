@@ -741,6 +741,7 @@ pub enum Item {
     Unit(Loc<Unit>),
     TraitDef(Loc<TraitDef>),
     Type(Loc<TypeDeclaration>),
+    ExternalMod(Loc<Identifier>),
     Module(Loc<Module>),
     Use(Loc<UseStatement>),
     ImplBlock(Loc<ImplBlock>),
@@ -754,6 +755,7 @@ impl Item {
             Item::TraitDef(t) => Some(&t.name.inner),
             Item::Type(t) => Some(&t.name.inner),
             Item::Module(m) => Some(&m.name.inner),
+            Item::ExternalMod(name) => Some(name),
             Item::Use(u) => u.alias.as_ref().map(|name| &name.inner),
             Item::ImplBlock(_) => None,
         }
@@ -765,6 +767,7 @@ impl Item {
             Item::TraitDef(_) => "trait definition",
             Item::Type(_) => "type",
             Item::Module(_) => "module",
+            Item::ExternalMod(_) => "module",
             Item::Use(_) => "use",
             Item::ImplBlock(_) => "impl",
         }

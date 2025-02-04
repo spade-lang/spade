@@ -1674,7 +1674,7 @@ impl<'a> Parser<'a> {
                 Box::new(items::ImplBlockParser {}.map(|inner| Ok(Item::ImplBlock(inner)))),
                 Box::new(items::StructParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
-                Box::new(items::ModuleParser {}.map(|inner| Ok(Item::Module(inner)))),
+                Box::new(items::ModuleParser {}),
                 Box::new(items::UseParser {}.map(|inner| Ok(Item::Use(inner)))),
             ],
             true,
@@ -1687,11 +1687,13 @@ impl<'a> Parser<'a> {
     /// but an item found after the last item
     #[trace_parser]
     #[tracing::instrument(skip(self))]
-    pub fn top_level_module_body(&mut self) -> Result<ModuleBody> {
+    pub fn top_level_module_body(&mut self) -> Result<Loc<ModuleBody>> {
+        let start_token = self.peek()?;
         let result = self.module_body()?;
+        let end_token = self.peek()?;
 
         if self.peek_kind(&TokenKind::Eof)? {
-            Ok(result)
+            Ok(result.between(self.file_id, &start_token, &end_token))
         } else {
             let got = self.peek()?;
             Err(Diagnostic::error(
@@ -1998,7 +2000,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn peek(&mut self) -> Result<Token> {
+    pub fn peek(&mut self) -> Result<Token> {
         if let Some(peeked) = self.peeked.clone() {
             Ok(peeked)
         } else {

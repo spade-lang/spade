@@ -130,6 +130,7 @@ fn main() -> Result<()> {
                     ModuleNamespace {
                         namespace,
                         base_namespace,
+                        file: infile.to_string_lossy().to_string(),
                     },
                     infile.to_string_lossy().to_string(),
                     file_content,

@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/mod_namespacing.rs
+---
+mod submod;
+            
+mod subsubmod;
+            
+
+error: Did not find src/submod/subsubmod.spade or src/submod/subsubmod/main.spade
+  ┌─ src/submod/main.spade:1:5
+  │
+1 │ mod subsubmod;
+  │     ^^^^^^^^^ Did not find file for subsubmod

@@ -1224,6 +1224,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             Ok(vec![])
         }
         ast::Item::ImplBlock(block) => visit_impl(block, ctx),
+        ast::Item::ExternalMod(_) => Ok(vec![]),
         ast::Item::Module(m) => {
             ctx.symtab.push_namespace(m.name.clone());
             let result = visit_module(m, ctx);
@@ -3279,6 +3280,7 @@ mod module_visiting {
         let namespace = ModuleNamespace {
             namespace: Path::from_strs(&[""]),
             base_namespace: Path::from_strs(&[""]),
+            file: "test/file.spade".to_string(),
         };
         ctx.symtab.add_thing(
             namespace.namespace.clone(),

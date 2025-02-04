@@ -1,11 +1,12 @@
-use spade_ast::Module;
 use spade_ast::{
     AttributeList, Enum, Expression, ImplBlock, Struct, TraitDef, TraitSpec, TypeDeclKind,
     TypeDeclaration, TypeSpec, Unit, UseStatement,
 };
+use spade_ast::{Item, Module};
 use spade_common::location_info::{AsLabel, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
+use crate::error::UnexpectedToken;
 use crate::{
     error::CSErrorTransformations, lexer::TokenKind, KeywordPeekingParser, Parser, Result,
 };
@@ -255,29 +256,40 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
 
 pub(crate) struct ModuleParser {}
 
-impl KeywordPeekingParser<Loc<Module>> for ModuleParser {
+impl KeywordPeekingParser<Item> for ModuleParser {
     fn leading_tokens(&self) -> Vec<TokenKind> {
         vec![TokenKind::Mod]
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Module>> {
+    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Item> {
         let start = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &start)?;
 
         let name = parser.identifier()?;
 
-        let open_brace = parser.peek()?;
-        let (body, end) = parser.surrounded(
-            &TokenKind::OpenBrace,
-            Parser::module_body,
-            &TokenKind::CloseBrace,
-        )?;
-
-        Ok(Module {
-            name,
-            body: body.between(parser.file_id, &open_brace.span, &end.span),
+        if parser.peek_kind(&TokenKind::OpenBrace)? {
+            let open_brace = parser.peek()?;
+            let (body, end) = parser.surrounded(
+                &TokenKind::OpenBrace,
+                Parser::module_body,
+                &TokenKind::CloseBrace,
+            )?;
+            Ok(Item::Module(
+                Module {
+                    name,
+                    body: body.between(parser.file_id, &open_brace.span, &end.span),
+                }
+                .between(parser.file_id, &start, &end),
+            ))
+        } else if parser.peek_and_eat(&TokenKind::Semi)?.is_some() {
+            Ok(Item::ExternalMod(name))
+        } else {
+            Err(UnexpectedToken {
+                got: parser.peek()?,
+                expected: vec![";", "{"],
+            }
+            .into())
         }
-        .between(parser.file_id, &start, &end))
     }
 }
 

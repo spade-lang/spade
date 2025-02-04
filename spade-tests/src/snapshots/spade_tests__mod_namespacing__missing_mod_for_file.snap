@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/mod_namespacing.rs
+---
+fn just_some_stuff() {}
+
+
+error: Missing `mod subfile;` for src/subfile.spade
+  ┌─ src/main.spade:1:1
+  │
+1 │ fn just_some_stuff() {}
+  │ ^^^^^^^^^^^^^^^^^^^^^^^ Missing `mod subfile;`
+  │
+  = Consider adding `mod subfile;`
+  │
+1 │ mod subfile; fn just_some_stuff() {}
+  │ +++++++++++++

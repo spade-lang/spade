@@ -1,15 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use hir::{
     symbol_table::{EnumVariant, StructCallable},
     TypeExpression, WalTraceable,
 };
-use spade_ast as ast;
+use spade_ast::{self as ast, Module, ModuleBody};
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, Path},
+    namespace::ModuleNamespace,
 };
-use spade_diagnostics::Diagnostic;
+use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir as hir;
 use spade_hir::WhereClause;
 use spade_types::meta_types::MetaType;
@@ -22,6 +23,123 @@ use crate::{
 };
 use spade_hir::symbol_table::{GenericArg, Thing, TypeSymbol};
 
+pub fn handle_external_modules(
+    this_file: &str,
+    inner_module: Option<&Loc<Module>>,
+    module: &ast::ModuleBody,
+    namespaces: &mut HashMap<Path, String>,
+    ctx: &mut Context,
+) -> Result<()> {
+    for item in &module.members {
+        match item {
+            ast::Item::ExternalMod(name) => {
+                if let Some(inner) = inner_module {
+                    return Err(Diagnostic::error(
+                        name,
+                        "Modules from different files cannot be defined inside inline modules",
+                    )
+                    .primary_label("Module defined in inline module")
+                    .secondary_label(inner, "Inline module defined here"));
+                } else {
+                    // If we get an external module, we need to
+                    // 1. check that there is an associated file
+                    // 2. Replace the loc of that module with the source code
+                    let path = ctx.symtab.current_namespace().push_ident(name.clone());
+
+                    // We're going to eagerly add the `mod` first in order to detect duplicates.
+                    ctx.symtab.add_unique_thing(
+                        Path::ident(name.clone()).at_loc(&name),
+                        Thing::Module(name.clone()),
+                    )?;
+
+                    if namespaces.remove(&path).is_none() {
+                        let name_parts = this_file.split("/").collect::<Vec<_>>();
+                        if name_parts.len() > 1 {
+                            let base = name_parts[0..name_parts.len() - 1].join("/");
+                            let expected_name = format!("{base}/{name}.spade");
+                            let expected_mod = format!("{base}/{name}/main.spade");
+
+                            return Err(Diagnostic::error(
+                                name,
+                                format!("Did not find {expected_name} or {expected_mod}"),
+                            )
+                            .primary_label(format!("Did not find file for {name}")));
+                        } else {
+                            return Err(Diagnostic::error(
+                                    name,
+                                    format!("Did not find file for {name}"),
+                                )
+                                .help("Are you running Spade without swim. If so, multiple files are unsupported"));
+                        };
+                    }
+                }
+            }
+            ast::Item::Module(m) => {
+                ctx.symtab.push_namespace(m.name.clone());
+                if let Err(e) =
+                    handle_external_modules(this_file, Some(m), &m.body, namespaces, ctx)
+                {
+                    ctx.symtab.pop_namespace();
+                    return Err(e);
+                };
+                ctx.symtab.pop_namespace();
+            }
+            ast::Item::Type(_) => {}
+            ast::Item::ImplBlock(_) => {}
+            ast::Item::Unit(_) => {}
+            ast::Item::TraitDef(_) => {}
+            ast::Item::Use(_) => {}
+        }
+    }
+    Ok(())
+}
+
+pub fn report_missing_mod_declarations(
+    module_asts: &[(ModuleNamespace, Loc<ModuleBody>)],
+    missing_namespace_set: &HashMap<Path, String>,
+) -> Vec<Diagnostic> {
+    // If we have things left in the namespace_set, we are missing a few `mod`, let's report
+    // those
+    let missing_namespace_set = missing_namespace_set
+        .iter()
+        .filter(|ns| !ns.0 .0.is_empty() && !(ns.1.ends_with("main.spade")))
+        .collect::<Vec<_>>();
+
+    missing_namespace_set
+        .iter()
+        .map(|(path, file)| {
+            if path.0.len() == 0 {
+                return diag_anyhow!(
+                    ().nowhere(),
+                    "Internal error: Found no mod for empty path (in {file})"
+                );
+            }
+
+            let ns = path.tail();
+            let parent_path = path.prelude();
+            let parent_loc = module_asts.iter().find_map(|(ns, ast)| {
+                if ns.namespace == parent_path {
+                    Some(ast.loc())
+                } else {
+                    None
+                }
+            });
+
+            if let Some(parent_loc) = parent_loc {
+                Diagnostic::error(parent_loc, format!("Missing `mod {ns};` for {file}"))
+                    .primary_label(format!("Missing `mod {ns};`"))
+                    .span_suggest_insert_before(
+                        format!("Consider adding `mod {ns};`"),
+                        parent_loc,
+                        format!("mod {ns}; "),
+                    )
+            } else {
+                diag_anyhow!(().nowhere(), "Found {file} which is missing `mod` but the file where `mod` should go was not found")
+            }
+        })
+        .collect()
+}
+
 #[tracing::instrument(skip_all)]
 pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
     for item in &module.members {
@@ -29,6 +147,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             ast::Item::Type(t) => {
                 visit_type_declaration(t, ctx)?;
             }
+            ast::Item::ExternalMod(_) => {}
             ast::Item::Module(m) => {
                 ctx.symtab.add_unique_thing(
                     Path::ident(m.name.clone()).at_loc(&m.name),
@@ -96,6 +215,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::Type(t) => {
             re_visit_type_declaration(t, ctx)?;
         }
+        ast::Item::ExternalMod(_) => {}
         ast::Item::Module(m) => {
             ctx.symtab.push_namespace(m.name.clone());
             if let Err(e) = gather_symbols(&m.body, ctx) {
