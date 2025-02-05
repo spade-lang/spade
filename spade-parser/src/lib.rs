@@ -33,6 +33,8 @@ use crate::error::{
 use crate::item_type::UnitKindLocal;
 use crate::lexer::{LiteralKind, TokenKind};
 
+pub use logos;
+
 /// A token with location info
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token {
