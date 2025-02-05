@@ -1283,13 +1283,16 @@ impl<'a> Parser<'a> {
     fn where_clauses(&mut self) -> Result<Vec<WhereClause>> {
         if let Some(where_kw) = self.peek_and_eat(&TokenKind::Where)? {
             let clauses = self
-                .comma_separated(
+                .token_separated(
                     |s| {
                         if s.peek_cond(|t| matches!(t, &TokenKind::Identifier(_)), "identifier")? {
                             let name = s.path()?;
                             let _colon = s.eat(&TokenKind::Colon)?;
 
-                            if s.peek_cond(|tok| tok == &TokenKind::OpenBrace, "{")? {
+                            if s.peek_cond(
+                                |tok| tok == &TokenKind::OpenBrace || tok == &TokenKind::Builtin,
+                                "{",
+                            )? {
                                 let expression = s
                                     .surrounded(
                                         &TokenKind::OpenBrace,
@@ -1307,7 +1310,11 @@ impl<'a> Parser<'a> {
                                     .token_separated(
                                         Self::path_with_generic_spec,
                                         &TokenKind::Plus,
-                                        vec![TokenKind::Comma, TokenKind::OpenBrace],
+                                        vec![
+                                            TokenKind::Comma,
+                                            TokenKind::OpenBrace,
+                                            TokenKind::Builtin,
+                                        ],
                                     )
                                     .extra_expected(vec!["identifier"])?
                                     .into_iter()
@@ -1331,7 +1338,8 @@ impl<'a> Parser<'a> {
                         // NOTE: With this ending symbol we won't support __builtin__ with where
                         // clauses.
                     },
-                    &TokenKind::OpenBrace,
+                    &TokenKind::Comma,
+                    vec![TokenKind::OpenBrace, TokenKind::Builtin],
                 )
                 .extra_expected(vec!["identifier"])?;
 

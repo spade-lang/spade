@@ -190,7 +190,9 @@ pub fn visit_type_expression(
                 .primary_label(format!("Const generic in {primary}")))
             };
             match kind {
-                TypeSpecKind::Argument => default_error("Argument types", "argument type"),
+                TypeSpecKind::Argument => {
+                    visit_const_generic(expr.as_ref(), ctx).map(hir::TypeExpression::ConstGeneric)
+                }
                 TypeSpecKind::OutputType => default_error("Return types", "return type"),
                 TypeSpecKind::ImplTrait => default_error("Implemented traits", "implemented trait"),
                 TypeSpecKind::ImplTarget => default_error("Impl targets", "impl target"),

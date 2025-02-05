@@ -1,0 +1,258 @@
+---
+source: spade-tests/src/const_generics.rs
+expression: build_items(code)
+---
+[
+    Entity {
+        name: UnitName {
+            kind: Escaped {
+                name: "bar",
+                path: [
+                    "bar",
+                ],
+            },
+            source: bar#2,
+        },
+        inputs: [],
+        output: Expr(
+            ExprID(
+                1,
+            ),
+        ),
+        output_type: Tuple(
+            [],
+        ),
+        statements: [
+            Constant(
+                ExprID(
+                    3,
+                ),
+                UInt(
+                    3,
+                ),
+                Int(
+                    0,
+                ),
+            ),
+            Binding(
+                Binding {
+                    name: Expr(
+                        ExprID(
+                            2,
+                        ),
+                    ),
+                    operator: Instance {
+                        name: UnitName {
+                            kind: Escaped {
+                                name: "foo[6]",
+                                path: [
+                                    "foo",
+                                ],
+                            },
+                            source: foo#6,
+                        },
+                        params: [],
+                        argument_names: [
+                            ParamName {
+                                name: "value",
+                                no_mangle: None,
+                            },
+                        ],
+                        loc: Some(
+                            (),
+                        ),
+                    },
+                    operands: [
+                        Expr(
+                            ExprID(
+                                3,
+                            ),
+                        ),
+                    ],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
+            Binding(
+                Binding {
+                    name: Named(
+                        4,
+                        "_",
+                        Name(
+                            _#4,
+                        ),
+                    ),
+                    operator: Alias,
+                    operands: [
+                        Expr(
+                            ExprID(
+                                2,
+                            ),
+                        ),
+                    ],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
+            Constant(
+                ExprID(
+                    6,
+                ),
+                UInt(
+                    4,
+                ),
+                Int(
+                    0,
+                ),
+            ),
+            Binding(
+                Binding {
+                    name: Expr(
+                        ExprID(
+                            5,
+                        ),
+                    ),
+                    operator: Instance {
+                        name: UnitName {
+                            kind: Escaped {
+                                name: "foo[7]",
+                                path: [
+                                    "foo",
+                                ],
+                            },
+                            source: foo#7,
+                        },
+                        params: [],
+                        argument_names: [
+                            ParamName {
+                                name: "value",
+                                no_mangle: None,
+                            },
+                        ],
+                        loc: Some(
+                            (),
+                        ),
+                    },
+                    operands: [
+                        Expr(
+                            ExprID(
+                                6,
+                            ),
+                        ),
+                    ],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
+            Binding(
+                Binding {
+                    name: Named(
+                        5,
+                        "_",
+                        Name(
+                            _#5,
+                        ),
+                    ),
+                    operator: Alias,
+                    operands: [
+                        Expr(
+                            ExprID(
+                                5,
+                            ),
+                        ),
+                    ],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
+        ],
+    },
+    Entity {
+        name: UnitName {
+            kind: Escaped {
+                name: "foo[6]",
+                path: [
+                    "foo",
+                ],
+            },
+            source: foo#6,
+        },
+        inputs: [
+            MirInput {
+                name: "value",
+                val_name: Named(
+                    3,
+                    "value",
+                    Name(
+                        value#3,
+                    ),
+                ),
+                ty: UInt(
+                    3,
+                ),
+                no_mangle: None,
+            },
+        ],
+        output: Expr(
+            ExprID(
+                0,
+            ),
+        ),
+        output_type: Tuple(
+            [],
+        ),
+        statements: [],
+    },
+    Entity {
+        name: UnitName {
+            kind: Escaped {
+                name: "foo[7]",
+                path: [
+                    "foo",
+                ],
+            },
+            source: foo#7,
+        },
+        inputs: [
+            MirInput {
+                name: "value",
+                val_name: Named(
+                    3,
+                    "value",
+                    Name(
+                        value#3,
+                    ),
+                ),
+                ty: UInt(
+                    4,
+                ),
+                no_mangle: None,
+            },
+        ],
+        output: Expr(
+            ExprID(
+                0,
+            ),
+        ),
+        output_type: Tuple(
+            [],
+        ),
+        statements: [],
+    },
+]

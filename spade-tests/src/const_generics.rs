@@ -1,3 +1,5 @@
+use insta::assert_debug_snapshot;
+
 use crate::{build_items, snapshot_error};
 
 #[test]
@@ -387,4 +389,41 @@ fn int_constraints_in_where_clauses_on_impl_blocks_drive_inference() {
         }
     ";
     build_items(code);
+}
+
+snapshot_error! {
+    type_expressions_in_generic_parameters_type_check,
+    "
+        fn foo<#uint N>(value: uint<{N + 1}>) {}
+
+        fn bar() {
+            let value: uint<2> = 0;
+            foo::<2>(value)
+        }
+    "
+}
+
+snapshot_error! {
+    type_expressions_in_generic_parameter_type_check_across_instanmces,
+    "
+        fn foo<#uint N>(value: uint<{N + 1}>) {}
+
+        fn bar() {
+            let _ = foo::<3>(0u3);
+            let _ = foo::<4>(0u4);
+        }
+    "
+}
+
+#[test]
+fn type_expressions_in_generic_parameter_lower_correctly() {
+    let code = "
+        fn foo<#uint N>(value: uint<{N + 1}>) {}
+
+        fn bar() {
+            let _ = foo::<2>(0u3);
+            let _ = foo::<3>(0u4);
+        }
+    ";
+    assert_debug_snapshot!(build_items(code));
 }
