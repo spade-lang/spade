@@ -4,9 +4,9 @@ error: Expected type uint<8>, got bool
  1 │ true
    │ ^^^^ Expected uint<8>
    │
-   ┌─ src/main.spade:17:19
+   ┌─ src/main.spade:19:19
    │
-17 │ entity test1(raw: uint<8>, tuple: (uint<8>, uint<8>), s: InputStruct) -> OutputStruct {
+19 │ entity test1(raw: uint<8>, tuple: (uint<8>, uint<8>), s: InputStruct) -> OutputStruct {
    │                   ------- Type uint<8> inferred here
    │
    = note: Expected: uint<8>

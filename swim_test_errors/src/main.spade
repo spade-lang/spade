@@ -1,3 +1,5 @@
+mod ports;
+
 struct Nested {
     x: uint<8>,
     y: uint<8>,
