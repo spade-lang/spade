@@ -370,12 +370,12 @@ impl<'a> Parser<'a> {
     // FIXME: Before changing this, merge it with type_level_if
     #[trace_parser]
     #[tracing::instrument(skip(self))]
-    pub fn if_expression(&mut self) -> Result<Option<Loc<Expression>>> {
+    pub fn if_expression(&mut self, allow_stages: bool) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::If);
 
         let cond = self.expression()?;
 
-        let on_true = if let Some(block) = self.block(false)? {
+        let on_true = if let Some(block) = self.block(allow_stages)? {
             block.map(Box::new).map(Expression::Block)
         } else {
             let got = self.peek()?;
@@ -387,9 +387,9 @@ impl<'a> Parser<'a> {
         };
 
         self.eat(&TokenKind::Else)?;
-        let on_false = if let Some(block) = self.block(false)? {
+        let on_false = if let Some(block) = self.block(allow_stages)? {
             block.map(Box::new).map(Expression::Block)
-        } else if let Some(expr) = self.if_expression()? {
+        } else if let Some(expr) = self.if_expression(allow_stages)? {
             expr
         } else {
             let got = self.peek()?;
@@ -417,7 +417,7 @@ impl<'a> Parser<'a> {
     pub fn type_level_if(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Gen);
 
-        let Some(inner) = self.if_expression()? else {
+        let Some(inner) = self.if_expression(true)? else {
             return Err(
                 Diagnostic::error(self.peek()?, "gen must be followed by if")
                     .primary_label("Expected if")

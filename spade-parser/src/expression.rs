@@ -236,7 +236,7 @@ impl<'a> Parser<'a> {
             Ok(Expression::IntLiteral(val.inner.clone())).map(|v| v.at_loc(&val))
         } else if let Some(block) = self.block(false)? {
             Ok(block.map(Box::new).map(Expression::Block))
-        } else if let Some(if_expr) = self.if_expression()? {
+        } else if let Some(if_expr) = self.if_expression(false)? {
             Ok(if_expr)
         } else if let Some(if_expr) = self.type_level_if()? {
             Ok(if_expr)
