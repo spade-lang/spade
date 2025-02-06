@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/const_generics.rs
+---
+fn foo<#uint N>() -> uint<{N % 3}> {0}
+fn test() {
+    let _: uint<5> = foo::<5>();
+}
+
+
+error: Expected type uint<5>, got uint<2>
+  ┌─ testinput:3:22
+  │
+1 │ fn foo<#uint N>() -> uint<{N % 3}> {0}
+  │                            ----- Type 2 inferred here
+2 │ fn test() {
+3 │     let _: uint<5> = foo::<5>();
+  │                 -    ^^^^^^^^^^ Expected uint<5>
+  │                 │     
+  │                 Type 5 inferred here
+  │
+  = note: Expected: 5
+                in: uint<5>
+               Got: 2
+                in: uint<2>

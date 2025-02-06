@@ -439,3 +439,23 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    division_computes_division,
+    "
+        fn foo<#uint N>() -> uint<{N / 3}> {0}
+        fn test() {
+            let _: uint<5> = foo::<6>();
+        }
+    "
+}
+
+snapshot_error! {
+    mod_works,
+    "
+        fn foo<#uint N>() -> uint<{N % 3}> {0}
+        fn test() {
+            let _: uint<5> = foo::<5>();
+        }
+    "
+}

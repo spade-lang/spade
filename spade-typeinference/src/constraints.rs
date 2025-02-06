@@ -12,6 +12,8 @@ pub enum ConstraintExpr {
     Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Difference(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Product(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Div(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Mod(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Sub(Box<ConstraintExpr>),
     Eq(Box<ConstraintExpr>, Box<ConstraintExpr>),
     NotEq(Box<ConstraintExpr>, Box<ConstraintExpr>),
@@ -24,28 +26,24 @@ impl WithLocation for ConstraintExpr {}
 impl ConstraintExpr {
     /// Evaluates the ConstraintExpr returning a new simplified form
     fn evaluate(&self) -> ConstraintExpr {
+        let binop =
+            |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> BigInt| {
+                match (lhs.evaluate(), rhs.evaluate()) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Integer(op(l, r))
+                    }
+                    _ => self.clone(),
+                }
+            };
         match self {
             ConstraintExpr::Integer(_) => self.clone(),
             ConstraintExpr::Bool(_) => self.clone(),
             ConstraintExpr::Var(_) => self.clone(),
-            ConstraintExpr::Sum(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Integer(l + r)
-                }
-                _ => self.clone(),
-            },
-            ConstraintExpr::Difference(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Integer(l - r)
-                }
-                _ => self.clone(),
-            },
-            ConstraintExpr::Product(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Integer(l * r)
-                }
-                _ => self.clone(),
-            },
+            ConstraintExpr::Sum(lhs, rhs) => binop(lhs, rhs, &|l, r| l + r),
+            ConstraintExpr::Difference(lhs, rhs) => binop(lhs, rhs, &|l, r| l - r),
+            ConstraintExpr::Product(lhs, rhs) => binop(lhs, rhs, &|l, r| l * r),
+            ConstraintExpr::Div(lhs, rhs) => binop(lhs, rhs, &|l, r| l / r),
+            ConstraintExpr::Mod(lhs, rhs) => binop(lhs, rhs, &|l, r| l % r),
             ConstraintExpr::Sub(inner) => match inner.evaluate() {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
                 _ => self.clone(),
@@ -134,6 +132,8 @@ impl std::fmt::Display for ConstraintExpr {
             ConstraintExpr::Sum(rhs, lhs) => write!(f, "({rhs} + {lhs})"),
             ConstraintExpr::Difference(rhs, lhs) => write!(f, "({rhs} - {lhs})"),
             ConstraintExpr::Product(rhs, lhs) => write!(f, "({rhs} * {lhs})"),
+            ConstraintExpr::Div(rhs, lhs) => write!(f, "({rhs} / {lhs})"),
+            ConstraintExpr::Mod(rhs, lhs) => write!(f, "({rhs} % {lhs})"),
             ConstraintExpr::Eq(rhs, lhs) => write!(f, "({rhs} == {lhs})"),
             ConstraintExpr::NotEq(rhs, lhs) => write!(f, "({rhs} != {lhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
@@ -255,6 +255,8 @@ impl TypeConstraints {
                     }
                     ConstraintExpr::Var(_)
                     | ConstraintExpr::Sum(_, _)
+                    | ConstraintExpr::Div(_, _)
+                    | ConstraintExpr::Mod(_, _)
                     | ConstraintExpr::Eq(_, _)
                     | ConstraintExpr::NotEq(_, _)
                     | ConstraintExpr::Difference(_, _)

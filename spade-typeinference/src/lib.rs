@@ -1864,6 +1864,8 @@ impl TypeState {
             | ConstGeneric::Add(_, _)
             | ConstGeneric::Sub(_, _)
             | ConstGeneric::Mul(_, _)
+            | ConstGeneric::Div(_, _)
+            | ConstGeneric::Mod(_, _)
             | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
             ConstGeneric::Eq(_, _) | ConstGeneric::NotEq(_, _) => {
                 self.new_generic_tlbool(gen.loc())
@@ -1881,6 +1883,15 @@ impl TypeState {
         constraint: &ConstGeneric,
         generic_list: &GenericListToken,
     ) -> Result<ConstraintExpr> {
+        let wrap = |lhs,
+                    rhs,
+                    wrapper: fn(Box<ConstraintExpr>, Box<ConstraintExpr>) -> ConstraintExpr|
+         -> Result<_> {
+            Ok(wrapper(
+                Box::new(self.visit_const_generic(lhs, generic_list)?),
+                Box::new(self.visit_const_generic(rhs, generic_list)?),
+            ))
+        };
         let constraint = match constraint {
             ConstGeneric::Name(n) => {
                 let var = self.get_generic_list(generic_list).get(n).ok_or_else(|| {
@@ -1889,26 +1900,13 @@ impl TypeState {
                 ConstraintExpr::Var(self.check_var_for_replacement(var.clone()))
             }
             ConstGeneric::Const(val) => ConstraintExpr::Integer(val.clone()),
-            ConstGeneric::Add(lhs, rhs) => ConstraintExpr::Sum(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
-            ),
-            ConstGeneric::Sub(lhs, rhs) => ConstraintExpr::Difference(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
-            ),
-            ConstGeneric::Mul(lhs, rhs) => ConstraintExpr::Product(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
-            ),
-            ConstGeneric::Eq(lhs, rhs) => ConstraintExpr::Eq(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
-            ),
-            ConstGeneric::NotEq(lhs, rhs) => ConstraintExpr::NotEq(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
-            ),
+            ConstGeneric::Add(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Sum)?,
+            ConstGeneric::Sub(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Difference)?,
+            ConstGeneric::Mul(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Product)?,
+            ConstGeneric::Div(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Div)?,
+            ConstGeneric::Mod(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Mod)?,
+            ConstGeneric::Eq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Eq)?,
+            ConstGeneric::NotEq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::NotEq)?,
             ConstGeneric::UintBitsToFit(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
                 self.visit_const_generic(a, generic_list)?,
             )),
@@ -1984,6 +1982,14 @@ impl TypeState {
                 Box::new(self.check_expr_for_replacement(*rhs)),
             ),
             ConstraintExpr::Product(lhs, rhs) => ConstraintExpr::Product(
+                Box::new(self.check_expr_for_replacement(*lhs)),
+                Box::new(self.check_expr_for_replacement(*rhs)),
+            ),
+            ConstraintExpr::Div(lhs, rhs) => ConstraintExpr::Div(
+                Box::new(self.check_expr_for_replacement(*lhs)),
+                Box::new(self.check_expr_for_replacement(*rhs)),
+            ),
+            ConstraintExpr::Mod(lhs, rhs) => ConstraintExpr::Mod(
                 Box::new(self.check_expr_for_replacement(*lhs)),
                 Box::new(self.check_expr_for_replacement(*rhs)),
             ),
@@ -2764,23 +2770,13 @@ impl TypeState {
                     _ => {}
                 }
             }
-            ConstraintExpr::Sum(lhs, rhs) => {
-                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
-                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
-            }
-            ConstraintExpr::Difference(lhs, rhs) => {
-                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
-                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
-            }
-            ConstraintExpr::Product(lhs, rhs) => {
-                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
-                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
-            }
-            ConstraintExpr::Eq(lhs, rhs) => {
-                Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
-                Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
-            }
-            ConstraintExpr::NotEq(lhs, rhs) => {
+            ConstraintExpr::Sum(lhs, rhs)
+            | ConstraintExpr::Mod(lhs, rhs)
+            | ConstraintExpr::Div(lhs, rhs)
+            | ConstraintExpr::Difference(lhs, rhs)
+            | ConstraintExpr::Product(lhs, rhs)
+            | ConstraintExpr::Eq(lhs, rhs)
+            | ConstraintExpr::NotEq(lhs, rhs) => {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);
             }
