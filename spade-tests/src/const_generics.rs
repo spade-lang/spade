@@ -427,3 +427,15 @@ fn type_expressions_in_generic_parameter_lower_correctly() {
     ";
     assert_debug_snapshot!(build_items(code));
 }
+
+snapshot_error! {
+    type_expressions_in_output_type_works,
+    "
+        fn foo<#uint N>(value: uint<N>) -> uint<{N+1}> {0}
+
+        fn bar() {
+            let a: uint<3> = foo::<2>(0);
+            let b: uint<2> = foo::<3>(0);
+        }
+    "
+}

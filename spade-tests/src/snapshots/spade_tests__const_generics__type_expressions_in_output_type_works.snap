@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/const_generics.rs
+---
+fn foo<#uint N>(value: uint<N>) -> uint<{N+1}> {0}
+
+fn bar() {
+    let a: uint<3> = foo::<2>(0);
+    let b: uint<2> = foo::<3>(0);
+}
+
+
+error: Expected type uint<2>, got uint<4>
+  ┌─ testinput:5:22
+  │
+1 │ fn foo<#uint N>(value: uint<N>) -> uint<{N+1}> {0}
+  │                                          --- Type 4 inferred here
+  ·
+5 │     let b: uint<2> = foo::<3>(0);
+  │                 -    ^^^^^^^^^^^ Expected uint<2>
+  │                 │     
+  │                 Type 2 inferred here
+  │
+  = note: Expected: 2
+                in: uint<2>
+               Got: 4
+                in: uint<4>
