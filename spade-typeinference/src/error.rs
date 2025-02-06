@@ -142,9 +142,9 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                 }))
             }
             e @ Err(UnificationError::UnsatisfiedTraits { .. }) => e,
-            Err(UnificationError::FromConstraints { .. } | UnificationError::Specific { .. }) => {
-                panic!("Called add_context on a constraint-based unification error")
-            }
+            e @ Err(
+                UnificationError::FromConstraints { .. } | UnificationError::Specific { .. },
+            ) => e,
         }
     }
 

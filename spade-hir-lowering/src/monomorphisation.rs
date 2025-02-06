@@ -220,6 +220,11 @@ pub fn compile_items(
                 // Apply passes to the type checked module
                 let mut u = u.clone();
                 let passes = [
+                    &mut FlattenRegs {
+                        type_state: &type_state,
+                        items: item_list,
+                        symtab,
+                    },
                     &mut LowerMethods {
                         type_state: &type_state,
                         items: item_list,
@@ -241,11 +246,6 @@ pub fn compile_items(
                         items: item_list,
                         symtab,
                     } as &mut dyn Pass,
-                    &mut FlattenRegs {
-                        type_state: &type_state,
-                        items: item_list,
-                        symtab,
-                    },
                 ];
                 for pass in passes {
                     let pass_result = u.apply(pass);
