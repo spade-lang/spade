@@ -3201,11 +3201,53 @@ snapshot_error! {
     "
 }
 
-snapshot_error! {
-    type_level_ifs_have_to_be_at_the_root_of_units,
+code_compiles! {
+    gen_if_multi_level_pipeline,
     "
-        fn test() {
-            let x = gen if 0 == 0 {1} else {0};
+        pipeline(3) par_multiply<#uint N>(
+            clk: clock,
+            in: [[int<18>; 2]; N]
+        ) -> [int<36>; N] {
+            let local = 0i36;
+            gen if N == 1 {
+                reg * 3;
+                [local]
+            } else {
+                let rest = inst(3) par_multiply(clk, in[1:N]);
+                reg * 3;
+                [0;N]
+            }
+        }
+
+        entity test(clk: clock) {
+            let _ = inst(3) par_multiply(clk, [[0; 2]; 4]);
+        }
+    "
+}
+
+code_compiles! {
+    nested_gen_if_multi_level_pipeline,
+    "
+        pipeline(3) par_multiply<#uint N>(
+            clk: clock,
+            in: [[int<18>; 2]; N]
+        ) -> [int<36>; N] {
+            let local = 0i36;
+            gen if N == 1 {
+                reg * 3;
+                [local]
+            } else if N == 2 {
+                let rest = inst(3) par_multiply(clk, in[1:N]);
+                reg * 3;
+                [0;N]
+            } else {
+                reg * 3;
+                [1; N]
+            }
+        } 
+
+        entity test(clk: clock) {
+            let _ = inst(3) par_multiply(clk, [[0; 2]; 4]);
         }
     "
 }

@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3156
+---
+fn test() {
+    let x = gen if 0 == 0 {1} else {0};
+}
+
+
+error: Type of expression is not fully known
+  ┌─ testinput:2:27
+  │
+2 │     let x = gen if 0 == 0 {1} else {0};
+  │                           ^^^ The type of this expression is not fully known
+  │
+  = note: Found incomplete type: Number<_>

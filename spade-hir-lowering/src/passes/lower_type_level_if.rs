@@ -52,9 +52,7 @@ impl<'a> Pass for LowerTypeLevelIf<'a> {
     }
 
     fn visit_unit(&mut self, unit: &mut spade_hir::Unit) -> Result<()> {
-        if let Some(result) = &unit.body.assume_block().result {
-            self.mark_allowed_tlifs(result);
-        }
+        self.mark_allowed_tlifs(&unit.body);
         Ok(())
     }
 }
@@ -68,6 +66,14 @@ impl<'a> LowerTypeLevelIf<'a> {
                 self.mark_allowed_tlifs(loc2);
             }
             ExprKind::Block(block) => {
+                for stmt in &block.statements {
+                    match &stmt.inner {
+                        spade_hir::Statement::Binding(binding) => {
+                            self.mark_allowed_tlifs(&binding.value);
+                        }
+                        _ => {}
+                    }
+                }
                 if let Some(result) = &block.result {
                     self.mark_allowed_tlifs(result);
                 }

@@ -376,6 +376,20 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    tlif_pipeline_works,
+    "
+        pipeline(3) test(clk: clock) {
+            gen if 0 == 0 {
+                reg*3;
+            } else {
+                reg*4;
+            }
+        }
+    ",
+    false
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

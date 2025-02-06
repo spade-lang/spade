@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(3) test(clk: clock) {
+    gen if 0 == 0 {
+        reg*3;
+    } else {
+        reg*4;
+    }
+}
+
+
+error: Pipeline depth mismatch. Expected 3 got 4
+  ┌─ testinput:1:1
+  │  
+1 │ ╭ pipeline(3) test(clk: clock) {
+  │            - Type 3 inferred here
+2 │ │     gen if 0 == 0 {
+3 │ │         reg*3;
+4 │ │     } else {
+5 │ │         reg*4;
+6 │ │     }
+7 │ │ }
+  │ ╰─^ Found 4 stages in this pipeline
+  │  
+  = note: Expected: 4
+               Got: 3
