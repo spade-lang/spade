@@ -989,27 +989,27 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_stages: bool,
     ) -> Result<(Vec<Loc<Statement>>, Option<Loc<Expression>>)> {
-        fn semi_validator(next: &Token, parser: &mut Parser) -> Result<bool> {
-            match &next.kind {
-                TokenKind::Semi => {
-                    parser.eat_unconditional()?;
-                    Ok(true)
-                }
+        fn semi_validator(next: Token) -> Result<TokenKind> {
+            match next.kind {
                 TokenKind::GreekQuestionMark => Err(Diagnostic::error(
                     next.clone(),
                     format!("Expected `;`, got a greek question mark (;)"),
                 )
                 .help("The greek question mark (;) looks similar to the normal `;` character")),
-                _other => Ok(false),
+                other => Ok(other),
             }
         }
         let semi_continuation = |inner: Loc<Statement>, parser: &mut Parser| {
             let next = parser.peek()?;
-            match semi_validator(&next, parser) {
-                Ok(true) => Ok(inner),
-                Ok(false) => Err(Diagnostic::error(
-                    next.clone(),
-                    format!("Expected `;`, got `{}`", next.kind.as_str()),
+            let span = next.loc();
+            match semi_validator(next) {
+                Ok(TokenKind::Semi) => {
+                    parser.eat_unconditional()?;
+                    Ok(inner)
+                }
+                Ok(other) => Err(Diagnostic::error(
+                    span,
+                    format!("Expected `;`, got `{}`", other.as_str()),
                 )
                 .primary_label("Expected `;`")
                 .span_suggest_insert_after(
@@ -1052,7 +1052,8 @@ impl<'a> Parser<'a> {
                     return Ok(None);
                 }
                 let (expr, loc) = parser.non_comptime_expression()?.separate_loc();
-                if semi_validator(&parser.peek()?, parser)? {
+                if matches!(semi_validator(parser.peek()?)?, TokenKind::Semi) {
+                    parser.eat_unconditional()?;
                     Ok(Some(Statement::Expression(expr).at_loc(&loc)))
                 } else {
                     // no semicolon afterwards - set as return value and break out of loop

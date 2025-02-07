@@ -86,7 +86,6 @@ pub fn visit_statement(
         }
         Statement::Expression(expr) => {
             visit_expression(expr, linear_state, ctx)?;
-            linear_state.consume_expression(expr)?;
         }
         Statement::Register(reg) => {
             let Register {
