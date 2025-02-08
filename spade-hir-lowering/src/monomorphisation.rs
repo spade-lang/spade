@@ -95,10 +95,14 @@ impl MonoState {
                 let item = MonoItem {
                     source_name: source_name.name_id().clone(),
                     new_name: new_unit_name,
-                    params,
+                    params: params.clone(),
                 };
                 self.request_points.insert(item.clone(), request_point);
 
+                self.translation.insert(
+                    (source_name.name_id().inner.clone(), params.clone()),
+                    new_name.clone(),
+                );
                 self.to_compile.push_back(item);
                 new_name
             }
