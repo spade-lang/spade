@@ -993,7 +993,7 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "spade-ast"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "itertools",
  "num",
@@ -1002,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "spade-ast-lowering"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "itertools",
  "local-impl",
@@ -1041,7 +1041,7 @@ dependencies = [
 
 [[package]]
 name = "spade-common"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "logos",
  "num",
@@ -1066,7 +1066,7 @@ dependencies = [
 
 [[package]]
 name = "spade-diagnostics"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "insta",
  "itertools",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "spade-hir"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "colored",
  "itertools",
@@ -1092,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "spade-hir-lowering"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "colored",
  "itertools",
@@ -1112,7 +1112,7 @@ dependencies = [
 
 [[package]]
 name = "spade-lang"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "clap",
  "color-eyre",
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [[package]]
 name = "spade-macros"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1155,7 +1155,7 @@ dependencies = [
 
 [[package]]
 name = "spade-mir"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "colored",
  "derive-where",
@@ -1174,7 +1174,7 @@ dependencies = [
 
 [[package]]
 name = "spade-parser"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "colored",
  "itertools",
@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "spade-python"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "color-eyre",
  "itertools",
@@ -1220,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "spade-simulation-ext"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "color-eyre",
  "itertools",
@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "spade-tests"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "colored",
  "indoc",
@@ -1277,7 +1277,7 @@ dependencies = [
 
 [[package]]
 name = "spade-typeinference"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "assert_matches",
  "colored",
@@ -1296,7 +1296,7 @@ dependencies = [
 
 [[package]]
 name = "spade-types"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "num",
  "serde",
@@ -1305,7 +1305,7 @@ dependencies = [
 
 [[package]]
 name = "spade-wordlength-inference"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "num",
  "spade-common",

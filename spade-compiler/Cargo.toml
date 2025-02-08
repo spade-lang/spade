@@ -2,10 +2,13 @@
 name = "spade-lang"
 version.workspace = true
 authors = ["TheZoq2 <frans.skarman@protonmail.com>"]
+readme.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 description = "The Spade compiler"
+homepage.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "spade"
