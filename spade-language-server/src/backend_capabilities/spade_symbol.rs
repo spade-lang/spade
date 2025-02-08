@@ -125,7 +125,7 @@ impl ServerBackend {
                 let ts = type_states.get(id);
                 match item {
                     E::Unit(u) => self.search_sym_unit(&u, pos, ts),
-                    E::BuiltinUnit(_, _) => None,   // FIXME
+                    E::ExternUnit(_, _) => None,    // FIXME
                     E::EnumInstance { .. } => None, // FIXME
                     E::StructInstance => None,      // FIXME
                 }
@@ -485,6 +485,7 @@ impl ServerBackend {
                     None
                 }
             }
+            Statement::Expression(expr) => self.search_sym_expr(expr, pos, type_state),
             Statement::Assert(expr) => self.search_sym_expr(expr, pos, type_state),
             Statement::Declaration(_) => None,     // FIXME
             Statement::WalSuffixed { .. } => None, // FIXME
@@ -607,7 +608,7 @@ impl ServerBackend {
                 let ts = type_states.get(id);
                 match item {
                     E::Unit(u) => self.search_sym_unit_named(&u, pos, ts, name),
-                    E::BuiltinUnit(_, _) => None,   // FIXME
+                    E::ExternUnit(_, _) => None,    // FIXME
                     E::EnumInstance { .. } => None, // FIXME
                     E::StructInstance => None,      // FIXME
                 }
@@ -710,6 +711,7 @@ impl ServerBackend {
                 }
                 self.search_sym_pat_name(&binding.pattern, pos, type_state, name)
             }
+            Statement::Expression(_) => None,
             Statement::Register(_) => None,
             Statement::Set { .. } => None,
             Statement::PipelineRegMarker(_) => None,

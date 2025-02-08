@@ -346,7 +346,7 @@ impl ServerBackend {
                 spade_hir::ExecutableItem::Unit(unit) => {
                     Some((unit.name.to_string(), unit.loc(), SymbolKind::FUNCTION))
                 }
-                spade_hir::ExecutableItem::BuiltinUnit(_, unit_head) => Some((
+                spade_hir::ExecutableItem::ExternUnit(_, unit_head) => Some((
                     unit_head.name.to_string(),
                     unit_head.loc(),
                     SymbolKind::FUNCTION,

@@ -79,8 +79,8 @@ impl ServerBackend {
                         return Some(location);
                     }
                 }
-                ExecutableItem::StructInstance => {}      // FIXME
-                ExecutableItem::BuiltinUnit(_, _) => {}   // FIXME
+                ExecutableItem::StructInstance => {}   // FIXME
+                ExecutableItem::ExternUnit(_, _) => {} // FIXME
                 ExecutableItem::EnumInstance { .. } => {} // FIXME
             }
         }
@@ -168,6 +168,9 @@ impl ServerBackend {
                     return Some(location);
                 }
                 return self.find_def_in_expression(&register.value, query_id);
+            }
+            Statement::Expression(expression) => {
+                return self.find_def_in_expression(expression, query_id)
             }
             Statement::WalSuffixed { .. } => {}   //  FIXME
             Statement::Declaration(_) => {}       //  FIXME

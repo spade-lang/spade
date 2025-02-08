@@ -152,9 +152,9 @@ impl ServerBackend {
                 ExecutableItem::Unit(u) => {
                     comps.append(&mut self.fold_comps_unit(u, pos, uri).await);
                 }
-                ExecutableItem::BuiltinUnit(_, _) => {} // FIXME
+                ExecutableItem::ExternUnit(_, _) => {} // FIXME
                 ExecutableItem::EnumInstance { .. } => {} // FIXME
-                ExecutableItem::StructInstance => {}    // FIXME
+                ExecutableItem::StructInstance => {}   // FIXME
             }
         }
 
@@ -300,6 +300,7 @@ impl ServerBackend {
                 target: _target,
                 value: _value,
             } => {}
+            Statement::Expression(_) => {}
             Statement::Assert(_expr) => {}
             Statement::PipelineRegMarker(_expr) => {}
             Statement::Declaration(_) => {}     // FIXME
