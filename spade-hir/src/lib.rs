@@ -653,14 +653,14 @@ impl UnitHead {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Item {
     Unit(Loc<Unit>),
-    Builtin(UnitName, Loc<UnitHead>),
+    ExternUnit(UnitName, Loc<UnitHead>),
 }
 
 impl Item {
     pub fn assume_unit(&self) -> &Unit {
         match self {
             Item::Unit(u) => &u.inner,
-            Item::Builtin(_, _) => panic!("Expected unit, got builtin"),
+            Item::ExternUnit(_, _) => panic!("Expected unit, got extern unit"),
         }
     }
 }
@@ -672,7 +672,7 @@ pub enum ExecutableItem {
     EnumInstance { base_enum: NameID, variant: usize },
     StructInstance,
     Unit(Loc<Unit>),
-    BuiltinUnit(UnitName, Loc<UnitHead>),
+    ExternUnit(UnitName, Loc<UnitHead>),
 }
 impl WithLocation for ExecutableItem {}
 

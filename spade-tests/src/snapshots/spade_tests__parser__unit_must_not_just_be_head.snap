@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity foo()
+
+
+error: Unexpected `end of file`, expected body or `;`
+  ┌─ testinput:1:13
+  │
+1 │ entity foo()
+  │ ------------^ Unexpected end of file
+  │ │           
+  │ Expected body for this entity

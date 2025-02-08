@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-fn make_an_int_appear<#uint N>() -> uint<N> __builtin__
+extern fn make_an_int_appear<#uint N>() -> uint<N>;
 
 fn test() {
     let x: uint<-1> = make_an_int_appear();
@@ -11,8 +11,8 @@ fn test() {
 error: Expected type uint<-1>, got uint<#uint>
   ┌─ testinput:4:23
   │
-1 │ fn make_an_int_appear<#uint N>() -> uint<N> __builtin__
-  │                        ------ Type #uint inferred here
+1 │ extern fn make_an_int_appear<#uint N>() -> uint<N>;
+  │                               ------ Type #uint inferred here
   ·
 4 │     let x: uint<-1> = make_an_int_appear();
   │                 --    ^^^^^^^^^^^^^^^^^^^^ Expected uint<-1>

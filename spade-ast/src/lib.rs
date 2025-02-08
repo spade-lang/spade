@@ -630,6 +630,7 @@ impl std::fmt::Display for UnitKind {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnitHead {
+    pub extern_token: Option<Loc<()>>,
     pub attributes: AttributeList,
     pub unit_kind: Loc<UnitKind>,
     pub name: Loc<Identifier>,
@@ -644,7 +645,7 @@ impl WithLocation for UnitHead {}
 pub struct Unit {
     pub head: UnitHead,
     /// The body is an expression for ID assignment purposes, but semantic analysis
-    /// ensures that it is always a block. If body is `None`, the entity is __builtin__
+    /// ensures that it is always a block. If body is `None`, the entity is `extern`.
     pub body: Option<Loc<Expression>>,
 }
 impl WithLocation for Unit {}

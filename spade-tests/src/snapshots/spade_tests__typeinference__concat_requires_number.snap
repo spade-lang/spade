@@ -16,10 +16,10 @@ error: Argument type mismatch. Expected Number<_> got A
  4 │     a `concat` a
    │     ^ expected Number<_>
    │
-   ┌─ <compiler dir>/stdlib/conv.spade:17:11
+   ┌─ <compiler dir>/stdlib/conv.spade:17:18
    │
-17 │ fn concat<N, M, K>(x: N, y: M) -> K __builtin__
-   │           - Type Number<_> inferred here
+17 │ extern fn concat<N, M, K>(x: N, y: M) -> K;
+   │                  - Type Number<_> inferred here
    │
    = note: Expected: Number<_>
                 Got: A

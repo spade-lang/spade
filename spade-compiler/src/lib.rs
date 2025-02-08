@@ -320,7 +320,7 @@ pub fn compile(
             }
             ExecutableItem::EnumInstance { .. } => None,
             ExecutableItem::StructInstance { .. } => None,
-            ExecutableItem::BuiltinUnit(_, _) => None,
+            ExecutableItem::ExternUnit(_, _) => None,
         })
         .collect::<BTreeMap<_, _>>();
 

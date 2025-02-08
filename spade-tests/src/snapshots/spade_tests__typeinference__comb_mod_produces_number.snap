@@ -12,10 +12,10 @@ error: Argument type mismatch. Expected Number<_> got bool
   2 │     true `std::ops::comb_mod` true
     │     ^^^^ expected Number<_>
     │
-    ┌─ <compiler dir>/stdlib/ops.spade:104:13
+    ┌─ <compiler dir>/stdlib/ops.spade:104:20
     │
-104 │ fn comb_mod<N>(x: N, y: N) -> N __builtin__
-    │             - Type Number<_> inferred here
+104 │ extern fn comb_mod<N>(x: N, y: N) -> N;
+    │                    - Type Number<_> inferred here
     │
     = note: Expected: Number<_>
                  Got: bool

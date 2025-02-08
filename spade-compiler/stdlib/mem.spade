@@ -11,28 +11,25 @@ use std::cdc as cdc;
 /// `write enable`, `address` and `data` field. When WE is enabled, data is written
 /// to address. Otherwise no change takes effect
 /// NOTE: We when possible, we should make compute AddrWidth from NumElements
-entity clocked_memory<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
+extern entity clocked_memory<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
     clk: clock,
     writes: [(bool, uint<AddrWidth>, D); WritePorts],
-) -> Memory<D, NumElements>
-    __builtin__
+) -> Memory<D, NumElements>;
 
 
 /// Same as `clocked_memory` but initializes the memory with the values specified in `initial_values`.
 /// The initial values must be evaluatable at compile time, otherwise an error is thrown
-entity clocked_memory_init<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
+extern entity clocked_memory_init<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
     clk: clock,
     writes: [(bool, uint<AddrWidth>, D); WritePorts],
     initial_values: [D; NumElements]
-) -> Memory<D, NumElements>
-    __builtin__
+) -> Memory<D, NumElements>;
 
 /// Get the value out of a memory
-entity read_memory<#uint AddrWidth, D, #uint NumElements> (
+extern entity read_memory<#uint AddrWidth, D, #uint NumElements> (
     mem: Memory<D, NumElements>,
     addr: uint<AddrWidth>
-) -> D
-    __builtin__
+) -> D;
 
 
 struct port WritePort<#uint W, D> {

@@ -2,14 +2,13 @@
 source: spade-tests/src/parser.rs
 ---
 entity main(x: X) -> int<8> {
-    reg;
-}
+    reg; }
 
 
 error: stage outside pipeline
   ┌─ testinput:2:5
   │
-2 │     reg;
+2 │     reg; }
   │     ^^^ stage is not allowed here
   │
   = note: stages are only allowed in the root block of a pipeline

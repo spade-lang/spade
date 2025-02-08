@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+extern fn a<T>() -> T;
+
+fn main() -> int<32> {
+    a()
+}
+
+
+error: Generic `extern`s with non-number parameters cannot be instantiated
+  ┌─ testinput:4:5
+  │
+1 │ extern fn a<T>() -> T;
+  │        --------------- Because this generic `extern` has a type parameter
+  ·
+4 │     a()
+  │     ^^^ Invalid instance
+  │
+  = Remove this parameter
+  │
+1 │ extern fn a<T>() -> T;
+  │             -

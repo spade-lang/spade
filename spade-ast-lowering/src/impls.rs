@@ -130,8 +130,8 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
                     (u.name.name_id().inner.clone(), u.loc()),
                 );
             }
-            hir::Item::Builtin(_, head) => {
-                return Err(Diagnostic::error(head, "Methods cannot be __builtin__")
+            hir::Item::ExternUnit(_, head) => {
+                return Err(Diagnostic::error(head, "Methods cannot be `extern`")
                     .help("Consider defining a free-standing function"))
             }
         }

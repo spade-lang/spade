@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/hir_lowering.rs
 ---
-fn test(a: bool, b: bool) -> bool __builtin__
+extern fn test(a: bool, b: bool) -> bool;
 fn main() -> bool {
     test$(a: true)
 }
@@ -10,10 +10,8 @@ fn main() -> bool {
 error: Missing argument: b
   ┌─ testinput:3:10
   │
-1 │ fn test(a: bool, b: bool) -> bool __builtin__
-  │ --------------------------------------------- function defined here
+1 │ extern fn test(a: bool, b: bool) -> bool;
+  │        ---------------------------------- function defined here
 2 │ fn main() -> bool {
 3 │     test$(a: true)
   │          ^^^^^^^^^ Missing argument: b
-
-

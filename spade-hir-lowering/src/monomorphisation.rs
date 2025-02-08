@@ -157,7 +157,7 @@ pub fn compile_items(
             }
             ExecutableItem::StructInstance => {}
             ExecutableItem::EnumInstance { .. } => {}
-            ExecutableItem::BuiltinUnit(_, _) => {}
+            ExecutableItem::ExternUnit(_, _) => {}
         }
     }
 
@@ -281,8 +281,8 @@ pub fn compile_items(
             Some((ExecutableItem::EnumInstance { .. }, _)) => {
                 panic!("Requesting compilation of enum instance as module")
             }
-            Some((ExecutableItem::BuiltinUnit(_, _), _)) => {
-                panic!("Requesting compilation of builtin unit")
+            Some((ExecutableItem::ExternUnit(_, _), _)) => {
+                panic!("Requesting compilation of extern unit")
             }
             None => {
                 panic!(

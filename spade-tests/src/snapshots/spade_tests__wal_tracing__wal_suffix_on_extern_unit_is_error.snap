@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/wal_tracing.rs
+---
+#[wal_suffix(suffix=__wal_suffix__)]
+extern entity main(clk: clock, x: int<8>) -> int<8>;
+
+
+error: wal_suffix is not allowed on `extern` units
+  ┌─ testinput:1:1
+  │
+1 │ #[wal_suffix(suffix=__wal_suffix__)]
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Not allowed on `extern` units
+2 │ extern entity main(clk: clock, x: int<8>) -> int<8>;
+  │ ------ This unit is `extern`

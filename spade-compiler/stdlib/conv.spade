@@ -2,19 +2,19 @@
 /// larger than the input, an error is emitted
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be trunc<#uint N, #uint M>(x: Number<N>) -> Number<M>.
-fn trunc<N, M>(x: N) -> M __builtin__
+extern fn trunc<N, M>(x: N) -> M;
 
 /// Sign extend the provided integer. Gives a compiler error if the output is smaller
 /// than the input
-fn sext<#uint N, #uint M>(x: int<N>) -> int<M> __builtin__
+extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>;
 
 /// Zero extend the provided integer. Gives a compiler error if the output is smaller
 /// than the input
-fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M> __builtin__
+extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>;
 
 /// This is special cased by the compiler. The actual type, if Spade was able to express
 /// it itself would be concat<#uint N, #uint M>(x: Number<N>, y: Number<M>) -> Number<N + M>.
-fn concat<N, M, K>(x: N, y: M) -> K __builtin__
+extern fn concat<N, M, K>(x: N, y: M) -> K;
 
 /// Concatenate the contents of two arrays `[l0, l1, l2...]`
 /// and `[r0, r1, r2...]` to form `[l0, l1, l2..., ln, r0, r1, r2...]`
@@ -89,7 +89,7 @@ mod unsafe {
     // not rely on it being fixed between compiler versions.
     // If you still want to use this function on compound types, the representation of types is
     // described here: https://docs.spade-lang.org/internal/type_representations.html
-    fn unsafe_cast<T, O>(in: T) -> O __builtin__
+    extern fn unsafe_cast<T, O>(in: T) -> O;
 
     // Converts a clock signal to a bool by just reinterpreting the bits. This should rarely
     // be used but can be helpful in some situations, such as wanting to output a clock on a

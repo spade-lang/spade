@@ -2205,7 +2205,7 @@ impl ExprLocal for Loc<Expression> {
                     self,
                 );
             }
-            Some(hir::ExecutableItem::BuiltinUnit(name, head)) => {
+            Some(hir::ExecutableItem::ExternUnit(name, head)) => {
                 let (unit_name, type_params) = (name, &head.get_type_params());
 
                 // Grab the number-like type vars and pair them with their monomorphized values
@@ -2233,18 +2233,15 @@ impl ExprLocal for Loc<Expression> {
                     .collect_vec();
 
                 // NOTE: Ideally this check would be done earlier, when defining the generic
-                // builtin. However, at the moment, the compiler does not know if the generic
+                // extern. However, at the moment, the compiler does not know if the generic
                 // is an intrinsic until here when it has gone through the list of intrinsics
                 if type_params.len() > verilog_parameters.len() {
                     let mut error = Diagnostic::error(
                         self.loc(),
-                        "Generic builtins with non-number parameters cannot be instantiated",
+                        "Generic `extern`s with non-number parameters cannot be instantiated",
                     )
                     .primary_label("Invalid instance")
-                    .secondary_label(
-                        head,
-                        "Because this generic __builtin__ has a type parameter",
-                    );
+                    .secondary_label(head, "Because this generic `extern` has a type parameter");
 
                     if let Some(example) = type_params.iter().find(|type_param| {
                         !matches!(
@@ -2267,7 +2264,7 @@ impl ExprLocal for Loc<Expression> {
                     })
                     .collect();
 
-                // NOTE: Builtin entities are not part of the item list, but we
+                // NOTE: Extern entities are not part of the item list, but we
                 // should still emit the code for instantiating them
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {

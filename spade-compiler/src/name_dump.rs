@@ -23,7 +23,7 @@ pub fn list_names(item_list: &ItemList) -> HashMap<Vec<String>, ItemKind> {
             ExecutableItem::EnumInstance { .. } => None,
             ExecutableItem::StructInstance => None,
             ExecutableItem::Unit(u) => Some(&u.name),
-            ExecutableItem::BuiltinUnit(n, _) => Some(n),
+            ExecutableItem::ExternUnit(n, _) => Some(n),
         };
 
         let item = match unit_name {

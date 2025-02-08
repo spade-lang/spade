@@ -1,14 +1,12 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-fn multiple(foo: bool, bar: bool, foo: bool) __builtin__
+extern fn multiple(foo: bool, bar: bool, foo: bool);
 
 error: Multiple arguments with the same name
-  ┌─ testinput:1:35
+  ┌─ testinput:1:42
   │
-1 │ fn multiple(foo: bool, bar: bool, foo: bool) __builtin__
-  │             ---                   ^^^ foo later declared here
-  │             │                      
-  │             foo previously declared here
-
-
+1 │ extern fn multiple(foo: bool, bar: bool, foo: bool);
+  │                    ---                   ^^^ foo later declared here
+  │                    │                      
+  │                    foo previously declared here

@@ -205,18 +205,18 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    unused_attribute_errors_on_builtin_entity,
+    unused_attribute_errors_on_entity_entity,
     "
         #[uwu]
-        entity a() -> bool __builtin__
+        extern entity a() -> bool;
     "
 }
 
 snapshot_error! {
-    unused_attribute_errors_on_builtin_pipeline,
+    unused_attribute_errors_on_extern_pipeline,
     "
         #[uwu]
-        pipeline(1) a(clk: clock) -> bool __builtin__
+        extern pipeline(1) a(clk: clock) -> bool;
     "
 }
 
@@ -534,7 +534,7 @@ snapshot_error! {
 snapshot_error! {
     tuple_type_specs_can_not_contain_ports_and_values,
     "
-    entity x(a: (int<32>, &int<32>)) -> bool __builtin__"
+    extern entity x(a: (int<32>, &int<32>)) -> bool;"
 }
 
 snapshot_error! {
@@ -568,7 +568,7 @@ snapshot_error! {
     struct port A {}
 
 
-    entity x(a: &A) -> bool __builtin__
+    extern entity x(a: &A) -> bool;
     "
 }
 
@@ -578,7 +578,7 @@ snapshot_error! {
     struct port A {}
 
 
-    entity x(a: inv &A) -> bool __builtin__
+    extern entity x(a: inv &A) -> bool;
     "
 }
 
@@ -615,7 +615,7 @@ snapshot_error! {
 
 snapshot_error! {
     multiple_arguments_same_name,
-    "fn multiple(foo: bool, bar: bool, foo: bool) __builtin__"
+    "extern fn multiple(foo: bool, bar: bool, foo: bool);"
 }
 
 snapshot_error! {
@@ -724,23 +724,23 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    builtin_fn_methods_produce_error,
+    extern_fn_methods_produce_error,
     "
         struct X {}
         impl X {
-            fn x(self, x: bool) -> bool __builtin__
+            extern fn x(self, x: bool) -> bool;
         }
     "
 }
 
 snapshot_error! {
-    builtin_pipeline_methods_produce_error,
+    extern_pipeline_methods_produce_error,
     "
         struct X {}
         impl X {
             // NOTE: This error should change once
             // pipelines as methods are added
-            pipeline(1) x(self, x: bool) -> bool __builtin__
+            extern pipeline(1) x(self, x: bool) -> bool;
         }
     "
 }
@@ -894,7 +894,7 @@ snapshot_error! {
 
 snapshot_error! {
     inverting_non_port_type,
-    "entity x(t: inv int<8>) -> int<8> __builtin__"
+    "extern entity x(t: inv int<8>) -> int<8>;"
 }
 
 snapshot_error! {
@@ -1015,10 +1015,10 @@ snapshot_error! {
 }
 
 #[test]
-fn no_mangle_compiles_on_builtin() {
+fn no_mangle_compiles_on_extern() {
     let code = r#"
         #[no_mangle]
-        entity drum_v(a: int<16>, b: int<16>) -> int<32> __builtin__
+        extern entity drum_v(a: int<16>, b: int<16>) -> int<32>;
     "#;
 
     build_items(code);

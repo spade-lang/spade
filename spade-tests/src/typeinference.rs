@@ -523,9 +523,9 @@ fn destructuring_a_read_mut_wire_gives_real_values() {
         inner: inv &A
     }
 
-    fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+    extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
-    entity consumer(x: HasA) -> bool __builtin__
+    extern entity consumer(x: HasA) -> bool;
 
     entity uut(val: HasA) -> bool {
         let A$(x, y) = inst std::ports::read_mut_wire(val.inner);
@@ -545,7 +545,7 @@ snapshot_error! {
         y: int<3>
     }
 
-    fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+    extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
     entity uut(val: inv &A) -> bool {
         let x = inst read_mut_wire(val.x);
@@ -558,7 +558,7 @@ snapshot_error! {
 snapshot_error! {
     reading_from_tuple_members_is_an_error,
     "
-    fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+    extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
     entity uut(val: inv &(bool, int<3>)) -> bool {
         let x = inst read_mut_wire(val#0);
@@ -826,9 +826,9 @@ snapshot_error! {
 #[test]
 fn tuple_match_regression_1() {
     let code = "
-        fn accumulator_mem(
+        extern fn accumulator_mem(
             write: Option<(int<10>, int<40>)>
-        ) -> bool __builtin__
+        ) -> bool;
 
         entity accumulators(
             in: (int<10>, int<10>),
@@ -855,9 +855,9 @@ fn second_integer_resolves_correctly() {
             d2: int<40>
         }
 
-        fn accumulator_mem(
+        extern fn accumulator_mem(
             write: Option<(int<10>, int<40>)>
-        ) -> AccMemOut __builtin__
+        ) -> AccMemOut;
 
         pipeline(0) accumulators(
             clk: clock,
@@ -1340,7 +1340,7 @@ snapshot_error! {
 snapshot_error! {
     type_params_are_accessible_in_units,
     "
-        fn produce_something<T>() -> T __builtin__
+        extern fn produce_something<T>() -> T;
 
         fn test<T>() {
 
@@ -1357,7 +1357,7 @@ snapshot_error! {
     type_params_are_accessible_in_units2,
     "
         mod mem {
-            fn produce_something<#uint N>() -> int<N> __builtin__
+            extern fn produce_something<#uint N>() -> int<N>;
 
             fn test<#uint N>() {
                 let a: int<N> = produce_something::<8>();
@@ -1870,7 +1870,7 @@ snapshot_error! {
 snapshot_error! {
     negative_int_sizes_are_gracefully_disallowed,
     "
-        fn make_an_int_appear<#uint N>() -> uint<N> __builtin__
+        extern fn make_an_int_appear<#uint N>() -> uint<N>;
 
         fn test() {
             let x: uint<-1> = make_an_int_appear();

@@ -4,8 +4,7 @@ snapshot_error! {
     stage_outside_pipeline,
     "
     entity main(x: X) -> int<8> {
-        reg;
-    }
+        reg; }
     "
 }
 
@@ -327,7 +326,7 @@ snapshot_error! {
 #[test]
 fn inverted_port_type() {
     let code = r#"
-    entity square_wave(clk: clock, x: inv inv & bool) -> bool __builtin__
+    extern entity square_wave(clk: clock, x: inv inv & bool) -> bool;
     "#;
 
     build_items(code);
@@ -823,5 +822,42 @@ snapshot_error! {
 
     entity top(input: int<32>) -> uint<32> {}
         
+    "
+}
+
+#[test]
+fn where_clause_on_extern_is_valid() {
+    let code = r#"
+    extern entity foo<#uint N, #uint M>() where N: {M};
+    "#;
+
+    build_items(code);
+}
+
+snapshot_error! {
+    extern_unit_cannot_have_body,
+    "
+    extern entity foo() {}
+    "
+}
+
+snapshot_error! {
+    non_extern_unit_must_have_body,
+    "
+    entity foo();
+    "
+}
+
+snapshot_error! {
+    unit_must_not_just_be_head,
+    "
+    entity foo()
+    "
+}
+
+snapshot_error! {
+    extern_unit_must_end_with_semicolon,
+    "
+    extern entity foo()
     "
 }

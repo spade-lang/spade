@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/parser.rs
+---
+extern entity foo() {}
+
+
+error: `extern` units cannot have a body
+  ┌─ testinput:1:1
+  │
+1 │ extern entity foo() {}
+  │ ^^^^^^
+  │
+  = Remove this body
+  │
+1 │ extern entity foo() {}
+  │                     --

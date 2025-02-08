@@ -125,6 +125,9 @@ pub enum TokenKind {
     #[token("gen")]
     Gen,
 
+    #[token("extern")]
+    Extern,
+
     // Math operators
     #[token("+")]
     Plus,
@@ -215,9 +218,6 @@ pub enum TokenKind {
     #[token("$")]
     Dollar,
 
-    #[token("__builtin__")]
-    Builtin,
-
     /// Ignoring whitespace
     #[regex("[ \t\n\r]", logos::skip)]
     Whitespace,
@@ -276,6 +276,8 @@ impl TokenKind {
 
             TokenKind::Gen => "gen",
 
+            TokenKind::Extern => "extern",
+
             TokenKind::Assignment => "=",
             TokenKind::Plus => "+",
             TokenKind::Minus => "-",
@@ -320,8 +322,6 @@ impl TokenKind {
 
             TokenKind::Hash => "#",
             TokenKind::Dollar => "$",
-
-            TokenKind::Builtin => "__builtin__",
 
             TokenKind::Eof => "end of file",
 

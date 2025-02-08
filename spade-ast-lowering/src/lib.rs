@@ -593,7 +593,7 @@ fn build_no_mangle_all_output_diagnostic(
         first_suggestion,
     );
 
-    // add the set suggestion for non-builtins
+    // add the set suggestion for non-externs
     if let Some(block) = body_for_diagnostics {
         let block = block.assume_block();
         if let Some(result) = block.result.as_ref() {
@@ -1018,6 +1018,7 @@ pub fn visit_unit(
     let ast::Unit {
         head:
             ast::UnitHead {
+                extern_token: _,
                 name,
                 attributes,
                 inputs: _,
@@ -1086,11 +1087,11 @@ pub fn visit_unit(
         }
         ast::Attribute::WalSuffix { suffix } => {
             if body.is_none() {
-                return Err(Diagnostic::error(
-                    attr,
-                    "wal_suffix is not allowed on __builtin__ units",
-                )
-                .primary_label("Not allowed on __builtin__ units"));
+                return Err(
+                    Diagnostic::error(attr, "wal_suffix is not allowed on `extern` units")
+                        .primary_label("Not allowed on `extern` units")
+                        .secondary_label(unit.head.extern_token.unwrap(), "This unit is `extern`"),
+                );
             }
 
             wal_suffix = Some(suffix.clone());
@@ -1099,9 +1100,9 @@ pub fn visit_unit(
         _ => Err(attr.report_unused("a unit")),
     })?;
 
-    // If this is a builtin entity
+    // If this is a extern entity
     if body.is_none() {
-        return Ok(hir::Item::Builtin(unit_name, head));
+        return Ok(hir::Item::ExternUnit(unit_name, head));
     }
 
     // Add the inputs to the symtab
@@ -1274,9 +1275,9 @@ pub fn visit_module_body(body: &ast::ModuleBody, ctx: &mut Context) -> Result<()
                     .item_list
                     .add_executable(u.name.name_id().clone(), ExecutableItem::Unit(u))?,
 
-                hir::Item::Builtin(name, head) => ctx.item_list.add_executable(
+                hir::Item::ExternUnit(name, head) => ctx.item_list.add_executable(
                     name.name_id().clone(),
-                    ExecutableItem::BuiltinUnit(name, head),
+                    ExecutableItem::ExternUnit(name, head),
                 )?,
             }
         }
@@ -2191,6 +2192,7 @@ mod entity_visiting {
     fn entity_visits_work() {
         let input = ast::Unit {
             head: ast::UnitHead {
+                extern_token: None,
                 name: Identifier("test".to_string()).nowhere(),
                 inputs: ParameterList::without_self(vec![(
                     ast_ident("a"),
@@ -3099,6 +3101,7 @@ mod item_visiting {
         let input = ast::Item::Unit(
             ast::Unit {
                 head: ast::UnitHead {
+                    extern_token: None,
                     name: ast_ident("test"),
                     output_type: None,
                     inputs: aparams![],
@@ -3170,6 +3173,7 @@ mod module_visiting {
             members: vec![ast::Item::Unit(
                 ast::Unit {
                     head: ast::UnitHead {
+                        extern_token: None,
                         name: ast_ident("test"),
                         output_type: None,
                         inputs: ParameterList::without_self(vec![]).nowhere(),

@@ -6,7 +6,7 @@ struct A {
     y: int<3>
 }
 
-fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
 entity uut(val: inv &A) -> bool {
     let x = inst read_mut_wire(val.x);

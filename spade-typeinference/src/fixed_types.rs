@@ -16,7 +16,7 @@ fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
             .lookup_type_symbol(&path.clone().nowhere())
             .unwrap_or_else(|_| {
                 panic!(
-                    "{} not found. Was the symtab not populated with builtins?",
+                    "{} not found. Was the symtab not populated with externs?",
                     path
                 )
             })

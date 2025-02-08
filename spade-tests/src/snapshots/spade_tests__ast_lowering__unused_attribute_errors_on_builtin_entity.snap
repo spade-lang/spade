@@ -2,7 +2,7 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 #[uwu]
-entity a() -> bool __builtin__
+extern entity a() -> bool;
 
 
 error: Unknown attribute 'uwu'

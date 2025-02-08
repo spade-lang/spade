@@ -1,16 +1,14 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-entity x(a: (int<32>, &int<32>)) -> bool __builtin__
+extern entity x(a: (int<32>, &int<32>)) -> bool;
 
 error: Cannot mix ports and non-ports in a tuple
-  ┌─ testinput:1:14
+  ┌─ testinput:1:21
   │
-1 │ entity x(a: (int<32>, &int<32>)) -> bool __builtin__
-  │              ^^^^^^^  -------- This is a port
-  │              │         
-  │              This is not a port
+1 │ extern entity x(a: (int<32>, &int<32>)) -> bool;
+  │                     ^^^^^^^  -------- This is a port
+  │                     │         
+  │                     This is not a port
   │
   = note: A tuple must either contain only ports or no ports
-
-

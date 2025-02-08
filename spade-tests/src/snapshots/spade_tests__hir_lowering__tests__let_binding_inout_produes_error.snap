@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/hir_lowering.rs
 ---
-entity consumer(#[no_mangle] t: inout<bool>) __builtin__
+extern entity consumer(#[no_mangle] t: inout<bool>);
 entity test(#[no_mangle] t: inout<bool>) {
     let t_ = t;
     inst consumer(t_)
@@ -14,5 +14,3 @@ error: Values of inout type cannot be bound to names
   │         ^^ inout type bound to name
   │
   = help: inout values can only be passed along to other modules
-
-

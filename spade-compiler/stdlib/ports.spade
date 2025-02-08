@@ -1,4 +1,4 @@
-entity new_mut_wire<T>() -> inv &T __builtin__
+extern entity new_mut_wire<T>() -> inv &T;
 
 /// Reads the current value of a `inv &T`
-entity read_mut_wire<T>(p: inv &T) -> T __builtin__
+extern entity read_mut_wire<T>(p: inv &T) -> T;

@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 mod mem {
-    fn produce_something<#uint N>() -> int<N> __builtin__
+    extern fn produce_something<#uint N>() -> int<N>;
 
     fn test<#uint N>() {
         let a: int<N> = produce_something::<8>();

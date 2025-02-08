@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity consume(p: inv &bool) -> bool __builtin__
+extern entity consume(p: inv &bool) -> bool;
 
 entity test() -> bool {
     decl x;

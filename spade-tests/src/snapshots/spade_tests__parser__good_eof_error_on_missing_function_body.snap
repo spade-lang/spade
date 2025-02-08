@@ -3,12 +3,10 @@ source: spade-tests/src/parser.rs
 ---
 fn a() -> bool
 
-error: Unexpected `end of file`, expected body or `__builtin__`
+error: Unexpected `end of file`, expected body or `;`
   ┌─ testinput:1:15
   │
 1 │ fn a() -> bool
   │ --------------^ Unexpected end of file
   │ │             
   │ Expected body for this fn
-
-

@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-fn takes_normal(x: bool, y: int<3>) -> bool __builtin__
+extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
 entity uut(val: inv &(bool, int<3>)) -> bool {
     let x = inst read_mut_wire(val#0);

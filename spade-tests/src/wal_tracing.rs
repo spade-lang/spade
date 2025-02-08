@@ -170,9 +170,9 @@ fn wal_suffix_on_unit_works() {
 }
 
 snapshot_error! {
-    wal_suffix_on_builtin_unit_is_error,
+    wal_suffix_on_extern_unit_is_error,
     r#"
         #[wal_suffix(suffix=__wal_suffix__)]
-        entity main(clk: clock, x: int<8>) -> int<8> __builtin__
+        extern entity main(clk: clock, x: int<8>) -> int<8>;
     "#
 }

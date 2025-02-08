@@ -846,7 +846,7 @@ mod tests {
     #[test]
     fn subpipes_do_not_get_extra_delay() {
         let code = r#"
-            pipeline(3) sub(clk: clock) -> int<18> __builtin__
+            extern pipeline(3) sub(clk: clock) -> int<18>;
 
             pipeline(3) pl(clk: clock) -> int<18> {
                     let res = inst(3) sub(clk);
@@ -1002,7 +1002,7 @@ mod tests {
     #[test]
     fn correct_codegen_for_forward_references() {
         let code = r#"
-            entity A() -> int<16> __builtin__
+            extern entity A() -> int<16>;
 
             pipeline(1) pl(clk: clock) -> int<16> {
                     let x_ = inst A();
@@ -1628,8 +1628,8 @@ mod tests {
     snapshot_error! {
         mismatched_pipeline_depth_match,
         "
-        pipeline(5) X(clk: clock) -> bool __builtin__
-        pipeline(4) Y(clk: clock) -> bool __builtin__
+        extern pipeline(5) X(clk: clock) -> bool;
+        extern pipeline(4) Y(clk: clock) -> bool;
 
         pipeline(5) main(clk: clock, x: bool) -> bool {
                 let _ = match x {
@@ -1645,8 +1645,8 @@ mod tests {
     snapshot_error! {
         mismatched_pipeline_depth_if,
         "
-        pipeline(5) X(clk: clock) -> bool __builtin__
-        pipeline(4) Y(clk: clock) -> bool __builtin__
+        extern pipeline(5) X(clk: clock) -> bool;
+        extern pipeline(4) Y(clk: clock) -> bool;
 
         pipeline(5) main(clk: clock, x: bool) -> bool {
                 let _ = if x {
@@ -1709,9 +1709,9 @@ mod tests {
     }
 
     snapshot_error! {
-        instantiating_builtin_generic_which_is_non_intrinsic_is_error,
+        instantiating_extern_generic_which_is_non_intrinsic_is_error,
         "
-            fn a<T>() -> T __builtin__
+            extern fn a<T>() -> T;
 
             fn main() -> int<32> {
                 a()
@@ -1720,7 +1720,7 @@ mod tests {
     }
 
     #[test]
-    fn instantiating_builtin_generic_pipeline_which_is_non_intrinsic_is_error() {
+    fn instantiating_extern_generic_pipeline_which_is_non_intrinsic_is_error() {
         let code = "
             pipeline(1) a<T>(clk: clock, t: T) -> T {
                 reg;
@@ -1752,7 +1752,7 @@ mod tests {
     #[test]
     fn named_arguments_get_passed_in_correct_order() {
         let code = r#"
-            fn sub(x: bool, y: bool) -> bool __builtin__
+            extern fn sub(x: bool, y: bool) -> bool;
 
             fn test(a: bool, b: bool) -> bool {
                 sub$(y: a, x: b)
@@ -1851,7 +1851,7 @@ mod tests {
     fn assigning_ports_to_variables_works() {
         let code = r#"
             mod std {mod ports{
-                entity new_mut_wire<T>() -> inv &T __builtin__
+                extern entity new_mut_wire<T>() -> inv &T;
             }}
 
             entity test() -> inv &int<10> {
@@ -2640,7 +2640,7 @@ mod tests {
     snapshot_error! {
         let_binding_inout_produes_error,
         "
-        entity consumer(#[no_mangle] t: inout<bool>) __builtin__
+        extern entity consumer(#[no_mangle] t: inout<bool>);
         entity test(#[no_mangle] t: inout<bool>) {
             let t_ = t;
             inst consumer(t_)
@@ -2650,7 +2650,7 @@ mod tests {
     snapshot_error! {
         reg_binding_inout_produes_error,
         "
-        entity consumer(#[no_mangle] t: inout<int<8>>) __builtin__
+        extern entity consumer(#[no_mangle] t: inout<int<8>>);
 
         entity test(clk: clock, #[no_mangle] t: inout<int<8>>) {
             reg(clk) t_ = t;
@@ -2864,7 +2864,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         too_many_args,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             test(true, true, true)
         }
@@ -2873,7 +2873,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         too_few_args,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             test(true)
         }
@@ -2882,7 +2882,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         shorthand_named_argument_missing,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             let (a, b, c) = (true, true, true);
             test$(a)
@@ -2892,7 +2892,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         shorthand_duplicate_named_argument_missing,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             let (a, b, c) = (true, true, true);
             test$(a, a, b)
@@ -2902,7 +2902,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         long_named_argument_missing,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             test$(a: true)
         }
@@ -2911,7 +2911,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         long_duplicate_named_arg,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             test$(a: true, a: true, b: true)
         }
@@ -2920,7 +2920,7 @@ mod argument_list_tests {
 
     snapshot_error! {
         long_fake_named_arg,
-        "fn test(a: bool, b: bool) -> bool __builtin__
+        "extern fn test(a: bool, b: bool) -> bool;
         fn main() -> bool {
             test$(a: true, c: true, b: true)
         }

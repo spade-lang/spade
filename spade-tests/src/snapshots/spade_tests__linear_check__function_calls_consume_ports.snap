@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity consumer(x: inv &bool) -> bool __builtin__
+extern entity consumer(x: inv &bool) -> bool;
 
 entity test() -> (bool, bool) {
     let p = inst new_mut_wire();

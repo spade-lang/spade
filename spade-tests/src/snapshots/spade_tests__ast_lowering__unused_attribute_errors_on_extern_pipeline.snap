@@ -10,5 +10,3 @@ error: Unknown attribute 'uwu'
   │
 1 │ #[uwu]
   │   ^^^ Unrecognised attribute
-
-

@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct X {}
+impl X {
+    extern fn x(self, x: bool) -> bool;
+}
+
+
+error: Methods cannot be `extern`
+  ┌─ testinput:3:12
+  │
+3 │     extern fn x(self, x: bool) -> bool;
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = help: Consider defining a free-standing function

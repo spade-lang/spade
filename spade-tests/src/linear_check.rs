@@ -86,8 +86,8 @@ snapshot_error! {
 snapshot_error! {
     unused_anonymous_expression_is_reported,
     "
-    entity producer() -> (inv &bool, inv &bool) __builtin__
-    entity consumer(x: inv &bool) -> bool __builtin__
+    extern entity producer() -> (inv &bool, inv &bool);
+    extern entity consumer(x: inv &bool) -> bool;
 
     entity x() -> bool {
         inst consumer(inst producer()#0)
@@ -123,7 +123,7 @@ snapshot_error! {
         x: inv &bool,
     }
 
-    entity consumer(a: inv &bool) -> bool __builtin__
+    extern entity consumer(a: inv &bool) -> bool;
 
     entity x(a: A) -> A {
         let _ = inst consumer(a.x);
@@ -169,7 +169,7 @@ fn linear_checking_on_registers_works() {
 snapshot_error! {
     checking_works_with_decld_value,
     "
-    entity consume(p: inv &bool) -> bool __builtin__
+    extern entity consume(p: inv &bool) -> bool;
 
     entity test() -> bool {
         decl x;
@@ -184,7 +184,7 @@ snapshot_error! {
 snapshot_error! {
     function_calls_consume_ports,
     "
-        entity consumer(x: inv &bool) -> bool __builtin__
+        extern entity consumer(x: inv &bool) -> bool;
 
         entity test() -> (bool, bool) {
             let p = inst new_mut_wire();
@@ -196,7 +196,7 @@ snapshot_error! {
 #[test]
 fn reading_from_a_port_does_not_consume_it() {
     let code = "
-        entity consumer(x: inv &bool) -> bool __builtin__
+        extern entity consumer(x: inv &bool) -> bool;
 
         entity test() -> (bool, bool) {
             let p = inst new_mut_wire();

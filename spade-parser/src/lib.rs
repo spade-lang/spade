@@ -1209,6 +1209,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn unit_head(&mut self, attributes: &AttributeList) -> Result<Option<Loc<UnitHead>>> {
+        let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
         let start_token = self.peek()?;
         let unit_kind = match start_token.kind {
             TokenKind::Pipeline => {
@@ -1217,12 +1218,10 @@ impl<'a> Parser<'a> {
                     &TokenKind::OpenParen,
                     |s| match s.type_expression() {
                         Ok(t) => Ok(t),
-                        Err(diag) => {
-                            return Err(diag.secondary_label(
-                                ().at(s.file_id, &start_token),
-                                "Pipelines require a pipeline depth",
-                            ))
-                        }
+                        Err(diag) => Err(diag.secondary_label(
+                            ().at(s.file_id, &start_token),
+                            "Pipelines require a pipeline depth",
+                        )),
                     },
                     &TokenKind::CloseParen,
                 )?;
@@ -1268,6 +1267,7 @@ impl<'a> Parser<'a> {
 
         Ok(Some(
             UnitHead {
+                extern_token: extern_token.map(|token| token.loc()),
                 attributes: attributes.clone(),
                 unit_kind,
                 name,
@@ -1290,7 +1290,7 @@ impl<'a> Parser<'a> {
                             let _colon = s.eat(&TokenKind::Colon)?;
 
                             if s.peek_cond(
-                                |tok| tok == &TokenKind::OpenBrace || tok == &TokenKind::Builtin,
+                                |tok| tok == &TokenKind::OpenBrace || tok == &TokenKind::Semi,
                                 "{",
                             )? {
                                 let expression = s
@@ -1313,7 +1313,7 @@ impl<'a> Parser<'a> {
                                         vec![
                                             TokenKind::Comma,
                                             TokenKind::OpenBrace,
-                                            TokenKind::Builtin,
+                                            TokenKind::Semi,
                                         ],
                                     )
                                     .extra_expected(vec!["identifier"])?
@@ -1335,11 +1335,9 @@ impl<'a> Parser<'a> {
                                 "Comma separated should not show this error",
                             ))
                         }
-                        // NOTE: With this ending symbol we won't support __builtin__ with where
-                        // clauses.
                     },
                     &TokenKind::Comma,
-                    vec![TokenKind::OpenBrace, TokenKind::Builtin],
+                    vec![TokenKind::OpenBrace, TokenKind::Semi],
                 )
                 .extra_expected(vec!["identifier"])?;
 
@@ -2384,6 +2382,7 @@ mod tests {
 
         let e1 = Unit {
             head: UnitHead {
+                extern_token: None,
                 attributes: AttributeList::empty(),
                 unit_kind: UnitKind::Entity.nowhere(),
                 name: Identifier("e1".to_string()).nowhere(),
@@ -2404,6 +2403,7 @@ mod tests {
 
         let e2 = Unit {
             head: UnitHead {
+                extern_token: None,
                 attributes: AttributeList::empty(),
                 unit_kind: UnitKind::Entity.nowhere(),
                 name: Identifier("e2".to_string()).nowhere(),

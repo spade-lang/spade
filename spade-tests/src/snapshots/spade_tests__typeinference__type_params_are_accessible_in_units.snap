@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-fn produce_something<T>() -> T __builtin__
+extern fn produce_something<T>() -> T;
 
 fn test<T>() {
 
@@ -30,5 +30,3 @@ error: Expected type bool, got int<9>
                Got: int<9>
   = The error is in a generic unit instantiated at
     ╰ testinput:9 test<int<9>>
-
-

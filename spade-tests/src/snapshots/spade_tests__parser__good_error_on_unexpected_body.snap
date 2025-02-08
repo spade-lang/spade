@@ -3,7 +3,7 @@ source: spade-tests/src/parser.rs
 ---
 entity a() -> bool struct
 
-error: Unexpected `struct`, expected body or `__builtin__`
+error: Unexpected `struct`, expected body or `;`
   ┌─ testinput:1:20
   │
 1 │ entity a() -> bool struct

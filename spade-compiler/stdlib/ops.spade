@@ -12,7 +12,7 @@
 // lifeguard spade#140
 // FIXME: pow and result should probably not be `N` but type inference is not good
 // enough for that yet
-fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N> __builtin__
+extern fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N>;
 
 
 /// Computes the absolute value of x. The result is truncated, meaning that
@@ -75,15 +75,15 @@ fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
 
 /// Equivalent to verilog and reduction operator &(x)
 /// Returns all bits of x joined by an and-operation
-fn reduce_and<#uint N>(x: uint<N>) -> bool __builtin__
+extern fn reduce_and<#uint N>(x: uint<N>) -> bool;
 
 /// Equivalent to verilog or reduction operator |(x)
 /// Returns all bits of x joined by an or-operation
-fn reduce_or<#uint N>(x: uint<N>) -> bool __builtin__
+extern fn reduce_or<#uint N>(x: uint<N>) -> bool;
 
 /// Equivalent to verilog xor reduction operator ^(x)
 /// Returns all bits of x joined by an xor-operation
-fn reduce_xor<#uint N>(x: uint<N>) -> bool __builtin__
+extern fn reduce_xor<#uint N>(x: uint<N>) -> bool;
 
 
 /// Evaluates to x / y in verilog.
@@ -92,7 +92,7 @@ fn reduce_xor<#uint N>(x: uint<N>) -> bool __builtin__
 /// For division by constant powers of two, use `/`
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be comb_div<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
-fn comb_div<N>(x: N, y: N) -> N __builtin__
+extern fn comb_div<N>(x: N, y: N) -> N;
 
 
 /// Evaluates to x % y in verilog.
@@ -101,4 +101,4 @@ fn comb_div<N>(x: N, y: N) -> N __builtin__
 /// For modulo operations by constant powers of two, use `%`
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be comb_mod<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
-fn comb_mod<N>(x: N, y: N) -> N __builtin__
+extern fn comb_mod<N>(x: N, y: N) -> N;

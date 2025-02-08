@@ -15,7 +15,12 @@ pub(crate) struct UnitParser {}
 
 impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
     fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Function, TokenKind::Entity, TokenKind::Pipeline]
+        vec![
+            TokenKind::Function,
+            TokenKind::Entity,
+            TokenKind::Pipeline,
+            TokenKind::Extern,
+        ]
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Unit>> {
@@ -28,11 +33,12 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
         parser.set_item_context(head.unit_kind.clone())?;
 
         let allow_stages = head.unit_kind.is_pipeline();
+        let after_head_token = parser.peek()?; // will be ; if it's extern
         let block_result = (|| {
             if let Some(block) = parser.block(allow_stages)? {
                 let (block, block_span) = block.separate();
                 Ok((Some(block), block_span))
-            } else if parser.peek_kind(&TokenKind::Builtin)? {
+            } else if parser.peek_kind(&TokenKind::Semi)? {
                 let tok = parser.eat_unconditional()?;
 
                 Ok((None, ().at(parser.file_id, &tok.span).span))
@@ -40,11 +46,7 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
                 let next = parser.peek()?;
                 Err(Diagnostic::error(
                     next.clone(),
-                    format!(
-                        "Unexpected `{}`, expected body or `{}`",
-                        next.kind.as_str(),
-                        TokenKind::Builtin.as_str()
-                    ),
+                    format!("Unexpected `{}`, expected body or `;`", next.kind.as_str(),),
                 )
                 .primary_label(format!("Unexpected {}", &next.kind.as_str()))
                 .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)))
@@ -58,6 +60,29 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
                 return Err(e);
             }
         };
+
+        if head.extern_token.is_some() && block.is_some() {
+            return Err(Diagnostic::error(
+                head.extern_token.unwrap(),
+                "`extern` units cannot have a body",
+            )
+            .span_suggest_remove("Remove this body", block.as_ref().unwrap()));
+        } else if head.extern_token.is_none() & block.is_none() {
+            return Err(Diagnostic::error(
+                &head,
+                format!("This {} is missing a body", head.unit_kind),
+            )
+            .span_suggest_replace(
+                format!("Did you forget to add the {}'s body?", head.unit_kind),
+                after_head_token,
+                " {}",
+            )
+            .span_suggest_insert_before(
+                format!("Or did you mean to declare an `extern` {}?", head.unit_kind),
+                &head.unit_kind,
+                "extern ",
+            ));
+        }
 
         parser.clear_item_context();
 

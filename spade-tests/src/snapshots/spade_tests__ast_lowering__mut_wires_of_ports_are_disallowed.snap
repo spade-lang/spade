@@ -4,14 +4,14 @@ source: spade-tests/src/ast_lowering.rs
 struct port A {}
 
 
-entity x(a: inv &A) -> bool __builtin__
+extern entity x(a: inv &A) -> bool;
 
 
 error: Cannot create a wire of ports
-  ┌─ testinput:4:17
+  ┌─ testinput:4:24
   │
-4 │ entity x(a: inv &A) -> bool __builtin__
-  │                 ^^
-  │                 ││
-  │                 │Because this is a port
-  │                 This cannot be a wire
+4 │ extern entity x(a: inv &A) -> bool;
+  │                        ^^
+  │                        ││
+  │                        │Because this is a port
+  │                        This cannot be a wire
