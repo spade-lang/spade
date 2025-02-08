@@ -1,3 +1,5 @@
+use std::fs;
+
 use async_recursion::async_recursion;
 use camino::Utf8PathBuf;
 use spade_common::location_info::Loc;
@@ -71,11 +73,23 @@ impl Completion for ServerBackend {
         };
 
         let code = self.code.lock().unwrap().clone();
+        let path_to_find = fs::canonicalize(uri.path())
+            .expect("bro.....")
+            .to_string_lossy()
+            .to_string();
         let current_file = code
             .dump_files()
             .into_iter()
             .find_map(|(file_name, contents)| {
-                if file_name == uri.path() {
+                let file_name = fs::canonicalize(file_name)
+                    .ok()?
+                    .to_string_lossy()
+                    .to_string();
+                println!(
+                    "we should 100% find something matching. looking for {}, trying {}",
+                    path_to_find, file_name
+                );
+                if file_name == path_to_find {
                     Some(contents)
                 } else {
                     None
