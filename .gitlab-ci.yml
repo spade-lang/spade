@@ -72,7 +72,7 @@ test:linux-nightly:
     stage: test
     image: "alpine:latest"
     before_script:
-        - apk add build-base rustup
+        - apk add build-base rustup pkg-config
         - rustup-init --default-toolchain nightly -y
         - source cargo/env
     script:
@@ -153,9 +153,9 @@ build:static:
   image: "rust:$RUST_VERSION-alpine"
   stage: test
   before_script:
-    - apk add git musl-dev g++ openssl-dev
+    - apk add git musl-dev g++
   script:
-    - cargo build --release --workspace --exclude spade-python --target x86_64-unknown-linux-musl
+    - cargo build --release --workspace --exclude spade-python --exclude spade-language-server --target x86_64-unknown-linux-musl
     - strip target/x86_64-unknown-linux-musl/release/spade
     - strip target/x86_64-unknown-linux-musl/release/vcd-translate
   artifacts:
