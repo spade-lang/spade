@@ -164,6 +164,7 @@ pub struct EnumVariant {
     pub option: usize,
     pub params: Loc<ParameterList>,
     pub type_params: Vec<Loc<TypeParam>>,
+    pub documentation: String,
 }
 impl WithLocation for EnumVariant {}
 
@@ -177,6 +178,7 @@ impl EnumVariant {
             scope_type_params: self.type_params.clone(),
             unit_kind: UnitKind::Function(FunctionKind::Enum).at_loc(&self.name),
             where_clauses: vec![],
+            documentation: String::new(),
         }
     }
 }
@@ -199,6 +201,7 @@ impl StructCallable {
             scope_type_params: vec![],
             unit_kind: UnitKind::Function(FunctionKind::Struct).at_loc(&self.name),
             where_clauses: vec![],
+            documentation: String::new(),
         }
     }
 }

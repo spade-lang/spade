@@ -6,7 +6,6 @@
 /// 2/2 = 1
 /// 3/2 = 2
 /// -3/2 = -1
-
 // FIXME: Implement in spade rather than as a compiler intrinsic when spade
 // supports codegen for generics
 // lifeguard spade#140

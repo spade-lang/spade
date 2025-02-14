@@ -16,9 +16,9 @@ use tracing::{debug, event, Level};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
-    Expression, IntLiteral, Item, ModuleBody, NamedArgument, NamedTurbofish, ParameterList,
-    Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeExpression,
-    TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
+    EnumVariant, Expression, IntLiteral, Item, ModuleBody, NamedArgument, NamedTurbofish,
+    ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner,
+    TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
@@ -1195,7 +1195,7 @@ impl<'a> Parser<'a> {
         if attributes.0.is_empty() {
             Ok(())
         } else {
-            Err(Diagnostic::error(
+            let mut diagnostic = Diagnostic::error(
                 ().between_locs(attributes.0.first().unwrap(), attributes.0.last().unwrap()),
                 "invalid attribute location",
             )
@@ -1204,7 +1204,13 @@ impl<'a> Parser<'a> {
                 item_start.loc(),
                 format!("...because this is a {}", item_start.kind.as_str()),
             )
-            .note("attributes are only allowed on enums, functions and pipelines"))
+            .note("attributes are only allowed on structs, enums, their variants, functions and pipelines");
+            if matches!(item_start.kind, TokenKind::Mod) {
+                diagnostic.add_help(
+                    "If you want to document this module, use inside comments (//!) instead.",
+                );
+            }
+            Err(diagnostic)
         }
     }
 
@@ -1365,7 +1371,7 @@ impl<'a> Parser<'a> {
                     Ok(u)
                 }
             }))],
-            false,
+            true,
             vec![TokenKind::CloseBrace],
         )?;
 
@@ -1374,7 +1380,9 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     #[tracing::instrument(level = "debug", skip(self))]
-    pub fn enum_option(&mut self) -> Result<(Loc<Identifier>, Option<Loc<ParameterList>>)> {
+    pub fn enum_variant(&mut self) -> Result<EnumVariant> {
+        let attributes = self.attributes()?;
+
         let name = self.identifier()?;
 
         let args = if let Some(start) = self.peek_and_eat(&TokenKind::OpenBrace)? {
@@ -1392,7 +1400,11 @@ impl<'a> Parser<'a> {
             return Err(err);
         };
 
-        Ok((name, args))
+        Ok(EnumVariant {
+            attributes,
+            name,
+            args,
+        })
     }
 
     fn maybe_suggest_brace_enum_variant(&mut self, err: &mut Diagnostic) -> Result<bool> {
@@ -1652,14 +1664,29 @@ impl<'a> Parser<'a> {
     pub fn attributes(&mut self) -> Result<AttributeList> {
         // peek_for!(self, &TokenKind::Hash)
         let mut result = AttributeList(vec![]);
-        while let Some(start) = self.peek_and_eat(&TokenKind::Hash)? {
-            let (inner, loc) = self.surrounded(
-                &TokenKind::OpenBracket,
-                Self::attribute_inner,
-                &TokenKind::CloseBracket,
-            )?;
+        loop {
+            if let Some(start) = self.peek_and_eat(&TokenKind::Hash)? {
+                let (inner, loc) = self.surrounded(
+                    &TokenKind::OpenBracket,
+                    Self::attribute_inner,
+                    &TokenKind::CloseBracket,
+                )?;
 
-            result.0.push(inner.between(self.file_id, &start, &loc));
+                result.0.push(inner.between(self.file_id, &start, &loc));
+            } else if self.peek_cond(
+                |tk| matches!(tk, TokenKind::OutsideDocumentation(_)),
+                "Outside doc-comment",
+            )? {
+                let token = self.eat_unconditional()?;
+                let TokenKind::OutsideDocumentation(doc) = token.kind else {
+                    unreachable!("eat_cond should have checked this");
+                };
+                result
+                    .0
+                    .push(Attribute::Documentation { content: doc }.at(token.file_id, &token.span));
+            } else {
+                break;
+            }
         }
         Ok(result)
     }
@@ -1667,6 +1694,18 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn module_body(&mut self) -> Result<ModuleBody> {
+        let mut documentation = vec![];
+        while self.peek_cond(
+            |tk| matches!(tk, TokenKind::InsideDocumentation(_)),
+            "Inside doc-comment",
+        )? {
+            let token = self.eat_unconditional()?;
+            let TokenKind::InsideDocumentation(doc) = token.kind else {
+                unreachable!("eat_cond should have checked this");
+            };
+            documentation.push(doc);
+        }
+
         let members = self.keyword_peeking_parser_seq(
             vec![
                 Box::new(items::UnitParser {}.map(|inner| Ok(Item::Unit(inner)))),
@@ -1680,7 +1719,10 @@ impl<'a> Parser<'a> {
             true,
             vec![],
         )?;
-        Ok(ModuleBody { members })
+        Ok(ModuleBody {
+            members,
+            documentation,
+        })
     }
 
     /// A module body which is not part of a `mod`. Errors if there is anything
@@ -2483,6 +2525,7 @@ mod tests {
 
         let expected = ModuleBody {
             members: vec![Item::Unit(e1), Item::Unit(e2)],
+            documentation: vec![],
         };
 
         check_parse!(code, module_body, Ok(expected));
@@ -2667,10 +2710,15 @@ mod tests {
             members: vec![Item::Module(
                 Module {
                     name: ast_ident("X"),
-                    body: ModuleBody { members: vec![] }.nowhere(),
+                    body: ModuleBody {
+                        members: vec![],
+                        documentation: vec![],
+                    }
+                    .nowhere(),
                 }
                 .nowhere(),
             )],
+            documentation: vec![],
         };
 
         check_parse!(code, module_body, Ok(expected));
@@ -2688,15 +2736,21 @@ mod tests {
                         members: vec![Item::Module(
                             Module {
                                 name: ast_ident("Y"),
-                                body: ModuleBody { members: vec![] }.nowhere(),
+                                body: ModuleBody {
+                                    members: vec![],
+                                    documentation: vec![],
+                                }
+                                .nowhere(),
                             }
                             .nowhere(),
                         )],
+                        documentation: vec![],
                     }
                     .nowhere(),
                 }
                 .nowhere(),
             )],
+            documentation: vec![],
         };
 
         check_parse!(code, module_body, Ok(expected));

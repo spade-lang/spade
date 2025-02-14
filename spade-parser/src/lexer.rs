@@ -218,6 +218,11 @@ pub enum TokenKind {
     #[token("$")]
     Dollar,
 
+    #[regex("///[^\n]*", |lex| lex.slice()[3..].to_string())]
+    OutsideDocumentation(String),
+    #[regex("//![^\n]*", |lex| lex.slice()[3..].to_string())]
+    InsideDocumentation(String),
+
     /// Ignoring whitespace
     #[regex("[ \t\n\r]", logos::skip)]
     Whitespace,
@@ -324,6 +329,9 @@ impl TokenKind {
             TokenKind::Dollar => "$",
 
             TokenKind::Eof => "end of file",
+
+            TokenKind::OutsideDocumentation(_) => "///",
+            TokenKind::InsideDocumentation(_) => "//!",
 
             TokenKind::Whitespace => "whitespace",
             TokenKind::Comment => "comment",
@@ -439,6 +447,20 @@ mod tests {
         assert_eq!(
             lex.next(),
             Some(Ok(TokenKind::Identifier("xg".to_string())))
+        );
+        assert_eq!(lex.next(), None);
+    }
+
+    #[test]
+    fn doc_comments_slice_correctly() {
+        let mut lex = TokenKind::lexer("//! Hello\n///G'day");
+        assert_eq!(
+            lex.next(),
+            Some(Ok(TokenKind::InsideDocumentation(" Hello".to_string())))
+        );
+        assert_eq!(
+            lex.next(),
+            Some(Ok(TokenKind::OutsideDocumentation("G'day".to_string())))
         );
         assert_eq!(lex.next(), None);
     }

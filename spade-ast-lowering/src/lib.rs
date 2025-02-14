@@ -732,6 +732,7 @@ pub fn unit_head(
         scope_type_params,
         unit_kind: unit_kind?,
         where_clauses,
+        documentation: head.attributes.merge_docs(),
     })
 }
 
@@ -1094,6 +1095,7 @@ pub fn visit_unit(
             wal_suffix = Some(suffix.clone());
             Ok(None)
         }
+        ast::Attribute::Documentation { .. } => Ok(None),
         _ => Err(attr.report_unused("a unit")),
     })?;
 
@@ -1253,10 +1255,13 @@ pub fn visit_module(module: &ast::Module, ctx: &mut Context) -> Result<()> {
         })
         .expect("Attempting to lower a module that has not been added to the symtab previously");
 
+    let documentation = module.body.documentation.join("\n");
+
     ctx.item_list.modules.insert(
         id.clone(),
         Module {
             name: id.at_loc(&module.name),
+            documentation,
         },
     );
 
@@ -1545,6 +1550,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                 ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
+                | ast::Attribute::Documentation { .. }
                 | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
             })?;
 
@@ -2231,6 +2237,7 @@ mod entity_visiting {
                 scope_type_params: vec![],
                 unit_kind: hir::UnitKind::Entity.nowhere(),
                 where_clauses: vec![],
+                documentation: "".to_string(),
             },
             attributes: hir::AttributeList::empty(),
             inputs: vec![(name_id(1, "a"), hir::TypeSpec::unit().nowhere())],
@@ -2652,6 +2659,7 @@ mod expression_visiting {
             option: 0,
             params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
             type_params: vec![],
+            documentation: "".to_string(),
         }
         .nowhere();
 
@@ -2714,6 +2722,7 @@ mod expression_visiting {
             option: 0,
             params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
             type_params: vec![],
+            documentation: "".to_string(),
         }
         .nowhere();
 
@@ -2774,6 +2783,7 @@ mod expression_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                     where_clauses: vec![],
+                    documentation: "".to_string(),
                 }
                 .nowhere(),
             ),
@@ -2846,6 +2856,7 @@ mod expression_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                     where_clauses: vec![],
+                    documentation: "".to_string(),
                 }
                 .nowhere(),
             ),
@@ -2906,6 +2917,7 @@ mod expression_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Function(hir::FunctionKind::Fn).nowhere(),
                     where_clauses: vec![],
+                    documentation: "".to_string(),
                 }
                 .nowhere(),
             ),
@@ -3133,6 +3145,7 @@ mod item_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                     where_clauses: vec![],
+                    documentation: "".to_string(),
                 },
                 attributes: hir::AttributeList::empty(),
                 inputs: vec![],
@@ -3193,6 +3206,7 @@ mod module_visiting {
                 }
                 .nowhere(),
             )],
+            documentation: vec![],
         };
 
         let expected = hir::ItemList {
@@ -3209,6 +3223,7 @@ mod module_visiting {
                             scope_type_params: vec![],
                             unit_kind: hir::UnitKind::Entity.nowhere(),
                             where_clauses: vec![],
+                            documentation: "".to_string(),
                         },
                         inputs: vec![],
                         attributes: hir::AttributeList::empty(),
@@ -3246,15 +3261,21 @@ mod module_visiting {
                         members: vec![ast::Item::Module(
                             ast::Module {
                                 name: ast_ident("inner"),
-                                body: ast::ModuleBody { members: vec![] }.nowhere(),
+                                body: ast::ModuleBody {
+                                    members: vec![],
+                                    documentation: vec![],
+                                }
+                                .nowhere(),
                             }
                             .nowhere(),
                         )],
+                        documentation: vec![],
                     }
                     .nowhere(),
                 }
                 .nowhere(),
             )],
+            documentation: vec![],
         };
 
         let expected = hir::ItemList {
@@ -3265,12 +3286,14 @@ mod module_visiting {
                     name_id(1, "outer").inner,
                     hir::Module {
                         name: name_id(1, "outer"),
+                        documentation: "".to_string(),
                     },
                 ),
                 (
                     name_id(2, "outer::inner").inner,
                     hir::Module {
                         name: name_id(2, "outer::inner"),
+                        documentation: "".to_string(),
                     },
                 ),
             ]

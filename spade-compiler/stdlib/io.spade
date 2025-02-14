@@ -1,10 +1,10 @@
-// Takes a synchronized input and pulses for only one clock cycle when it goes from low to high.
+/// Takes a synchronized input and pulses for only one clock cycle when it goes from low to high.
 entity rising_edge(clk: clock, sync1: bool) -> bool {
     reg(clk) sync2: bool = sync1;
     sync1 && !sync2
 }
 
-// Takes a synchronized input and pulses for only one clock cycle when it goes from high to low.
+/// Takes a synchronized input and pulses for only one clock cycle when it goes from high to low.
 entity falling_edge(clk: clock, sync1: bool) -> bool {
     reg(clk) sync2: bool = sync1;
     sync2 && !sync1

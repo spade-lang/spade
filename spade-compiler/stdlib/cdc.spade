@@ -1,9 +1,9 @@
-/// This module contains primitives for clock domain crossing. Clock domain crossing
-/// is difficult to get right, and all of these modules come with pitfalls, for example
-/// the possibility to miss some signals if transferring between domains of similar speed.
-/// Make sure to read the docs of each individual module.
-///
-/// NOTE that these modules are also not well tested in practice at the moment.
+//! This module contains primitives for clock domain crossing. Clock domain crossing
+//! is difficult to get right, and all of these modules come with pitfalls, for example
+//! the possibility to miss some signals if transferring between domains of similar speed.
+//! Make sure to read the docs of each individual module.
+//!
+//! NOTE that these modules are also not well tested in practice at the moment.
 
 use std::ops::gray_to_bin;
 use std::ops::bin_to_gray;
@@ -31,9 +31,9 @@ mod unsafe {
     }
 }
 
-// Synchronize a bool signal into another domain. This guarantees valid values, but does
-// not guarantee that all values are transferred. If synchronizing a short pulse where
-// seeing the pulse is important, `handshake` may be better
+/// Synchronize a bool signal into another domain. This guarantees valid values, but does
+/// not guarantee that all values are transferred. If synchronizing a short pulse where
+/// seeing the pulse is important, `handshake` may be better
 entity sync2_bool(clk: clock, in: bool) -> bool {
     inst unsafe::sync2(clk, in)
 }
@@ -101,10 +101,10 @@ mod handshake_impl {
     }
 }
 
-// Synchronize data from clk1 to clk2 via handshaking. Primarily to be used to cross
-// domains of similar speed. A single pulse on data in clk1 results in a single output in clk2.
-// If data is active for more than one cycle, the behaviour is undefined. Likewise if
-// data occurs too frequently, i.e. within a few clock cycles in the slowest domain
+/// Synchronize data from clk1 to clk2 via handshaking. Primarily to be used to cross
+/// domains of similar speed. A single pulse on data in clk1 results in a single output in clk2.
+/// If data is active for more than one cycle, the behaviour is undefined. Likewise if
+/// data occurs too frequently, i.e. within a few clock cycles in the slowest domain
 entity handshake<T>(clk1: clock, rst: bool, data: Option<T>, clk2: clock) -> Option<T> {
     let (txorxi, txirxo) = port;
     let _ = inst handshake_impl::transmitter(clk1, rst, data, txorxi);

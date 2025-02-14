@@ -543,6 +543,9 @@ pub enum Attribute {
     WalSuffix {
         suffix: Loc<Identifier>,
     },
+    Documentation {
+        content: String,
+    },
 }
 
 impl Attribute {
@@ -554,6 +557,7 @@ impl Attribute {
             Attribute::WalTraceable { .. } => "wal_traceable",
             Attribute::WalTrace { .. } => "wal_trace",
             Attribute::WalSuffix { .. } => "wal_suffix",
+            Attribute::Documentation { .. } => "doc",
         }
     }
 }
@@ -694,10 +698,18 @@ impl WithLocation for ImplBlock {}
 /// Declaration of an enum
 #[derive(PartialEq, Debug, Clone)]
 pub struct Enum {
+    pub attributes: AttributeList,
     pub name: Loc<Identifier>,
-    pub options: Vec<(Loc<Identifier>, Option<Loc<ParameterList>>)>,
+    pub variants: Vec<EnumVariant>,
 }
 impl WithLocation for Enum {}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct EnumVariant {
+    pub attributes: AttributeList,
+    pub name: Loc<Identifier>,
+    pub args: Option<Loc<ParameterList>>,
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Struct {
@@ -786,5 +798,6 @@ impl WithLocation for Module {}
 #[derive(PartialEq, Debug, Clone)]
 pub struct ModuleBody {
     pub members: Vec<Item>,
+    pub documentation: Vec<String>,
 }
 impl WithLocation for ModuleBody {}

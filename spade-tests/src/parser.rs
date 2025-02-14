@@ -861,3 +861,11 @@ snapshot_error! {
     extern entity foo()
     "
 }
+
+snapshot_error! {
+    module_outside_doc_comment_hint,
+    "
+    /// This is my module :3
+    mod x {}
+    "
+}

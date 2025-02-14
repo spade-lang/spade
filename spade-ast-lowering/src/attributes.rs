@@ -1,4 +1,5 @@
 use ast::{Attribute, AttributeList};
+use itertools::Itertools;
 use local_impl::local_impl;
 use spade_ast as ast;
 use spade_common::location_info::{Loc, WithLocation};
@@ -48,6 +49,19 @@ impl AttributeListExt for AttributeList {
             .collect();
 
         Ok(hir::AttributeList(inner))
+    }
+
+    fn merge_docs(&self) -> String {
+        self.0
+            .iter()
+            .filter_map(|attr| {
+                if let Attribute::Documentation { content } = &attr.inner {
+                    Some(content)
+                } else {
+                    None
+                }
+            })
+            .join("\n")
     }
 }
 

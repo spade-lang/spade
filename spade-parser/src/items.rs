@@ -249,7 +249,6 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
         attributes: &AttributeList,
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start_token)?;
 
         let name = parser.identifier()?;
 
@@ -258,7 +257,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
         let (options, options_loc) = parser.surrounded(
             &TokenKind::OpenBrace,
             |s: &mut Parser| {
-                s.comma_separated(Parser::enum_option, &TokenKind::CloseBrace)
+                s.comma_separated(Parser::enum_variant, &TokenKind::CloseBrace)
                     .no_context()
             },
             &TokenKind::CloseBrace,
@@ -266,11 +265,14 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
 
         let result = TypeDeclaration {
             name: name.clone(),
-            kind: TypeDeclKind::Enum(Enum { name, options }.between(
-                parser.file_id,
-                &start_token.span,
-                &options_loc,
-            )),
+            kind: TypeDeclKind::Enum(
+                Enum {
+                    name,
+                    variants: options,
+                    attributes: attributes.clone(),
+                }
+                .between(parser.file_id, &start_token.span, &options_loc),
+            ),
             generic_args: type_params,
         }
         .between(parser.file_id, &start_token.span, &options_loc);

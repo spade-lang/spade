@@ -399,25 +399,25 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             let mut member_names = HashSet::<Loc<Identifier>>::new();
             let mut hir_options = vec![];
 
-            for (i, option) in e.options.iter().enumerate() {
-                if let Some(prev) = member_names.get(&option.0) {
-                    let new = &option.0;
+            for (i, variant) in e.variants.iter().enumerate() {
+                if let Some(prev) = member_names.get(&variant.name) {
+                    let new = &variant.name;
                     return Err(
                         Diagnostic::error(new, format!("Multiple options called {}", new))
                             .primary_label(format!("{} occurs more than once", new))
                             .secondary_label(prev, "Previously occurred here"),
                     );
                 }
-                member_names.insert(option.0.clone());
+                member_names.insert(variant.name.clone());
                 // Check the parameter list
-                let parameter_list = option
-                    .1
+                let parameter_list = variant
+                    .args
                     .clone()
                     .map(|l| visit_parameter_list(&l, ctx, None))
                     .unwrap_or_else(|| Ok(hir::ParameterList(vec![]).nowhere()))?;
 
-                let args = option
-                    .1
+                let args = variant
+                    .args
                     .clone()
                     .map(|l| {
                         if let Some(self_) = l.self_ {
@@ -438,8 +438,19 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     }
                 }
 
+                let documentation = variant.attributes.merge_docs();
+                let _ = variant.attributes.lower(&mut |attr| match &attr.inner {
+                    ast::Attribute::Documentation { .. } => Ok(None),
+                    ast::Attribute::Optimize { .. }
+                    | ast::Attribute::WalTraceable { .. }
+                    | ast::Attribute::NoMangle { .. }
+                    | ast::Attribute::Fsm { .. }
+                    | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum variant")),
+                })?;
+
                 let variant_thing = EnumVariant {
-                    name: option.0.clone(),
+                    name: variant.name.clone(),
                     output_type: hir::TypeSpec::Declared(
                         declaration_id.clone(),
                         output_type_exprs.clone(),
@@ -448,13 +459,14 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     type_params: type_params.clone(),
                     option: i,
                     params: parameter_list.clone(),
+                    documentation,
                 };
 
                 // Add option constructor to symtab at the outer scope
                 let head_id = ctx.symtab.add_thing_at_offset(
                     1,
-                    Path(vec![e.name.clone(), option.0.clone()]),
-                    Thing::EnumVariant(variant_thing.at_loc(&option.0)),
+                    Path(vec![e.name.clone(), variant.name.clone()]),
+                    Thing::EnumVariant(variant_thing.at_loc(&variant.name)),
                 );
                 // Add option constructor to item list
                 ctx.item_list.executables.insert(
@@ -468,12 +480,24 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 // NOTE: it's kind of weird to push head_id here, since that's just
                 // the constructor. In the future, if we move forward with enum members
                 // being individual types, we should push that instead
-                hir_options.push((head_id.clone().at_loc(&option.0), parameter_list))
+                hir_options.push((head_id.clone().at_loc(&variant.name), parameter_list))
             }
+
+            let documentation = e.attributes.merge_docs();
+            let _ = e.attributes.lower(&mut |attr| match &attr.inner {
+                ast::Attribute::Documentation { .. } => Ok(None),
+                ast::Attribute::Optimize { .. }
+                | ast::Attribute::WalTraceable { .. }
+                | ast::Attribute::NoMangle { .. }
+                | ast::Attribute::Fsm { .. }
+                | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum")),
+            })?;
 
             hir::TypeDeclKind::Enum(
                 hir::Enum {
                     options: hir_options,
+                    documentation,
                 }
                 .at_loc(e),
             )
@@ -546,6 +570,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             );
 
             let mut wal_traceable = None;
+            let documentation = s.attributes.merge_docs();
             let attributes = s.attributes.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::WalTraceable {
                     suffix,
@@ -567,6 +592,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     );
                     Ok(None)
                 }
+                ast::Attribute::Documentation { .. } => Ok(None),
                 ast::Attribute::Optimize { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
@@ -581,6 +607,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     is_port: s.is_port(),
                     attributes,
                     wal_traceable,
+                    documentation,
                 }
                 .at_loc(s),
             )

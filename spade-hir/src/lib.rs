@@ -222,6 +222,7 @@ impl WithLocation for Register {}
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord, Serialize, Deserialize)]
 pub struct Module {
     pub name: Loc<NameID>,
+    pub documentation: String,
 }
 
 /// Type params have both an identifier and a NameID since they go through the
@@ -345,6 +346,7 @@ impl WithLocation for TraitSpec {}
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Enum {
     pub options: Vec<(Loc<NameID>, Loc<ParameterList>)>,
+    pub documentation: String,
 }
 impl WithLocation for Enum {}
 
@@ -362,6 +364,7 @@ pub struct Struct {
     pub is_port: bool,
     pub attributes: AttributeList,
     pub wal_traceable: Option<Loc<WalTraceable>>,
+    pub documentation: String,
 }
 impl WithLocation for Struct {}
 
@@ -629,6 +632,7 @@ pub struct UnitHead {
     pub scope_type_params: Vec<Loc<TypeParam>>,
     pub unit_kind: Loc<UnitKind>,
     pub where_clauses: Vec<Loc<WhereClause>>,
+    pub documentation: String,
 }
 impl WithLocation for UnitHead {}
 
