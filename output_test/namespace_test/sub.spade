@@ -1,5 +1,0 @@
-mod more_sub;
-
-fn in_sub() -> bool {
-    true
-}

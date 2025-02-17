@@ -5,8 +5,8 @@ use x::y;
 use y::x;
 
 
-error: Use of undeclared name x::y
+error: Use of undeclared name x
   ┌─ testinput:1:5
   │
 1 │ use x::y;
-  │     ^^^^ Undeclared name
+  │     ^ Undeclared name

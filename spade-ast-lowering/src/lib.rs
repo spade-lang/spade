@@ -1042,7 +1042,7 @@ pub fn visit_unit(
         .lookup_unit(&path)
         .map_err(|_| {
             ctx.symtab.print_symbols();
-            println!("Failed to find {path:?} in symtab")
+            println!("Failed to find {path} in symtab")
         })
         .expect("Attempting to lower an entity that has not been added to the symtab previously");
 
@@ -1234,7 +1234,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             result.map(|_| vec![])
         }
         // We can leave the forbidden slice empty, because even after resolving to itself for the first time, it will add itself as forbidden for the next time
-        ast::Item::Use(s) => match ctx.symtab.lookup_id_with_forbidden(&s.path, &[]) {
+        ast::Item::Use(s) => match ctx.symtab.lookup_id(&s.path, &[]) {
             Ok(_) => Ok(vec![]),
             Err(lookup_error) => Err(lookup_error.into()),
         },
@@ -1250,10 +1250,10 @@ pub fn visit_module(module: &ast::Module, ctx: &mut Context) -> Result<()> {
         .at_loc(&module.name.loc());
     let id = ctx
         .symtab
-        .lookup_id(path)
+        .lookup_id(path, &[])
         .map_err(|_| {
             ctx.symtab.print_symbols();
-            println!("Failed to find {path:?} in symtab")
+            println!("Failed to find {path} in symtab")
         })
         .expect("Attempting to lower a module that has not been added to the symtab previously");
 

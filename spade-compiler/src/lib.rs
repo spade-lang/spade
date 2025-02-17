@@ -204,6 +204,22 @@ pub fn compile(
         self_ctx: SelfContext::FreeStanding,
     };
 
+    // Add all "root" project main.spade modules
+    for root in module_asts
+        .iter()
+        .filter(|(ns, _ast)| ns.base_namespace == ns.namespace)
+    {
+        let namespace = &root.0;
+        if !namespace.namespace.0.is_empty() {
+            ctx.symtab.add_thing(
+                namespace.namespace.clone(),
+                spade_hir::symbol_table::Thing::Module(
+                    namespace.namespace.0.last().unwrap().clone(),
+                ),
+            );
+        }
+    }
+
     let mut missing_namespace_set = module_asts
         .iter()
         .map(|(ns, _ast)| (ns.namespace.clone(), ns.file.clone()))

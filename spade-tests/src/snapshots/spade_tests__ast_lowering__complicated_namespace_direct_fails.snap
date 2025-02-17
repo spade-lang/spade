@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod proj {
+    mod m1 {
+        use m2::a; // compared to `complicated_namespace_use_works`, this lacks `proj::`
+    }
+
+    mod m2 {
+        use b::a;
+        mod b {
+            fn a() {}
+        }
+    }
+}
+
+
+error: Use of undeclared name m2
+  ┌─ testinput:3:13
+  │
+3 │         use m2::a; // compared to `complicated_namespace_use_works`, this lacks `proj::`
+  │             ^^ Undeclared name

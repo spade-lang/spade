@@ -69,7 +69,7 @@ pub fn handle_external_modules(
                                     name,
                                     format!("Did not find file for {name}"),
                                 )
-                                .help("Are you running Spade without swim. If so, multiple files are unsupported"));
+                                .help("Are you running Spade without swim? If so, multiple files are unsupported"));
                         };
                     }
                 }

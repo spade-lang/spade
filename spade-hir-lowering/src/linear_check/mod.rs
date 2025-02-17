@@ -332,7 +332,10 @@ fn visit_expression(
             // doing more fancy things, we should consider getting rid of this function
             let consume = ctx
                 .symtab
-                .try_lookup_final_id(&Path::from_strs(&["std", "ports", "read_mut_wire"]).nowhere())
+                .try_lookup_final_id(
+                    &Path::from_strs(&["std", "ports", "read_mut_wire"]).nowhere(),
+                    &[],
+                )
                 .map(|n| n != callee.inner)
                 .unwrap_or(true);
 

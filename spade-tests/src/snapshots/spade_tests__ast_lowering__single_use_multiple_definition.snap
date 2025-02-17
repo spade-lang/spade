@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct A {}
+use A;
+
+
+error: Multiple items with the same name
+  ┌─ testinput:2:5
+  │
+1 │ struct A {}
+  │ ----------- Previous definition here
+2 │ use A;
+  │     ^ A is defined multiple times

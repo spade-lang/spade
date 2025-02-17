@@ -15,10 +15,8 @@ entity counter(clk: clock, rst: bool, max: int<8>) -> int<8> {
 }
 
 
-error: Use of undeclared name conv::trunc
-  ┌─ testinput:9:13
+error: Use of undeclared name conv
+  ┌─ testinput:1:5
   │
-9 │             conv::trunc(value + 1)
-  │             ^^^^^^^^^^^ Undeclared name
-
-
+1 │ use conv;
+  │     ^^^^ Undeclared name

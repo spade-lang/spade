@@ -289,6 +289,45 @@ fn nested_use_compiles_correctly() {
 }
 
 #[test]
+fn complicated_namespace_use_works() {
+    let code = r#"
+        mod proj {
+            mod m1 {
+                use proj::m2::a; // compared to complicated_namespace_direct_fails, this adds `proj::`
+            }
+
+            mod m2 {
+                use b::a;
+                mod b {
+                    fn a() {}
+                }
+            }
+        }
+    "#;
+
+    build_items(code);
+}
+
+snapshot_error! {
+    complicated_namespace_direct_fails,
+    "
+    mod proj {
+        mod m1 {
+            use m2::a; // compared to `complicated_namespace_use_works`, this lacks `proj::`
+        }
+
+        mod m2 {
+            use b::a;
+            mod b {
+                fn a() {}
+            }
+        }
+    }
+    ",
+    false
+}
+
+#[test]
 fn type_inference_works_for_declared_variables() {
     let code = r#"
     enum Option<T> {
@@ -779,6 +818,85 @@ snapshot_error! {
         true
     }
     "
+}
+
+snapshot_error! {
+    single_use_multiple_definition,
+    "
+    struct A {}
+    use A;
+    "
+}
+
+snapshot_error! {
+    single_use_unknown_definition,
+    "
+    use X;
+    fn x(x: X) -> bool { false }
+    "
+}
+
+snapshot_error! {
+    partial_undeclared_name,
+    "
+    mod mod1 {
+        mod mod2 {
+            fn yes() -> bool { true }
+        }
+    }
+
+    fn top() -> bool {
+        mod1::yes()
+    }
+    ",
+    false
+}
+
+snapshot_error! {
+    partial_undeclared_name_2,
+    "
+    mod a {
+        mod c {}
+    }
+    use a::b::c;
+    ",
+    false
+}
+
+snapshot_error! {
+    enum_value_creation_error_over_alias_resolves_correctly,
+    "
+    enum Opt<T> {
+        Test1 {value: T},
+        Test2,
+    }
+
+    use Opt::Test1;
+
+    entity main() -> Opt<int<8>> {
+        Test1
+    }
+    "
+}
+
+snapshot_error! {
+    unused_broken_alias_still_errors,
+    "
+    use this_is_unknown::a;
+    ",
+    false
+}
+
+snapshot_error! {
+    undeclared_errors_in_alias_not_usecase,
+    "
+    use aaaaaaa::thing;
+
+    entity t(clk: clock) -> bool {
+        thing()
+    }
+    ",
+    false
 }
 
 snapshot_error! {

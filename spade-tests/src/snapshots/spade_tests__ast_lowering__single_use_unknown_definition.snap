@@ -1,11 +1,12 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-use x::x;
+use X;
+fn x(x: X) -> bool { false }
 
 
-error: Use of undeclared name x
+error: Use of undeclared name X
   ┌─ testinput:1:5
   │
-1 │ use x::x;
+1 │ use X;
   │     ^ Undeclared name

@@ -1,0 +1,28 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+enum Opt<T> {
+    Test1 {value: T},
+    Test2,
+}
+
+use Opt::Test1;
+
+entity main() -> Opt<int<8>> {
+    Test1
+}
+
+
+error: Expected Test1 to be a value
+  ┌─ testinput:9:5
+  │
+2 │     Test1 {value: T},
+  │     ----- Test1 is a enum variant
+  ·
+9 │     Test1
+  │     ^^^^^ Expected a value
+  │
+  = Consider specifying the arguments to the variant
+  │
+9 │     Test1(/* value */)
+  │          +++++++++++++

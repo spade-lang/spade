@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+use this_is_unknown::a;
+
+
+error: Use of undeclared name this_is_unknown
+  ┌─ testinput:1:5
+  │
+1 │ use this_is_unknown::a;
+  │     ^^^^^^^^^^^^^^^ Undeclared name

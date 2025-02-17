@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod a {
+    mod c {}
+}
+use a::b::c;
+
+
+error: Use of undeclared name a::b::c
+  ┌─ testinput:4:8
+  │
+4 │ use a::b::c;
+  │        ^ Undeclared name

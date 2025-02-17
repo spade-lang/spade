@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod mod1 {
+    mod mod2 {
+        fn yes() -> bool { true }
+    }
+}
+
+fn top() -> bool {
+    mod1::yes()
+}
+
+
+error: Use of undeclared name mod1::yes
+  ┌─ testinput:8:11
+  │
+8 │     mod1::yes()
+  │           ^^^ Undeclared name
