@@ -18,6 +18,7 @@ doctest = false
 itertools.workspace = true
 local-impl.workspace = true
 num.workspace = true
+recursive.workspace = true
 tracing.workspace = true
 
 spade-ast.workspace = true

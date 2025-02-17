@@ -13,6 +13,7 @@ use global_symbols::visit_meta_type;
 use impls::visit_impl;
 use num::{BigInt, Zero};
 use pipelines::PipelineContext;
+use recursive::recursive;
 use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_bail, Diagnostic};
@@ -169,6 +170,7 @@ pub enum TypeSpecKind {
     TypeLevelIf,
 }
 
+#[recursive]
 pub fn visit_type_expression(
     expr: &ast::TypeExpression,
     kind: &TypeSpecKind,
@@ -1716,6 +1718,7 @@ pub fn visit_turbofish(
     })
 }
 
+#[recursive]
 #[tracing::instrument(skip_all, fields(kind=e.variant_str()))]
 pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::Expression> {
     let new_id = ctx.idtracker.next();

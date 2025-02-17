@@ -68,13 +68,14 @@ test:linux-latest:
         - cargo doc --no-deps
 
 test:linux-nightly:
+    variables:
+      CARGO_HOME: /usr/local/cargo
     allow_failure: true
     stage: test
-    image: "alpine:latest"
+    image: "rust:latest"
     before_script:
-        - apk add build-base rustup pkg-config
-        - rustup-init --default-toolchain nightly -y
-        - source cargo/env
+        - rustup install nightly
+        - rustup default nightly
     script:
         - cargo build -p spade-lang
         - cargo test --color=always
