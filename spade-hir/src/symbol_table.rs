@@ -935,20 +935,21 @@ impl SymbolTable {
         }
 
         // ERROR: Symbol couldn't be found
-        // Look which path segment can not be found
-        for idx in 1..=(absolute_path.0.len()) {
-            let trimmed_path = &absolute_path.0[..idx];
-            let trimmed_path = Path(trimmed_path.to_vec());
-            if let Some(id) = self.symbols.first().unwrap().get(&trimmed_path) {
-                if !forbidden.contains(id) {
-                    continue;
-                }
-            }
-            return Err(LookupError::NoSuchSymbol(
-                name.inner.clone().at_loc(trimmed_path.0.last().unwrap()),
-            ));
+        // Look recursively which path segment can not be found
+        // This is a check that there are at least 2 path segments and we also grab one.
+        if let [_first, .., tail] = absolute_path.0.as_slice() {
+            let prelude = &absolute_path.0[..absolute_path.0.len() - 1];
+            let _ = self.lookup_id_in_namespace(
+                &Path(prelude.to_vec()).nowhere(),
+                forbidden,
+                namespace,
+            )?;
+            Err(LookupError::NoSuchSymbol(
+                absolute_path.inner.clone().at_loc(tail),
+            ))
+        } else {
+            Err(LookupError::NoSuchSymbol(name.clone()))
         }
-        Err(LookupError::NoSuchSymbol(name.clone()))
     }
 
     pub fn print_symbols(&self) {

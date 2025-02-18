@@ -7,7 +7,7 @@ mod a {
 use a::b::c;
 
 
-error: Use of undeclared name a::b::c
+error: Use of undeclared name a::b
   ┌─ testinput:4:8
   │
 4 │ use a::b::c;

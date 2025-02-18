@@ -864,6 +864,24 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    partial_undeclared_name_3,
+    "
+    mod wrap {
+        mod mod1 {
+            mod mod2 {
+                fn yes() -> bool { true }
+            }
+        }
+
+        fn top() -> bool {
+            mod1::yes()
+        }
+    }
+    ",
+    false
+}
+
+snapshot_error! {
     enum_value_creation_error_over_alias_resolves_correctly,
     "
     enum Opt<T> {
