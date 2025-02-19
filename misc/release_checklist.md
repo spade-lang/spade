@@ -9,16 +9,20 @@ take the opportunity to highlight other stuff that normally doesn't fit in a blo
 
 - [ ] Spade
     - [ ] Update changelog
+        - [ ] Assemble changelogs [mergelog](https://github.com/ethanuppal/mergelog) makes this easy)
         - [ ] Bump [unreleased] to [x.y.z].
         - [ ] Update unreleased compare link to latest version
         - [ ] Make sure the version header links to the diff between this and the previous version
+        - [ ] Remove the changelogs from the changelog dir
     - [ ] Bump cargo.toml version
         - [ ] Build and add Cargo.lock
 - [ ] Swim
     - [ ] Update changelog
+        - [ ] Assemble changelogs [mergelog](https://github.com/ethanuppal/mergelog) makes this easy)
         - [ ] Bump [unreleased] to [x.y.z].
         - [ ] Update unreleased compare link to latest version
         - [ ] Make sure the version header links to the diff between this and the previous version
+        - [ ] Remove the changelogs from the changelog dir
     - [ ] Bump cargo.toml version
         - [ ] Build and add Cargo.lock
 
@@ -36,6 +40,7 @@ take the opportunity to highlight other stuff that normally doesn't fit in a blo
 - [ ] Do a release on gitlab
 - [ ] Upload Spade release to zenodo
 - [ ] Update release blog post MR with link to relevant changelog section. Merge blog
+- [ ] Release on crates.io using `./release.sh`
 
 ## Post release
 

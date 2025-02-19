@@ -9,11 +9,17 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.13.0] - 2025-02-20
 
 ### Added
 
-- [!382][!382] Add type level if `$if` which allow conditional compilation based on type variables
+- [!382][!382][!393][!393] Add type level if `gen if` which allow conditional compilation based on type variables
+- [!391][!391] Add a `#bool` meta-type and corresponding `==` and `!=` operators to const generics
+- [!390][!390] The `#[no_mangle(all)]` attribute applies `#[no_mangle]` to both a unit name and its ports.
+- [!397][!397] Added a `split_compound_reg` optimization pass which splits compound types into individual signals before storing them in registers.
+- [!403][!403] Added support for expressions as statements
+- [!423][!423] Add `/` and `%` to const generics
+- [!432][!432] Support for documentation comments
 
 ### Fixed
 
@@ -21,18 +27,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!382][!382] Fix codegen bug when indexing single element arrays
 - [!382][!382] Emit an error when indexing zero-size arrays
 - [!348][!348] Fix `std::conv::flip_array` flip bits in elements as well
+- [!362][!362] Constant generic expressions now work in function parameter and return types
+- [!387][!387] Fix type inference bug when instantiating units with unknown type parameters
+- [!400][!400] `where`-clauses now parse on `extern` units.
+- [!404][!404] Port structs without any port-type fields now still get treated as port structs
+- [!413][!413] Stack overflow if use is a single identifier [\#139](https://gitlab.com/spade-lang/spade/-/issues/139)
+- [!413][!413] Use statements to invalid modules pass compiler [\#155](https://gitlab.com/spade-lang/spade/-/issues/155)
+- [!413][!413] "Use of undeclared name" should point to what is undeclared if it is a path [\#191](https://gitlab.com/spade-lang/spade/-/issues/191)
+- [!413][!413] invalid imports should probably error before trying to use the not-imported thing [\#274](https://gitlab.com/spade-lang/spade/-/issues/274)
+- [!413][!413] Confusing error when working with aliases [\#300](https://gitlab.com/spade-lang/spade/-/issues/300)
+- [!413][!413] Usings fail over different namespaces [\#358](https://gitlab.com/spade-lang/spade/-/issues/358)
 
 ### Changed
 
 - [!384][!384] Rewrite `std::conv::flip_array` as a non-intrinsic
+- [!388][!388] Added a changelog script to avoid constant merge conflicts
+- [!398][!398] **Breaking change** Use synchronous instead of asynchronous reset
+- [!400][!400] Replaced the `__builtin__` body annotation with the `extern` keyword
+- [!411][!411] Merged `void` and `()` types together to `()`
+- [!411][!411] Empty tuples are now creatable
+- [!419][!419] Require `mod x;` for submodules instead of inferring them from file structure.
+- [!419][!419] Require `main.spade` for subdirectories.
+- [!433][!433] Bumped cocotb to 1.9.2
+
 
 ### Removed
+- [!400][!400] `__builtin__` is no more, this will break a lot of stuff
+
 
 <!-- Links -->
 
+[!348]: https://gitlab.com/spade-lang/spade/-/merge_requests/348
+[!362]: https://gitlab.com/spade-lang/spade/-/merge_requests/362
+[!375]: https://gitlab.com/spade-lang/spade/-/merge_requests/375
 [!375]: https://gitlab.com/spade-lang/spade/-/merge_requests/375
 [!382]: https://gitlab.com/spade-lang/spade/-/merge_requests/382
+[!382]: https://gitlab.com/spade-lang/spade/-/merge_requests/382
+[!382]: https://gitlab.com/spade-lang/spade/-/merge_requests/382
+[!382]: https://gitlab.com/spade-lang/spade/-/merge_requests/382
 [!384]: https://gitlab.com/spade-lang/spade/-/merge_requests/384
+[!384]: https://gitlab.com/spade-lang/spade/-/merge_requests/384
+[!387]: https://gitlab.com/spade-lang/spade/-/merge_requests/387
+[!388]: https://gitlab.com/spade-lang/spade/-/merge_requests/388
+[!390]: https://gitlab.com/spade-lang/spade/-/merge_requests/390
+[!391]: https://gitlab.com/spade-lang/spade/-/merge_requests/391
+[!392]: https://gitlab.com/spade-lang/spade/-/merge_requests/392
+[!397]: https://gitlab.com/spade-lang/spade/-/merge_requests/397
+[!398]: https://gitlab.com/spade-lang/spade/-/merge_requests/398
+[!400]: https://gitlab.com/spade-lang/spade/-/merge_requests/400
+[!400]: https://gitlab.com/spade-lang/spade/-/merge_requests/400
+[!400]: https://gitlab.com/spade-lang/spade/-/merge_requests/400
+[!403]: https://gitlab.com/spade-lang/spade/-/merge_requests/403
+[!404]: https://gitlab.com/spade-lang/spade/-/merge_requests/404
+[!411]: https://gitlab.com/spade-lang/spade/-/merge_requests/411
+[!411]: https://gitlab.com/spade-lang/spade/-/merge_requests/411
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!413]: https://gitlab.com/spade-lang/spade/-/merge_requests/413
+[!419]: https://gitlab.com/spade-lang/spade/-/merge_requests/419
+[!419]: https://gitlab.com/spade-lang/spade/-/merge_requests/419
+[!423]: https://gitlab.com/spade-lang/spade/-/merge_requests/423
+[!432]: https://gitlab.com/spade-lang/spade/-/merge_requests/432
+[!433]: https://gitlab.com/spade-lang/spade/-/merge_requests/433
 
 ## [0.12.0] - 2025-01-09
 
@@ -415,7 +475,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.12.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...main
+[0.13.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...v0.12.0
 [0.12.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.12.0...v0.11.0
 [0.11.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.11.0...v0.10.0
 [0.10.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.10.0...v0.9.0
