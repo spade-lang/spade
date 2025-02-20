@@ -15,4 +15,4 @@ error: This has a field #1 that is unused
 5 │     inst consumer(inst producer()#0)
   │                   ^^^^^^^^^^^^^^^ This has a field #1 that is unused
   │
-  = note: This has a field #1 that is a ~& value which must be set
+  = note: This has a field #1 that is an inverted wire (`inv &`) which must be set

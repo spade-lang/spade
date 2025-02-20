@@ -19,4 +19,4 @@ error: resource.a.x is unused
 8 │ entity x(resource: B) -> bool {
   │          ^^^^^^^^ resource.a.x is unused
   │
-  = note: resource.a.x is a ~& value which must be set
+  = note: resource.a.x is an inverted wire (`inv &`) which must be set

@@ -45,7 +45,7 @@ error: read_ptr_wire is unused
 8 │     read_ptr_wire: inv &uint<W>,
   │     ^^^^^^^^^^^^^ read_ptr_wire is unused
   │
-  = note: read_ptr_wire is a ~& value which must be set
+  = note: read_ptr_wire is an inverted wire (`inv &`) which must be set
   = The error is in a generic unit instantiated at
     ╰ testinput:25 fifo_read_side<4>
     ╰ testinput:35 fifo<4>

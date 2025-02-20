@@ -13,4 +13,4 @@ error: y is unused
 2 │     let (x, y) = a;
   │             ^ y is unused
   │
-  = note: y is a ~& value which must be set
+  = note: y is an inverted wire (`inv &`) which must be set

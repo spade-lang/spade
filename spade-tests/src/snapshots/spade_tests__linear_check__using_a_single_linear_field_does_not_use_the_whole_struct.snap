@@ -16,4 +16,4 @@ error: a.b is unused
 5 │ entity x(a: A) -> inv &bool {
   │          ^ a.b is unused
   │
-  = note: a.b is a ~& value which must be set
+  = note: a.b is an inverted wire (`inv &`) which must be set
