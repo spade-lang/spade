@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/const_generics.rs
+assertion_line: 474
+---
+fn foo<#uint N>() -> uint<{pow(N, -2)}> {0}
+
+fn test() {
+    let _: uint<5> = foo::<5>();
+}
+
+
+error: Cannot raise type level values to negative powers, got -2
+  ┌─ testinput:1:35
+  │
+1 │ fn foo<#uint N>() -> uint<{pow(N, -2)}> {0}
+  │                                   ^^ Exponent is -2

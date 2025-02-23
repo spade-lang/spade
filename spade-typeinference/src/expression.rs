@@ -109,9 +109,9 @@ impl TypeState {
                     self.add_constraint(
                         total_offset.clone(),
                         ConstraintExpr::Sum(
-                            Box::new(ConstraintExpr::Var(expr_var)),
+                            Box::new(ConstraintExpr::Var(expr_var).at_loc(expr)),
                             Box::new(ConstraintExpr::Var(self.get_pipeline_state(expression)?
-                                .current_stage_depth.clone()))
+                                .current_stage_depth.clone()).at_loc(expr))
                         ),
                         stage.loc(),
                         &total_offset,
@@ -483,7 +483,12 @@ impl TypeState {
             // requirement instead, that way we remove a lot of complexity! :D
             self.add_constraint(
                 int_size,
-                bits_to_store(ce_var(&array_size) - ce_int(BigInt::one())),
+                bits_to_store(
+                    ConstraintExpr::Difference(
+                        Box::new(ce_var(&array_size).at_loc(expression)),
+                        Box::new(ce_int(BigInt::one()).at_loc(expression))
+                    ).at_loc(expression)
+                ),
                 index.loc(),
                 &int_type,
                 ConstraintSource::ArrayIndexing
@@ -541,7 +546,11 @@ impl TypeState {
             let out_array_size = self.new_generic_tluint(target.loc());
             let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone());
 
-            let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
+            let out_size_constraint = ConstraintExpr::Difference(
+                Box::new(ConstraintExpr::Var(end_var.clone()).at_loc(expression)),
+                Box::new(ConstraintExpr::Var(start_var.clone()).at_loc(expression)),
+            );
+
             self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
 
             self.add_requirement(Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start), end: end_var.clone().at_loc(end) });
@@ -692,14 +701,20 @@ impl TypeState {
 
                     self.add_constraint(
                         result_size.clone(),
-                        ce_var(&lhs_size) + ce_int(BigInt::one()),
+                        ConstraintExpr::Sum(
+                            Box::new(ce_var(&lhs_size).at_loc(expression)),
+                            Box::new(ce_int(BigInt::one()).at_loc(expression)),
+                        ),
                         expression.loc(),
                         &result_t,
                         ConstraintSource::AdditionOutput
                     );
                     self.add_constraint(
                         lhs_size.clone(),
-                        ce_var(&result_size) + -ce_int(BigInt::one()),
+                        ConstraintExpr::Difference(
+                            Box::new(ce_var(&result_size).at_loc(expression)),
+                            Box::new(ce_int(BigInt::one()).at_loc(expression))
+                        ),
                         lhs.loc(),
                         &in_t,
                         ConstraintSource::AdditionOutput
@@ -723,20 +738,29 @@ impl TypeState {
                     // Result size is sum of input sizes
                     self.add_constraint(
                         result_size.clone(),
-                        ce_var(&lhs_size) + ce_var(&rhs_size),
+                        ConstraintExpr::Sum(
+                            Box::new(ce_var(&lhs_size).at_loc(expression)),
+                            Box::new(ce_var(&rhs_size).at_loc(expression)),
+                        ),
                         expression.loc(),
                         &result_t,
                         ConstraintSource::MultOutput
                     );
                     self.add_constraint(
                         lhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&rhs_size),
+                        ConstraintExpr::Difference(
+                            Box::new(ce_var(&result_size).at_loc(expression)),
+                            Box::new(ce_var(&rhs_size).at_loc(expression)),
+                        ),
                         lhs.loc(),
                         &lhs_t,
                         ConstraintSource::MultOutput
                     );
                     self.add_constraint(rhs_size.clone(),
-                        ce_var(&result_size) + -ce_var(&lhs_size),
+                        ConstraintExpr::Difference(
+                            Box::new(ce_var(&result_size).at_loc(expression)),
+                            Box::new(ce_var(&lhs_size).at_loc(expression)),
+                        ),
                         rhs.loc(),
                         &rhs_t
                         , ConstraintSource::MultOutput

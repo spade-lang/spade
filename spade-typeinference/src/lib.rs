@@ -216,7 +216,7 @@ impl TypeState {
                 let tvar = self.new_generic_tlnumber(e.loc());
                 self.add_constraint(
                     tvar.clone(),
-                    constraint,
+                    constraint.inner,
                     g.loc(),
                     &tvar,
                     ConstraintSource::Where,
@@ -879,21 +879,30 @@ impl TypeState {
         // Result size is sum of input sizes
         self.add_constraint(
             result_size.clone(),
-            ce_var(&lhs_size) + ce_var(&rhs_size),
+            ConstraintExpr::Sum(
+                Box::new(ce_var(&lhs_size).at_loc(&expression_id)),
+                Box::new(ce_var(&rhs_size).at_loc(&expression_id)),
+            ),
             expression_id.loc(),
             &result_size,
             ConstraintSource::Concatenation,
         );
         self.add_constraint(
             lhs_size.clone(),
-            ce_var(&result_size) + -ce_var(&rhs_size),
+            ConstraintExpr::Difference(
+                Box::new(ce_var(&result_size).at_loc(&expression_id)),
+                Box::new(ce_var(&rhs_size).at_loc(&expression_id)),
+            ),
             args[0].value.loc(),
             &lhs_size,
             ConstraintSource::Concatenation,
         );
         self.add_constraint(
             rhs_size.clone(),
-            ce_var(&result_size) + -ce_var(&lhs_size),
+            ConstraintExpr::Difference(
+                Box::new(ce_var(&result_size).at_loc(&expression_id)),
+                Box::new(ce_var(&lhs_size).at_loc(&expression_id)),
+            ),
             args[1].value.loc(),
             &rhs_size,
             ConstraintSource::Concatenation,
@@ -967,7 +976,13 @@ impl TypeState {
 
         self.add_constraint(
             addr_size.clone(),
-            bits_to_store(ce_var(&num_elements) - ce_int(1.to_bigint())),
+            bits_to_store(
+                ConstraintExpr::Difference(
+                    Box::new(ce_var(&num_elements).at_loc(&arg1_loc)),
+                    Box::new(ce_int(1.to_bigint()).at_loc(&arg1_loc)),
+                )
+                .at_loc(&arg1_loc),
+            ),
             args[1].value.loc(),
             &port_type,
             ConstraintSource::MemoryIndexing,
@@ -980,6 +995,7 @@ impl TypeState {
         Ok(())
     }
 
+    // TODO: We can express this in the language
     pub fn handle_read_memory(
         &mut self,
         num_elements: TypeVar,
@@ -991,7 +1007,13 @@ impl TypeState {
 
         self.add_constraint(
             addr_size.clone(),
-            bits_to_store(ce_var(&num_elements) - ce_int(1.to_bigint())),
+            bits_to_store(
+                ConstraintExpr::Difference(
+                    Box::new(ce_var(&num_elements).nowhere()),
+                    Box::new(ce_int(1.to_bigint()).nowhere()),
+                )
+                .nowhere(),
+            ),
             args[1].value.loc(),
             &addr_type,
             ConstraintSource::MemoryIndexing,
@@ -1150,9 +1172,10 @@ impl TypeState {
                         .primary_label("Not a generic parameter")
                     })?;
 
+                    // TODO: Check if we can remove the auxilarry passing of contraint.loc
                     self.add_constraint(
                         tvar.clone(),
-                        int_constraint,
+                        int_constraint.inner,
                         constraint.loc(),
                         &tvar,
                         ConstraintSource::Where,
@@ -1543,8 +1566,8 @@ impl TypeState {
                 };
 
                 let total_depth = ConstraintExpr::Sum(
-                    Box::new(ConstraintExpr::Var(offset)),
-                    Box::new(ConstraintExpr::Var(current_stage_depth)),
+                    Box::new(ConstraintExpr::Var(offset).at_loc(&stmt)),
+                    Box::new(ConstraintExpr::Var(current_stage_depth).at_loc(&stmt)),
                 );
                 self.pipeline_state
                     .as_mut()
@@ -1867,33 +1890,42 @@ impl TypeState {
             | ConstGeneric::Mul(_, _)
             | ConstGeneric::Div(_, _)
             | ConstGeneric::Mod(_, _)
+            | ConstGeneric::Pow(_, _)
             | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
             ConstGeneric::Eq(_, _) | ConstGeneric::NotEq(_, _) => {
                 self.new_generic_tlbool(gen.loc())
             }
         };
-        let constraint = self.visit_const_generic(&gen.inner.inner, generic_list_token)?;
+        let constraint =
+            self.visit_const_generic(&gen.map_ref(|gen| gen.inner.clone()), generic_list_token)?;
         self.add_equation(TypedExpression::Id(gen.id), var.clone());
-        self.add_constraint(var.clone(), constraint, gen.loc(), &var, constraint_source);
+        self.add_constraint(
+            var.clone(),
+            constraint.inner,
+            gen.loc(),
+            &var,
+            constraint_source,
+        );
         Ok(var)
     }
 
     #[trace_typechecker]
     pub fn visit_const_generic(
         &self,
-        constraint: &ConstGeneric,
+        constraint: &Loc<ConstGeneric>,
         generic_list: &GenericListToken,
-    ) -> Result<ConstraintExpr> {
-        let wrap = |lhs,
-                    rhs,
-                    wrapper: fn(Box<ConstraintExpr>, Box<ConstraintExpr>) -> ConstraintExpr|
-         -> Result<_> {
-            Ok(wrapper(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
-            ))
-        };
-        let constraint = match constraint {
+    ) -> Result<Loc<ConstraintExpr>> {
+        let wrap =
+            |lhs,
+             rhs,
+             wrapper: fn(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>) -> ConstraintExpr|
+             -> Result<_> {
+                Ok(wrapper(
+                    Box::new(self.visit_const_generic(lhs, generic_list)?),
+                    Box::new(self.visit_const_generic(rhs, generic_list)?),
+                ))
+            };
+        let constraint = match &constraint.inner {
             ConstGeneric::Name(n) => {
                 let var = self.get_generic_list(generic_list).get(n).ok_or_else(|| {
                     Diagnostic::bug(n, "Found non-generic argument in where clause")
@@ -1908,10 +1940,12 @@ impl TypeState {
             ConstGeneric::Mod(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Mod)?,
             ConstGeneric::Eq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Eq)?,
             ConstGeneric::NotEq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::NotEq)?,
+            ConstGeneric::Pow(base, exp) => wrap(base, exp, ConstraintExpr::Pow)?,
             ConstGeneric::UintBitsToFit(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
                 self.visit_const_generic(a, generic_list)?,
             )),
-        };
+        }
+        .at_loc(constraint);
         Ok(constraint)
     }
 }
@@ -1968,46 +2002,29 @@ impl TypeState {
     }
 
     fn check_expr_for_replacement(&self, val: ConstraintExpr) -> ConstraintExpr {
+        macro_rules!replace {
+            ($base:path, $($arg:ident),*$(,)?) => {
+                $base($(Box::new($arg.map(|inner| self.check_expr_for_replacement(inner)))),*)
+            }
+        }
         // FIXME: AS this gets more complicated, consider rewriting it to clone `val` and
         // then just replacing the inner values, this is error prone when copy pasting
         match val {
             v @ ConstraintExpr::Integer(_) => v,
             v @ ConstraintExpr::Bool(_) => v,
             ConstraintExpr::Var(var) => ConstraintExpr::Var(self.check_var_for_replacement(var)),
-            ConstraintExpr::Sum(lhs, rhs) => ConstraintExpr::Sum(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::Difference(lhs, rhs) => ConstraintExpr::Difference(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::Product(lhs, rhs) => ConstraintExpr::Product(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::Div(lhs, rhs) => ConstraintExpr::Div(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::Mod(lhs, rhs) => ConstraintExpr::Mod(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::Eq(lhs, rhs) => ConstraintExpr::Eq(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::NotEq(lhs, rhs) => ConstraintExpr::NotEq(
-                Box::new(self.check_expr_for_replacement(*lhs)),
-                Box::new(self.check_expr_for_replacement(*rhs)),
-            ),
-            ConstraintExpr::Sub(inner) => {
-                ConstraintExpr::Sub(Box::new(self.check_expr_for_replacement(*inner)))
+            ConstraintExpr::Sum(lhs, rhs) => replace!(ConstraintExpr::Sum, lhs, rhs),
+            ConstraintExpr::Difference(lhs, rhs) => replace!(ConstraintExpr::Difference, lhs, rhs),
+            ConstraintExpr::Product(lhs, rhs) => replace!(ConstraintExpr::Product, lhs, rhs),
+            ConstraintExpr::Div(lhs, rhs) => replace!(ConstraintExpr::Div, lhs, rhs),
+            ConstraintExpr::Mod(lhs, rhs) => replace!(ConstraintExpr::Mod, lhs, rhs),
+            ConstraintExpr::Eq(lhs, rhs) => replace!(ConstraintExpr::Eq, lhs, rhs),
+            ConstraintExpr::NotEq(lhs, rhs) => replace!(ConstraintExpr::NotEq, lhs, rhs),
+            ConstraintExpr::Pow(base, exp) => replace!(ConstraintExpr::Pow, base, exp),
+            ConstraintExpr::Sub(inner) => replace!(ConstraintExpr::Sub, inner),
+            ConstraintExpr::UintBitsToRepresent(inner) => {
+                replace!(ConstraintExpr::UintBitsToRepresent, inner)
             }
-            ConstraintExpr::UintBitsToRepresent(inner) => ConstraintExpr::UintBitsToRepresent(
-                Box::new(self.check_expr_for_replacement(*inner)),
-            ),
         }
     }
 
@@ -2552,7 +2569,10 @@ impl TypeState {
         // more type inference information. Try to do unification of those new constraints too
         loop {
             trace!("Updating constraints");
-            let new_info = self.constraints.update_type_level_value_constraints();
+            let new_info = self
+                .constraints
+                .update_type_level_value_constraints()
+                .map_err(|e| UnificationError::Specific(e))?;
 
             if new_info.is_empty() {
                 break;
@@ -2780,6 +2800,7 @@ impl TypeState {
             | ConstraintExpr::Difference(lhs, rhs)
             | ConstraintExpr::Product(lhs, rhs)
             | ConstraintExpr::Eq(lhs, rhs)
+            | ConstraintExpr::Pow(lhs, rhs)
             | ConstraintExpr::NotEq(lhs, rhs) => {
                 Self::replace_type_var_in_constraint_expr(lhs, from, replacement);
                 Self::replace_type_var_in_constraint_expr(rhs, from, replacement);

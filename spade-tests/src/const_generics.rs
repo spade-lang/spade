@@ -459,3 +459,25 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    pow_works,
+    "
+        fn foo<#uint N>() -> uint<{pow(N, 2)}> {0}
+
+        fn test() {
+            let _: uint<5> = foo::<5>();
+        }
+    "
+}
+
+snapshot_error! {
+    negative_pow_fails_gracefully,
+    "
+        fn foo<#uint N>() -> uint<{pow(N, -2)}> {0}
+
+        fn test() {
+            let _: uint<5> = foo::<5>();
+        }
+    "
+}

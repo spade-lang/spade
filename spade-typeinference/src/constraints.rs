@@ -1,83 +1,104 @@
+use num::Zero;
 use num::{bigint::ToBigInt, BigInt, ToPrimitive};
 use spade_common::location_info::{Loc, WithLocation};
+use spade_diagnostics::Diagnostic;
 use spade_types::KnownType;
 
 use crate::equation::TypeVar;
+use crate::Result;
 
 #[derive(Debug, Clone)]
 pub enum ConstraintExpr {
     Bool(bool),
     Integer(BigInt),
     Var(TypeVar),
-    Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
-    Difference(Box<ConstraintExpr>, Box<ConstraintExpr>),
-    Product(Box<ConstraintExpr>, Box<ConstraintExpr>),
-    Div(Box<ConstraintExpr>, Box<ConstraintExpr>),
-    Mod(Box<ConstraintExpr>, Box<ConstraintExpr>),
-    Sub(Box<ConstraintExpr>),
-    Eq(Box<ConstraintExpr>, Box<ConstraintExpr>),
-    NotEq(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Sum(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
+    Difference(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
+    Product(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
+    Div(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
+    Mod(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
+    Sub(Box<Loc<ConstraintExpr>>),
+    Eq(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
+    NotEq(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
-    UintBitsToRepresent(Box<ConstraintExpr>),
+    UintBitsToRepresent(Box<Loc<ConstraintExpr>>),
+    Pow(Box<Loc<ConstraintExpr>>, Box<Loc<ConstraintExpr>>),
 }
 impl WithLocation for ConstraintExpr {}
 
 impl ConstraintExpr {
     /// Evaluates the ConstraintExpr returning a new simplified form
-    fn evaluate(&self) -> ConstraintExpr {
+    fn evaluate(&self) -> Result<ConstraintExpr> {
         let binop =
-            |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> BigInt| {
-                match (lhs.evaluate(), rhs.evaluate()) {
+            |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> Result<BigInt>| {
+                match (lhs.evaluate()?, rhs.evaluate()?) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Integer(op(l, r))
+                        Ok(ConstraintExpr::Integer(op(l, r)?))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             };
+
+        let bool_binop = |lhs: &ConstraintExpr,
+                          rhs: &ConstraintExpr,
+                          op: &dyn Fn(BigInt, BigInt) -> bool| {
+            match (lhs.evaluate()?, rhs.evaluate()?) {
+                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                    Ok(ConstraintExpr::Bool(op(l, r)))
+                }
+                _ => Ok(self.clone()),
+            }
+        };
         match self {
-            ConstraintExpr::Integer(_) => self.clone(),
-            ConstraintExpr::Bool(_) => self.clone(),
-            ConstraintExpr::Var(_) => self.clone(),
-            ConstraintExpr::Sum(lhs, rhs) => binop(lhs, rhs, &|l, r| l + r),
-            ConstraintExpr::Difference(lhs, rhs) => binop(lhs, rhs, &|l, r| l - r),
-            ConstraintExpr::Product(lhs, rhs) => binop(lhs, rhs, &|l, r| l * r),
-            ConstraintExpr::Div(lhs, rhs) => binop(lhs, rhs, &|l, r| l / r),
-            ConstraintExpr::Mod(lhs, rhs) => binop(lhs, rhs, &|l, r| l % r),
-            ConstraintExpr::Sub(inner) => match inner.evaluate() {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
-                _ => self.clone(),
-            },
-            ConstraintExpr::Eq(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Bool(l == r)
-                }
-                _ => self.clone(),
-            },
-            ConstraintExpr::NotEq(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Bool(l != r)
-                }
-                _ => self.clone(),
-            },
-            ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate() {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(if val == BigInt::ZERO {
-                    BigInt::ZERO
+            ConstraintExpr::Integer(_) => Ok(self.clone()),
+            ConstraintExpr::Bool(_) => Ok(self.clone()),
+            ConstraintExpr::Var(_) => Ok(self.clone()),
+            ConstraintExpr::Sum(lhs, rhs) => binop(lhs, rhs, &|l, r| Ok(l + r)),
+            ConstraintExpr::Difference(lhs, rhs) => binop(lhs, rhs, &|l, r| Ok(l - r)),
+            ConstraintExpr::Product(lhs, rhs) => binop(lhs, rhs, &|l, r| Ok(l * r)),
+            ConstraintExpr::Div(lhs, rhs) => binop(lhs, rhs, &|l, r| Ok(l / r)),
+            ConstraintExpr::Mod(lhs, rhs) => binop(lhs, rhs, &|l, r| Ok(l % r)),
+            ConstraintExpr::Pow(base, exp) => binop(base, exp, &|b, e| {
+                if e < BigInt::zero() {
+                    Err(Diagnostic::error(
+                        exp.loc(),
+                        format!("Cannot raise type level values to negative powers, got {e}"),
+                    )
+                    .primary_label(format!("Exponent is {e}")))
                 } else {
-                    // NOTE: This might fail, but it will only do so for massive
-                    // constraints. If this turns out to be an issue, we need to
-                    // look into doing log2 on BigInt, which as of right now, is
-                    // unsupported
-                    ((val
-                        .to_f64()
-                        .expect("Failed to convert constrained integer to f64"))
-                    .log2()
-                    .floor() as i128
-                        + 1)
-                    .to_bigint()
-                    .unwrap()
-                }),
-                _ => self.clone(),
+                    Ok(b.pow(
+                        e.to_u32()
+                            .expect("Tried taking a type level constant to a power > 2^32"),
+                    ))
+                }
+            }),
+            ConstraintExpr::Sub(inner) => match inner.evaluate()? {
+                ConstraintExpr::Integer(val) => Ok(ConstraintExpr::Integer(-val)),
+                _ => Ok(self.clone()),
+            },
+            ConstraintExpr::Eq(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l == r),
+            ConstraintExpr::NotEq(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l != r),
+            ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate()? {
+                ConstraintExpr::Integer(val) => {
+                    Ok(ConstraintExpr::Integer(if val == BigInt::ZERO {
+                        BigInt::ZERO
+                    } else {
+                        // NOTE: This might fail, but it will only do so for massive
+                        // constraints. If this turns out to be an issue, we need to
+                        // look into doing log2 on BigInt, which as of right now, is
+                        // unsupported
+                        ((val
+                            .to_f64()
+                            .expect("Failed to convert constrained integer to f64"))
+                        .log2()
+                        .floor() as i128
+                            + 1)
+                        .to_bigint()
+                        .unwrap()
+                    }))
+                }
+                _ => Ok(self.clone()),
             },
         }
     }
@@ -99,30 +120,6 @@ impl ConstraintExpr {
     }
 }
 
-impl std::ops::Add for ConstraintExpr {
-    type Output = ConstraintExpr;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        ConstraintExpr::Sum(Box::new(self), Box::new(rhs))
-    }
-}
-
-impl std::ops::Sub for ConstraintExpr {
-    type Output = ConstraintExpr;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        ConstraintExpr::Sum(Box::new(self), Box::new(-rhs))
-    }
-}
-
-impl std::ops::Neg for ConstraintExpr {
-    type Output = ConstraintExpr;
-
-    fn neg(self) -> Self::Output {
-        ConstraintExpr::Sub(Box::new(self))
-    }
-}
-
 impl std::fmt::Display for ConstraintExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -138,11 +135,12 @@ impl std::fmt::Display for ConstraintExpr {
             ConstraintExpr::NotEq(rhs, lhs) => write!(f, "({rhs} != {lhs})"),
             ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
             ConstraintExpr::UintBitsToRepresent(val) => write!(f, "UintBitsToRepresent({val})"),
+            ConstraintExpr::Pow(base, exp) => write!(f, "pow({base}, {exp})"),
         }
     }
 }
 
-pub fn bits_to_store(inner: ConstraintExpr) -> ConstraintExpr {
+pub fn bits_to_store(inner: Loc<ConstraintExpr>) -> ConstraintExpr {
     ConstraintExpr::UintBitsToRepresent(Box::new(inner))
 }
 
@@ -218,15 +216,19 @@ impl TypeConstraints {
     /// those updated values are returned. Such constraints are then removed
     pub fn update_type_level_value_constraints(
         &mut self,
-    ) -> Vec<Loc<(TypeVar, ConstraintReplacement)>> {
+    ) -> Result<Vec<Loc<(TypeVar, ConstraintReplacement)>>> {
         let mut new_known = vec![];
         self.inner = self
             .inner
             .iter_mut()
-            .filter_map(|(expr, rhs)| {
+            .map(|(expr, rhs)| {
                 let mut rhs = rhs.clone();
-                rhs.constraint = rhs.constraint.evaluate();
-
+                rhs.constraint = rhs.constraint.evaluate()?;
+                Ok((expr, rhs))
+            })
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .filter_map(|(expr, rhs)| {
                 match &rhs.constraint {
                     ConstraintExpr::Integer(val) => {
                         // ().at_loc(..).map is a somewhat ugly way to wrap an arbitrary type
@@ -262,12 +264,13 @@ impl TypeConstraints {
                     | ConstraintExpr::Difference(_, _)
                     | ConstraintExpr::Product(_, _)
                     | ConstraintExpr::UintBitsToRepresent(_)
+                    | ConstraintExpr::Pow(_, _)
                     | ConstraintExpr::Sub(_) => Some((expr.clone(), rhs)),
                 }
             })
             .collect();
 
-        new_known
+        Ok(new_known)
     }
 }
 

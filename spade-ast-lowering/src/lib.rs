@@ -827,6 +827,35 @@ pub fn visit_const_generic(
             args,
             turbofish: None,
         } => match callee.as_strs().as_slice() {
+            ["pow2"] => {
+                return Err(Diagnostic::error(callee, "pow2 is not a type level function")
+                    .primary_label("not a type level function")
+                    .span_suggest_replace("Did you mean pow?", callee, "pow")
+                )
+            }
+            ["pow"] => match &args.inner {
+                ast::ArgumentList::Positional(a) => {
+                    if a.len() != 2 {
+                        return Err(Diagnostic::error(
+                            args,
+                            format!("This function takes two arguments, {} provided", a.len()),
+                        )
+                        .primary_label("Expected 1 argument"));
+                    } else {
+                        let base = visit_const_generic(&a[0], ctx)?;
+                        let exp = visit_const_generic(&a[1], ctx)?;
+
+                        ConstGeneric::Pow(Box::new(base), Box::new(exp))
+                    }
+                }
+                ast::ArgumentList::Named(_) => {
+                    return Err(Diagnostic::error(
+                        t,
+                        "Passing arguments by name is unsupported in type expressions",
+                    )
+                    .primary_label("Arguments passed by name in type expression"))
+                }
+            },
             ["uint_bits_to_fit"] => match &args.inner {
                 ast::ArgumentList::Positional(a) => {
                     if a.len() != 1 {
