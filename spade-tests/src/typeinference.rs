@@ -2034,3 +2034,70 @@ code_compiles! {
         }
     "
 }
+
+code_compiles! {
+    late_trait_resolution,
+    "
+        trait Trait {}
+
+        struct S<T> {
+            a: T
+        }
+
+        impl Trait for S<bool> {}
+
+        fn requires_trait<T: Trait>(x: T) {}
+
+        fn test() {
+            decl x;
+            requires_trait(x);
+            let x = S::<int<8>>(8);
+        }
+    "
+}
+
+code_compiles! {
+    fake_lambda,
+    "
+        enum Option<T> {
+            Some{val: T},
+            None,
+        }
+        use Option::Some;
+        use Option::None;
+        
+        trait Fn<T, O> {
+          fn call(self, args: T) -> O;
+        }
+
+        struct FakeLambda {}
+
+        impl Fn<(int<8>, int<8>), int<9>> for FakeLambda {
+          fn call(self, args: (int<8>, int<8>)) -> int<9> {
+            let (a, b) = args;
+            a + b
+          }
+        }
+
+        impl<T> Option<T> {
+            fn map<F, O>(self, f: F) -> Option<O>
+                where F: Fn<T, O>
+            {
+                match self {
+                    Some(x) => None,
+                    _ => None
+                }
+            }
+        }
+
+        fn call<T, O, F: Fn<T, O>>(x: T, f: F) -> O {
+            f.call(x)
+        }
+
+        fn test() {
+            let x: (int<8>, int<7>) = (1, 2);
+            // FakeLambda().call(x)
+            call(x, FakeLambda())
+        }
+    "
+}

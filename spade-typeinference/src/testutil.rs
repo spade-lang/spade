@@ -7,7 +7,7 @@ use crate::fixed_types::t_int;
 use crate::TypeVar as TVar;
 
 #[cfg(test)]
-use crate::equation::TraitList;
+use crate::traits::TraitList;
 #[cfg(test)]
 use spade_types::meta_types::MetaType;
 

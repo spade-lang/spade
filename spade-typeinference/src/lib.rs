@@ -284,7 +284,7 @@ impl TypeState {
             )),
             hir::TypeSpec::Wildcard(_) => Ok(self.new_generic_any()),
             hir::TypeSpec::TraitSelf(_) => {
-                panic!("Trying to convert TraitSelf to type inference type var")
+                diag_bail!(loc, "Trying to convert TraitSelf to type inference type var")
             }
         }
     }
@@ -2133,6 +2133,17 @@ impl TypeState {
             Requirement::SharedBase(types) => {
                 Requirement::SharedBase(types.iter().map(|ty| replace!(ty)).collect())
             }
+            Requirement::ImplsTraits {
+                var,
+                traits,
+                trait_is_expected,
+                trait_list_loc,
+            } => Requirement::ImplsTraits {
+                var: replace!(var),
+                traits,
+                trait_is_expected,
+                trait_list_loc,
+            },
         };
 
         self.trace_stack
