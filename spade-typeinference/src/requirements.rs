@@ -344,24 +344,7 @@ impl Requirement {
                                 format!("{target_type} has no method `{method}`"),
                             ))
                         }
-                        [head] => {
-                            type_state.handle_function_like(
-                                *expr_id,
-                                &expr.inner,
-                                &FunctionLikeName::Method(method.inner.clone()),
-                                &head.1,
-                                call_kind,
-                                args,
-                                ctx,
-                                false,
-                                true,
-                                turbofish.as_ref().map(|turbofish| TurbofishCtx {
-                                    turbofish,
-                                    prev_generic_list,
-                                    type_ctx: ctx,
-                                }),
-                                prev_generic_list,
-                            )?;
+                        [_] => {
                             Ok(RequirementResult::Satisfied(vec![]))
                         }
                         multiple => Err(Diagnostic::error(
@@ -388,6 +371,8 @@ impl Requirement {
                 //     diag_bail!(loc, "Got a Requirement::ImplsTrait for an unknown type")
                 // }
                 // TODO: We should actually check this
+                // TODO: Do we even need this trait. It would probably only be used for marker
+                //       traits, right?
                 Ok(RequirementResult::Satisfied(vec![]))
             }
             Requirement::FitsIntLiteral { value, target_type } => {

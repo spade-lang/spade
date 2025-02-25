@@ -2059,13 +2059,6 @@ code_compiles! {
 code_compiles! {
     fake_lambda,
     "
-        enum Option<T> {
-            Some{val: T},
-            None,
-        }
-        use Option::Some;
-        use Option::None;
-        
         trait Fn<T, O> {
           fn call(self, args: T) -> O;
         }
@@ -2079,24 +2072,12 @@ code_compiles! {
           }
         }
 
-        impl<T> Option<T> {
-            fn map<F, O>(self, f: F) -> Option<O>
-                where F: Fn<T, O>
-            {
-                match self {
-                    Some(x) => None,
-                    _ => None
-                }
-            }
-        }
-
         fn call<T, O, F: Fn<T, O>>(x: T, f: F) -> O {
             f.call(x)
         }
 
         fn test() {
             let x: (int<8>, int<7>) = (1, 2);
-            // FakeLambda().call(x)
             call(x, FakeLambda())
         }
     "
