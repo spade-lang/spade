@@ -422,9 +422,11 @@ pub fn create_trait_from_unit_heads(
         })
         .collect::<Result<Vec<_>>>()?;
 
+    // TODO: Check if there are types in the annonymous trait def
+
     // Add the trait to the trait list
     ctx.item_list
-        .add_trait(name, visited_type_params, trait_members)?;
+        .add_trait(name, visited_type_params, trait_members, vec![])?;
 
     ctx.symtab.close_scope();
     Ok(())

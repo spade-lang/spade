@@ -127,7 +127,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         id -= 1;
 
         item_list
-            .add_trait(spade_hir::TraitName::Named(name), None, vec![])
+            .add_trait(spade_hir::TraitName::Named(name), None, vec![], vec![])
             .unwrap();
     };
     add_marker_trait(&["Number"])

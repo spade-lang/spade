@@ -2151,16 +2151,12 @@ impl TypeState {
         self.requirements.push(replaced)
     }
 
-    /// Performs unification but does not update constraints. This is done to avoid
-    /// updating constraints more often than necessary. Technically, constraints can
-    /// be updated even less often, but `unify` is a pretty natural point to do so.
-
-    fn unify_inner(
-        &mut self,
+    fn try_unify(
+        &self,
         e1: &impl HasType,
         e2: &impl HasType,
         ctx: &Context,
-    ) -> std::result::Result<TypeVar, UnificationError> {
+    ) -> std::result::Result<(TypeVar, Vec<TypeVar>), UnificationError> {
         let v1 = e1
             .get_type(self)
             .expect("Tried to unify types but the lhs was not found");
@@ -2483,7 +2479,22 @@ impl TypeState {
             }
         };
 
-        let (new_type, replaced_types) = result?;
+        result
+    }
+
+    /// Performs unification but does not update constraints. This is done to avoid
+    /// updating constraints more often than necessary. Technically, constraints can
+    /// be updated even less often, but `unify` is a pretty natural point to do so.
+
+    fn unify_inner(
+        &mut self,
+        e1: &impl HasType,
+        e2: &impl HasType,
+        ctx: &Context,
+    ) -> std::result::Result<TypeVar, UnificationError> {
+        let result = self.try_unify(e1, e2, ctx)?;
+
+        let (new_type, replaced_types) = result;
 
         self.trace_stack.push(TraceStackEntry::Unified(
             v1cpy,

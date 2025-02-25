@@ -756,6 +756,7 @@ impl WithLocation for ImplBlock {}
 pub struct TraitDef {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub fns: HashMap<Identifier, Loc<UnitHead>>,
+    pub types: HashMap<Identifier, Loc<TypeSpec>>
 }
 impl WithLocation for TraitDef {}
 
@@ -871,6 +872,7 @@ impl ItemList {
         name: TraitName,
         type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
         members: Vec<(Identifier, Loc<UnitHead>)>,
+        types: Vec<(Identifier, Loc<TypeSpec>)>,
     ) -> Result<(), Diagnostic> {
         if let Some((prev, _)) = self.traits.get_key_value(&name) {
             Err(
@@ -889,6 +891,7 @@ impl ItemList {
                 TraitDef {
                     type_params,
                     fns: members.into_iter().collect(),
+                    types: types.into_iter().collect(),
                 },
             );
             Ok(())
