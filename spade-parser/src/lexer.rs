@@ -205,6 +205,8 @@ pub enum TokenKind {
     Comma,
     #[token(".")]
     Dot,
+    #[token("..")]
+    DotDot,
     #[token(";")]
     Semi,
     #[token(";")]
@@ -322,6 +324,7 @@ impl TokenKind {
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Dot => ".",
+            TokenKind::DotDot => "..",
             TokenKind::PathSeparator => "::",
             TokenKind::SingleQuote => "'",
 

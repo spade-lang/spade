@@ -1033,7 +1033,7 @@ snapshot_error! {
     range_indexing_non_array_is_error,
     "
         fn test(x: int<8>) -> [int<8>; 2] {
-            x[0:3]
+            x[0..3]
         }
     "
 }
@@ -1042,7 +1042,7 @@ snapshot_error! {
     range_index_too_large_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 2] {
-            x[0:3]
+            x[0..3]
         }
     "
 }
@@ -1051,7 +1051,7 @@ snapshot_error! {
     range_index_too_small_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 2] {
-            x[0:1]
+            x[0..1]
         }
     "
 }
@@ -1060,7 +1060,7 @@ snapshot_error! {
     inverse_order_range_index_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 2] {
-            x[2:0]
+            x[2..0]
         }
     "
 }
@@ -1069,7 +1069,7 @@ snapshot_error! {
     end_out_of_range_range_index_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 2] {
-            x[5:7]
+            x[5..7]
         }
     "
 }
@@ -1078,7 +1078,7 @@ snapshot_error! {
     start_out_of_range_range_index_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 2] {
-            x[6:8]
+            x[6..8]
         }
     "
 }
@@ -1087,7 +1087,7 @@ snapshot_error! {
 fn end_at_array_bound_is_allowed() {
     let code = "
     fn test(x: [int<8>; 6]) -> [int<8>; 2] {
-        x[4:6]
+        x[4..6]
     }";
 
     build_items(code);
@@ -1097,7 +1097,7 @@ snapshot_error! {
     zero_size_range_index_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 1] {
-            x[7:7]
+            x[7..7]
         }
     "
 }
@@ -1106,7 +1106,7 @@ snapshot_error! {
     negative_range_index_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 6] {
-            x[-1:5]
+            x[-1..5]
         }
     "
 }
@@ -1115,7 +1115,7 @@ snapshot_error! {
     negative_second_range_index_is_error,
     "
         fn test(x: [int<8>; 6]) -> [int<8>; 1] {
-            x[1:-5]
+            x[1..-5]
         }
     "
 }

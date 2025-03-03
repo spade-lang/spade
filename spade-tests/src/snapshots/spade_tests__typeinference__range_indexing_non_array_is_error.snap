@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test(x: int<8>) -> [int<8>; 2] {
-    x[0:3]
+    x[0..3]
 }
 
 
@@ -11,13 +11,11 @@ error: Index target must be an array, got int<8>
   │
 1 │ fn test(x: int<8>) -> [int<8>; 2] {
   │            ------ Type int<8> inferred here
-2 │     x[0:3]
-  │     ^-----
+2 │     x[0..3]
+  │     ^------
   │     │
   │     Type [_; _] inferred here
   │     Expected array
   │
   = note: Expected: [_; _]
                Got: int<8>
-
-

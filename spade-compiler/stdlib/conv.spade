@@ -36,7 +36,7 @@ fn flip_array<T, #uint N>(in: [T; N]) -> [T; N] {
     gen if N == 0 {
         []
     } else {
-        in[N-1:N] `concat_arrays` flip_array(in[0:N-1])
+        in[N-1..N] `concat_arrays` flip_array(in[0..N-1])
     }
     // $if N {
     //     []

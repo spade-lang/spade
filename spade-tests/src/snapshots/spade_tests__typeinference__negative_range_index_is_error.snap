@@ -2,12 +2,12 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test(x: [int<8>; 6]) -> [int<8>; 6] {
-    x[-1:5]
+    x[-1..5]
 }
 
 
 error: The start of a range cannot be negative
   ┌─ testinput:2:7
   │
-2 │     x[-1:5]
+2 │     x[-1..5]
   │       ^^ Inferred negative range start (-1)

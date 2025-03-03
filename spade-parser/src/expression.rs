@@ -371,11 +371,11 @@ impl<'a> Parser<'a> {
                     // `start` is parsed as an expression since at this point we are parsing either
                     //
                     // - an array index (`a[2]`) which allows an expression (`a[2+offset]`)
-                    // - a range index (`a[1:2]`) which does not allow an expression
+                    // - a range index (`a[1..2]`) which does not allow an expression
                     let start = s.expression()?;
 
-                    if let Some(_) = s.peek_and_eat(&TokenKind::Colon)? {
-                        // colon => range index: `[1:2]`
+                    if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
+                        // double dot => range index: `[1..2]`
                         let end = s.expression()?;
                         Ok(Expression::RangeIndex {
                             target: Box::new(expr.clone()),

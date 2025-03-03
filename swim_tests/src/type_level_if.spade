@@ -1,6 +1,6 @@
 fn addone<#uint N>(seq: [uint<8>; N]) -> [uint<9>; N] {
     gen if N != 0 {
-        [seq[0] + 1] `concat_arrays` addone(seq[1:N])
+        [seq[0] + 1] `concat_arrays` addone(seq[1..N])
     } else {
         []
     }

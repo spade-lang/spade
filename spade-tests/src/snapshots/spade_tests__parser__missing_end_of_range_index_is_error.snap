@@ -3,12 +3,12 @@ source: spade-tests/src/parser.rs
 ---
 fn top() -> bool {
     let a = [true, true, false];
-    a[1:]
+    a[1..]
 }
 
 
 error: Unexpected `]`, expected expression
-  ┌─ testinput:3:9
+  ┌─ testinput:3:10
   │
-3 │     a[1:]
-  │         ^ expected expression here
+3 │     a[1..]
+  │          ^ expected expression here

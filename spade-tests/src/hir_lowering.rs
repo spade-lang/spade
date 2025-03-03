@@ -3213,7 +3213,7 @@ code_compiles! {
                 reg * 3;
                 [local]
             } else {
-                let rest = inst(3) par_multiply(clk, in[1:N]);
+                let rest = inst(3) par_multiply(clk, in[1..N]);
                 reg * 3;
                 [0;N]
             }
@@ -3237,7 +3237,7 @@ code_compiles! {
                 reg * 3;
                 [local]
             } else if N == 2 {
-                let rest = inst(3) par_multiply(clk, in[1:N]);
+                let rest = inst(3) par_multiply(clk, in[1..N]);
                 reg * 3;
                 [0;N]
             } else {

@@ -452,7 +452,7 @@ snapshot_error! {
     "
         fn top() -> bool {
             let a = [true, true, false];
-            a[1:]
+            a[1..]
         }
     "
 }

@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test(x: [int<8>; 6]) -> [int<8>; 1] {
-    x[7:7]
+    x[7..7]
 }
 
 
@@ -12,8 +12,8 @@ error: Output type mismatch. Expected [int<8>; 1], got [int<8>; 0]
 1 │   fn test(x: [int<8>; 6]) -> [int<8>; 1] {
   │                              ----------- [int<8>; 1] type specified here
   │ ╭────────────────────────────────────────^
-2 │ │     x[7:7]
-  │ │     ------ Type 0 inferred here
+2 │ │     x[7..7]
+  │ │     ------- Type 0 inferred here
 3 │ │ }
   │ ╰─^ Found type [int<8>; 0]
   │  
