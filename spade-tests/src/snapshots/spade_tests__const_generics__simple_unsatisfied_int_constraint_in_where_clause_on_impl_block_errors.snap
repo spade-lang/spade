@@ -14,16 +14,16 @@ fn test() -> int<10> {
 }
 
 
-error: Expected type Number<10>, got Number<9>
+error: Expected type int<10>, got int<9>
   ┌─ testinput:5:9
   │
 5 │         self + 1
-  │         ^^^^^^^^ Expected Number<10>, got Number<9>
+  │         ^^^^^^^^ Expected int<10>, got int<9>
   │
   = note: Expected: 10
-                in: Number<10>
+                in: int<10>
                Got: 9
-                in: Number<9>
+                in: int<9>
   = note: Addition creates one more output bit than the input to avoid overflow
   = The error is in a generic unit instantiated at
     ╰ testinput:10 impl_10::add_one<8, 10>

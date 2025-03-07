@@ -6,7 +6,7 @@ entity counter(x: int<4>, y:int<3>) -> int<8> {
 }
 
 
-error: Output type mismatch. Expected int<8>, got int<7>
+error: Output type mismatch. Expected int<8>, got Number<7>
   ┌─ testinput:1:47
   │  
 1 │   entity counter(x: int<4>, y:int<3>) -> int<8> {
@@ -15,11 +15,9 @@ error: Output type mismatch. Expected int<8>, got int<7>
 2 │ │     x `std::conv::concat` y
   │ │     ----------------------- Type 7 inferred here
 3 │ │ }
-  │ ╰─^ Found type int<7>
+  │ ╰─^ Found type Number<7>
   │  
   = note: Expected: 8
                 in: int<8>
                Got: 7
-                in: int<7>
-
-
+                in: Number<7>

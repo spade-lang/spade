@@ -1,5 +1,6 @@
 use itertools::Itertools;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
+use tracing::Instrument;
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};
@@ -8,134 +9,256 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::NameID,
 };
-use spade_hir::TraitName;
 use spade_types::{meta_types::MetaType, KnownType};
 
-pub type TypeEquations = HashMap<TypedExpression, TypeVar>;
+use crate::{
+    traits::{TraitList, TraitReq},
+    HasType, TypeState,
+};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct TraitReq {
-    pub name: TraitName,
-    pub type_params: Vec<TypeVar>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct TypeVarID {
+    pub inner: usize,
+    /// Key from the TypeState from which this var originates. See the `key` field
+    /// of the type state for details
+    pub type_state_key: u64,
 }
+impl WithLocation for TypeVarID {}
 
-impl WithLocation for TraitReq {}
+impl TypeVarID {
+    pub fn resolve(self, state: &TypeState) -> &TypeVar {
+        assert!(
+            state.keys.contains(&self.type_state_key),
+            "Type var key mismatch. Type states are being mixed incorrectly. Type state has {:?}, var has {}", state.keys, self.type_state_key
+        );
+        // In case our ID is stale, we'll need to look up the final ID
+        let final_id = self.get_type(state);
+        state.type_vars.get(final_id.inner).unwrap()
+    }
 
-impl TraitReq {
-    pub fn display_with_meta(&self, display_meta: bool) -> String {
-        if self.type_params.is_empty() {
-            format!("{}", self.name)
+    pub fn replace_inside(
+        self,
+        from: TypeVarID,
+        to: TypeVarID,
+        state: &mut TypeState,
+    ) -> TypeVarID {
+        if self.get_type(state) == from.get_type(state) {
+            to
         } else {
-            format!(
-                "{}<{}>",
-                self.name,
-                self.type_params
-                    .iter()
-                    .map(|t| format!("{}", t.display_with_meta(display_meta)))
-                    .join(", ")
-            )
+            let mut new = self.resolve(state).clone();
+            match &mut new {
+                TypeVar::Known(_, _known_type, params) => {
+                    params
+                        .iter_mut()
+                        .for_each(|var| *var = var.replace_inside(from, to, state));
+                }
+                TypeVar::Unknown(_, _, trait_list, _) => {
+                    trait_list.inner.iter_mut().for_each(|var| {
+                        let TraitReq {
+                            name: _,
+                            type_params,
+                        } = &mut var.inner;
+
+                        type_params
+                            .iter_mut()
+                            .for_each(|t| *t = t.replace_inside(from, to, state));
+                    })
+                }
+            };
+
+            // TODO: Does it matter if we replace eagerly here or should we keep track
+            // of if something changed?
+            new.insert(state)
+        }
+    }
+
+    pub fn display(self, type_state: &TypeState) -> String {
+        self.display_with_meta(false, type_state)
+    }
+
+    pub fn display_with_meta(self, meta: bool, type_state: &TypeState) -> String {
+        match self.resolve(type_state) {
+            TypeVar::Known(_, KnownType::Named(t), params) => {
+                let generics = if params.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        "<{}>",
+                        params
+                            .iter()
+                            .map(|p| format!("{}", p.display_with_meta(meta, type_state)))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+                format!("{}{}", t, generics)
+            }
+            TypeVar::Known(_, KnownType::Integer(inner), _) => {
+                format!("{inner}")
+            }
+            TypeVar::Known(_, KnownType::Bool(inner), _) => {
+                format!("{inner}")
+            }
+            TypeVar::Known(_, KnownType::Tuple, params) => {
+                format!(
+                    "({})",
+                    params
+                        .iter()
+                        .map(|t| format!("{}", t.display_with_meta(meta, type_state)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+            TypeVar::Known(_, KnownType::Array, params) => {
+                format!(
+                    "[{}; {}]",
+                    params[0].display_with_meta(meta, type_state),
+                    params[1].display_with_meta(meta, type_state)
+                )
+            }
+            TypeVar::Known(_, KnownType::Wire, params) => {
+                format!("&{}", params[0].display_with_meta(meta, type_state))
+            }
+            TypeVar::Known(_, KnownType::Inverted, params) => {
+                format!("inv {}", params[0].display_with_meta(meta, type_state))
+            }
+            TypeVar::Unknown(_, _, traits, meta_type) => match meta_type {
+                MetaType::Type => {
+                    if !traits.inner.is_empty() {
+                        traits
+                            .inner
+                            .iter()
+                            .map(|t| t.display_with_meta(meta, type_state))
+                            .join(" + ")
+                    } else {
+                        "_".to_string()
+                    }
+                }
+                _ => {
+                    if meta {
+                        format!("{}", meta_type)
+                    } else {
+                        format!("_")
+                    }
+                }
+            },
+        }
+    }
+
+    pub fn debug_resolve(self, state: &TypeState) -> TypeVarString {
+        match self.resolve(state) {
+            TypeVar::Known(_, base, params) => {
+                let params = if params.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(
+                        "<{}>",
+                        params.iter().map(|t| t.debug_resolve(state).0).join(", ")
+                    )
+                };
+                let base = match base {
+                    KnownType::Named(name_id) => format!("{name_id}"),
+                    KnownType::Integer(big_int) => format!("{big_int}"),
+                    KnownType::Bool(val) => format!("{val}"),
+                    KnownType::Tuple => format!("Tuple"),
+                    KnownType::Array => format!("Array"),
+                    KnownType::Wire => format!("&"),
+                    KnownType::Inverted => format!("inv &"),
+                };
+                TypeVarString(format!("{base}{params}"), self)
+            }
+            TypeVar::Unknown(_, id, traits, _meta_type) => {
+                let traits = if traits.inner.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(
+                        "({})",
+                        traits
+                            .inner
+                            .iter()
+                            .map(|t| t.debug_display(state))
+                            .join(" + ")
+                    )
+                };
+                TypeVarString(format!("t{id}{traits}"), self)
+            }
         }
     }
 }
 
-impl std::fmt::Display for TraitReq {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display_with_meta(false))
-    }
-}
-impl std::fmt::Debug for TraitReq {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.type_params.is_empty() {
-            write!(f, "{}", self.name)
-        } else {
-            write!(
-                f,
-                "{}<{}>",
-                self.name,
-                self.type_params.iter().map(|t| format!("{t:?}")).join(", ")
-            )
-        }
-    }
+/// A type which which should not be resolved directly but can be used to create new
+/// copies with unique type var ids
+#[derive(Clone, Copy, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
+pub struct TemplateTypeVarID {
+    inner: TypeVarID,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct TraitList {
-    pub inner: Vec<Loc<TraitReq>>,
-}
-
-impl TraitList {
-    pub fn empty() -> Self {
-        Self { inner: vec![] }
-    }
-
-    pub fn from_vec(inner: Vec<Loc<TraitReq>>) -> Self {
+impl TemplateTypeVarID {
+    pub fn new(inner: TypeVarID) -> Self {
         Self { inner }
     }
 
-    pub fn get_trait(&self, name: &TraitName) -> Option<&Loc<TraitReq>> {
-        self.inner.iter().find(|t| &t.name == name)
+    pub fn make_copy(&self, state: &mut TypeState) -> TypeVarID {
+        self.make_copy_with_mapping(state, &mut BTreeMap::new())
     }
 
-    pub fn get_trait_with_type_params(
+    pub fn make_copy_with_mapping(
         &self,
-        name: &TraitName,
-        type_params: &[TypeVar],
-    ) -> Option<&Loc<TraitReq>> {
-        self.inner
-            .iter()
-            .find(|t| &t.name == name && &t.type_params.as_slice() == &type_params)
-    }
+        state: &mut TypeState,
+        mapped: &mut BTreeMap<TemplateTypeVarID, TypeVarID>,
+    ) -> TypeVarID {
+        if let Some(prev) = mapped.get(self) {
+            return *prev;
+        }
 
-    pub fn extend(self, other: Self) -> Self {
-        let merged = self
-            .inner
-            .into_iter()
-            .chain(other.inner.into_iter())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect_vec();
-
-        TraitList { inner: merged }
-    }
-
-    pub fn display_with_meta(&self, display_meta: bool) -> String {
-        self.inner
-            .iter()
-            .map(|t| t.inner.display_with_meta(display_meta))
-            .join(" + ")
+        let new = match self.inner.resolve(state).clone() {
+            TypeVar::Known(loc, base, params) => TypeVar::Known(
+                loc,
+                base,
+                params
+                    .into_iter()
+                    .map(|p| TemplateTypeVarID { inner: p }.make_copy_with_mapping(state, mapped))
+                    .collect(),
+            ),
+            TypeVar::Unknown(loc, id, TraitList { inner: tl }, meta_type) => TypeVar::Unknown(
+                loc,
+                id,
+                TraitList {
+                    inner: tl
+                        .into_iter()
+                        .map(|loc| {
+                            loc.map(|req| TraitReq {
+                                name: req.name,
+                                type_params: req
+                                    .type_params
+                                    .into_iter()
+                                    .map(|p| {
+                                        TemplateTypeVarID { inner: p }
+                                            .make_copy_with_mapping(state, mapped)
+                                    })
+                                    .collect(),
+                            })
+                        })
+                        .collect(),
+                },
+                meta_type,
+            ),
+        };
+        let result = state.add_type_var(new);
+        mapped.insert(*self, result);
+        result
     }
 }
 
-// NOTE: The trait information is currently carried along with the type vars, but
-// the trait information should not be involved in comparisons
-impl PartialEq for TraitList {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-impl Eq for TraitList {}
-impl std::hash::Hash for TraitList {
-    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
-}
-impl PartialOrd for TraitList {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for TraitList {
-    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
-        std::cmp::Ordering::Equal
-    }
-}
+pub type TypeEquations = HashMap<TypedExpression, TypeVarID>;
 
-impl std::fmt::Display for TraitList {
+/// A frozen TypeVar that can be printed for debugging purposes
+#[derive(Debug, Clone)]
+pub struct TypeVarString(pub String, pub TypeVarID);
+
+impl std::fmt::Display for TypeVarString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display_with_meta(false))
-    }
-}
-impl std::fmt::Debug for TraitList {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display_with_meta(true))
+        write!(f, "{}", self.0)
     }
 }
 
@@ -144,10 +267,10 @@ impl std::fmt::Debug for TraitList {
 ///
 /// When TypeVars are passed externally into TypeState, they must be checked for replacement,
 /// as the type inference process might have refined them.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum TypeVar {
     /// The base type is known and has a list of parameters
-    Known(Loc<()>, KnownType, Vec<TypeVar>),
+    Known(Loc<()>, KnownType, Vec<TypeVarID>),
     /// The type is unknown, but must satisfy the specified traits. When the generic substitution
     /// is done, the TypeVars will be carried over to the KnownType type vars
     Unknown(Loc<()>, u64, TraitList, MetaType),
@@ -156,11 +279,29 @@ pub enum TypeVar {
 impl WithLocation for TypeVar {}
 
 impl TypeVar {
-    pub fn array(loc: Loc<()>, inner: TypeVar, size: TypeVar) -> Self {
+    pub fn into_known(&self, type_state: &TypeState) -> Option<KnownTypeVar> {
+        match self {
+            TypeVar::Known(loc, base, params) => Some(KnownTypeVar(
+                loc.clone(),
+                base.clone(),
+                params
+                    .iter()
+                    .map(|t| t.resolve(type_state).into_known(type_state))
+                    .collect::<Option<_>>()?,
+            )),
+            TypeVar::Unknown(_, _, _, _) => None,
+        }
+    }
+
+    pub fn insert(self, into: &mut TypeState) -> TypeVarID {
+        into.add_type_var(self)
+    }
+
+    pub fn array(loc: Loc<()>, inner: TypeVarID, size: TypeVarID) -> Self {
         TypeVar::Known(loc, KnownType::Array, vec![inner, size])
     }
 
-    pub fn tuple(loc: Loc<()>, inner: Vec<TypeVar>) -> Self {
+    pub fn tuple(loc: Loc<()>, inner: Vec<TypeVarID>) -> Self {
         TypeVar::Known(loc, KnownType::Tuple, inner)
     }
 
@@ -168,26 +309,26 @@ impl TypeVar {
         TypeVar::Known(loc, KnownType::Tuple, Vec::new())
     }
 
-    pub fn wire(loc: Loc<()>, inner: TypeVar) -> Self {
+    pub fn wire(loc: Loc<()>, inner: TypeVarID) -> Self {
         TypeVar::Known(loc, KnownType::Wire, vec![inner])
     }
 
-    pub fn backward(loc: Loc<()>, inner: TypeVar) -> Self {
+    pub fn backward(loc: Loc<()>, inner: TypeVarID, type_state: &mut TypeState) -> Self {
         TypeVar::Known(
             loc,
             KnownType::Inverted,
-            vec![TypeVar::Known(loc, KnownType::Wire, vec![inner])],
+            vec![type_state.add_type_var(TypeVar::Known(loc, KnownType::Wire, vec![inner]))],
         )
     }
 
-    pub fn inverted(loc: Loc<()>, inner: TypeVar) -> Self {
+    pub fn inverted(loc: Loc<()>, inner: TypeVarID) -> Self {
         TypeVar::Known(loc, KnownType::Inverted, vec![inner])
     }
 
     pub fn expect_known<T, U, K, O>(&self, on_known: K, on_unknown: U) -> T
     where
         U: FnOnce() -> T,
-        K: FnOnce(&KnownType, &[TypeVar]) -> T,
+        K: FnOnce(&KnownType, &[TypeVarID]) -> T,
     {
         match self {
             TypeVar::Unknown(_, _, _, _) => on_unknown(),
@@ -198,7 +339,7 @@ impl TypeVar {
     pub fn expect_named<T, U, K, O>(&self, on_named: K, on_unknown: U, on_other: O) -> T
     where
         U: FnOnce() -> T,
-        K: FnOnce(&NameID, &[TypeVar]) -> T,
+        K: FnOnce(&NameID, &[TypeVarID]) -> T,
         O: FnOnce(&TypeVar) -> T,
     {
         match self {
@@ -211,34 +352,25 @@ impl TypeVar {
     /// Expect a named type, or TypeVar::Inverted(named), or a recursive inversion.
     /// inverted_now is stateful and used to track if we are currently in an
     /// inverted context.
-    /// The first argument of the on_named function specifies whether or not
-    /// the final named type we found was inverted or not. I.e. if we ran it on
-    /// `inv T`, it would be called with (true, T), and if we ran it on `T` it would
-    /// be called with `(false, T)`
-    pub fn expect_named_or_inverted<T, U, K, O>(
+    pub fn resolve_named_or_inverted(
         &self,
         inverted_now: bool,
-        on_named: K,
-        on_unknown: U,
-        on_other: O,
-    ) -> T
-    where
-        U: FnOnce() -> T,
-        K: FnOnce(bool, &NameID, &[TypeVar]) -> T,
-        O: FnOnce(&TypeVar) -> T,
-    {
+        type_state: &TypeState,
+    ) -> ResolvedNamedOrInverted {
         match self {
-            TypeVar::Unknown(_, _, _, _) => on_unknown(),
+            TypeVar::Unknown(_, _, _, _) => ResolvedNamedOrInverted::Unknown,
             TypeVar::Known(_, KnownType::Inverted, params) => {
                 if params.len() != 1 {
                     panic!("Found wire with {} params", params.len())
                 }
-                params[0].expect_named_or_inverted(!inverted_now, on_named, on_unknown, on_other)
+                params[0]
+                    .resolve(type_state)
+                    .resolve_named_or_inverted(!inverted_now, type_state)
             }
             TypeVar::Known(_, KnownType::Named(name), params) => {
-                on_named(inverted_now, name, params)
+                ResolvedNamedOrInverted::Named(inverted_now, name.clone(), params.clone())
             }
-            other => on_other(other),
+            _ => ResolvedNamedOrInverted::Other,
         }
     }
 
@@ -251,7 +383,7 @@ impl TypeVar {
     ) -> T
     where
         U: FnOnce() -> T,
-        K: FnOnce(&[TypeVar]) -> T,
+        K: FnOnce(&[TypeVarID]) -> T,
         O: FnOnce(&TypeVar) -> T,
     {
         match self {
@@ -280,7 +412,11 @@ impl TypeVar {
         }
     }
 
-    pub fn display_with_meta(&self, display_meta: bool) -> String {
+    pub fn display(&self, type_state: &TypeState) -> String {
+        self.display_with_meta(false, type_state)
+    }
+
+    pub fn display_with_meta(&self, display_meta: bool, type_state: &TypeState) -> String {
         match self {
             TypeVar::Known(_, KnownType::Named(t), params) => {
                 let generics = if params.is_empty() {
@@ -290,7 +426,7 @@ impl TypeVar {
                         "<{}>",
                         params
                             .iter()
-                            .map(|p| format!("{}", p.display_with_meta(display_meta)))
+                            .map(|p| format!("{}", p.display_with_meta(display_meta, type_state)))
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
@@ -308,7 +444,7 @@ impl TypeVar {
                     "({})",
                     params
                         .iter()
-                        .map(|t| format!("{}", t.display_with_meta(display_meta)))
+                        .map(|t| format!("{}", t.display_with_meta(display_meta, type_state)))
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -316,15 +452,18 @@ impl TypeVar {
             TypeVar::Known(_, KnownType::Array, params) => {
                 format!(
                     "[{}; {}]",
-                    params[0].display_with_meta(display_meta),
-                    params[1].display_with_meta(display_meta)
+                    params[0].display_with_meta(display_meta, type_state),
+                    params[1].display_with_meta(display_meta, type_state)
                 )
             }
             TypeVar::Known(_, KnownType::Wire, params) => {
-                format!("&{}", params[0].display_with_meta(display_meta))
+                format!("&{}", params[0].display_with_meta(display_meta, type_state))
             }
             TypeVar::Known(_, KnownType::Inverted, params) => {
-                format!("inv {}", params[0].display_with_meta(display_meta))
+                format!(
+                    "inv {}",
+                    params[0].display_with_meta(display_meta, type_state)
+                )
             }
             TypeVar::Unknown(_, _, traits, meta) if traits.inner.is_empty() => {
                 if display_meta {
@@ -340,7 +479,7 @@ impl TypeVar {
                     traits
                         .inner
                         .iter()
-                        .map(|t| format!("{}", t.display_with_meta(display_meta)))
+                        .map(|t| format!("{}", t.display_with_meta(display_meta, type_state)))
                         .join("+"),
                 )
             }
@@ -348,59 +487,49 @@ impl TypeVar {
     }
 }
 
-impl std::fmt::Debug for TypeVar {
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct KnownTypeVar(pub Loc<()>, pub KnownType, pub Vec<KnownTypeVar>);
+
+impl KnownTypeVar {
+    pub fn insert(&self, type_state: &mut TypeState) -> TypeVarID {
+        let KnownTypeVar(loc, base, params) = self;
+        TypeVar::Known(
+            loc.clone(),
+            base.clone(),
+            params.into_iter().map(|p| p.insert(type_state)).collect(),
+        )
+        .insert(type_state)
+    }
+}
+
+impl std::fmt::Display for KnownTypeVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeVar::Known(_, KnownType::Named(t), params) => {
-                let generics = if params.is_empty() {
-                    String::new()
-                } else {
-                    format!(
-                        "<{}>",
-                        params
-                            .iter()
-                            .map(|p| format!("{:?}", p))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    )
-                };
-                write!(f, "{}{}", t, generics)
+        let KnownTypeVar(_, base, params) = self;
+
+        match base {
+            KnownType::Named(name_id) => {
+                write!(f, "{name_id}")?;
+                if !params.is_empty() {
+                    write!(f, "<{}>", params.iter().map(|t| format!("{t}")).join(", "))?;
+                }
+                Ok(())
             }
-            TypeVar::Known(_, KnownType::Integer(inner), _) => {
-                write!(f, "{inner}")
+            KnownType::Integer(val) => write!(f, "{val}"),
+            KnownType::Bool(val) => write!(f, "{val}"),
+            KnownType::Tuple => {
+                write!(f, "({})", params.iter().map(|t| format!("{t}")).join(", "))
             }
-            TypeVar::Known(_, KnownType::Bool(inner), _) => {
-                write!(f, "{inner}")
-            }
-            TypeVar::Known(_, KnownType::Tuple, params) => {
-                write!(
-                    f,
-                    "({})",
-                    params
-                        .iter()
-                        .map(|t| format!("{:?}", t))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            }
-            TypeVar::Known(_, KnownType::Array, params) => {
-                write!(f, "[{:?}; {:?}]", params[0], params[1])
-            }
-            TypeVar::Known(_, KnownType::Wire, params) => write!(f, "&{:?}", params[0]),
-            TypeVar::Known(_, KnownType::Inverted, params) => write!(f, "inv {:?}", params[0]),
-            TypeVar::Unknown(_, id, traits, meta_type) => write!(
-                f,
-                "t{id}({}, {meta_type})",
-                traits.inner.iter().map(|t| format!("{t}")).join("+")
-            ),
+            KnownType::Array => write!(f, "[{}; {}]", params[0], params[1]),
+            KnownType::Wire => write!(f, "&{}", params[0]),
+            KnownType::Inverted => write!(f, "inv &{}", params[0]),
         }
     }
 }
 
-impl std::fmt::Display for TypeVar {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display_with_meta(false))
-    }
+pub enum ResolvedNamedOrInverted {
+    Unknown,
+    Named(bool, NameID, Vec<TypeVarID>),
+    Other,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Serialize, Deserialize)]

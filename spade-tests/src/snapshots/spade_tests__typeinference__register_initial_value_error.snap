@@ -7,16 +7,14 @@ entity t(clk: clock) -> bool {
 }
 
 
-error: Register initial value mismatch. Expected bool got Number<_>
+error: Register initial value mismatch. Expected bool got Number<#uint>
   ┌─ testinput:2:24
   │
 2 │     reg(clk) x initial(0) = true;
   │              -         ^    ---- Type bool inferred here
   │              │         │     
-  │              │         expected bool, got Number<_>
-  │              because this has type Number<_>
+  │              │         expected bool, got Number<#uint>
+  │              because this has type Number<#uint>
   │
   = note: Expected: bool
                Got: Number<_>
-
-

@@ -3,9 +3,9 @@ use itertools::Itertools;
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
-use crate::constraints::ConstraintSource;
+use crate::{constraints::ConstraintSource, equation::TypeVarID, traits::TraitReq, TypeState};
 
-use super::equation::{TraitReq, TypeVar};
+use super::equation::TypeVar;
 
 /// A trace of a unification error. The `failing` field indicates which exact type failed to unify,
 /// while the `inside` is the "top level" type which failed to unify if it's not the same as
@@ -15,48 +15,49 @@ use super::equation::{TraitReq, TypeVar};
 /// while if unifying `int<7>` with `bool`, inside would be `None`
 #[derive(Debug, PartialEq, Clone)]
 pub struct UnificationTrace {
-    pub failing: TypeVar,
-    pub inside: Option<TypeVar>,
+    pub failing: TypeVarID,
+    pub inside: Option<TypeVarID>,
 }
 impl WithLocation for UnificationTrace {}
-impl std::fmt::Display for UnificationTrace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.outer())
-    }
-}
 
 impl UnificationTrace {
-    pub fn new(failing: TypeVar) -> Self {
+    pub fn new(failing: TypeVarID) -> Self {
         Self {
             failing,
             inside: None,
         }
     }
 
-    pub fn outer(&self) -> &TypeVar {
-        self.inside.as_ref().unwrap_or(&self.failing)
+    pub fn outer(&self) -> TypeVarID {
+        *self.inside.as_ref().unwrap_or(&self.failing)
     }
 
-    pub fn display_with_meta(&self, meta: bool) -> String {
+    pub fn display_with_meta(&self, meta: bool, type_state: &TypeState) -> String {
         self.inside
             .as_ref()
             .unwrap_or(&self.failing)
-            .display_with_meta(meta)
+            .display_with_meta(meta, type_state)
+    }
+
+    pub fn display(&self, type_state: &TypeState) -> String {
+        self.outer().display_with_meta(false, type_state)
     }
 }
+
 pub trait UnificationErrorExt<T>: Sized {
     fn add_context(
         self,
-        got: TypeVar,
-        expected: TypeVar,
+        got: TypeVarID,
+        expected: TypeVarID,
     ) -> std::result::Result<T, UnificationError>;
 
     /// Creates a diagnostic with a generic type mismatch error
     fn into_default_diagnostic(
         self,
         unification_point: impl Into<FullSpan> + Clone,
+        type_state: &TypeState,
     ) -> std::result::Result<T, Diagnostic> {
-        self.into_diagnostic(unification_point, |d, _| d)
+        self.into_diagnostic(unification_point, |d, _| d, type_state)
     }
 
     /// Creates a diagnostic with a generic type mismatch error
@@ -64,14 +65,15 @@ pub trait UnificationErrorExt<T>: Sized {
         self,
         unification_point: impl Into<FullSpan> + Clone,
         message: Option<F>,
+        type_state: &TypeState,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
         if let Some(message) = message {
-            self.into_diagnostic(unification_point, message)
+            self.into_diagnostic(unification_point, message, type_state)
         } else {
-            self.into_diagnostic(unification_point, |d, _| d)
+            self.into_diagnostic(unification_point, |d, _| d, type_state)
         }
     }
 
@@ -84,22 +86,24 @@ pub trait UnificationErrorExt<T>: Sized {
         self,
         unification_point: impl Into<FullSpan> + Clone,
         message: F,
+        type_state: &TypeState,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
-        self.into_diagnostic_impl(unification_point, false, message)
+        self.into_diagnostic_impl(unification_point, false, message, type_state)
     }
 
     fn into_diagnostic_no_expected_source<F>(
         self,
         unification_point: impl Into<FullSpan> + Clone,
         message: F,
+        type_state: &TypeState,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
-        self.into_diagnostic_impl(unification_point, true, message)
+        self.into_diagnostic_impl(unification_point, true, message, type_state)
     }
 
     fn into_diagnostic_impl<F>(
@@ -107,6 +111,7 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         omit_expected_source: bool,
         message: F,
+        type_state: &TypeState,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic;
@@ -114,8 +119,8 @@ pub trait UnificationErrorExt<T>: Sized {
 impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
     fn add_context(
         self,
-        got: TypeVar,
-        expected: TypeVar,
+        got: TypeVarID,
+        expected: TypeVarID,
     ) -> std::result::Result<T, UnificationError> {
         match self {
             Ok(val) => Ok(val),
@@ -153,6 +158,7 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
         unification_point: impl Into<FullSpan> + Clone,
         omit_expected_source: bool,
         message: F,
+        type_state: &TypeState,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
@@ -166,8 +172,8 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
             match err {
                 UnificationError::Normal(TypeMismatch { e, g })
                 | UnificationError::MetaMismatch(TypeMismatch { e, g }) => {
-                    let e_disp = e.display_with_meta(display_meta);
-                    let g_disp = g.display_with_meta(display_meta);
+                    let e_disp = e.display_with_meta(display_meta, type_state);
+                    let g_disp = g.display_with_meta(display_meta, type_state);
                     let msg = format!("Expected type {e_disp}, got {g_disp}");
                     let diag = Diagnostic::error(unification_point.clone(), msg)
                         .primary_label(format!("Expected {e_disp}"));
@@ -185,18 +191,26 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             unification_point.clone(),
                             &e.failing,
                             display_meta,
+                            type_state,
                         )
                     } else {
                         diag
                     };
 
-                    let diag =
-                        add_known_type_context(diag, unification_point, &g.failing, display_meta);
+                    let diag = add_known_type_context(
+                        diag,
+                        unification_point,
+                        &g.failing,
+                        display_meta,
+                        type_state,
+                    );
                     diag.type_error(
-                        format!("{}", e.failing.display_with_meta(display_meta)),
-                        e.inside.map(|o| o.display_with_meta(display_meta)),
-                        format!("{}", g.failing.display_with_meta(display_meta)),
-                        g.inside.map(|o| o.display_with_meta(display_meta)),
+                        format!("{}", e.failing.display_with_meta(display_meta, type_state)),
+                        e.inside
+                            .map(|o| o.display_with_meta(display_meta, type_state)),
+                        format!("{}", g.failing.display_with_meta(display_meta, type_state)),
+                        g.inside
+                            .map(|o| o.display_with_meta(display_meta, type_state)),
                     )
                 }
                 UnificationError::UnsatisfiedTraits {
@@ -210,14 +224,17 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             "{} and {}",
                             traits[0..traits.len() - 1]
                                 .iter()
-                                .map(|i| i.inner.display_with_meta(display_meta))
+                                .map(|i| i.inner.display_with_meta(display_meta, type_state))
                                 .join(", "),
-                            traits[traits.len() - 1]
+                            traits[traits.len() - 1].display_with_meta(display_meta, type_state)
                         )
                     } else {
-                        format!("{}", traits[0].display_with_meta(display_meta))
+                        format!("{}", traits[0].display_with_meta(display_meta, type_state))
                     };
-                    let short_msg = format!("{var} does not implement {impls_str}");
+                    let short_msg = format!(
+                        "{var} does not implement {impls_str}",
+                        var = var.display_with_meta(display_meta, type_state)
+                    );
                     Diagnostic::error(
                         unification_point,
                         format!("Trait bound not satisfied. {short_msg}"),
@@ -239,26 +256,34 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         loc,
                         format!(
                             "Expected type {}, got {}",
-                            expected.display_with_meta(is_meta_error),
-                            got.display_with_meta(is_meta_error)
+                            expected.display_with_meta(is_meta_error, type_state),
+                            got.display_with_meta(is_meta_error, type_state)
                         ),
                     )
                     .primary_label(format!(
                         "Expected {}, got {}",
-                        expected.display_with_meta(is_meta_error),
-                        got.display_with_meta(is_meta_error)
+                        expected.display_with_meta(is_meta_error, type_state),
+                        got.display_with_meta(is_meta_error, type_state)
                     ));
 
                     let diag = diag.type_error(
-                        format!("{}", expected.failing.display_with_meta(is_meta_error)),
+                        format!(
+                            "{}",
+                            expected
+                                .failing
+                                .display_with_meta(is_meta_error, type_state)
+                        ),
                         expected
                             .inside
                             .as_ref()
-                            .map(|o| o.display_with_meta(is_meta_error)),
-                        format!("{}", got.failing.display_with_meta(is_meta_error)),
+                            .map(|o| o.display_with_meta(is_meta_error, type_state)),
+                        format!(
+                            "{}",
+                            got.failing.display_with_meta(is_meta_error, type_state)
+                        ),
                         got.inside
                             .as_ref()
-                            .map(|o| o.display_with_meta(is_meta_error)),
+                            .map(|o| o.display_with_meta(is_meta_error, type_state)),
                     );
 
                     match source {
@@ -297,10 +322,22 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         ConstraintSource::PipelineRegOffset { .. } => diag,
                         ConstraintSource::PipelineRegCount { reg, total } => Diagnostic::error(
                             total,
-                            format!("Expected {expected} in this pipeline."),
+                            format!(
+                                "Expected {expected} in this pipeline.",
+                                expected = expected.display(type_state)
+                            ),
                         )
-                        .primary_label(format!("Expected {expected} stages"))
-                        .secondary_label(reg, format!("This final register is number {got}")),
+                        .primary_label(format!(
+                            "Expected {expected} stages",
+                            expected = expected.display(type_state)
+                        ))
+                        .secondary_label(
+                            reg,
+                            format!(
+                                "This final register is number {expected}",
+                                expected = got.display(type_state)
+                            ),
+                        ),
                         ConstraintSource::PipelineAvailDepth => diag,
                     }
                 }
@@ -313,15 +350,19 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
 fn add_known_type_context(
     diag: Diagnostic,
     unification_point: impl Into<FullSpan> + Clone,
-    failing: &TypeVar,
+    failing: &TypeVarID,
     meta: bool,
+    type_state: &TypeState,
 ) -> Diagnostic {
-    match failing {
+    match failing.resolve(type_state) {
         TypeVar::Known(k, _, _) => {
             if FullSpan::from(k) != unification_point.clone().into() {
                 diag.secondary_label(
                     k,
-                    format!("Type {} inferred here", failing.display_with_meta(meta)),
+                    format!(
+                        "Type {} inferred here",
+                        failing.display_with_meta(meta, type_state)
+                    ),
                 )
             } else {
                 diag
@@ -331,7 +372,10 @@ fn add_known_type_context(
             if FullSpan::from(k) != unification_point.clone().into() {
                 diag.secondary_label(
                     k,
-                    format!("Type {} inferred here", failing.display_with_meta(meta)),
+                    format!(
+                        "Type {} inferred here",
+                        failing.display_with_meta(meta, type_state)
+                    ),
                 )
             } else {
                 diag
@@ -348,24 +392,30 @@ pub struct TypeMismatch {
     pub g: UnificationTrace,
 }
 impl TypeMismatch {
-    pub fn is_meta_error(&self) -> bool {
-        matches!(self.e.failing, TypeVar::Unknown(_, _, _, _))
-            || matches!(self.g.failing, TypeVar::Unknown(_, _, _, _))
+    pub fn is_meta_error(&self, type_state: &TypeState) -> bool {
+        matches!(
+            self.e.failing.resolve(type_state),
+            TypeVar::Unknown(_, _, _, _)
+        ) || matches!(
+            self.g.failing.resolve(type_state),
+            TypeVar::Unknown(_, _, _, _)
+        )
     }
 
-    pub fn display_e_g(&self) -> (String, String) {
-        let is_meta = self.is_meta_error();
+    pub fn display_e_g(&self, type_state: &TypeState) -> (String, String) {
+        let is_meta = self.is_meta_error(type_state);
         (
-            self.e.display_with_meta(is_meta),
-            self.g.display_with_meta(is_meta),
+            self.e.display_with_meta(is_meta, type_state),
+            self.g.display_with_meta(is_meta, type_state),
         )
     }
 }
-impl std::fmt::Display for TypeMismatch {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "expected {}, got {}", self.e, self.g)
-    }
-}
+// TODO: Keep or remove
+// impl std::fmt::Display for TypeMismatch {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "expected {}, got {}", self.e, self.g)
+//     }
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum UnificationError {
@@ -373,7 +423,7 @@ pub enum UnificationError {
     MetaMismatch(TypeMismatch),
     Specific(spade_diagnostics::Diagnostic),
     UnsatisfiedTraits {
-        var: TypeVar,
+        var: TypeVarID,
         traits: Vec<Loc<TraitReq>>,
         target_loc: Loc<()>,
     },
@@ -390,12 +440,10 @@ pub type Result<T> = std::result::Result<T, Diagnostic>;
 
 pub fn error_pattern_type_mismatch(
     reason: Loc<()>,
-) -> impl Fn(Diagnostic, TypeMismatch) -> Diagnostic {
-    move |diag,
-          TypeMismatch {
-              e: expected,
-              g: got,
-          }| {
+    type_state: &TypeState,
+) -> impl Fn(Diagnostic, TypeMismatch) -> Diagnostic + use<'_> {
+    move |diag, tm| {
+        let (expected, got) = tm.display_e_g(type_state);
         diag.message(format!(
             "Pattern type mismatch. Expected {expected} got {got}"
         ))

@@ -13,7 +13,7 @@ entity main(x: X) -> bool {
 }
 
 
-error: Argument type mismatch. Expected bool got Number<_>
+error: Argument type mismatch. Expected bool got Number<#uint>
   ┌─ testinput:7:11
   │
 2 │     b: bool,
@@ -24,5 +24,3 @@ error: Argument type mismatch. Expected bool got Number<_>
   │
   = note: Expected: bool
                Got: Number<_>
-
-

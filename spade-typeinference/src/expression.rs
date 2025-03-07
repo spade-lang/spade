@@ -3,7 +3,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diagnostic::DiagnosticLevel;
-use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
 use spade_hir::expression::{BinaryOperator, IntLiteralKind, NamedArgument, UnaryOperator};
 use spade_hir::{ExprKind, Expression};
 use spade_macros::trace_typechecker;
@@ -13,7 +13,6 @@ use spade_types::KnownType;
 use crate::constraints::{bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintSource};
 use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{TypeMismatch as Tm, UnificationErrorExt};
-use crate::fixed_types::{t_bit, t_bool};
 use crate::requirements::{ConstantInt, Requirement};
 use crate::{Context, GenericListToken, HasType, Result, TraceStackEntry, TypeState};
 
@@ -53,13 +52,18 @@ impl TypeState {
         assuming_kind!(ExprKind::TypeLevelInteger(value) = &expression => {
             let (t, _size) = self.new_generic_number(expression.loc(), ctx);
             self.unify(&t, &expression.inner, ctx)
-                .into_diagnostic(expression.loc(), |diag, Tm{e: _, g: _got}| {
+                .into_diagnostic(expression.loc(), |diag, _tm| {
                     diag
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify integer literal with integer")
-                })?;
-            let generic = self.get_generic_list(generic_list).get(value).ok_or_else(|| {
-                Diagnostic::bug(expression, "Found no generic list when visiting {value}")
+                }, self)?;
+            let generic = self
+                .get_generic_list(generic_list)
+                .ok_or_else(|| {
+                    diag_anyhow!(expression, "Found no generic list here")
+                })?
+                .get(value).ok_or_else(|| {
+                Diagnostic::bug(expression, "Found entry for {value} in generic list")
             })?;
             self.add_requirement(
                 Requirement::FitsIntLiteral {
@@ -93,11 +97,11 @@ impl TypeState {
                     let var = if !self.equations.contains_key(&key) {
                         let var = self.new_generic_tlint(stage.loc());
                         self.add_equation(key.clone(), var.clone());
-                        self.trace_stack.push(TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.clone()));
+                        self.trace_stack.push(TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     } else {
                         let var = self.equations.get(&key).unwrap().clone();
-                        self.trace_stack.push(TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.clone()));
+                        self.trace_stack.push(TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     };
                     // NOTE: Safe unwrap, depth is fresh
@@ -155,13 +159,24 @@ impl TypeState {
                 IntLiteralKind::Signed(size) => {
                     let (t, size_var) = self.new_split_generic_int(expression.loc(), ctx.symtab);
                     // NOTE: Safe unwrap, we're unifying a generic int with a size
-                    self.unify(&size_var, &KnownType::Integer(size.to_bigint()).at_loc(expression), ctx).unwrap();
+                    size_var
+                        .unify_with(&TypeVar::Known(
+                            expression.loc(),
+                            KnownType::Integer(size.to_bigint()),
+                            vec![]).insert(self),
+                            self
+                        )
+                        .commit(self, ctx)
+                        .unwrap();
                     (t, size_var)
                 },
                 IntLiteralKind::Unsigned(size) => {
                     let (t, size_var) = self.new_split_generic_uint(expression.loc(), ctx.symtab);
                     // NOTE: Safe unwrap, we're unifying a generic int with a size
-                    self.unify(&size_var, &KnownType::Integer(size.to_bigint()).at_loc(expression), ctx).unwrap();
+                    size_var
+                        .unify_with(&self.new_concrete_int(size.clone(), expression.loc()), self)
+                        .commit(self, ctx)
+                        .unwrap();
                     (t, size_var)
                 }
             };
@@ -170,7 +185,7 @@ impl TypeState {
                     diag
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify integer literal with integer")
-                })?;
+                }, self)?;
             self.add_requirement(Requirement::FitsIntLiteral {
                 value: ConstantInt::Literal(value.clone()),
                 target_type: t.at_loc(expression)
@@ -187,7 +202,10 @@ impl TypeState {
         ctx: &Context,
     ) -> Result<()> {
         assuming_kind!(ExprKind::BoolLiteral(_) = &expression => {
-            self.unify_expression_generic_error(expression, &t_bool(ctx.symtab).at_loc(expression), ctx)?;
+            expression
+                .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
+                .commit(self, ctx)
+                .into_default_diagnostic(expression, self)?;
         });
         Ok(())
     }
@@ -196,7 +214,10 @@ impl TypeState {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_bit_literal(&mut self, expression: &Loc<Expression>, ctx: &Context) -> Result<()> {
         assuming_kind!(ExprKind::BitLiteral(_) = &expression => {
-            self.unify_expression_generic_error(expression, &t_bit(ctx.symtab).at_loc(expression), ctx)?;
+            expression
+                .unify_with(&self.t_bit(expression.loc(), ctx.symtab), self)
+                .commit(self, ctx)
+                .into_default_diagnostic(expression, self)?
         });
         Ok(())
     }
@@ -217,16 +238,18 @@ impl TypeState {
 
             let mut inner_types = vec![];
             for expr in inner {
-                let t = self.type_of(&TypedExpression::Id(expr.id)).unwrap();
+                let t = self.type_of(&TypedExpression::Id(expr.id));
 
                 inner_types.push(t);
             }
 
-            self.unify_expression_generic_error(
-                expression,
-                &TypeVar::Known(expression.loc(), KnownType::Tuple, inner_types),
-                ctx
-            )?;
+            expression
+                .unify_with(
+                    &TypeVar::Known(expression.loc(), KnownType::Tuple, inner_types).insert(self),
+                    self
+                )
+                .commit(self, ctx)
+                .into_default_diagnostic(expression, self)?
         });
         Ok(())
     }
@@ -241,15 +264,15 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::TupleIndex(tup, index) = &expression => {
             self.visit_expression(tup, ctx, generic_list)?;
-            let t = self.type_of(&TypedExpression::Id(tup.id))?;
+            let t_id = self.type_of(&TypedExpression::Id(tup.id));
 
-            let inner_types = match t {
+            let inner_types = match t_id.resolve(self) {
                 TypeVar::Known(_, KnownType::Tuple, inner) => inner,
-                ref t @ TypeVar::Known(ref other_source, _, _) => {
+                TypeVar::Known(ref other_source, _, _) => {
                     return Err(Diagnostic::error(tup.loc(), "Attempt to use tuple indexing on non-tuple")
-                        .primary_label(format!("expected tuple, got {t}"))
+                        .primary_label(format!("expected tuple, got {t}", t = t_id.display(self)))
                         .secondary_label(index, "Because this is a tuple index")
-                        .secondary_label(other_source, format!("Type {t} inferred here"))
+                        .secondary_label(other_source, format!("Type {t} inferred here", t = t_id.display(self)))
                     );
                 }
                 TypeVar::Unknown(_, _, _, MetaType::Type | MetaType::Any) => {
@@ -296,8 +319,8 @@ impl TypeState {
         assuming_kind!(ExprKind::FieldAccess(target, field) = &expression => {
             self.visit_expression(target, ctx, generic_list)?;
 
-            let target_type = self.type_of(&TypedExpression::Id(target.id))?;
-            let self_type = self.type_of(&TypedExpression::Id(expression.id))?;
+            let target_type = self.type_of(&TypedExpression::Id(target.id));
+            let self_type = self.type_of(&TypedExpression::Id(expression.id));
 
             let requirement = Requirement::HasField {
                 target_type: target_type.at_loc(target),
@@ -338,10 +361,10 @@ impl TypeState {
 
             self.visit_argument_list(&args_with_self, ctx, generic_list)?;
 
-            let target_type = self.type_of(&TypedExpression::Id(target.id))?;
-            let self_type = self.type_of(&TypedExpression::Id(expression.id))?;
+            let target_type = self.type_of(&TypedExpression::Id(target.id));
+            let self_type = self.type_of(&TypedExpression::Id(expression.id));
 
-            let trait_list = if let TypeVar::Unknown(_, _, trait_list, MetaType::Type) = &target_type {
+            let trait_list = if let TypeVar::Unknown(_, _, trait_list, MetaType::Type) = &target_type.resolve(self) {
                 if !trait_list.inner.is_empty() {
                     Some(trait_list.clone())
                 } else {
@@ -385,28 +408,29 @@ impl TypeState {
             for (l, r) in members.iter().zip(members.iter().skip(1)) {
                 self.unify(r, l, ctx)
                     .into_diagnostic(r, |diag, Tm{e: expected, g: _got}| {
+                        let expected = expected.display(self);
                         diag.message(format!(
                             "Array element type mismatch. Expected {}",
                             expected
                         ))
                         .primary_label(format!("Expected {}", expected))
                         .secondary_label(members.first().unwrap().loc(), "To match this".to_string())
-                    })?;
+                    }, self)?;
             }
 
             let inner_type = if members.is_empty() {
                 self.new_generic_type(expression.loc())
             }
             else {
-                members[0].get_type(self)?
+                members[0].get_type(self)
             };
 
-            let size_type = TypeVar::Known(expression.loc(), KnownType::Integer(members.len().to_bigint()), vec![]);
+            let size_type = TypeVar::Known(expression.loc(), KnownType::Integer(members.len().to_bigint()), vec![]).insert(self);
             let result_type = TypeVar::array(
                 expression.loc(),
                 inner_type,
                 size_type,
-            );
+            ).insert(self);
 
             self.unify_expression_generic_error(expression, &result_type, ctx)?;
         });
@@ -423,13 +447,13 @@ impl TypeState {
             self.visit_expression(expr, ctx, generic_list)?;
 
 
-            let inner_type = expr.get_type(self)?;
+            let inner_type = expr.get_type(self);
             let size_type = self.visit_const_generic_with_id(amount, generic_list, ConstraintSource::ArraySize, ctx)?;
             // Force the type to be a uint
             let uint_type = self.new_generic_tluint(expression.loc());
-            self.unify(&size_type, &uint_type, ctx).into_default_diagnostic(expression.loc())?;
+            self.unify(&size_type, &uint_type, ctx).into_default_diagnostic(expression.loc(), self)?;
 
-            let result_type = TypeVar::array(expression.loc(), inner_type, size_type);
+            let result_type = TypeVar::array(expression.loc(), inner_type, size_type).insert(self);
 
             self.unify_expression_generic_error(expression, &result_type, ctx)?;
         });
@@ -446,8 +470,8 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::CreatePorts = &expression => {
             let inner_type = self.new_generic_type(expression.loc());
-            let inverted = TypeVar::Known(expression.loc(), KnownType::Inverted, vec![inner_type.clone()]);
-            let compound = TypeVar::tuple(expression.loc(), vec![inner_type, inverted]);
+            let inverted = TypeVar::Known(expression.loc(), KnownType::Inverted, vec![inner_type.clone()]).insert(self);
+            let compound = TypeVar::tuple(expression.loc(), vec![inner_type, inverted]).insert(self);
             self.unify_expression_generic_error(expression, &compound, ctx)?;
         });
         Ok(())
@@ -491,16 +515,16 @@ impl TypeState {
 
             self.unify(&index.inner, &int_type, ctx)
                 .into_diagnostic(index.as_ref(), |diag, Tm{e: _expected, g: got}| {
-
+                    let got = got.display(self);
                     diag.message(format!("Index must be an integer, got {}", got))
                         .primary_label("Expected integer".to_string())
-                })?;
+                }, self)?;
 
             let array_type = TypeVar::array(
                 expression.loc(),
-                expression.get_type(self)?,
+                expression.get_type(self),
                 array_size.clone()
-            );
+            ).insert(self);
             self.add_requirement(Requirement::ArrayIndexeeIsNonZero {
                 index: index.loc(),
                 array: array_type.clone().at_loc(target),
@@ -508,10 +532,11 @@ impl TypeState {
             });
             self.unify(&target.inner, &array_type, ctx)
                 .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
+                    let got = got.display(self);
                     diag
                         .message(format!("Index target must be an array, got {}", got))
                         .primary_label("Expected array".to_string())
-                })?;
+                }, self)?;
         });
         Ok(())
     }
@@ -537,9 +562,9 @@ impl TypeState {
             let end_var = self.visit_const_generic_with_id(end, generic_list, ConstraintSource::RangeIndex, ctx)?;
 
             let in_array_size = self.new_generic_tluint(target.loc());
-            let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone());
+            let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone()).insert(self);
             let out_array_size = self.new_generic_tluint(target.loc());
-            let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone());
+            let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone()).insert(self);
 
             let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
             self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
@@ -548,15 +573,16 @@ impl TypeState {
             self.add_requirement(Requirement::RangeIndexInArray { index: end_var.at_loc(end), size: in_array_size.at_loc(&target.loc()) });
 
             self.unify(&expression.inner, &out_array_type, ctx)
-                .into_default_diagnostic(expression)?;
+                .into_default_diagnostic(expression, self)?;
 
 
             self.unify(&target.inner, &in_array_type, ctx)
                 .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
+                    let got = got.display(self);
                     diag
                         .message(format!("Index target must be an array, got {}", got))
                         .primary_label("Expected array".to_string())
-                })?;
+                }, self)?;
         });
         Ok(())
     }
@@ -578,15 +604,16 @@ impl TypeState {
                     // NOTE: We could be more specific about this error specifying
                     // that the type of the block must match the return type, though
                     // that might just be spammy.
-                    .into_default_diagnostic(result)?;
+                    .into_default_diagnostic(result, self)?;
             } else {
                 // Block without return value. Unify with unit type.
-                self.unify(&expression.inner, &TypeVar::unit(expression.loc()), ctx)
+                let target = &TypeVar::unit(expression.loc()).insert(self);
+                self.unify(&expression.inner, target, ctx)
                     .into_diagnostic(Loc::nowhere(()), |err, Tm{g: _, e: _}| {
                         diag_anyhow!(
                             Loc::nowhere(()),
                             "This error shouldn't be possible: {err:?}"
-                        )})?;
+                        )}, self)?;
             }
         });
         Ok(())
@@ -605,20 +632,25 @@ impl TypeState {
             self.visit_expression(on_true, ctx, generic_list)?;
             self.visit_expression(on_false, ctx, generic_list)?;
 
-            self.unify(&cond.inner, &t_bool(ctx.symtab).at_loc(cond), ctx)
+            cond
+                .inner
+                .unify_with(&self.t_bool(cond.loc(), ctx.symtab), self)
+                .commit(self, ctx)
                 .into_diagnostic(cond.as_ref(), |diag, Tm{e: _expected, g: got}| {
+                    let got = got.display(self);
                     diag.
                         message(format!("If condition must be a bool, got {}", got))
                         .primary_label("Expected boolean")
-                })?;
+                }, self)?;
             self.unify(&on_false.inner, &on_true.inner, ctx)
-                .into_diagnostic(on_false.as_ref(), |diag, Tm{e: expected, g: got}| {
+                .into_diagnostic(on_false.as_ref(), |diag, tm| {
+                    let (expected, got) = tm.display_e_g(self);
                     diag.message("If branches have incompatible type")
                         .primary_label(format!("But this has type {got}"))
                         .secondary_label(on_true.as_ref(), format!("This branch has type {expected}"))
-                })?;
+                }, self)?;
             self.unify(expression, &on_false.inner, ctx)
-                .into_default_diagnostic(expression)?;
+                .into_default_diagnostic(expression, self)?;
         });
         Ok(())
     }
@@ -638,18 +670,19 @@ impl TypeState {
                 self.visit_pattern(pattern, ctx, generic_list)?;
 
                 self.unify(pattern, &cond.inner, ctx)
-                    .into_default_diagnostic(pattern)?;
+                    .into_default_diagnostic(pattern, self)?;
 
                 self.visit_expression(result, ctx, generic_list)?;
 
                 if i != 0 {
                     self.unify(&branches[0].1, result, ctx).into_diagnostic(
                         result,
-                        |diag, Tm{e: expected, g: got}| {
+                        |diag, tm| {
+                            let (expected, got) = tm.display_e_g(self);
                             diag.message("Match branches have incompatible type")
                                 .primary_label(format!("This branch has type {got}"))
                                 .secondary_label(&branches[0].1, format!("But this one has type {expected}"))
-                        }
+                        }, self
                     )?;
                 }
             }
@@ -678,11 +711,11 @@ impl TypeState {
             match op.inner {
                 BinaryOperator::Add
                 | BinaryOperator::Sub | BinaryOperator::Mul if self.use_wordlenght_inference => {
-                    let lhs_t = self.new_generic_int(expression.loc(), ctx.symtab);
+                    let lhs_t = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
                     self.unify_expression_generic_error(lhs, &lhs_t, ctx)?;
-                    let rhs_t = self.new_generic_int(expression.loc(), ctx.symtab);
+                    let rhs_t = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
                     self.unify_expression_generic_error(rhs, &rhs_t, ctx)?;
-                    let result_t = self.new_generic_int(expression.loc(), ctx.symtab);
+                    let result_t = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
                     self.unify_expression_generic_error(expression, &result_t, ctx)?;
                 }
                 BinaryOperator::Add
@@ -784,15 +817,24 @@ impl TypeState {
                     // FIXME: Make generic over types that can be compared
                     self.unify_expression_generic_error(lhs, &base, ctx)?;
                     self.unify_expression_generic_error(lhs, &rhs.inner, ctx)?;
-                    self.unify_expression_generic_error(expression, &t_bool(ctx.symtab).at_loc(expression), ctx)?;
+                    expression
+                        .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
+                        .commit(self, ctx)
+                        .into_default_diagnostic(expression.loc(), self)?;
                 }
                 BinaryOperator::LogicalAnd
                 | BinaryOperator::LogicalOr
                 | BinaryOperator::LogicalXor => {
-                    self.unify_expression_generic_error(lhs, &t_bool(ctx.symtab).at_loc(expression), ctx)?;
+                    lhs
+                        .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
+                        .commit(self, ctx)
+                        .into_default_diagnostic(expression.loc(), self)?;
                     self.unify_expression_generic_error(lhs, &rhs.inner, ctx)?;
 
-                    self.unify_expression_generic_error(expression, &t_bool(ctx.symtab).at_loc(expression), ctx)?;
+                    expression
+                        .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
+                        .commit(self, ctx)
+                        .into_default_diagnostic(expression, self)?;
                 }
             }
         });
@@ -811,7 +853,7 @@ impl TypeState {
             self.visit_expression(operand, ctx, generic_list)?;
             match &op.inner {
                 UnaryOperator::Sub => {
-                    let int_type = self.new_generic_int(expression.loc(), ctx.symtab);
+                    let int_type = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
                     self.unify_expression_generic_error(operand, &int_type, ctx)?;
                     self.unify_expression_generic_error(expression, &int_type, ctx)?
                 }
@@ -821,18 +863,19 @@ impl TypeState {
                     self.unify_expression_generic_error(expression, &number_type, ctx)?
                 }
                 UnaryOperator::Not => {
-                    self.unify_expression_generic_error(operand, &t_bool(ctx.symtab).at_loc(expression), ctx)?;
-                    self.unify_expression_generic_error(expression, &t_bool(ctx.symtab).at_loc(expression), ctx)?
+                    let bool = self.t_bool(expression.loc(), ctx.symtab);
+                    self.unify_expression_generic_error(operand, &bool, ctx)?;
+                    self.unify_expression_generic_error(expression, &bool, ctx)?
                 }
                 UnaryOperator::Dereference => {
                     let result_type = self.new_generic_type(expression.loc());
-                    let reference_type = TypeVar::wire(expression.loc(), result_type.clone());
+                    let reference_type = TypeVar::wire(expression.loc(), result_type.clone()).insert(self);
                     self.unify_expression_generic_error(operand, &reference_type, ctx)?;
                     self.unify_expression_generic_error(expression, &result_type, ctx)?
                 }
                 UnaryOperator::Reference => {
                     let result_type = self.new_generic_type(expression.loc());
-                    let reference_type = TypeVar::wire(expression.loc(), result_type.clone());
+                    let reference_type = TypeVar::wire(expression.loc(), result_type.clone()).insert(self);
                     self.unify_expression_generic_error(operand, &result_type, ctx)?;
                     self.unify_expression_generic_error(expression, &reference_type, ctx)?
                 }

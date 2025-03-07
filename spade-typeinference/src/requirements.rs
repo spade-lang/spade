@@ -12,15 +12,16 @@ use spade_hir::symbol_table::{TypeDeclKind, TypeSymbol};
 use spade_hir::{ArgumentList, Expression, TypeExpression};
 use spade_types::KnownType;
 
-use crate::equation::{TraitList, TypeVar};
+use crate::equation::{ResolvedNamedOrInverted, TypeVar, TypeVarID};
 use crate::error::{Result, TypeMismatch, UnificationErrorExt};
 use crate::method_resolution::{select_method, FunctionLikeName};
 use crate::trace_stack::TraceStackEntry;
+use crate::traits::TraitList;
 use crate::{Context, GenericListSource, GenericListToken, TurbofishCtx, TypeState};
 
 #[derive(Clone, Debug)]
 pub enum ConstantInt {
-    Generic(TypeVar),
+    Generic(TypeVarID),
     Literal(BigInt),
 }
 
@@ -28,25 +29,25 @@ pub enum ConstantInt {
 pub enum Requirement {
     HasField {
         /// The type which should have the associated field
-        target_type: Loc<TypeVar>,
+        target_type: Loc<TypeVarID>,
         /// The field which is required to exist on the struct
         field: Loc<Identifier>,
         /// The expression from which this requirement arises
-        expr: Loc<TypeVar>,
+        expr: Loc<TypeVarID>,
     },
     HasMethod {
         call_kind: CallKind,
         /// The ID of the expression which causes this requirement
         expr_id: Loc<ExprID>,
         /// The type which should have the associated method
-        target_type: Loc<TypeVar>,
+        target_type: Loc<TypeVarID>,
         /// For method call on monomorphised generic with trait bounds
         /// The traits which should be searched for the method
         trait_list: Option<TraitList>,
         /// The method which should exist on the type
         method: Loc<Identifier>,
         /// The expression from which this requirement arises
-        expr: Loc<TypeVar>,
+        expr: Loc<TypeVarID>,
         /// The argument list passed to the method. This should include the `self` expression as
         /// the appropriate argument (first positional or a non-shorthand self otherwise)
         args: Loc<ArgumentList<Expression>>,
@@ -55,114 +56,44 @@ pub enum Requirement {
         /// The generic list of the context where this is instantiated
         prev_generic_list: GenericListToken,
     },
+    ImplsTraits {
+        var: Loc<TypeVarID>,
+        traits: TraitList,
+        trait_is_expected: bool,
+        trait_list_loc: Loc<()>,
+    },
     /// The type should be an integer large enough to fit the specified value
     FitsIntLiteral {
         value: ConstantInt,
-        target_type: Loc<TypeVar>,
+        target_type: Loc<TypeVarID>,
     },
     ValidPipelineOffset {
-        definition_depth: Loc<TypeVar>,
-        current_stage: Loc<TypeVar>,
-        reference_offset: Loc<TypeVar>,
+        definition_depth: Loc<TypeVarID>,
+        current_stage: Loc<TypeVarID>,
+        reference_offset: Loc<TypeVarID>,
     },
     PositivePipelineDepth {
-        depth: Loc<TypeVar>,
+        depth: Loc<TypeVarID>,
     },
     RangeIndexEndAfterStart {
         expr: Loc<()>,
-        start: Loc<TypeVar>,
-        end: Loc<TypeVar>,
+        start: Loc<TypeVarID>,
+        end: Loc<TypeVarID>,
     },
     RangeIndexInArray {
-        index: Loc<TypeVar>,
-        size: Loc<TypeVar>,
+        index: Loc<TypeVarID>,
+        size: Loc<TypeVarID>,
     },
     ArrayIndexeeIsNonZero {
         index: Loc<()>,
-        array: Loc<TypeVar>,
-        array_size: Loc<TypeVar>,
+        array: Loc<TypeVarID>,
+        array_size: Loc<TypeVarID>,
     },
-    /// The provided TypeVar should all share a base type
-    SharedBase(Vec<Loc<TypeVar>>),
+    /// The provided TypeVarID should all share a base type
+    SharedBase(Vec<Loc<TypeVarID>>),
 }
 
 impl Requirement {
-    pub fn replace_type_var(&mut self, from: &TypeVar, to: &TypeVar) {
-        match self {
-            Requirement::HasField {
-                target_type,
-                expr,
-                field: _,
-            } => {
-                TypeState::replace_type_var(target_type, from, to);
-                TypeState::replace_type_var(expr, from, to);
-            }
-            Requirement::HasMethod {
-                expr_id: _,
-                target_type,
-                trait_list,
-                expr,
-                method: _,
-                args: _,
-                turbofish: _,
-                prev_generic_list: _,
-                call_kind: _,
-            } => {
-                if let TypeVar::Unknown(_, _, from_trait_list, _) = from {
-                    if !from_trait_list.inner.is_empty() {
-                        *trait_list = Some(from_trait_list.clone());
-                    }
-                }
-                TypeState::replace_type_var(target_type, from, to);
-                TypeState::replace_type_var(expr, from, to);
-            }
-            Requirement::FitsIntLiteral { value, target_type } => {
-                match value {
-                    ConstantInt::Generic(var) => TypeState::replace_type_var(var, from, to),
-                    ConstantInt::Literal(_) => {}
-                };
-                TypeState::replace_type_var(target_type, from, to);
-            }
-            Requirement::ValidPipelineOffset {
-                definition_depth,
-                current_stage,
-                reference_offset,
-            } => {
-                TypeState::replace_type_var(definition_depth, from, to);
-                TypeState::replace_type_var(current_stage, from, to);
-                TypeState::replace_type_var(reference_offset, from, to);
-            }
-            Requirement::RangeIndexEndAfterStart {
-                expr: _,
-                start,
-                end,
-            } => {
-                TypeState::replace_type_var(start, from, to);
-                TypeState::replace_type_var(end, from, to);
-            }
-            Requirement::RangeIndexInArray { index, size } => {
-                TypeState::replace_type_var(index, from, to);
-                TypeState::replace_type_var(size, from, to);
-            }
-            Requirement::ArrayIndexeeIsNonZero {
-                index: _,
-                array,
-                array_size,
-            } => {
-                TypeState::replace_type_var(array_size, from, to);
-                TypeState::replace_type_var(array, from, to);
-            }
-            Requirement::PositivePipelineDepth { depth } => {
-                TypeState::replace_type_var(depth, from, to)
-            }
-            Requirement::SharedBase(bases) => {
-                for t in bases {
-                    TypeState::replace_type_var(t, from, to)
-                }
-            }
-        }
-    }
-
     /// Check if there are updates that allow us to resolve the requirement.
     /// - If target_type is still `Unknown`, we don't know how to resolve the requirement
     /// - Otherwise it will either be unsatisfiable. i.e. the new type does not fulfill the
@@ -178,11 +109,14 @@ impl Requirement {
                 field,
                 expr,
             } => {
-                target_type.expect_named_or_inverted(
-                    false,
-                    |inverted, type_name, params| {
+                let resolved = target_type
+                    .resolve(&type_state)
+                    .clone()
+                    .resolve_named_or_inverted(false, type_state);
+                match resolved {
+                    ResolvedNamedOrInverted::Named(inverted, type_name, params) => {
                         // Check if we're dealing with a struct
-                        match ctx.symtab.type_symbol_by_id(type_name).inner {
+                        match ctx.symtab.type_symbol_by_id(&type_name).inner {
                             TypeSymbol::Declared(_, TypeDeclKind::Struct { is_port: _ }) => {}
                             TypeSymbol::Declared(_, TypeDeclKind::Enum) => {
                                 return Err(Diagnostic::error(
@@ -205,7 +139,10 @@ impl Requirement {
                                     target_type,
                                     "Field access on a generic type",
                                 )
-                                .primary_label(format!("Expected struct found {target_type}"))
+                                .primary_label(format!(
+                                    "Expected struct found {}",
+                                    target_type.display(type_state)
+                                ))
                                 .note("Field access is only allowed on structs"))
                             }
                             TypeSymbol::Alias(_) => diag_bail!(
@@ -215,7 +152,7 @@ impl Requirement {
                         }
 
                         // Get the struct, find the type of the field and unify
-                        let s = ctx.symtab.struct_by_id(type_name);
+                        let s = ctx.symtab.struct_by_id(&type_name);
 
                         let field_spec = if let Some(spec) = s.params.try_get_arg_type(field) {
                             spec
@@ -243,16 +180,18 @@ impl Requirement {
                         let raw_field_type =
                             type_state.type_var_from_hir(expr.loc(), field_spec, &generic_list)?;
                         let field_type = if inverted {
-                            match raw_field_type {
+                            match raw_field_type.resolve(type_state) {
                                 TypeVar::Known(loc, KnownType::Wire, inner) => {
-                                    TypeVar::backward(loc, inner[0].clone())
+                                    TypeVar::backward(loc.loc(), inner[0].clone(), type_state)
+                                        .insert(type_state)
                                 }
                                 TypeVar::Known(_, KnownType::Inverted, inner) => inner[0].clone(),
                                 // If we were in an inverted context and we find
                                 // a type which is not a wire, we need to invert
                                 // it.
                                 // This means that `a.b` if b is `T` is `inv T`
-                                other => TypeVar::inverted(target_type.loc(), other),
+                                _ => TypeVar::inverted(target_type.loc(), raw_field_type)
+                                    .insert(type_state),
                             }
                         } else {
                             raw_field_type
@@ -263,17 +202,21 @@ impl Requirement {
                             to: field_type,
                             context: None,
                         }]))
-                    },
-                    || Ok(RequirementResult::NoChange),
-                    |_| {
-                        Err(Diagnostic::error(
-                            target_type,
-                            format!("Field access on {} which is not a struct", target_type),
-                        )
-                        .primary_label(format!("Expected a struct, found {}", target_type))
-                        .help("Field access is only allowed on structs"))
-                    },
-                )
+                    }
+                    ResolvedNamedOrInverted::Unknown => Ok(RequirementResult::NoChange),
+                    ResolvedNamedOrInverted::Other => Err(Diagnostic::error(
+                        target_type,
+                        format!(
+                            "Field access on {} which is not a struct",
+                            target_type.display(type_state)
+                        ),
+                    )
+                    .primary_label(format!(
+                        "Expected a struct, found {}",
+                        target_type.display(type_state)
+                    ))
+                    .help("Field access is only allowed on structs")),
+                }
             }
             Requirement::HasMethod {
                 expr_id,
@@ -285,10 +228,15 @@ impl Requirement {
                 turbofish,
                 prev_generic_list,
                 call_kind,
-            } => match &target_type.inner {
+            } => match &target_type.inner.resolve(type_state) {
                 TypeVar::Known(_, _, _) => {
-                    let Some(implementor) =
-                        select_method(expr.loc(), target_type, method, &type_state.trait_impls)?
+                    let Some(implementor) = select_method(
+                        expr.loc(),
+                        target_type,
+                        method,
+                        &type_state.trait_impls,
+                        type_state,
+                    )?
                     else {
                         return Ok(RequirementResult::NoChange);
                     };
@@ -330,46 +278,54 @@ impl Requirement {
                         [] => {
                             return Err(Diagnostic::error(
                                 expr_id,
-                                format!("{target_type} has no method `{method}`"),
+                                format!(
+                                    "{target_type} has no method `{method}`",
+                                    target_type = target_type.display(type_state)
+                                ),
                             ))
                         }
-                        [head] => {
-                            type_state.handle_function_like(
-                                *expr_id,
-                                &expr.inner,
-                                &FunctionLikeName::Method(method.inner.clone()),
-                                &head.1,
-                                call_kind,
-                                args,
-                                ctx,
-                                false,
-                                true,
-                                turbofish.as_ref().map(|turbofish| TurbofishCtx {
-                                    turbofish,
-                                    prev_generic_list,
-                                    type_ctx: ctx,
-                                }),
-                                prev_generic_list,
-                            )?;
-                            Ok(RequirementResult::Satisfied(vec![]))
-                        }
+                        // NOTE: We need to wait until we've unified with a known type
+                        // before dropping this requirement in order to create a generic list
+                        [_] => Ok(RequirementResult::NoChange),
                         multiple => Err(Diagnostic::error(
                             expr_id,
                             format!("Multiple traits have a method `{method}` "),
                         )
                         .primary_label("Ambiguous method call")
-                        .secondary_label(target_type, format!("This has type {target_type}"))
+                        .secondary_label(
+                            target_type,
+                            format!(
+                                "This has type {target_type}",
+                                target_type = target_type.display(type_state)
+                            ),
+                        )
                         .note(format!(
                             "The method `{method}` exists on all these traits: {} and {}",
                             multiple[0..multiple.len() - 1]
                                 .iter()
-                                .map(|(t, _)| format!("{t}"))
+                                .map(|(t, _)| t.display(type_state))
                                 .join(", "),
-                            multiple[multiple.len() - 1].0
+                            multiple[multiple.len() - 1].0.display(type_state)
                         ))),
                     }
                 }
             },
+            Requirement::ImplsTraits {
+                var: _,
+                traits: _,
+                trait_is_expected: _,
+                trait_list_loc: _,
+            } => {
+                // We only add this requirement once type vars have been converted to known
+                // types.
+                // if let TypeVar::Unknown(loc, _, _, _) = var {
+                //     diag_bail!(loc, "Got a Requirement::ImplsTrait for an unknown type")
+                // }
+                // TODO: We should actually check this
+                // TODO: Do we even need this trait. It would probably only be used for marker
+                //       traits, right?
+                Ok(RequirementResult::Satisfied(vec![]))
+            }
             Requirement::FitsIntLiteral { value, target_type } => {
                 let int_type = ctx
                     .symtab
@@ -382,7 +338,7 @@ impl Requirement {
                     .map_err(|_| diag_anyhow!(target_type, "The type int was not in the symtab"))?
                     .0;
 
-                target_type.expect_named(
+                target_type.resolve(type_state).expect_named(
                     |name, params| {
                         let unsigned = if name == &int_type {
                             false
@@ -393,13 +349,13 @@ impl Requirement {
                         else {
                             return Err(Diagnostic::error(
                                 target_type,
-                                format!("Expected {target_type}, got integer literal")
+                                format!("Expected {target_type}, got integer literal", target_type = target_type.display(type_state))
                             )
-                                .primary_label(format!("expected {target_type}")));
+                                .primary_label(format!("expected {target_type}", target_type = target_type.display(type_state))));
                         };
 
                         diag_assert!(target_type, params.len() == 1);
-                        params[0].expect_integer(
+                        params[0].resolve(type_state).expect_integer(
                             |size| {
                                 let two = 2.to_bigint();
 
@@ -412,14 +368,18 @@ impl Requirement {
                                 })?;
 
                                 let value = match value {
-                                    ConstantInt::Generic(TypeVar::Unknown(_, _, _, _)) => return Ok(RequirementResult::NoChange),
-                                    ConstantInt::Generic(TypeVar::Known(_, KnownType::Integer(val), _)) => {
-                                        val.clone()
+                                    ConstantInt::Generic(tvar) => {
+                                        match tvar.resolve(type_state) {
+                                            TypeVar::Unknown(_, _, _, _) => return Ok(RequirementResult::NoChange),
+                                            TypeVar::Known(_, KnownType::Integer(val), _) => {
+                                                val.clone()
+                                            }
+                                            other @ TypeVar::Known(_, _, _) => diag_bail!(
+                                                target_type,
+                                                "Inferred non-integer type ({other}) for type level integer", other = other.display(type_state)
+                                            ),
+                                        }
                                     }
-                                    ConstantInt::Generic(other @ TypeVar::Known(_, _, _)) => diag_bail!(
-                                        target_type,
-                                        "Inferred non-integer type ({other}) for type level integer"
-                                    ),
                                     ConstantInt::Literal(val) => val.clone(),
                                 };
 
@@ -468,29 +428,31 @@ impl Requirement {
                                 }
                             },
                             || Ok(RequirementResult::NoChange),
-                            |_| diag_bail!(target_type, "Inferred {target_type} for integer literal"),
+                            |_| diag_bail!(target_type, "Inferred {target_type} for integer literal", target_type = target_type.display(type_state)),
                         )
                     },
                     || Ok(RequirementResult::NoChange),
-                    |other| diag_bail!(target_type, "Inferred {other} for integer literal"),
+                    |other| diag_bail!(target_type, "Inferred {other} for integer literal", other = other.display(type_state)),
                 )
             }
-            Requirement::PositivePipelineDepth { depth } => match &depth.inner {
-                TypeVar::Known(_, KnownType::Integer(i), _) => {
-                    if i < &BigInt::zero() {
-                        Err(Diagnostic::error(depth, "Negative pipeline depth")
-                            .primary_label(format!("Expected non-negative depth, found {i}")))
-                    } else {
-                        Ok(RequirementResult::Satisfied(vec![]))
+            Requirement::PositivePipelineDepth { depth } => {
+                match &depth.inner.resolve(type_state) {
+                    TypeVar::Known(_, KnownType::Integer(i), _) => {
+                        if i < &BigInt::zero() {
+                            Err(Diagnostic::error(depth, "Negative pipeline depth")
+                                .primary_label(format!("Expected non-negative depth, found {i}")))
+                        } else {
+                            Ok(RequirementResult::Satisfied(vec![]))
+                        }
                     }
+                    TypeVar::Known(_, _, _) => {
+                        Err(diag_anyhow!(depth, "Got non integer pipeline depth"))
+                    }
+                    TypeVar::Unknown(_, _, _, _) => Ok(RequirementResult::NoChange),
                 }
-                TypeVar::Known(_, _, _) => {
-                    Err(diag_anyhow!(depth, "Got non integer pipeline depth"))
-                }
-                TypeVar::Unknown(_, _, _, _) => Ok(RequirementResult::NoChange),
-            },
+            }
             Requirement::RangeIndexEndAfterStart { expr, start, end } => {
-                match (&start.inner, &end.inner) {
+                match (&start.resolve(type_state), &end.resolve(type_state)) {
                     (
                         TypeVar::Known(_, KnownType::Integer(start_val), _),
                         TypeVar::Known(_, KnownType::Integer(end_val), _),
@@ -513,58 +475,74 @@ impl Requirement {
                     }
                     (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
                         start,
-                        "Got non-integer ranges ({start}:{end})"
+                        "Got non-integer ranges ({start}:{end})",
+                        start = start.display(type_state),
+                        end = end.display(type_state),
                     )),
                 }
             }
-            Requirement::RangeIndexInArray { index, size } => match (&index.inner, &size.inner) {
-                (
-                    TypeVar::Known(_, KnownType::Integer(index_val), _),
-                    TypeVar::Known(_, KnownType::Integer(size_val), _),
-                ) => {
-                    if index_val > size_val {
-                        Err(Diagnostic::error(index, "Range index out of bounds")
-                            .primary_label(format!("Index `{index_val}` out of bounds"))
-                            .secondary_label(
-                                size,
-                                format!("The array only has {size_val} elements"),
-                            ))
-                    } else {
-                        Ok(RequirementResult::Satisfied(vec![]))
+            Requirement::RangeIndexInArray { index, size } => {
+                match (&index.resolve(type_state), &size.resolve(type_state)) {
+                    (
+                        TypeVar::Known(_, KnownType::Integer(index_val), _),
+                        TypeVar::Known(_, KnownType::Integer(size_val), _),
+                    ) => {
+                        if index_val > size_val {
+                            Err(Diagnostic::error(index, "Range index out of bounds")
+                                .primary_label(format!("Index `{index_val}` out of bounds"))
+                                .secondary_label(
+                                    size,
+                                    format!("The array only has {size_val} elements"),
+                                ))
+                        } else {
+                            Ok(RequirementResult::Satisfied(vec![]))
+                        }
                     }
+                    (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
+                        Ok(RequirementResult::NoChange)
+                    }
+                    (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
+                        index,
+                        "Got non-integer index or size (index: {index}, size: {size})",
+                        index = index.display(type_state),
+                        size = size.display(type_state),
+                    )),
                 }
-                (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
-                    Ok(RequirementResult::NoChange)
-                }
-                (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
-                    index,
-                    "Got non-integer index or size (index: {index}, size: {size})"
-                )),
-            },
+            }
             Requirement::ArrayIndexeeIsNonZero {
                 index,
                 array,
                 array_size,
-            } => match &array_size.inner {
+            } => match &array_size.resolve(type_state) {
                 TypeVar::Known(_, KnownType::Integer(size), _) => {
                     if size == &BigInt::ZERO {
                         Err(
                             Diagnostic::error(index, "Arrays without elements cannot be indexed")
                                 .primary_label("Indexing zero-element array")
-                                .secondary_label(array, format!("This has type {}", array)),
+                                .secondary_label(
+                                    array,
+                                    format!("This has type {}", array.display(type_state)),
+                                ),
                         )
                     } else {
                         Ok(RequirementResult::Satisfied(vec![]))
                     }
                 }
                 TypeVar::Unknown(_, _, _, _) => Ok(RequirementResult::NoChange),
-                other => diag_bail!(index, "Inferred non-integer array size ({other})"),
+                other => diag_bail!(
+                    index,
+                    "Inferred non-integer array size ({other})",
+                    other = other.display(type_state)
+                ),
             },
             Requirement::ValidPipelineOffset {
                 definition_depth,
                 current_stage,
                 reference_offset,
-            } => match (&definition_depth.inner, &reference_offset.inner) {
+            } => match (
+                &definition_depth.resolve(type_state),
+                &reference_offset.resolve(type_state),
+            ) {
                 (TypeVar::Known(_, dk, _), TypeVar::Known(_, rk, _)) => match (&dk, &rk) {
                     (KnownType::Integer(ddepth), KnownType::Integer(rdepth)) => {
                         if rdepth < &BigInt::zero() {
@@ -573,7 +551,7 @@ impl Requirement {
                                 format!("Pipeline references cannot refer to negative stages, inferred {rdepth}")
                             )
                                 .primary_label(format!("This references stage {rdepth}"))
-                                .help(format!("This offset is relative to the current stage which is {current_stage}")))
+                                .help(format!("This offset is relative to the current stage which is {current_stage}", current_stage = current_stage.display(type_state))))
                         } else if rdepth > ddepth {
                             Err(Diagnostic::error(
                                 reference_offset,
@@ -584,7 +562,8 @@ impl Requirement {
                                     "Depth {ddepth} specified here"
                                 ))
                                 .help(format!(
-                                    "This offset is relative to the current stage which is {current_stage}"
+                                    "This offset is relative to the current stage which is {current_stage}",
+                                    current_stage = current_stage.display(type_state)
                                 )))
                         } else {
                             Ok(RequirementResult::Satisfied(vec![]))
@@ -610,12 +589,14 @@ impl Requirement {
                 }
             },
             Requirement::SharedBase(types) => {
-                let first_known = types.iter().find_map(|t| match &t.inner {
-                    TypeVar::Known(loc, base, params) => {
-                        Some((loc, base.clone().at_loc(t), params))
-                    }
-                    TypeVar::Unknown(_, _, _, _) => None,
-                });
+                let first_known = types
+                    .iter()
+                    .find_map(|t| match t.resolve(type_state).clone() {
+                        TypeVar::Known(loc, base, params) => {
+                            Some((loc, base.clone().at_loc(t), params))
+                        }
+                        TypeVar::Unknown(_, _, _, _) => None,
+                    });
 
                 if let Some((loc, base, first_params)) = first_known {
                     Ok(RequirementResult::Satisfied(
@@ -629,22 +610,17 @@ impl Requirement {
                                 Replacement {
                                     from: ty.clone(),
                                     to: TypeVar::Known(
-                                        *loc,
+                                        loc,
                                         base.inner.clone(),
                                         first_params
                                             .iter()
                                             .map(|_| type_state.new_generic_any())
                                             .collect(),
-                                    ),
-                                    context: Some(Box::new(move |d, TypeMismatch { e, g }| {
-                                        let base = base.clone();
-                                        d.message(format!("Expected type {e}, got {g}"))
-                                            .primary_label(format!("expected {e}"))
-                                            .secondary_label(
-                                                base,
-                                                format!("type {g} inferred here"),
-                                            )
-                                    })),
+                                    )
+                                    .insert(type_state),
+                                    // TODO: The code that was here might have been important,
+                                    // write a test or something?
+                                    context: None,
                                 }
                             })
                             .collect(),
@@ -672,7 +648,7 @@ impl Requirement {
                 for Replacement { from, to, context } in replacements {
                     type_state
                         .unify(&from.inner, &to, ctx)
-                        .into_diagnostic_or_default(&from, context)?;
+                        .into_diagnostic_or_default(&from, context, type_state)?;
                 }
                 Ok(())
             }
@@ -681,8 +657,8 @@ impl Requirement {
 }
 
 pub struct Replacement {
-    pub from: Loc<TypeVar>,
-    pub to: TypeVar,
+    pub from: Loc<TypeVarID>,
+    pub to: TypeVarID,
     pub context: Option<Box<dyn Fn(Diagnostic, TypeMismatch) -> Diagnostic>>,
 }
 

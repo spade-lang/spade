@@ -8,14 +8,14 @@ entity test(clk: clock, idx: uint<32>) -> int<8> {
 }
 
 
-error: Expected type [(_, uint<32>, _); _], got [(_, uint<4>, _); _]
+error: Expected type [(bool, uint<32>, int<8>); 1], got [(bool, uint<4>, int<8>); 1]
   ┌─ testinput:3:60
   │
 3 │     let mem: Memory<int<8>, 16> = inst clocked_memory(clk, [(true, idx, 0)]);
-  │                                                            ^^^^^^^^^^^^^^^^ Expected [(_, uint<32>, _); _], got [(_, uint<4>, _); _]
+  │                                                            ^^^^^^^^^^^^^^^^ Expected [(bool, uint<32>, int<8>); 1], got [(bool, uint<4>, int<8>); 1]
   │
   = note: Expected: 32
-                in: [(_, uint<32>, _); _]
+                in: [(bool, uint<32>, int<8>); 1]
                Got: 4
-                in: [(_, uint<4>, _); _]
+                in: [(bool, uint<4>, int<8>); 1]
   = note: because the value is used as an index to a memory

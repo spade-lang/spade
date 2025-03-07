@@ -10,7 +10,7 @@ use spade_hir::{self as hir, ConstGenericWithId};
 use spade_hir::{TypeDeclaration, TypeList};
 use spade_types::{ConcreteType, KnownType};
 
-use crate::equation::{TypeVar, TypedExpression};
+use crate::equation::{TypeVar, TypeVarID, TypedExpression};
 use crate::TypeState;
 
 pub trait HasConcreteType {
@@ -263,16 +263,17 @@ impl TypeState {
     }
 
     pub fn inner_ungenerify_type(
-        var: &TypeVar,
+        &self,
+        var: &TypeVarID,
         symtab: &SymbolTable,
         type_list: &TypeList,
         invert: bool,
     ) -> Option<ConcreteType> {
-        match var {
+        match var.resolve(self) {
             TypeVar::Known(_, KnownType::Named(t), params) => {
                 let params = params
                     .iter()
-                    .map(|v| Self::inner_ungenerify_type(v, symtab, type_list, invert))
+                    .map(|v| self.inner_ungenerify_type(v, symtab, type_list, invert))
                     .collect::<Option<Vec<_>>>()?;
 
                 type_list
@@ -293,8 +294,8 @@ impl TypeState {
                 Some(ConcreteType::Bool(*val))
             }
             TypeVar::Known(_, KnownType::Array, inner) => {
-                let value = Self::inner_ungenerify_type(&inner[0], symtab, type_list, invert);
-                let size = Self::ungenerify_type(&inner[1], symtab, type_list).map(|t| {
+                let value = self.inner_ungenerify_type(&inner[0], symtab, type_list, invert);
+                let size = self.ungenerify_type(&inner[1], symtab, type_list).map(|t| {
                     if let ConcreteType::Integer(size) = t {
                         size
                     } else {
@@ -313,21 +314,21 @@ impl TypeState {
             TypeVar::Known(_, KnownType::Tuple, inner) => {
                 let inner = inner
                     .iter()
-                    .map(|v| Self::inner_ungenerify_type(v, symtab, type_list, invert))
+                    .map(|v| self.inner_ungenerify_type(v, symtab, type_list, invert))
                     .collect::<Option<Vec<_>>>()?;
                 Some(ConcreteType::Tuple(inner))
             }
             TypeVar::Known(_, KnownType::Wire, inner) => {
                 if invert {
-                    Self::inner_ungenerify_type(&inner[0], symtab, type_list, invert)
+                    self.inner_ungenerify_type(&inner[0], symtab, type_list, invert)
                         .map(|t| ConcreteType::Backward(Box::new(t)))
                 } else {
-                    Self::inner_ungenerify_type(&inner[0], symtab, type_list, invert)
+                    self.inner_ungenerify_type(&inner[0], symtab, type_list, invert)
                         .map(|t| ConcreteType::Wire(Box::new(t)))
                 }
             }
             TypeVar::Known(_, KnownType::Inverted, inner) => {
-                Self::inner_ungenerify_type(&inner[0], symtab, type_list, !invert)
+                self.inner_ungenerify_type(&inner[0], symtab, type_list, !invert)
             }
             TypeVar::Unknown(_, _, _, _) => None,
         }
@@ -336,11 +337,12 @@ impl TypeState {
     /// Converts the specified type to a concrete type, returning None
     /// if it fails
     pub fn ungenerify_type(
-        var: &TypeVar,
+        &self,
+        var: &TypeVarID,
         symtab: &SymbolTable,
         type_list: &TypeList,
     ) -> Option<ConcreteType> {
-        Self::inner_ungenerify_type(var, symtab, type_list, false)
+        self.inner_ungenerify_type(var, symtab, type_list, false)
     }
 
     /// Returns the type of the specified expression ID as a concrete type. If the type is not
@@ -364,21 +366,18 @@ impl TypeState {
         types: &TypeList,
     ) -> Result<ConcreteType, Diagnostic> {
         let id = id.into_typed_expression();
-        let t = self.type_of(&id.inner).map_err(|_| {
-            Diagnostic::bug(id.clone(), "Expression had no type")
-                .primary_label("This expression had no type")
-        })?;
+        let t = self.type_of(&id.inner);
 
-        if let Some(t) = Self::ungenerify_type(&t, symtab, types) {
+        if let Some(t) = self.ungenerify_type(&t, symtab, types) {
             Ok(t)
         } else {
             if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-                println!("The incomplete type is {t:?}")
+                println!("The incomplete type is {}", t.debug_resolve(self))
             }
             Err(
                 Diagnostic::error(id, "Type of expression is not fully known")
                     .primary_label("The type of this expression is not fully known")
-                    .note(format!("Found incomplete type: {t}")),
+                    .note(format!("Found incomplete type: {t}", t = t.display(self))),
             )
         }
     }
@@ -391,20 +390,15 @@ impl TypeState {
         symtab: &SymbolTable,
         types: &TypeList,
     ) -> Result<ConcreteType, Diagnostic> {
-        let t = self
-            .type_of(&TypedExpression::Name(name.inner.clone()))
-            .map_err(|_| {
-                Diagnostic::bug(name, format!("{name}) had no type"))
-                    .primary_label("This value had no type")
-            })?;
+        let t = self.type_of(&TypedExpression::Name(name.inner.clone()));
 
-        if let Some(t) = Self::ungenerify_type(&t, symtab, types) {
+        if let Some(t) = self.ungenerify_type(&t, symtab, types) {
             Ok(t)
         } else {
             Err(
                 Diagnostic::error(name, format!("Type of {name} is not fully known"))
                     .primary_label(format!("The type of {name} is not fully known"))
-                    .note(format!("Found incomplete type: {t}")),
+                    .note(format!("Found incomplete type: {t}", t = t.display(self))),
             )
         }
     }

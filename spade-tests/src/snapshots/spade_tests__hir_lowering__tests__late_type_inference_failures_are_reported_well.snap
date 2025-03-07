@@ -16,8 +16,8 @@ error: Expected type 32, got 16
   ┌─ testinput:1:1
   │  
 1 │ ╭ fn a<#uint N>(x: int<N>, y: int<32>) -> int<33> {
-  │                                   -- Type 32 inferred here
 2 │ │     x + y
+  │ │     - Type 32 inferred here
 3 │ │ }
   │ ╰─^ Expected 32
   ·  

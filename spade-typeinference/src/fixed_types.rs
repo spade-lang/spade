@@ -1,9 +1,14 @@
 use spade_common::{
-    location_info::WithLocation,
+    location_info::{Loc, WithLocation},
     name::{Identifier, Path},
 };
 use spade_hir::symbol_table::SymbolTable;
 use spade_types::KnownType;
+
+use crate::{
+    equation::{TypeVar, TypeVarID},
+    TypeState,
+};
 
 fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
     let path = Path(
@@ -22,6 +27,24 @@ fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
             })
             .0,
     )
+}
+
+impl TypeState {
+    pub fn t_int(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, t_int(symtab), vec![]))
+    }
+    pub fn t_uint(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, t_uint(symtab), vec![]))
+    }
+    pub fn t_bit(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, t_bit(symtab), vec![]))
+    }
+    pub fn t_bool(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, t_bool(symtab), vec![]))
+    }
+    pub fn t_clock(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, t_clock(symtab), vec![]))
+    }
 }
 
 pub fn t_int(symtab: &SymbolTable) -> KnownType {

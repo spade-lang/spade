@@ -1,14 +1,18 @@
 use num::{bigint::ToBigInt, BigInt, ToPrimitive};
+use serde::{Deserialize, Serialize};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_types::KnownType;
 
-use crate::equation::TypeVar;
+use crate::{
+    equation::{TypeVar, TypeVarID},
+    TypeState,
+};
 
 #[derive(Debug, Clone)]
 pub enum ConstraintExpr {
     Bool(bool),
     Integer(BigInt),
-    Var(TypeVar),
+    Var(TypeVarID),
     Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Difference(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Product(Box<ConstraintExpr>, Box<ConstraintExpr>),
@@ -24,11 +28,78 @@ pub enum ConstraintExpr {
 impl WithLocation for ConstraintExpr {}
 
 impl ConstraintExpr {
+    pub fn debug_display(&self, type_state: &TypeState) -> String {
+        match self {
+            ConstraintExpr::Bool(b) => format!("{b}"),
+            ConstraintExpr::Integer(v) => format!("{v}"),
+            ConstraintExpr::Var(type_var_id) => {
+                format!("{}", type_var_id.debug_resolve(type_state))
+            }
+            ConstraintExpr::Sum(lhs, rhs) => {
+                format!(
+                    "({} + {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Difference(lhs, rhs) => {
+                format!(
+                    "({} - {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Product(lhs, rhs) => {
+                format!(
+                    "({} * {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Div(lhs, rhs) => {
+                format!(
+                    "({} / {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Mod(lhs, rhs) => {
+                format!(
+                    "({} % {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Sub(lhs) => {
+                format!("(-{})", lhs.debug_display(type_state))
+            }
+            ConstraintExpr::Eq(lhs, rhs) => {
+                format!(
+                    "({} == {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::NotEq(lhs, rhs) => {
+                format!(
+                    "({} != {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::UintBitsToRepresent(c) => {
+                format!("uint_bits_to_fit({})", c.debug_display(type_state))
+            }
+        }
+    }
+}
+
+impl ConstraintExpr {
     /// Evaluates the ConstraintExpr returning a new simplified form
-    fn evaluate(&self) -> ConstraintExpr {
+    fn evaluate(&self, type_state: &TypeState) -> ConstraintExpr {
         let binop =
             |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> BigInt| {
-                match (lhs.evaluate(), rhs.evaluate()) {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
                         ConstraintExpr::Integer(op(l, r))
                     }
@@ -38,29 +109,46 @@ impl ConstraintExpr {
         match self {
             ConstraintExpr::Integer(_) => self.clone(),
             ConstraintExpr::Bool(_) => self.clone(),
-            ConstraintExpr::Var(_) => self.clone(),
+            ConstraintExpr::Var(v) => match v.resolve(type_state) {
+                TypeVar::Known(_, known_type, _) => match known_type {
+                    KnownType::Integer(i) => ConstraintExpr::Integer(i.clone()),
+                    KnownType::Bool(b) => ConstraintExpr::Bool(b.clone()),
+                    KnownType::Named(_)
+                    | KnownType::Tuple
+                    | KnownType::Array
+                    | KnownType::Wire
+                    | KnownType::Inverted => {
+                        panic!("Inferred non-integer or bool for constraint variable")
+                    }
+                },
+                TypeVar::Unknown(_, _, _, _) => self.clone(),
+            },
             ConstraintExpr::Sum(lhs, rhs) => binop(lhs, rhs, &|l, r| l + r),
             ConstraintExpr::Difference(lhs, rhs) => binop(lhs, rhs, &|l, r| l - r),
             ConstraintExpr::Product(lhs, rhs) => binop(lhs, rhs, &|l, r| l * r),
             ConstraintExpr::Div(lhs, rhs) => binop(lhs, rhs, &|l, r| l / r),
             ConstraintExpr::Mod(lhs, rhs) => binop(lhs, rhs, &|l, r| l % r),
-            ConstraintExpr::Sub(inner) => match inner.evaluate() {
+            ConstraintExpr::Sub(inner) => match inner.evaluate(type_state) {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
                 _ => self.clone(),
             },
-            ConstraintExpr::Eq(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Bool(l == r)
+            ConstraintExpr::Eq(lhs, rhs) => {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l == r)
+                    }
+                    _ => self.clone(),
                 }
-                _ => self.clone(),
-            },
-            ConstraintExpr::NotEq(lhs, rhs) => match (lhs.evaluate(), rhs.evaluate()) {
-                (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                    ConstraintExpr::Bool(l != r)
+            }
+            ConstraintExpr::NotEq(lhs, rhs) => {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l != r)
+                    }
+                    _ => self.clone(),
                 }
-                _ => self.clone(),
-            },
-            ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate() {
+            }
+            ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate(type_state) {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(if val == BigInt::ZERO {
                     BigInt::ZERO
                 } else {
@@ -84,8 +172,8 @@ impl ConstraintExpr {
 
     pub fn with_context(
         self,
-        replaces: &TypeVar,
-        inside: &TypeVar,
+        replaces: &TypeVarID,
+        inside: &TypeVarID,
         source: ConstraintSource,
     ) -> ConstraintRhs {
         ConstraintRhs {
@@ -123,31 +211,12 @@ impl std::ops::Neg for ConstraintExpr {
     }
 }
 
-impl std::fmt::Display for ConstraintExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConstraintExpr::Integer(val) => write!(f, "{val}"),
-            ConstraintExpr::Bool(val) => write!(f, "{val}"),
-            ConstraintExpr::Var(var) => write!(f, "{var}"),
-            ConstraintExpr::Sum(rhs, lhs) => write!(f, "({rhs} + {lhs})"),
-            ConstraintExpr::Difference(rhs, lhs) => write!(f, "({rhs} - {lhs})"),
-            ConstraintExpr::Product(rhs, lhs) => write!(f, "({rhs} * {lhs})"),
-            ConstraintExpr::Div(rhs, lhs) => write!(f, "({rhs} / {lhs})"),
-            ConstraintExpr::Mod(rhs, lhs) => write!(f, "({rhs} % {lhs})"),
-            ConstraintExpr::Eq(rhs, lhs) => write!(f, "({rhs} == {lhs})"),
-            ConstraintExpr::NotEq(rhs, lhs) => write!(f, "({rhs} != {lhs})"),
-            ConstraintExpr::Sub(val) => write!(f, "(-{val})"),
-            ConstraintExpr::UintBitsToRepresent(val) => write!(f, "UintBitsToRepresent({val})"),
-        }
-    }
-}
-
 pub fn bits_to_store(inner: ConstraintExpr) -> ConstraintExpr {
     ConstraintExpr::UintBitsToRepresent(Box::new(inner))
 }
 
 // Shorthand constructors for constraint_expr
-pub fn ce_var(v: &TypeVar) -> ConstraintExpr {
+pub fn ce_var(v: &TypeVarID) -> ConstraintExpr {
     ConstraintExpr::Var(v.clone())
 }
 pub fn ce_int(v: BigInt) -> ConstraintExpr {
@@ -198,11 +267,18 @@ pub struct ConstraintRhs {
     pub context: ConstraintContext,
 }
 
+impl ConstraintRhs {
+    pub fn debug_display(&self, type_state: &TypeState) -> String {
+        self.constraint.debug_display(type_state)
+    }
+}
+
 impl WithLocation for ConstraintRhs {}
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TypeConstraints {
-    pub inner: Vec<(TypeVar, Loc<ConstraintRhs>)>,
+    #[serde(skip)]
+    pub inner: Vec<(TypeVarID, Loc<ConstraintRhs>)>,
 }
 
 impl TypeConstraints {
@@ -210,22 +286,26 @@ impl TypeConstraints {
         Self { inner: vec![] }
     }
 
-    pub fn add_int_constraint(&mut self, lhs: TypeVar, rhs: Loc<ConstraintRhs>) {
+    pub fn add_int_constraint(&mut self, lhs: TypeVarID, rhs: Loc<ConstraintRhs>) {
         self.inner.push((lhs, rhs));
     }
 
     /// Calls `evaluate` on all constraints. If any constraints are now `T = Integer(val)`,
     /// those updated values are returned. Such constraints are then removed
     pub fn update_type_level_value_constraints(
-        &mut self,
-    ) -> Vec<Loc<(TypeVar, ConstraintReplacement)>> {
+        self,
+        type_state: &TypeState,
+    ) -> (
+        TypeConstraints,
+        Vec<Loc<(TypeVarID, ConstraintReplacement)>>,
+    ) {
         let mut new_known = vec![];
-        self.inner = self
+        let remaining = self
             .inner
-            .iter_mut()
+            .into_iter()
             .filter_map(|(expr, rhs)| {
                 let mut rhs = rhs.clone();
-                rhs.constraint = rhs.constraint.evaluate();
+                rhs.constraint = rhs.constraint.evaluate(type_state);
 
                 match &rhs.constraint {
                     ConstraintExpr::Integer(val) => {
@@ -267,7 +347,7 @@ impl TypeConstraints {
             })
             .collect();
 
-        new_known
+        (TypeConstraints { inner: remaining }, new_known)
     }
 }
 
@@ -282,19 +362,10 @@ pub struct ConstraintReplacement {
 pub struct ConstraintContext {
     /// A type var in which this constraint applies. For example, if a constraint
     /// this constraint constrains `t1` inside `int<t1>`, then `from` is `int<t1>`
-    pub inside: TypeVar,
+    pub inside: TypeVarID,
     /// The left hand side which this constrains. Used together with `from` to construct
     /// type errors
-    pub replaces: TypeVar,
+    pub replaces: TypeVarID,
     /// Context in which this constraint was added to give hints to the user
     pub source: ConstraintSource,
-}
-
-impl std::fmt::Display for TypeConstraints {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (lhs, rhs) in &self.inner {
-            writeln!(f, "{lhs}: {{ {rhs} }}", rhs = rhs.inner.constraint)?;
-        }
-        Ok(())
-    }
 }

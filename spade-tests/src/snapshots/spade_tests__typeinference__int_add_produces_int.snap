@@ -14,12 +14,7 @@ error: Expected type uint<9>, got int<_>
   │            │                      
   │            Type int<_> inferred here
 2 │     x + y
-  │     ^^^^^
-  │     │
-  │     expected uint<9>
-  │     type int<_> inferred here
+  │     ^^^^^ Expected uint<9>
   │
   = note: Expected: uint<9>
                Got: int<_>
-
-

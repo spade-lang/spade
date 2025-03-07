@@ -13,13 +13,9 @@ error: Expected type int<9>, got uint<_>
 1 │ fn test(x: uint<8>, y: uint<8>) -> int<9> {
   │            ------- Type uint<_> inferred here
 2 │     let z: int<9> = x + y;
-  │            ------   ^^^^^
-  │            │        │
-  │            │        expected int<9>
-  │            │        type uint<_> inferred here
+  │            ------   ^^^^^ Expected int<9>
+  │            │         
   │            Type int<9> inferred here
   │
   = note: Expected: int<9>
                Got: uint<_>
-
-

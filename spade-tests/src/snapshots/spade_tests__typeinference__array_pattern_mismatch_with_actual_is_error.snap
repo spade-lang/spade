@@ -17,8 +17,8 @@ error: Expected type [Number<_>; 2], got [bool; 2]
 3 │     match array {
 4 │         [true, true] => {}
   │         ^^^^^^^^^^^^
-  │         ││
-  │         │Type bool inferred here
+  │         │      │
+  │         │      Type bool inferred here
   │         Expected [Number<_>; 2]
   │
   = note: Expected: Number<_>

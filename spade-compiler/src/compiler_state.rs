@@ -17,13 +17,13 @@ use spade_mir::{
     renaming::{VerilogNameMap, VerilogNameSource},
     unit_name::InstanceMap,
 };
-use spade_typeinference::{equation::TypedExpression, TypeMap, TypeState};
+use spade_typeinference::{equation::TypedExpression, TypeState};
 use spade_types::ConcreteType;
 
 #[derive(Serialize, Deserialize)]
 pub struct MirContext {
     /// Mapping to concrete types for this instantiation of the entity
-    pub type_map: TypeMap,
+    pub type_state: TypeState,
     pub reg_name_map: BTreeMap<NameID, NameID>,
     pub verilog_name_map: VerilogNameMap,
 }
@@ -177,13 +177,17 @@ pub fn type_of_hierarchical_value(
         }
     };
 
-    let ty = mir_ctx
-        .type_map
-        .type_of(&typed_expr)
-        .ok_or_else(|| anyhow!("Did not find a type for {typed_expr}"))?;
+    let ty = mir_ctx.type_state.type_of(&typed_expr);
 
-    let concrete = TypeState::ungenerify_type(ty, symtab, &item_list.types)
-        .ok_or_else(|| anyhow!("Tried to ungenerify generic type {ty}"))?;
+    let concrete = mir_ctx
+        .type_state
+        .ungenerify_type(&ty, symtab, &item_list.types)
+        .ok_or_else(|| {
+            anyhow!(
+                "Tried to ungenerify generic type {ty}",
+                ty = ty.display(&mir_ctx.type_state)
+            )
+        })?;
 
     Ok(concrete)
 }

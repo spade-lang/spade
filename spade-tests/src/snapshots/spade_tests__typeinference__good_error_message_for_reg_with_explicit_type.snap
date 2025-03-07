@@ -14,7 +14,7 @@ error: Expected type (int<9>, int<16>), got bool
   ┌─ testinput:2:57
   │  
 2 │       reg(clk) (sample_i, audio_val): (int<9>, int<16>) = {
-  │                                       ----------------- Type (int<9>, int<16>) inferred here
+  │                --------------------- Type (int<9>, int<16>) inferred here
   │ ╭─────────────────────────────────────────────────────────^
 3 │ │         true
   │ │         ---- Type bool inferred here
@@ -23,5 +23,3 @@ error: Expected type (int<9>, int<16>), got bool
   │  
   = note: Expected: (int<9>, int<16>)
                Got: bool
-
-

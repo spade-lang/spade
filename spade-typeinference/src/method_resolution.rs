@@ -6,8 +6,9 @@ use spade_diagnostics::Diagnostic;
 use spade_hir::{ImplTarget, TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
-use crate::equation::TypeVar;
+use crate::equation::{TypeVar, TypeVarID};
 use crate::traits::{TraitImpl, TraitImplList};
+use crate::TypeState;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FunctionLikeName {
@@ -44,18 +45,29 @@ impl IntoImplTarget for KnownType {
 /// of type `self_type`.
 /// Returns the method to call if it is fully known and exists, an error if there is
 /// no such method, or None if the method is ambiguous
+// TODO: Consider making this a method on type_state
 pub fn select_method(
     expr: Loc<()>,
-    self_type: &TypeVar,
+    self_type: &TypeVarID,
     method: &Loc<Identifier>,
     trait_impls: &TraitImplList,
+    type_state: &TypeState,
 ) -> Result<Option<Loc<NameID>>, Diagnostic> {
     let target = self_type
+        .resolve(type_state)
         .expect_known::<_, _, _, Option<ImplTarget>>(
             |ktype, _params| ktype.into_impl_target(),
             || None,
         )
-        .ok_or_else(|| Diagnostic::error(expr, format!("{self_type} does not have any methods")))?;
+        .ok_or_else(|| {
+            Diagnostic::error(
+                expr,
+                format!(
+                    "{self_type} does not have any methods",
+                    self_type = self_type.display_with_meta(false, type_state)
+                ),
+            )
+        })?;
 
     // Go to the item list to check if this name has any methods
     let impls = trait_impls.inner.get(&target).cloned().unwrap_or(vec![]);
@@ -67,12 +79,14 @@ pub fn select_method(
             .flat_map(
                 |TraitImpl {
                      name: _,
-                     type_params: _,
+                     target_type_params: _,
+                     trait_type_params: _,
                      impl_block: r#impl,
                  }| {
                     r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
                         if fn_name == &method.inner {
-                            let is_overlapping = spec_is_overlapping(&r#impl.target, self_type);
+                            let is_overlapping =
+                                spec_is_overlapping(&r#impl.target, self_type, type_state);
                             let selected = actual_fn.0.clone().at_loc(&actual_fn.1);
                             match is_overlapping {
                                 Overlap::Yes => (Some(selected), None, None),
@@ -107,6 +121,7 @@ pub fn select_method(
     let final_method = match matched_candidates.as_slice() {
         [name] => name,
         [] => {
+            let self_type = self_type.display_with_meta(false, type_state);
             let mut d =
                 Diagnostic::error(method, format!("`{self_type}` has no method `{method}`"))
                     .primary_label("No such method")
@@ -170,20 +185,24 @@ where
     }
 }
 
-fn specs_are_overlapping(specs: &[Loc<TypeSpec>], vars: &[TypeVar]) -> Overlap {
+fn specs_are_overlapping(
+    specs: &[Loc<TypeSpec>],
+    vars: &[TypeVarID],
+    type_state: &TypeState,
+) -> Overlap {
     if specs.len() == vars.len() {
         specs
             .iter()
             .zip(vars)
-            .map(|(s, v)| spec_is_overlapping(s, v))
+            .map(|(s, v)| spec_is_overlapping(s, v, type_state))
             .all_overlap()
     } else {
         Overlap::No
     }
 }
 
-fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVar) -> Overlap {
-    match (&expr, var) {
+fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVarID, type_state: &TypeState) -> Overlap {
+    match (&expr, var.resolve(type_state)) {
         (TypeExpression::Integer(eval), TypeVar::Known(_, KnownType::Integer(vval), _)) => {
             if eval == vval {
                 Overlap::Yes
@@ -195,27 +214,31 @@ fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVar) -> Overlap {
         (TypeExpression::Integer(_), _) => {
             unreachable!("Non integer and non-generic type matched with integer")
         }
-        (TypeExpression::TypeSpec(s), v) => spec_is_overlapping(s, v),
+        (TypeExpression::TypeSpec(s), _v) => spec_is_overlapping(s, var, type_state),
         (TypeExpression::ConstGeneric(_), _) => {
             unreachable!("Const generic in expr_is_overlapping")
         }
     }
 }
 
-fn exprs_are_overlapping(exprs: &[Loc<TypeExpression>], vars: &[TypeVar]) -> Overlap {
+fn exprs_are_overlapping(
+    exprs: &[Loc<TypeExpression>],
+    vars: &[TypeVarID],
+    type_state: &TypeState,
+) -> Overlap {
     if exprs.len() == vars.len() {
         exprs
             .iter()
             .zip(vars)
-            .map(|(e, v)| expr_is_overlapping(e, v))
+            .map(|(e, v)| expr_is_overlapping(e, v, type_state))
             .all_overlap()
     } else {
         Overlap::No
     }
 }
 
-fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVar) -> Overlap {
-    match (spec, var) {
+fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVarID, type_state: &TypeState) -> Overlap {
+    match (spec, var.resolve(type_state)) {
         // Generics overlap with anything
         (TypeSpec::Generic(_), _) => Overlap::Yes,
         // For anything non-generic, we need a concrete type to know if there is overlap.
@@ -225,7 +248,7 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVar) -> Overlap {
             TypeVar::Known(_, KnownType::Named(varname), varparams),
         ) => {
             if &specname.inner == varname {
-                exprs_are_overlapping(specparams, varparams)
+                exprs_are_overlapping(specparams, varparams, type_state)
             } else {
                 Overlap::No
             }
@@ -235,19 +258,19 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVar) -> Overlap {
         // NOTE: This block currently cannot be tested because we can't add methods to
         // anything other than declared types
         (TypeSpec::Tuple(sspecs), TypeVar::Known(_, KnownType::Tuple, vvars)) => {
-            specs_are_overlapping(sspecs, vvars)
+            specs_are_overlapping(sspecs, vvars, type_state)
         }
         (TypeSpec::Tuple(_), _) => Overlap::No,
         (TypeSpec::Array { inner, size }, TypeVar::Known(_, KnownType::Array, vvars)) => [
-            spec_is_overlapping(inner, &vvars[0]),
-            expr_is_overlapping(size, &vvars[1]),
+            spec_is_overlapping(inner, &vvars[0], type_state),
+            expr_is_overlapping(size, &vvars[1], type_state),
         ]
         .into_iter()
         .all_overlap(),
         (TypeSpec::Array { .. }, _) => Overlap::No,
         (TypeSpec::Inverted(sinner), TypeVar::Known(_, KnownType::Inverted, vinner))
         | (TypeSpec::Wire(sinner), TypeVar::Known(_, KnownType::Wire, vinner)) => {
-            spec_is_overlapping(sinner, &vinner[0])
+            spec_is_overlapping(sinner, &vinner[0], type_state)
         }
         (TypeSpec::Inverted(_), _) => Overlap::No,
         (TypeSpec::Wire(_), _) => Overlap::No,

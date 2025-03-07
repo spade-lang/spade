@@ -887,10 +887,8 @@ pub fn lower_wal_trace(
     result: &mut StatementList,
     concrete_ty: &ConcreteType,
 ) -> Result<()> {
-    let hir_ty = pattern
-        .get_type(ctx.types)
-        .map_err(|_| diag_anyhow!(pattern, "Pattern had no type during WAL trace generation"))?;
-    match &hir_ty {
+    let hir_ty = pattern.get_type(ctx.types);
+    match &hir_ty.resolve(&ctx.types) {
         TypeVar::Known(_, spade_types::KnownType::Named(name), _) => {
             let ty = ctx.item_list.types.get(name);
 
@@ -914,7 +912,7 @@ pub fn lower_wal_trace(
                         .primary_label(format!("{} does not have #[wal_traceable]", name))
                         .secondary_label(
                             pattern,
-                            format!("This has type {} which does not have #[wal_traceable]", hir_ty),
+                            format!("This has type {} which does not have #[wal_traceable]", hir_ty.debug_resolve(ctx.types)),
                         )
                         .note("This most likely means that the struct can not be analyzed by a wal script"));
                     }
@@ -927,7 +925,11 @@ pub fn lower_wal_trace(
                     .primary_label(format!("#[wal_trace] on {}", other.name()))
                     .secondary_label(
                         pattern,
-                        format!("This has type {} which is {}", hir_ty, other.name()),
+                        format!(
+                            "This has type {} which is {}",
+                            hir_ty.debug_resolve(ctx.types),
+                            other.name()
+                        ),
                     )
                     .into())
                 }
@@ -941,8 +943,11 @@ pub fn lower_wal_trace(
                 wal_trace,
                 "#[wal_trace] can only be applied to values of struct type",
             )
-            .primary_label(format!("#[wal_trace] on {}", other))
-            .secondary_label(pattern, format!("This has type {other}")))
+            .primary_label(format!("#[wal_trace] on {}", other.display(ctx.types)))
+            .secondary_label(
+                pattern,
+                format!("This has type {}", other.display(ctx.types)),
+            ))
         }
     }
     Ok(())
@@ -1282,7 +1287,7 @@ impl ExprLocal for Loc<Expression> {
                         generic_list,
                     )?;
 
-                    let value = match TypeState::ungenerify_type(
+                    let value = match ctx.types.ungenerify_type(
                         &value,
                         ctx.symtab.symtab(),
                         &ctx.item_list.types,
@@ -1551,12 +1556,9 @@ impl ExprLocal for Loc<Expression> {
 
                 if !inner_type.is_port() {
                     // For good diagnostics, we also need to look up the TypeVars
-                    let self_tvar = ctx
-                        .types
-                        .type_of(&TypedExpression::Id(self.id))
-                        .unwrap_or_else(|_| panic!("Found no type for {}", self.id.0));
+                    let self_tvar = ctx.types.type_of(&TypedExpression::Id(self.id));
 
-                    let inner_tvar = match &self_tvar {
+                    let inner_tvar = match &self_tvar.resolve(ctx.types) {
                         TypeVar::Known(_, KnownType::Tuple, inner) => {
                             if inner.len() != 2 {
                                 diag_bail!(self, "port type was not 2-tuple. Got {hir_type}")
@@ -1573,8 +1575,14 @@ impl ExprLocal for Loc<Expression> {
                         self,
                         "A port expression cannot create non-port values",
                     )
-                    .primary_label(format!("{inner_tvar} is not a port type"))
-                    .note(format!("The port expression creates a {self_tvar}")));
+                    .primary_label(format!(
+                        "{inner_tvar} is not a port type",
+                        inner_tvar = inner_tvar.display(ctx.types)
+                    ))
+                    .note(format!(
+                        "The port expression creates a {self_tvar}",
+                        self_tvar = self_tvar.display(ctx.types)
+                    )));
                 }
 
                 let inner_mir_type = inner_type.to_mir_type();
@@ -2025,7 +2033,10 @@ impl ExprLocal for Loc<Expression> {
         }
 
         let tok = GenericListToken::Expression(self.id);
-        let instance_list = ctx.types.get_generic_list(&tok);
+        let instance_list = ctx
+            .types
+            .get_generic_list(&tok)
+            .ok_or_else(|| diag_anyhow!(name, "Found no generic list for call"))?;
 
         for (param, var) in unit_head
             .get_type_params()
@@ -2037,7 +2048,10 @@ impl ExprLocal for Loc<Expression> {
                 diag_bail!(self, "Did not find a type for {param_name}");
             };
 
-            if TypeState::ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types).is_none()
+            if ctx
+                .types
+                .ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types)
+                .is_none()
             {
                 return Err(Diagnostic::error(
                     self,
@@ -2054,7 +2068,8 @@ impl ExprLocal for Loc<Expression> {
             // generic arguments were not mapped to ports
             for (name, ty) in instance_list {
                 let actual =
-                    TypeState::ungenerify_type(ty, ctx.symtab.symtab(), &ctx.item_list.types);
+                    ctx.types
+                        .ungenerify_type(ty, ctx.symtab.symtab(), &ctx.item_list.types);
                 if actual.as_ref().map(|t| t.is_port()).unwrap_or(false) {
                     return Err(
                         Diagnostic::error(self.loc(), "Generic types cannot be ports")
@@ -2177,9 +2192,18 @@ impl ExprLocal for Loc<Expression> {
                         .map(|param| {
                             let name = param.name_id();
 
-                            instance_list[&name].clone()
+                            let t = instance_list[&name].clone().resolve(&ctx.types);
+                            t.into_known(&ctx.types)
+                                .ok_or_else(|| {
+                                    diag_anyhow!(
+                                        param,
+                                        "This type is not fully known, it is {}",
+                                        t.display(&ctx.types),
+                                    )
+                                })
+                                .clone()
                         })
-                        .collect();
+                        .collect::<Result<_>>()?;
 
                     UnitName::WithID(
                         ctx.mono_state
@@ -2240,6 +2264,7 @@ impl ExprLocal for Loc<Expression> {
                         ) {
                             instance_list.get(&type_param.name_id).and_then(|type_var| {
                                 type_var
+                                    .resolve(&ctx.types)
                                     .expect_integer(
                                         BigUint::try_from,
                                         || unreachable!(),

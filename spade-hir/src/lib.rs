@@ -293,6 +293,24 @@ impl TypeSpec {
     pub fn unit() -> Self {
         TypeSpec::Tuple(Vec::new())
     }
+
+    pub fn type_params(&self) -> Vec<TypeExpression> {
+        match self {
+            TypeSpec::Declared(_, exprs) => exprs.clone().into_iter().map(|e| e.inner).collect(),
+            TypeSpec::Generic(_) => vec![],
+            TypeSpec::Tuple(_) => vec![],
+            TypeSpec::Array { inner, size } => {
+                vec![
+                    TypeExpression::TypeSpec(inner.inner.clone()),
+                    size.inner.clone(),
+                ]
+            }
+            TypeSpec::Inverted(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
+            TypeSpec::Wire(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
+            TypeSpec::TraitSelf(_) => vec![],
+            TypeSpec::Wildcard(_) => vec![],
+        }
+    }
 }
 
 impl std::fmt::Display for TypeSpec {

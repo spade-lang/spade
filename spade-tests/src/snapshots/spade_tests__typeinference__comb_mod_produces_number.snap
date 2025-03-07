@@ -6,11 +6,11 @@ fn test() -> bool {
 }
 
 
-error: Argument type mismatch. Expected Number<_> got bool
+error: Argument type mismatch. Expected Number<#uint> got bool
     ┌─ testinput:2:5
     │
   2 │     true `std::ops::comb_mod` true
-    │     ^^^^ expected Number<_>
+    │     ^^^^ expected Number<#uint>
     │
     ┌─ <compiler dir>/stdlib/ops.spade:103:20
     │

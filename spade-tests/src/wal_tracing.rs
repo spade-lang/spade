@@ -2,7 +2,7 @@ use spade::Artefacts;
 use spade_common::{location_info::WithLocation, name::Path, num_ext::InfallibleToBigUint};
 use spade_hir_lowering::MirLowerable;
 use spade_mir::{renaming::VerilogNameSource, types::Type};
-use spade_typeinference::{equation::TypedExpression, TypeState};
+use spade_typeinference::equation::TypedExpression;
 
 use crate::{build_artifacts, snapshot_error};
 
@@ -36,18 +36,20 @@ fn get_field_type(artefacts: &Artefacts, target_name: &str) -> Type {
         }
     };
 
-    let ty = mir_ctx
-        .type_map
-        .type_of(&typed_expr)
-        .expect(&format!("Did not find a type for {typed_expr}"));
+    let ty = mir_ctx.type_state.type_of(&typed_expr);
 
-    let mir_ty = TypeState::ungenerify_type(
-        ty,
-        artefacts.state.symtab.symtab(),
-        &artefacts.state.item_list.types,
-    )
-    .expect(&format!("Tried to ungenerify generic type {ty}"))
-    .to_mir_type();
+    let mir_ty = mir_ctx
+        .type_state
+        .ungenerify_type(
+            &ty,
+            artefacts.state.symtab.symtab(),
+            &artefacts.state.item_list.types,
+        )
+        .expect(&format!(
+            "Tried to ungenerify generic type {}",
+            ty.display(&mir_ctx.type_state)
+        ))
+        .to_mir_type();
 
     mir_ty
 }

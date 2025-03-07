@@ -5,10 +5,10 @@ use mir::passes::MirPass;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
-use spade_diagnostics::{DiagHandler, Diagnostic};
+use spade_diagnostics::{diag_anyhow, DiagHandler, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
-use spade_typeinference::equation::TypeVar;
+use spade_typeinference::equation::KnownTypeVar;
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::trace_stack::{format_trace_stack, TraceStackEntry};
 use spade_typeinference::{GenericListToken, TypeState};
@@ -24,21 +24,22 @@ use crate::passes::lower_type_level_if::LowerTypeLevelIf;
 use crate::passes::pass::{Pass, Passable};
 
 /// An item to be monomorphised
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct MonoItem {
     /// The name of the original item which this is a monomorphised version of
     pub source_name: Loc<NameID>,
     /// The new name of the new item
     pub new_name: UnitName,
-    /// The types to replace the generic types in the item. Positional replacement
-    pub params: Vec<TypeVar>,
+    /// The types to replace the generic types in the item. Positional replacement.
+    /// These are TypeVars which have to be fully known
+    pub params: Vec<KnownTypeVar>,
 }
 
 pub struct MonoState {
     /// List of mono items left to compile
     to_compile: VecDeque<MonoItem>,
     /// Mapping between items with types specified and names
-    translation: BTreeMap<(NameID, Vec<TypeVar>), NameID>,
+    translation: BTreeMap<(NameID, Vec<KnownTypeVar>), NameID>,
     /// Locations in the code where compilation of the Mono item was requested. None
     /// if this is non-generic
     request_points: HashMap<MonoItem, Option<(MonoItem, Loc<()>)>>,
@@ -66,7 +67,7 @@ impl MonoState {
         &mut self,
         source_name: UnitName,
         reuse_nameid: bool,
-        params: Vec<TypeVar>,
+        params: Vec<KnownTypeVar>,
         symtab: &mut FrozenSymtab,
         request_point: Option<(MonoItem, Loc<()>)>,
     ) -> NameID {
@@ -177,7 +178,7 @@ pub fn compile_items(
                     items: item_list,
                     trait_impls: &old_type_state.trait_impls,
                 };
-                let mut type_state = old_type_state.clone();
+                let mut type_state = old_type_state.create_child();
                 let generic_list_token = if !u.head.get_type_params().is_empty() {
                     Some(GenericListToken::Definition(u.name.name_id().inner.clone()))
                 } else {
@@ -185,7 +186,10 @@ pub fn compile_items(
                 };
 
                 if let Some(generic_list_token) = &generic_list_token {
-                    let generic_list = type_state.get_generic_list(generic_list_token).clone();
+                    let generic_list = type_state
+                        .get_generic_list(generic_list_token)
+                        .expect("Found no generic list  when monomorphizing")
+                        .clone();
                     for (source_param, new) in
                         u.head.get_type_params().iter().zip(item.params.iter())
                     {
@@ -194,12 +198,14 @@ pub fn compile_items(
                         type_state
                             .trace_stack
                             .push(TraceStackEntry::Message(format!(
-                                "Performing mono replacement of {source_var:?} -> {new:?}"
+                                "Performing mono replacement of {source_var} -> {new:?}",
+                                source_var = source_var.debug_resolve(&type_state),
                             )));
 
+                        let tvar = new.insert(&mut type_state);
                         match type_state
-                            .unify(new, source_var, type_ctx)
-                            .into_default_diagnostic(u)
+                            .unify(&tvar, source_var, type_ctx)
+                            .into_default_diagnostic(u, &type_state)
                             .and_then(|_| type_state.check_requirements(type_ctx))
                         {
                             Ok(_) => {}
@@ -211,7 +217,16 @@ pub fn compile_items(
                     }
 
                     if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-                        println!("After mono of {} with {:?}", u.inner.name, item.params);
+                        println!(
+                            "After mono of {} replacing {} with {}",
+                            u.inner.name,
+                            u.head
+                                .get_type_params()
+                                .iter()
+                                .map(|p| format!("{p:?}"))
+                                .join(", "),
+                            item.params.iter().map(|p| format!("{p}")).join(", ")
+                        );
                         type_state.print_equations();
                         println!("{}", format_trace_stack(&type_state));
                     }

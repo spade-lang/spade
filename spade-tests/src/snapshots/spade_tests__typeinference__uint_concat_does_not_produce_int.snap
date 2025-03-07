@@ -14,12 +14,7 @@ error: Expected type int<24>, got uint<_>
   │            │                         
   │            Type uint<_> inferred here
 2 │     x `concat` y
-  │     ^^^^^^^^^^^^
-  │     │
-  │     expected int<24>
-  │     type uint<_> inferred here
+  │     ^^^^^^^^^^^^ Expected int<24>
   │
   = note: Expected: int<24>
                Got: uint<_>
-
-

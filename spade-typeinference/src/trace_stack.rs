@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::RwLock};
+use std::{cell::RefCell, collections::HashMap, sync::RwLock};
 
 use colored::*;
 use itertools::Itertools;
@@ -7,13 +7,15 @@ use spade_types::KnownType;
 
 use crate::{
     constraints::ConstraintRhs,
-    equation::{TraitList, TypeVar, TypedExpression},
+    equation::{TypeVarString, TypedExpression},
     requirements::Requirement,
+    traits::TraitList,
     TypeState,
 };
 
+#[derive(Clone)]
 pub struct TraceStack {
-    entries: RwLock<Vec<TraceStackEntry>>,
+    entries: RefCell<Vec<TraceStackEntry>>,
 }
 
 impl Default for TraceStack {
@@ -25,34 +27,40 @@ impl Default for TraceStack {
 impl TraceStack {
     pub fn new() -> Self {
         Self {
-            entries: RwLock::new(vec![]),
+            entries: RefCell::new(vec![]),
         }
     }
     pub fn push(&self, entry: TraceStackEntry) {
-        self.entries.write().unwrap().push(entry)
+        self.entries.borrow_mut().push(entry)
     }
 }
 
+#[derive(Clone)]
 pub enum TraceStackEntry {
     /// Entering the specified visitor
     Enter(String),
     /// Exited the most recent visitor and the node had the specified type
     Exit,
-    TryingUnify(TypeVar, TypeVar),
+    TryingUnify(TypeVarString, TypeVarString),
     /// Unified .0 with .1 producing .2. .3 were replaced
-    Unified(TypeVar, TypeVar, TypeVar, Vec<TypeVar>),
-    EnsuringImpls(TypeVar, TraitList, bool),
-    AddingEquation(TypedExpression, TypeVar),
-    AddingTraitBounds(TypeVar, TraitList),
+    Unified(
+        TypeVarString,
+        TypeVarString,
+        TypeVarString,
+        Vec<TypeVarString>,
+    ),
+    EnsuringImpls(TypeVarString, TraitList, bool),
+    AddingEquation(TypedExpression, TypeVarString),
+    AddingTraitBounds(TypeVarString, TraitList),
     AddRequirement(Requirement),
     ResolvedRequirement(Requirement),
-    NewGenericList(HashMap<NameID, TypeVar>),
-    AddingConstraint(TypeVar, ConstraintRhs),
+    NewGenericList(HashMap<NameID, TypeVarString>),
+    AddingConstraint(TypeVarString, ConstraintRhs),
     /// Inferring more from constraints
-    InferringFromConstraints(TypeVar, KnownType),
-    AddingPipelineLabel(NameID, TypeVar),
-    RecoveringPipelineLabel(NameID, TypeVar),
-    PreAddingPipelineLabel(NameID, TypeVar),
+    InferringFromConstraints(TypeVarString, KnownType),
+    AddingPipelineLabel(NameID, TypeVarString),
+    RecoveringPipelineLabel(NameID, TypeVarString),
+    PreAddingPipelineLabel(NameID, TypeVarString),
     /// Arbitrary message
     Message(String),
 }
@@ -62,18 +70,7 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
     let mut result = String::new();
     let mut indent_amount = 0;
 
-    // Prints a type var with some formatting if there is a type variable that
-    // has not been replaced by a concrete type at the end of type inference
-    let maybe_replaced = |t: &TypeVar| {
-        let replacement = type_state.check_var_for_replacement(t.clone());
-        if &replacement == t && matches!(replacement, TypeVar::Unknown(_, _, _, _)) {
-            format!("{}", format!("{:?}", t).bright_yellow())
-        } else {
-            format!("{:?}", t)
-        }
-    };
-
-    for entry in stack.entries.read().unwrap().iter() {
+    for entry in stack.entries.borrow().iter() {
         let mut next_indent_amount = indent_amount;
         let message = match entry {
             TraceStackEntry::Enter(function) => {
@@ -81,44 +78,46 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
                 format!("{} `{}`", "call".white(), function.blue())
             }
             TraceStackEntry::AddingEquation(expr, t) => {
-                format!("{} {:?} <- {}", "eq".yellow(), expr, maybe_replaced(t))
+                format!("{} {:?} <- {}", "eq".yellow(), expr, t)
             }
             TraceStackEntry::Unified(lhs, rhs, result, replaced) => {
                 next_indent_amount -= 1;
                 format!(
-                    "{} {}, {} -> {} (replacing {})",
+                    "{} {}, {} -> {} (replacing {}) {}",
                     "unified".green(),
-                    maybe_replaced(lhs),
-                    maybe_replaced(rhs),
-                    maybe_replaced(result),
-                    replaced.iter().map(maybe_replaced).join(",")
+                    lhs,
+                    rhs,
+                    result,
+                    replaced.iter().join(","),
+                    format!(
+                        "{}, {} -> {} (replacing {})",
+                        lhs.1.inner,
+                        rhs.1.inner,
+                        result.1.inner,
+                        replaced.iter().map(|r| r.1.inner).join(",")
+                    )
+                    .bright_black()
                 )
             }
             TraceStackEntry::TryingUnify(lhs, rhs) => {
                 next_indent_amount += 1;
-                format!(
-                    "{} of {} with {}",
-                    "trying unification".cyan(),
-                    maybe_replaced(lhs),
-                    maybe_replaced(rhs)
-                )
+                format!("{} of {} with {}", "trying unification".cyan(), lhs, rhs)
             }
             TraceStackEntry::EnsuringImpls(ty, tr, trait_is_expected) => {
                 format!(
-                    "{} {ty} as {tr:?} (trait_is_expected: {trait_is_expected})",
+                    "{} {ty} as {} (trait_is_expected: {trait_is_expected})",
                     "ensuring impls".yellow(),
-                    ty = maybe_replaced(ty)
+                    tr.display_with_meta(true, type_state),
                 )
             }
             TraceStackEntry::InferringFromConstraints(lhs, rhs) => {
-                format!(
-                    "{} {lhs} as {rhs:?} from constraints",
-                    "inferring".purple(),
-                    lhs = maybe_replaced(lhs),
-                )
+                format!("{} {lhs} as {rhs:?} from constraints", "inferring".purple(),)
             }
             TraceStackEntry::AddingConstraint(lhs, rhs) => {
-                format!("adding constraint {lhs} {rhs:?}", lhs = maybe_replaced(lhs))
+                format!(
+                    "adding constraint for {lhs} ({})",
+                    rhs.debug_display(type_state)
+                )
             }
             TraceStackEntry::NewGenericList(mapping) => {
                 format!(
@@ -126,22 +125,19 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
                     "new generic list".bright_cyan(),
                     mapping
                         .iter()
-                        .map(|(k, v)| format!("{k} -> {}", maybe_replaced(v)))
+                        .map(|(k, v)| format!("{k} -> {v}"))
                         .join(", ")
                 )
             }
             TraceStackEntry::AddingPipelineLabel(name, var) => {
-                format!("{} {name:?} as {var:?}", "declaring label".bright_black())
+                format!("{} {name:?} as {var}", "declaring label".bright_black())
             }
             TraceStackEntry::PreAddingPipelineLabel(name, var) => {
-                format!(
-                    "{} {name:?} as {var:?}",
-                    "pre-declaring label".bright_black()
-                )
+                format!("{} {name:?} as {var}", "pre-declaring label".bright_black())
             }
             TraceStackEntry::RecoveringPipelineLabel(name, var) => {
                 format!(
-                    "{} {name:?} as {var:?}",
+                    "{} {name:?} as {var}",
                     "using previously declared label".bright_black()
                 )
             }
@@ -155,7 +151,7 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
             TraceStackEntry::AddRequirement(req) => format!("{} {req:?}", "added".yellow()),
             TraceStackEntry::ResolvedRequirement(req) => format!("{} {req:?}", "resolved".blue()),
             TraceStackEntry::AddingTraitBounds(tvar, traits) => {
-                format!("{} {traits:?} to {tvar:?}", "adding trait bound".yellow())
+                format!("{} {traits:?} to {tvar}", "adding trait bound".yellow())
             }
         };
         if let TraceStackEntry::Exit = entry {

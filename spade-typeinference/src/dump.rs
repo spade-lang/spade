@@ -18,7 +18,7 @@ pub fn dump_types(
         .map(|(expr, t)| {
             (
                 expr.clone(),
-                TypeState::ungenerify_type(t, symtab, type_list),
+                type_state.ungenerify_type(t, symtab, type_list),
             )
         })
         .collect()

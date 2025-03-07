@@ -132,7 +132,7 @@ pub fn compile(
     let mut symtab = SymbolTable::new();
     let mut item_list = ItemList::new();
 
-    let sources = if include_stdlib_and_prelude {
+    let mut sources = if include_stdlib_and_prelude {
         // We want to build stdlib and prelude before building user code,
         // to give `previously defined <here>` pointing into user code, instead
         // of stdlib code
@@ -142,6 +142,7 @@ pub fn compile(
     } else {
         sources
     };
+    sources.append(&mut core_files());
 
     spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
 
@@ -300,7 +301,8 @@ pub fn compile(
 
     let mut frozen_symtab = symtab.freeze();
 
-    let Ok(mapped_trait_impls) = TypeState::new().visit_impl_blocks(&item_list) else {
+    let mut impl_type_state = TypeState::new();
+    let Ok(mapped_trait_impls) = impl_type_state.visit_impl_blocks(&item_list) else {
         return Err(unfinished_artefacts);
     };
 
@@ -315,7 +317,7 @@ pub fn compile(
         .iter()
         .filter_map(|(name, item)| match item {
             ExecutableItem::Unit(u) => {
-                let mut type_state = typeinference::TypeState::new();
+                let mut type_state = impl_type_state.create_child();
 
                 if let Ok(()) = type_state
                     .visit_unit(u, &type_inference_ctx)
@@ -562,9 +564,7 @@ fn codegen(
                 codegenable.0.name.source,
                 MirContext {
                     reg_name_map: reg_name_map.clone(),
-                    // lifeguard spade#254
-                    // FIXME: Insert pipeline register stuff into the type map
-                    type_map: type_state.into(),
+                    type_state,
                     verilog_name_map: name_map,
                 },
             );
@@ -581,27 +581,33 @@ fn codegen(
     }
 }
 
+macro_rules! sources {
+    ($(($base_namespace:expr, $namespace:expr, $filename:expr)),*$(,)?) => {
+        vec! [
+            $(
+                (
+                    ModuleNamespace {
+                        namespace: SpadePath::from_strs(&$namespace),
+                        base_namespace: SpadePath::from_strs(&$base_namespace),
+                        file: String::from($filename).replace("../", "<compiler dir>/")
+                    },
+                    String::from($filename).replace("../", "<compiler dir>/"),
+                    String::from(include_str!($filename))
+                )
+            ),*
+        ]
+    }
+}
+
+pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
+    sources! {
+        ([], [], "../core/core.spade"),
+    }
+}
+
 /// The spade source files which are included statically in the binary, rather
 /// than being passed on the command line. This includes the stdlib and prelude
 pub fn stdlib_and_prelude() -> Vec<(ModuleNamespace, String, String)> {
-    macro_rules! sources {
-        ($(($base_namespace:expr, $namespace:expr, $filename:expr)),*$(,)?) => {
-            vec! [
-                $(
-                    (
-                        ModuleNamespace {
-                            namespace: SpadePath::from_strs(&$namespace),
-                            base_namespace: SpadePath::from_strs(&$base_namespace),
-                            file: String::from($filename).replace("../", "<compiler dir>/")
-                        },
-                        String::from($filename).replace("../", "<compiler dir>/"),
-                        String::from(include_str!($filename))
-                    )
-                ),*
-            ]
-        }
-    }
-
     sources! {
         ([], [], "../prelude/prelude.spade"),
 
