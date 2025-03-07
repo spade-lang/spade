@@ -26,12 +26,7 @@ impl<'a> Pass for LowerMethods<'a> {
                 // Turbofishes are only important during type inference
                 turbofish: _,
             } => {
-                let self_type = self_.get_type(self.type_state).map_err(|e| {
-                    Diagnostic::bug(
-                        self_.as_ref(),
-                        format!("{}\ndid not find a type", e.labels.message.as_str()),
-                    )
-                })?;
+                let self_type = self_.get_type(self.type_state);
 
                 // Method resolution requires fully known types, so we'll do a throwaway MIR
                 // conversion here
@@ -41,12 +36,17 @@ impl<'a> Pass for LowerMethods<'a> {
                     &self.items.types,
                 )?;
 
-                let Some(method) =
-                    select_method(self_.loc(), &self_type, name, &self.type_state.trait_impls)?
+                let Some(method) = select_method(
+                    self_.loc(),
+                    &self_type,
+                    name,
+                    &self.type_state.trait_impls,
+                    &self.type_state,
+                )?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
-                        format!("Incorrect method call. None or Multiple candidates exist for {self_type}"),
+                        format!("Incorrect method call. None or Multiple candidates exist for {self_type}", self_type=self_type.display(&self.type_state)),
                     ));
                 };
 

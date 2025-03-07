@@ -61,8 +61,8 @@ impl SpadeSymbol {
     fn from_id(name_id: &NameID, type_state: Option<&TypeState>) -> SpadeSymbol {
         type S = SpadeSymbol;
         let type_id = if let Some(type_state) = type_state {
-            match name_id.get_type(type_state) {
-                Ok(TypeVar::Known(_, KnownType::Named(type_id), _)) => Some(type_id),
+            match name_id.get_type(type_state).resolve(type_state) {
+                TypeVar::Known(_, KnownType::Named(type_id), _) => Some(type_id),
                 _ => None,
             }
         } else {
@@ -70,7 +70,7 @@ impl SpadeSymbol {
         };
 
         if let Some(type_id) = type_id {
-            if *name_id == type_id {
+            if name_id == type_id {
                 S::Type(name_id.clone())
             } else {
                 S::Variable {
@@ -86,13 +86,11 @@ impl SpadeSymbol {
 
 fn get_expr_type(expr: &dyn HasType, type_state: Option<&TypeState>) -> Option<NameID> {
     if let Some(type_state) = type_state {
-        if let Ok(type_id) = expr.get_type(type_state) {
-            match type_id {
-                TypeVar::Known(_, KnownType::Named(type_id), _) => {
-                    return Some(type_id);
-                }
-                _ => {}
+        match expr.get_type(type_state).resolve(type_state) {
+            TypeVar::Known(_, KnownType::Named(type_id), _) => {
+                return Some(type_id.clone());
             }
+            _ => {}
         }
     }
     None

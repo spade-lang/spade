@@ -44,12 +44,12 @@ expression: build_items(code)
                     operator: Instance {
                         name: UnitName {
                             kind: Escaped {
-                                name: "foo[6]",
+                                name: "foo[10]",
                                 path: [
                                     "foo",
                                 ],
                             },
-                            source: foo#6,
+                            source: foo#10,
                         },
                         params: [],
                         argument_names: [
@@ -123,12 +123,12 @@ expression: build_items(code)
                     operator: Instance {
                         name: UnitName {
                             kind: Escaped {
-                                name: "foo[7]",
+                                name: "foo[11]",
                                 path: [
                                     "foo",
                                 ],
                             },
-                            source: foo#7,
+                            source: foo#11,
                         },
                         params: [],
                         argument_names: [
@@ -186,12 +186,12 @@ expression: build_items(code)
     Entity {
         name: UnitName {
             kind: Escaped {
-                name: "foo[6]",
+                name: "foo[10]",
                 path: [
                     "foo",
                 ],
             },
-            source: foo#6,
+            source: foo#10,
         },
         inputs: [
             MirInput {
@@ -222,12 +222,12 @@ expression: build_items(code)
     Entity {
         name: UnitName {
             kind: Escaped {
-                name: "foo[7]",
+                name: "foo[11]",
                 path: [
                     "foo",
                 ],
             },
-            source: foo#7,
+            source: foo#11,
         },
         inputs: [
             MirInput {

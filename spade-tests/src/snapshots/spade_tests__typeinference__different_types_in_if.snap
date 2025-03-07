@@ -15,7 +15,7 @@ error: If branches have incompatible type
   │                       │          │ │
   │                       │          │ Type bool inferred here
   │                       │          But this has type bool
-  │                       This branch has type Number<_>
+  │                       This branch has type Number<#uint>
   │                       Type Number<_> inferred here
   │
   = note: Expected: Number<_>

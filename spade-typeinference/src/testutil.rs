@@ -7,33 +7,30 @@ use crate::fixed_types::t_int;
 use crate::TypeVar as TVar;
 
 #[cfg(test)]
-use crate::equation::TraitList;
+use crate::traits::TraitList;
+use crate::TypeState;
 #[cfg(test)]
 use spade_types::meta_types::MetaType;
 
-pub fn sized_int(size: u128, symtab: &SymbolTable) -> TVar {
+pub fn sized_int(size: u128, symtab: &SymbolTable, type_state: &mut TypeState) -> TVar {
     TVar::Known(
         ().nowhere(),
         t_int(symtab),
-        vec![TVar::Known(
-            ().nowhere(),
-            KnownType::Integer(size.to_bigint()),
-            vec![],
-        )],
+        vec![
+            TVar::Known(().nowhere(), KnownType::Integer(size.to_bigint()), vec![])
+                .insert(type_state),
+        ],
     )
 }
 
 #[cfg(test)]
-pub fn unsized_int(id: u64, symtab: &SymbolTable) -> TVar {
+pub fn unsized_int(id: u64, symtab: &SymbolTable, type_state: &mut TypeState) -> TVar {
     TVar::Known(
         ().nowhere(),
         t_int(symtab),
-        vec![TVar::Unknown(
-            ().nowhere(),
-            id,
-            TraitList::empty(),
-            MetaType::Uint,
-        )],
+        vec![
+            TVar::Unknown(().nowhere(), id, TraitList::empty(), MetaType::Uint).insert(type_state),
+        ],
     )
 }
 

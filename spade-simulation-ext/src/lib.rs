@@ -33,7 +33,7 @@ use spade_mir::codegen::{mangle_input, mangle_output};
 use spade_mir::eval::{eval_statements, Value};
 use spade_parser::lexer;
 use spade_parser::Parser;
-use spade_typeinference::equation::{TypeVar, TypedExpression};
+use spade_typeinference::equation::{KnownTypeVar, TypedExpression};
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::{GenericListSource, HasType, TypeState};
@@ -183,7 +183,7 @@ pub struct Spade {
     /// Type state used for new code written into the context of this struct.
     type_state: TypeState,
     uut_head: UnitHead,
-    compilation_cache: HashMap<(TypeVar, String), Value>,
+    compilation_cache: HashMap<(KnownTypeVar, String), Value>,
     field_cache: HashMap<Vec<String>, FieldRef>,
 }
 
@@ -339,12 +339,14 @@ impl Spade {
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         let owned_state = self.owned.as_ref().unwrap();
-        let concrete = TypeState::ungenerify_type(
-            &ty,
-            owned_state.symtab.symtab(),
-            &owned_state.item_list.types,
-        )
-        .unwrap();
+        let concrete = self
+            .type_state
+            .ungenerify_type(
+                &ty,
+                owned_state.symtab.symtab(),
+                &owned_state.item_list.types,
+            )
+            .unwrap();
 
         let fwd_size = concrete.to_mir_type().size();
         let back_size = concrete.to_mir_type().backward_size();
@@ -372,7 +374,10 @@ impl Spade {
             } else {
                 None
             },
-            ty,
+            ty: ty
+                .resolve(&self.type_state)
+                .into_known(&self.type_state)
+                .ok_or_else(|| anyhow!("Found an incomplete type"))?,
             path: vec!["o".to_string()],
             source: FieldSource::Output {},
         };
@@ -396,8 +401,11 @@ impl Spade {
         let o_name = symtab.add_local_variable(Identifier("o".to_string()).nowhere());
 
         let ty = &field.ty;
+        let ty_id = ty.insert(&mut self.type_state);
 
-        let concrete = TypeState::ungenerify_type(ty, &symtab, &owned_state.item_list.types);
+        let concrete =
+            self.type_state
+                .ungenerify_type(&ty_id, &symtab, &owned_state.item_list.types);
         let has_field = concrete
             .map(|c| concrete_ty_has_field(&c, next))
             .unwrap_or_default();
@@ -420,14 +428,14 @@ impl Spade {
         self.type_state
             .unify(
                 &o_name,
-                ty,
+                &ty_id,
                 &spade_typeinference::Context {
                     symtab: &symtab,
                     items: &owned_state.item_list,
                     trait_impls: &owned_state.trait_impls,
                 },
             )
-            .into_default_diagnostic(().nowhere())
+            .into_default_diagnostic(().nowhere(), &self.type_state)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         // Now that we have a type which we can work with, we can create a virtual expression
@@ -486,7 +494,7 @@ impl Spade {
 
         ast_ctx.symtab.close_scope();
 
-        let result_type = hir.get_type(&self.type_state).unwrap();
+        let result_type = hir.get_type(&self.type_state);
 
         // Finally, we need to figure out the range of the field in in the
         // type. Since all previous steps passed, this can assume that
@@ -559,7 +567,10 @@ impl Spade {
         let result = FieldRef {
             fwd_range: get_range(field.fwd_range, &|ty| ty.to_mir_type().size())?,
             back_range: get_range(field.back_range, &|ty| ty.to_mir_type().backward_size())?,
-            ty: result_type,
+            ty: result_type
+                .resolve(&self.type_state)
+                .into_known(&self.type_state)
+                .ok_or_else(|| anyhow!("Found incomplete type"))?,
             source: field.source.clone(),
             path,
         };
@@ -590,15 +601,18 @@ impl Spade {
             return Ok(cached.clone());
         }
         let (source, ty) = self.get_arg(arg_name)?;
+        let ty_id = ty.insert(&mut self.type_state);
 
         let owned_state = self.take_owned();
 
-        let concrete = TypeState::ungenerify_type(
-            &ty,
-            owned_state.symtab.symtab(),
-            &owned_state.item_list.types,
-        )
-        .unwrap();
+        let concrete = self
+            .type_state
+            .ungenerify_type(
+                &ty_id,
+                owned_state.symtab.symtab(),
+                &owned_state.item_list.types,
+            )
+            .unwrap();
 
         let fwd_size = concrete.to_mir_type().size();
         let back_size = concrete.to_mir_type().backward_size();
@@ -647,17 +661,20 @@ impl Spade {
         &mut self,
         field: FieldRef,
         output_bits: &BitString,
-    ) -> Result<(BitString, TypeVar, ConcreteType)> {
+    ) -> Result<(BitString, KnownTypeVar, ConcreteType)> {
         let (range, ty) = field.read_range_and_type()?;
 
         let owned_state = self.owned.as_ref().unwrap();
 
-        let concrete = TypeState::ungenerify_type(
-            &ty,
-            owned_state.symtab.symtab(),
-            &owned_state.item_list.types,
-        )
-        .unwrap();
+        let ty_id = ty.insert(&mut self.type_state);
+        let concrete = self
+            .type_state
+            .ungenerify_type(
+                &ty_id,
+                owned_state.symtab.symtab(),
+                &owned_state.item_list.types,
+            )
+            .unwrap();
 
         let relevant_bits =
             BitString(output_bits.inner()[range.from as usize..range.to as usize].to_owned());
@@ -692,7 +709,7 @@ impl Spade {
     /// Tries to get the type and the name of the port in the generated verilog of the specified
     /// input port
     #[tracing::instrument(level = "trace", skip(self))]
-    fn get_arg(&mut self, arg: &str) -> Result<(FieldSource, TypeVar)> {
+    fn get_arg(&mut self, arg: &str) -> Result<(FieldSource, KnownTypeVar)> {
         let owned_state = self.owned.as_ref().unwrap();
         let symtab = owned_state.symtab.symtab();
         let head = Self::lookup_function_like(&self.uut, symtab)
@@ -721,11 +738,10 @@ impl Spade {
                     )?;
                 let ty = type_state
                     .type_var_from_hir(ty.loc(), &ty, &generic_list)
-                    .report_and_convert(
-                        &mut self.error_buffer,
-                        &self.code,
-                        &mut self.diag_handler,
-                    )?;
+                    .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
+                    .resolve(&type_state)
+                    .into_known(&type_state)
+                    .ok_or_else(|| anyhow!("Expression had generic type"))?;
 
                 return Ok((source, ty.clone()));
             }
@@ -743,16 +759,9 @@ impl Spade {
     pub fn compile_expr(
         &mut self,
         expr: &str,
-        ty: &impl HasType,
+        ty: &KnownTypeVar,
     ) -> Result<spade_mir::eval::Value> {
-        let cache_key = (
-            ty.get_type(&self.type_state).report_and_convert(
-                &mut self.error_buffer,
-                &self.code,
-                &mut self.diag_handler,
-            )?,
-            expr.to_string(),
-        );
+        let cache_key = (ty.clone(), expr.to_string());
         if let Some(cached) = self.compilation_cache.get(&cache_key) {
             return Ok(cached.clone());
         }
@@ -818,10 +827,11 @@ impl Spade {
             .visit_expression(&hir, &type_ctx, &generic_list)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
+        let ty_id = ty.insert(&mut self.type_state);
         self.type_state
             .unify_expression_generic_error(
                 &hir,
-                ty,
+                &ty_id,
                 &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: &item_list,

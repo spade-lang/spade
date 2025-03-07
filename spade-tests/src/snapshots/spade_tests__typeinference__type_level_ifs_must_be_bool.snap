@@ -7,7 +7,7 @@ fn test() {
 }
 
 
-error: gen if conditions must be #bool, got _
+error: gen if conditions must be #bool, got #number
   ┌─ testinput:2:12
   │
 2 │     gen if 0 {}

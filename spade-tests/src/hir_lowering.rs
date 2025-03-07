@@ -1553,7 +1553,7 @@ mod tests {
                 // of generic modules we have. If we end up with more tests
                 // like this, we should do smarter comparison
                 // lifeguard spade#224
-                name: "identity[5]".to_string(),
+                name: "identity[9]".to_string(),
                 path: vec!["identity".to_string()],
             },
             source: NameID(0, Path::from_strs(&["identity"])),
@@ -1593,7 +1593,7 @@ mod tests {
                 // of generic modules we have. If we end up with more tests
                 // like this, we should do smarter comparison
                 // lifeguard spade#224
-                name: "create_t[3]".to_string(),
+                name: "create_t[7]".to_string(),
                 path: vec!["create_t".to_string()],
             },
             source: NameID(0, Path::from_strs(&["create_t"])),

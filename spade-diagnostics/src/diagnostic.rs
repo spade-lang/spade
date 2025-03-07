@@ -434,8 +434,16 @@ macro_rules! diag_assert {
 #[macro_export]
 macro_rules! diag_anyhow {
     ($span:expr, $($arg:tt)*) => {
-        spade_diagnostics::Diagnostic::bug($span, format!($($arg)*))
-            .note(format!("Triggered at {}:{}", file!(), line!()))
+        {
+            let bt = std::backtrace::Backtrace::capture();
+            let bt = if bt.status() == std::backtrace::BacktraceStatus::Captured {
+                format!("{bt}")
+            } else {
+                format!("Rerun with RUST_BACKTRACE=1 to capture a backtrace")
+            };
+            spade_diagnostics::Diagnostic::bug($span, format!($($arg)*))
+                .note(format!("Triggered at {}:{}\n{bt}", file!(), line!()))
+        }
     }
 }
 

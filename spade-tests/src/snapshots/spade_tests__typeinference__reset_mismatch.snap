@@ -7,14 +7,14 @@ entity test(clk: clock, rst: bool) -> int<8> {
 }
 
 
-error: Register reset value mismatch. Expected Number<_> got bool
+error: Register reset value mismatch. Expected Number<#uint> got bool
   ┌─ testinput:2:28
   │
 2 │     reg(clk) a reset (rst: true) = 3;
   │              -             ^^^^    - Type Number<_> inferred here
   │              │             │        
-  │              │             expected Number<_>
-  │              because this has type Number<_>
+  │              │             expected Number<#uint>
+  │              because this has type Number<#uint>
   │
   = note: Expected: Number<_>
                Got: bool

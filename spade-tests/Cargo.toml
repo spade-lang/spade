@@ -28,7 +28,6 @@ spade-mir = {path = "../spade-mir"}
 spade-hir-lowering = {path = "../spade-hir-lowering"}
 spade-typeinference = {path = "../spade-typeinference"}
 spade-types = {path = "../spade-types"}
-spade-wordlength-inference = {path = "../spade-wordlength-inference"}
 spade-lang = {path = "../spade-compiler"}
 unindent = "0.2.1"
 

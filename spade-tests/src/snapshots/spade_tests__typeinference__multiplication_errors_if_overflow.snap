@@ -6,7 +6,7 @@ entity main(a: int<14>, b: int<16>) -> int<32> {
 }
 
 
-error: Output type mismatch. Expected int<32>, got int<30>
+error: Output type mismatch. Expected int<32>, got Number<30>
   ┌─ testinput:1:48
   │  
 1 │   entity main(a: int<14>, b: int<16>) -> int<32> {
@@ -15,11 +15,9 @@ error: Output type mismatch. Expected int<32>, got int<30>
 2 │ │     a * b
   │ │     ----- Type 30 inferred here
 3 │ │ }
-  │ ╰─^ Found type int<30>
+  │ ╰─^ Found type Number<30>
   │  
   = note: Expected: 32
                 in: int<32>
                Got: 30
-                in: int<30>
-
-
+                in: Number<30>

@@ -126,9 +126,28 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
             .nowhere();
         id -= 1;
 
+        symtab.new_scope();
+        let param_name = symtab.add_type_with_id(
+            id,
+            Path::from_strs(&["N"]),
+            TypeSymbol::GenericMeta(MetaType::Uint).nowhere(),
+        );
+        id -= 1;
+        let hir_param = spade_hir::TypeParam {
+            ident: Identifier("N".to_string()).nowhere(),
+            name_id: param_name,
+            trait_bounds: vec![],
+            meta: MetaType::Uint,
+        }
+        .nowhere();
         item_list
-            .add_trait(spade_hir::TraitName::Named(name), None, vec![])
+            .add_trait(
+                spade_hir::TraitName::Named(name),
+                Some(vec![hir_param].nowhere()),
+                vec![],
+            )
             .unwrap();
+        symtab.close_scope();
     };
     add_marker_trait(&["Number"])
 }

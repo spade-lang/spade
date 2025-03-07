@@ -285,7 +285,8 @@ snapshot_error! {
 
             (x, y)
         }
-        "
+        ",
+        false
 }
 
 snapshot_error! {
@@ -2033,4 +2034,90 @@ code_compiles! {
             };
         }
     "
+}
+
+code_compiles! {
+    late_trait_resolution,
+    "
+        trait Trait {}
+
+        struct S<T> {
+            a: T
+        }
+
+        impl Trait for S<bool> {}
+
+        fn requires_trait<T: Trait>(x: T) {}
+
+        fn test() {
+            decl x;
+            requires_trait(x);
+            let x = S::<bool>(true);
+        }
+    "
+}
+
+code_compiles! {
+    fake_lambda,
+    "
+        trait Fn<T, O> {
+          fn call(self, args: T) -> O;
+        }
+
+        struct FakeLambda {}
+
+        impl Fn<(int<8>, int<8>), int<9>> for FakeLambda {
+          fn call(self, args: (int<8>, int<8>)) -> int<9> {
+            let (a, b) = args;
+            a + b
+          }
+        }
+
+        fn call<T, O, F: Fn<T, O>>(x: T, f: F) -> O {
+            f.call(x)
+        }
+
+        fn test() -> int<9> {
+            let x: (int<8>, int<8>) = (1, 2);
+            call(x, FakeLambda())
+        }
+    "
+}
+
+code_compiles! {
+    monomorphization_works,
+    "
+        fn takes_generic<T>(x: T) -> T {
+            x
+        }
+
+        fn identity(x: bool) -> bool {
+            takes_generic(x)
+        }
+    "
+}
+
+code_compiles! {
+    monomorphization_with_genif_works,
+    "
+        fn takes_generic<#uint T>() -> uint<{T+1}> {
+            0
+        }
+
+        fn identity() -> uint<2> {
+            takes_generic::<1>()
+        }
+    "
+}
+
+snapshot_error! {
+    nested_type_error,
+    "
+    entity counter(clk: clock) -> int<8> {
+        decl x;
+        let x = x + 1;
+        x
+    }
+    ",
+    false
 }

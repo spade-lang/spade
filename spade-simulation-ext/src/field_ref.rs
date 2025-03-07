@@ -1,6 +1,6 @@
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
-use spade_typeinference::equation::TypeVar;
+use spade_typeinference::equation::KnownTypeVar;
 use spade_types::KnownType;
 
 use crate::error::{Result, SourceCodeError};
@@ -58,7 +58,7 @@ maybe_pyclass! {
         #[pyo3(get)]
         pub source: FieldSource,
 
-        pub ty: TypeVar,
+        pub ty: KnownTypeVar,
         pub path: Vec<String>,
     }
 
@@ -180,29 +180,29 @@ impl FieldRef {
 }
 
 impl FieldRef {
-    pub fn write_range_and_type(&self) -> Result<(UptoRange, TypeVar)> {
+    pub fn write_range_and_type(&self) -> Result<(UptoRange, KnownTypeVar)> {
         let range = self.write_dir_range()?;
 
         if matches!(self.source, FieldSource::Output {}) {
-            match &self.ty {
-                TypeVar::Known(_, KnownType::Inverted, inner) => Ok((range, inner[0].clone())),
-                _ => Err(anyhow!("Internal error: Backward type had non-inv field").into()),
-            }
+            let KnownTypeVar(_, KnownType::Inverted, inner) = &self.ty else {
+                return Err(anyhow!("Internal error: Backward type had non-inv field").into());
+            };
+            Ok((range, inner[0].clone()))
         } else {
             Ok((range, self.ty.clone()))
         }
     }
 
-    pub fn read_range_and_type(&self) -> Result<(UptoRange, TypeVar)> {
+    pub fn read_range_and_type(&self) -> Result<(UptoRange, KnownTypeVar)> {
         let range = self.read_dir_range()?;
 
         if matches!(self.source, FieldSource::Output {}) {
             Ok((range, self.ty.clone()))
         } else {
-            match &self.ty {
-                TypeVar::Known(_, KnownType::Inverted, inner) => Ok((range, inner[0].clone())),
-                _ => Err(anyhow!("Internal error: Backward type had non-inv field").into()),
-            }
+            let KnownTypeVar(_, KnownType::Inverted, inner) = &self.ty else {
+                return Err(anyhow!("Internal error: Backward type had non-inv field").into());
+            };
+            Ok((range, inner[0].clone()))
         }
     }
 }
