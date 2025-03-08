@@ -212,6 +212,11 @@ impl Spade {
             &code.read().unwrap(),
             &mut diag_handler,
         )?;
+        let uut_name = state
+            .symtab
+            .symtab()
+            .lookup_final_id(&uut, &[])
+            .map_err(|_| anyhow!("Did not find a NameID for {uut}"))?;
 
         let uut_head = Self::lookup_function_like(&uut, state.symtab.symtab())
             .map_err(Diagnostic::from)
@@ -231,13 +236,18 @@ impl Spade {
         }
         let symtab = symtab.freeze();
 
+        let mir_context = state
+            .mir_context
+            .get(&uut_name)
+            .ok_or_else(|| anyhow!("Did not find a mir context for unit"))?;
+
         let code = code.read().unwrap().clone();
         Ok(Self {
             uut,
             code,
             error_buffer,
             diag_handler,
-            type_state: TypeState::new(),
+            type_state: mir_context.type_state.create_child(),
             owned: Some(OwnedState {
                 symtab,
                 item_list: state.item_list,
@@ -728,19 +738,20 @@ impl Spade {
                     mangled_back: mangle_output(no_mangle, &arg),
                 };
 
-                let mut type_state = TypeState::new();
-                let generic_list = type_state
+                let generic_list = self
+                    .type_state
                     .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
                     .report_and_convert(
                         &mut self.error_buffer,
                         &self.code,
                         &mut self.diag_handler,
                     )?;
-                let ty = type_state
+                let ty = self
+                    .type_state
                     .type_var_from_hir(ty.loc(), &ty, &generic_list)
                     .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
-                    .resolve(&type_state)
-                    .into_known(&type_state)
+                    .resolve(&self.type_state)
+                    .into_known(&self.type_state)
                     .ok_or_else(|| anyhow!("Expression had generic type"))?;
 
                 return Ok((source, ty.clone()));
