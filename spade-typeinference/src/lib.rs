@@ -21,6 +21,7 @@ use itertools::{Either, Itertools};
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, BigUint, Zero};
 use rand::random;
+use replacement::ReplacementStack;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -64,6 +65,7 @@ pub mod expression;
 pub mod fixed_types;
 pub mod method_resolution;
 pub mod mir_type_lowering;
+mod replacement;
 mod requirements;
 pub mod testutil;
 pub mod trace_stack;
@@ -156,7 +158,7 @@ pub struct TypeState {
     #[serde(skip)]
     requirements: Vec<Requirement>,
 
-    replacements: Vec<HashMap<TypeVarID, TypeVarID>>,
+    replacements: ReplacementStack,
 
     /// The type var containing the depth of the pipeline stage we are currently in
     pipeline_state: Option<PipelineState>,
@@ -166,6 +168,7 @@ pub struct TypeState {
     #[serde(skip)]
     pub trace_stack: TraceStack,
 
+    // TODO: Remove
     /// (Experimental) Use Affine- or Interval-Arithmetic to bounds check integers in a separate
     /// module.
     pub use_wordlenght_inference: bool,
@@ -185,7 +188,7 @@ impl TypeState {
             trace_stack: TraceStack::new(),
             constraints: TypeConstraints::new(),
             requirements: vec![],
-            replacements: vec![HashMap::new()],
+            replacements: ReplacementStack::new(),
             generic_lists: HashMap::new(),
             trait_impls: TraitImplList::new(),
             pipeline_state: None,
@@ -2442,10 +2445,7 @@ impl TypeState {
         for replaced_type in replaced_types {
             if v1.inner != v2.inner {
                 let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
-                self.replacements
-                    .last_mut()
-                    .expect("There was no map in the replacement stack")
-                    .insert(from, to);
+                self.replacements.insert(from, to);
             }
         }
 
@@ -2733,11 +2733,8 @@ impl TypeState {
         Ok(())
     }
 
-    pub fn get_replacement(&self, var: &TypeVarID) -> Option<&TypeVarID> {
-        self.replacements
-            .iter()
-            .rev()
-            .find_map(|repl| repl.get(var))
+    pub fn get_replacement(&self, var: &TypeVarID) -> TypeVarID {
+        self.replacements.get(*var)
     }
 
     pub fn do_and_restore<T, E>(
@@ -2755,13 +2752,12 @@ impl TypeState {
     fn checkpoint(&mut self) {
         self.trace_stack
             .push(TraceStackEntry::Enter("Creating checkpoint".to_string()));
-        self.replacements.push(HashMap::new());
+        self.replacements.push();
     }
 
     fn restore(&mut self) {
         self.replacements
-            .pop()
-            .expect("Restored without any checkpoints");
+            .discard_top();
         self.trace_stack.push(TraceStackEntry::Exit);
     }
 }
@@ -2778,8 +2774,8 @@ impl TypeState {
 
         println!("\nReplacments:");
 
-        for repl_stack in &self.replacements {
-            for (lhs, rhs) in repl_stack.iter().sorted() {
+        for repl_stack in &self.replacements.all() {
+            for (lhs, rhs) in repl_stack.borrow().iter().sorted() {
                 println!(
                     "{} -> {} ({} -> {})",
                     format!("{}", lhs.inner).blue(),
@@ -2817,15 +2813,8 @@ impl UnificationBuilder {
 
 pub trait HasType: std::fmt::Debug {
     fn get_type(&self, state: &TypeState) -> TypeVarID {
-        let mut id = self.get_type_impl(state);
-        while let Some(next_id) = state.get_replacement(&id) {
-            if next_id == &id {
-                println!("Found a type ID loop from {id:?} to {next_id:?}, returning early");
-                return *next_id;
-            }
-            id = *next_id
-        }
-        id
+        let id = self.get_type_impl(state);
+        state.get_replacement(&id)
     }
 
     fn get_type_impl(&self, state: &TypeState) -> TypeVarID;
