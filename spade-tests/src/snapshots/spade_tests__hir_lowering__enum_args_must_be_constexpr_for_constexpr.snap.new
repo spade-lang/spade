@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3344
+---
+enum A {
+    X{val: uint<8>},
+    Y
+}
+
+fn func() -> uint<8> {0}
+
+entity test(clk: clock) {
+    reg(clk) a initial((A::X(func()), A::Y)) = a;
+}
+
+
+error: Register initial values must be known at compile time
+  ┌─ testinput:9:24
+  │
+9 │     reg(clk) a initial((A::X(func()), A::Y)) = a;
+  │                        ^^^^^^^^^^^^^^^^^^^^
+  │                        │     │
+  │                        │     This subexpression cannot be computed at compile time
+  │                        Value not known at compile time

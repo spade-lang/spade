@@ -3302,3 +3302,73 @@ snapshot_mir! {
         }
     "
 }
+
+snapshot_error! {
+    function_is_not_constexpr,
+    "
+        fn func() -> uint<8> {0}
+
+        entity test(clk: clock) {
+            reg(clk) a initial(func()) = a;
+        }
+    "
+}
+
+code_compiles! {
+    enum_variants_are_constexpr,
+    "
+        enum A {
+            X{val: uint<8>},
+            Y
+        }
+
+        entity test(clk: clock) {
+            reg(clk) a initial((A::X(0), A::Y)) = a;
+        }
+    "
+}
+
+code_compiles! {
+    structs_are_constexpr,
+    "
+        struct A {
+            val: uint<8>,
+        }
+
+        entity test(clk: clock) {
+            reg(clk) a initial(A(0)) = a;
+        }
+    "
+}
+
+snapshot_error! {
+    enum_args_must_be_constexpr_for_constexpr,
+    "
+        enum A {
+            X{val: uint<8>},
+            Y
+        }
+
+        fn func() -> uint<8> {0}
+
+        entity test(clk: clock) {
+            reg(clk) a initial((A::X(func()), A::Y)) = a;
+        }
+    "
+}
+
+
+snapshot_error! {
+    struct_args_must_be_constexpr_for_constexpr,
+    "
+        struct A {
+            val: uint<8>,
+        }
+
+        fn func() -> uint<8> {0}
+
+        entity test(clk: clock) {
+            reg(clk) a initial(A(func())) = a;
+        }
+    "
+}

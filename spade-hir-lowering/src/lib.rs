@@ -1080,7 +1080,7 @@ impl StatementLocal for Statement {
                 })?;
 
                 let initial = if let Some(init) = initial {
-                    if let Some(witness) = init.runtime_requirement_witness() {
+                    if let Some(witness) = init.runtime_requirement_witness(ctx.symtab.symtab()) {
                         return Err(Diagnostic::error(
                             init,
                             "Register initial values must be known at compile time",
@@ -2393,7 +2393,7 @@ impl ExprLocal for Loc<Expression> {
         let initial = if has_initial {
             let initial_arg = &args[2];
 
-            if let Some(witness) = initial_arg.value.runtime_requirement_witness() {
+            if let Some(witness) = initial_arg.value.runtime_requirement_witness(ctx.symtab.symtab()) {
                 return Err(Diagnostic::error(
                     initial_arg.value,
                     "Memory initial values must be known at compile time",
