@@ -1,6 +1,6 @@
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
 use tracing::Instrument;
+use std::collections::{BTreeMap, HashMap};
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};
@@ -233,8 +233,7 @@ impl TemplateTypeVarID {
                                     .type_params
                                     .into_iter()
                                     .map(|p| {
-                                        TemplateTypeVarID { inner: p }
-                                            .make_copy_with_mapping(state, mapped)
+                                        TemplateTypeVarID { inner: p }.make_copy_with_mapping(state, mapped)
                                     })
                                     .collect(),
                             })
