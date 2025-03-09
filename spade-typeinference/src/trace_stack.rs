@@ -30,8 +30,14 @@ impl TraceStack {
             entries: RefCell::new(vec![]),
         }
     }
+
+    // Inline because we don't want the compiler to construct the entries if they are
+    // not going to be used
+    #[inline]
     pub fn push(&self, entry: TraceStackEntry) {
-        self.entries.borrow_mut().push(entry)
+        if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
+            self.entries.borrow_mut().push(entry)
+        }
     }
 }
 
