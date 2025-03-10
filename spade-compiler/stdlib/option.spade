@@ -14,4 +14,48 @@ impl<T> Option<T> {
     fn is_none(self) -> bool {
         !self.is_some()
     }
+
+    /// Returns the inner value if it is present, otherwise None
+    fn unwrap_or(self, default: T) -> T {
+        match self {
+            Some(val) => val,
+            None => default,
+        }
+    }
+
+    /// Returns the inner value if present, or an undefined value otherwise. The semantics
+    /// of the undefined value are described in detail in `std::undef::undef`. Importantly,
+    /// reading an undef value is undefined behaviour so this method should only be used
+    /// if you guarantee that the value is never read when the value is `None`, for example
+    /// by checking the Option type again 
+    fn unwrap_or_undef(self) -> T {
+        match self {
+            Some(t) => t,
+            None => std::undef::undef()
+        }
+    }
+
+    /// Returns an array containing the `N` previous `Some` values starting with `default`
+    /// before `N` values have been observed.
+    ///
+    /// The output is valid in the same clock cycles as the input and the input is the 0th value
+    /// of the array
+    ///
+    /// ```
+    /// input.sliding_window::<2>(clk, rst, 0)
+    /// input:  | None | Some(1)      | Some(2)      | None | Some(3)
+    /// output: | None | Some([1, 0]) | Some([2, 1]) | None | Some(3, 2])
+    /// ```
+    entity sliding_window<#uint N>(self, clk: clock, rst: bool, default: T) -> Option<[T; N]> {
+        decl val;
+        let next = match self {
+            Some(new) => [new] `concat_arrays` val[0..N-1],
+            None => val
+        };
+        reg(clk) val reset(rst: [default; N]) = next;
+        match self {
+            Some(_) => Some(next),
+            None => None
+        }
+    }
 }

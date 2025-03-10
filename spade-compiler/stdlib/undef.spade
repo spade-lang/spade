@@ -1,0 +1,9 @@
+/// Returns an undefined value to use as a placeholder in a situation when a value
+/// is not going to be read. This gets compiled into an `X` value in Verilog which is
+/// up to the Verilog backend to handle. 4 valued simulators will retain the X, some simulators
+/// like Verilator may set this to 0, or a random value.
+fn undef<T>() -> T {
+    let none: Option<T> = None;
+    let (_, result): (bool, T) = std::conv::unsafe::unsafe_cast(none);
+    result
+}

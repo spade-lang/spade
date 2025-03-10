@@ -1,7 +1,9 @@
-mod io;
+mod array;
 mod cdc;
+mod conv;
+mod io;
 mod mem;
 mod ops;
-mod conv;
-mod ports;
 mod option;
+mod ports;
+mod undef;

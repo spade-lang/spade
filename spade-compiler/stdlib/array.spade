@@ -1,0 +1,9 @@
+impl<T, #uint N> [T; N] {
+    fn zip<O>(self, other: [O; N]) -> [(T, O); N] {
+        gen if N == 1 {
+            [(self[0], other[0])]
+        } else {
+            [(self[0], other[0])] `concat_arrays` self[1..N].zip(other[1..N])
+        }
+    }
+}
