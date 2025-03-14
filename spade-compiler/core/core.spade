@@ -1,2 +1,4 @@
+trait Number<#uint N> {}
+
 impl<#uint N> Number<N> for uint<N> {}
 impl<#uint N> Number<N> for int<N> {}

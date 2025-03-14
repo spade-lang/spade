@@ -2121,3 +2121,52 @@ snapshot_error! {
     ",
     false
 }
+
+// NOTE: This test will start passing eventually, change it to code_compiles
+snapshot_error! {
+    non_overlapping_conflicting_trait_impls,
+    "
+        trait Trait<T> {}
+
+        struct X {}
+
+        impl Trait<bool> for X {}
+        impl Trait<uint<8>> for X {}
+    "
+}
+
+snapshot_error! {
+    trait_is_not_satisfied_now,
+    "
+        trait Trait {}
+
+        impl Trait for uint<8> {}
+
+        fn needs_trait<T: Trait>(x: T) {}
+
+        fn test() {
+            let x: uint<9> = 0;
+
+            needs_trait(x)
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    trait_is_not_satisfied_later,
+    "
+        trait Trait {}
+
+        impl Trait for uint<5> {}
+
+        fn needs_trait<T: Trait>(x: T) {}
+
+        fn test() {
+            decl x;
+            needs_trait(x);
+            let x: uint<9> = 0;
+        }
+    ",
+    false
+}

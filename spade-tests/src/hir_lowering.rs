@@ -4,17 +4,16 @@ use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 mod tests {
     use crate::{
         build_and_compare_entities, build_entity, build_items, build_items_with_stdlib,
-        snapshot_error,
+        snapshot_error, snapshot_mir,
     };
     use colored::Colorize;
     use insta::assert_debug_snapshot;
     use spade_common::{
         location_info::WithLocation,
-        name::{NameID, Path},
         num_ext::InfallibleToBigUint,
     };
     use spade_mir::{self, entity, statement, types::Type, ConstantValue};
-    use spade_mir::{assert_same_mir, unit_name::UnitNameKind};
+    use spade_mir::assert_same_mir;
 
     #[test]
     fn entity_definitions_are_correct() {
@@ -1535,9 +1534,9 @@ mod tests {
         build_items(code);
     }
 
-    #[test]
-    fn generic_instantiation_works() {
-        let code = r#"
+    snapshot_mir! {
+        generic_instantiation_works,
+        r#"
             fn identity<T>(x: T) -> T {
                 x
             }
@@ -1545,39 +1544,13 @@ mod tests {
             fn x(x: bool) -> bool {
                 identity(x)
             }
-        "#;
-
-        let inst_name = spade_mir::UnitName {
-            kind: UnitNameKind::Escaped {
-                // NOTE: The number here is sequential and depends on the number
-                // of generic modules we have. If we end up with more tests
-                // like this, we should do smarter comparison
-                // lifeguard spade#224
-                name: "identity[9]".to_string(),
-                path: vec!["identity".to_string()],
-            },
-            source: NameID(0, Path::from_strs(&["identity"])),
-        };
-
-        let expected = vec![
-            entity! {&["x"]; (
-                "x", n(0, "x"), Type::Bool,
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; simple_instance((inst_name.clone(), vec!["x"])); n(0, "x"))
-            } => e(0)},
-            // Monomorphised identity function
-            entity! {&inst_name; (
-                "x", n(0, "x"), Type::Bool,
-            ) -> Type::Bool; {
-            } => n(0, "x")},
-        ];
-
-        build_and_compare_entities!(code, expected, no_stdlib);
+        "#,
+        all
     }
 
-    #[test]
-    fn generic_integers_codegen_correctly() {
-        let code = r#"
+    snapshot_mir!{
+        generic_integers_codegen_correctly,
+        r#"
             fn create_t<#uint T>() -> int<8> {
                 T
             }
@@ -1585,33 +1558,8 @@ mod tests {
             fn x() -> int<8> {
                 create_t::<64>()
             }
-        "#;
-
-        let inst_name = spade_mir::UnitName {
-            kind: UnitNameKind::Escaped {
-                // NOTE: The number here is sequential and depends on the number
-                // of generic modules we have. If we end up with more tests
-                // like this, we should do smarter comparison
-                // lifeguard spade#224
-                name: "create_t[7]".to_string(),
-                path: vec!["create_t".to_string()],
-            },
-            source: NameID(0, Path::from_strs(&["create_t"])),
-        };
-
-        let expected = vec![
-            entity! {&["x"]; (
-            ) -> Type::int(8); {
-                (e(0); Type::int(8); simple_instance((inst_name.clone(), vec![])); )
-            } => e(0)},
-            // Monomorphised identity function
-            entity! {&inst_name; (
-            ) -> Type::int(8); {
-                (const 10; Type::int(8); ConstantValue::int(64));
-            } => e(10)},
-        ];
-
-        build_and_compare_entities!(code, expected, no_stdlib);
+        "#,
+        all
     }
 
     snapshot_error! {

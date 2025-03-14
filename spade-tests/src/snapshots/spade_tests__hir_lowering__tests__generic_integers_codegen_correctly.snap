@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \x () -> int<8> {
+	let e3: int<8> = Instance(\create_t[9] )()
+} => e3
+entity \create_t[9] () -> int<8> {
+	const e1: int<8> = 64
+} => e1

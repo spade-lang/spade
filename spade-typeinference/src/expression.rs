@@ -3,7 +3,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diagnostic::DiagnosticLevel;
-use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
+use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::expression::{BinaryOperator, IntLiteralKind, NamedArgument, UnaryOperator};
 use spade_hir::{ExprKind, Expression};
 use spade_macros::trace_typechecker;
@@ -268,11 +268,11 @@ impl TypeState {
 
             let inner_types = match t_id.resolve(self) {
                 TypeVar::Known(_, KnownType::Tuple, inner) => inner,
-                TypeVar::Known(ref other_source, _, _) => {
+                t @ TypeVar::Known(ref other_source, _, _) => {
                     return Err(Diagnostic::error(tup.loc(), "Attempt to use tuple indexing on non-tuple")
-                        .primary_label(format!("expected tuple, got {t}", t = t_id.display(self)))
+                        .primary_label(format!("expected tuple, got {t}", t = t.display(self)))
                         .secondary_label(index, "Because this is a tuple index")
-                        .secondary_label(other_source, format!("Type {t} inferred here", t = t_id.display(self)))
+                        .secondary_label(other_source, format!("Type {t} inferred here", t = t.display(self)))
                     );
                 }
                 TypeVar::Unknown(_, _, _, MetaType::Type | MetaType::Any) => {
@@ -607,8 +607,10 @@ impl TypeState {
                     .into_default_diagnostic(result, self)?;
             } else {
                 // Block without return value. Unify with unit type.
-                let target = &TypeVar::unit(expression.loc()).insert(self);
-                self.unify(&expression.inner, target, ctx)
+                expression
+                    .inner
+                    .unify_with(&TypeVar::unit(expression.loc()).insert(self), self)
+                    .commit(self, ctx)
                     .into_diagnostic(Loc::nowhere(()), |err, Tm{g: _, e: _}| {
                         diag_anyhow!(
                             Loc::nowhere(()),

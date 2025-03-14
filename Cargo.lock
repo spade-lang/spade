@@ -2590,6 +2590,7 @@ dependencies = [
  "colored 3.0.0",
  "indoc",
  "insta",
+ "itertools 0.14.0",
  "logos",
  "pretty_assertions",
  "prettydiff",

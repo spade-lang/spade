@@ -1,0 +1,9 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \x ((x, x_n6, bool)) -> bool {
+	let e3: bool = Instance(\identity[11] )(x_n6)
+} => e3
+entity \identity[11] ((x, x_n5, bool)) -> bool {
+} => x_n5

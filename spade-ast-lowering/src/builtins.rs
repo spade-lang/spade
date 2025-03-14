@@ -3,7 +3,7 @@ use spade_common::{
     name::{Identifier, Path},
 };
 use spade_hir::{
-    symbol_table::{GenericArg, SymbolTable, Thing, TypeDeclKind, TypeSymbol},
+    symbol_table::{GenericArg, SymbolTable, TypeDeclKind, TypeSymbol},
     TypeDeclaration,
 };
 use spade_hir::{ItemList, TypeParam};
@@ -115,39 +115,4 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         PrimitiveType::InOut,
         false,
     );
-
-    let mut add_marker_trait = |path: &[&str]| {
-        let name = symtab
-            .add_thing_with_id(
-                id,
-                Path::from_strs(path),
-                Thing::Trait(Identifier(path.last().unwrap().to_string()).nowhere()),
-            )
-            .nowhere();
-        id -= 1;
-
-        symtab.new_scope();
-        let param_name = symtab.add_type_with_id(
-            id,
-            Path::from_strs(&["N"]),
-            TypeSymbol::GenericMeta(MetaType::Uint).nowhere(),
-        );
-        id -= 1;
-        let hir_param = spade_hir::TypeParam {
-            ident: Identifier("N".to_string()).nowhere(),
-            name_id: param_name,
-            trait_bounds: vec![],
-            meta: MetaType::Uint,
-        }
-        .nowhere();
-        item_list
-            .add_trait(
-                spade_hir::TraitName::Named(name),
-                Some(vec![hir_param].nowhere()),
-                vec![],
-            )
-            .unwrap();
-        symtab.close_scope();
-    };
-    add_marker_trait(&["Number"])
 }

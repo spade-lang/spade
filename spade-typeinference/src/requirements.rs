@@ -56,12 +56,6 @@ pub enum Requirement {
         /// The generic list of the context where this is instantiated
         prev_generic_list: GenericListToken,
     },
-    ImplsTraits {
-        var: Loc<TypeVarID>,
-        traits: TraitList,
-        trait_is_expected: bool,
-        trait_list_loc: Loc<()>,
-    },
     /// The type should be an integer large enough to fit the specified value
     FitsIntLiteral {
         value: ConstantInt,
@@ -310,22 +304,6 @@ impl Requirement {
                     }
                 }
             },
-            Requirement::ImplsTraits {
-                var: _,
-                traits: _,
-                trait_is_expected: _,
-                trait_list_loc: _,
-            } => {
-                // We only add this requirement once type vars have been converted to known
-                // types.
-                // if let TypeVar::Unknown(loc, _, _, _) = var {
-                //     diag_bail!(loc, "Got a Requirement::ImplsTrait for an unknown type")
-                // }
-                // TODO: We should actually check this
-                // TODO: Do we even need this trait. It would probably only be used for marker
-                //       traits, right?
-                Ok(RequirementResult::Satisfied(vec![]))
-            }
             Requirement::FitsIntLiteral { value, target_type } => {
                 let int_type = ctx
                     .symtab

@@ -5,7 +5,7 @@ use mir::passes::MirPass;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
-use spade_diagnostics::{diag_anyhow, DiagHandler, Diagnostic};
+use spade_diagnostics::{DiagHandler, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
 use spade_typeinference::equation::KnownTypeVar;

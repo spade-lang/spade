@@ -172,6 +172,20 @@ macro_rules! code_compiles {
 
 #[macro_export]
 macro_rules! snapshot_mir {
+    ($fn:ident, $src:literal, all) => {
+        #[test]
+        fn $fn() {
+            use itertools::Itertools;
+            let code = $src;
+            let items = build_items(code);
+            insta::assert_snapshot!(
+                items
+                    .iter()
+                    .map(|item| format!("{item}"))
+                    .join("\n")
+            )
+        }
+    };
     ($fn:ident, $src:literal) => {
         #[test]
         fn $fn() {

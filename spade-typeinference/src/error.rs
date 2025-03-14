@@ -410,12 +410,6 @@ impl TypeMismatch {
         )
     }
 }
-// TODO: Keep or remove
-// impl std::fmt::Display for TypeMismatch {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "expected {}, got {}", self.e, self.g)
-//     }
-// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum UnificationError {
@@ -441,7 +435,7 @@ pub type Result<T> = std::result::Result<T, Diagnostic>;
 pub fn error_pattern_type_mismatch(
     reason: Loc<()>,
     type_state: &TypeState,
-) -> impl Fn(Diagnostic, TypeMismatch) -> Diagnostic + use<'_> {
+) -> impl Fn(Diagnostic, TypeMismatch) -> Diagnostic + '_ {
     move |diag, tm| {
         let (expected, got) = tm.display_e_g(type_state);
         diag.message(format!(

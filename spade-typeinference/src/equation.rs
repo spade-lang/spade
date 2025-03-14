@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
-use tracing::Instrument;
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};
@@ -66,8 +65,9 @@ impl TypeVarID {
                 }
             };
 
-            // TODO: Does it matter if we replace eagerly here or should we keep track
-            // of if something changed?
+            // NOTE: For performance we could consider not doing replacement if none
+            // of the inner types changed. For now, we only use this in diagnostics,
+            // so even for performance, it won't make a difference
             new.insert(state)
         }
     }

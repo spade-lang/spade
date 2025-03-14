@@ -912,7 +912,7 @@ pub fn lower_wal_trace(
                         .primary_label(format!("{} does not have #[wal_traceable]", name))
                         .secondary_label(
                             pattern,
-                            format!("This has type {} which does not have #[wal_traceable]", hir_ty.debug_resolve(ctx.types)),
+                            format!("This has type {} which does not have #[wal_traceable]", hir_ty.display(ctx.types)),
                         )
                         .note("This most likely means that the struct can not be analyzed by a wal script"));
                     }
@@ -927,7 +927,7 @@ pub fn lower_wal_trace(
                         pattern,
                         format!(
                             "This has type {} which is {}",
-                            hir_ty.debug_resolve(ctx.types),
+                            hir_ty.display(ctx.types),
                             other.name()
                         ),
                     )

@@ -11,7 +11,9 @@ error: Expected type uint<8>, got uint<16>
   ┌─ testinput:2:22
   │
 1 │ fn test(x: uint<16>, y: uint<8>) -> int<24> {
-  │                              - Type 8 inferred here
+  │                 --           - Type 8 inferred here
+  │                 │             
+  │                 Type 16 inferred here
 2 │     let z: int<24> = x + y;
   │                      ^ Expected uint<8>
   │

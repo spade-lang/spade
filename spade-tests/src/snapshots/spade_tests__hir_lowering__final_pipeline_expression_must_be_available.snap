@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+pipeline(3) inner(clk: clock) -> uint<8> {
+reg*3;
+    0
+}
+pipeline(3) test(clk: clock) -> uint<8> {
+reg*3;
+    inst(3) inner(clk)
+}

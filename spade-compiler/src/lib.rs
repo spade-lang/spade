@@ -301,7 +301,7 @@ pub fn compile(
 
     let mut frozen_symtab = symtab.freeze();
 
-    let mut impl_type_state = TypeState::new();
+    let mut impl_type_state = TypeState::fresh();
     let Ok(mapped_trait_impls) = impl_type_state.visit_impl_blocks(&item_list) else {
         return Err(unfinished_artefacts);
     };

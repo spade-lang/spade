@@ -8,8 +8,7 @@
 
 use std::cell::RefCell;
 use std::cmp::PartialEq;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::sync::Arc;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use colored::Colorize;
 use fixed_types::{t_int, t_uint};
@@ -69,7 +68,6 @@ mod requirements;
 pub mod testutil;
 pub mod trace_stack;
 pub mod traits;
-mod unification_builder;
 
 pub struct Context<'a> {
     pub symtab: &'a SymbolTable,
@@ -140,7 +138,8 @@ pub struct TypeState {
     keys: BTreeSet<u64>,
 
     equations: TypeEquations,
-    // TODO: Remove this and just use the TypeVarID?
+    // NOTE: This is kind of redundant, we could use TypeVarIDs instead of having dedicated
+    // numbers for unknown types.
     next_typeid: RefCell<u64>,
     // List of the mapping between generic parameters and type vars.
     // The key is the index of the expression for which this generic list is associated. (if this
@@ -173,7 +172,9 @@ pub struct TypeState {
 }
 
 impl TypeState {
-    pub fn new() -> Self {
+    /// Create a fresh type state, in most cases, this should be .create_child of an
+    /// existing type state
+    pub fn fresh() -> Self {
         let key = random();
         Self {
             type_vars: vec![],
@@ -1443,20 +1444,24 @@ impl TypeState {
                             .into_default_diagnostic(pattern, self)?;
                     }
 
-                    let array_type = TypeVar::Known(
-                        pattern.loc(),
-                        KnownType::Array,
-                        vec![
-                            inner_t,
-                            self.add_type_var(TypeVar::Known(
+                    pattern
+                        .unify_with(
+                            &TypeVar::Known(
                                 pattern.loc(),
-                                KnownType::Integer(inner.len().to_bigint()),
-                                vec![],
-                            )),
-                        ],
-                    )
-                    .insert(self);
-                    self.unify(pattern, &array_type, ctx)
+                                KnownType::Array,
+                                vec![
+                                    inner_t,
+                                    self.add_type_var(TypeVar::Known(
+                                        pattern.loc(),
+                                        KnownType::Integer(inner.len().to_bigint()),
+                                        vec![],
+                                    )),
+                                ],
+                            )
+                            .insert(self),
+                            self,
+                        )
+                        .commit(self, ctx)
                         .into_default_diagnostic(pattern, self)?;
                 }
             }
@@ -1775,7 +1780,6 @@ impl TypeState {
             self.visit_expression(rst_value, ctx, generic_list)?;
             // Ensure cond is a boolean
             rst_cond
-                .inner
                 .unify_with(&self.t_bool(rst_cond.loc(), ctx.symtab), self)
                 .commit(self, ctx)
                 .into_diagnostic(
@@ -2158,22 +2162,6 @@ impl TypeState {
             };
         }
 
-        macro_rules! try_with_context {
-            ($value: expr) => {
-                try_with_context!($value, v1, v2)
-            };
-            ($value: expr, $v1:expr, $v2:expr) => {
-                match $value {
-                    Ok(result) => result,
-                    Err(e) => {
-                        self.trace_stack
-                            .push(TraceStackEntry::Message("Adding context".to_string()));
-                        return Err(e).add_context($v1.clone(), $v2.clone());
-                    }
-                }
-            };
-        }
-
         let unify_params = |s: &mut Self,
                             p1: &[TypeVarID],
                             p2: &[TypeVarID]|
@@ -2211,7 +2199,11 @@ impl TypeState {
             ((_, TypeVar::Known(_, t1, p1)), (_, TypeVar::Known(_, t2, p2))) => {
                 match (t1, t2) {
                     (KnownType::Integer(val1), KnownType::Integer(val2)) => {
-                        unify_if!(val1 == val2, v1, vec![v2])
+                        // NOTE: We get better error messages if we don't actually
+                        // replace v1 with v2. Not entirely sure why, but since they already
+                        // have hte same known type, we're fine. The same applies
+                        // to all known types
+                        unify_if!(val1 == val2, v1, vec![])
                     }
                     (KnownType::Named(n1), KnownType::Named(n2)) => {
                         match (
@@ -2226,19 +2218,19 @@ impl TypeState {
                                 let new_ts1 = ctx.symtab.type_symbol_by_id(n1).inner;
                                 let new_ts2 = ctx.symtab.type_symbol_by_id(n2).inner;
                                 unify_params(self, &p1, &p2)?;
-                                unify_if!(new_ts1 == new_ts2, v1, vec![v2])
+                                unify_if!(new_ts1 == new_ts2, v1, vec![])
                             }
                             (TypeSymbol::Declared(_, _), TypeSymbol::GenericArg { traits }) => {
                                 if !traits.is_empty() {
                                     todo!("Implement trait unifictaion");
                                 }
-                                Ok((v1, vec![v2]))
+                                Ok((v1, vec![]))
                             }
                             (TypeSymbol::GenericArg { traits }, TypeSymbol::Declared(_, _)) => {
                                 if !traits.is_empty() {
                                     todo!("Implement trait unifictaion");
                                 }
-                                Ok((v2, vec![v1]))
+                                Ok((v2, vec![]))
                             }
                             (
                                 TypeSymbol::GenericArg { traits: ltraits },
@@ -2247,7 +2239,7 @@ impl TypeState {
                                 if !ltraits.is_empty() || !rtraits.is_empty() {
                                     todo!("Implement trait unifictaion");
                                 }
-                                Ok((v1, vec![v2]))
+                                Ok((v1, vec![]))
                             }
                             (TypeSymbol::Declared(_, _), TypeSymbol::GenericMeta(_)) => todo!(),
                             (TypeSymbol::GenericArg { traits: _ }, TypeSymbol::GenericMeta(_)) => {
@@ -2274,7 +2266,7 @@ impl TypeState {
                         // to Known, not when the base is the same. Replacements take care
                         // of parameters. Therefore, None is returned here
                         unify_params(self, &p1, &p2)?;
-                        Ok((v1, vec![v2]))
+                        Ok((v1, vec![]))
                     }
                     (_, _) => Err(err_producer!()),
                 }
@@ -2386,8 +2378,6 @@ impl TypeState {
                         })
                         .collect::<std::result::Result<_, _>>()?
                 }
-                self.trace_stack
-                    .push(TraceStackEntry::Message("Checking meta types".to_string()));
 
                 match (base, meta) {
                     // Any matches all types
@@ -2574,7 +2564,6 @@ impl TypeState {
         macro_rules! error_producer {
             ($required_traits:expr) => {
                 if trait_is_expected {
-                    // TODO: Consider getting rid of this special case handling of the Number trait
                     if $required_traits.inner.len() == 1
                         && $required_traits
                             .get_trait(&TraitName::Named(number.clone().nowhere()))
