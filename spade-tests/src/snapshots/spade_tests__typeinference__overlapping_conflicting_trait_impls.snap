@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+trait Trait<T> {}
+
+struct X {}
+
+impl Trait<bool> for X {}
+impl Trait<uint<8>> for X {}
+
+
+error: An impl of trait Trait for X already exists
+  ┌─ testinput:6:1
+  │
+6 │ impl Trait<uint<8>> for X {}
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ An impl of trait Trait for X already exists
+  │
+  = note: The impls only differ by type parameters of the trait, which is currently not supported

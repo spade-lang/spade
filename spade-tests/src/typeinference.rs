@@ -2170,3 +2170,19 @@ snapshot_error! {
     ",
     false
 }
+
+snapshot_error! {
+    trait_is_implemented_but_wrong_params,
+    "
+        trait Trait<T> {}
+
+        impl Trait<bool> for uint<8> {}
+
+        fn needs_trait<T: Trait<uint<8>>>(x: T) {}
+
+        fn test() {
+            let x: uint<8> = 0;
+            needs_trait(x)
+        }
+    "
+}

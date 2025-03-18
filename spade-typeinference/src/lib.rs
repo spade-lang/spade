@@ -167,11 +167,6 @@ pub struct TypeState {
 
     #[serde(skip)]
     pub trace_stack: TraceStack,
-
-    // TODO: Remove
-    /// (Experimental) Use Affine- or Interval-Arithmetic to bounds check integers in a separate
-    /// module.
-    pub use_wordlenght_inference: bool,
 }
 
 impl TypeState {
@@ -192,7 +187,6 @@ impl TypeState {
             generic_lists: HashMap::new(),
             trait_impls: TraitImplList::new(),
             pipeline_state: None,
-            use_wordlenght_inference: false,
         }
     }
 
@@ -209,13 +203,6 @@ impl TypeState {
         TypeVarID {
             inner: idx,
             type_state_key: self.key,
-        }
-    }
-
-    pub fn set_wordlength_inferece(self, use_wordlenght_inference: bool) -> Self {
-        Self {
-            use_wordlenght_inference,
-            ..self
         }
     }
 
@@ -2593,8 +2580,8 @@ impl TypeState {
             };
         }
 
-        match var.resolve(self) {
-            TypeVar::Known(_, known, _) if known.into_impl_target().is_some() => {
+        match &var.resolve(self).clone() {
+            TypeVar::Known(_, known, params) if known.into_impl_target().is_some() => {
                 let Some(target) = known.into_impl_target() else {
                     unreachable!()
                 };
@@ -2603,14 +2590,14 @@ impl TypeState {
                     .inner
                     .iter()
                     .map(|trait_req| {
-                        // Number is special cased for now because we can't impl traits
-                        // on generic types
                         if let Some(impld) = self.trait_impls.inner.get(&target).cloned() {
+                            // Get a list of implementations of this trait where the type
+                            // parameters can match
                             let target_impls = impld
                                 .iter()
                                 .filter_map(|trait_impl| {
                                     self.checkpoint();
-                                    let params_match = trait_impl
+                                    let trait_params_match = trait_impl
                                         .trait_type_params
                                         .iter()
                                         .zip(trait_req.type_params.iter())
@@ -2618,9 +2605,20 @@ impl TypeState {
                                             let l = l.make_copy(self);
                                             self.unify(&l, r, ctx).is_ok()
                                         });
+
+                                    let impl_params_match =
+                                        trait_impl.target_type_params.iter().zip(params).all(
+                                            |(l, r)| {
+                                                let l = l.make_copy(self);
+                                                self.unify(&l, r, ctx).is_ok()
+                                            },
+                                        );
                                     self.restore();
 
-                                    if trait_impl.name == trait_req.name && params_match {
+                                    if trait_impl.name == trait_req.name
+                                        && trait_params_match
+                                        && impl_params_match
+                                    {
                                         Some(trait_impl)
                                     } else {
                                         None
@@ -2756,8 +2754,7 @@ impl TypeState {
     }
 
     fn restore(&mut self) {
-        self.replacements
-            .discard_top();
+        self.replacements.discard_top();
         self.trace_stack.push(TraceStackEntry::Exit);
     }
 }
@@ -2775,7 +2772,8 @@ impl TypeState {
         println!("\nReplacments:");
 
         for repl_stack in &self.replacements.all() {
-            for (lhs, rhs) in repl_stack.borrow().iter().sorted() {
+            let replacements = { repl_stack.borrow().clone() };
+            for (lhs, rhs) in replacements.iter().sorted() {
                 println!(
                     "{} -> {} ({} -> {})",
                     format!("{}", lhs.inner).blue(),
