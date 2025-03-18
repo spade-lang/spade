@@ -14,18 +14,14 @@ fn test() {
 }
 
 
-error: Expected type uint<9>, got Trait + Number<_>
+error: Expected type uint<9>, got Trait
    ┌─ testinput:10:22
    │
- 1 │ trait Trait {}
-   │       ----- Type 5 inferred here
-   ·
 10 │     let x: uint<9> = 0;
-   │                 -    ^ Expected uint<9>
-   │                 │     
-   │                 Type 9 inferred here
+   │         -  -------   ^ Expected uint<9>
+   │         │  │          
+   │         │  Type uint<9> inferred here
+   │         Type Trait inferred here
    │
-   = note: Expected: 9
-                 in: uint<9>
-                Got: 5
-                 in: Trait + Number<_>
+   = note: Expected: uint<9>
+                Got: Trait

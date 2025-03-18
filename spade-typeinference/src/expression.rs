@@ -712,15 +712,6 @@ impl TypeState {
             self.visit_expression(rhs, ctx, generic_list)?;
             match op.inner {
                 BinaryOperator::Add
-                | BinaryOperator::Sub | BinaryOperator::Mul if self.use_wordlenght_inference => {
-                    let lhs_t = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
-                    self.unify_expression_generic_error(lhs, &lhs_t, ctx)?;
-                    let rhs_t = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
-                    self.unify_expression_generic_error(rhs, &rhs_t, ctx)?;
-                    let result_t = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);
-                    self.unify_expression_generic_error(expression, &result_t, ctx)?;
-                }
-                BinaryOperator::Add
                 | BinaryOperator::Sub => {
                     let (in_t, lhs_size) = self.new_generic_number(expression.loc(), ctx);
                     let (result_t, result_size) = self.new_generic_number(expression.loc(), ctx);

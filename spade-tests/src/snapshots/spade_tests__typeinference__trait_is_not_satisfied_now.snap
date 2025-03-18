@@ -14,19 +14,11 @@ fn test() {
 }
 
 
-error: Argument type mismatch. Expected uint<9> got Trait
+error: Trait bound not satisfied. uint<9> does not implement Trait
    ┌─ testinput:10:17
    │
- 1 │ trait Trait {}
-   │       ----- Type 8 inferred here
+ 5 │ fn needs_trait<T: Trait>(x: T) {}
+   │                   ----- Required because of the trait bound specified here
    ·
- 8 │     let x: uint<9> = 0;
-   │                 - Type 9 inferred here
- 9 │ 
 10 │     needs_trait(x)
-   │                 ^ expected uint<9>
-   │
-   = note: Expected: 9
-                 in: uint<9>
-                Got: 8
-                 in: Trait
+   │                 ^ uint<9> does not implement Trait

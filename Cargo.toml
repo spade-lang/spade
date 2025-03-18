@@ -7,10 +7,6 @@ members = [
 
 resolver = "2"
 
-[profile.release]
-debug=true
-opt-level=1
-
 # Shared between internal crates. Can be overridden per-crate if needed.
 
 [workspace.package]

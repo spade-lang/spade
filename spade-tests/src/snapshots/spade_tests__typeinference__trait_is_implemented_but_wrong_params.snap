@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+trait Trait<T> {}
+
+impl Trait<bool> for uint<8> {}
+
+fn needs_trait<T: Trait<uint<8>>>(x: T) {}
+
+fn test() {
+    let x: uint<8> = 0;
+    needs_trait(x)
+}
+
+
+error: Trait bound not satisfied. uint<8> does not implement Trait<uint<8>>
+  ┌─ testinput:9:17
+  │
+5 │ fn needs_trait<T: Trait<uint<8>>>(x: T) {}
+  │                   ----- Required because of the trait bound specified here
+  ·
+9 │     needs_trait(x)
+  │                 ^ uint<8> does not implement Trait<uint<8>>
