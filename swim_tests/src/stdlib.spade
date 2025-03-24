@@ -11,6 +11,16 @@ entity option_sliding_window_test(
     val.inst sliding_window(clk, rst, default)
 }
 
+entity option_chunks(
+    clk: clock,
+    rst: bool,
+    val: Option<uint<8>>,
+    default: uint<8>,
+) -> Option<[uint<8>; 3]> {
+    val.inst chunks(clk, rst)
+}
+
+
 fn array_zip_test(a: [uint<8>; 3], b: [int<8>; 3]) -> [(uint<8>, int<8>); 3] {
     a.zip(b)
 }

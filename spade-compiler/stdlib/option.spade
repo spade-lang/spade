@@ -58,4 +58,41 @@ impl<T> Option<T> {
             None => None
         }
     }
+
+    /// Gathers `N` values and outputs them as an array
+    /// 
+    /// Unlike sliding_window, each value seen in the input is only seen once in the output.
+    ///
+    /// The 0th output element is the oldest
+    ///
+    /// There is a one clock cycle latency between input and output
+    /// 
+    /// input.sliding_window::<2>(clk, rst, 0)
+    /// ```
+    /// input:  | None | Some(1) | Some(2)       | None         | Some(3) | Some(4) | -
+    /// output: | None | None    | Some([1, 2])  | None         | None    | Some([3, 4])
+    /// ```
+    entity chunks<#uint N>(self, clk: clock, rst: bool) -> Option<[T; N]> {
+        reg(clk) count: uint<{uint_bits_to_fit(N)}> reset(rst: 0) = match self {
+            Some(new) => {
+                if count + 1 == N {0} else {trunc(count + 1)}
+            },
+            None => {
+                count
+            }
+        };
+
+        decl values;
+        let next_values = match self {
+            Some(new) => values[1..N] `concat_arrays` [new],
+            None => values
+        };
+        reg(clk) values = next_values;
+
+        if count + 1 == N && self.is_some() {
+            Some(next_values)
+        } else {
+            None
+        }
+    }
 }

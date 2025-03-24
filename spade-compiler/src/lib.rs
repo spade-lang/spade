@@ -604,15 +604,16 @@ pub fn stdlib_and_prelude() -> Vec<(ModuleNamespace, String, String)> {
 
     sources! {
         ([], [], "../prelude/prelude.spade"),
+
         (["std"], ["std"], "../stdlib/main.spade"),
+        (["std"], ["std", "array"], "../stdlib/array.spade"),
+        (["std"], ["std", "cdc"], "../stdlib/cdc.spade"),
         (["std"], ["std", "conv"], "../stdlib/conv.spade"),
         (["std"], ["std", "io"], "../stdlib/io.spade"),
         (["std"], ["std", "mem"], "../stdlib/mem.spade"),
         (["std"], ["std", "ops"], "../stdlib/ops.spade"),
-        (["std"], ["std", "ports"], "../stdlib/ports.spade"),
-        (["std"], ["std", "cdc"], "../stdlib/cdc.spade"),
         (["std"], ["std", "option"], "../stdlib/option.spade"),
-        (["std"], ["std", "array"], "../stdlib/array.spade"),
+        (["std"], ["std", "ports"], "../stdlib/ports.spade"),
         (["std"], ["std", "undef"], "../stdlib/undef.spade"),
     }
 }

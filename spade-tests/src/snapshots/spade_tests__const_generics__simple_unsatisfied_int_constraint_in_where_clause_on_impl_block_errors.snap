@@ -27,4 +27,4 @@ error: Expected type Number<10>, got Number<9>
                 in: Number<9>
   = note: Addition creates one more output bit than the input to avoid overflow
   = The error is in a generic unit instantiated at
-    ╰ testinput:10 impl_7::add_one<8, 10>
+    ╰ testinput:10 impl_8::add_one<8, 10>
