@@ -267,6 +267,11 @@ pub enum Expression {
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
     CreatePorts,
+    Lambda {
+        unit_kind: Loc<UnitKind>,
+        args: Loc<Vec<Loc<Identifier>>>,
+        body: Box<Loc<Block>>,
+    },
     Call {
         kind: CallKind,
         callee: Loc<Path>,
@@ -361,6 +366,7 @@ impl Expression {
             Expression::If(_, _, _) => "if",
             Expression::TypeLevelIf(_, _, _) => "type level if",
             Expression::Match(_, _) => "match",
+            Expression::Lambda { .. } => "lambda",
             Expression::Call { .. } => "call",
             Expression::MethodCall { .. } => "method call",
             Expression::UnaryOperator(_, _) => "unary operator",

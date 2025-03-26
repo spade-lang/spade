@@ -7,10 +7,12 @@ pub mod pipelines;
 pub mod testutil;
 mod type_level_if;
 pub mod types;
+mod lambda;
 
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
 use impls::visit_impl;
+use lambda::visit_lambda;
 use num::{BigInt, Zero};
 use pipelines::PipelineContext;
 use recursive::recursive;
@@ -1902,6 +1904,9 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         }
         ast::Expression::Block(block) => {
             Ok(hir::ExprKind::Block(Box::new(visit_block(block, ctx)?)))
+        }
+        ast::Expression::Lambda { .. } => {
+            visit_lambda(e, ctx)
         }
         ast::Expression::Call {
             kind,

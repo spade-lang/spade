@@ -2336,7 +2336,7 @@ impl ExprLocal for Loc<Expression> {
                 );
             }
             None => {
-                unreachable!("Instantiating an item which is not known")
+                unreachable!("Instantiating an item which is not known ({name})")
             }
         };
 

@@ -390,6 +390,15 @@ snapshot_error! {
     false
 }
 
+code_compiles! {
+    simple_lambda_compiles,
+    "
+        fn test() -> bool {
+            fn (a, b) {a}.call((true, false))
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
