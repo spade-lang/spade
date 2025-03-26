@@ -1214,12 +1214,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    #[trace_parser]
-    #[tracing::instrument(skip(self))]
-    pub fn unit_head(&mut self, attributes: &AttributeList) -> Result<Option<Loc<UnitHead>>> {
-        let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
-        let start_token = self.peek()?;
-        let unit_kind = match start_token.kind {
+    pub fn unit_kind(&mut self, start_token: &Token) -> Result<Option<Loc<UnitKind>>> {
+        match start_token.kind {
             TokenKind::Pipeline => {
                 self.eat_unconditional()?;
                 let (depth, depth_span) = self.surrounded(
@@ -1227,24 +1223,34 @@ impl<'a> Parser<'a> {
                     |s| match s.type_expression() {
                         Ok(t) => Ok(t),
                         Err(diag) => Err(diag.secondary_label(
-                            ().at(s.file_id, &start_token),
+                            ().at(s.file_id, start_token),
                             "Pipelines require a pipeline depth",
                         )),
                     },
                     &TokenKind::CloseParen,
                 )?;
 
-                UnitKind::Pipeline(depth).between(self.file_id, &start_token, &depth_span)
+                Ok(Some(UnitKind::Pipeline(depth).between(self.file_id, start_token, &depth_span)))
             }
             TokenKind::Function => {
                 self.eat_unconditional()?;
-                UnitKind::Function.at(self.file_id, &start_token)
+                Ok(Some(UnitKind::Function.at(self.file_id, start_token)))
             }
             TokenKind::Entity => {
                 self.eat_unconditional()?;
-                UnitKind::Entity.at(self.file_id, &start_token)
+                Ok(Some(UnitKind::Entity.at(self.file_id, start_token)))
             }
-            _ => return Ok(None),
+            _ => Ok(None),
+        }
+    }
+
+    #[trace_parser]
+    #[tracing::instrument(skip(self))]
+    pub fn unit_head(&mut self, attributes: &AttributeList) -> Result<Option<Loc<UnitHead>>> {
+        let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
+        let start_token = self.peek()?;
+        let Some(unit_kind) = self.unit_kind(&start_token)? else {
+            return Ok(None)
         };
 
         let name = self.identifier()?;

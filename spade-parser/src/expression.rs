@@ -4,7 +4,8 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;
 
-use crate::error::{ExpectedArgumentList, Result, UnexpectedToken};
+use crate::error::{CSErrorTransformations, ExpectedArgumentList, Result, UnexpectedToken};
+use crate::peek_for;
 use crate::{lexer::TokenKind, ParseStackEntry, Parser};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
@@ -224,6 +225,8 @@ impl<'a> Parser<'a> {
     fn base_expression(&mut self) -> Result<Loc<Expression>> {
         let expr = if let Some(tuple) = self.tuple_literal()? {
             Ok(tuple)
+        } else if let Some(lambda) = self.lambda()? {
+            Ok(lambda)
         } else if let Some(array) = self.array_literal()? {
             Ok(array)
         } else if let Some(instance) = self.entity_instance()? {
@@ -281,6 +284,45 @@ impl<'a> Parser<'a> {
         }?;
 
         self.expression_suffix(expr)
+    }
+
+    #[trace_parser]
+    fn lambda(&mut self) -> Result<Option<Loc<Expression>>> {
+        let start_token = self.peek()?;
+        let Some(unit_kind) = self.unit_kind(&start_token)? else {
+            return Ok(None)
+        };
+
+        let (args, args_loc) = self.surrounded(
+            &TokenKind::OpenParen,
+            |s| {
+                let args = s
+                    .comma_separated(|s| s.identifier(), &TokenKind::CloseParen)
+                    .no_context()?;
+
+                Ok(args)
+            },
+            &TokenKind::CloseParen,
+        )?;
+        let args = args.at_loc(&args_loc);
+
+        let Some(body) = self.block(false)? else {
+            let loc = self.peek()?;
+            return Err(Diagnostic::error(&loc.loc(), "Expected lambda body")
+                .primary_label("Expected body")
+                .span_suggest_replace("Consider adding a body", loc, "{ /*..*/ }"));
+        };
+
+        let loc = ().between(self.file_id, &start_token, &body);
+
+        Ok(Some(
+            Expression::Lambda {
+                unit_kind,
+                args,
+                body: Box::new(body),
+            }
+            .at_loc(&loc),
+        ))
     }
 
     #[trace_parser]

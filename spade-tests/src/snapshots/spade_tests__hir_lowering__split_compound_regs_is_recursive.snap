@@ -2,14 +2,14 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "format! (\"{}\", items [0])"
 ---
-entity \test ((clk, clk_n3, bool), (x, x_n4, ((uint<8>, uint<8>), uint<8>))) -> ((uint<8>, uint<8>), uint<8>) {
-	let e3: (uint<8>, uint<8>) = IndexTuple(0, [Tuple([UInt(8), UInt(8)]), UInt(8)])(x_n4)
+entity \test ((clk, clk_n6, bool), (x, x_n7, ((uint<8>, uint<8>), uint<8>))) -> ((uint<8>, uint<8>), uint<8>) {
+	let e3: (uint<8>, uint<8>) = IndexTuple(0, [Tuple([UInt(8), UInt(8)]), UInt(8)])(x_n7)
 	let e5: uint<8> = IndexTuple(0, [UInt(8), UInt(8)])(e3)
-	reg(clk_n3) e6: uint<8> = e5
+	reg(clk_n6) e6: uint<8> = e5
 	let e7: uint<8> = IndexTuple(1, [UInt(8), UInt(8)])(e3)
-	reg(clk_n3) e8: uint<8> = e7
+	reg(clk_n6) e8: uint<8> = e7
 	let e4: (uint<8>, uint<8>) = ConstructTuple(e6, e8)
-	let e9: uint<8> = IndexTuple(1, [Tuple([UInt(8), UInt(8)]), UInt(8)])(x_n4)
-	reg(clk_n3) e10: uint<8> = e9
-	let s1_x_n9: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e4, e10)
-} => s1_x_n9
+	let e9: uint<8> = IndexTuple(1, [Tuple([UInt(8), UInt(8)]), UInt(8)])(x_n7)
+	reg(clk_n6) e10: uint<8> = e9
+	let s1_x_n12: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e4, e10)
+} => s1_x_n12

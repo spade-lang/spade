@@ -14,10 +14,10 @@ expression: build_items(code)
             MirInput {
                 name: "a",
                 val_name: Named(
-                    3,
+                    6,
                     "a",
                     Name(
-                        a#3,
+                        a#6,
                     ),
                 ),
                 ty: Int(
@@ -30,10 +30,10 @@ expression: build_items(code)
             MirInput {
                 name: "b",
                 val_name: Named(
-                    4,
+                    7,
                     "b",
                     Name(
-                        b#4,
+                        b#7,
                     ),
                 ),
                 ty: Backward(
@@ -48,10 +48,10 @@ expression: build_items(code)
             MirInput {
                 name: "c",
                 val_name: Named(
-                    5,
+                    8,
                     "c",
                     Name(
-                        c#5,
+                        c#8,
                     ),
                 ),
                 ty: Bool,
@@ -62,10 +62,10 @@ expression: build_items(code)
             MirInput {
                 name: "d",
                 val_name: Named(
-                    6,
+                    9,
                     "d",
                     Name(
-                        d#6,
+                        d#9,
                     ),
                 ),
                 ty: Bool,
@@ -76,10 +76,10 @@ expression: build_items(code)
             MirInput {
                 name: "e",
                 val_name: Named(
-                    7,
+                    10,
                     "e",
                     Name(
-                        e#7,
+                        e#10,
                     ),
                 ),
                 ty: Array {
@@ -113,10 +113,10 @@ expression: build_items(code)
             ),
             Set {
                 target: Named(
-                    4,
+                    7,
                     "b",
                     Name(
-                        b#4,
+                        b#7,
                     ),
                 ),
                 value: Expr(
