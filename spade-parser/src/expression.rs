@@ -5,7 +5,6 @@ use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;
 
 use crate::error::{CSErrorTransformations, ExpectedArgumentList, Result, UnexpectedToken};
-use crate::peek_for;
 use crate::{lexer::TokenKind, ParseStackEntry, Parser};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
