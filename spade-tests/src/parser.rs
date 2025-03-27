@@ -1,4 +1,4 @@
-use crate::{build_items, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error! {
     stage_outside_pipeline,
@@ -867,5 +867,14 @@ snapshot_error! {
     "
     /// This is my module :3
     mod x {}
+    "
+}
+
+code_compiles! {
+    single_element_tuple_is_describable,
+    "
+        fn test() -> (bool,) {
+            (true,)
+        }
     "
 }

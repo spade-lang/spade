@@ -286,21 +286,40 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn tuple_literal(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::OpenParen);
+        // TODO: Do we also want to handle (,)?
+        if self.peek_kind(&TokenKind::CloseParen)? {
+            return Ok(Some(Expression::TupleLiteral(vec![]).between(
+                self.file_id,
+                &start,
+                &self.eat_unconditional()?,
+            )));
+        }
 
-        let mut inner = self
-            .comma_separated(Self::expression, &TokenKind::CloseParen)
-            .no_context()?;
+        let first = self.expression()?;
+        let first_sep = self.eat_unconditional()?;
 
-        let end = self.eat(&TokenKind::CloseParen)?;
-        let span = lspan(start.span).merge(lspan(end.span));
+        match &first_sep.kind {
+            TokenKind::CloseParen => {
+                Ok(Some(first.inner.between(self.file_id, &start, &first_sep)))
+            }
+            TokenKind::Comma => {
+                let rest = self
+                    .comma_separated(Self::expression, &TokenKind::CloseParen)
+                    .no_context()?;
 
-        let result = if inner.len() == 1 {
-            // NOTE: safe unwrap, we know the size of the array
-            Ok(inner.pop().unwrap().inner)
-        } else {
-            Ok(Expression::TupleLiteral(inner))
-        };
-        result.map(|expr| Some(expr.at(self.file_id, &span)))
+                let end = self.eat(&TokenKind::CloseParen)?;
+
+                Ok(Some(
+                    Expression::TupleLiteral(vec![first].into_iter().chain(rest).collect())
+                        .between(self.file_id, &start, &end),
+                ))
+            }
+            _ => Err(UnexpectedToken {
+                got: first_sep,
+                expected: vec!["expression", ",", ")"],
+            }
+            .into()),
+        }
     }
 
     #[trace_parser]
@@ -1230,7 +1249,11 @@ impl<'a> Parser<'a> {
                     &TokenKind::CloseParen,
                 )?;
 
-                Ok(Some(UnitKind::Pipeline(depth).between(self.file_id, start_token, &depth_span)))
+                Ok(Some(UnitKind::Pipeline(depth).between(
+                    self.file_id,
+                    start_token,
+                    &depth_span,
+                )))
             }
             TokenKind::Function => {
                 self.eat_unconditional()?;
@@ -1250,7 +1273,7 @@ impl<'a> Parser<'a> {
         let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
         let start_token = self.peek()?;
         let Some(unit_kind) = self.unit_kind(&start_token)? else {
-            return Ok(None)
+            return Ok(None);
         };
 
         let name = self.identifier()?;
