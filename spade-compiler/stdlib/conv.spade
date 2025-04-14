@@ -186,3 +186,15 @@ impl uint<32> {
     }
 }
 
+
+impl<#uint N> uint<N> {
+    fn trunc<#uint M>(self) -> uint<M> {
+        trunc(self)
+    }
+}
+
+impl<#uint N> int<N> {
+    fn trunc<#uint M>(self) -> int<M> {
+        trunc(self)
+    }
+}
