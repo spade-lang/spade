@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/optimizations.rs
+expression: "format! (\"{}\", items [0])"
+---
+entity \test ((input, input_n10, enum option [], option [uint<8>])) -> enum option [], option [uint<9>] {
+	let val_n11: uint<8> = EnumMember(1 0)(input_n10)
+	let e12: bool = IsEnumVariant(1)(input_n10)
+	const e13: bool = true
+	let e14: bool = LogicalAnd(e12, e13)
+	const e8: uint<8> = 1
+	let e6: uint<9> = UnsignedAdd(val_n11, e8)
+	let e5: enum option [], option [uint<9>] = ConstructEnum(1, 2)(e6)
+	let e16: bool = IsEnumVariant(0)(input_n10)
+	let e10: enum option [], option [uint<9>] = ConstructEnum(0, 2)()
+	let e1: enum option [], option [uint<9>] = Concat(e14, e6)
+} => e1

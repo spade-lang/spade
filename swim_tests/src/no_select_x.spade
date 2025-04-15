@@ -1,0 +1,26 @@
+#[optimize(no_select_x)]
+fn test(input: uint<5>) -> ((Option<uint<5>>, Option<uint<5>>, Option<uint<5>>), (uint<6>, uint<6>, uint<6>)) {
+    let input: Option<uint<4>> = std::conv::unsafe::unsafe_cast(input);
+
+    let out = (
+        match input {
+            Option::None => Option::None,
+            Option::Some(val) => Option::Some(val + 1),
+        },
+        match input {
+            Option::Some(val) => Option::Some(val + 2),
+            Option::None => Option::None,
+        },
+        match input {
+            Option::Some(val) => Option::Some(val + 3),
+            _ => Option::None,
+        }
+    );
+
+    (
+        out,
+        std::conv::unsafe::unsafe_cast(
+            out
+        )
+    )
+}

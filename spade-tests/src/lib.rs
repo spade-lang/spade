@@ -21,6 +21,8 @@ mod linear_check;
 #[cfg(test)]
 mod mod_namespacing;
 #[cfg(test)]
+mod optimizations;
+#[cfg(test)]
 mod parser;
 #[cfg(test)]
 mod ports_integration;
