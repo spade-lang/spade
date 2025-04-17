@@ -182,9 +182,7 @@ class Field(object):
             r = self.spade__.compare_field(
                 self.field_ref__, value, BitString(self.dut__._id(self.field_ref__.source.back_mangled(), extended=False).value.binstr)
             )
-            expected_bits = r.expected_bits.inner()
-            got_bits = r.got_bits.inner()
-            return expected_bits.lower() == got_bits.lower()
+            return r.matches()
         except Exception as e:
                 handle_maybe_spade_exception(e, traceback.extract_stack())
 
