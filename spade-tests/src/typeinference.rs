@@ -2186,3 +2186,33 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    recursive_type_is_error,
+    "
+    fn test() {
+        decl x;
+        let x = [x];
+    }
+    "
+}
+
+snapshot_error! {
+    recursive_tuple_is_error,
+    "
+    fn test() {
+        decl x;
+        let x = (x, bool);
+    }
+    "
+}
+
+snapshot_error! {
+    recursive_inner_tuple_is_error,
+    "
+    fn test() {
+        decl x;
+        let x = ((true, x), false);
+    }
+    "
+}

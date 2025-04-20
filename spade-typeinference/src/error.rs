@@ -146,6 +146,7 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                     g: old_g,
                 }))
             }
+            e @ Err(UnificationError::RecursiveType { .. }) => e,
             e @ Err(UnificationError::UnsatisfiedTraits { .. }) => e,
             e @ Err(
                 UnificationError::FromConstraints { .. } | UnificationError::Specific { .. },
@@ -341,7 +342,15 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         ConstraintSource::PipelineAvailDepth => diag,
                     }
                 }
-                UnificationError::Specific(e) => e,
+                UnificationError::Specific(e) => e.secondary_label(
+                    unification_point,
+                    "The error occurred when unifying types here",
+                ),
+                UnificationError::RecursiveType(t) => {
+                    Diagnostic::error(unification_point, format!("Inferred a recursive type {t}"))
+                        .primary_label(format!("Type {t} inferred here"))
+                        .help("The recursion happens at the type marked \"*\"")
+                }
             }
         })
     }
@@ -415,6 +424,7 @@ impl TypeMismatch {
 pub enum UnificationError {
     Normal(TypeMismatch),
     MetaMismatch(TypeMismatch),
+    RecursiveType(String),
     Specific(spade_diagnostics::Diagnostic),
     UnsatisfiedTraits {
         var: TypeVarID,

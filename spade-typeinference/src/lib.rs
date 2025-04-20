@@ -2433,6 +2433,9 @@ impl TypeState {
             if v1.inner != v2.inner {
                 let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
                 self.replacements.insert(from, to);
+                if let Err(rec) = self.check_type_for_recursion(to, &mut vec![]) {
+                    return Err(UnificationError::RecursiveType(rec));
+                }
             }
         }
 
@@ -2519,6 +2522,7 @@ impl TypeState {
                     Err(
                         e @ UnificationError::FromConstraints { .. }
                         | e @ UnificationError::Specific { .. }
+                        | e @ UnificationError::RecursiveType(_)
                         | e @ UnificationError::UnsatisfiedTraits { .. },
                     ) => return Err(e),
                 };
@@ -2526,6 +2530,63 @@ impl TypeState {
         }
 
         Ok(new_type)
+    }
+
+    fn check_type_for_recursion(
+        &self,
+        ty: TypeVarID,
+        seen: &mut Vec<TypeVarID>,
+    ) -> std::result::Result<(), String> {
+        seen.push(ty);
+        match ty.resolve(self) {
+            TypeVar::Known(_, base, params) => {
+                for (i, param) in params.iter().enumerate() {
+                    if seen.contains(param) {
+                        return Err("*".to_string());
+                    }
+
+                    if let Err(rest) = self.check_type_for_recursion(*param, seen) {
+                        let list = params
+                            .iter()
+                            .enumerate()
+                            .map(|(j, _)| {
+                                if j == i {
+                                    rest.clone()
+                                } else {
+                                    "_".to_string()
+                                }
+                            })
+                            .join(", ");
+
+                        match base {
+                            KnownType::Named(name_id) => {
+                                return Err(format!("{name_id}<{}>", list));
+                            }
+                            KnownType::Bool(_) | KnownType::Integer(_) => {
+                                unreachable!("Encountered recursive type level bool or int")
+                            }
+                            KnownType::Tuple => return Err(format!("({})", list)),
+                            KnownType::Array => return Err(format!("[{}]", list)),
+                            KnownType::Wire => return Err(format!("&{}", list)),
+                            KnownType::Inverted => return Err(format!("inv {}", list)),
+                        }
+                    }
+                }
+            }
+            TypeVar::Unknown(_, _, traits, _) => {
+                for t in &traits.inner {
+                    for param in &t.type_params {
+                        if seen.contains(param) {
+                            return Err("...".to_string());
+                        }
+
+                        self.check_type_for_recursion(*param, seen)?;
+                    }
+                }
+            }
+        }
+        seen.pop();
+        Ok(())
     }
 
     fn ensure_impls(

@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    decl x;
+    let x = (x, bool);
+}
+
+
+error: Type bool is used as a value
+  ┌─ testinput:3:17
+  │
+3 │     let x = (x, bool);
+  │                 ^^^^ bool is a type

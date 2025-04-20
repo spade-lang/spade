@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    decl x;
+    let x = ((true, x), false);
+}
+
+
+error: Inferred a recursive type ((_, *), _)
+  ┌─ testinput:3:9
+  │
+3 │     let x = ((true, x), false);
+  │         ^ Type ((_, *), _) inferred here
+  │
+  = help: The recursion happens at the type marked "*"
