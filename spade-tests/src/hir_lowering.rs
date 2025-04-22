@@ -8,12 +8,9 @@ mod tests {
     };
     use colored::Colorize;
     use insta::assert_debug_snapshot;
-    use spade_common::{
-        location_info::WithLocation,
-        num_ext::InfallibleToBigUint,
-    };
-    use spade_mir::{self, entity, statement, types::Type, ConstantValue};
+    use spade_common::{location_info::WithLocation, num_ext::InfallibleToBigUint};
     use spade_mir::assert_same_mir;
+    use spade_mir::{self, entity, statement, types::Type, ConstantValue};
 
     #[test]
     fn entity_definitions_are_correct() {
@@ -1548,7 +1545,7 @@ mod tests {
         all
     }
 
-    snapshot_mir!{
+    snapshot_mir! {
         generic_integers_codegen_correctly,
         r#"
             fn create_t<#uint T>() -> int<8> {

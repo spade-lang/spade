@@ -178,12 +178,7 @@ macro_rules! snapshot_mir {
             use itertools::Itertools;
             let code = $src;
             let items = build_items(code);
-            insta::assert_snapshot!(
-                items
-                    .iter()
-                    .map(|item| format!("{item}"))
-                    .join("\n")
-            )
+            insta::assert_snapshot!(items.iter().map(|item| format!("{item}")).join("\n"))
         }
     };
     ($fn:ident, $src:literal) => {

@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+trait Trait {}
+
+impl Trait for uint<8> {}
+
+fn needs_trait<T: Trait>(x: T) {}
+
+fn test() {
+    let x: uint<9> = 0;
+
+    needs_trait(x)
+}
+
+
+error: Argument type mismatch. Expected uint<9> got Trait
+   ┌─ testinput:10:17
+   │
+ 1 │ trait Trait {}
+   │       ----- Type 8 inferred here
+   ·
+ 8 │     let x: uint<9> = 0;
+   │                 - Type 9 inferred here
+ 9 │ 
+10 │     needs_trait(x)
+   │                 ^ expected uint<9>
+   │
+   = note: Expected: 9
+                 in: uint<9>
+                Got: 8
+                 in: Trait

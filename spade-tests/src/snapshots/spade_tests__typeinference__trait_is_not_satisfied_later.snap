@@ -1,0 +1,31 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+trait Trait {}
+
+impl Trait for uint<5> {}
+
+fn needs_trait<T: Trait>(x: T) {}
+
+fn test() {
+    decl x;
+    needs_trait(x);
+    let x: uint<9> = 0;
+}
+
+
+error: Expected type uint<9>, got Trait + Number<_>
+   ┌─ testinput:10:22
+   │
+ 1 │ trait Trait {}
+   │       ----- Type 5 inferred here
+   ·
+10 │     let x: uint<9> = 0;
+   │                 -    ^ Expected uint<9>
+   │                 │     
+   │                 Type 9 inferred here
+   │
+   = note: Expected: 9
+                 in: uint<9>
+                Got: 5
+                 in: Trait + Number<_>
