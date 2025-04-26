@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() -> bool {
+    fn () {
+        1
+    }.call(())
+}
+
+
+error: Output type mismatch. Expected bool, got Number<_>
+  ┌─ testinput:1:19
+  │  
+1 │   fn test() -> bool {
+  │                ---- bool type specified here
+  │ ╭───────────────────^
+2 │ │     fn () {
+3 │ │         1
+4 │ │     }.call(())
+5 │ │ }
+  │ ╰─^ Found type Number<_>
+  │  
+  = note: Expected: bool
+               Got: Number<_>

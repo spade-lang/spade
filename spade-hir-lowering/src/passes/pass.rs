@@ -166,6 +166,15 @@ impl Passable for Loc<Expression> {
                     result.apply(pass)?;
                 }
             }
+            ExprKind::LambdaDef {
+                arguments: _,
+                body,
+                lambda_type: _,
+                lambda_type_params: _,
+                lambda_unit: _,
+            } => {
+                subnodes!(body)
+            }
             ExprKind::If(cond, on_true, on_false) => subnodes!(cond, on_true, on_false),
             ExprKind::TypeLevelIf(_cond, on_true, on_false) => subnodes!(on_true, on_false),
             ExprKind::PipelineRef {
@@ -174,7 +183,7 @@ impl Passable for Loc<Expression> {
                 declares_name: _,
                 depth_typeexpr_id: _,
             } => {}
-            ExprKind::Null => {}
+            ExprKind::Null | ExprKind::StaticUnreachable(_) => {}
         };
 
         pass.visit_expression(self)

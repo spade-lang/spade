@@ -664,6 +664,15 @@ impl PipelineAvailability for ExprKind {
                 name,
                 "Method call should already have been lowered by this point"
             ),
+            ExprKind::StaticUnreachable(message) => {
+                diag_bail!(
+                    message,
+                    "Static unreachable during pipeline lowering ({message})"
+                )
+            }
+            ExprKind::LambdaDef { .. } => {
+                panic!("Lambda def should have been lowered at this point")
+            }
             ExprKind::Null => {
                 panic!("Null expression during pipeline lowering")
             }

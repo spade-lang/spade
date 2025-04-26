@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() -> bool {
+    fn (a) {
+        let x: bool = a;
+        true
+    }.call((1,))
+}
+
+
+error: Argument type mismatch. Expected (bool) got (Number<#uint>)
+  ┌─ testinput:5:12
+  │
+3 │         let x: bool = a;
+  │                ---- Type bool inferred here
+4 │         true
+5 │     }.call((1,))
+  │            ^^^^
+  │            ││
+  │            │Type Number<_> inferred here
+  │            expected (bool)
+  │
+  = note: Expected: bool
+                in: (bool)
+               Got: Number<_>
+                in: (Number<_>)

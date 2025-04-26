@@ -3,11 +3,11 @@ pub mod builtins;
 pub mod error;
 pub mod global_symbols;
 mod impls;
+mod lambda;
 pub mod pipelines;
 pub mod testutil;
 mod type_level_if;
 pub mod types;
-mod lambda;
 
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
@@ -1905,9 +1905,7 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         ast::Expression::Block(block) => {
             Ok(hir::ExprKind::Block(Box::new(visit_block(block, ctx)?)))
         }
-        ast::Expression::Lambda { .. } => {
-            visit_lambda(e, ctx)
-        }
+        ast::Expression::Lambda { .. } => visit_lambda(e, ctx),
         ast::Expression::Call {
             kind,
             callee,
@@ -2053,6 +2051,9 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         }
         ast::Expression::StageReady => Ok(hir::ExprKind::StageReady),
         ast::Expression::StageValid => Ok(hir::ExprKind::StageValid),
+        ast::Expression::StaticUnreachable(message) => {
+            Ok(hir::ExprKind::StaticUnreachable(message.clone()))
+        }
     }
     .map(|kind| kind.with_id(new_id))
 }

@@ -176,11 +176,15 @@ fn visit_expression(
             declares_name: _,
             depth_typeexpr_id: _,
         } => false,
+        spade_hir::ExprKind::LambdaDef { .. } => diag_bail!(
+            expr,
+            "Lambda def should have been lowered to function by this point"
+        ),
         spade_hir::ExprKind::MethodCall { .. } => diag_bail!(
             expr,
             "method call should have been lowered to function by this point"
         ),
-        spade_hir::ExprKind::Null => false,
+        spade_hir::ExprKind::Null | ExprKind::StaticUnreachable(_) => false,
     };
 
     if produces_new_resource {
@@ -385,9 +389,14 @@ fn visit_expression(
             expr,
             "method call should have been lowered to function by this point"
         ),
+        spade_hir::ExprKind::LambdaDef { .. } => diag_bail!(
+            expr,
+            "lambda def should have been lowered to function by this point"
+        ),
         spade_hir::ExprKind::Null { .. } => {
             diag_bail!(expr, "Null expression created before linear check")
         }
+        spade_hir::ExprKind::StaticUnreachable(_) => {}
     }
     Ok(())
 }

@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() -> bool {
+    fn ((a, b)) {
+        true
+    }.call((1,))
+}
+
+
+error: Argument type mismatch. Expected ((_, _)) got (Number<#uint>)
+  ┌─ testinput:4:12
+  │
+2 │     fn ((a, b)) {
+  │         ------ Type (_, _) inferred here
+3 │         true
+4 │     }.call((1,))
+  │            ^^^^
+  │            ││
+  │            │Type Number<_> inferred here
+  │            expected ((_, _))
+  │
+  = note: Expected: (_, _)
+                in: ((_, _))
+               Got: Number<_>
+                in: (Number<_>)
