@@ -129,6 +129,15 @@ impl ServerBackend {
                     }
                 }
             }
+            ExprKind::LambdaDef {
+                arguments: _,
+                body,
+                lambda_type: _,
+                lambda_unit: _,
+                lambda_type_params: _,
+            } => {
+                return self.find_def_in_expression(body, query_id);
+            }
             ExprKind::TupleLiteral(_) => {}             //  FIXME
             ExprKind::ArrayLiteral(_) => {}             //  FIXME
             ExprKind::ArrayShorthandLiteral(_, _) => {} //  FIXME
@@ -149,7 +158,8 @@ impl ServerBackend {
             ExprKind::CreatePorts => {}                 //  FIXME
             ExprKind::StageReady => {}                  //  FIXME
             ExprKind::StageValid => {}                  //  FIXME
-            ExprKind::Null => {}                        //  FIXME
+            ExprKind::StaticUnreachable(_) => {}
+            ExprKind::Null => {}
         }
         None
     }

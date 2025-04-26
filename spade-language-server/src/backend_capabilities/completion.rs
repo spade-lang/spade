@@ -268,6 +268,13 @@ impl ServerBackend {
                     comps.append(&mut self.fold_comps_stat(s, pos, uri).await);
                 }
             }
+            ExprKind::LambdaDef {
+                arguments: _,
+                body,
+                lambda_type: _,
+                lambda_unit: _,
+                lambda_type_params: _,
+            } => comps.append(&mut self.fold_comps_expr(body, pos, uri).await),
             ExprKind::PipelineRef { name: _name, .. } => {}
             ExprKind::IntLiteral(_, _)
             | ExprKind::BitLiteral(_)
@@ -275,7 +282,8 @@ impl ServerBackend {
             | ExprKind::CreatePorts
             | ExprKind::StageValid
             | ExprKind::StageReady
-            | ExprKind::Null => {} // Ignore all of these
+            | ExprKind::Null
+            | ExprKind::StaticUnreachable(_) => {} // Ignore all of these
         }
 
         comps

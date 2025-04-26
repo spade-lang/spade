@@ -102,6 +102,8 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             spade_hir::ExprKind::StageValid => Ok(()),
             spade_hir::ExprKind::StageReady => Ok(()),
             spade_hir::ExprKind::Null => Ok(()),
+            spade_hir::ExprKind::LambdaDef { .. } => Ok(()),
+            spade_hir::ExprKind::StaticUnreachable(_) => Ok(()),
         }
     }
 

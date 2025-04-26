@@ -5,13 +5,13 @@ use mir::passes::MirPass;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
-use spade_diagnostics::{DiagHandler, Diagnostic};
+use spade_diagnostics::{diag_anyhow, DiagHandler, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
 use spade_typeinference::equation::KnownTypeVar;
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::trace_stack::{format_trace_stack, TraceStackEntry};
-use spade_typeinference::{GenericListToken, TypeState};
+use spade_typeinference::{GenericListToken, HasType, TypeState};
 
 use crate::error::Result;
 use crate::generate_unit;
@@ -19,6 +19,7 @@ use crate::name_map::NameSourceMap;
 use crate::passes::disallow_inout_bindings::InOutChecks;
 use crate::passes::disallow_zero_size::DisallowZeroSize;
 use crate::passes::flatten_regs::FlattenRegs;
+use crate::passes::lower_lambda_defs::{LambdaReplacement, LowerLambdaDefs};
 use crate::passes::lower_methods::LowerMethods;
 use crate::passes::lower_type_level_if::LowerTypeLevelIf;
 use crate::passes::pass::{Pass, Passable};
@@ -166,6 +167,8 @@ pub fn compile_items(
         }
     }
 
+    let mut body_replacements: HashMap<NameID, LambdaReplacement> = HashMap::new();
+
     let mut result = vec![];
     'item_loop: while let Some(item) = state.next_target() {
         let original_item = items.get(&item.source_name.inner);
@@ -173,6 +176,67 @@ pub fn compile_items(
         let mut reg_name_map = BTreeMap::new();
         match original_item {
             Some((ExecutableItem::Unit(u), old_type_state)) => {
+                let (u, old_type_state) =
+                    if let Some(replacement) = body_replacements.get(&u.name.name_id().inner) {
+                        let new_unit = match replacement.replace_in(u.clone(), idtracker) {
+                            Ok(u) => u,
+                            Err(e) => {
+                                result.push(Err(state.add_mono_traceback(e, &item)));
+                                break 'item_loop;
+                            }
+                        };
+                        (&new_unit.clone(), &{
+                            let mut type_state = TypeState::fresh();
+                            let type_ctx = &spade_typeinference::Context {
+                                symtab: symtab.symtab(),
+                                items: item_list,
+                                trait_impls: &old_type_state.trait_impls,
+                            };
+                            let unification_result = type_state.visit_unit_with_preprocessing(
+                                &new_unit,
+                                |type_state, unit, generic_list, ctx| {
+                                    let gl = type_state
+                                        .get_generic_list(generic_list)
+                                        .ok_or_else(|| {
+                                            diag_anyhow!(unit, "Did not have a generic list")
+                                        })?
+                                        .clone();
+                                    for (i, (_, ty)) in replacement.arguments.iter().enumerate() {
+                                        let old_ty = gl
+                                            .get(&unit.head.get_type_params()[i].name_id)
+                                            .ok_or_else(|| {
+                                                diag_anyhow!(
+                                                    unit,
+                                                    "Did not have an entry for argument {i}"
+                                                )
+                                            })?
+                                            .clone();
+
+                                        println!(
+                                            "Unifying {} with {}",
+                                            old_ty.debug_resolve(type_state),
+                                            ty
+                                        );
+                                        ty.insert(type_state)
+                                            .unify_with(&old_ty, type_state)
+                                            .commit(type_state, ctx)
+                                            .into_default_diagnostic(unit, type_state)?;
+                                    }
+                                    Ok(())
+                                },
+                                type_ctx,
+                            );
+                            if let Err(e) = unification_result {
+                                result.push(Err(state.add_mono_traceback(e, &item)));
+                                break 'item_loop;
+                            }
+
+                            type_state
+                        })
+                    } else {
+                        (u, old_type_state)
+                    };
+
                 let type_ctx = &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: item_list,
@@ -235,11 +299,15 @@ pub fn compile_items(
                 // Apply passes to the type checked module
                 let mut u = u.clone();
                 let passes = [
+                    &mut LowerLambdaDefs {
+                        type_state: &type_state,
+                        replacements: &mut body_replacements,
+                    } as &mut dyn Pass,
                     &mut FlattenRegs {
                         type_state: &type_state,
                         items: item_list,
                         symtab,
-                    },
+                    } as &mut dyn Pass,
                     &mut LowerMethods {
                         type_state: &type_state,
                         items: item_list,

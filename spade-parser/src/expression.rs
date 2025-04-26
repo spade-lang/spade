@@ -289,14 +289,14 @@ impl<'a> Parser<'a> {
     fn lambda(&mut self) -> Result<Option<Loc<Expression>>> {
         let start_token = self.peek()?;
         let Some(unit_kind) = self.unit_kind(&start_token)? else {
-            return Ok(None)
+            return Ok(None);
         };
 
         let (args, args_loc) = self.surrounded(
             &TokenKind::OpenParen,
             |s| {
                 let args = s
-                    .comma_separated(|s| s.identifier(), &TokenKind::CloseParen)
+                    .comma_separated(|s| s.pattern(), &TokenKind::CloseParen)
                     .no_context()?;
 
                 Ok(args)

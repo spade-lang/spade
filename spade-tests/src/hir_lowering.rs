@@ -3247,3 +3247,31 @@ snapshot_mir! {
         }
     "
 }
+
+snapshot_mir! {
+    lambda_with_decl,
+    "
+    fn test() {
+        decl x;
+
+        let x = fn () {};
+        x.call(());
+    }
+    ",
+    all
+}
+
+snapshot_mir! {
+    field_access_work_on_lambda_args,
+    "
+    struct X {
+        value: bool,
+    }
+    fn test() {
+        let x = fn (a) {
+            a.value
+        }.call((X(true),));
+    }
+    ",
+    all
+}

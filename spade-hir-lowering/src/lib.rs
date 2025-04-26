@@ -1244,9 +1244,14 @@ impl ExprLocal for Loc<Expression> {
                 self,
                 "method call should have been lowered to function by this point"
             ),
+            ExprKind::LambdaDef { .. } => diag_bail!(
+                self,
+                "lambda def call should have been lowered to function by this point"
+            ),
             ExprKind::Null => {
                 diag_bail!(self, "Null expression found during hir lowering")
             }
+            ExprKind::StaticUnreachable(_) => Ok(None),
         }
     }
 
@@ -2012,8 +2017,18 @@ impl ExprLocal for Loc<Expression> {
                     "Method should already have been lowered at this point"
                 )
             }
+            ExprKind::LambdaDef { .. } => {
+                diag_bail!(self, "Lambda def expression found during hir lowering")
+            }
             ExprKind::Null => {
                 diag_bail!(self, "Null expression found during hir lowering")
+            }
+            ExprKind::StaticUnreachable(message) => {
+                return Err(Diagnostic::error(
+                    message,
+                    format!("Reached unreachable code '{message}'"),
+                )
+                .primary_label(message.inner.clone()))
             }
         }
 

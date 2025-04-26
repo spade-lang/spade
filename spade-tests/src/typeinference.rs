@@ -2215,3 +2215,49 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    lambdas_cannot_have_type_errors_in_them,
+    "
+        fn test() {
+            fn () {
+                let x: uint<8> = true;
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_return_type_must_match,
+    "
+        fn test() -> bool {
+            fn () {
+                1
+            }.call(())
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_arguments_drive_typeinference,
+    "
+        fn test() -> bool {
+            fn ((a, b)) {
+                true
+            }.call((1,))
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_typeinference_argument_inner_thingy,
+    "
+        fn test() -> bool {
+            fn (a) {
+                let x: bool = a;
+                true
+            }.call((1,))
+        }
+    "
+}
+>>>>>>> Conflict 1 of 1 ends

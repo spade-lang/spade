@@ -366,13 +366,21 @@ impl ServerBackend {
                     //return Ok(Some(SpadeSymbol::NameID(name.inner.clone(), self.get_type_id(name, type_state)))); //
                 }
             }
+            E::LambdaDef {
+                arguments: _,
+                body,
+                lambda_type: _,
+                lambda_unit: _,
+                lambda_type_params: _,
+            } => return self.search_sym_expr(body, pos, ts),
             E::IntLiteral(_, _)
             | E::BitLiteral(_)
             | E::BoolLiteral(_)
             | E::CreatePorts
             | E::StageValid
             | E::StageReady
-            | E::Null => {} // Ignore all of these
+            | E::Null
+            | E::StaticUnreachable(_) => {} // Ignore all of these
         }
         None
     }
@@ -679,6 +687,13 @@ impl ServerBackend {
                 }
                 return syms.last().cloned();
             }
+            E::LambdaDef {
+                arguments: _,
+                body,
+                lambda_type: _,
+                lambda_unit: _,
+                lambda_type_params: _,
+            } => return self.search_sym_expr_named(body, pos, ts, name),
             E::PipelineRef { .. } => {}
             E::IntLiteral(_, _)
             | E::BitLiteral(_)
@@ -686,7 +701,8 @@ impl ServerBackend {
             | E::CreatePorts
             | E::StageValid
             | E::StageReady
-            | E::Null => {} // Ignore all of these
+            | E::Null
+            | E::StaticUnreachable(_) => {} // Ignore all of these
         }
         None
     }

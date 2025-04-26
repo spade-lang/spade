@@ -1,4 +1,6 @@
-use crate::{ConstGenericWithId, Pattern, TypeExpression};
+use std::borrow::BorrowMut;
+
+use crate::{ConstGenericWithId, Pattern, TypeExpression, TypeParam};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -241,8 +243,18 @@ pub enum ExprKind {
         /// of this referenced value
         depth_typeexpr_id: ExprID,
     },
+    LambdaDef {
+        /// The type that this lambda definition creates
+        lambda_type: NameID,
+        lambda_type_params: Vec<Loc<TypeParam>>,
+        /// The unit which is the `call` method on this lambda
+        lambda_unit: NameID,
+        arguments: Vec<Loc<Pattern>>,
+        body: Box<Loc<Expression>>,
+    },
     StageValid,
     StageReady,
+    StaticUnreachable(Loc<String>),
     // This is a special case expression which is never created in user code, but which can be used
     // in type inference to create virtual expressions with specific IDs
     Null,
@@ -286,6 +298,15 @@ impl Expression {
     pub fn assume_block(&self) -> &Block {
         if let ExprKind::Block(ref block) = self.kind {
             block
+        } else {
+            panic!("Expression is not a block")
+        }
+    }
+
+    /// Returns the block that is this expression. Panics if the expression is not a block
+    pub fn assume_block_mut(&mut self) -> &mut Block {
+        if let ExprKind::Block(block) = &mut self.kind {
+            block.borrow_mut()
         } else {
             panic!("Expression is not a block")
         }
@@ -381,8 +402,10 @@ impl LocExprExt for Loc<Expression> {
             ExprKind::If(_, _, _) => Some(self.clone()),
             ExprKind::TypeLevelIf(_, _, _) => Some(self.clone()),
             ExprKind::PipelineRef { .. } => Some(self.clone()),
-            ExprKind::StageReady => None,
-            ExprKind::StageValid => None,
+            ExprKind::StageReady => Some(self.clone()),
+            ExprKind::StageValid => Some(self.clone()),
+            ExprKind::LambdaDef { .. } => Some(self.clone()),
+            ExprKind::StaticUnreachable(_) => None,
             ExprKind::Null => None,
         }
     }

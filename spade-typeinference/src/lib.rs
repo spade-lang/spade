@@ -462,9 +462,13 @@ impl TypeState {
             .ok_or_else(|| diag_anyhow!(access_loc, "Expected to have a pipeline state"))
     }
 
-    #[trace_typechecker]
-    #[tracing::instrument(level = "trace", skip_all, fields(%entity.name))]
-    pub fn visit_unit(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
+    /// Visit a unit but before doing any preprocessing run the `pp` function.
+    pub fn visit_unit_with_preprocessing(
+        &mut self,
+        entity: &Loc<Unit>,
+        pp: impl Fn(&mut TypeState, &Loc<Unit>, &GenericListToken, &Context) -> Result<()>,
+        ctx: &Context,
+    ) -> Result<()> {
         self.trait_impls = ctx.trait_impls.clone();
 
         let generic_list = self.create_generic_list(
@@ -476,6 +480,8 @@ impl TypeState {
             // is probably redundant
             &entity.head.where_clauses,
         )?;
+
+        pp(self, entity, &generic_list, ctx)?;
 
         // Add equations for the inputs
         for (name, t) in &entity.inputs {
@@ -597,6 +603,12 @@ impl TypeState {
         self.pipeline_state = None;
 
         Ok(())
+    }
+
+    #[trace_typechecker]
+    #[tracing::instrument(level = "trace", skip_all, fields(%entity.name))]
+    pub fn visit_unit(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
+        self.visit_unit_with_preprocessing(entity, |_, _, _, _| Ok(()), ctx)
     }
 
     #[trace_typechecker]
@@ -753,6 +765,62 @@ impl TypeState {
                 self.unify_expression_generic_error(expression, on_true.as_ref(), ctx)?;
                 self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
             }
+            ExprKind::LambdaDef {
+                arguments,
+                body,
+                lambda_type,
+                lambda_type_params,
+                lambda_unit: _,
+            } => {
+                for arg in arguments {
+                    self.visit_pattern(arg, ctx, generic_list)?;
+                }
+
+                self.visit_expression(body, ctx, generic_list)?;
+
+                let lambda_params = arguments
+                    .iter()
+                    .map(|arg| arg.get_type(self))
+                    .chain(vec![body.get_type(self)])
+                    .collect::<Vec<_>>();
+
+                let self_type = TypeVar::Known(
+                    expression.loc(),
+                    KnownType::Named(lambda_type.clone()),
+                    lambda_params.clone(),
+                );
+
+                let unit_generic_list = self.create_generic_list(
+                    GenericListSource::Expression(expression.id),
+                    &lambda_type_params,
+                    &[],
+                    None,
+                    &[],
+                )?;
+
+                for (p, tp) in lambda_params.iter().zip(lambda_type_params) {
+                    let gl = self.get_generic_list(&unit_generic_list).unwrap();
+                    // Safe unwrap, we're just unifying unknowns with unknowns
+                    p.unify_with(
+                        gl.get(&tp.name_id).ok_or_else(|| {
+                            diag_anyhow!(
+                                expression,
+                                "Lambda unit list did not contain {}",
+                                tp.name_id
+                            )
+                        })?,
+                        self,
+                    )
+                    .commit(self, ctx)
+                    .unwrap();
+                }
+
+                expression
+                    .unify_with(&self.add_type_var(self_type), self)
+                    .commit(self, ctx)
+                    .into_default_diagnostic(expression, self)?;
+            }
+            ExprKind::StaticUnreachable(_) => {}
             ExprKind::Null => {}
         }
         Ok(())
@@ -2861,7 +2929,7 @@ pub struct UnificationBuilder {
     rhs: TypeVarID,
 }
 impl UnificationBuilder {
-    pub(crate) fn commit(
+    pub fn commit(
         self,
         state: &mut TypeState,
         ctx: &Context,

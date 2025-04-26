@@ -269,7 +269,7 @@ pub enum Expression {
     CreatePorts,
     Lambda {
         unit_kind: Loc<UnitKind>,
-        args: Loc<Vec<Loc<Identifier>>>,
+        args: Loc<Vec<Loc<Pattern>>>,
         body: Box<Loc<Block>>,
     },
     Call {
@@ -326,6 +326,7 @@ pub enum Expression {
     },
     StageValid,
     StageReady,
+    StaticUnreachable(Loc<String>),
 }
 impl WithLocation for Expression {}
 
@@ -375,6 +376,7 @@ impl Expression {
             Expression::PipelineReference { .. } => "pipeline reference",
             Expression::StageValid => "stage.valid",
             Expression::StageReady => "stage.ready",
+            Expression::StaticUnreachable(_) => "unreachable",
         }
     }
 }

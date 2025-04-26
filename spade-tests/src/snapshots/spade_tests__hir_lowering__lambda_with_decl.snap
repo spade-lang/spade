@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \test () -> () {
+	let e1: {} = ConstructTuple()
+	let x_n6: {} = Alias(e1)
+	let e8: () = ConstructTuple()
+	let e6: () = Instance(\impl_0::call[18] )(x_n6, e8)
+} => e0
+entity \impl_0::call[18] ((self, self_n12, {}), (args, args_n13, ())) -> () {
+} => e4
