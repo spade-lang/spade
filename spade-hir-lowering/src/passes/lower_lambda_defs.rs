@@ -7,8 +7,7 @@ use spade_common::{
 };
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
-    expression::CallKind, ArgumentList, ExprKind, Expression,
-    Pattern, Statement, Unit,
+    expression::CallKind, ArgumentList, ExprKind, Expression, Pattern, Statement, Unit,
 };
 use spade_typeinference::{equation::KnownTypeVar, HasType, TypeState};
 

@@ -17,7 +17,7 @@ use tower_lsp::{Client as LspClient, LspService, Server};
 pub trait Client: Send + Sync + 'static {
     fn log_message(
         &self,
-        typ: MessageType,
+        ty: MessageType,
         message: impl Display + Send,
     ) -> impl Future<Output = ()> + Send;
     fn publish_diagnostics(
@@ -30,8 +30,8 @@ pub trait Client: Send + Sync + 'static {
 
 impl Client for LspClient {
     #[inline(always)]
-    async fn log_message(&self, typ: MessageType, message: impl Display) {
-        self.log_message(typ, message).await;
+    async fn log_message(&self, ty: MessageType, message: impl Display) {
+        self.log_message(ty, message).await;
     }
 
     #[inline(always)]
