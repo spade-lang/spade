@@ -46,7 +46,7 @@ impl TestClient {
 }
 
 impl Client for TestClient {
-    async fn log_message(&self, _typ: MessageType, message: impl Display + Send) {
+    async fn log_message(&self, _ty: MessageType, message: impl Display + Send) {
         self.logs.lock().await.push(message.to_string());
     }
 
