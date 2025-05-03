@@ -2201,7 +2201,7 @@ impl TypeState {
                     (KnownType::Integer(val1), KnownType::Integer(val2)) => {
                         // NOTE: We get better error messages if we don't actually
                         // replace v1 with v2. Not entirely sure why, but since they already
-                        // have hte same known type, we're fine. The same applies
+                        // have the same known type, we're fine. The same applies
                         // to all known types
                         unify_if!(val1 == val2, v1, vec![])
                     }

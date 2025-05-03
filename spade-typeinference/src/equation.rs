@@ -521,7 +521,7 @@ impl std::fmt::Display for KnownTypeVar {
             }
             KnownType::Array => write!(f, "[{}; {}]", params[0], params[1]),
             KnownType::Wire => write!(f, "&{}", params[0]),
-            KnownType::Inverted => write!(f, "inv &{}", params[0]),
+            KnownType::Inverted => write!(f, "inv {}", params[0]),
         }
     }
 }

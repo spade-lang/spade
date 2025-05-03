@@ -45,7 +45,6 @@ impl IntoImplTarget for KnownType {
 /// of type `self_type`.
 /// Returns the method to call if it is fully known and exists, an error if there is
 /// no such method, or None if the method is ambiguous
-// TODO: Consider making this a method on type_state
 pub fn select_method(
     expr: Loc<()>,
     self_type: &TypeVarID,

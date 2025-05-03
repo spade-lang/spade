@@ -596,8 +596,6 @@ impl Requirement {
                                             .collect(),
                                     )
                                     .insert(type_state),
-                                    // TODO: The code that was here might have been important,
-                                    // write a test or something?
                                     context: None,
                                 }
                             })
