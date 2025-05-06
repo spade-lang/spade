@@ -1,4 +1,4 @@
-use crate::{build_items, build_items_with_stdlib, snapshot_error};
+use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
 
 snapshot_error! {
     double_consumption_of_identifier_produces_error,
@@ -256,6 +256,68 @@ snapshot_error! {
     "
         entity e(p: inv &bool) {
             let many_p = [p; 3];
+        }
+    "
+}
+
+snapshot_error! {
+    range_indexing_does_not_use_whole_array,
+    "
+        entity test() {
+            let a = [inst new_mut_wire(), inst new_mut_wire(), inst new_mut_wire()];
+            let sub = a[0..2];
+            set sub[0] = 0u8;
+            set sub[1] = 1u8;
+        }
+    "
+}
+
+snapshot_error! {
+    range_indices_cannot_overlap_with_normal_indices,
+    "
+        entity test() {
+            let a = [inst new_mut_wire(), inst new_mut_wire(), inst new_mut_wire()];
+            set a[0] = 0u8;
+            set a[1] = 0u8;
+            set a[2] = 0u8;
+            let b = a[0..1];
+        }
+    "
+}
+
+code_compiles! {
+    range_indices_cover_the_right_indices,
+    "
+        entity test() {
+            let a = [port#1, port#1, port#1];
+            set a[1] = 0u8;
+            set a[2] = 0u8;
+            let b = a[0..1];
+            set b[0] = 0;
+        }
+    "
+}
+snapshot_error! {
+    range_indicies_covering_whole_array_are_fine,
+    "
+        entity test() {
+            let a: [inv& uint<8>; 3] = [port#1, port#1, port#1];
+            set a[0] = 0;
+            let b = a[0..3];
+            set b[0] = 0;
+            set b[1] = 0;
+            set b[2] = 0;
+        }
+    "
+}
+
+snapshot_error! {
+    range_indices_cannot_overlap,
+    "
+        entity test() {
+            let a: [inv& uint<8>; 3] = [port#1, port#1, port#1];
+            let b = a[0..2];
+            let c = a[1..3];
         }
     "
 }

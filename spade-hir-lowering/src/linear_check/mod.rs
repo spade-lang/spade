@@ -5,7 +5,7 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::{NameID, Path},
 };
-use spade_diagnostics::diagnostic::Subdiagnostic;
+use spade_diagnostics::{diag_anyhow, diagnostic::Subdiagnostic};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{
     expression::{NamedArgument, UnaryOperator},
@@ -13,7 +13,7 @@ use spade_hir::{
     ArgumentList, Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement,
     TypeList, TypeSpec,
 };
-use spade_typeinference::TypeState;
+use spade_typeinference::{HasType, TypeState};
 
 use self::linear_state::{is_linear, LinearState};
 use crate::error::Result;
@@ -273,13 +273,56 @@ fn visit_expression(
         }
         spade_hir::ExprKind::RangeIndex {
             target,
-            start: _,
-            end: _,
+            start,
+            end,
         } => {
             visit_expression(target, linear_state, ctx)?;
             // We don't track individual elements of arrays, so we'll have to consume the
             // whole thing here
-            linear_state.consume_expression(target)?;
+            if is_linear(
+                &ctx.type_state
+                    .concrete_type_of(target, ctx.symtab, ctx.types)?,
+            ) {
+                let start = start
+                    .get_type(ctx.type_state)
+                    .resolve(ctx.type_state)
+                    .expect_integer(
+                        |idx| {
+                            Ok(idx.to_u128().ok_or_else(|| {
+                                Diagnostic::error(
+                                    target.loc(),
+                                    "Array indices > 2^64 are not allowed on mutable wires",
+                                )
+                            })?)
+                        },
+                        || Err(Diagnostic::error(start, "Array index was not known.")),
+                        |_| Err(diag_anyhow!(start, "Got non-integer as array index")),
+                    )?;
+                let end = end
+                    .get_type(ctx.type_state)
+                    .resolve(ctx.type_state)
+                    .expect_integer(
+                        |idx| {
+                            Ok(idx.to_u128().ok_or_else(|| {
+                                Diagnostic::error(
+                                    target.loc(),
+                                    "Array indices > 2^64 are not allowed on mutable wires",
+                                )
+                            })?)
+                        },
+                        || Err(Diagnostic::error(end, "Array index was not known.")),
+                        |_| Err(diag_anyhow!(end, "Got non-integer as array index")),
+                    )?;
+
+                for idx in start..end {
+                    linear_state.consume_array_index(
+                        target.id.at_loc(target),
+                        idx.at_loc(expr),
+                    )?;
+                }
+            } else {
+                linear_state.consume_expression(target)?;
+            }
         }
         spade_hir::ExprKind::TupleIndex(base, idx) => {
             visit_expression(base, linear_state, ctx)?;

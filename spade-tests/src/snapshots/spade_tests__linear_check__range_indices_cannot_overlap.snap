@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+entity test() {
+    let a: [inv& uint<8>; 3] = [port#1, port#1, port#1];
+    let b = a[0..2];
+    let c = a[1..3];
+}
+
+
+error: Use of consumed resource
+  ┌─ testinput:4:13
+  │
+3 │     let b = a[0..2];
+  │             ------- Previously used here
+4 │     let c = a[1..3];
+  │             ^^^^^^^ Use of consumed resource [1]

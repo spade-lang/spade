@@ -2933,3 +2933,8 @@ impl HasType for NameID {
         state.type_of(&TypedExpression::Name(self.clone()))
     }
 }
+impl HasType for Loc<ConstGenericWithId> {
+    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
+        state.type_of(&TypedExpression::Id(self.id))
+    }
+}

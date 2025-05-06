@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+entity test() {
+    let a = [inst new_mut_wire(), inst new_mut_wire(), inst new_mut_wire()];
+    let sub = a[0..2];
+    set sub[0] = 0u8;
+    set sub[1] = 1u8;
+}
+
+
+error: a[2] is unused
+  ┌─ testinput:2:9
+  │
+2 │     let a = [inst new_mut_wire(), inst new_mut_wire(), inst new_mut_wire()];
+  │         ^ a[2] is unused
+  │
+  = note: a[2] is an inverted wire (`inv &`) which must be set

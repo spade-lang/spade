@@ -616,7 +616,10 @@ impl LinearState {
         self.consume_id(expr.map_ref(|e| e.id))
     }
 
-    pub fn consume_id(&mut self, id: Loc<ExprID>) -> crate::error::Result<()> {
+    fn get_aliased_trees(
+        &mut self,
+        id: Loc<ExprID>,
+    ) -> crate::error::Result<Vec<&Rc<RefCell<LinearTree>>>> {
         // NOTE: This is fairly inefficient at the moment. It might be better to try
         // and use something like a multi-map for several references to the same tree
 
@@ -643,6 +646,12 @@ impl LinearState {
             }
         }
 
+        Ok(trees_to_consume)
+    }
+
+    pub fn consume_id(&mut self, id: Loc<ExprID>) -> crate::error::Result<()> {
+        let trees_to_consume = self.get_aliased_trees(id)?;
+
         // For each *unique* tree, try to consume the trees
         for tree in trees_to_consume {
             trace!("Consuming tree {}", tree.as_ptr() as usize);
@@ -651,6 +660,23 @@ impl LinearState {
                 .map_err(|(_witness, previous_use)| {
                     Diagnostic::error(id, "Use of consumed resource")
                         .primary_label("Use of consumed resource")
+                        .secondary_label(previous_use, "Previously used here")
+                })?;
+        }
+
+        Ok(())
+    }
+
+    pub fn consume_array_index(&mut self, base: Loc<ExprID>, idx: Loc<u128>) -> crate::error::Result<()> {
+        let trees_to_consume = self.get_aliased_trees(base)?;
+
+        for tree in trees_to_consume {
+            tree.borrow_mut().assume_array()[idx.inner as usize]
+                .borrow_mut()
+                .try_consume(idx.loc())
+                .map_err(|(witness, previous_use)| {
+                    Diagnostic::error(idx, format!("Use of consumed resource"))
+                        .primary_label(format!("Use of consumed resource [{idx}]"))
                         .secondary_label(previous_use, "Previously used here")
                 })?;
         }
