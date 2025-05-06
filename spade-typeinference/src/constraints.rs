@@ -1,4 +1,4 @@
-use num::{bigint::ToBigInt, BigInt, ToPrimitive};
+use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_types::KnownType;
@@ -149,22 +149,7 @@ impl ConstraintExpr {
                 }
             }
             ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate(type_state) {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(if val == BigInt::ZERO {
-                    BigInt::ZERO
-                } else {
-                    // NOTE: This might fail, but it will only do so for massive
-                    // constraints. If this turns out to be an issue, we need to
-                    // look into doing log2 on BigInt, which as of right now, is
-                    // unsupported
-                    ((val
-                        .to_f64()
-                        .expect("Failed to convert constrained integer to f64"))
-                    .log2()
-                    .floor() as i128
-                        + 1)
-                    .to_bigint()
-                    .unwrap()
-                }),
+                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(val.bits().into()),
                 _ => self.clone(),
             },
         }
