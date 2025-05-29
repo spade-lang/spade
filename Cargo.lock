@@ -2393,6 +2393,7 @@ version = "0.13.0"
 dependencies = [
  "colored 3.0.0",
  "itertools 0.14.0",
+ "nesty",
  "num",
  "serde",
  "spade-common",

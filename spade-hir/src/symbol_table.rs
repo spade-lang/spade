@@ -342,7 +342,7 @@ impl WithLocation for DeclarationState {}
 /// Modules are managed by a special variable in the symtab. All names in the
 /// symtab are absolute paths, that is `X` in `mod A{mod B {fn X}}` will only be
 /// stored as `A::B::X`. All variables inside X will also have the full path
-/// appended to them. This should however be invisilbe to the user.
+/// appended to them. This should however be invisible to the user.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SymbolTable {
     /// Each outer vec is a scope, inner vecs are symbols in that scope

@@ -114,6 +114,17 @@ impl<'a> QueryCache {
                 // FIXME: handle callee and turbofish
                 self.visit_arg_list(args)
             }
+            crate::ExprKind::LambdaDef {
+                lambda_type: _,
+                lambda_type_params: _,
+                lambda_unit: _,
+                arguments: _,
+                captured_generic_params: _,
+                body,
+            } => {
+                // FIXME: Handle arguments
+                self.visit_expression(body);
+            }
             crate::ExprKind::BinaryOperator(lhs, _, rhs) => {
                 self.visit_expression(lhs);
                 self.visit_expression(rhs);
@@ -153,7 +164,7 @@ impl<'a> QueryCache {
             } => {}
             crate::ExprKind::StageValid => {}
             crate::ExprKind::StageReady => {}
-            crate::ExprKind::Null => {}
+            crate::ExprKind::StaticUnreachable(_) | crate::ExprKind::Null => {}
         }
     }
 

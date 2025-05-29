@@ -1,5 +1,6 @@
 pub mod expression;
 pub mod param_util;
+pub mod pretty_print;
 pub mod query;
 pub mod symbol_table;
 pub mod testutil;
@@ -253,6 +254,18 @@ pub enum TypeExpression {
 }
 impl WithLocation for TypeExpression {}
 
+impl TypeExpression {
+    fn replace_in(self, from: &TypeSpec, to: &TypeSpec) -> Self {
+        match self {
+            TypeExpression::TypeSpec(type_spec) => {
+                TypeExpression::TypeSpec(type_spec.replace_in(from, to))
+            }
+            TypeExpression::Integer(_) => self,
+            TypeExpression::ConstGeneric(_) => self,
+        }
+    }
+}
+
 impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -310,6 +323,41 @@ impl TypeSpec {
             TypeSpec::Wire(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
             TypeSpec::TraitSelf(_) => vec![],
             TypeSpec::Wildcard(_) => vec![],
+        }
+    }
+
+    pub fn replace_in(self, from: &TypeSpec, to: &TypeSpec) -> Self {
+        if &self == from {
+            to.clone()
+        } else {
+            match self {
+                TypeSpec::Declared(base, inner) => TypeSpec::Declared(
+                    base.clone(),
+                    inner
+                        .into_iter()
+                        .map(|expr| expr.map(|s| s.replace_in(from, to)))
+                        .collect(),
+                ),
+                TypeSpec::Generic(_) => self.clone(),
+                TypeSpec::Tuple(inner) => TypeSpec::Tuple(
+                    inner
+                        .into_iter()
+                        .map(|s| s.map(|s| s.replace_in(from, to)))
+                        .collect(),
+                ),
+                TypeSpec::Array { inner, size } => TypeSpec::Array {
+                    inner: Box::new(inner.map(|s| s.replace_in(from, to))),
+                    size: Box::new(size.map(|s| s.replace_in(from, to))),
+                },
+                TypeSpec::Inverted(inner) => {
+                    TypeSpec::Inverted(Box::new(inner.map(|s| s.replace_in(from, to))))
+                }
+                TypeSpec::Wire(inner) => {
+                    TypeSpec::Wire(Box::new(inner.map(|s| s.replace_in(from, to))))
+                }
+                TypeSpec::TraitSelf(_) => self,
+                TypeSpec::Wildcard(_) => self,
+            }
         }
     }
 }

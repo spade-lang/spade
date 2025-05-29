@@ -135,6 +135,7 @@ impl ServerBackend {
                 lambda_type: _,
                 lambda_unit: _,
                 lambda_type_params: _,
+                captured_generic_params: _,
             } => {
                 return self.find_def_in_expression(body, query_id);
             }

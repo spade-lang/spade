@@ -468,6 +468,7 @@ impl Spade {
             impl_idtracker: owned_state.impl_idtracker,
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
+            current_unit: None,
         };
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
@@ -561,6 +562,7 @@ impl Spade {
             impl_idtracker,
             pipeline_ctx: _,
             self_ctx: _,
+            current_unit: _,
         } = ast_ctx;
 
         self.return_owned(OwnedState {
@@ -807,6 +809,7 @@ impl Spade {
             impl_idtracker,
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
+            current_unit: None,
         };
 
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx)
@@ -820,6 +823,7 @@ impl Spade {
             impl_idtracker,
             pipeline_ctx: _,
             self_ctx: _,
+            current_unit: _,
         } = ast_ctx;
 
         let mut symtab = symtab.freeze();

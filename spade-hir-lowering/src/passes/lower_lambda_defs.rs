@@ -7,7 +7,8 @@ use spade_common::{
 };
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
-    expression::CallKind, ArgumentList, ExprKind, Expression, Pattern, Statement, Unit,
+    expression::CallKind, ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern,
+    Statement, TypeParam, TypeSpec, Unit, UnitHead,
 };
 use spade_typeinference::{equation::KnownTypeVar, HasType, TypeState};
 
@@ -18,9 +19,49 @@ use super::pass::Pass;
 pub(crate) struct LambdaReplacement {
     pub new_body: Loc<Expression>,
     pub arguments: Vec<(Loc<Pattern>, KnownTypeVar)>,
+    pub captured_type_params: HashMap<NameID, NameID>,
 }
 
 impl LambdaReplacement {
+    fn replace_type_params(&self, old: &Vec<Loc<TypeParam>>) -> Vec<Loc<TypeParam>> {
+        old.clone()
+            .into_iter()
+            .map(|tp| {
+                let loc = tp.loc();
+                let TypeParam {
+                    ident,
+                    name_id,
+                    trait_bounds,
+                    meta,
+                } = tp.inner;
+                TypeParam {
+                    name_id: self
+                        .captured_type_params
+                        .get(&name_id)
+                        .cloned()
+                        .unwrap_or(name_id),
+                    ident,
+                    trait_bounds,
+                    meta,
+                }
+                .at_loc(&loc)
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn update_type_spec(&self, ts: Loc<TypeSpec>) -> Loc<TypeSpec> {
+        let mut new_ts = ts.clone();
+        for (from, to) in &self.captured_type_params {
+            new_ts = new_ts.map(|ty| {
+                ty.replace_in(
+                    &TypeSpec::Generic(from.clone().at_loc(&ts)),
+                    &TypeSpec::Generic(to.clone().at_loc(&ts)),
+                )
+            })
+        }
+        new_ts
+    }
+
     pub fn replace_in(&self, old: Loc<Unit>, idtracker: &mut ExprIdTracker) -> Result<Loc<Unit>> {
         let arg_bindings = self
             .arguments
@@ -52,6 +93,9 @@ impl LambdaReplacement {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        let scope_type_params = self.replace_type_params(&old.head.scope_type_params);
+        let unit_type_params = self.replace_type_params(&old.head.unit_type_params);
+
         let body = self.new_body.clone().map(|mut body| {
             let block = body.assume_block_mut();
 
@@ -64,10 +108,35 @@ impl LambdaReplacement {
             body
         });
 
-        Ok(old.map_ref(|unit| spade_hir::Unit {
+        let result = old.map_ref(move |unit| spade_hir::Unit {
             body: body.clone(),
+            inputs: unit
+                .inputs
+                .iter()
+                .map(|(n, t)| (n.clone(), self.update_type_spec(t.clone())))
+                .collect(),
+            head: UnitHead {
+                scope_type_params: scope_type_params.clone(),
+                unit_type_params: unit_type_params.clone(),
+                inputs: ParameterList(
+                    unit.head
+                        .inputs
+                        .0
+                        .iter()
+                        .cloned()
+                        .map(|i| Parameter {
+                            no_mangle: i.no_mangle,
+                            name: i.name,
+                            ty: self.update_type_spec(i.ty),
+                        })
+                        .collect(),
+                )
+                .at_loc(&unit.head.inputs),
+                ..unit.head.clone()
+            },
             ..unit.clone()
-        }))
+        });
+        Ok(result)
     }
 }
 
@@ -83,6 +152,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
             lambda_unit,
             lambda_type,
             lambda_type_params: _,
+            captured_generic_params,
             arguments,
             body,
         } = &expression.kind
@@ -102,11 +172,16 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                     Ok((arg, ty))
                 })
                 .collect::<Result<Vec<_>>>()?;
+
             self.replacements.insert(
                 lambda_unit.clone(),
                 LambdaReplacement {
                     new_body: body.as_ref().clone(),
                     arguments: arguments.clone(),
+                    captured_type_params: captured_generic_params
+                        .iter()
+                        .map(|tp| (tp.name_in_lambda.clone(), tp.name_in_body.inner.clone()))
+                        .collect(),
                 },
             );
 

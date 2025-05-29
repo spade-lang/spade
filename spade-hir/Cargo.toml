@@ -17,6 +17,7 @@ doctest = false
 [dependencies]
 colored.workspace = true
 itertools.workspace = true
+nesty = "0.2"
 num.workspace = true
 serde.workspace = true
 tap.workspace = true

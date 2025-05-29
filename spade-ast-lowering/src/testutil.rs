@@ -11,5 +11,6 @@ pub fn test_context() -> Context {
         impl_idtracker: ImplIdTracker::new(),
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
+        current_unit: None,
     }
 }

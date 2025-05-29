@@ -273,6 +273,7 @@ impl ServerBackend {
                 body,
                 lambda_type: _,
                 lambda_unit: _,
+                captured_generic_params: _,
                 lambda_type_params: _,
             } => comps.append(&mut self.fold_comps_expr(body, pos, uri).await),
             ExprKind::PipelineRef { name: _name, .. } => {}

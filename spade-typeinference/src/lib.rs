@@ -76,6 +76,11 @@ pub struct Context<'a> {
     pub items: &'a ItemList,
     pub trait_impls: &'a TraitImplList,
 }
+impl<'a> std::fmt::Debug for Context<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{context omitted}}")
+    }
+}
 
 // NOTE(allow) This is a debug macro which is not normally used but can come in handy
 #[allow(unused_macros)]
@@ -110,6 +115,7 @@ pub enum GenericListToken {
     Expression(ExprID),
 }
 
+#[derive(Debug)]
 pub struct TurbofishCtx<'a> {
     turbofish: &'a Loc<ArgumentList<TypeExpression>>,
     prev_generic_list: &'a GenericListToken,
@@ -286,7 +292,7 @@ impl TypeState {
                         info!("Generic lists exist for {list_source:?}");
                     }
                     info!("Current source is {generic_list_token:?}");
-                    panic!("No entry in generic list for {name}");
+                    panic!("No entry in generic list for {name:?}");
                 }
             },
             hir::TypeSpec::Tuple(inner) => {
@@ -770,6 +776,7 @@ impl TypeState {
                 body,
                 lambda_type,
                 lambda_type_params,
+                captured_generic_params,
                 lambda_unit: _,
             } => {
                 for arg in arguments {
@@ -782,6 +789,31 @@ impl TypeState {
                     .iter()
                     .map(|arg| arg.get_type(self))
                     .chain(vec![body.get_type(self)])
+                    .chain(
+                        captured_generic_params
+                            .iter()
+                            .map(|cap| {
+                                let t = self
+                                    .get_generic_list(generic_list)
+                                    .ok_or_else(|| {
+                                        diag_anyhow!(
+                                            expression,
+                                            "Found a captured generic but no generic list"
+                                        )
+                                    })?
+                                    .get(&cap.name_in_body)
+                                    .ok_or_else(|| {
+                                        diag_anyhow!(
+                                            &cap.name_in_body,
+                                            "Did not find an entry for {} in lambda generic list",
+                                            cap.name_in_body
+                                        )
+                                    });
+                                Ok(t?.clone())
+                            })
+                            .collect::<Result<Vec<_>>>()?
+                            .into_iter(),
+                    )
                     .collect::<Vec<_>>();
 
                 let self_type = TypeVar::Known(
@@ -812,9 +844,8 @@ impl TypeState {
                         self,
                     )
                     .commit(self, ctx)
-                    .unwrap();
+                    .into_default_diagnostic(expression, self)?;
                 }
-
                 expression
                     .unify_with(&self.add_type_var(self_type), self)
                     .commit(self, ctx)
@@ -2578,8 +2609,6 @@ impl TypeState {
                     Ok(_) => {}
                     Err(UnificationError::Normal(Tm { mut e, mut g }))
                     | Err(UnificationError::MetaMismatch(Tm { mut e, mut g })) => {
-                        println!("var: {:?}", var);
-                        println!("inside: {:?}", replacement.context.inside.resolve(self));
                         e.inside.replace(
                             replacement
                                 .context

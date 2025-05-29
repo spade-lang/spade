@@ -171,6 +171,7 @@ impl Passable for Loc<Expression> {
                 body,
                 lambda_type: _,
                 lambda_type_params: _,
+                captured_generic_params: _,
                 lambda_unit: _,
             } => {
                 subnodes!(body)

@@ -203,6 +203,7 @@ pub fn compile(
         impl_idtracker: ImplIdTracker::new(),
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
+        current_unit: None,
     };
 
     // Add all "root" project main.spade modules
@@ -283,6 +284,7 @@ pub fn compile(
         impl_idtracker,
         pipeline_ctx: _,
         self_ctx: _,
+        current_unit: _,
     } = ctx;
 
     unfinished_artefacts.item_list = Some(item_list.clone());

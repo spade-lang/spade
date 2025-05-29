@@ -50,6 +50,7 @@ pub struct Context {
     pub impl_idtracker: ImplIdTracker,
     pub pipeline_ctx: Option<PipelineContext>,
     pub self_ctx: SelfContext,
+    pub current_unit: Option<hir::UnitHead>,
 }
 
 trait LocExt<T> {
@@ -1048,6 +1049,8 @@ pub fn visit_unit(
         })
         .expect("Attempting to lower an entity that has not been added to the symtab previously");
 
+    ctx.current_unit = Some(head.inner.clone());
+
     let mut unit_name = if type_params.is_some() || scope_type_params.is_some() {
         hir::UnitName::WithID(id.clone().at_loc(name))
     } else {
@@ -1167,6 +1170,7 @@ pub fn visit_unit(
     check_for_undefined(ctx)?;
 
     ctx.symtab.close_scope();
+    ctx.current_unit = None;
 
     Ok(hir::Item::Unit(expand_type_level_if(
         hir::Unit {

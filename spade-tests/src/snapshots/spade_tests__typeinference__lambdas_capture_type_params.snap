@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn generic_int<#uint N>() -> int<N> {
+    0
+}
+
+fn takes_generic<#uint N> () {
+    fn () {
+        let _ = generic_int::<N>();
+    }.call(())
+}
+
+fn test() {
+    takes_generic::<8>()
+}

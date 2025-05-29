@@ -2,8 +2,11 @@ use spade_ast as ast;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::Path;
+use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
 use spade_hir as hir;
+use spade_hir::expression::CapturedLambdaParam;
+use spade_types::meta_types::MetaType;
 
 use crate::global_symbols::re_visit_type_declaration;
 use crate::global_symbols::visit_type_declaration;
@@ -68,14 +71,35 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let type_name = Identifier(format!("Lambda"));
     let output_type_name = Identifier("Output".to_string());
 
-    let generic_param_names = args
+    let current_unit = ctx.current_unit.clone().ok_or_else(|| {
+        diag_anyhow!(loc, "Did not have a current_unit when visiting this lambda")
+    })?;
+
+    let arg_output_generic_param_names = args
         .iter()
         .enumerate()
         .map(|(i, arg)| Identifier(format!("A{i}")).at_loc(arg))
         .chain(vec![output_type_name.clone().nowhere()])
         .collect::<Vec<_>>();
 
-    let type_params = generic_param_names
+    let captured_generic_params = current_unit
+        .unit_type_params
+        .iter()
+        .chain(current_unit.scope_type_params.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let all_generic_param_names = arg_output_generic_param_names
+        .clone()
+        .into_iter()
+        .chain(
+            captured_generic_params
+                .iter()
+                .map(|p| p.name_id().1.tail().at_loc(&p)),
+        )
+        .collect::<Vec<_>>();
+
+    let type_params = arg_output_generic_param_names
         .iter()
         .map(|name| {
             ast::TypeParam::TypeName {
@@ -84,6 +108,27 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             }
             .at_loc(name)
         })
+        .chain(
+            captured_generic_params
+                .iter()
+                .map(|tp| {
+                    Ok(ast::TypeParam::TypeWithMeta {
+                        // NOTE: Recreating the meta-type like this is kind of strange, but works for now. If we add more meta-types in the future, recondsider this decision
+                        meta: match tp.meta {
+                            MetaType::Int => Identifier("int".to_string()).at_loc(tp),
+                            MetaType::Uint => Identifier("uint".to_string()).at_loc(tp),
+                            MetaType::Bool => Identifier("bool".to_string()).at_loc(tp),
+                            MetaType::Any | MetaType::Type | MetaType::Number => {
+                                diag_bail!(loc, "Found unexpected meta in captured type args")
+                            }
+                        },
+                        name: tp.name_id().1.tail().at_loc(tp),
+                    }
+                    .at_loc(tp))
+                })
+                .collect::<Result<Vec<_>>>()?
+                .into_iter(),
+        )
         .collect::<Vec<_>>()
         .at_loc(&loc);
 
@@ -148,7 +193,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         target: ast::TypeSpec::Named(
             Path::ident(type_name.clone().nowhere()).nowhere(),
             Some(
-                generic_param_names
+                all_generic_param_names
                     .iter()
                     .map(|name| {
                         ast::TypeExpression::TypeSpec(Box::new(
@@ -210,7 +255,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 u.name.name_id().clone(),
                 hir::ExecutableItem::Unit(u.clone().at_loc(&loc)),
             )?;
-            u.name.name_id().clone()
+            u.clone()
         }
         _ => diag_bail!(loc, "Lambda impl block produced more than one item"),
     };
@@ -233,7 +278,23 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     Ok(hir::ExprKind::LambdaDef {
         lambda_type: callee_name,
         lambda_type_params: callee_struct.type_params.clone(),
-        lambda_unit: lambda_unit.inner,
+        lambda_unit: lambda_unit.name.name_id().inner.clone(),
+        captured_generic_params: captured_generic_params
+            .iter()
+            // Kind of cursed, but we need to figure out what name IDs we gave to the captured
+            // arguments while visiting the unit so we can replace them later
+            .zip(
+                lambda_unit
+                    .head
+                    .scope_type_params
+                    .iter()
+                    .skip(arg_output_generic_param_names.len()),
+            )
+            .map(|(in_body, in_lambda)| CapturedLambdaParam {
+                name_in_lambda: in_lambda.name_id(),
+                name_in_body: in_body.name_id().at_loc(in_body),
+            })
+            .collect(),
         arguments,
         body,
     })

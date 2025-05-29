@@ -2197,16 +2197,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    recursive_tuple_is_error,
-    "
-    fn test() {
-        decl x;
-        let x = (x, bool);
-    }
-    "
-}
-
-snapshot_error! {
     recursive_inner_tuple_is_error,
     "
     fn test() {
@@ -2287,6 +2277,35 @@ code_compiles! {
         fn test() {
             let x = Option::Some(8u8);
             let addr: Option<uint<4>> = x.map(fn (addr) {trunc(addr)});
+        }
+    "
+}
+
+snapshot_error! {
+    recursive_tuple_is_error,
+    "
+    fn test() {
+        decl x;
+        let x = (x, bool);
+    }
+    "
+}
+
+snapshot_error! {
+    lambdas_capture_type_params,
+    "
+        fn generic_int<#uint N>() -> int<N> {
+            0
+        }
+
+        fn takes_generic<#uint N> () {
+            fn () {
+                let _ = generic_int::<N>();
+            }.call(())
+        }
+
+        fn test() {
+            takes_generic::<8>()
         }
     "
 }

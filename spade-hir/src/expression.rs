@@ -185,6 +185,12 @@ pub enum PipelineRefKind {
 impl WithLocation for PipelineRefKind {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct CapturedLambdaParam {
+    pub name_in_lambda: NameID,
+    pub name_in_body: Loc<NameID>,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Identifier(NameID),
     IntLiteral(BigInt, IntLiteralKind),
@@ -247,6 +253,7 @@ pub enum ExprKind {
         /// The type that this lambda definition creates
         lambda_type: NameID,
         lambda_type_params: Vec<Loc<TypeParam>>,
+        captured_generic_params: Vec<CapturedLambdaParam>,
         /// The unit which is the `call` method on this lambda
         lambda_unit: NameID,
         arguments: Vec<Loc<Pattern>>,

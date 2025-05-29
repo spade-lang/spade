@@ -372,6 +372,7 @@ impl ServerBackend {
                 lambda_type: _,
                 lambda_unit: _,
                 lambda_type_params: _,
+                captured_generic_params: _,
             } => return self.search_sym_expr(body, pos, ts),
             E::IntLiteral(_, _)
             | E::BitLiteral(_)
@@ -693,6 +694,7 @@ impl ServerBackend {
                 lambda_type: _,
                 lambda_unit: _,
                 lambda_type_params: _,
+                captured_generic_params: _,
             } => return self.search_sym_expr_named(body, pos, ts, name),
             E::PipelineRef { .. } => {}
             E::IntLiteral(_, _)

@@ -186,6 +186,7 @@ pub fn compile_items(
                                 break 'item_loop;
                             }
                         };
+
                         (&new_unit.clone(), &{
                             let mut type_state = impl_type_state.create_child();
                             let type_ctx = &spade_typeinference::Context {
