@@ -1350,6 +1350,19 @@ impl TypeState {
         reference
     }
 
+    pub fn remove_generic_list(&mut self, source: GenericListSource) {
+        let reference = match source {
+            GenericListSource::Anonymous => GenericListToken::Anonymous(self.generic_lists.len()),
+            GenericListSource::Definition(name) => GenericListToken::Definition(name.clone()),
+            GenericListSource::ImplBlock { target, id } => {
+                GenericListToken::ImplBlock(target.clone(), id)
+            }
+            GenericListSource::Expression(id) => GenericListToken::Expression(id),
+        };
+
+        self.generic_lists.remove(&reference.clone());
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     #[trace_typechecker]
     pub fn visit_block(

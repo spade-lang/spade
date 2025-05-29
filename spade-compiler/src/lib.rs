@@ -363,6 +363,7 @@ pub fn compile(
         &item_list,
         &mut errors.diag_handler,
         &opt_passes,
+        &impl_type_state,
     );
 
     let CodegenArtefacts {

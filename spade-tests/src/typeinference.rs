@@ -2260,4 +2260,33 @@ snapshot_error! {
         }
     "
 }
->>>>>>> Conflict 1 of 1 ends
+
+code_compiles! {
+    lambda_option_map_does_not_panic,
+    "
+        mod std {
+            mod conv {
+                extern fn trunc<N, M>(x: N) -> M;
+            }
+        }
+        use std::conv::trunc;
+        enum Option<T> {
+            Some{val: T},
+            None
+        }
+
+        impl<T> Option<T> {
+            fn map<F, O>(self, f: F) -> Option<O>
+                where F: Fn<(T,), O>
+            {
+                Option::Some(f.call((0, )))
+            }
+        }
+
+
+        fn test() {
+            let x = Option::Some(8u8);
+            let addr: Option<uint<4>> = x.map(fn (addr) {trunc(addr)});
+        }
+    "
+}

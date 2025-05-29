@@ -148,6 +148,7 @@ pub fn compile_items(
     item_list: &ItemList,
     diag_handler: &mut DiagHandler,
     opt_passes: &[&dyn MirPass],
+    impl_type_state: &TypeState,
 ) -> Vec<Result<MirOutput>> {
     // Build a map of items to use for compilation later. Also push all non
     // generic items to the compilation queue
@@ -186,7 +187,7 @@ pub fn compile_items(
                             }
                         };
                         (&new_unit.clone(), &{
-                            let mut type_state = TypeState::fresh();
+                            let mut type_state = impl_type_state.create_child();
                             let type_ctx = &spade_typeinference::Context {
                                 symtab: symtab.symtab(),
                                 items: item_list,
@@ -212,11 +213,6 @@ pub fn compile_items(
                                             })?
                                             .clone();
 
-                                        println!(
-                                            "Unifying {} with {}",
-                                            old_ty.debug_resolve(type_state),
-                                            ty
-                                        );
                                         ty.insert(type_state)
                                             .unify_with(&old_ty, type_state)
                                             .commit(type_state, ctx)
