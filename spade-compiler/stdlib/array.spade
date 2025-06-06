@@ -1,4 +1,20 @@
 impl<T, #uint N> [T; N] {
+    fn concat<#uint M, #uint OL>(self, other: [T; M]) -> [T; OL]
+        where OL: {M + N}
+    {
+        self `concat_arrays` other
+    }
+
+    fn map<F, O>(self, f: F) -> [O; N]
+        where F: Fn<(T), O>
+    {
+        gen if N == 0 {
+            []
+        } else {
+            [f.call((self[0],))].concat(self[1..N].map(f))
+        }
+    }
+
     fn zip<O>(self, other: [O; N]) -> [(T, O); N] {
         gen if N == 1 {
             [(self[0], other[0])]

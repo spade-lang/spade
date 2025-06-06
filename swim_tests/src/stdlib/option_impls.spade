@@ -1,0 +1,15 @@
+fn is_some(opt: Option<uint<16>>) -> bool {
+    opt.is_some()
+}
+
+struct CombinatorsOut {
+    map: Option<uint<17>>,
+    and_then: Option<uint<17>>,
+}
+
+fn combinators(val: Option<uint<16>>) -> CombinatorsOut {
+    CombinatorsOut$(
+        map: val.map(fn (x) {x + 1}),
+        and_then: val.and_then(fn (x) {if x < 10 {Some(x + 1)} else {None}}),
+    )
+}

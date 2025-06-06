@@ -35,6 +35,36 @@ impl<T> Option<T> {
         }
     }
 
+
+    /// Transforms the contained value using the `f` function.
+    /// If the value is `Some(val)`, the result is `Some(f.call((val)))`
+    /// if the value is `None`, the result is `None`
+    ///
+    /// ```
+    /// let add_one = option.map(fn(x) {x + 1})
+    /// ```
+    fn map<F, O>(self, f: F) -> Option<O>
+        where F: Fn<(T), O>
+    {
+        match self {
+            Some(val) => Some(f.call((val,))),
+            None => None
+        }
+    }
+
+    /// If the value is `None`, returns `None`, otherwise calls `f` on the contained
+    /// value. `f` returns another Option
+    ///
+    /// let filtered = option.and_then(fn (x) {if x < 10 {Some(x)} else {None}
+    fn and_then<F, O>(self, f: F) -> Option<O>
+        where F: Fn<(T), Option<O>>
+    {
+        match self {
+            Some(val) => f.call((val,)),
+            None => None
+        }
+    }
+
     /// Returns an array containing the `N` previous `Some` values starting with `default`
     /// before `N` values have been observed.
     ///

@@ -1,3 +1,0 @@
-fn is_some(opt: Option<uint<16>>) -> bool {
-    opt.is_some()
-}

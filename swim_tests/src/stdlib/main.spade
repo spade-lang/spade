@@ -1,1 +1,31 @@
 mod fifo;
+mod array_map;
+mod option_impls;
+
+
+fn option_unwrap_or_test(val: Option<uint<8>>, default: uint<8>) -> uint<8> {
+    val.unwrap_or(default)
+}
+
+entity option_sliding_window_test(
+    clk: clock,
+    rst: bool,
+    val: Option<uint<8>>,
+    default: uint<8>,
+) -> Option<[uint<8>; 3]> {
+    val.inst sliding_window(clk, rst, default)
+}
+
+entity option_chunks(
+    clk: clock,
+    rst: bool,
+    val: Option<uint<8>>,
+    default: uint<8>,
+) -> Option<[uint<8>; 3]> {
+    val.inst chunks(clk, rst)
+}
+
+
+fn array_zip_test(a: [uint<8>; 3], b: [int<8>; 3]) -> [(uint<8>, int<8>); 3] {
+    a.zip(b)
+}
