@@ -43,6 +43,7 @@ use std::collections::HashSet;
 
 use error::Result;
 
+#[derive(Debug)]
 pub struct Context {
     pub symtab: SymbolTable,
     pub item_list: ItemList,
@@ -51,6 +52,44 @@ pub struct Context {
     pub pipeline_ctx: Option<PipelineContext>,
     pub self_ctx: SelfContext,
     pub current_unit: Option<hir::UnitHead>,
+}
+
+impl Context {
+    fn in_fresh_unit<T>(&mut self, transform: impl FnOnce(&mut Context) -> T) -> T {
+        let mut tmp_pipeline_ctx = None;
+        let mut tmp_self_ctx = SelfContext::FreeStanding;
+        let mut tmp_current_unit = None;
+        {
+            let Context {
+                symtab: _,
+                item_list: _,
+                idtracker: _,
+                impl_idtracker: _,
+                pipeline_ctx,
+                self_ctx,
+                current_unit,
+            } = self;
+            std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
+            std::mem::swap(self_ctx, &mut tmp_self_ctx);
+            std::mem::swap(current_unit, &mut tmp_current_unit);
+        }
+        let result = transform(self);
+        {
+            let Context {
+                symtab: _,
+                item_list: _,
+                idtracker: _,
+                impl_idtracker: _,
+                pipeline_ctx,
+                self_ctx,
+                current_unit,
+            } = self;
+            std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
+            std::mem::swap(self_ctx, &mut tmp_self_ctx);
+            std::mem::swap(current_unit, &mut tmp_current_unit);
+        }
+        result
+    }
 }
 
 trait LocExt<T> {

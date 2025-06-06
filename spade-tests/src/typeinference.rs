@@ -2057,32 +2057,6 @@ code_compiles! {
     "
 }
 
-// TODO: Figure out why this doesn't work now
-/*
-code_compiles! {
-    fake_lambda,
-    "
-        struct FakeLambda {}
-
-        impl Fn<(int<8>, int<8>), int<9>> for FakeLambda {
-          fn call(self, args: (int<8>, int<8>)) -> int<9> {
-            let (a, b) = args;
-            a + b
-          }
-        }
-
-        fn call<T, O, F: Fn<T, O>>(x: T, f: F) -> O {
-            f.call(x)
-        }
-
-        fn test() -> int<9> {
-            let x: (int<8>, int<8>) = (1, 2);
-            call(x, FakeLambda())
-        }
-    "
-}
-*/
-
 code_compiles! {
     monomorphization_works,
     "
@@ -2288,24 +2262,5 @@ snapshot_error! {
         decl x;
         let x = (x, bool);
     }
-    "
-}
-
-snapshot_error! {
-    lambdas_capture_type_params,
-    "
-        fn generic_int<#uint N>() -> int<N> {
-            0
-        }
-
-        fn takes_generic<#uint N> () {
-            fn () {
-                let _ = generic_int::<N>();
-            }.call(())
-        }
-
-        fn test() {
-            takes_generic::<8>()
-        }
     "
 }

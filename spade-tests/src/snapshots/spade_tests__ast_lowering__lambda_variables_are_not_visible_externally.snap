@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test() {
+    let l = fn () {
+        let x = 0u8;
+    };
+    let y = x;
+}
+
+
+error: Use of undeclared name x
+  ┌─ testinput:5:13
+  │
+5 │     let y = x;
+  │             ^ Undeclared name

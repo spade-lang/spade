@@ -376,7 +376,7 @@ impl Expression {
             Expression::PipelineReference { .. } => "pipeline reference",
             Expression::StageValid => "stage.valid",
             Expression::StageReady => "stage.ready",
-            Expression::StaticUnreachable(_) => "unreachable",
+            Expression::StaticUnreachable(_) => "static_unreachable",
         }
     }
 }

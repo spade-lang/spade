@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/integration.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \test () -> () {
+	let e9: uint<8> = Instance(\generic[23] )()
+	let a_n17: uint<8> = Alias(e9)
+	let e11: uint<8> = Instance(\generic[24] )()
+	let b_n18: uint<8> = Alias(e11)
+} => e8
+entity \generic[23] () -> uint<8> {
+	let e2: {} = ConstructTuple()
+	let e7: () = ConstructTuple()
+	let e1: uint<8> = Instance(\impl_0::call[25] )(e2, e7)
+} => e1
+entity \generic[24] () -> uint<8> {
+	let e2: {} = ConstructTuple()
+	let e7: () = ConstructTuple()
+	let e1: uint<8> = Instance(\impl_0::call[26] )(e2, e7)
+} => e1
+entity \impl_0::call[25] ((self, self_n15, {}), (args, args_n16, ())) -> uint<8> {
+	const e5: uint<8> = 10
+} => e5
+entity \impl_0::call[26] ((self, self_n15, {}), (args, args_n16, ())) -> uint<8> {
+	const e5: uint<8> = 20
+} => e5

@@ -8,6 +8,7 @@ use spade_types::meta_types::MetaType;
 
 use crate::{error::Result, Context};
 
+#[derive(Debug)]
 pub struct PipelineContext {
     /// Scope of the pipeline body
     pub scope: usize,

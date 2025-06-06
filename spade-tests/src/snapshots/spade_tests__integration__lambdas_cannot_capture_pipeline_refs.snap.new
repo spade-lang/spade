@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 451
+---
+pipeline(2) test() {
+    'a
+    let x = 0;
+reg;
+    let l = fn () {
+        stage(a).x
+    };
+reg;
+}
+
+
+error: Missing clock argument for pipeline
+  ┌─ testinput:1:17
+  │
+1 │ pipeline(2) test() {
+  │                 ^^
+  │
+  = note: All pipelines need to take at least a clock as an argument

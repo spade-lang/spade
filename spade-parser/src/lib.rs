@@ -286,12 +286,19 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn tuple_literal(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::OpenParen);
-        // TODO: Do we also want to handle (,)?
         if self.peek_kind(&TokenKind::CloseParen)? {
             return Ok(Some(Expression::TupleLiteral(vec![]).between(
                 self.file_id,
                 &start,
                 &self.eat_unconditional()?,
+            )));
+        }
+        if let Some(_) = self.peek_and_eat(&TokenKind::Comma)? {
+            let closer = self.eat(&TokenKind::CloseParen)?;
+            return Ok(Some(Expression::TupleLiteral(vec![]).between(
+                self.file_id,
+                &start,
+                &closer,
             )));
         }
 
@@ -846,6 +853,14 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn tuple_spec(&mut self) -> Result<Option<Loc<TypeSpec>>> {
         let start = peek_for!(self, &TokenKind::OpenParen);
+        if let Some(_) = self.peek_and_eat(&TokenKind::Comma)? {
+            let closer = self.eat(&TokenKind::CloseParen)?;
+            return Ok(Some(TypeSpec::Tuple(vec![]).between(
+                self.file_id,
+                &start,
+                &closer,
+            )));
+        }
 
         let inner = self
             .comma_separated(Self::type_expression, &TokenKind::CloseParen)

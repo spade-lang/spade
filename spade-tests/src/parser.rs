@@ -878,3 +878,12 @@ code_compiles! {
         }
     "
 }
+
+code_compiles! {
+    zero_element_tuple_can_have_comma,
+    "
+        fn test() -> (,) {
+            (,)
+        }
+    "
+}
