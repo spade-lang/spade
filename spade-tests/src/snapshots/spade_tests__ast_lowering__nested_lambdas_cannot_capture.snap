@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test() {
+    let l2 = fn() {
+        let x = 0;
+        let l = fn() {
+            let y = x;
+        };
+    };
+}
+
+
+error: Lambda captures are not supported
+  ┌─ testinput:5:21
+  │
+3 │         let x = 0;
+  │             - The variable is defined outside the lambda here
+4 │         let l = fn() {
+5 │             let y = x;
+  │                     ^ This variable is captured

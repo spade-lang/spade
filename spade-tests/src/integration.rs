@@ -1,4 +1,4 @@
-use crate::{build_items, code_compiles, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 
 snapshot_error!(
     trait_self_wrong_impl_return_type,
@@ -397,6 +397,21 @@ code_compiles! {
             fn (a, b) {a}.call((true, false))
         }
     "
+}
+
+snapshot_mir!{
+    lambda_capture_generics_are_correct,
+    "
+        fn generic<#uint N>() -> uint<8> {
+            fn () {
+                N
+            }.call(())
+        }
+
+        fn test() -> uint<8> {
+            generic::<10>()
+        }
+    ", all
 }
 
 #[cfg(test)]

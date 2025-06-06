@@ -30,6 +30,7 @@ pub enum LookupError {
     NotAComptimeValue(Loc<Path>, Thing),
     NotATrait(Loc<Path>, Thing),
     IsAType(Loc<Path>),
+    BarrierError(Diagnostic),
 }
 
 impl From<LookupError> for Diagnostic {
@@ -47,6 +48,7 @@ impl From<LookupError> for Diagnostic {
                 Diagnostic::error(path, format!("Unexpected type {path}"))
                     .primary_label("Unexpected type")
             }
+            LookupError::BarrierError(diag) => diag.clone(),
             LookupError::NotATypeSymbol(path, got)
             | LookupError::NotAVariable(path, got)
             | LookupError::NotAUnit(path, got)
@@ -68,6 +70,7 @@ impl From<LookupError> for Diagnostic {
                     LookupError::NotATrait(_, _) => "a trait",
                     LookupError::NoSuchSymbol(_)
                     | LookupError::IsAType(_)
+                    | LookupError::BarrierError(_)
                     | LookupError::NotAThing(_) => unreachable!(),
                 };
 
@@ -336,6 +339,25 @@ pub enum DeclarationState {
 }
 impl WithLocation for DeclarationState {}
 
+pub type ScopeBarrier =
+    dyn Fn(&Loc<Path>, &Loc<NameID>, &Thing) -> Result<(), Diagnostic> + Send + Sync;
+
+#[derive(Serialize, Deserialize)]
+pub struct Scope {
+    vars: HashMap<Path, NameID>,
+    #[serde(skip)]
+    lookup_barrier: Option<Box<ScopeBarrier>>,
+}
+impl std::fmt::Debug for Scope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            vars,
+            lookup_barrier: _,
+        } = self;
+        write!(f, "Scope({vars:?})")
+    }
+}
+
 /// A table of the symbols known to the program in the current scope. Names
 /// are mapped to IDs which are then mapped to the actual things
 ///
@@ -346,7 +368,7 @@ impl WithLocation for DeclarationState {}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SymbolTable {
     /// Each outer vec is a scope, inner vecs are symbols in that scope
-    pub symbols: Vec<HashMap<Path, NameID>>,
+    pub symbols: Vec<Scope>,
     pub declarations: Vec<HashMap<Loc<Identifier>, DeclarationState>>,
     id_tracker: NameIdTracker,
     pub types: HashMap<NameID, Loc<TypeSymbol>>,
@@ -368,7 +390,10 @@ impl Default for SymbolTable {
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
-            symbols: vec![HashMap::new()],
+            symbols: vec![Scope {
+                vars: HashMap::new(),
+                lookup_barrier: None,
+            }],
             declarations: vec![HashMap::new()],
             id_tracker: NameIdTracker::new(),
             types: HashMap::new(),
@@ -379,7 +404,18 @@ impl SymbolTable {
     }
     #[tracing::instrument(skip_all)]
     pub fn new_scope(&mut self) {
-        self.symbols.push(HashMap::new());
+        self.symbols.push(Scope {
+            vars: HashMap::new(),
+            lookup_barrier: None,
+        });
+        self.declarations.push(HashMap::new());
+    }
+
+    pub fn new_scope_with_barrier(&mut self, barrier: Box<ScopeBarrier>) {
+        self.symbols.push(Scope {
+            vars: HashMap::new(),
+            lookup_barrier: Some(barrier),
+        });
         self.declarations.push(HashMap::new());
     }
 
@@ -433,7 +469,7 @@ impl SymbolTable {
         }
 
         let index = self.symbols.len() - 1 - offset;
-        self.symbols[index].insert(full_name, name_id.clone());
+        self.symbols[index].vars.insert(full_name, name_id.clone());
 
         name_id
     }
@@ -464,6 +500,7 @@ impl SymbolTable {
         self.symbols
             .last_mut()
             .unwrap()
+            .vars
             .insert(self.namespace.join(Path::ident(name)), name_id);
     }
 
@@ -477,6 +514,7 @@ impl SymbolTable {
         self.symbols
             .last_mut()
             .unwrap()
+            .vars
             .insert(full_name, name_id.clone());
         name_id
     }
@@ -590,7 +628,7 @@ impl SymbolTable {
         if index > self.symbols.len() {
             panic!("Not enough scopes to add symbol at offset {}", offset);
         }
-        self.symbols[index].insert(full_name, name_id.clone());
+        self.symbols[index].vars.insert(full_name, name_id.clone());
         self.declarations[index].insert(name, DeclarationState::Undecleared(name_id.clone()));
 
         name_id
@@ -732,6 +770,7 @@ impl SymbolTable {
         match self.lookup_id(&name.nowhere(), &[]) {
             Ok(_) => true,
             Err(LookupError::NoSuchSymbol(_)) => false,
+            Err(LookupError::BarrierError(_)) => unreachable!(),
             Err(LookupError::NotATypeSymbol(_, _)) => unreachable!(),
             Err(LookupError::NotAVariable(_, _)) => unreachable!(),
             Err(LookupError::NotAUnit(_, _)) => unreachable!(),
@@ -756,6 +795,7 @@ impl SymbolTable {
             .symbols
             .first()
             .unwrap()
+            .vars
             .get(&full_path)
             .and_then(|id| {
                 self.things
@@ -887,12 +927,25 @@ impl SymbolTable {
             self.base_namespace.join(lib_relative).at_loc(name)
         } else {
             let local_path = namespace.join(name.inner.clone());
+            let mut barriers: Vec<&Box<ScopeBarrier>> = vec![];
             for tab in self.symbols.iter().rev() {
-                if let Some(id) = tab.get(&local_path) {
+                if let Some(id) = tab.vars.get(&local_path) {
                     if forbidden.iter().contains(id) {
                         continue;
                     }
+                    for barrier in barriers {
+                        self.things
+                            .get(id)
+                            .map(|thing| {
+                                (barrier)(name, &id.clone().at_loc(&thing.name_loc()), thing)
+                                    .map_err(LookupError::BarrierError)
+                            })
+                            .unwrap_or(Ok(()))?;
+                    }
                     return Ok(id.clone());
+                }
+                if let Some(barrier) = &tab.lookup_barrier {
+                    barriers.push(barrier);
                 }
             }
 
@@ -928,7 +981,7 @@ impl SymbolTable {
 
         // Then look up things in the absolute namespace. This is only needed at the
         // top scope as that's where all top level will be defined
-        if let Some(id) = self.symbols.first().unwrap().get(&absolute_path) {
+        if let Some(id) = self.symbols.first().unwrap().vars.get(&absolute_path) {
             if !forbidden.contains(id) {
                 return Ok(id.clone());
             }
@@ -962,7 +1015,7 @@ impl SymbolTable {
             let indent = (1..level + 1).map(|_| "\t").collect::<Vec<_>>().join("");
             println!(">>> new_scope",);
 
-            for (path, name) in scope {
+            for (path, name) in &scope.vars {
                 println!(
                     "{indent}{path} => {name}",
                     path = format!("{path}").cyan(),

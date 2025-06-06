@@ -4,6 +4,7 @@ use spade_common::name::Identifier;
 use spade_common::name::Path;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
+use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 use spade_hir::expression::CapturedLambdaParam;
 use spade_types::meta_types::MetaType;
@@ -259,12 +260,37 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         }
         _ => diag_bail!(loc, "Lambda impl block produced more than one item"),
     };
+    // Visiting the impl block will have smashed our current unit tracking, we'll re-add it like
+    // this for now, though down the line a stack of current units might be a good idea.
+    ctx.current_unit = Some(current_unit.clone());
 
     let (callee_name, callee_struct) = ctx
         .symtab
         .lookup_struct(&Path::ident(type_name.at_loc(&loc)).at_loc(&loc))?;
 
-    ctx.symtab.new_scope();
+    ctx.symtab
+        .new_scope_with_barrier(Box::new(|name, previous, thing| match thing {
+            spade_hir::symbol_table::Thing::Variable(_) => {
+                Err(Diagnostic::error(name, "Lambda captures are not supported")
+                    .primary_label("This variable is captured")
+                    .secondary_label(previous, "The variable is defined outside the lambda here"))
+            }
+            spade_hir::symbol_table::Thing::PipelineStage(_) => Err(Diagnostic::error(
+                name,
+                "Pipeline stages cannot cross lambda functions",
+            )
+            .primary_label("Capturing a pipeline stage...")
+            .secondary_label(previous, "That is defined outside the lambda")),
+            spade_hir::symbol_table::Thing::Struct(_)
+            | spade_hir::symbol_table::Thing::EnumVariant(_)
+            | spade_hir::symbol_table::Thing::Unit(_)
+            | spade_hir::symbol_table::Thing::Alias {
+                path: _,
+                in_namespace: _,
+            }
+            | spade_hir::symbol_table::Thing::Module(_)
+            | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),
+        }));
     let arguments = args
         .iter()
         .map(|arg| arg.try_visit(visit_pattern, ctx))

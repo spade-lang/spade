@@ -1375,3 +1375,53 @@ snapshot_error! {
         fn test(x: inv 2) {}
     "
 }
+
+snapshot_error! {
+    lambda_variables_are_not_visible_externally,
+    "
+        fn test() {
+            let l = fn () {
+                let x = 0u8;
+            };
+            let y = x;
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_captures_are_disallowed,
+    "
+        fn test() {
+            let x = 0;
+            let l = fn() {
+                let y = x;
+            };
+        }
+    "
+}
+
+code_compiles! {
+    lambdas_do_not_clear_the_current_unit_context,
+    "
+        fn test() {
+            let l2 = fn() {
+            };
+            let l = fn() {
+            };
+        }
+    "
+}
+
+snapshot_error! {
+    nested_lambdas_cannot_capture,
+    "
+        fn test() {
+            let l2 = fn() {
+                let x = 0;
+                let l = fn() {
+                    let y = x;
+                };
+            };
+        }
+    "
+}
