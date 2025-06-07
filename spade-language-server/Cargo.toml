@@ -12,7 +12,7 @@ spade-types.path = "../spade-types"
 spade-diagnostics.path = "../spade-diagnostics"
 spade-hir.path = "../spade-hir"
 spade-typeinference.path = "../spade-typeinference"
-swim = { git = "https://gitlab.com/spade-lang/swim", rev = "6d55f8d7fdb70410280a649682e030e661984f0e" }
+swim = { git = "https://gitlab.com/spade-lang/swim.git", rev = "6d55f8d7fdb70410280a649682e030e661984f0e" }
 
 
 async-recursion = "1.1.1"
