@@ -3,7 +3,7 @@ source: spade-tests/src/hir_lowering.rs
 ---
 fn f() -> bool {
     let a = bool;
-    bool
+    true
 }
 
 
@@ -12,5 +12,3 @@ error: Type bool is used as a value
   │
 2 │     let a = bool;
   │             ^^^^ bool is a type
-
-

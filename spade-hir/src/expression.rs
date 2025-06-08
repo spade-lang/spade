@@ -192,6 +192,7 @@ pub struct CapturedLambdaParam {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
+    Error,
     Identifier(NameID),
     IntLiteral(BigInt, IntLiteralKind),
     BoolLiteral(bool),
@@ -301,10 +302,12 @@ impl Expression {
         ExprKind::Identifier(NameID(name_id, Path::from_strs(&[name]))).with_id(expr_id)
     }
 
-    /// Returns the block that is this expression. Panics if the expression is not a block
-    pub fn assume_block(&self) -> &Block {
+    /// Returns the block that is this expression if it is a block, an error if it is an Error node, and panics if the expression is not a block or error
+    pub fn assume_block(&self) -> std::result::Result<&Block, ()> {
         if let ExprKind::Block(ref block) = self.kind {
-            block
+            Ok(block)
+        } else if let ExprKind::Error = self.kind {
+            Err(())
         } else {
             panic!("Expression is not a block")
         }
@@ -338,6 +341,7 @@ impl LocExprExt for Loc<Expression> {
     /// guaranteed to work
     fn runtime_requirement_witness(&self) -> Option<Loc<Expression>> {
         match &self.kind {
+            ExprKind::Error => None,
             ExprKind::Identifier(_) => Some(self.clone()),
             ExprKind::TypeLevelInteger(_) => None,
             ExprKind::IntLiteral(_, _) => None,

@@ -232,7 +232,7 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::TupleLiteral(inner) = &expression => {
             for expr in inner {
-                self.visit_expression(expr, ctx, generic_list)?;
+                self.visit_expression(expr, ctx, generic_list);
                 // NOTE: safe unwrap, we know this expr has a type because we just visited
             }
 
@@ -263,7 +263,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::TupleIndex(tup, index) = &expression => {
-            self.visit_expression(tup, ctx, generic_list)?;
+            self.visit_expression(tup, ctx, generic_list);
             let t_id = self.type_of(&TypedExpression::Id(tup.id));
 
             let inner_types = match t_id.resolve(self) {
@@ -317,7 +317,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::FieldAccess(target, field) = &expression => {
-            self.visit_expression(target, ctx, generic_list)?;
+            self.visit_expression(target, ctx, generic_list);
 
             let target_type = self.type_of(&TypedExpression::Id(target.id));
             let self_type = self.type_of(&TypedExpression::Id(expression.id));
@@ -401,7 +401,7 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::ArrayLiteral(members) = &expression => {
             for expr in members {
-                self.visit_expression(expr, ctx, generic_list)?;
+                self.visit_expression(expr, ctx, generic_list);
             }
 
             // unify all elements in array pairwise, e.g. unify(0, 1), unify(1, 2), ...
@@ -444,7 +444,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::ArrayShorthandLiteral(expr, amount) = &expression => {
-            self.visit_expression(expr, ctx, generic_list)?;
+            self.visit_expression(expr, ctx, generic_list);
 
 
             let inner_type = expr.get_type(self);
@@ -487,8 +487,8 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::Index(target, index) = &expression => {
             // Visit child nodes
-            self.visit_expression(target, ctx, generic_list)?;
-            self.visit_expression(index, ctx, generic_list)?;
+            self.visit_expression(target, ctx, generic_list);
+            self.visit_expression(index, ctx, generic_list);
 
             // Add constraints
             let inner_type = self.new_generic_type(expression.loc());
@@ -554,7 +554,7 @@ impl TypeState {
             ref start,
             ref end,
         } = &expression => {
-            self.visit_expression(target, ctx, generic_list)?;
+            self.visit_expression(target, ctx, generic_list);
             // Add constraints
             let inner_type = self.new_generic_type(target.loc());
 
@@ -630,9 +630,9 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::If(cond, on_true, on_false) = &expression => {
-            self.visit_expression(cond, ctx, generic_list)?;
-            self.visit_expression(on_true, ctx, generic_list)?;
-            self.visit_expression(on_false, ctx, generic_list)?;
+            self.visit_expression(cond, ctx, generic_list);
+            self.visit_expression(on_true, ctx, generic_list);
+            self.visit_expression(on_false, ctx, generic_list);
 
             cond
                 .inner
@@ -666,7 +666,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::Match(cond, branches) = &expression => {
-            self.visit_expression(cond, ctx, generic_list)?;
+            self.visit_expression(cond, ctx, generic_list);
 
             for (i, (pattern, result)) in branches.iter().enumerate() {
                 self.visit_pattern(pattern, ctx, generic_list)?;
@@ -674,7 +674,7 @@ impl TypeState {
                 self.unify(pattern, &cond.inner, ctx)
                     .into_default_diagnostic(pattern, self)?;
 
-                self.visit_expression(result, ctx, generic_list)?;
+                self.visit_expression(result, ctx, generic_list);
 
                 if i != 0 {
                     self.unify(&branches[0].1, result, ctx).into_diagnostic(
@@ -708,8 +708,8 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::BinaryOperator(lhs, op, rhs) = &expression => {
-            self.visit_expression(lhs, ctx, generic_list)?;
-            self.visit_expression(rhs, ctx, generic_list)?;
+            self.visit_expression(lhs, ctx, generic_list);
+            self.visit_expression(rhs, ctx, generic_list);
             match op.inner {
                 BinaryOperator::Add
                 | BinaryOperator::Sub => {
@@ -843,7 +843,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::UnaryOperator(op, operand) = &expression => {
-            self.visit_expression(operand, ctx, generic_list)?;
+            self.visit_expression(operand, ctx, generic_list);
             match &op.inner {
                 UnaryOperator::Sub => {
                     let int_type = self.new_generic_int(expression.loc(), ctx.symtab).insert(self);

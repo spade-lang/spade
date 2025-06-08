@@ -3,14 +3,14 @@ source: spade-tests/src/parser.rs
 ---
 fn test() {
     let length: uint<8> = 24;
-    let _ = [1u2; length];
+    let _: [uint<2>; 1] = [1u2; length];
 }
 
 
 error: Expected length to be a type
-  ┌─ testinput:3:19
+  ┌─ testinput:3:33
   │
 2 │     let length: uint<8> = 24;
   │         ------ length is a variable
-3 │     let _ = [1u2; length];
-  │                   ^^^^^^ Expected a type
+3 │     let _: [uint<2>; 1] = [1u2; length];
+  │                                 ^^^^^^ Expected a type

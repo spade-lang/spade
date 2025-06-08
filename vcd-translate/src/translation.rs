@@ -166,6 +166,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
     let value = [&vec![extend_value; missing_values], in_value].concat();
 
     match t {
+        ConcreteType::Error => {}
         ConcreteType::Tuple(inner) => {
             result.push('(');
 

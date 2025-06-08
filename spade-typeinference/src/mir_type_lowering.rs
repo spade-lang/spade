@@ -270,6 +270,7 @@ impl TypeState {
         invert: bool,
     ) -> Option<ConcreteType> {
         match var.resolve(self) {
+            TypeVar::Known(_, KnownType::Error, _) => Some(ConcreteType::Error),
             TypeVar::Known(_, KnownType::Named(t), params) => {
                 let params = params
                     .iter()

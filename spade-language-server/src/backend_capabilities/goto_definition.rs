@@ -93,6 +93,7 @@ impl ServerBackend {
         query_id: &NameID,
     ) -> Option<Location> {
         match &expression.kind {
+            ExprKind::Error => {}
             ExprKind::Block(block) => {
                 for statement in &block.statements {
                     if let Some(location) = self.find_def_in_statement(statement, query_id) {
@@ -167,6 +168,7 @@ impl ServerBackend {
 
     fn find_def_in_statement(&self, statement: &Statement, query_id: &NameID) -> Option<Location> {
         match statement {
+            Statement::Error => {}
             Statement::Binding(binding) => {
                 let pat = &binding.pattern;
                 if let Some(location) = self.find_def_in_pattern(&pat, query_id) {

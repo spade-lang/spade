@@ -84,6 +84,7 @@ impl<'a> Pass for InOutChecks<'a> {
             spade_hir::ExprKind::Block(b) => {
                 for stmt in &b.statements {
                     match &stmt.inner {
+                        spade_hir::Statement::Error => {}
                         spade_hir::Statement::Binding(Binding { pattern, .. })
                         | spade_hir::Statement::Register(Register { pattern, .. }) => {
                             // NOTE: the check for complete types is done after this pass is run

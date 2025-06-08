@@ -10,6 +10,21 @@ fn a() -> int<32> {
 }
 
 
+error: Output type mismatch. Expected int<32>, got bool
+  ┌─ testinput:4:19
+  │  
+4 │   fn a() -> int<32> {
+  │             ------- int<32> type specified here
+  │ ╭───────────────────^
+5 │ │     let a: int<32> = A(true).x;
+  │ │                      --------- Type bool inferred here
+6 │ │     a
+7 │ │ }
+  │ ╰─^ Found type bool
+  │  
+  = note: Expected: int<32>
+               Got: bool
+
 error: Expected type int<32>, got bool
   ┌─ testinput:5:22
   │
@@ -20,5 +35,3 @@ error: Expected type int<32>, got bool
   │
   = note: Expected: int<32>
                Got: bool
-
-

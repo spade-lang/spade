@@ -61,6 +61,7 @@ pub fn absorb_statements(
             result: block.result.clone(),
         }))
         .with_id(ctx.idtracker.next())),
+        ExprKind::Error => Ok(ExprKind::Error.with_id(ctx.idtracker.next())),
         _ => Err(Diagnostic::bug(
             body,
             "The body of a gen if can only be a block or another gen if",
@@ -70,7 +71,10 @@ pub fn absorb_statements(
 }
 
 pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Unit>> {
-    let body = unit.body.assume_block();
+    let Ok(body) = unit.body.assume_block() else {
+        unit.body.kind = ExprKind::Error;
+        return Ok(unit);
+    };
 
     let expand_body =
         |new_body: &Loc<Expression>, name_suffix: &str, ctx: &mut Context| -> Result<_> {
@@ -87,6 +91,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                     .at_loc(&loc)
                 }
                 ExprKind::Block(_) => absorbed,
+                ExprKind::Error => absorbed,
                 _ => diag_bail!(absorbed, "Non tlif or body"),
             };
 

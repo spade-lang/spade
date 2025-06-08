@@ -17,5 +17,3 @@ error: Expected type int<8>, got bool
   │
   = note: Expected: int<8>
                Got: bool
-
-

@@ -9,6 +9,7 @@ use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::Loc;
 pub use spade_common::namespace::ModuleNamespace;
+use spade_diagnostics::diag_list::DiagList;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
@@ -93,6 +94,13 @@ impl<'a> ErrorHandler<'a> {
             &mut self.diag_handler,
         );
     }
+
+    pub fn drain_diag_list(&mut self, diag_list: &mut DiagList) {
+        for diag in diag_list.drain() {
+            self.failed = true;
+            self.report(&diag)
+        }
+    }
 }
 
 /// Compiler output.
@@ -116,6 +124,11 @@ pub struct UnfinishedArtefacts {
     pub type_states: Option<BTreeMap<NameID, TypeState>>,
 }
 
+pub enum CompilationResult {
+    EarlyFailure(UnfinishedArtefacts),
+    LateFailure(Artefacts),
+}
+
 struct CodegenArtefacts {
     bumpy_mir_entities: Vec<spade_mir::Entity>,
     flat_mir_entities: Vec<Codegenable>,
@@ -131,7 +144,7 @@ pub fn compile(
     include_stdlib_and_prelude: bool,
     opts: Opt,
     diag_handler: DiagHandler,
-) -> Result<Artefacts, UnfinishedArtefacts> {
+) -> Result<Artefacts, CompilationResult> {
     let mut symtab = SymbolTable::new();
     let mut item_list = ItemList::new();
 
@@ -189,7 +202,7 @@ pub fn compile(
         Ok(p) => p,
         Err(e) => {
             errors.error_buffer.write_all(e.as_bytes()).unwrap();
-            return Err(unfinished_artefacts);
+            return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
         }
     };
     // This is a non-optional pass that prevents codegen bugs
@@ -198,7 +211,7 @@ pub fn compile(
 
     if errors.failed {
         unfinished_artefacts.symtab = Some(symtab);
-        return Err(unfinished_artefacts);
+        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
 
     let mut ctx = AstLoweringCtx {
@@ -209,6 +222,7 @@ pub fn compile(
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
         current_unit: None,
+        diags: DiagList::new(),
     };
 
     // Add all "root" project main.spade modules
@@ -245,9 +259,11 @@ pub fn compile(
         })
     }
 
+    // We have to error out during global lowering since other units will most likely
+    // look things up
     if errors.failed {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(unfinished_artefacts);
+        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
 
     for err in global_symbols::report_missing_mod_declarations(&module_asts, &missing_namespace_set)
@@ -255,9 +271,12 @@ pub fn compile(
         errors.report(&err);
     }
 
+    // We have to error out during global lowering since other units will most likely
+    // look things up
     if errors.failed {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(unfinished_artefacts);
+        errors.drain_diag_list(&mut ctx.diags);
+        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
 
     for (namespace, module_ast) in &module_asts {
@@ -266,9 +285,12 @@ pub fn compile(
         })
     }
 
+    // We have to error out during global lowering since other units will most likely
+    // look things up
     if errors.failed {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(unfinished_artefacts);
+        errors.drain_diag_list(&mut ctx.diags);
+        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
 
     for (namespace, module_ast) in &module_asts {
@@ -281,41 +303,37 @@ pub fn compile(
 
     if errors.failed {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(unfinished_artefacts);
+        errors.drain_diag_list(&mut ctx.diags);
+        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
+    // Let's prevent using this thing again
+    let _unfinished_artefacts = unfinished_artefacts;
 
     lower_ast(&module_asts, &mut ctx, &mut errors);
 
     let AstLoweringCtx {
         symtab,
-        item_list,
+        mut item_list,
         mut idtracker,
         impl_idtracker,
         pipeline_ctx: _,
         self_ctx: _,
         current_unit: _,
+        mut diags,
     } = ctx;
 
-    unfinished_artefacts.item_list = Some(item_list.clone());
+    errors.drain_diag_list(&mut diags);
 
-    for e in ensure_unique_anonymous_traits(&item_list) {
+    for e in ensure_unique_anonymous_traits(&mut item_list) {
         errors.report(&e)
-    }
-
-    // If we have errors during AST lowering, we need to early return because the
-    // items have already been added to the symtab when they are detected. Further compilation
-    // relies on all names in the symtab being in the item list, which will not be the
-    // case if we failed to compile some
-    if errors.failed {
-        return Err(unfinished_artefacts);
     }
 
     let mut frozen_symtab = symtab.freeze();
 
     let mut impl_type_state = TypeState::fresh();
-    let Ok(mapped_trait_impls) = impl_type_state.visit_impl_blocks(&item_list) else {
-        return Err(unfinished_artefacts);
-    };
+    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list);
+
+    errors.drain_diag_list(&mut impl_type_state.diags);
 
     let type_inference_ctx = typeinference::Context {
         symtab: frozen_symtab.symtab(),
@@ -330,15 +348,23 @@ pub fn compile(
             ExecutableItem::Unit(u) => {
                 let mut type_state = impl_type_state.create_child();
 
-                if let Ok(()) = type_state
+                let result = type_state
                     .visit_unit(u, &type_inference_ctx)
-                    .report(&mut errors)
-                {
+                    .report(&mut errors);
+
+                let failures = type_state.diags.errors.len() != 0;
+                errors.drain_diag_list(&mut type_state.diags);
+
+                if let Ok(()) = result {
                     if opts.print_type_traceback {
                         type_state.print_equations();
                         println!("{}", format_trace_stack(&type_state));
                     }
-                    Some((name, (item, type_state)))
+                    if !failures {
+                        Some((name, (item, type_state)))
+                    } else {
+                        None
+                    }
                 } else {
                     if opts.print_type_traceback {
                         type_state.print_equations();
@@ -353,17 +379,11 @@ pub fn compile(
         })
         .collect::<BTreeMap<_, _>>();
 
-    if errors.failed {
-        return Err(unfinished_artefacts);
-    }
-
-    unfinished_artefacts.type_states = Some(
-        executables_and_types
-            .clone()
-            .into_iter()
-            .map(|(name_id, (_, type_state))| (name_id.clone(), type_state))
-            .collect::<BTreeMap<_, _>>(),
-    );
+    let type_states = executables_and_types
+        .clone()
+        .into_iter()
+        .map(|(name_id, (_, type_state))| (name_id.clone(), type_state))
+        .collect::<BTreeMap<_, _>>();
 
     let mut name_source_map = NameSourceMap::new();
     let mir_entities = spade_hir_lowering::monomorphisation::compile_items(
@@ -403,60 +423,69 @@ pub fn compile(
         mir_context,
     };
 
-    if errors.failed {
-        return Err(unfinished_artefacts);
-    }
+    let code = code.read().unwrap();
 
-    if let Some(outfile) = opts.outfile {
-        std::fs::write(outfile, module_code.join("\n\n")).or_report(&mut errors);
-    }
-    if let Some(cpp_file) = opts.verilator_wrapper_output {
-        let cpp_code =
-            verilator_wrappers(&flat_mir_entities.iter().map(|e| &e.0).collect::<Vec<_>>());
-        std::fs::write(cpp_file, cpp_code).or_report(&mut errors);
-    }
-    if let Some(mir_output) = opts.mir_output {
-        std::fs::write(mir_output, mir_code.join("\n\n")).or_report(&mut errors);
-    }
-    if let Some(item_list_file) = opts.item_list_file {
-        let list = name_dump::list_names(&item_list);
+    if !errors.failed {
+        if let Some(outfile) = opts.outfile {
+            std::fs::write(outfile, module_code.join("\n\n")).or_report(&mut errors);
+        }
+        if let Some(cpp_file) = opts.verilator_wrapper_output {
+            let cpp_code =
+                verilator_wrappers(&flat_mir_entities.iter().map(|e| &e.0).collect::<Vec<_>>());
+            std::fs::write(cpp_file, cpp_code).or_report(&mut errors);
+        }
+        if let Some(mir_output) = opts.mir_output {
+            std::fs::write(mir_output, mir_code.join("\n\n")).or_report(&mut errors);
+        }
+        if let Some(item_list_file) = opts.item_list_file {
+            let list = name_dump::list_names(&item_list);
 
-        match ron::to_string(&list) {
-            Ok(encoded) => {
-                std::fs::write(item_list_file, encoded).or_report(&mut errors);
-            }
-            Err(e) => {
-                errors.failed = true;
-                println!("Failed to encode item list as RON {e:?}")
+            match ron::to_string(&list) {
+                Ok(encoded) => {
+                    std::fs::write(item_list_file, encoded).or_report(&mut errors);
+                }
+                Err(e) => {
+                    errors.failed = true;
+                    println!("Failed to encode item list as RON {e:?}")
+                }
             }
         }
-    }
-    if let Some(state_dump_file) = opts.state_dump_file {
-        let ron = ron::Options::default().without_recursion_limit();
+        if let Some(state_dump_file) = opts.state_dump_file {
+            let ron = ron::Options::default().without_recursion_limit();
 
-        match ron.to_string_pretty(&state, PrettyConfig::default()) {
-            Ok(encoded) => {
-                std::fs::write(state_dump_file, encoded).or_report(&mut errors);
-            }
-            Err(e) => {
-                errors.failed = true;
-                println!("Failed to encode compiler state info as RON {:?}", e)
+            match ron.to_string_pretty(&state, PrettyConfig::default()) {
+                Ok(encoded) => {
+                    std::fs::write(state_dump_file, encoded).or_report(&mut errors);
+                }
+                Err(e) => {
+                    errors.failed = true;
+                    println!("Failed to encode compiler state info as RON {:?}", e)
+                }
             }
         }
-    }
-
-    if errors.failed {
-        Err(unfinished_artefacts)
-    } else {
-        Ok(Artefacts {
+        let artefacts = Artefacts {
             bumpy_mir_entities,
             flat_mir_entities,
-            code: code.read().unwrap().clone(),
+            code: code.clone(),
             item_list,
             impl_list: mapped_trait_impls,
             state,
-            type_states: unfinished_artefacts.type_states.unwrap(),
-        })
+            type_states,
+        };
+
+        Ok(artefacts)
+    } else {
+        let artefacts = Artefacts {
+            bumpy_mir_entities,
+            flat_mir_entities,
+            code: code.clone(),
+            item_list,
+            impl_list: mapped_trait_impls,
+            state,
+            type_states,
+        };
+
+        Err(CompilationResult::LateFailure(artefacts))
     }
 }
 

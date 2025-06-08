@@ -286,6 +286,7 @@ pub use diagnostic::Diagnostic;
 pub use emitter::Emitter;
 pub use spade_codespan as codespan;
 
+pub mod diag_list;
 pub mod diagnostic;
 pub mod emitter;
 

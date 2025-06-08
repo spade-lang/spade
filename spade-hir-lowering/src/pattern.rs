@@ -60,6 +60,7 @@ pub(crate) fn split_wildcard(
     other_ctors: impl Iterator<Item = Constructor> + Clone,
 ) -> Vec<Constructor> {
     match ty {
+        ConcreteType::Error => vec![Constructor::Single],
         ConcreteType::Tuple(_) => vec![Constructor::Single],
         ConcreteType::Struct { .. } => vec![Constructor::Single],
         // We don't currently support array patterns. We'll return Constructor::Single
@@ -246,6 +247,7 @@ impl Constructor {
     pub fn fields(&self, ty: &ConcreteType) -> Vec<ConcreteType> {
         match &self {
             Constructor::Single => match ty {
+                ConcreteType::Error => vec![],
                 ConcreteType::Tuple(i) => i.clone(),
                 ConcreteType::Struct {
                     name: _,
@@ -424,6 +426,7 @@ impl std::fmt::Display for DeconstructedPattern {
                 }
                 ConcreteType::Enum { .. } => unreachable!(),
                 ConcreteType::Single { .. } => write!(f, "_"),
+                ConcreteType::Error { .. } => write!(f, "{{error}}"),
                 ConcreteType::Integer(_) => unreachable!("Pattern on type level integer"),
                 ConcreteType::Bool(_) => unreachable!("Pattern on type level bool"),
                 ConcreteType::Backward(_) => unreachable!("Pattern on backward type"),

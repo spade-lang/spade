@@ -20,6 +20,7 @@ use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_ast_lowering::SelfContext;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path as SpadePath};
+use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::{LookupError, SymbolTable};
@@ -469,10 +470,11 @@ impl Spade {
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
+            diags: DiagList::new(),
         };
-        let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx)
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
-            .at_loc(&ast);
+        let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
+
+        self.handle_diags(&mut ast_ctx.diags)?;
 
         let type_ctx = spade_typeinference::Context {
             symtab: &ast_ctx.symtab,
@@ -487,8 +489,10 @@ impl Spade {
         // NOTE: We need to actually have the type information about what we're
         // assigning to available here
         self.type_state
-            .visit_expression(&hir, &type_ctx, &generic_list)
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .visit_expression(&hir, &type_ctx, &generic_list);
+
+        let mut diags = self.type_state.diags.drain_to_new();
+        self.handle_diags(&mut diags)?;
 
         let g = self.type_state.new_generic_any();
         self.type_state
@@ -563,7 +567,10 @@ impl Spade {
             pipeline_ctx: _,
             self_ctx: _,
             current_unit: _,
+            mut diags,
         } = ast_ctx;
+
+        self.handle_diags(&mut diags)?;
 
         self.return_owned(OwnedState {
             symtab: symtab.freeze(),
@@ -810,11 +817,10 @@ impl Spade {
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
+            diags: DiagList::new(),
         };
 
-        let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx)
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
-            .at_loc(&ast);
+        let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
 
         let spade_ast_lowering::Context {
             symtab,
@@ -824,7 +830,9 @@ impl Spade {
             pipeline_ctx: _,
             self_ctx: _,
             current_unit: _,
+            mut diags,
         } = ast_ctx;
+        self.handle_diags(&mut diags)?;
 
         let mut symtab = symtab.freeze();
 
@@ -839,8 +847,10 @@ impl Spade {
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         self.type_state
-            .visit_expression(&hir, &type_ctx, &generic_list)
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .visit_expression(&hir, &type_ctx, &generic_list);
+
+        let mut diags = self.type_state.diags.drain_to_new();
+        self.handle_diags(&mut diags)?;
 
         let ty_id = ty.insert(&mut self.type_state);
         self.type_state
@@ -910,6 +920,17 @@ impl Spade {
     #[tracing::instrument(level = "trace", skip(self, o))]
     fn return_owned(&mut self, o: OwnedState) {
         self.owned = Some(o)
+    }
+
+    fn handle_diags(&mut self, diags: &mut DiagList) -> Result<()> {
+        for diag in diags.drain() {
+            Err(diag).report_and_convert(
+                &mut self.error_buffer,
+                &self.code,
+                &mut self.diag_handler,
+            )?
+        }
+        Ok(())
     }
 }
 

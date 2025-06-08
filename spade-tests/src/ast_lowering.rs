@@ -133,7 +133,7 @@ snapshot_error! {
     pipeline(3) main(clk: clock) -> int<8> {
         reg;
             'a
-            let x = 0;
+            let x = 0u8;
         reg;
         reg;
             stage(b).x
@@ -678,6 +678,7 @@ snapshot_error! {
     "
     fn main() -> bool {
         decl x, x;
+        let x = false;
         true
     }
     "
@@ -1392,7 +1393,7 @@ snapshot_error! {
     lambda_captures_are_disallowed,
     "
         fn test() {
-            let x = 0;
+            let x = 0u8;
             let l = fn() {
                 let y = x;
             };

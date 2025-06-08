@@ -69,6 +69,7 @@ pub fn handle_statement(
     current_stage: &mut usize,
 ) -> Result<()> {
     match &statement.inner {
+        Statement::Error => {}
         Statement::Binding(Binding {
             pattern: pat,
             value: expr,
@@ -574,6 +575,7 @@ pub fn try_compute_availability(
 impl PipelineAvailability for ExprKind {
     fn available_in(&self, ctx: &Context) -> Result<usize> {
         match self {
+            ExprKind::Error => Ok(0),
             ExprKind::Identifier(_) => Ok(0),
             ExprKind::IntLiteral(_, _) => Ok(0),
             ExprKind::TypeLevelInteger(_) => Ok(0),

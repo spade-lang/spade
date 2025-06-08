@@ -49,6 +49,7 @@ impl MutWireWitness {
 
 pub fn is_linear(ty: &ConcreteType) -> bool {
     match ty {
+        ConcreteType::Error => false,
         ConcreteType::Tuple(inner) => inner.iter().any(is_linear),
         ConcreteType::Struct {
             name: _,
@@ -319,6 +320,7 @@ impl LinearTree {
 
 fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
     match ty {
+        ConcreteType::Error => LinearTree::leaf(false),
         ConcreteType::Tuple(inner) => {
             let inner = inner
                 .iter()

@@ -31,6 +31,7 @@ pub trait IntoImplTarget {
 impl IntoImplTarget for KnownType {
     fn into_impl_target(&self) -> Option<ImplTarget> {
         match self {
+            KnownType::Error => None,
             KnownType::Named(name) => Some(ImplTarget::Named(name.clone())),
             KnownType::Integer(_) | KnownType::Bool(_) => None,
             KnownType::Tuple => None,

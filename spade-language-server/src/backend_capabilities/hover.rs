@@ -432,6 +432,8 @@ impl ExprKindExt for ExprKind {
             } => callee.contains_start(loc),
             ExprKind::BinaryOperator(_, op, _) => op.contains_start(loc),
 
+            ExprKind::Error => false,
+
             ExprKind::Identifier(_)
             | ExprKind::Match(_, _)
             | ExprKind::If(_, _, _)

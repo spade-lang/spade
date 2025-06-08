@@ -1,6 +1,5 @@
 pub mod expression;
 pub mod param_util;
-pub mod pretty_debug;
 pub mod pretty_print;
 pub mod query;
 pub mod symbol_table;
@@ -167,6 +166,7 @@ pub enum PipelineRegMarkerExtra {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Statement {
+    Error,
     Binding(Binding),
     Expression(Loc<Expression>),
     Register(Register),

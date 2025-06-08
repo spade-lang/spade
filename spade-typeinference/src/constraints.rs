@@ -113,6 +113,7 @@ impl ConstraintExpr {
                 TypeVar::Known(_, known_type, _) => match known_type {
                     KnownType::Integer(i) => ConstraintExpr::Integer(i.clone()),
                     KnownType::Bool(b) => ConstraintExpr::Bool(b.clone()),
+                    KnownType::Error => self.clone(),
                     KnownType::Named(_)
                     | KnownType::Tuple
                     | KnownType::Array

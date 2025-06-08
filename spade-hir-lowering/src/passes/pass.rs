@@ -34,6 +34,7 @@ impl Passable for Loc<Expression> {
         }
 
         match &mut self.inner.kind {
+            ExprKind::Error => {}
             ExprKind::Identifier(_) => {}
             ExprKind::IntLiteral(_, _) => {}
             ExprKind::TypeLevelInteger(_) => {}
@@ -111,6 +112,7 @@ impl Passable for Loc<Expression> {
 
                 for statement in &mut block.statements {
                     match &mut statement.inner {
+                        Statement::Error => {}
                         Statement::Binding(Binding {
                             pattern: _,
                             ty: _,

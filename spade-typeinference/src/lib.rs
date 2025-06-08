@@ -25,6 +25,7 @@ use replacement::ReplacementStack;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
+use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{unify_meta, MetaType};
@@ -173,6 +174,11 @@ pub struct TypeState {
 
     #[serde(skip)]
     pub trace_stack: TraceStack,
+
+    // TODO: How should we handle the clone here? We don't want to end with clones
+    // of the diag list
+    #[serde(skip)]
+    pub diags: DiagList,
 }
 
 impl TypeState {
@@ -193,6 +199,7 @@ impl TypeState {
             generic_lists: HashMap::new(),
             trait_impls: TraitImplList::new(),
             pipeline_state: None,
+            diags: DiagList::new(),
         }
     }
 
@@ -541,7 +548,7 @@ impl TypeState {
             self.check_requirements(ctx)?;
         }
 
-        self.visit_expression(&entity.body, ctx, &generic_list)?;
+        self.visit_expression(&entity.body, ctx, &generic_list);
 
         // Ensure that the output type matches what the user specified, and unit otherwise
         if let Some(output_type) = &entity.head.output_type {
@@ -630,7 +637,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         for expr in args.expressions() {
-            self.visit_expression(expr, ctx, generic_list)?;
+            self.visit_expression(expr, ctx, generic_list);
         }
         Ok(())
     }
@@ -674,19 +681,22 @@ impl TypeState {
         Ok(())
     }
 
-    #[tracing::instrument(level = "trace", skip_all)]
     #[trace_typechecker]
-    pub fn visit_expression(
+    pub fn visit_expression_result(
         &mut self,
         expression: &Loc<Expression>,
         ctx: &Context,
         generic_list: &GenericListToken,
+        new_type: TypeVarID,
     ) -> Result<()> {
-        let new_type = self.new_generic_type(expression.loc());
-        self.add_equation(TypedExpression::Id(expression.inner.id), new_type);
-
         // Recurse down the expression
         match &expression.inner.kind {
+            ExprKind::Error => {
+                new_type
+                    .unify_with(&self.t_err(expression.loc()), self)
+                    .commit(self, ctx)
+                    .unwrap();
+            }
             ExprKind::Identifier(_) => self.visit_identifier(expression, ctx)?,
             ExprKind::TypeLevelInteger(_) => {
                 self.visit_type_level_integer(expression, generic_list, ctx)?
@@ -769,8 +779,8 @@ impl TypeState {
                     self,
                 )?;
 
-                self.visit_expression(on_true, ctx, generic_list)?;
-                self.visit_expression(on_false, ctx, generic_list)?;
+                self.visit_expression(on_true, ctx, generic_list);
+                self.visit_expression(on_false, ctx, generic_list);
 
                 self.unify_expression_generic_error(expression, on_true.as_ref(), ctx)?;
                 self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
@@ -787,7 +797,7 @@ impl TypeState {
                     self.visit_pattern(arg, ctx, generic_list)?;
                 }
 
-                self.visit_expression(body, ctx, generic_list)?;
+                self.visit_expression(body, ctx, generic_list);
 
                 let lambda_params = arguments
                     .iter()
@@ -859,6 +869,29 @@ impl TypeState {
             ExprKind::Null => {}
         }
         Ok(())
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn visit_expression(
+        &mut self,
+        expression: &Loc<Expression>,
+        ctx: &Context,
+        generic_list: &GenericListToken,
+    ) {
+        let new_type = self.new_generic_type(expression.loc());
+        self.add_equation(TypedExpression::Id(expression.inner.id), new_type);
+
+        match self.visit_expression_result(expression, ctx, generic_list, new_type) {
+            Ok(_) => {}
+            Err(e) => {
+                new_type
+                    .unify_with(&self.t_err(expression.loc()), self)
+                    .commit(self, ctx)
+                    .unwrap();
+
+                self.diags.errors.push(e);
+            }
+        }
     }
 
     // Common handler for entities, functions and pipelines
@@ -1407,73 +1440,81 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         for statement in &block.statements {
-            self.visit_statement(statement, ctx, generic_list)?;
+            self.visit_statement(statement, ctx, generic_list);
         }
         if let Some(result) = &block.result {
-            self.visit_expression(result, ctx, generic_list)?;
+            self.visit_expression(result, ctx, generic_list);
         }
         Ok(())
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    #[trace_typechecker]
-    pub fn visit_impl_blocks(&mut self, item_list: &ItemList) -> Result<TraitImplList> {
+    pub fn visit_impl_blocks(&mut self, item_list: &ItemList) -> TraitImplList {
         let mut trait_impls = TraitImplList::new();
         for (target, impls) in &item_list.impls {
             for ((trait_name, type_expressions), impl_block) in impls {
-                let generic_list = self.create_generic_list(
-                    GenericListSource::ImplBlock {
-                        target,
-                        id: impl_block.id,
-                    },
-                    &[],
-                    impl_block.type_params.as_slice(),
-                    None,
-                    &[],
-                )?;
+                let result = (|| {
+                    let generic_list = self.create_generic_list(
+                        GenericListSource::ImplBlock {
+                            target,
+                            id: impl_block.id,
+                        },
+                        &[],
+                        impl_block.type_params.as_slice(),
+                        None,
+                        &[],
+                    )?;
 
-                let loc = trait_name
-                    .name_loc()
-                    .map(|n| ().at_loc(&n))
-                    .unwrap_or(().at_loc(&impl_block));
+                    let loc = trait_name
+                        .name_loc()
+                        .map(|n| ().at_loc(&n))
+                        .unwrap_or(().at_loc(&impl_block));
 
-                let trait_type_params = type_expressions
-                    .iter()
-                    .map(|param| {
-                        Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
-                            &param.clone().at_loc(&loc),
-                            &generic_list,
-                        )?))
-                    })
-                    .collect::<Result<_>>()?;
+                    let trait_type_params = type_expressions
+                        .iter()
+                        .map(|param| {
+                            Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
+                                &param.clone().at_loc(&loc),
+                                &generic_list,
+                            )?))
+                        })
+                        .collect::<Result<_>>()?;
 
-                let target_type_params = impl_block
-                    .target
-                    .type_params()
-                    .into_iter()
-                    .map(|param| {
-                        Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
-                            &param.clone().at_loc(&loc),
-                            &generic_list,
-                        )?))
-                    })
-                    .collect::<Result<_>>()?;
+                    let target_type_params = impl_block
+                        .target
+                        .type_params()
+                        .into_iter()
+                        .map(|param| {
+                            Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
+                                &param.clone().at_loc(&loc),
+                                &generic_list,
+                            )?))
+                        })
+                        .collect::<Result<_>>()?;
 
-                trait_impls
-                    .inner
-                    .entry(target.clone())
-                    .or_default()
-                    .push(TraitImpl {
-                        name: trait_name.clone(),
-                        target_type_params,
-                        trait_type_params,
+                    trait_impls
+                        .inner
+                        .entry(target.clone())
+                        .or_default()
+                        .push(TraitImpl {
+                            name: trait_name.clone(),
+                            target_type_params,
+                            trait_type_params,
 
-                        impl_block: impl_block.inner.clone(),
-                    });
+                            impl_block: impl_block.inner.clone(),
+                        });
+
+                    Ok(())
+                })();
+
+                match result {
+                    Ok(()) => {}
+                    Err(e) => self.diags.errors.push(e),
+                }
             }
         }
 
-        Ok(trait_impls)
+        trait_impls
     }
 
     #[trace_typechecker]
@@ -1668,7 +1709,7 @@ impl TypeState {
         let WalTrace { clk, rst } = &trace.inner;
         clk.as_ref()
             .map(|x| {
-                self.visit_expression(x, ctx, generic_list)?;
+                self.visit_expression(x, ctx, generic_list);
                 x.unify_with(&self.t_clock(trace.loc(), ctx.symtab), self)
                     .commit(self, ctx)
                     .into_default_diagnostic(x, self)
@@ -1676,7 +1717,7 @@ impl TypeState {
             .transpose()?;
         rst.as_ref()
             .map(|x| {
-                self.visit_expression(x, ctx, generic_list)?;
+                self.visit_expression(x, ctx, generic_list);
                 x.unify_with(&self.t_bool(trace.loc(), ctx.symtab), self)
                     .commit(self, ctx)
                     .into_default_diagnostic(x, self)
@@ -1686,13 +1727,24 @@ impl TypeState {
     }
 
     #[trace_typechecker]
-    pub fn visit_statement(
+    pub fn visit_statement_error(
         &mut self,
         stmt: &Loc<Statement>,
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
         match &stmt.inner {
+            Statement::Error => {
+                if let Some(current_stage_depth) =
+                    self.pipeline_state.as_ref().map(|s| s.current_stage_depth)
+                {
+                    current_stage_depth
+                        .unify_with(&self.t_err(stmt.loc()), self)
+                        .commit(self, ctx)
+                        .unwrap();
+                }
+                Ok(())
+            }
             Statement::Binding(Binding {
                 pattern,
                 ty,
@@ -1700,9 +1752,10 @@ impl TypeState {
                 wal_trace,
             }) => {
                 trace!("Visiting `let {} = ..`", pattern.kind);
-                self.visit_expression(value, ctx, generic_list)?;
+                self.visit_expression(value, ctx, generic_list);
 
-                self.visit_pattern(pattern, ctx, generic_list)?;
+                self.visit_pattern(pattern, ctx, generic_list)
+                    .handle_in(&mut self.diags);
 
                 self.unify(&TypedExpression::Id(pattern.id), value, ctx)
                     .into_diagnostic(
@@ -1712,22 +1765,28 @@ impl TypeState {
                             self,
                         ),
                         self,
-                    )?;
+                    )
+                    .handle_in(&mut self.diags);
 
                 if let Some(t) = ty {
                     let tvar = self.type_var_from_hir(t.loc(), t, generic_list)?;
                     self.unify(&TypedExpression::Id(pattern.id), &tvar, ctx)
-                        .into_default_diagnostic(value.loc(), self)?;
+                        .into_default_diagnostic(value.loc(), self)
+                        .handle_in(&mut self.diags);
                 }
 
                 wal_trace
                     .as_ref()
                     .map(|wt| self.visit_wal_trace(wt, ctx, generic_list))
-                    .transpose()?;
+                    .transpose()
+                    .handle_in(&mut self.diags);
 
                 Ok(())
             }
-            Statement::Expression(expr) => self.visit_expression(expr, ctx, generic_list),
+            Statement::Expression(expr) => {
+                self.visit_expression(expr, ctx, generic_list);
+                Ok(())
+            }
             Statement::Register(reg) => self.visit_register(reg, ctx, generic_list),
             Statement::Declaration(names) => {
                 for name in names {
@@ -1739,7 +1798,7 @@ impl TypeState {
             Statement::PipelineRegMarker(extra) => {
                 match extra {
                     Some(PipelineRegMarkerExtra::Condition(cond)) => {
-                        self.visit_expression(cond, ctx, generic_list)?;
+                        self.visit_expression(cond, ctx, generic_list);
                         cond.unify_with(&self.t_bool(cond.loc(), ctx.symtab), self)
                             .commit(self, ctx)
                             .into_default_diagnostic(cond, self)?;
@@ -1826,25 +1885,39 @@ impl TypeState {
             }
             Statement::WalSuffixed { .. } => Ok(()),
             Statement::Assert(expr) => {
-                self.visit_expression(expr, ctx, generic_list)?;
+                self.visit_expression(expr, ctx, generic_list);
 
                 expr.unify_with(&self.t_bool(stmt.loc(), ctx.symtab), self)
                     .commit(self, ctx)
-                    .into_default_diagnostic(expr, self)?;
+                    .into_default_diagnostic(expr, self)
+                    .handle_in(&mut self.diags);
                 Ok(())
             }
             Statement::Set { target, value } => {
-                self.visit_expression(target, ctx, generic_list)?;
-                self.visit_expression(value, ctx, generic_list)?;
+                self.visit_expression(target, ctx, generic_list);
+                self.visit_expression(value, ctx, generic_list);
 
                 let inner_type = self.new_generic_type(value.loc());
                 let outer_type =
                     TypeVar::backward(stmt.loc(), inner_type.clone(), self).insert(self);
-                self.unify_expression_generic_error(target, &outer_type, ctx)?;
-                self.unify_expression_generic_error(value, &inner_type, ctx)?;
+                self.unify_expression_generic_error(target, &outer_type, ctx)
+                    .handle_in(&mut self.diags);
+                self.unify_expression_generic_error(value, &inner_type, ctx)
+                    .handle_in(&mut self.diags);
 
                 Ok(())
             }
+        }
+    }
+
+    pub fn visit_statement(
+        &mut self,
+        stmt: &Loc<Statement>,
+        ctx: &Context,
+        generic_list: &GenericListToken,
+    ) {
+        if let Err(e) = self.visit_statement_error(stmt, ctx, generic_list) {
+            self.diags.errors.push(e);
         }
     }
 
@@ -1873,8 +1946,8 @@ impl TypeState {
                 )?;
         }
 
-        self.visit_expression(&reg.clock, ctx, generic_list)?;
-        self.visit_expression(&reg.value, ctx, generic_list)?;
+        self.visit_expression(&reg.clock, ctx, generic_list);
+        self.visit_expression(&reg.value, ctx, generic_list);
 
         if let Some(tvar) = &type_spec_type {
             self.unify(&reg.value, tvar, ctx)
@@ -1882,8 +1955,8 @@ impl TypeState {
         }
 
         if let Some((rst_cond, rst_value)) = &reg.reset {
-            self.visit_expression(rst_cond, ctx, generic_list)?;
-            self.visit_expression(rst_value, ctx, generic_list)?;
+            self.visit_expression(rst_cond, ctx, generic_list);
+            self.visit_expression(rst_value, ctx, generic_list);
             // Ensure cond is a boolean
             rst_cond
                 .unify_with(&self.t_bool(rst_cond.loc(), ctx.symtab), self)
@@ -1921,7 +1994,7 @@ impl TypeState {
         }
 
         if let Some(initial) = &reg.initial {
-            self.visit_expression(initial, ctx, generic_list)?;
+            self.visit_expression(initial, ctx, generic_list);
 
             self.unify(&initial.inner, &reg.value.inner, ctx)
                 .into_diagnostic(
@@ -2302,6 +2375,8 @@ impl TypeState {
             &(v1, v1.resolve(self).clone()),
             &(v2, v2.resolve(self).clone()),
         ) {
+            ((_, TypeVar::Known(_, KnownType::Error, _)), _) => Ok((v1, vec![v2])),
+            (_, (_, TypeVar::Known(_, KnownType::Error, _))) => Ok((v2, vec![v1])),
             ((_, TypeVar::Known(_, t1, p1)), (_, TypeVar::Known(_, t2, p2))) => {
                 match (t1, t2) {
                     (KnownType::Integer(val1), KnownType::Integer(val2)) => {
@@ -2486,6 +2561,11 @@ impl TypeState {
                 }
 
                 match (base, meta) {
+                    (KnownType::Error, _) => {
+                        let new = self.add_type_var(TypeVar::Known(*loc, KnownType::Error, vec![]));
+
+                        Ok((new, vec![otherid.clone(), ukid.clone()]))
+                    }
                     // Any matches all types
                     (_, MetaType::Any)
                     // All types are types
@@ -2535,6 +2615,18 @@ impl TypeState {
 
         let (new_type, replaced_types) = result?;
 
+        for replaced_type in &replaced_types {
+            if v1.inner != v2.inner {
+                let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
+                self.replacements.insert(from, to);
+                if let Err(rec) = self.check_type_for_recursion(to, &mut vec![]) {
+                    let err_t = self.t_err(().nowhere());
+                    self.replacements.insert(to, err_t);
+                    return Err(UnificationError::RecursiveType(rec));
+                }
+            }
+        }
+
         self.trace_stack.push(TraceStackEntry::Unified(
             v1.debug_resolve(self),
             v2.debug_resolve(self),
@@ -2544,16 +2636,6 @@ impl TypeState {
                 .map(|v| v.debug_resolve(self))
                 .collect(),
         ));
-
-        for replaced_type in replaced_types {
-            if v1.inner != v2.inner {
-                let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
-                self.replacements.insert(from, to);
-                if let Err(rec) = self.check_type_for_recursion(to, &mut vec![]) {
-                    return Err(UnificationError::RecursiveType(rec));
-                }
-            }
-        }
 
         Ok(new_type)
     }
@@ -2673,6 +2755,7 @@ impl TypeState {
                             .join(", ");
 
                         match base {
+                            KnownType::Error => {}
                             KnownType::Named(name_id) => {
                                 return Err(format!("{name_id}<{}>", list));
                             }
@@ -2970,6 +3053,7 @@ impl TypeState {
     }
 }
 
+#[must_use]
 pub struct UnificationBuilder {
     lhs: TypeVarID,
     rhs: TypeVarID,
@@ -2987,7 +3071,7 @@ impl UnificationBuilder {
 pub trait HasType: std::fmt::Debug {
     fn get_type(&self, state: &TypeState) -> TypeVarID {
         self.try_get_type(state)
-            .expect("Did not find a type for {self:?}")
+            .expect(&format!("Did not find a type for {self:?}"))
     }
 
     fn try_get_type(&self, state: &TypeState) -> Option<TypeVarID> {

@@ -1014,49 +1014,51 @@ fn map_type_spec_to_trait(
 /// Ensures that there are no functions in anonymous trait impls that have conflicting
 /// names
 #[tracing::instrument(skip(item_list))]
-pub fn ensure_unique_anonymous_traits(item_list: &hir::ItemList) -> Vec<Diagnostic> {
-    item_list
-        .impls
-        .iter()
-        .flat_map(|(_impl_target, impls)| {
-            let mut fns = impls
-                .iter()
-                .filter(|(t, _)| t.0.is_anonymous())
-                .flat_map(|(_, impl_block)| impl_block.fns.iter().map(|f| (f, &impl_block.target)))
-                .collect::<Vec<_>>();
-
-            // For deterministic error messages, the order at which functions are seen must be
-            // deterministic. This is not the case as the impls come out of the hash map, so we'll
-            // sort them depending on the loc span of the impl. The exact ordering is
-            // completely irrelevant, as long as it is ordered the same way every time a test
-            // is run
-            fns.sort_by_key(|(f, _target)| f.1 .1.span);
-
-            let mut set: HashMap<&Identifier, (Loc<()>, Vec<&hir::TypeSpec>)> = HashMap::new();
-
-            let mut duplicate_errs = vec![];
-            for ((f, f_loc), target) in fns {
-                if let Some((prev, specs)) = set.get_mut(f) {
-                    if specs.iter().any(|spec| type_specs_overlap(target, spec)) {
-                        duplicate_errs.push(
-                            Diagnostic::error(
-                                f_loc.1,
-                                format!("{} already has a method named {f}", target),
-                            )
-                            .primary_label("Duplicate method")
-                            .secondary_label(prev.loc(), "Previous definition here"),
-                        );
-                    } else {
-                        specs.push(target)
-                    }
+pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diagnostic> {
+    let mut diags = vec![];
+    for (_impl_target, impls) in item_list.impls.iter_mut() {
+        let mut set: HashMap<Identifier, (Loc<()>, Vec<hir::TypeSpec>)> = HashMap::new();
+        *impls = impls
+            .iter_mut()
+            .sorted_by_key(|(_f, target)| target.span)
+            .map(|((t, type_params), impl_block)| {
+                if !t.is_anonymous() {
+                    ((t.clone(), type_params.clone()), impl_block.clone())
                 } else {
-                    set.insert(f, (f_loc.1, vec![&target.inner]));
-                }
-            }
+                    let mut impl_block = impl_block.clone();
+                    let target = impl_block.target.clone();
 
-            duplicate_errs
-        })
-        .collect::<Vec<_>>()
+                    impl_block.fns.retain(|f, (_f_nameid, f_loc)| {
+                        if let Some((prev, specs)) = set.get_mut(f) {
+                            if specs
+                                .iter()
+                                .any(|spec| type_specs_overlap(&target.inner, &spec))
+                            {
+                                diags.push(
+                                    Diagnostic::error(
+                                        *f_loc,
+                                        format!("{} already has a method named {f}", target),
+                                    )
+                                    .primary_label("Duplicate method")
+                                    .secondary_label(prev.loc(), "Previous definition here"),
+                                );
+                                false
+                            } else {
+                                specs.push(target.inner.clone());
+                                true
+                            }
+                        } else {
+                            set.insert(f.clone(), (*f_loc, vec![target.inner.clone()]));
+                            true
+                        }
+                    });
+
+                    ((t.clone(), type_params.clone()), impl_block)
+                }
+            })
+            .collect()
+    }
+    diags
 }
 
 fn type_specs_overlap(l: &hir::TypeSpec, r: &hir::TypeSpec) -> bool {

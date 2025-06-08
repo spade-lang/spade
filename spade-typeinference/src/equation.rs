@@ -78,6 +78,7 @@ impl TypeVarID {
 
     pub fn display_with_meta(self, meta: bool, type_state: &TypeState) -> String {
         match self.resolve(type_state) {
+            TypeVar::Known(_, KnownType::Error, _) => "{unknown}".to_string(),
             TypeVar::Known(_, KnownType::Named(t), params) => {
                 let generics = if params.is_empty() {
                     String::new()
@@ -164,6 +165,7 @@ impl TypeVarID {
                     KnownType::Array => format!("Array"),
                     KnownType::Wire => format!("&"),
                     KnownType::Inverted => format!("inv &"),
+                    KnownType::Error => format!("{{error}}"),
                 };
                 TypeVarString(format!("{base}{params}"), self)
             }
@@ -336,15 +338,23 @@ impl TypeVar {
         }
     }
 
-    pub fn expect_named<T, U, K, O>(&self, on_named: K, on_unknown: U, on_other: O) -> T
+    pub fn expect_named<T, E, U, K, O>(
+        &self,
+        on_named: K,
+        on_unknown: U,
+        on_other: O,
+        on_error: E,
+    ) -> T
     where
         U: FnOnce() -> T,
         K: FnOnce(&NameID, &[TypeVarID]) -> T,
+        E: FnOnce() -> T,
         O: FnOnce(&TypeVar) -> T,
     {
         match self {
             TypeVar::Unknown(_, _, _, _) => on_unknown(),
             TypeVar::Known(_, KnownType::Named(name), params) => on_named(name, params),
+            TypeVar::Known(_, KnownType::Error, _) => on_error(),
             other => on_other(other),
         }
     }
@@ -396,9 +406,16 @@ impl TypeVar {
     /// Assumes that this type is KnownType::Integer(size) and calls on_integer then. Otherwise
     /// calls on_unknown or on_other depending on the type. If the integer is given type params,
     /// panics
-    pub fn expect_integer<T, U, K, O>(&self, on_integer: K, on_unknown: U, on_other: O) -> T
+    pub fn expect_integer<T, E, U, K, O>(
+        &self,
+        on_integer: K,
+        on_unknown: U,
+        on_other: O,
+        on_error: E,
+    ) -> T
     where
         U: FnOnce() -> T,
+        E: FnOnce() -> T,
         K: FnOnce(BigInt) -> T,
         O: FnOnce(&TypeVar) -> T,
     {
@@ -407,6 +424,7 @@ impl TypeVar {
                 assert!(params.is_empty());
                 on_integer(size.clone())
             }
+            TypeVar::Known(_, KnownType::Error, _) => on_error(),
             TypeVar::Unknown(_, _, _, _) => on_unknown(),
             other => on_other(other),
         }
@@ -418,6 +436,7 @@ impl TypeVar {
 
     pub fn display_with_meta(&self, display_meta: bool, type_state: &TypeState) -> String {
         match self {
+            TypeVar::Known(_, KnownType::Error, _) => "{unknown}".to_string(),
             TypeVar::Known(_, KnownType::Named(t), params) => {
                 let generics = if params.is_empty() {
                     String::new()
@@ -507,6 +526,9 @@ impl std::fmt::Display for KnownTypeVar {
         let KnownTypeVar(_, base, params) = self;
 
         match base {
+            KnownType::Error => {
+                write!(f, "{{unknown}}")
+            }
             KnownType::Named(name_id) => {
                 write!(f, "{name_id}")?;
                 if !params.is_empty() {

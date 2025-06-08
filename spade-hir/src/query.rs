@@ -87,6 +87,7 @@ impl<'a> QueryCache {
 
     fn visit_expr_kind(&mut self, kind: &Loc<&ExprKind>) {
         match &kind.inner {
+            crate::ExprKind::Error => {}
             crate::ExprKind::Identifier(ident) => self.names.insert(ident.clone().at_loc(kind)),
             crate::ExprKind::IntLiteral(_, _) => {}
             crate::ExprKind::BoolLiteral(_) => {}
@@ -232,6 +233,7 @@ impl<'a> QueryCache {
 
     fn visit_statements(&mut self, stmt: &'a Loc<Statement>) {
         match &stmt.inner {
+            Statement::Error => {}
             Statement::Binding(Binding {
                 pattern,
                 ty: _,

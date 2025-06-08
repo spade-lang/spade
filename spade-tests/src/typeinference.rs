@@ -1022,7 +1022,7 @@ snapshot_error! {
         b: bool,
     }
 
-    entity main() -> bool {
+    entity main() {
         decl b;
         let x: int<8> = b;
         let X$(b) = X(true);
@@ -2186,7 +2186,7 @@ snapshot_error! {
         fn test() {
             fn () {
                 let x: uint<8> = true;
-            }
+            };
         }
     "
 }
@@ -2260,7 +2260,7 @@ snapshot_error! {
     "
     fn test() {
         decl x;
-        let x = (x, bool);
+        let x = (x, true);
     }
     "
 }

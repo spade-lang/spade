@@ -2,7 +2,7 @@
 source: spade-tests/src/hir_lowering.rs
 ---
 fn f() -> bool {
-    let x = 0;
+    let x = 0u8;
     x()
 }
 
@@ -10,9 +10,7 @@ fn f() -> bool {
 error: Expected x to be a unit
   ┌─ testinput:3:5
   │
-2 │     let x = 0;
+2 │     let x = 0u8;
   │         - x is a variable
 3 │     x()
   │     ^ Expected a unit
-
-

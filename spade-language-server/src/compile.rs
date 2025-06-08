@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex};
 
 use camino::Utf8Path;
 use color_eyre::eyre::{bail, Context};
-use spade::{stdlib_and_prelude, Artefacts, ModuleNamespace, UnfinishedArtefacts};
+use spade::{
+    stdlib_and_prelude, Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts,
+};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
@@ -274,14 +276,15 @@ impl ServerBackend {
         }
 
         match compile_result {
-            Ok(Artefacts {
-                code,
-                item_list,
-                type_states,
-                state,
-                impl_list,
-                ..
-            }) => {
+            Ok(artefacts) | Err(CompilationResult::LateFailure(artefacts)) => {
+                let Artefacts {
+                    code,
+                    item_list,
+                    type_states,
+                    state,
+                    impl_list,
+                    ..
+                } = artefacts;
                 *self.code.lock().unwrap() = code;
 
                 *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
@@ -298,12 +301,12 @@ impl ServerBackend {
                 *self.symtab.lock().unwrap() = Some(state.symtab.unfreeze());
                 *self.trait_impls.lock().unwrap() = impl_list;
             }
-            Err(UnfinishedArtefacts {
+            Err(CompilationResult::EarlyFailure(UnfinishedArtefacts {
                 code,
                 item_list,
                 type_states,
                 symtab,
-            }) => {
+            })) => {
                 if let Some(item_list) = item_list {
                     *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
 

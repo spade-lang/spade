@@ -3,12 +3,14 @@ source: spade-tests/src/typeinference.rs
 ---
 fn test() {
     decl x;
-    let x = (x, bool);
+    let x = (x, true);
 }
 
 
-error: Type bool is used as a value
-  ┌─ testinput:3:17
+error: Inferred a recursive type (*, _)
+  ┌─ testinput:3:9
   │
-3 │     let x = (x, bool);
-  │                 ^^^^ bool is a type
+3 │     let x = (x, true);
+  │         ^ Type (*, _) inferred here
+  │
+  = help: The recursion happens at the type marked "*"

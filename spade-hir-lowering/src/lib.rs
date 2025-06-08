@@ -126,6 +126,10 @@ impl MirLowerable for ConcreteType {
         use ConcreteType as CType;
 
         match self {
+            CType::Error => {
+                // Returning a 1 size int to avoid trouble with size checking
+                Type::uint(1)
+            }
             CType::Tuple(inner) => {
                 Type::Tuple(inner.iter().map(MirLowerable::to_mir_type).collect())
             }
@@ -851,14 +855,7 @@ pub fn do_wal_trace_lowering(
                 &[],
             )?;
             ctx.types
-                .visit_expression(&dummy_expr, &type_ctx, generic_list)
-                .map_err(|e| {
-                    diag_anyhow!(
-                        wal_trace,
-                        "{}\nUnification error while laundering a struct",
-                        e.labels.message.as_str(),
-                    )
-                })?;
+                .visit_expression(&dummy_expr, &type_ctx, generic_list);
 
             ctx.types
                 .unify(
@@ -959,6 +956,7 @@ impl StatementLocal for Statement {
     fn lower(&self, ctx: &mut Context) -> Result<StatementList> {
         let mut result = StatementList::new();
         match self {
+            Statement::Error => {}
             Statement::Binding(hir::Binding {
                 pattern,
                 ty: _,
@@ -1169,6 +1167,7 @@ impl ExprLocal for Loc<Expression> {
     fn alias(&self, ctx: &Context) -> Result<Option<mir::ValueName>> {
         let subs = &ctx.subs;
         match &self.kind {
+            ExprKind::Error => Ok(None),
             ExprKind::Identifier(ident) => match subs.lookup(ident) {
                 Substitution::Undefined => Err(undefined_variable(&ident.clone().at_loc(self))),
                 Substitution::Waiting(available_in, name) => Err(use_before_ready(
@@ -1273,6 +1272,7 @@ impl ExprLocal for Loc<Expression> {
         let self_type = hir_type.to_mir_type();
 
         match &self.kind {
+            ExprKind::Error => {}
             ExprKind::Identifier(_) => {
                 // Empty. The identifier will be defined elsewhere
             }
@@ -2284,6 +2284,7 @@ impl ExprLocal for Loc<Expression> {
                                         BigUint::try_from,
                                         || unreachable!(),
                                         |_| unreachable!(),
+                                        || Ok(BigUint::ZERO),
                                     )
                                     .ok()
                                     .map(|value| (type_param.ident.inner.0.clone(), value))

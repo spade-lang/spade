@@ -21,4 +21,10 @@ error: #[fsm] without explicit name on non-name pattern
 2 │     #[fsm(<name>)]
   │     ~~~~~~~~~~~~~~
 
-
+error: Inferred a recursive type (*, _)
+  ┌─ testinput:3:14
+  │
+3 │     reg(clk) (x, y) = x;
+  │              ^^^^^^ Type (*, _) inferred here
+  │
+  = help: The recursion happens at the type marked "*"

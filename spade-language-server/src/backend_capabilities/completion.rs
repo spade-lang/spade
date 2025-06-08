@@ -236,6 +236,7 @@ impl ServerBackend {
         }
 
         match &expr.kind {
+            ExprKind::Error => {}
             ExprKind::Identifier(_name_id) | ExprKind::TypeLevelInteger(_name_id) => {}
             ExprKind::TupleLiteral(_list) | ExprKind::ArrayLiteral(_list) => {}
             ExprKind::ArrayShorthandLiteral(_, _) => {}
@@ -301,6 +302,7 @@ impl ServerBackend {
             return comps;
         }
         match &stat.inner {
+            Statement::Error => {}
             Statement::Binding(binding) => {
                 comps.append(&mut self.fold_comps_pat(&binding.pattern, pos, uri).await);
             }

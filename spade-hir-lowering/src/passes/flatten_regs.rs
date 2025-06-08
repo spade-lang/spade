@@ -26,6 +26,7 @@ impl<'a> Pass for FlattenRegs<'a> {
         statement: &Loc<Statement>,
     ) -> Result<Option<Vec<Loc<Statement>>>> {
         match &statement.inner {
+            Statement::Error => Ok(None),
             Statement::Binding(_) => Ok(None),
             Statement::Expression(_) => Ok(None),
             Statement::Register(_) => Ok(None),

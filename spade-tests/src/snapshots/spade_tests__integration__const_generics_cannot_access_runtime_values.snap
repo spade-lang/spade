@@ -14,3 +14,11 @@ error: Expected x to be a type
   │         - x is a variable
 3 │     let y: uint<{x+5}> = 0;
   │                  ^ Expected a type
+
+error: Type of expression is not fully known
+  ┌─ testinput:2:13
+  │
+2 │     let x = 5;
+  │             ^ The type of this expression is not fully known
+  │
+  = note: Found incomplete type: Number<_>

@@ -368,12 +368,7 @@ pub fn compile_items(
             Some((ExecutableItem::ExternUnit(_, _), _)) => {
                 panic!("Requesting compilation of extern unit")
             }
-            None => {
-                panic!(
-                    "Requesting compilation of {} but no such item is present",
-                    item.source_name
-                )
-            }
+            None => {}
         }
     }
     result

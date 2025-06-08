@@ -17,6 +17,7 @@ use num::{BigInt, Zero};
 use pipelines::PipelineContext;
 use recursive::recursive;
 use spade_diagnostics::codespan::Span;
+use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_types::meta_types::MetaType;
@@ -38,7 +39,7 @@ pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
-use spade_hir::{self as hir, ItemList, Module, TraitSpec, TypeExpression, TypeSpec};
+use spade_hir::{self as hir, ExprKind, ItemList, Module, TraitSpec, TypeExpression, TypeSpec};
 use std::collections::HashSet;
 
 use error::Result;
@@ -52,6 +53,7 @@ pub struct Context {
     pub pipeline_ctx: Option<PipelineContext>,
     pub self_ctx: SelfContext,
     pub current_unit: Option<hir::UnitHead>,
+    pub diags: DiagList,
 }
 
 impl Context {
@@ -59,6 +61,7 @@ impl Context {
         let mut tmp_pipeline_ctx = None;
         let mut tmp_self_ctx = SelfContext::FreeStanding;
         let mut tmp_current_unit = None;
+        let mut tmp_diags = DiagList::new();
         {
             let Context {
                 symtab: _,
@@ -68,10 +71,12 @@ impl Context {
                 pipeline_ctx,
                 self_ctx,
                 current_unit,
+                diags,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
             std::mem::swap(self_ctx, &mut tmp_self_ctx);
             std::mem::swap(current_unit, &mut tmp_current_unit);
+            std::mem::swap(diags, &mut tmp_diags)
         }
         let result = transform(self);
         {
@@ -83,10 +88,14 @@ impl Context {
                 pipeline_ctx,
                 self_ctx,
                 current_unit,
+                diags: new_diags,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
             std::mem::swap(self_ctx, &mut tmp_self_ctx);
             std::mem::swap(current_unit, &mut tmp_current_unit);
+
+            tmp_diags.errors.extend(new_diags.drain());
+            std::mem::swap(new_diags, &mut tmp_diags);
         }
         result
     }
@@ -96,6 +105,10 @@ trait LocExt<T> {
     fn try_visit<V, U>(&self, visitor: V, context: &mut Context) -> Result<Loc<U>>
     where
         V: Fn(&T, &mut Context) -> Result<U>;
+
+    fn visit<V, U>(&self, visitor: V, context: &mut Context) -> Loc<U>
+    where
+        V: Fn(&T, &mut Context) -> U;
 }
 
 impl<T> LocExt<T> for Loc<T> {
@@ -104,6 +117,13 @@ impl<T> LocExt<T> for Loc<T> {
         V: Fn(&T, &mut Context) -> Result<U>,
     {
         self.map_ref(|t| visitor(t, context)).map_err(|e, _| e)
+    }
+
+    fn visit<V, U>(&self, visitor: V, context: &mut Context) -> Loc<U>
+    where
+        V: Fn(&T, &mut Context) -> U,
+    {
+        self.map_ref(|t| visitor(t, context))
     }
 }
 
@@ -1182,7 +1202,10 @@ pub fn visit_unit(
 
     ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx)?;
 
-    let mut body = body.as_ref().unwrap().try_visit(visit_expression, ctx)?;
+    let mut body = body
+        .as_ref()
+        .unwrap()
+        .map_ref(|body| visit_expression(&body, ctx));
 
     // Add wal_suffixes for the signals if requested. This creates new statements
     // which we'll add to the end of the body
@@ -1205,8 +1228,6 @@ pub fn visit_unit(
             _ => diag_bail!(body, "Unit body was not block"),
         }
     }
-
-    check_for_undefined(ctx)?;
 
     ctx.symtab.close_scope();
     ctx.current_unit = None;
@@ -1531,7 +1552,10 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
     Ok(kind.with_id(ctx.idtracker.next()))
 }
 
-fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc<hir::Statement>>> {
+fn try_visit_statement(
+    s: &Loc<ast::Statement>,
+    ctx: &mut Context,
+) -> Result<Vec<Loc<hir::Statement>>> {
     match &s.inner {
         ast::Statement::Declaration(names) => {
             let names = names
@@ -1541,7 +1565,8 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                         .add_declaration(name.clone())
                         .map(|decl| decl.at_loc(name))
                 })
-                .collect::<Result<Vec<_>>>()?;
+                .filter_map(|name| name.handle_in(&mut ctx.diags))
+                .collect::<Vec<_>>();
 
             Ok(vec![hir::Statement::Declaration(names).at_loc(s)])
         }
@@ -1559,7 +1584,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                 None
             };
 
-            let value = value.try_visit(visit_expression, ctx)?;
+            let value = value.visit(visit_expression, ctx);
 
             let pattern = pattern.try_visit(visit_pattern, ctx)?;
 
@@ -1568,14 +1593,8 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
                 ast::Attribute::WalTrace { clk, rst } => {
                     wal_trace = Some(
                         WalTrace {
-                            clk: clk
-                                .as_ref()
-                                .map(|x| x.try_map_ref(|x| visit_expression(x, ctx)))
-                                .transpose()?,
-                            rst: rst
-                                .as_ref()
-                                .map(|x| x.try_map_ref(|x| visit_expression(x, ctx)))
-                                .transpose()?,
+                            clk: clk.as_ref().map(|x| x.visit(visit_expression, ctx)),
+                            rst: rst.as_ref().map(|x| x.visit(visit_expression, ctx)),
                         }
                         .at_loc(attr),
                     );
@@ -1613,13 +1632,13 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
             Ok(stmts)
         }
         ast::Statement::Expression(expr) => {
-            let value = expr.try_visit(visit_expression, ctx)?;
+            let value = expr.visit(visit_expression, ctx);
             Ok(vec![hir::Statement::Expression(value).at_loc(expr)])
         }
         ast::Statement::Register(inner) => visit_register(inner, ctx),
         ast::Statement::PipelineRegMarker(count, cond) => {
             let cond = match cond {
-                Some(cond) => Some(cond.try_map_ref(|c| visit_expression(c, ctx))?),
+                Some(cond) => Some(cond.visit(visit_expression, ctx)),
                 None => None,
             };
 
@@ -1653,15 +1672,25 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Result<Vec<Loc
             Ok(vec![hir::Statement::Label(name.at_loc(&sym)).at_loc(s)])
         }
         ast::Statement::Assert(expr) => {
-            let expr = expr.try_visit(visit_expression, ctx)?;
+            let expr = expr.visit(visit_expression, ctx);
 
             Ok(vec![hir::Statement::Assert(expr).at_loc(s)])
         }
         ast::Statement::Set { target, value } => {
-            let target = target.try_visit(visit_expression, ctx)?;
-            let value = value.try_visit(visit_expression, ctx)?;
+            let target = target.visit(visit_expression, ctx);
+            let value = value.visit(visit_expression, ctx);
 
             Ok(vec![hir::Statement::Set { target, value }.at_loc(s)])
+        }
+    }
+}
+
+fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Vec<Loc<hir::Statement>> {
+    match try_visit_statement(s, ctx) {
+        Ok(result) => result,
+        Err(e) => {
+            ctx.diags.errors.push(e);
+            vec![hir::Statement::Error.at_loc(s)]
         }
     }
 }
@@ -1675,8 +1704,8 @@ fn visit_argument_list(
         ast::ArgumentList::Positional(args) => {
             let inner = args
                 .iter()
-                .map(|arg| arg.try_visit(visit_expression, ctx))
-                .collect::<Result<_>>()?;
+                .map(|arg| arg.visit(visit_expression, ctx))
+                .collect::<_>();
 
             Ok(hir::ArgumentList::Positional(inner))
         }
@@ -1687,7 +1716,7 @@ fn visit_argument_list(
                     ast::NamedArgument::Full(name, expr) => {
                         Ok(hir::expression::NamedArgument::Full(
                             name.clone(),
-                            expr.try_visit(visit_expression, ctx)?,
+                            expr.visit(visit_expression, ctx),
                         ))
                     }
                     ast::NamedArgument::Short(name) => {
@@ -1697,7 +1726,7 @@ fn visit_argument_list(
 
                         Ok(hir::expression::NamedArgument::Short(
                             name.clone(),
-                            expr.try_visit(visit_expression, ctx)?,
+                            expr.visit(visit_expression, ctx),
                         ))
                     }
                 })
@@ -1763,11 +1792,7 @@ pub fn visit_turbofish(
     })
 }
 
-#[recursive]
-#[tracing::instrument(skip_all, fields(kind=e.variant_str()))]
-pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::Expression> {
-    let new_id = ctx.idtracker.next();
-
+fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprKind> {
     match e {
         ast::Expression::IntLiteral(val) => {
             let kind = match val {
@@ -1790,8 +1815,8 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         }
         ast::Expression::CreatePorts => Ok(hir::ExprKind::CreatePorts),
         ast::Expression::BinaryOperator(lhs, tok, rhs) => {
-            let lhs = lhs.try_visit(visit_expression, ctx)?;
-            let rhs = rhs.try_visit(visit_expression, ctx)?;
+            let lhs = lhs.visit(visit_expression, ctx);
+            let rhs = rhs.visit(visit_expression, ctx);
 
             let operator = |op: BinaryOperator| {
                 hir::ExprKind::BinaryOperator(Box::new(lhs), op.at_loc(tok), Box::new(rhs))
@@ -1823,7 +1848,7 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             }
         }
         ast::Expression::UnaryOperator(operator, operand) => {
-            let operand = operand.try_visit(visit_expression, ctx)?;
+            let operand = operand.visit(visit_expression, ctx);
 
             let unop = |op: hir::expression::UnaryOperator| {
                 hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand))
@@ -1845,30 +1870,30 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         ast::Expression::TupleLiteral(exprs) => {
             let exprs = exprs
                 .iter()
-                .map(|e| e.try_map_ref(|e| visit_expression(e, ctx)))
-                .collect::<Result<Vec<_>>>()?;
+                .map(|e| e.visit(visit_expression, ctx))
+                .collect::<Vec<_>>();
             Ok(hir::ExprKind::TupleLiteral(exprs))
         }
         ast::Expression::ArrayLiteral(exprs) => {
             let exprs = exprs
                 .iter()
-                .map(|e| e.try_map_ref(|e| visit_expression(e, ctx)))
-                .collect::<Result<Vec<_>>>()?;
+                .map(|e| e.visit(visit_expression, ctx))
+                .collect::<Vec<_>>();
             Ok(hir::ExprKind::ArrayLiteral(exprs))
         }
         ast::Expression::ArrayShorthandLiteral(expr, amount) => {
             Ok(hir::ExprKind::ArrayShorthandLiteral(
-                Box::new(visit_expression(expr, ctx)?.at_loc(expr)),
+                Box::new(visit_expression(expr, ctx).at_loc(expr)),
                 visit_const_generic(amount, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
             ))
         }
         ast::Expression::Index(target, index) => {
-            let target = target.try_visit(visit_expression, ctx)?;
-            let index = index.try_visit(visit_expression, ctx)?;
+            let target = target.visit(visit_expression, ctx);
+            let index = index.visit(visit_expression, ctx);
             Ok(hir::ExprKind::Index(Box::new(target), Box::new(index)))
         }
         ast::Expression::RangeIndex { target, start, end } => {
-            let target = target.try_visit(visit_expression, ctx)?;
+            let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::RangeIndex {
                 target: Box::new(target),
                 start: visit_const_generic(start, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
@@ -1876,11 +1901,11 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             })
         }
         ast::Expression::TupleIndex(tuple, index) => Ok(hir::ExprKind::TupleIndex(
-            Box::new(tuple.try_visit(visit_expression, ctx)?),
+            Box::new(tuple.visit(visit_expression, ctx)),
             *index,
         )),
         ast::Expression::FieldAccess(target, field) => Ok(hir::ExprKind::FieldAccess(
-            Box::new(target.try_visit(visit_expression, ctx)?),
+            Box::new(target.visit(visit_expression, ctx)),
             field.clone(),
         )),
         ast::Expression::MethodCall {
@@ -1890,7 +1915,7 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             args,
             turbofish,
         } => {
-            let target = target.try_visit(visit_expression, ctx)?;
+            let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::MethodCall {
                 target: Box::new(target),
                 name: name.clone(),
@@ -1903,9 +1928,9 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             })
         }
         ast::Expression::If(cond, ontrue, onfalse) => {
-            let cond = cond.try_visit(visit_expression, ctx)?;
-            let ontrue = ontrue.try_visit(visit_expression, ctx)?;
-            let onfalse = onfalse.try_visit(visit_expression, ctx)?;
+            let cond = cond.visit(visit_expression, ctx);
+            let ontrue = ontrue.visit(visit_expression, ctx);
+            let onfalse = onfalse.visit(visit_expression, ctx);
 
             Ok(hir::ExprKind::If(
                 Box::new(cond),
@@ -1915,8 +1940,8 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
         }
         ast::Expression::TypeLevelIf(cond, ontrue, onfalse) => {
             let cond = visit_const_generic(cond, ctx)?;
-            let ontrue = ontrue.try_visit(visit_expression, ctx)?;
-            let onfalse = onfalse.try_visit(visit_expression, ctx)?;
+            let ontrue = ontrue.visit(visit_expression, ctx);
+            let onfalse = onfalse.visit(visit_expression, ctx);
 
             Ok(hir::ExprKind::TypeLevelIf(
                 cond.map(|cond| cond.with_id(ctx.idtracker.next())),
@@ -1925,7 +1950,7 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             ))
         }
         ast::Expression::Match(expression, branches) => {
-            let e = expression.try_visit(visit_expression, ctx)?;
+            let e = expression.visit(visit_expression, ctx);
 
             if branches.is_empty() {
                 return Err(Diagnostic::error(branches, "Match body has no arms")
@@ -1937,7 +1962,7 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
                 .map(|(pattern, result)| {
                     ctx.symtab.new_scope();
                     let p = pattern.try_visit(visit_pattern, ctx)?;
-                    let r = result.try_visit(visit_expression, ctx)?;
+                    let r = result.visit(visit_expression, ctx);
                     ctx.symtab.close_scope();
                     Ok((p, r))
                 })
@@ -2098,27 +2123,45 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> Result<hir::E
             Ok(hir::ExprKind::StaticUnreachable(message.clone()))
         }
     }
-    .map(|kind| kind.with_id(new_id))
 }
 
-fn check_for_undefined(ctx: &Context) -> Result<()> {
-    match ctx.symtab.get_undefined_declarations().first() {
-        Some((undefined, DeclarationState::Undefined(_))) => {
-            Err(
-                Diagnostic::error(undefined, "Declared variable is not defined")
-                    .primary_label("This variable is declared but not defined")
-                    // FIXME: Suggest removing the declaration (with a diagnostic suggestion) only if the variable is unused.
-                    .help(format!("Define {undefined} with a let or reg binding"))
-                    .help("Or, remove the declaration if the variable is unused"),
+fn check_for_undefined(ctx: &mut Context) {
+    for problem in &ctx.symtab.get_undefined_declarations() {
+        match problem {
+            (undefined, DeclarationState::Undefined(_)) => {
+                Err(
+                    Diagnostic::error(undefined, "Declared variable is not defined")
+                        .primary_label("This variable is declared but not defined")
+                        // FIXME: Suggest removing the declaration (with a diagnostic suggestion) only if the variable is unused.
+                        .help(format!("Define {undefined} with a let or reg binding"))
+                        .help("Or, remove the declaration if the variable is unused"),
+                )
+            }
+            (undecleared, DeclarationState::Undecleared(_)) => Err(Diagnostic::error(
+                undecleared,
+                "Could not find referenced variable",
             )
+            .primary_label("This variable could not be found")),
+            (_, _) => Ok(()),
         }
-        Some((undecleared, DeclarationState::Undecleared(_))) => Err(Diagnostic::error(
-            undecleared,
-            "Could not find referenced variable",
-        )
-        .primary_label("This variable could not be found")),
-        _ => Ok(()),
+        .handle_in(&mut ctx.diags);
     }
+}
+
+#[recursive]
+#[tracing::instrument(skip_all, fields(kind=e.variant_str()))]
+pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> hir::Expression {
+    let new_id = ctx.idtracker.next();
+
+    let kind = match visit_expression_result(e, ctx) {
+        Ok(kind) => kind,
+        Err(e) => {
+            ctx.diags.errors.push(e);
+            ExprKind::Error
+        }
+    };
+
+    kind.with_id(new_id)
 }
 
 fn visit_block(b: &ast::Block, ctx: &mut Context) -> Result<hir::Block> {
@@ -2127,18 +2170,14 @@ fn visit_block(b: &ast::Block, ctx: &mut Context) -> Result<hir::Block> {
         .statements
         .iter()
         .map(|statement| visit_statement(statement, ctx))
-        .collect::<Result<Vec<_>>>()?
+        .collect::<Vec<_>>()
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
 
-    let result = b
-        .result
-        .as_ref()
-        .map(|o| o.try_visit(visit_expression, ctx))
-        .transpose()?;
+    let result = b.result.as_ref().map(|o| o.visit(visit_expression, ctx));
 
-    check_for_undefined(ctx)?;
+    check_for_undefined(ctx);
 
     ctx.symtab.close_scope();
 
@@ -2150,24 +2189,20 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
 
     let pattern = reg.pattern.try_visit(visit_pattern, ctx)?;
 
-    let clock = reg.clock.try_visit(visit_expression, ctx)?;
+    let clock = reg.clock.visit(visit_expression, ctx);
 
     let reset = if let Some((trig, value)) = &reg.reset {
         Some((
-            trig.try_visit(visit_expression, ctx)?,
-            value.try_visit(visit_expression, ctx)?,
+            trig.visit(visit_expression, ctx),
+            value.visit(visit_expression, ctx),
         ))
     } else {
         None
     };
 
-    let initial = reg
-        .initial
-        .as_ref()
-        .map(|i| i.try_visit(visit_expression, ctx))
-        .transpose()?;
+    let initial = reg.initial.as_ref().map(|i| i.visit(visit_expression, ctx));
 
-    let value = reg.value.try_visit(visit_expression, ctx)?;
+    let value = reg.value.visit(visit_expression, ctx);
 
     let value_type = if let Some(value_type) = &reg.value_type {
         Some(visit_type_spec(
@@ -2181,43 +2216,47 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
 
     let mut stmts = vec![];
 
-    let attributes = reg.attributes.lower(&mut |attr| match &attr.inner {
-        ast::Attribute::Fsm { state } => {
-            let name_id = if let Some(state) = state {
-                ctx.symtab
-                    .lookup_variable(&Path(vec![state.clone()]).at_loc(state))?
-            } else if let PatternKind::Name { name, .. } = &pattern.inner.kind {
-                name.inner.clone()
-            } else {
-                return Err(Diagnostic::error(
-                    attr,
-                    "#[fsm] without explicit name on non-name pattern",
-                )
-                .secondary_label(&pattern, "This is a pattern")
-                .span_suggest(
-                    "Consider specifying the name of the s ignal containing the state",
-                    attr,
-                    "#[fsm(<name>)]",
-                ));
-            };
+    let attributes = reg
+        .attributes
+        .lower(&mut |attr| match &attr.inner {
+            ast::Attribute::Fsm { state } => {
+                let name_id = if let Some(state) = state {
+                    ctx.symtab
+                        .lookup_variable(&Path(vec![state.clone()]).at_loc(state))?
+                } else if let PatternKind::Name { name, .. } = &pattern.inner.kind {
+                    name.inner.clone()
+                } else {
+                    return Err(Diagnostic::error(
+                        attr,
+                        "#[fsm] without explicit name on non-name pattern",
+                    )
+                    .secondary_label(&pattern, "This is a pattern")
+                    .span_suggest(
+                        "Consider specifying the name of the s ignal containing the state",
+                        attr,
+                        "#[fsm(<name>)]",
+                    ));
+                };
 
-            Ok(Some(hir::Attribute::Fsm { state: name_id }))
-        }
-        ast::Attribute::WalSuffix { suffix } => {
-            // All names in the pattern should have the suffix applied to them
-            for name in pattern.get_names() {
-                stmts.push(
-                    hir::Statement::WalSuffixed {
-                        suffix: suffix.inner.clone(),
-                        target: name.clone(),
-                    }
-                    .at_loc(suffix),
-                );
+                Ok(Some(hir::Attribute::Fsm { state: name_id }))
             }
-            Ok(None)
-        }
-        _ => Err(attr.report_unused("a register")),
-    })?;
+            ast::Attribute::WalSuffix { suffix } => {
+                // All names in the pattern should have the suffix applied to them
+                for name in pattern.get_names() {
+                    stmts.push(
+                        hir::Statement::WalSuffixed {
+                            suffix: suffix.inner.clone(),
+                            target: name.clone(),
+                        }
+                        .at_loc(suffix),
+                    );
+                }
+                Ok(None)
+            }
+            _ => Err(attr.report_unused("a register")),
+        })
+        .handle_in(&mut ctx.diags)
+        .unwrap_or_else(|| hir::AttributeList::empty());
 
     stmts.push(
         hir::Statement::Register(hir::Register {
@@ -2414,7 +2453,7 @@ mod statement_visiting {
         )
         .nowhere();
 
-        assert_eq!(visit_statement(&input, &mut ctx), Ok(vec![expected]));
+        assert_eq!(visit_statement(&input, &mut ctx), vec![expected]);
         assert_eq!(ctx.symtab.has_symbol(ast_path("a").inner), true);
     }
 
@@ -2452,7 +2491,7 @@ mod statement_visiting {
         let mut ctx = test_context();
         let clk_id = ctx.symtab.add_local_variable(ast_ident("clk"));
         assert_eq!(clk_id.0, 0);
-        assert_eq!(visit_statement(&input, &mut ctx), Ok(vec![expected]));
+        assert_eq!(visit_statement(&input, &mut ctx), vec![expected]);
         assert_eq!(ctx.symtab.has_symbol(ast_path("regname").inner), true);
     }
 
@@ -2462,11 +2501,7 @@ mod statement_visiting {
         let ctx = &mut test_context();
         assert_eq!(
             visit_statement(&input, ctx),
-            Ok(vec![hir::Statement::Declaration(vec![
-                name_id(0, "x"),
-                name_id(1, "y")
-            ])
-            .nowhere()])
+            vec![hir::Statement::Declaration(vec![name_id(0, "x"), name_id(1, "y")]).nowhere()]
         );
         assert_eq!(ctx.symtab.has_symbol(ast_path("x").inner), true);
         assert_eq!(ctx.symtab.has_symbol(ast_path("y").inner), true);
@@ -2489,7 +2524,7 @@ mod expression_visiting {
         let input = ast::Expression::int_literal_signed(123);
         let expected = hir::ExprKind::int_literal(123).idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut test_context()), expected);
     }
 
     macro_rules! binop_test {
@@ -2508,7 +2543,7 @@ mod expression_visiting {
                 )
                 .idless();
 
-                assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+                assert_eq!(visit_expression(&input, &mut test_context()), expected);
             }
         };
     }
@@ -2527,7 +2562,7 @@ mod expression_visiting {
                 )
                 .idless();
 
-                assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+                assert_eq!(visit_expression(&input, &mut test_context()), expected);
             }
         };
     }
@@ -2553,7 +2588,7 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context()), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut test_context()), expected);
     }
 
     #[test]
@@ -2569,7 +2604,7 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context(),), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut test_context(),), expected);
     }
 
     #[test]
@@ -2595,7 +2630,7 @@ mod expression_visiting {
         .idless();
 
         let mut ctx = test_context();
-        assert_eq!(visit_expression(&input, &mut ctx), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut ctx), expected);
         assert!(!ctx.symtab.has_symbol(ast_path("a").inner));
     }
 
@@ -2639,7 +2674,7 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context(),), Ok(expected));
+        assert_eq!(visit_expression(&input, &mut test_context(),), expected);
     }
 
     #[test]
@@ -2662,7 +2697,7 @@ mod expression_visiting {
         )
         .idless();
 
-        assert_eq!(visit_expression(&input, &mut test_context(),), Ok(expected))
+        assert_eq!(visit_expression(&input, &mut test_context(),), expected)
     }
 
     #[test]
@@ -2724,7 +2759,7 @@ mod expression_visiting {
                     ..test_context()
                 }
             ),
-            Ok(expected)
+            expected
         )
     }
 
@@ -2788,7 +2823,7 @@ mod expression_visiting {
                     ..test_context()
                 }
             ),
-            Ok(expected)
+            expected
         )
     }
 
@@ -2849,7 +2884,7 @@ mod expression_visiting {
                     ..test_context()
                 }
             ),
-            Ok(expected)
+            expected
         );
     }
 
@@ -2922,7 +2957,7 @@ mod expression_visiting {
                     ..test_context()
                 }
             ),
-            Ok(expected)
+            expected
         );
     }
 
@@ -2983,7 +3018,7 @@ mod expression_visiting {
                     ..test_context()
                 }
             ),
-            Ok(expected)
+            expected
         );
     }
 }

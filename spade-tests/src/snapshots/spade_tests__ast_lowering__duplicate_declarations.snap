@@ -3,6 +3,7 @@ source: spade-tests/src/ast_lowering.rs
 ---
 fn main() -> bool {
     decl x, x;
+    let x = false;
     true
 }
 
@@ -14,5 +15,3 @@ error: Variable declared more than once
   │          -  ^ This variable has been declared more than once
   │          │   
   │          Previously declared here
-
-

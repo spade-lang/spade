@@ -20,4 +20,14 @@ error: Pattern type mismatch. Expected bool got (_, _)
   = note: Expected: bool
                Got: (_, _)
 
-
+error: Expected type bool, got (_, _)
+  ┌─ testinput:2:24
+  │
+2 │     let (x, y): bool = true;
+  │         ------  ----   ^^^^ Expected bool
+  │         │       │       
+  │         │       Type bool inferred here
+  │         Type (_, _) inferred here
+  │
+  = note: Expected: bool
+               Got: (_, _)

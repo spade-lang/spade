@@ -74,6 +74,7 @@ pub fn visit_statement(
     ctx: &LinearCtx,
 ) -> Result<()> {
     match &stmt.inner {
+        Statement::Error => {}
         Statement::Binding(Binding {
             pattern,
             ty: _,
@@ -149,6 +150,7 @@ fn visit_expression(
     ctx: &LinearCtx,
 ) -> Result<()> {
     let produces_new_resource = match &expr.kind {
+        spade_hir::ExprKind::Error => true,
         spade_hir::ExprKind::Identifier(_) => false,
         spade_hir::ExprKind::IntLiteral(_, _) => true,
         spade_hir::ExprKind::TypeLevelInteger(_) => true,
@@ -193,6 +195,7 @@ fn visit_expression(
     }
 
     match &expr.kind {
+        spade_hir::ExprKind::Error => {}
         spade_hir::ExprKind::Identifier(name) => {
             linear_state.add_alias_name(expr.id.at_loc(expr), &name.clone().at_loc(expr))?
         }

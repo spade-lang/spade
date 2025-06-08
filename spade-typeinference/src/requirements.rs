@@ -407,10 +407,12 @@ impl Requirement {
                             },
                             || Ok(RequirementResult::NoChange),
                             |_| diag_bail!(target_type, "Inferred {target_type} for integer literal", target_type = target_type.display(type_state)),
+                            || Ok(RequirementResult::NoChange),
                         )
                     },
                     || Ok(RequirementResult::NoChange),
                     |other| diag_bail!(target_type, "Inferred {other} for integer literal", other = other.display(type_state)),
+                    || Ok(RequirementResult::NoChange),
                 )
             }
             Requirement::PositivePipelineDepth { depth } => {

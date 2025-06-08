@@ -1741,7 +1741,7 @@ mod tests {
         expected_unit,
         "
             fn f() -> bool {
-                let x = 0;
+                let x = 0u8;
                 x()
             }
         "
@@ -1787,9 +1787,10 @@ mod tests {
         "
             fn f() -> bool {
                 let a = bool;
-                bool
+                true
             }
-        "
+        ",
+        false
     }
 
     #[test]

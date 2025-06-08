@@ -4,7 +4,7 @@ source: spade-tests/src/typeinference.rs
 fn test() {
     fn () {
         let x: uint<8> = true;
-    }
+    };
 }
 
 

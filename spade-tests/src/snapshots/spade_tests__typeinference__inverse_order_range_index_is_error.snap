@@ -6,6 +6,18 @@ fn test(x: [int<8>; 6]) -> [int<8>; 2] {
 }
 
 
+error: The end of the range must be after the start
+  ┌─ testinput:2:5
+  │
+2 │     x[2..0]
+  │     ^^^^^^^
+  │     │ │  │
+  │     │ │  End was inferred to be 0
+  │     │ Start was inferred to be 2
+  │     Range end before start
+  │
+  = help: If you want to swap the order of the elements, you can use `std::conv::flip_array`
+
 error: Expected type [_; #uint], got [_; -2]
   ┌─ testinput:2:5
   │

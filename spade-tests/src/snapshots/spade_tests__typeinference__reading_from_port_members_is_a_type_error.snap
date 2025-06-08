@@ -22,3 +22,11 @@ error: Field access on inv &A which is not a struct
   │                                ^^^ Expected a struct, found inv &A
   │
   = help: Field access is only allowed on structs
+
+error: Field access on inv &A which is not a struct
+   ┌─ testinput:10:32
+   │
+10 │     let y = inst read_mut_wire(val.y);
+   │                                ^^^ Expected a struct, found inv &A
+   │
+   = help: Field access is only allowed on structs

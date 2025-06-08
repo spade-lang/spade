@@ -23,6 +23,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
         };
 
         match &expression.kind {
+            spade_hir::ExprKind::Error => Ok(()),
             spade_hir::ExprKind::Identifier(_) => Ok(()),
             spade_hir::ExprKind::TypeLevelInteger(_) | spade_hir::ExprKind::IntLiteral(_, _) => {
                 Ok(())

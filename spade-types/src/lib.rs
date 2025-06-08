@@ -36,6 +36,7 @@ impl std::fmt::Display for PrimitiveType {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ConcreteType {
+    Error,
     Tuple(Vec<ConcreteType>),
     Struct {
         name: NameID,
@@ -73,6 +74,7 @@ impl ConcreteType {
 
     pub fn is_port(&self) -> bool {
         match self {
+            ConcreteType::Error => false,
             ConcreteType::Tuple(inner) => inner.iter().any(Self::is_port),
             ConcreteType::Struct {
                 name: _,
@@ -101,6 +103,7 @@ impl ConcreteType {
 impl std::fmt::Display for ConcreteType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
+            ConcreteType::Error => "{error}".to_string(),
             ConcreteType::Tuple(inner) => {
                 format!(
                     "({})",
@@ -184,6 +187,9 @@ pub enum KnownType {
     Array,
     Wire,
     Inverted,
+    // A special type that unifies with anything to produce another error. Doing code generation
+    // on this type will produce invalid code.
+    Error,
 }
 
 impl WithLocation for KnownType {}

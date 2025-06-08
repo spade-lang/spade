@@ -27,4 +27,20 @@ error: Expected type int<8>, got int<10>
                Got: 10
                 in: int<10>
 
-
+error: Expected type int<10>, got Number<12>
+  ┌─ testinput:3:69
+  │  
+3 │       reg(clk) shift_clock: int<10> reset(rst: shift_clock_initial) = {
+  │                                 -- Type 10 inferred here
+  │ ╭─────────────────────────────────────────────────────────────────────^
+4 │ │         let upper: int<2> = trunc(shift_clock);
+5 │ │         let rest: int<8> = shift_clock >> 2;
+6 │ │         upper `concat` rest
+  │ │         ------------------- Type 12 inferred here
+7 │ │     };
+  │ ╰─────^ Expected int<10>
+  │  
+  = note: Expected: 10
+                in: int<10>
+               Got: 12
+                in: Number<12>

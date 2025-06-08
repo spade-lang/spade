@@ -5,7 +5,7 @@ struct X {
     b: bool,
 }
 
-entity main() -> bool {
+entity main() {
     decl b;
     let x: int<8> = b;
     let X$(b) = X(true);
@@ -25,5 +25,3 @@ error: Argument type mismatch. Expected bool got int<8>
   │
   = note: Expected: bool
                Got: int<8>
-
-

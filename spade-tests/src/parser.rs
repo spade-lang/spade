@@ -757,7 +757,7 @@ snapshot_error! {
     "
         fn test() {
             let length: uint<8> = 24;
-            let _ = [1u2; length];
+            let _: [uint<2>; 1] = [1u2; length];
         }
     "
 }

@@ -180,6 +180,7 @@ impl ServerBackend {
 
         type E = ExprKind;
         match &expression.kind {
+            E::Error => {}
             E::Identifier(id) | E::TypeLevelInteger(id) => {
                 return Some(SpadeSymbol::from_id(id, ts));
             }
@@ -384,6 +385,7 @@ impl ServerBackend {
         }
 
         match &statement.inner {
+            Statement::Error => None,
             Statement::Binding(binding) => {
                 // Search lhs pattern
                 let lhs_search = self.search_sym_pat(&binding.pattern, pos, type_state);
@@ -629,6 +631,7 @@ impl ServerBackend {
     ) -> Option<SpadeSymbol> {
         type E = ExprKind;
         match &expression.kind {
+            E::Error => {}
             E::Identifier(_id) | E::TypeLevelInteger(_id) => {}
             E::TupleLiteral(_) | E::ArrayLiteral(_) | E::ArrayShorthandLiteral(_, _) => {}
             E::Index(_lhs, _rhs) => {}
@@ -685,6 +688,7 @@ impl ServerBackend {
         name: &str,
     ) -> Option<SpadeSymbol> {
         match &statement.inner {
+            Statement::Error => None,
             Statement::Binding(binding) => {
                 if !self.pos_after_loc(&statement.loc(), pos).unwrap_or(false) {
                     return None;

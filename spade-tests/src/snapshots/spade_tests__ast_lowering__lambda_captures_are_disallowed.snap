@@ -2,7 +2,7 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 fn test() {
-    let x = 0;
+    let x = 0u8;
     let l = fn() {
         let y = x;
     };
@@ -12,7 +12,7 @@ fn test() {
 error: Lambda captures are not supported
   ┌─ testinput:4:17
   │
-2 │     let x = 0;
+2 │     let x = 0u8;
   │         - The variable is defined outside the lambda here
 3 │     let l = fn() {
 4 │         let y = x;

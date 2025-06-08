@@ -45,6 +45,10 @@ impl TypeState {
     pub fn t_clock(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
         self.add_type_var(TypeVar::Known(loc, t_clock(symtab), vec![]))
     }
+
+    pub fn t_err(&mut self, loc: Loc<()>) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, KnownType::Error, vec![]))
+    }
 }
 
 pub fn t_int(symtab: &SymbolTable) -> KnownType {
