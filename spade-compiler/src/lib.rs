@@ -13,6 +13,7 @@ use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
+use spade_typeinference::traits::TraitImplList;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::PathBuf;
@@ -103,12 +104,14 @@ pub struct Artefacts {
     // MIR entities after flattening
     pub flat_mir_entities: Vec<Codegenable>,
     pub state: CompilerState,
+    pub impl_list: TraitImplList,
     pub type_states: BTreeMap<NameID, TypeState>,
 }
 
 /// Like [Artefacts], but if the compiler didn't finish due to errors.
 pub struct UnfinishedArtefacts {
     pub code: CodeBundle,
+    pub symtab: Option<SymbolTable>,
     pub item_list: Option<ItemList>,
     pub type_states: Option<BTreeMap<NameID, TypeState>>,
 }
@@ -164,6 +167,7 @@ pub fn compile(
 
     let mut unfinished_artefacts = UnfinishedArtefacts {
         code: code.read().unwrap().clone(),
+        symtab: None,
         item_list: None,
         type_states: None,
     };
@@ -193,6 +197,7 @@ pub fn compile(
     opt_passes.push(&deduplicate_mut_wires);
 
     if errors.failed {
+        unfinished_artefacts.symtab = Some(symtab);
         return Err(unfinished_artefacts);
     }
 
@@ -241,6 +246,7 @@ pub fn compile(
     }
 
     if errors.failed {
+        unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(unfinished_artefacts);
     }
 
@@ -250,6 +256,7 @@ pub fn compile(
     }
 
     if errors.failed {
+        unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(unfinished_artefacts);
     }
 
@@ -260,6 +267,7 @@ pub fn compile(
     }
 
     if errors.failed {
+        unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(unfinished_artefacts);
     }
 
@@ -272,6 +280,7 @@ pub fn compile(
     unfinished_artefacts.item_list = Some(ctx.item_list.clone());
 
     if errors.failed {
+        unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(unfinished_artefacts);
     }
 
@@ -378,7 +387,13 @@ pub fn compile(
     } = codegen(mir_entities, Rc::clone(&code), &mut errors, &mut idtracker);
 
     let state = CompilerState {
-        code: code.read().unwrap().dump_files(),
+        code: code
+            .read()
+            .unwrap()
+            .dump_files()
+            .into_iter()
+            .map(|(n, s)| (n.to_string(), s.to_string()))
+            .collect(),
         symtab: frozen_symtab,
         idtracker,
         impl_idtracker,
@@ -438,6 +453,7 @@ pub fn compile(
             flat_mir_entities,
             code: code.read().unwrap().clone(),
             item_list,
+            impl_list: mapped_trait_impls,
             state,
             type_states: unfinished_artefacts.type_states.unwrap(),
         })

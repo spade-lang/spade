@@ -11,6 +11,7 @@ spade-common.path = "../spade-common"
 spade-types.path = "../spade-types"
 spade-diagnostics.path = "../spade-diagnostics"
 spade-hir.path = "../spade-hir"
+spade-codespan.workspace = true
 spade-typeinference.path = "../spade-typeinference"
 swim = { git = "https://gitlab.com/spade-lang/swim.git", rev = "6d55f8d7fdb70410280a649682e030e661984f0e" }
 
@@ -21,6 +22,8 @@ spade-codespan-reporting = "0.12.0"
 color-eyre = "0.6.1"
 tokio = { version = "1.21.2", features = ["full"] }
 tower-lsp = "0.17.0"
+itertools.workspace = true
+indoc.workspace = true
 
 [dev-dependencies]
 assert_fs = "1.1.1"
@@ -28,3 +31,6 @@ spade-codespan = "0.12.0"
 regex = "1.10.5"
 smart-default = "0.7.1"
 tap = "1.0.1"
+prettydiff.workspace = true
+insta = "1.43.1"
+owo-colors = "4.2.1"

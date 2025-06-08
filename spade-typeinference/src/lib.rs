@@ -338,6 +338,10 @@ impl TypeState {
         }
     }
 
+    pub fn maybe_type_of(&self, expr: &TypedExpression) -> Option<&TypeVarID> {
+        self.equations.get(expr)
+    }
+
     pub fn new_generic_int(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVar {
         TypeVar::Known(loc, t_int(symtab), vec![self.new_generic_tluint(loc)])
     }
@@ -2982,11 +2986,16 @@ impl UnificationBuilder {
 
 pub trait HasType: std::fmt::Debug {
     fn get_type(&self, state: &TypeState) -> TypeVarID {
-        let id = self.get_type_impl(state);
-        state.get_replacement(&id)
+        self.try_get_type(state)
+            .expect("Did not find a type for {self:?}")
     }
 
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID;
+    fn try_get_type(&self, state: &TypeState) -> Option<TypeVarID> {
+        let id = self.get_type_impl(state);
+        id.map(|id| state.get_replacement(&id))
+    }
+
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID>;
 
     fn unify_with(&self, rhs: &dyn HasType, state: &TypeState) -> UnificationBuilder {
         UnificationBuilder {
@@ -2997,42 +3006,48 @@ pub trait HasType: std::fmt::Debug {
 }
 
 impl HasType for TypeVarID {
-    fn get_type_impl(&self, _state: &TypeState) -> TypeVarID {
-        *self
+    fn get_type_impl(&self, _state: &TypeState) -> Option<TypeVarID> {
+        Some(*self)
     }
 }
 impl HasType for Loc<TypeVarID> {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        self.inner.get_type(state)
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        self.inner.try_get_type(state)
     }
 }
 impl HasType for TypedExpression {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        state.type_of(self)
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state.maybe_type_of(self).cloned()
     }
 }
 impl HasType for Expression {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        state.type_of(&TypedExpression::Id(self.id))
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state.maybe_type_of(&TypedExpression::Id(self.id)).cloned()
     }
 }
 impl HasType for Loc<Expression> {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        state.type_of(&TypedExpression::Id(self.inner.id))
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state
+            .maybe_type_of(&TypedExpression::Id(self.inner.id))
+            .cloned()
     }
 }
 impl HasType for Pattern {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        state.type_of(&TypedExpression::Id(self.id))
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state.maybe_type_of(&TypedExpression::Id(self.id)).cloned()
     }
 }
 impl HasType for Loc<Pattern> {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        state.type_of(&TypedExpression::Id(self.inner.id))
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state
+            .maybe_type_of(&TypedExpression::Id(self.inner.id))
+            .cloned()
     }
 }
 impl HasType for NameID {
-    fn get_type_impl(&self, state: &TypeState) -> TypeVarID {
-        state.type_of(&TypedExpression::Name(self.clone()))
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state
+            .maybe_type_of(&TypedExpression::Name(self.clone()))
+            .cloned()
     }
 }

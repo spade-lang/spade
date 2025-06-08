@@ -214,6 +214,12 @@ impl<T> Loc<T> {
         }
     }
 
+    pub fn contains_start<R>(&self, other: &Loc<R>) -> bool {
+        other.file_id == self.file_id
+            && other.span.start() >= self.span.start()
+            && other.span.start() < self.span.end()
+    }
+
     /// Shrinks a Loc on the left size by the width of the specified string.
     /// For example (( abc ))
     ///             ^^^^^^^^^ .shrink_left("((")

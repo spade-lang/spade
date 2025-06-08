@@ -10,6 +10,7 @@ use spade_common::name::Identifier;
 use spade_diagnostics::diagnostic::DiagnosticLevel as SpadeDiagnosticLevel;
 use spade_diagnostics::Diagnostic as SpadeDiagnostic;
 use spade_diagnostics::{CodeBundle, DiagHandler, Emitter};
+use spade_hir::query::QueryCache;
 use swim::libraries::{LockFile, RestoreAction};
 use swim::spade::{Namespace, SpadeFile};
 use swim::{libs_dir, lock_file, src_dir};
@@ -277,15 +278,13 @@ impl ServerBackend {
                 code,
                 item_list,
                 type_states,
-                ..
-            })
-            | Err(UnfinishedArtefacts {
-                code,
-                item_list: Some(item_list),
-                type_states: Some(type_states),
+                state,
+                impl_list,
                 ..
             }) => {
                 *self.code.lock().unwrap() = code;
+
+                *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
 
                 if !item_list.executables.is_empty() {
                     *self.item_list.lock().unwrap() = item_list;
@@ -295,15 +294,30 @@ impl ServerBackend {
                 if !type_states.is_empty() {
                     *self.type_states.lock().unwrap() = type_states;
                 }
+
+                *self.symtab.lock().unwrap() = Some(state.symtab.unfreeze());
+                *self.trait_impls.lock().unwrap() = impl_list;
             }
             Err(UnfinishedArtefacts {
-                code, item_list, ..
+                code,
+                item_list,
+                type_states,
+                symtab,
             }) => {
                 if let Some(item_list) = item_list {
+                    *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
+
                     if !item_list.executables.is_empty() {
                         *self.item_list.lock().unwrap() = item_list;
                     }
                 }
+
+                if let Some(type_states) = type_states {
+                    if !type_states.is_empty() {
+                        *self.type_states.lock().unwrap() = type_states;
+                    }
+                }
+                *self.symtab.lock().unwrap() = symtab;
                 *self.code.lock().unwrap() = code;
             }
         }

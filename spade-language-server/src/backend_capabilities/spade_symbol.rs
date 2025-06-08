@@ -1,6 +1,6 @@
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::NameID;
-use spade_hir::expression::{CallKind, NamedArgument};
+use spade_hir::expression::NamedArgument;
 use spade_hir::{
     ArgumentList, ExecutableItem, ExprKind, Expression, Pattern, PatternKind,
     PipelineRegMarkerExtra, Register, Statement, TypeDeclKind, TypeDeclaration, TypeExpression,
@@ -21,36 +21,11 @@ use crate::backend::ServerBackend;
 pub enum SpadeSymbol {
     // Symbol is a datatype: contains id of type.
     Type(NameID),
-    Unit {
-        kind: SUnitKind,
-        name: NameID,
-        out_type: NameID,
-    },
-    Variable {
-        name: NameID,
-        var_type: NameID,
-    },
-    Member {
-        kind: SMemberKind,
-        name: String,
-        member_type: NameID,
-        parent_type: NameID,
-    },
+    Unit { name: NameID },
+    Variable { name: NameID, var_type: NameID },
+    Member { name: String, parent_type: NameID },
     // Type of symbol could not be deduced because parser bailed to early.
     NotInferred(NameID),
-}
-
-#[derive(Debug, Clone)]
-pub enum SUnitKind {
-    Function,
-    Entity,
-    Pipeline,
-}
-
-#[derive(Debug, Clone)]
-pub enum SMemberKind {
-    Field,
-    Method,
 }
 
 impl SpadeSymbol {
@@ -235,12 +210,10 @@ impl ServerBackend {
                     let parent_type = get_expr_type(&expr.inner, ts);
                     let member_type = get_expr_type(&expression.inner, ts);
                     match (parent_type, member_type) {
-                        (Some(parent_type), Some(member_type)) => {
+                        (Some(parent_type), Some(_)) => {
                             return Some(SpadeSymbol::Member {
-                                kind: SMemberKind::Field,
                                 parent_type,
                                 name: ident.to_string(),
-                                member_type,
                             });
                         }
                         _ => {}
@@ -248,27 +221,20 @@ impl ServerBackend {
                 }
             }
             E::Call {
-                kind,
+                kind: _,
                 callee,
                 args,
                 turbofish: _turbofish,
             } => {
                 // Search name
                 if self.pos_in_loc(&callee.loc(), pos) {
-                    let unit_kind = match kind {
-                        CallKind::Function => SUnitKind::Function,
-                        CallKind::Entity(_) => SUnitKind::Entity,
-                        CallKind::Pipeline { .. } => SUnitKind::Pipeline,
-                    };
                     let unit_type_id = get_expr_type(expression, ts);
                     if let Some(unit_type_id) = unit_type_id {
                         if unit_type_id == **callee {
                             return Some(SpadeSymbol::Type(callee.inner.clone()));
                         } else {
                             return Some(SpadeSymbol::Unit {
-                                kind: unit_kind,
                                 name: callee.inner.clone(),
-                                out_type: unit_type_id,
                             });
                         }
                     }
@@ -297,12 +263,10 @@ impl ServerBackend {
                     let parent_type = get_expr_type(&target.inner, ts);
                     let member_type = get_expr_type(&expression.inner, ts);
                     match (parent_type, member_type) {
-                        (Some(parent_type), Some(member_type)) => {
+                        (Some(parent_type), Some(_)) => {
                             return Some(SpadeSymbol::Member {
-                                kind: SMemberKind::Method,
                                 parent_type,
                                 name: name.to_string(),
-                                member_type,
                             });
                         }
                         _ => {}

@@ -13,7 +13,6 @@ async fn let_binding() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -33,7 +32,6 @@ async fn let_binding_multiple() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -51,7 +49,6 @@ async fn reg_binding() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -71,7 +68,6 @@ async fn reg_clock() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -89,7 +85,6 @@ async fn let_binding_tuple_first() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -109,7 +104,6 @@ async fn let_binding_tuple_second() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -126,7 +120,6 @@ async fn parameter() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -147,7 +140,6 @@ async fn struct_declaration() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -166,7 +158,6 @@ async fn struct_field_from_usage() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -194,7 +185,6 @@ async fn enum_match_pattern_usage() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -220,7 +210,6 @@ async fn enum_match_pattern_variant() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -244,7 +233,6 @@ async fn fn_def_from_if_in_result() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -271,7 +259,6 @@ async fn fn_def_from_if_in_binding() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -296,7 +283,6 @@ async fn fn_def_from_else_in_result() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -323,7 +309,6 @@ async fn fn_def_from_else_in_binding() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -342,7 +327,6 @@ async fn hairy_nested_fn_call() {
             }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -363,7 +347,6 @@ async fn binding_from_array() {
         }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -395,7 +378,6 @@ async fn binding_from_2darray() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -418,7 +400,6 @@ async fn multiline_def_works() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -439,7 +420,6 @@ async fn struct_def_from_struct_member() {
             }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )
@@ -462,7 +442,6 @@ async fn enum_def_from_struct_member() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -484,7 +463,6 @@ async fn struct_def_from_enum_variant() {
     "#,
         InitFileOpt::default(),
         None,
-        None,
         "",
     )
     .await;
@@ -505,7 +483,6 @@ async fn enum_def_from_enum_variant() {
             }
     "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )

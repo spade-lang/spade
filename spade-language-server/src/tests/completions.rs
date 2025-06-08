@@ -30,7 +30,6 @@ async fn comps_find_types() {
             "name_of_enum1",
             "name_of_enum2",
         ]),
-        None,
         "",
     )
     .await;
@@ -60,7 +59,6 @@ async fn comps_find_units() {
     "#,
         InitFileOpt::default(),
         Some(&vec!["func1", "func2", "entity1", "entity2"]),
-        None,
         "",
     )
     .await;
@@ -81,7 +79,6 @@ async fn comps_find_bindings() {
     "#,
         InitFileOpt::default(),
         Some(&vec!["arg1", "arg2", "var1", "var2"]),
-        None,
         "",
     )
     .await;

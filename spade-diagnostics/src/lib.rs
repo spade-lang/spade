@@ -317,11 +317,11 @@ impl CodeBundle {
         self.files.add(filename, content)
     }
 
-    pub fn dump_files(&self) -> Vec<(String, String)> {
+    pub fn dump_files(&self) -> Vec<(&str, &str)> {
         let mut all_files = vec![];
         loop {
             match self.files.get(all_files.len()) {
-                Ok(file) => all_files.push((file.name().clone(), file.source().clone())),
+                Ok(file) => all_files.push((file.name().as_str(), file.source().as_str())),
                 Err(spade_codespan_reporting::files::Error::FileMissing) => break,
                 Err(e) => {
                     panic!("{e}")

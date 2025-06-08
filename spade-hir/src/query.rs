@@ -1,13 +1,20 @@
 use std::collections::BTreeMap;
 
-use spade_common::{id_tracker::ExprID, loc_map::LocMap, location_info::Loc};
-
-use crate::{
-    expression::NamedArgument, ArgumentList, Binding, ExecutableItem, Expression, ItemList,
-    Register, Statement,
+use spade_common::{
+    id_tracker::ExprID,
+    loc_map::LocMap,
+    location_info::{Loc, WithLocation},
+    name::NameID,
 };
 
+use crate::{
+    expression::NamedArgument, ArgumentList, Binding, ExecutableItem, ExprKind, Expression,
+    ItemList, Pattern, PatternArgument, PatternKind, Register, Statement,
+};
+
+#[derive(Debug)]
 pub enum Thing {
+    Pattern(Pattern),
     Expr(Expression),
     Statement(Statement),
     Executable(ExecutableItem),
@@ -15,23 +22,37 @@ pub enum Thing {
 
 pub struct QueryCache {
     things: LocMap<Thing>,
+    names: LocMap<NameID>,
     // FIXME: To support patterns, this needs to not be just Loc<Expression> anymore
     ids: BTreeMap<ExprID, Loc<Expression>>,
 }
 
 // Public functions
 impl QueryCache {
-    pub fn from_item_list(items: &ItemList) -> Self {
-        let mut result = QueryCache {
+    pub fn empty() -> Self {
+        QueryCache {
             things: LocMap::new(),
+            names: LocMap::new(),
             ids: BTreeMap::new(),
-        };
+        }
+    }
+
+    pub fn from_item_list(items: &ItemList) -> Self {
+        let mut result = QueryCache::empty();
 
         for (_, item) in items.executables.iter() {
             result.visit_executable(item.clone());
         }
 
         result
+    }
+
+    pub fn things_around(&self, loc: &Loc<()>) -> Vec<Loc<&Thing>> {
+        self.things.around(loc)
+    }
+
+    pub fn names_around(&self, loc: &Loc<()>) -> Vec<Loc<&NameID>> {
+        self.names.around(loc)
     }
 
     pub fn id_to_expression(&self, id: ExprID) -> Option<&Loc<Expression>> {
@@ -64,13 +85,9 @@ impl<'a> QueryCache {
         }
     }
 
-    fn visit_expression(&mut self, expr: &'a Loc<Expression>) {
-        self.things
-            .insert(expr.loc().map(|_| Thing::Expr(expr.inner.clone())));
-        self.ids.insert(expr.id, expr.clone());
-
-        match &expr.kind {
-            crate::ExprKind::Identifier(_) => {}
+    fn visit_expr_kind(&mut self, kind: &Loc<&ExprKind>) {
+        match &kind.inner {
+            crate::ExprKind::Identifier(ident) => self.names.insert(ident.clone().at_loc(kind)),
             crate::ExprKind::IntLiteral(_, _) => {}
             crate::ExprKind::BoolLiteral(_) => {}
             crate::ExprKind::BitLiteral(_) => {}
@@ -107,10 +124,11 @@ impl<'a> QueryCache {
             }
             crate::ExprKind::Call {
                 kind: _,
-                callee: _callee,
+                callee,
                 args,
                 turbofish: _turbofish,
             } => {
+                self.names.insert(callee.clone());
                 // FIXME: handle callee and turbofish
                 self.visit_arg_list(args)
             }
@@ -168,19 +186,64 @@ impl<'a> QueryCache {
         }
     }
 
+    fn visit_expression(&mut self, expr: &'a Loc<Expression>) {
+        self.things
+            .insert(expr.loc().map(|_| Thing::Expr(expr.inner.clone())));
+        self.ids.insert(expr.id, expr.clone());
+
+        self.visit_expr_kind(&Loc::new(&expr.kind, expr.span, expr.file_id));
+    }
+
+    fn visit_pattern(&mut self, pat: &'a Loc<Pattern>) {
+        self.things
+            .insert(pat.loc().map(|_| Thing::Pattern(pat.inner.clone())));
+        match &pat.inner.kind {
+            PatternKind::Integer(_) => {}
+            PatternKind::Bool(_) => {}
+            PatternKind::Name {
+                name,
+                pre_declared: _,
+            } => {
+                self.names.insert(name.clone());
+            }
+            PatternKind::Tuple(inner) => {
+                for pat in inner {
+                    self.visit_pattern(&pat);
+                }
+            }
+            PatternKind::Array(inner) => {
+                for pat in inner {
+                    self.visit_pattern(&pat);
+                }
+            }
+            PatternKind::Type(base, args) => {
+                self.names.insert(base.clone());
+                for PatternArgument {
+                    target: _,
+                    value,
+                    kind: _,
+                } in args
+                {
+                    self.visit_pattern(value);
+                }
+            }
+        }
+    }
+
     fn visit_statements(&mut self, stmt: &'a Loc<Statement>) {
         match &stmt.inner {
             Statement::Binding(Binding {
-                pattern: _,
+                pattern,
                 ty: _,
                 value,
                 wal_trace: _,
             }) => {
-                // FIXME: Handle pattern, ty
+                self.visit_pattern(pattern);
+                // FIXME: Handle ty
                 self.visit_expression(value)
             }
             Statement::Register(Register {
-                pattern: _pattern,
+                pattern,
                 clock,
                 reset,
                 initial,
@@ -188,7 +251,8 @@ impl<'a> QueryCache {
                 value_type: _value_type,
                 attributes: _,
             }) => {
-                // FIXME: Handle pattern, value_type
+                self.visit_pattern(pattern);
+                // FIXME: Handle value_type
                 self.visit_expression(clock);
                 if let Some((trig, val)) = reset {
                     self.visit_expression(trig);
@@ -202,12 +266,14 @@ impl<'a> QueryCache {
             Statement::Expression(e) => {
                 self.visit_expression(e);
             }
-            Statement::Declaration(_) => {
-                // FIXME: Handle declaration
+            Statement::Declaration(names) => {
+                for name in names {
+                    self.names.insert(name.clone());
+                }
             }
             Statement::PipelineRegMarker(_) => {}
-            Statement::Label(_) => {
-                // FIXME: Handle labels
+            Statement::Label(l) => {
+                self.names.insert(l.clone());
             }
             Statement::Assert(expr) => self.visit_expression(expr),
             Statement::Set { target, value } => {

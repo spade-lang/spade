@@ -2,7 +2,8 @@ use crate::backend::ServerBackend;
 
 use camino::Utf8PathBuf;
 use color_eyre::eyre::{anyhow, Context};
-use spade_codespan_reporting::files::Files;
+use spade_codespan::Span;
+use spade_codespan_reporting::files::{line_starts, Files};
 use spade_common::location_info::Loc;
 use spade_diagnostics::CodeBundle;
 use tower_lsp::lsp_types::{Location, Position, Range, Url};
@@ -48,6 +49,37 @@ pub fn loc_to_location(loc: Loc<()>, code: &CodeBundle) -> color_eyre::Result<Lo
 
 // Misc helper functionality
 impl ServerBackend {
+    pub(crate) fn pos_uri_to_loc(&self, pos: &Position, uri: &Url) -> color_eyre::Result<Loc<()>> {
+        let code = &*self.code.lock().unwrap();
+        let path = uri
+            .to_file_path()
+            .map_err(|_| anyhow!("URI {} was not a file", uri))?;
+
+        let file = code
+            .dump_files()
+            .into_iter()
+            .enumerate()
+            .find(|(_id, (file, _content))| **file == path.to_string_lossy().to_string());
+
+        match file {
+            Some((id, (_file, content))) => {
+                let line_starts = line_starts(content);
+
+                let start = line_starts.skip(pos.line as usize).next();
+
+                match start {
+                    Some(s) => Ok(Loc {
+                        inner: (),
+                        span: Span::new(s as u32 + pos.character, s as u32 + pos.character),
+                        file_id: id,
+                    }),
+                    None => Err(anyhow!("Line is out of range for file")),
+                }
+            }
+            None => Err(anyhow!("Did not find a file for {}", uri)),
+        }
+    }
+
     pub(super) fn loc_to_location(&self, loc: Loc<()>) -> color_eyre::Result<Location> {
         let code = &*self.code.lock().unwrap();
         loc_to_location(loc, code)

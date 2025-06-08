@@ -1,0 +1,23 @@
+---
+source: spade-language-server/src/tests/hover.rs
+expression: "indoc :: indoc!\n(r#\"\n    /// This is a doc string\n    fn foo() -> bool {true}\n\n    fn bar() -> bool {\n        foo()\n     //  ^[1] hover\n    }\n    \"#).to_string()\n+ \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+---
+/// This is a doc string
+fn foo() -> bool {true}
+
+fn bar() -> bool {
+    foo()
+ //  ^[1] hover
+}
+
+---code ⬆️ hover ⬇️ ---
+```spade
+fn foo() -> bool
+```
+---
+This is a doc string
+---
+**Expression type**:
+```spade
+bool
+```

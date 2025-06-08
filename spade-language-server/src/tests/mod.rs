@@ -5,14 +5,16 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 
 use assert_fs::TempDir;
+use color_eyre::owo_colors::OwoColorize as _;
+use itertools::Itertools;
 use smart_default::SmartDefault;
 use spade_codespan_reporting::files::SimpleFile;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionParams, CompletionResponse, CompletionTriggerKind,
     Diagnostic, DidOpenTextDocumentParams, GotoDefinitionParams, GotoDefinitionResponse,
-    HoverContents, HoverParams, InitializeParams, InitializedParams, MarkedString, MessageType,
-    Range, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
+    InitializeParams, InitializedParams, MessageType, Range, TextDocumentIdentifier,
+    TextDocumentItem, TextDocumentPositionParams, Url,
 };
 use tower_lsp::LanguageServer;
 
@@ -93,7 +95,6 @@ async fn init_with_file(
     code: &str,
     opt: InitFileOpt,
     test_comps: Option<&Vec<&str>>,
-    test_hover: Option<&str>,
     completion_char: &str,
 ) -> TestContext {
     let InitFileOpt { open_immediately } = opt;
@@ -147,6 +148,20 @@ async fn init_with_file(
             .await;
 
         // FIXME: probably race condition here. wait for server to mark "done compiling files" or something
+
+        client
+            .diagnostics
+            .lock()
+            .await
+            .iter()
+            .for_each(|(_, diags)| {
+                if !diags.is_empty() {
+                    println!(
+                        "{}",
+                        diags.iter().map(|diag| diag.message.red()).join("{\n}")
+                    )
+                }
+            });
 
         // Check that every diagnostic marker is present in the client diagnostics
         let markers_with_diagnostics: Vec<_> = markers
@@ -239,27 +254,6 @@ async fn init_with_file(
             }
         }
     }
-    // Check hover
-    let hover = markers.values().find(|m| m.hover);
-    if let Some(hover) = hover {
-        let response = server
-            .hover(HoverParams {
-                text_document_position_params: TextDocumentPositionParams {
-                    text_document: TextDocumentIdentifier {
-                        uri: file_uri.clone(),
-                    },
-                    position: hover.range.start,
-                },
-                work_done_progress_params: Default::default(),
-            })
-            .await
-            .unwrap()
-            .unwrap();
-
-        if let HoverContents::Scalar(MarkedString::String(s)) = response.contents {
-            assert!(s == test_hover.unwrap());
-        }
-    }
 
     TestContext {
         root_dir,
@@ -283,7 +277,6 @@ async fn server_starts() {
             }
         "#,
         InitFileOpt::default(),
-        None,
         None,
         "",
     )

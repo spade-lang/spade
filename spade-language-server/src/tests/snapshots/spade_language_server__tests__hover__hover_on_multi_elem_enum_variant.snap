@@ -1,0 +1,25 @@
+---
+source: spade-language-server/src/tests/hover.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+---
+enum A {
+    Field,
+    Field2{val1: bool, val2: int<8>}
+}
+fn foo() {
+    let s = A::Field2(false, 0);
+            //  ^[1] hover
+}
+
+---code ⬆️ hover ⬇️ ---
+enum variant
+```spade
+proj::A::Field2{
+    val1: bool, val2: int<8>
+}
+```
+---
+**Expression type**:
+```spade
+proj::A
+```

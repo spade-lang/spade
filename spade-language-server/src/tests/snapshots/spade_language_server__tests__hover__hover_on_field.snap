@@ -1,0 +1,16 @@
+---
+source: spade-language-server/src/tests/hover.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+---
+struct NameOfStruct {
+    field_a: bool,
+    field_b: int<4>,
+}
+fn foo() -> bool {
+    let s = NameOfStruct(false, 2);
+    s.field_a
+    //  ^[1] hover
+}
+
+---code ⬆️ hover ⬇️ ---
+field_a: bool

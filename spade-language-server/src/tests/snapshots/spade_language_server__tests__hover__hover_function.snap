@@ -1,0 +1,29 @@
+---
+source: spade-language-server/src/tests/hover.rs
+expression: "indoc :: indoc!\n(r#\"\n    struct NameOfStruct {\n        field_a: bool,\n        field_b: int<4>,\n    }\n    fn foo() -> bool {\n        let s = NameOfStruct(false, 2);\n\n        let cow = s;\n        false\n    }\n\n    fn bar() -> bool {\n        foo()\n     //  ^[1] hover\n    }\n    \"#).to_string()\n+ \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+---
+struct NameOfStruct {
+    field_a: bool,
+    field_b: int<4>,
+}
+fn foo() -> bool {
+    let s = NameOfStruct(false, 2);
+
+    let cow = s;
+    false
+}
+
+fn bar() -> bool {
+    foo()
+ //  ^[1] hover
+}
+
+---code ⬆️ hover ⬇️ ---
+```spade
+fn foo() -> bool
+```
+---
+**Expression type**:
+```spade
+bool
+```

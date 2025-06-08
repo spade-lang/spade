@@ -751,6 +751,14 @@ impl SymbolTable {
         }
     }
 
+    pub fn try_type_symbol_by_id(&self, id: &NameID) -> Option<&Loc<TypeSymbol>> {
+        self.types.get(id)
+    }
+
+    pub fn thing_by_id(&self, id: &NameID) -> Option<&Thing> {
+        self.things.get(id)
+    }
+
     pub fn lookup_type_symbol(
         &self,
         name: &Loc<Path>,

@@ -1,0 +1,30 @@
+---
+source: spade-language-server/src/tests/hover.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+---
+struct S {}
+
+impl S {
+    /// Docs
+    fn meth(self, a: bool) -> bool {
+        true
+    }
+}
+
+fn bar() -> bool {
+    S().meth(true)
+//       ^[1] hover
+}
+
+---code ⬆️ hover ⬇️ ---
+**Expression type**:
+```spade
+bool
+```
+---
+```spade
+impl proj::S
+fn meth(self: S, a: bool) -> bool
+```
+---
+ Docs
