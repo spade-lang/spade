@@ -4,8 +4,20 @@ use camino::Utf8PathBuf;
 use color_eyre::eyre::{anyhow, Context};
 use spade_codespan::Span;
 use spade_codespan_reporting::files::{line_starts, Files};
-use spade_common::location_info::Loc;
+use spade_common::{
+    location_info::Loc,
+    name::{Identifier, NameID},
+};
 use spade_diagnostics::CodeBundle;
+use spade_hir::{
+    query::Thing, symbol_table::StructCallable, ExecutableItem, ExprKind, Expression, TypeSpec,
+    UnitHead,
+};
+use spade_typeinference::{
+    equation::{TypeVar, TypeVarID},
+    method_resolution::select_method,
+    HasType, TypeState,
+};
 use tower_lsp::lsp_types::{Location, Position, Range, Url};
 
 pub fn loc_to_location(loc: Loc<()>, code: &CodeBundle) -> color_eyre::Result<Location> {
@@ -85,44 +97,188 @@ impl ServerBackend {
         loc_to_location(loc, code)
     }
 
-    pub(super) fn in_same_file(&self, uri: &Url, loc: &Loc<()>) -> color_eyre::Result<bool> {
-        let location = self.loc_to_location(loc.loc())?;
-
-        Ok(location.uri == *uri)
-    }
-
-    pub(super) fn pos_in_loc(&self, loc: &Loc<()>, pos: &Position) -> bool {
-        let location = self.loc_to_location(*loc);
-
-        if location.is_err() {
-            return false;
-        }
-
-        let Location {
-            range: Range { start, end },
-            ..
-        } = location.unwrap();
-
-        let is_in = if start.line > pos.line || end.line < pos.line {
-            false
-        } else if start.line == pos.line && end.line == pos.line {
-            start.character <= pos.character && end.character >= pos.character
-        } else if start.line == pos.line {
-            start.character <= pos.character
-        } else if end.line == pos.line {
-            end.character >= pos.character
-        } else {
-            true
+    pub(crate) fn get_position_details(
+        &self,
+        pos: &Position,
+        uri: &Url,
+    ) -> Option<PositionDetails> {
+        let Some(loc) = self.pos_uri_to_loc(pos, uri).ok() else {
+            return None;
         };
 
-        is_in
-    }
-    pub(super) fn pos_after_loc(&self, loc: &Loc<()>, pos: &Position) -> color_eyre::Result<bool> {
-        let Location {
-            range: Range { end, .. },
-            ..
-        } = self.loc_to_location(*loc)?;
+        let name = self
+            .query_cache
+            .lock()
+            .unwrap()
+            .names_around(&loc)
+            .last()
+            .map(|loc| loc.map(|inner| inner.clone()));
 
-        Ok(pos.line > end.line)
+        let current_unit = self
+            .query_cache
+            .lock()
+            .unwrap()
+            .things_around(&loc)
+            .iter()
+            .find_map(|thing| match thing.inner {
+                Thing::Executable(ExecutableItem::Unit(u)) => Some(u),
+                _ => None,
+            })
+            .cloned();
+
+        let unit_type_state = current_unit.as_ref().and_then(|u| {
+            self.type_states
+                .lock()
+                .unwrap()
+                .get(u.name.name_id())
+                .cloned()
+        });
+
+        Some(PositionDetails {
+            loc,
+            name,
+            unit_type_state,
+        })
     }
+
+    pub(crate) fn contextual_expression_info(
+        &self,
+        PositionDetails {
+            loc,
+            name: _,
+            unit_type_state,
+        }: &PositionDetails,
+    ) -> ContextualExpressionInfo {
+        let qq = self.query_cache.lock().unwrap();
+        let things_around = qq.things_around(loc);
+
+        let type_info = things_around
+            .iter()
+            .filter_map(|thing| match &thing.inner {
+                Thing::Expr(expr) => Some(expr),
+                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
+            })
+            .filter_map(|expr| {
+                unit_type_state.as_ref().and_then(|ts| {
+                    let Some(self_ty) = expr.try_get_type(ts) else {
+                        return None;
+                    };
+
+                    Some((expr.clone(), self_ty))
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let struct_field_info = things_around
+            .iter()
+            .filter_map(|thing| match &thing.inner {
+                Thing::Expr(expression) => Some((thing, expression)),
+                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
+            })
+            .find_map(|(thing, expr)| match &expr.kind {
+                ExprKind::FieldAccess(base, field) => {
+                    if field.contains_start(loc) {
+                        unit_type_state.as_ref().and_then(|ts| {
+                            let symtab = self.symtab.lock().unwrap();
+                            let Some(symtab) = symtab.as_ref() else {
+                                return None;
+                            };
+
+                            let Some(target_ty) = base.try_get_type(ts) else {
+                                return None;
+                            };
+
+                            let TypeVar::Known(_, spade_types::KnownType::Named(name), _) =
+                                target_ty.resolve(ts)
+                            else {
+                                return None;
+                            };
+
+                            let s = symtab.struct_by_id(name);
+
+                            let Some(param) = s.params.0.iter().find(|p| &p.name == field) else {
+                                return None;
+                            };
+
+                            Some(FieldInfo::Field {
+                                name: param.name.clone(),
+                                st: s.clone(),
+                                field_ty: param.ty.inner.clone(),
+                            })
+                        })
+                    } else {
+                        None
+                    }
+                }
+                ExprKind::MethodCall {
+                    target,
+                    name,
+                    args: _,
+                    call_kind: _,
+                    turbofish: _,
+                } => {
+                    if name.contains_start(loc) {
+                        unit_type_state.as_ref().and_then(|ts| {
+                            let Some(target_ty) = target.try_get_type(ts) else {
+                                return None;
+                            };
+
+                            select_method(
+                                thing.loc(),
+                                &target_ty,
+                                name,
+                                &self.trait_impls.lock().unwrap(),
+                                ts,
+                            )
+                            .ok()
+                            .flatten()
+                            .and_then(|callee| {
+                                let symtab = self.symtab.lock().unwrap();
+                                let Some(symtab) = symtab.as_ref() else {
+                                    return None;
+                                };
+                                let target_unit = symtab.unit_by_id(&callee.inner);
+                                Some(FieldInfo::Method {
+                                    target_unit,
+                                    target_ty,
+                                })
+                            })
+                        })
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            });
+
+        ContextualExpressionInfo {
+            expression: type_info,
+            field: struct_field_info,
+        }
+    }
+}
+
+pub(crate) struct PositionDetails {
+    pub loc: Loc<()>,
+    pub name: Option<Loc<NameID>>,
+    pub unit_type_state: Option<TypeState>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ContextualExpressionInfo {
+    pub expression: Vec<(Expression, TypeVarID)>,
+    pub field: Option<FieldInfo>,
+}
+
+#[derive(Debug)]
+pub(crate) enum FieldInfo {
+    Field {
+        name: Loc<Identifier>,
+        st: Loc<StructCallable>,
+        field_ty: TypeSpec,
+    },
+    Method {
+        target_unit: Loc<UnitHead>,
+        target_ty: TypeVarID,
+    },
 }

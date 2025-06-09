@@ -1,4 +1,3 @@
-use crate::backend_capabilities::completion::Completion;
 use crate::backend_capabilities::goto_definition::GotoDefinition;
 use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
@@ -7,12 +6,12 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
-    InitializeResult, InitializedParams, MessageType, OneOf, ServerCapabilities, SymbolInformation,
-    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
-    WorkDoneProgressOptions, WorkspaceSymbolParams,
+    CompletionOptions, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
+    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, MessageType,
+    OneOf, ServerCapabilities, SymbolInformation, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, WorkDoneProgressOptions,
+    WorkspaceSymbolParams,
 };
 use tower_lsp::LanguageServer;
 
@@ -185,20 +184,6 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             Some(location) => Ok(Some(GotoDefinitionResponse::Scalar(location))),
             None => Ok(None),
         }
-    }
-
-    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        let TextDocumentPositionParams {
-            text_document: doc,
-            position: pos,
-        } = params.text_document_position;
-
-        let completions = self
-            .backend
-            .get_completions(&pos, &doc.uri, params.context)
-            .await;
-
-        Ok(Some(CompletionResponse::Array(completions)))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

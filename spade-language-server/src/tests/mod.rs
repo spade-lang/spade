@@ -22,7 +22,6 @@ use crate::language_server::ServerFrontend;
 use crate::tests::markers::{find_markers, Marker};
 use crate::Client;
 
-mod completions;
 mod diagnostics;
 mod goto_definition;
 mod hover;

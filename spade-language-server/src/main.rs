@@ -1,7 +1,6 @@
 mod backend;
 mod backend_capabilities;
 mod compile;
-mod keywords;
 mod language_server;
 // Disabling lsp tests on macos for now since they break in CI and I don't have
 // ready access to a mac to debug them on

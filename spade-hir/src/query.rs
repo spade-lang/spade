@@ -8,8 +8,9 @@ use spade_common::{
 };
 
 use crate::{
-    expression::NamedArgument, ArgumentList, Binding, ExecutableItem, ExprKind, Expression,
-    ItemList, Pattern, PatternArgument, PatternKind, Register, Statement,
+    expression::NamedArgument, ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind,
+    Expression, ItemList, Pattern, PatternArgument, PatternKind, Register, Statement, Struct,
+    TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
 };
 
 #[derive(Debug)]
@@ -42,6 +43,10 @@ impl QueryCache {
 
         for (_, item) in items.executables.iter() {
             result.visit_executable(item.clone());
+        }
+
+        for (_, ty) in items.types.iter() {
+            result.visit_type_decl(ty)
         }
 
         result
@@ -152,9 +157,9 @@ impl<'a> QueryCache {
             crate::ExprKind::Match(cond, branches) => {
                 self.visit_expression(cond);
 
-                for (_pattern, expr) in branches {
-                    // FIXME: Handle pattern
-                    self.visit_expression(expr)
+                for (pattern, expr) in branches {
+                    self.visit_pattern(pattern);
+                    self.visit_expression(expr);
                 }
             }
             crate::ExprKind::Block(b) => {
@@ -308,6 +313,100 @@ impl<'a> QueryCache {
                     self.visit_expression(arg)
                 }
             }
+        }
+    }
+
+    fn visit_type_decl(&mut self, ty: &TypeDeclaration) {
+        self.names.insert(ty.name.clone());
+        match &ty.kind {
+            TypeDeclKind::Enum(e) => self.visit_enum_decl(e),
+            TypeDeclKind::Primitive(_) => {}
+            TypeDeclKind::Struct(s) => self.visit_struct(s),
+        }
+    }
+
+    fn visit_enum_decl(&mut self, e: &Loc<Enum>) {
+        for (_, params) in &e.options {
+            for param in &params.0 {
+                self.visit_type_spec(&param.ty);
+            }
+        }
+    }
+
+    fn visit_struct(&mut self, s: &Loc<Struct>) {
+        for member in &s.members.0 {
+            self.visit_type_spec(&member.ty);
+        }
+    }
+
+    fn visit_type_spec(&mut self, ts: &Loc<TypeSpec>) {
+        match &ts.inner {
+            TypeSpec::Declared(n, params) => {
+                self.names.insert(n.clone());
+                for param in params {
+                    self.visit_type_expr(param);
+                }
+            }
+            TypeSpec::Generic(n) => self.names.insert(n.clone()),
+            TypeSpec::Tuple(inner) => {
+                for i in inner {
+                    self.visit_type_spec(i);
+                }
+            }
+            TypeSpec::Array { inner, size } => {
+                self.visit_type_spec(inner);
+                self.visit_type_expr(size);
+            }
+            TypeSpec::Inverted(inner) => self.visit_type_spec(inner),
+            TypeSpec::Wire(inner) => self.visit_type_spec(inner),
+            TypeSpec::TraitSelf(_) => {}
+            TypeSpec::Wildcard(_) => {}
+        }
+    }
+
+    fn visit_type_expr(&mut self, te: &Loc<TypeExpression>) {
+        match &te.inner {
+            TypeExpression::Integer(_) => {}
+            TypeExpression::TypeSpec(ts) => self.visit_type_spec(&ts.clone().at_loc(te)),
+            TypeExpression::ConstGeneric(cg) => {
+                self.visit_const_generic(cg);
+            }
+        }
+    }
+
+    fn visit_const_generic(&mut self, cg: &Loc<ConstGeneric>) {
+        match &cg.inner {
+            ConstGeneric::Name(n) => self.names.insert(n.clone()),
+            ConstGeneric::Const(_) => {}
+            ConstGeneric::Add(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::Sub(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::Mul(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::Div(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::Mod(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::Eq(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::NotEq(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::UintBitsToFit(inner) => self.visit_const_generic(inner),
         }
     }
 }

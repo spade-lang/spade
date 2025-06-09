@@ -1,4 +1,3 @@
-use crate::keywords;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -11,7 +10,7 @@ use spade_hir::ItemList;
 use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::TypeState;
 use tokio::sync::mpsc;
-use tower_lsp::lsp_types::{CompletionItem, MessageType};
+use tower_lsp::lsp_types::MessageType;
 
 pub struct ServerBackend {
     /// The root folder that is opened in the client.
@@ -35,9 +34,6 @@ pub struct ServerBackend {
 
     /// A channel allowing for logging without requiring an async context or handle to the client.
     pub client_log_chan: mpsc::Sender<(MessageType, String)>,
-
-    /// List of Spades built in keywords.
-    pub keyword_completions: [CompletionItem; keywords::NR_OF_KEYWORDS],
 }
 
 impl ServerBackend {
@@ -53,7 +49,6 @@ impl ServerBackend {
             _old_code: Arc::new(Mutex::new(CodeBundle::new(String::new()))),
             type_states: Arc::new(Mutex::new(BTreeMap::new())),
             client_log_chan: sender,
-            keyword_completions: keywords::get_keyword_completions(),
         }
     }
 }

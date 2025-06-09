@@ -1,73 +1,26 @@
 use indoc::formatdoc;
 use itertools::Itertools;
-use spade_common::{location_info::Loc, name::NameID};
+use spade_common::location_info::Loc;
 use spade_hir::{
     pretty_print::PrettyPrint,
-    query::Thing,
     symbol_table::{self, StructCallable, TypeDeclKind},
-    ExecutableItem, ExprKind,
+    ExprKind,
 };
-use spade_typeinference::{
-    equation::TypeVar, method_resolution::select_method, HasType, TypeState,
-};
+use spade_typeinference::HasType;
 use tower_lsp::lsp_types::{Hover, HoverContents, Position, Url};
 
 use crate::backend::ServerBackend;
 
-struct HoverDetails {
-    loc: Loc<()>,
-    name: Option<Loc<NameID>>,
-    unit_type_state: Option<TypeState>,
-}
+use super::util::{FieldInfo, PositionDetails};
 
 impl ServerBackend {
-    fn prepare_hover(&self, pos: &Position, uri: &Url) -> Option<HoverDetails> {
-        let Some(loc) = self.pos_uri_to_loc(pos, uri).ok() else {
-            return None;
-        };
-
-        let name = self
-            .query_cache
-            .lock()
-            .unwrap()
-            .names_around(&loc)
-            .last()
-            .map(|loc| loc.map(|inner| inner.clone()));
-
-        let current_unit = self
-            .query_cache
-            .lock()
-            .unwrap()
-            .things_around(&loc)
-            .iter()
-            .find_map(|thing| match thing.inner {
-                Thing::Executable(ExecutableItem::Unit(u)) => Some(u),
-                _ => None,
-            })
-            .cloned();
-
-        let unit_type_state = current_unit.as_ref().and_then(|u| {
-            self.type_states
-                .lock()
-                .unwrap()
-                .get(u.name.name_id())
-                .cloned()
-        });
-
-        Some(HoverDetails {
-            loc,
-            name,
-            unit_type_state,
-        })
-    }
-
     fn symtab_thing_info(
         &self,
-        HoverDetails {
+        PositionDetails {
             loc: _,
             name,
             unit_type_state,
-        }: &HoverDetails,
+        }: &PositionDetails,
     ) -> Option<String> {
         let Some(name) = name else { return None };
         let symtab = self.symtab.lock().unwrap();
@@ -173,11 +126,11 @@ impl ServerBackend {
 
     fn symtab_type_info(
         &self,
-        HoverDetails {
+        PositionDetails {
             loc: _,
             name,
             unit_type_state: _,
-        }: &HoverDetails,
+        }: &PositionDetails,
     ) -> Option<String> {
         let Some(name) = name else { return None };
         let symtab = self.symtab.lock().unwrap();
@@ -229,139 +182,65 @@ impl ServerBackend {
 
     fn hover_from_surrounding_thing(
         &self,
-        HoverDetails {
+        pos @ PositionDetails {
             loc,
             name: _,
             unit_type_state,
-        }: &HoverDetails,
+        }: &PositionDetails,
     ) -> Option<String> {
-        let qq = self.query_cache.lock().unwrap();
-        let things_around = qq.things_around(loc);
+        let Some(ts) = unit_type_state else {
+            return None;
+        };
+        let info = self.contextual_expression_info(pos);
 
-        let type_info = things_around
+        let type_info = info
+            .expression
             .iter()
-            .filter_map(|thing| match &thing.inner {
-                Thing::Expr(expr) => Some(expr),
-                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
-            })
-            // Filter out any expressions which are uninteresting to show the type for,
-            // have the type info available in another hover info (such as the name)
-            // or restrict the info to only parts of some expressions to avoid spurious
-            // info
-            .filter(|expr| expr.kind.is_hover_target(loc))
-            .find_map(|expr| {
-                unit_type_state.as_ref().and_then(|ts| {
-                    let Some(self_ty) = expr.try_get_type(ts) else {
-                        return None;
-                    };
-
-                    Some(format!(
-                        "**Expression type**:\n```spade\n{}\n```",
-                        self_ty.resolve(&ts).display(ts)
-                    ))
-                })
+            .filter(|(expr, _ty)| expr.kind.is_hover_target(loc))
+            .find_map(|(_expr, ty)| {
+                Some(format!(
+                    "**Expression type**:\n```spade\n{}\n```",
+                    ty.resolve(&ts).display(ts)
+                ))
             });
 
-        let struct_field_info = things_around
-            .iter()
-            .filter_map(|thing| match &thing.inner {
-                Thing::Expr(expression) => Some((thing, expression)),
-                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
-            })
-            .find_map(|(thing, expr)| match &expr.kind {
-                ExprKind::FieldAccess(base, field) => {
-                    if field.contains_start(loc) {
-                        unit_type_state.as_ref().and_then(|ts| {
-                            let symtab = self.symtab.lock().unwrap();
-                            let Some(symtab) = symtab.as_ref() else {
-                                return None;
-                            };
-
-                            let Some(target_ty) = base.try_get_type(ts) else {
-                                return None;
-                            };
-
-                            let TypeVar::Known(_, spade_types::KnownType::Named(name), _) =
-                                target_ty.resolve(ts)
-                            else {
-                                return None;
-                            };
-
-                            let s = symtab.struct_by_id(name);
-
-                            let Some(param) = s.params.0.iter().find(|p| &p.name == field) else {
-                                return None;
-                            };
-
-                            Some(format!("{}: {}", param.name, param.ty.pretty_print()))
-                        })
-                    } else {
-                        None
-                    }
+        let struct_field_info = info.field.map(|fi| match fi {
+            FieldInfo::Field {
+                name,
+                st: _,
+                field_ty: ty,
+            } => format!("{}: {}", name, ty.pretty_print()),
+            FieldInfo::Method {
+                target_unit,
+                target_ty,
+            } => formatdoc!(
+                r#"
+                    ```spade
+                    impl{} {}
+                    {}
+                    ```{}"#,
+                if !target_unit.scope_type_params.is_empty() {
+                    formatdoc!(
+                        "<{}>",
+                        target_unit
+                            .scope_type_params
+                            .iter()
+                            .map(PrettyPrint::pretty_print)
+                            .join(", ")
+                    )
+                } else {
+                    "".to_string()
+                },
+                target_ty.display(ts),
+                target_unit.pretty_print(),
+                if !target_unit.documentation.is_empty() {
+                    format!("\n---\n{}", target_unit.documentation)
+                } else {
+                    "".to_string()
                 }
-                ExprKind::MethodCall {
-                    target,
-                    name,
-                    args: _,
-                    call_kind: _,
-                    turbofish: _,
-                } => {
-                    if name.contains_start(loc) {
-                        unit_type_state.as_ref().and_then(|ts| {
-                            let Some(target_ty) = target.try_get_type(ts) else {
-                                return None;
-                            };
+            ),
+        });
 
-                            select_method(
-                                thing.loc(),
-                                &target_ty,
-                                name,
-                                &self.trait_impls.lock().unwrap(),
-                                ts,
-                            )
-                            .ok()
-                            .flatten()
-                            .and_then(|callee| {
-                                let symtab = self.symtab.lock().unwrap();
-                                let Some(symtab) = symtab.as_ref() else {
-                                    return None;
-                                };
-                                let target_unit = symtab.unit_by_id(&callee.inner);
-                                let result = formatdoc!(
-                                    r#"
-                                        ```spade
-                                        impl{} {}
-                                        {}
-                                        ```{}"#,
-                                    if !target_unit.scope_type_params.is_empty() {
-                                        formatdoc!(
-                                            "<{}>",
-                                            target_unit
-                                                .scope_type_params
-                                                .iter()
-                                                .map(PrettyPrint::pretty_print)
-                                                .join(", ")
-                                        )
-                                    } else {
-                                        "".to_string()
-                                    },
-                                    target_ty.display(ts),
-                                    target_unit.pretty_print(),
-                                    if !target_unit.documentation.is_empty() {
-                                        format!("\n---\n{}", target_unit.documentation)
-                                    } else {
-                                        "".to_string()
-                                    }
-                                );
-                                Some(result)
-                            })
-                        })
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            });
         let s = [type_info, struct_field_info]
             .into_iter()
             .flatten()
@@ -380,7 +259,7 @@ pub trait HoverInfo {
 
 impl HoverInfo for ServerBackend {
     async fn find_hover(&self, pos: &Position, uri: &Url) -> Option<Hover> {
-        let hover_details = self.prepare_hover(pos, uri)?;
+        let hover_details = self.get_position_details(pos, uri)?;
 
         let from_symtab = self
             .symtab_thing_info(&hover_details)
