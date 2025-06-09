@@ -1,8 +1,10 @@
 pub mod compiler_state;
 mod name_dump;
 pub mod namespaced_file;
+mod error_handling;
 
 use compiler_state::{CompilerState, MirContext};
+use error_handling::{ErrorHandler, Reportable};
 use logos::Logos;
 use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
@@ -50,57 +52,6 @@ pub struct Opt<'b> {
     pub print_type_traceback: bool,
     pub print_parse_traceback: bool,
     pub opt_passes: Vec<String>,
-}
-
-trait Reportable<T> {
-    /// Report the error, then discard the error, returning Some if it was Ok
-    fn or_report(self, errors: &mut ErrorHandler) -> Option<T>;
-
-    // Report the error and continue without modifying the result
-    fn report(self, errors: &mut ErrorHandler) -> Self;
-}
-
-impl<T, E> Reportable<T> for Result<T, E>
-where
-    E: CompilationError,
-{
-    fn report(self, errors: &mut ErrorHandler) -> Self {
-        if let Err(e) = &self {
-            errors.report(e);
-        }
-        self
-    }
-
-    fn or_report(self, errors: &mut ErrorHandler) -> Option<T> {
-        self.report(errors).ok()
-    }
-}
-
-pub struct ErrorHandler<'a> {
-    pub failed: bool,
-    pub error_buffer: &'a mut Buffer,
-    pub diag_handler: DiagHandler,
-    /// Using a RW lock here is just a lazy way of managing the ownership of code to
-    /// be able to report errors even while modifying CodeBundle
-    pub code: Rc<RwLock<CodeBundle>>,
-}
-
-impl<'a> ErrorHandler<'a> {
-    pub fn report(&mut self, err: &impl CompilationError) {
-        self.failed = true;
-        err.report(
-            self.error_buffer,
-            &self.code.read().unwrap(),
-            &mut self.diag_handler,
-        );
-    }
-
-    pub fn drain_diag_list(&mut self, diag_list: &mut DiagList) {
-        for diag in diag_list.drain() {
-            self.failed = true;
-            self.report(&diag)
-        }
-    }
 }
 
 /// Compiler output.
@@ -164,12 +115,7 @@ pub fn compile(
 
     let code = Rc::new(RwLock::new(CodeBundle::new("".to_string())));
 
-    let mut errors = ErrorHandler {
-        failed: false,
-        error_buffer: opts.error_buffer,
-        diag_handler,
-        code: Rc::clone(&code),
-    };
+    let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Rc::clone(&code));
 
     let module_asts = parse(
         sources,
@@ -209,10 +155,7 @@ pub fn compile(
     let deduplicate_mut_wires = DeduplicateMutWires {};
     opt_passes.push(&deduplicate_mut_wires);
 
-    if errors.failed {
-        unfinished_artefacts.symtab = Some(symtab);
-        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
-    }
+    errors.errors_are_recoverable();
 
     let mut ctx = AstLoweringCtx {
         symtab,
@@ -259,9 +202,7 @@ pub fn compile(
         })
     }
 
-    // We have to error out during global lowering since other units will most likely
-    // look things up
-    if errors.failed {
+    if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
@@ -271,9 +212,7 @@ pub fn compile(
         errors.report(&err);
     }
 
-    // We have to error out during global lowering since other units will most likely
-    // look things up
-    if errors.failed {
+    if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
         errors.drain_diag_list(&mut ctx.diags);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
@@ -285,9 +224,7 @@ pub fn compile(
         })
     }
 
-    // We have to error out during global lowering since other units will most likely
-    // look things up
-    if errors.failed {
+    if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
         errors.drain_diag_list(&mut ctx.diags);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
@@ -301,7 +238,7 @@ pub fn compile(
 
     unfinished_artefacts.item_list = Some(ctx.item_list.clone());
 
-    if errors.failed {
+    if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
         errors.drain_diag_list(&mut ctx.diags);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
@@ -425,7 +362,7 @@ pub fn compile(
 
     let code = code.read().unwrap();
 
-    if !errors.failed {
+    if !errors.failed() {
         if let Some(outfile) = opts.outfile {
             std::fs::write(outfile, module_code.join("\n\n")).or_report(&mut errors);
         }
@@ -445,7 +382,7 @@ pub fn compile(
                     std::fs::write(item_list_file, encoded).or_report(&mut errors);
                 }
                 Err(e) => {
-                    errors.failed = true;
+                    errors.set_failed();
                     println!("Failed to encode item list as RON {e:?}")
                 }
             }
@@ -458,7 +395,7 @@ pub fn compile(
                     std::fs::write(state_dump_file, encoded).or_report(&mut errors);
                 }
                 Err(e) => {
-                    errors.failed = true;
+                    errors.set_failed();
                     println!("Failed to encode compiler state info as RON {:?}", e)
                 }
             }
