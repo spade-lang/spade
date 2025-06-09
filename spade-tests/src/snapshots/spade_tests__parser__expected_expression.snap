@@ -13,4 +13,16 @@ error: Unexpected `;`, expected expression
 2 │     let abc = ;
   │               ^ expected expression here
 
-
+error: Output type mismatch. Expected bool, got ()
+  ┌─ testinput:1:18
+  │  
+1 │   fn top() -> bool {
+  │               ---- bool type specified here
+  │ ╭──────────────────^
+2 │ │     let abc = ;
+3 │ │     abc
+4 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: bool
+               Got: ()

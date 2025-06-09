@@ -14,4 +14,17 @@ error: Missing argument 'suffix'
 2 │     #[wal_suffix()]
   │       ^^^^^^^^^^ Missing argument 'suffix'
 
-
+error: Output type mismatch. Expected bool, got Number<_>
+  ┌─ testinput:1:19
+  │  
+1 │   fn main() -> bool {
+  │                ---- bool type specified here
+  │ ╭───────────────────^
+2 │ │     #[wal_suffix()]
+3 │ │     let x = 0;
+4 │ │     x
+5 │ │ }
+  │ ╰─^ Found type Number<_>
+  │  
+  = note: Expected: bool
+               Got: Number<_>

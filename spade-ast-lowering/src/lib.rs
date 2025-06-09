@@ -61,7 +61,6 @@ impl Context {
         let mut tmp_pipeline_ctx = None;
         let mut tmp_self_ctx = SelfContext::FreeStanding;
         let mut tmp_current_unit = None;
-        let mut tmp_diags = DiagList::new();
         {
             let Context {
                 symtab: _,
@@ -71,12 +70,11 @@ impl Context {
                 pipeline_ctx,
                 self_ctx,
                 current_unit,
-                diags,
+                diags: _,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
             std::mem::swap(self_ctx, &mut tmp_self_ctx);
             std::mem::swap(current_unit, &mut tmp_current_unit);
-            std::mem::swap(diags, &mut tmp_diags)
         }
         let result = transform(self);
         {
@@ -88,14 +86,11 @@ impl Context {
                 pipeline_ctx,
                 self_ctx,
                 current_unit,
-                diags: new_diags,
+                diags: _,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
             std::mem::swap(self_ctx, &mut tmp_self_ctx);
             std::mem::swap(current_unit, &mut tmp_current_unit);
-
-            tmp_diags.errors.extend(new_diags.drain());
-            std::mem::swap(new_diags, &mut tmp_diags);
         }
         result
     }

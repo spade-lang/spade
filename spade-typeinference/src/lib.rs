@@ -175,8 +175,6 @@ pub struct TypeState {
     #[serde(skip)]
     pub trace_stack: TraceStack,
 
-    // TODO: How should we handle the clone here? We don't want to end with clones
-    // of the diag list
     #[serde(skip)]
     pub diags: DiagList,
 }
@@ -2562,9 +2560,7 @@ impl TypeState {
 
                 match (base, meta) {
                     (KnownType::Error, _) => {
-                        let new = self.add_type_var(TypeVar::Known(*loc, KnownType::Error, vec![]));
-
-                        Ok((new, vec![otherid.clone(), ukid.clone()]))
+                        unreachable!()
                     }
                     // Any matches all types
                     (_, MetaType::Any)
@@ -2615,6 +2611,16 @@ impl TypeState {
 
         let (new_type, replaced_types) = result?;
 
+        self.trace_stack.push(TraceStackEntry::Unified(
+            v1.debug_resolve(self),
+            v2.debug_resolve(self),
+            new_type.debug_resolve(self),
+            replaced_types
+                .iter()
+                .map(|v| v.debug_resolve(self))
+                .collect(),
+        ));
+
         for replaced_type in &replaced_types {
             if v1.inner != v2.inner {
                 let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
@@ -2626,16 +2632,6 @@ impl TypeState {
                 }
             }
         }
-
-        self.trace_stack.push(TraceStackEntry::Unified(
-            v1.debug_resolve(self),
-            v2.debug_resolve(self),
-            new_type.debug_resolve(self),
-            replaced_types
-                .iter()
-                .map(|v| v.debug_resolve(self))
-                .collect(),
-        ));
 
         Ok(new_type)
     }

@@ -21,3 +21,9 @@ error: The syntax for inverted ports has changed from ~ to inv
   │
 2 │     a: inv & bool,
   │        ~~~~
+
+error: Use of undeclared name X
+  ┌─ testinput:5:25
+  │
+5 │ entity x(clk: clock, a: X) -> bool {
+  │                         ^ Undeclared name

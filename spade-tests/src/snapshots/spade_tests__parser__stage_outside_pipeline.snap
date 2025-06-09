@@ -12,3 +12,9 @@ error: stage outside pipeline
   │     ^^^ stage is not allowed here
   │
   = note: stages are only allowed in the root block of a pipeline
+
+error: Use of undeclared name X
+  ┌─ testinput:1:16
+  │
+1 │ entity main(x: X) -> int<8> {
+  │                ^ Undeclared name

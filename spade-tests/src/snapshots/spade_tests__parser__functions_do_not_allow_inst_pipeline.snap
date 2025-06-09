@@ -24,3 +24,11 @@ error: cannot instantiate entities and pipelines in functions
   │
 6 │ entity X() -> bool {
   │ ~~~~~~
+
+error: Missing clock argument for pipeline
+  ┌─ testinput:1:14
+  │
+1 │ pipeline(2) P() -> bool {
+  │              ^^
+  │
+  = note: All pipelines need to take at least a clock as an argument

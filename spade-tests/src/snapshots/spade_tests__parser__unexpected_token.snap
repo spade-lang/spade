@@ -11,3 +11,17 @@ error: Unexpected `=`, expected `type`
   │
 2 │     let x : = 10;
   │             ^ expected `type`
+
+error: Output type mismatch. Expected int<8>, got ()
+  ┌─ testinput:1:18
+  │  
+1 │   fn a() -> int<8> {
+  │             ------ int<8> type specified here
+  │ ╭──────────────────^
+2 │ │     let x : = 10;
+3 │ │     x
+4 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: int<8>
+               Got: ()

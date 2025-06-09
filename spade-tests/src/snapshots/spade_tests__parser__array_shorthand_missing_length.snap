@@ -12,3 +12,11 @@ error: Unexpected `]`, expected expression
   │
 3 │     let _ = [1u2;];
   │                  ^ expected expression here
+
+error: Type of expression is not fully known
+  ┌─ testinput:2:18
+  │
+2 │     let length = 24;
+  │                  ^^ The type of this expression is not fully known
+  │
+  = note: Found incomplete type: Number<_>

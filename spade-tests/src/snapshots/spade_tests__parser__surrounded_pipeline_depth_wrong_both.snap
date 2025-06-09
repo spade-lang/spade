@@ -12,4 +12,15 @@ error: Unexpected `[`, expected `identifier` or `pipeline depth`
 2 │     let abc = inst[1] e();
   │                   ^ expected `identifier` or `pipeline depth`
 
-
+error: Output type mismatch. Expected bool, got ()
+  ┌─ testinput:1:22
+  │  
+1 │   entity top() -> bool {
+  │                   ---- bool type specified here
+  │ ╭──────────────────────^
+2 │ │     let abc = inst[1] e();
+3 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: bool
+               Got: ()

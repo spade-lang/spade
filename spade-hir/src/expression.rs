@@ -341,7 +341,7 @@ impl LocExprExt for Loc<Expression> {
     /// guaranteed to work
     fn runtime_requirement_witness(&self) -> Option<Loc<Expression>> {
         match &self.kind {
-            ExprKind::Error => None,
+            ExprKind::Error => Some(self.clone()),
             ExprKind::Identifier(_) => Some(self.clone()),
             ExprKind::TypeLevelInteger(_) => None,
             ExprKind::IntLiteral(_, _) => None,

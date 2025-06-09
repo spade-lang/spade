@@ -13,6 +13,8 @@ use spade_diagnostics::diagnostic::DiagnosticLevel as SpadeDiagnosticLevel;
 use spade_diagnostics::Diagnostic as SpadeDiagnostic;
 use spade_diagnostics::{CodeBundle, DiagHandler, Emitter};
 use spade_hir::query::QueryCache;
+use spade_hir::ItemList;
+use spade_typeinference::traits::TraitImplList;
 use swim::libraries::{LockFile, RestoreAction};
 use swim::spade::{Namespace, SpadeFile};
 use swim::{libs_dir, lock_file, src_dir};
@@ -286,18 +288,9 @@ impl ServerBackend {
                     ..
                 } = artefacts;
                 *self.code.lock().unwrap() = code;
-
                 *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
-
-                if !item_list.executables.is_empty() {
-                    *self.item_list.lock().unwrap() = item_list;
-                }
-
-                // The parser bails really fast so we just work off the last successful typeinference
-                if !type_states.is_empty() {
-                    *self.type_states.lock().unwrap() = type_states;
-                }
-
+                *self.item_list.lock().unwrap() = item_list;
+                *self.type_states.lock().unwrap() = type_states;
                 *self.symtab.lock().unwrap() = Some(state.symtab.unfreeze());
                 *self.trait_impls.lock().unwrap() = impl_list;
             }
@@ -307,21 +300,15 @@ impl ServerBackend {
                 type_states,
                 symtab,
             })) => {
-                if let Some(item_list) = item_list {
-                    *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
-
-                    if !item_list.executables.is_empty() {
-                        *self.item_list.lock().unwrap() = item_list;
-                    }
-                }
-
-                if let Some(type_states) = type_states {
-                    if !type_states.is_empty() {
-                        *self.type_states.lock().unwrap() = type_states;
-                    }
-                }
-                *self.symtab.lock().unwrap() = symtab;
                 *self.code.lock().unwrap() = code;
+                *self.query_cache.lock().unwrap() = item_list
+                    .as_ref()
+                    .map(|item_list| QueryCache::from_item_list(&item_list))
+                    .unwrap_or_else(|| QueryCache::empty());
+                *self.item_list.lock().unwrap() = item_list.unwrap_or_else(|| ItemList::new());
+                *self.type_states.lock().unwrap() = type_states.unwrap_or_default();
+                *self.symtab.lock().unwrap() = symtab;
+                *self.trait_impls.lock().unwrap() = TraitImplList::new();
             }
         }
 

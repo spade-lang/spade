@@ -19,3 +19,9 @@ error: Unexpected `;`, expected `=`
   │
 3 │     let y ;
   │           ^ expected `=`
+
+error: Use of undeclared name z
+  ┌─ testinput:4:9
+  │
+4 │     set z = true;
+  │         ^ Undeclared name

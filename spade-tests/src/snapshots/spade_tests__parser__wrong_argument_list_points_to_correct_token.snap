@@ -20,4 +20,8 @@ error: Expected argument list
   = help: Positional argument lists start with`(`.
   = help: Named argument lists start with `$(`.
 
-
+error: Use of undeclared name clk
+  ┌─ testinput:1:17
+  │
+1 │ entity foo(clk: clk, a: bool) -> bool {
+  │                 ^^^ Undeclared name

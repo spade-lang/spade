@@ -17,3 +17,17 @@ error: Expected `;`, got `true`
   │
 2 │     let a = 1;
   │              +
+
+error: Output type mismatch. Expected bool, got ()
+  ┌─ testinput:1:18
+  │  
+1 │   fn top() -> bool {
+  │               ---- bool type specified here
+  │ ╭──────────────────^
+2 │ │     let a = 1
+3 │ │     true
+4 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: bool
+               Got: ()

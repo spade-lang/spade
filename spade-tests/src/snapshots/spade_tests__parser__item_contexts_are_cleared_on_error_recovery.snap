@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/parser.rs
-snapshot_kind: text
 ---
 use std::ports;
 
@@ -20,3 +19,14 @@ error: Unexpected `identifier`, expected `}`
   │
 7 │     test()
   │     ^^^^ expected `}`
+
+error: Output type mismatch. Expected uint<32>, got ()
+   ┌─ testinput:10:40
+   │
+10 │ entity top(input: int<32>) -> uint<32> {}
+   │                               -------- ^^ Found type ()
+   │                               │         
+   │                               uint<32> type specified here
+   │
+   = note: Expected: uint<32>
+                Got: ()

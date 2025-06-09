@@ -1,7 +1,7 @@
 pub mod compiler_state;
+mod error_handling;
 mod name_dump;
 pub mod namespaced_file;
-mod error_handling;
 
 use compiler_state::{CompilerState, MirContext};
 use error_handling::{ErrorHandler, Reportable};
@@ -32,7 +32,7 @@ use spade_ast_lowering::{
 };
 use spade_common::id_tracker::ImplIdTracker;
 use spade_common::name::{NameID, Path as SpadePath};
-use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, Diagnostic};
+use spade_diagnostics::{CodeBundle, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::SymbolTable;
 use spade_hir::{ExecutableItem, ItemList};
 use spade_hir_lowering::monomorphisation::MirOutput;
@@ -123,6 +123,7 @@ pub fn compile(
         opts.print_parse_traceback,
         &mut errors,
     );
+    errors.errors_are_recoverable();
 
     let mut unfinished_artefacts = UnfinishedArtefacts {
         code: code.read().unwrap().clone(),
@@ -154,8 +155,6 @@ pub fn compile(
     // This is a non-optional pass that prevents codegen bugs
     let deduplicate_mut_wires = DeduplicateMutWires {};
     opt_passes.push(&deduplicate_mut_wires);
-
-    errors.errors_are_recoverable();
 
     let mut ctx = AstLoweringCtx {
         symtab,
@@ -212,11 +211,7 @@ pub fn compile(
         errors.report(&err);
     }
 
-    if errors.failed_now() {
-        unfinished_artefacts.symtab = Some(ctx.symtab);
-        errors.drain_diag_list(&mut ctx.diags);
-        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
-    }
+    errors.errors_are_recoverable();
 
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
@@ -470,9 +465,7 @@ fn parse(
             })
             .or_report(errors);
 
-        for error in &parser.errors {
-            errors.report(error)
-        }
+        errors.drain_diag_list(&mut parser.diags);
 
         if let Some(ast) = result {
             module_asts.push((namespace, ast))

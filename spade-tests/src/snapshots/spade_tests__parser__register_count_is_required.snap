@@ -13,3 +13,9 @@ error: Unexpected `;`, expected `type`
   │         -^ expected `type`
   │         │ 
   │         * is used to specify a register count
+
+error: Use of undeclared name X
+  ┌─ testinput:1:21
+  │
+1 │ pipeline(3) main(x: X) -> int<8> {
+  │                     ^ Undeclared name

@@ -19,3 +19,15 @@ error: register declared in function
   │
 1 │ entity a(clk: clock) -> int<8> {
   │ ~~~~~~
+
+error: Port argument in function
+  ┌─ testinput:1:11
+  │
+1 │ fn a(clk: clock) -> int<8> {
+  │           ^^^^^ This is a port
+  │
+  = note: Only entities and pipelines can take ports as arguments
+  = Consider making this an entity
+  │
+1 │ entity a(clk: clock) -> int<8> {
+  │ ~~~~~~

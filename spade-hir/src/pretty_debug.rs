@@ -195,6 +195,7 @@ impl PrettyDebug for Expression {
 impl PrettyDebug for ExprKind {
     fn pretty_debug(&self) -> String {
         match &self {
+            crate::ExprKind::Error => "{error}".to_string(),
             crate::ExprKind::Identifier(name_id) => name_id.pretty_debug(),
             crate::ExprKind::IntLiteral(value, _) => format!("{value}"),
             crate::ExprKind::BoolLiteral(value) => format!("{value}"),
@@ -395,6 +396,7 @@ impl PrettyDebug for Pattern {
 impl PrettyDebug for Statement {
     fn pretty_debug(&self) -> String {
         match self {
+            Statement::Error => "{error}".to_string(),
             Statement::Binding(Binding {
                 pattern,
                 ty,

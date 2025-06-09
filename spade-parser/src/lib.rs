@@ -11,6 +11,7 @@ use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
 use logos::Lexer;
+use spade_diagnostics::diag_list::DiagList;
 use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterParser, SetParser};
 use tracing::{debug, event, Level};
 
@@ -90,7 +91,7 @@ pub struct Parser<'a> {
     pub parse_stack: Vec<ParseStackEntry>,
     file_id: usize,
     unit_context: Option<Loc<UnitKind>>,
-    pub errors: Vec<Diagnostic>,
+    pub diags: DiagList,
     recovering_tokens: Vec<Vec<TokenKind>>,
 }
 
@@ -103,7 +104,7 @@ impl<'a> Parser<'a> {
             parse_stack: vec![],
             file_id,
             unit_context: None,
-            errors: vec![],
+            diags: DiagList::new(),
             recovering_tokens: vec![vec![TokenKind::Eof]],
         }
     }
@@ -2033,7 +2034,7 @@ impl<'a> Parser<'a> {
         let result = match inner(self) {
             Ok(result) => RecoveryResult::Ok(result),
             Err(e) => {
-                self.errors.push(e);
+                self.diags.errors.push(e);
 
                 // Once we error, consume tokens until we find a token in the
                 // current continuation set.

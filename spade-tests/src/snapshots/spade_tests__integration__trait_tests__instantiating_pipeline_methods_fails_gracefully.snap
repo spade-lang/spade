@@ -21,4 +21,11 @@ error: Pipelines are currently not allowed in impl blocks
   = note: This limitation is likely to be lifted in the future
   = help: Consider defining a free-standing pipeline for now
 
-
+error: `X` has no method `a`
+  ┌─ testinput:8:7
+  │
+8 │     x.a()
+  │     --^--
+  │     │ │
+  │     │ No such method
+  │     This has type `X`
