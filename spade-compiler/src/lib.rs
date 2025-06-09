@@ -273,6 +273,8 @@ pub fn compile(
         trait_impls: &mapped_trait_impls,
     };
 
+    let mut type_states = BTreeMap::new();
+
     let executables_and_types = item_list
         .executables
         .iter()
@@ -286,6 +288,11 @@ pub fn compile(
 
                 let failures = type_state.diags.errors.len() != 0;
                 errors.drain_diag_list(&mut type_state.diags);
+
+                // Later stages will fail if we don't have a a complete type state,
+                // so we'll need to filter out modules that failed. However, for the LSP
+                // we still want to retain the incomplete type state
+                type_states.insert(name.clone(), type_state.clone());
 
                 if let Ok(()) = result {
                     if opts.print_type_traceback {
@@ -309,12 +316,6 @@ pub fn compile(
             ExecutableItem::StructInstance { .. } => None,
             ExecutableItem::ExternUnit(_, _) => None,
         })
-        .collect::<BTreeMap<_, _>>();
-
-    let type_states = executables_and_types
-        .clone()
-        .into_iter()
-        .map(|(name_id, (_, type_state))| (name_id.clone(), type_state))
         .collect::<BTreeMap<_, _>>();
 
     let mut name_source_map = NameSourceMap::new();

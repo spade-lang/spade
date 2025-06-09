@@ -286,3 +286,22 @@ test_hover! {
         }
     "#,
 }
+
+test_hover! {
+    hover_on_method_chain_with_unrelated_type_error_in_module_gives_correct_results,
+    r#"
+        struct S {}
+        impl S {
+            fn meth(self) -> bool {true}
+        }
+
+        fn test() {
+            let a = 0 + true;
+
+            S().meth();
+            //  ^[1] hover
+
+            true
+        }
+    "#,
+}
