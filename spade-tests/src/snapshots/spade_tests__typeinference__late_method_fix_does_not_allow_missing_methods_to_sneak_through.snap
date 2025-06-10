@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+struct S {}
+impl S {
+    fn method(self) {}
+}
+
+fn test() {
+    decl a;
+    a.method();
+    let a = true;
+}
+
+
+error: `bool` has no method `method`
+  ┌─ testinput:8:7
+  │
+8 │     a.method();
+  │     --^^^^^^--
+  │     │ │
+  │     │ No such method
+  │     This has type `bool`

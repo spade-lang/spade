@@ -270,13 +270,13 @@ impl Requirement {
 
                     match candidates.as_slice() {
                         [] => {
-                            return Err(Diagnostic::error(
+                            return Ok(RequirementResult::UnsatisfiedNow(Diagnostic::error(
                                 expr_id,
                                 format!(
                                     "{target_type} has no method `{method}`",
                                     target_type = target_type.display(type_state)
                                 ),
-                            ))
+                            )))
                         }
                         // NOTE: We need to wait until we've unified with a known type
                         // before dropping this requirement in order to create a generic list
@@ -615,7 +615,7 @@ impl Requirement {
     #[tracing::instrument(level = "trace", skip(type_state, ctx))]
     pub fn check_or_add(self, type_state: &mut TypeState, ctx: &Context) -> Result<()> {
         match self.check(type_state, ctx)? {
-            RequirementResult::NoChange => {
+            RequirementResult::NoChange | RequirementResult::UnsatisfiedNow(_) => {
                 type_state.add_requirement(self);
                 Ok(())
             }
@@ -645,6 +645,10 @@ pub enum RequirementResult {
     /// The requirement remains but not enough information is available about
     /// whether or not it is satisfied
     NoChange,
+    /// This requirement is unsatisfied now, but may be satisfied before the type checking
+    /// of the whole unit is done. A final pass of requirements of a module should
+    /// emit these as errors, earlier checks should treat them as NoChange
+    UnsatisfiedNow(Diagnostic),
     /// The requirement is now satisfied and can be removed. Refinements of other
     /// type variables which can now be applied are returned
     Satisfied(Vec<Replacement>),

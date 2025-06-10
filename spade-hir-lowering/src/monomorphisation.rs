@@ -267,7 +267,7 @@ pub fn compile_items(
                         match type_state
                             .unify(&tvar, source_var, type_ctx)
                             .into_default_diagnostic(u, &type_state)
-                            .and_then(|_| type_state.check_requirements(type_ctx))
+                            .and_then(|_| type_state.check_requirements(true, type_ctx))
                         {
                             Ok(_) => {}
                             Err(e) => {

@@ -543,7 +543,7 @@ impl TypeState {
                 )?;
             // In order to catch negative depth early when they are specified as literals,
             // we'll instantly check requirements here
-            self.check_requirements(ctx)?;
+            self.check_requirements(false, ctx)?;
         }
 
         self.visit_expression(&entity.body, ctx, &generic_list);
@@ -609,7 +609,7 @@ impl TypeState {
                 )?;
         }
 
-        self.check_requirements(ctx)?;
+        self.check_requirements(true, ctx)?;
 
         // NOTE: We may accidentally leak a stage depth if this function returns early. However,
         // since we only use stage depths in pipelines where we re-set it when we enter,
@@ -2933,7 +2933,7 @@ impl TypeState {
             .into_default_diagnostic(expr.loc(), self)
     }
 
-    pub fn check_requirements(&mut self, ctx: &Context) -> Result<()> {
+    pub fn check_requirements(&mut self, is_final_check: bool, ctx: &Context) -> Result<()> {
         // Once we are done type checking the rest of the entity, check all requirements
         loop {
             // Walk through all the requirements, checking each one. If the requirement
@@ -2945,6 +2945,13 @@ impl TypeState {
                 .iter()
                 .map(|req| match req.check(self, ctx)? {
                     requirements::RequirementResult::NoChange => Ok((true, None)),
+                    requirements::RequirementResult::UnsatisfiedNow(diag) => {
+                        if is_final_check {
+                            Err(diag)
+                        } else {
+                            Ok((true, None))
+                        }
+                    }
                     requirements::RequirementResult::Satisfied(replacement) => {
                         self.trace_stack
                             .push(TraceStackEntry::ResolvedRequirement(req.clone()));

@@ -904,7 +904,7 @@ pub fn do_wal_trace_lowering(
                     },
                 )
                 .unwrap(); // Unification with a completely generic expr
-            ctx.types.check_requirements(&type_ctx).unwrap();
+            ctx.types.check_requirements(true, &type_ctx).unwrap();
         }
     } else {
         diag_bail!(wal_trace, "Tracing on non-struct")

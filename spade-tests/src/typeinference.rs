@@ -2264,3 +2264,52 @@ snapshot_error! {
     }
     "
 }
+
+code_compiles! {
+    lambda_captures_can_have_methods,
+    "
+        struct S {}
+        impl S {
+            fn method(self) {}
+        }
+
+        fn test() {
+            let a = S();
+            fn (x) {
+                x.method()
+            }.call((a,));
+        }
+    "
+}
+
+code_compiles! {
+    late_method_resolution_is_possible,
+    "
+        struct S {}
+        impl S {
+            fn method(self) {}
+        }
+
+        fn test() {
+            decl a;
+            a.method();
+            let a = S();
+        }
+    "
+}
+
+snapshot_error! {
+    late_method_fix_does_not_allow_missing_methods_to_sneak_through,
+    "
+        struct S {}
+        impl S {
+            fn method(self) {}
+        }
+
+        fn test() {
+            decl a;
+            a.method();
+            let a = true;
+        }
+    "
+}

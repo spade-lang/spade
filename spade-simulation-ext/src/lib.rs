@@ -865,11 +865,14 @@ impl Spade {
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
         self.type_state
-            .check_requirements(&spade_typeinference::Context {
-                items: &item_list,
-                symtab: symtab.symtab(),
-                trait_impls: &trait_impls,
-            })
+            .check_requirements(
+                true,
+                &spade_typeinference::Context {
+                    items: &item_list,
+                    symtab: symtab.symtab(),
+                    trait_impls: &trait_impls,
+                },
+            )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         let mut hir_ctx = spade_hir_lowering::Context {
