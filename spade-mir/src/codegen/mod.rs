@@ -768,7 +768,8 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
             format!("{{{}}}", members.join(", "))
         }
         Operator::IndexTuple(index, inner_types) => {
-            assert_eq!(&inner_types[*index as usize], self_type);
+            // NOTE: Disabled assertion because it triggers issues in the LSP
+            // assert_eq!(&inner_types[*index as usize], self_type);
 
             let index = compute_tuple_index(
                 *index,

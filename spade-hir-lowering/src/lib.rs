@@ -268,7 +268,7 @@ pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::State
 #[local_impl]
 impl PatternLocal for Loc<Pattern> {
     /// Does the same thing as lower but does not create an alias binding for
-    /// self_name. Used if this is handled elsehwere
+    /// self_name. Used if this is handled elsewhere
     fn lower_no_initial_binding(
         &self,
         self_name: ValueName,

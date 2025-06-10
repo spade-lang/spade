@@ -6,12 +6,11 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    CompletionOptions, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, MessageType,
-    OneOf, ServerCapabilities, SymbolInformation, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, WorkDoneProgressOptions,
-    WorkspaceSymbolParams,
+    CompletionOptions, DidOpenTextDocumentParams, DidSaveTextDocumentParams, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
+    InitializeResult, InitializedParams, MessageType, OneOf, ServerCapabilities, SymbolInformation,
+    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    WorkDoneProgressOptions, WorkspaceSymbolParams,
 };
 use tower_lsp::LanguageServer;
 
@@ -47,9 +46,6 @@ impl<C: Client> ServerFrontend<C> {
         let diagnostics_per_file = self.backend.try_compile(path, version).await;
 
         for (uri, diagnostics) in diagnostics_per_file {
-            self.client
-                .log_message(MessageType::LOG, format!("{uri}: {diagnostics:?}"))
-                .await;
             self.client
                 .publish_diagnostics(uri, diagnostics, version)
                 .await;
@@ -123,36 +119,12 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             .await;
     }
 
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let path = Utf8PathBuf::from(params.text_document.uri.path().to_string())
-            .canonicalize_utf8()
-            .unwrap();
-
-        *self
-            .backend
-            .changed_files
-            .write()
-            .unwrap()
-            .entry(path.clone())
-            // NOTE: We get only one change containing the entire file since we specified
-            // TextDocumentSyncKind::FULL in our ServerCapabilities. Therefore we can
-            // overwrite the old String with the new one.
-            .or_insert_with(String::new) = params.content_changes[0].text.clone();
-
-        self.client
-            .log_message(MessageType::LOG, format!("did_change: {}", path))
-            .await;
-
-        self.compile(&path, Some(params.text_document.version))
-            .await;
-    }
-
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let path = Utf8PathBuf::from(params.text_document.uri.path().to_string())
             .canonicalize_utf8()
             .unwrap();
 
-        let _ = self.backend.changed_files.write().unwrap().remove(&path);
+        self.compile(&path, None).await;
     }
 
     async fn symbol(

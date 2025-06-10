@@ -168,7 +168,7 @@ impl ServerBackend {
         )?;
         let library_files: Vec<_> = library_dirs
             .iter()
-            .map(|(name, dir)| swim::spade::spade_files_in_dir(Namespace::new_lib(name), dir))
+            .map(|(name, dir)| swim::spade::spade_files_in_dir(Namespace::new_lib(&name), dir))
             .collect::<color_eyre::Result<Vec<_>>>()?
             .into_iter()
             .flatten()
@@ -177,7 +177,7 @@ impl ServerBackend {
         // user-run commands (like `swim build`) to change it.
 
         let self_files =
-            swim::spade::spade_files_in_dir(Namespace::new_lib("proj"), src_dir(root_dir))?;
+            swim::spade::spade_files_in_dir(Namespace::new_lib(&config.name), src_dir(root_dir))?;
 
         let spade_files: Vec<_> = self_files.into_iter().chain(library_files).collect();
 
@@ -202,14 +202,7 @@ impl ServerBackend {
         let sources = files
             .iter()
             .map(|SpadeFile { namespace, path }| {
-                let file_contents_on_disk = std::fs::read_to_string(path)?;
-                let file_contents = self
-                    .changed_files
-                    .read()
-                    .unwrap()
-                    .get(path)
-                    .map(String::to_string)
-                    .unwrap_or(file_contents_on_disk);
+                let file_contents = std::fs::read_to_string(path)?;
                 Ok((
                     ModuleNamespace {
                         namespace: spade_path(&namespace.namespace),
@@ -241,11 +234,6 @@ impl ServerBackend {
         }));
         let compile_result = spade::compile(sources, false, opts, diag_handler);
         let diagnostics = std::mem::take(&mut *diagnostics.lock().unwrap());
-
-        let _ = self
-            .client_log_chan
-            .send((MessageType::LOG, format!("diagnostics: {diagnostics:?}")))
-            .await;
 
         let mut diagnostics_per_file: HashMap<Url, Vec<Diagnostic>> = files
             .iter()
