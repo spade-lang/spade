@@ -81,7 +81,7 @@ pub enum TupleIndex {
     /// The indexee is zero width, this is most likely caused by a a mir lowering bug
     /// where a 0 sized type is indexed
     ZeroWidth,
-    /// The index is a single bit, i.e. codegens as [val]
+    /// The index is a single bit, i.e. codegens as `[val]`
     Single(BigUint),
     /// The index is a range of bits, codegens as [left:right]
     Range { left: BigUint, right: BigUint },

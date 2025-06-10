@@ -488,3 +488,23 @@ async fn enum_def_from_enum_variant() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn goto_in_lambda_goes_to_a_the_right_thing() {
+    init_with_file(
+        r#"
+        fn test() {
+            fn () {
+                let x = 0;
+                //  ^[2] goto-target
+                x
+            //  ^[1] goto
+            }
+        }
+    "#,
+        InitFileOpt::default(),
+        None,
+        "",
+    )
+    .await;
+}

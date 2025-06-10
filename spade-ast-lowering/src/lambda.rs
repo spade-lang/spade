@@ -65,6 +65,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         panic!("visit_lambda called with non-lambda");
     };
 
+    let debug_loc = unit_kind.loc();
     let loc = ().between_locs(unit_kind, body);
 
     let type_name = Identifier(format!("Lambda"));
@@ -129,7 +130,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 .into_iter(),
         )
         .collect::<Vec<_>>()
-        .at_loc(&loc);
+        .at_loc(&debug_loc);
 
     let args_spec = ast::TypeSpec::Tuple(
         args.iter()
@@ -149,19 +150,19 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     .nowhere();
 
     let type_decl = ast::TypeDeclaration {
-        name: type_name.clone().at_loc(&loc),
+        name: type_name.clone().at_loc(&debug_loc),
         kind: spade_ast::TypeDeclKind::Struct(
             ast::Struct {
                 attributes: ast::AttributeList::empty(),
-                name: type_name.clone().at_loc(&loc),
-                members: ast::ParameterList::without_self(vec![]).at_loc(&loc),
+                name: type_name.clone().at_loc(&debug_loc),
+                members: ast::ParameterList::without_self(vec![]).at_loc(&debug_loc),
                 port_keyword: None,
             }
-            .at_loc(&loc),
+            .at_loc(&debug_loc),
         ),
         generic_args: Some(type_params.clone()),
     }
-    .at_loc(&loc);
+    .at_loc(&debug_loc);
 
     ctx.in_fresh_unit(|ctx| visit_type_declaration(&type_decl, ctx))?;
     ctx.in_fresh_unit(|ctx| re_visit_type_declaration(&type_decl, ctx))?;
@@ -185,7 +186,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     .nowhere(),
                 ),
             }
-            .at_loc(&loc),
+            .at_loc(&debug_loc),
         ),
         type_params: Some(type_params),
         where_clauses: vec![],
@@ -244,28 +245,26 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 .at_loc(body),
             ),
         }
-        .at_loc(&loc)],
+        .at_loc(&debug_loc)],
     };
 
-    // FIXME: Come pu with a more robust way to handle this
-    let lambda_unit =
-        ctx.in_fresh_unit(
-            |ctx| match visit_impl(&impl_block.at_loc(&loc), ctx)?.as_slice() {
-                [item] => {
-                    let u = item.assume_unit();
-                    ctx.item_list.add_executable(
-                        u.name.name_id().clone(),
-                        hir::ExecutableItem::Unit(u.clone().at_loc(&loc)),
-                    )?;
-                    Ok::<_, Diagnostic>(u.clone())
-                }
-                _ => diag_bail!(loc, "Lambda impl block produced more than one item"),
-            },
-        )?;
+    let lambda_unit = ctx.in_fresh_unit(|ctx| {
+        match visit_impl(&impl_block.at_loc(&debug_loc), ctx)?.as_slice() {
+            [item] => {
+                let u = item.assume_unit();
+                ctx.item_list.add_executable(
+                    u.name.name_id().clone(),
+                    hir::ExecutableItem::Unit(u.clone().at_loc(&loc)),
+                )?;
+                Ok::<_, Diagnostic>(u.clone())
+            }
+            _ => diag_bail!(loc, "Lambda impl block produced more than one item"),
+        }
+    })?;
 
     let (callee_name, callee_struct) = ctx
         .symtab
-        .lookup_struct(&Path::ident(type_name.at_loc(&loc)).at_loc(&loc))?;
+        .lookup_struct(&Path::ident(type_name.at_loc(&debug_loc)).at_loc(&debug_loc))?;
 
     ctx.symtab
         .new_scope_with_barrier(Box::new(|name, previous, thing| match thing {
