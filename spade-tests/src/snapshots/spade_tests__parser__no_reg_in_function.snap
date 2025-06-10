@@ -20,14 +20,16 @@ error: register declared in function
 1 │ entity a(clk: clock) -> int<8> {
   │ ~~~~~~
 
-error: Port argument in function
-  ┌─ testinput:1:11
-  │
-1 │ fn a(clk: clock) -> int<8> {
-  │           ^^^^^ This is a port
-  │
-  = note: Only entities and pipelines can take ports as arguments
-  = Consider making this an entity
-  │
-1 │ entity a(clk: clock) -> int<8> {
-  │ ~~~~~~
+error: Output type mismatch. Expected int<8>, got ()
+  ┌─ testinput:1:28
+  │  
+1 │   fn a(clk: clock) -> int<8> {
+  │                       ------ int<8> type specified here
+  │ ╭────────────────────────────^
+2 │ │     reg(clk) x = 10;
+3 │ │     x
+4 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: int<8>
+               Got: ()

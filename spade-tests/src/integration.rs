@@ -448,6 +448,40 @@ snapshot_mir! {
     ", all
 }
 
+code_compiles! {
+    wires_are_allowed_in_fn_args,
+    "
+        fn a(x: &bool) {}
+    "
+}
+
+code_compiles! {
+    inv_wires_are_allowed_in_fn_args,
+    "
+        fn a(x: inv &bool) {
+            set x = false;
+        }
+    "
+}
+
+code_compiles! {
+    wires_are_allowed_in_fn_output,
+    "
+        fn a() -> &bool {
+            &true
+        }
+    "
+}
+
+code_compiles! {
+    inv_wires_are_allowed_in_fn_output,
+    "
+        fn a() -> inv &bool {
+            port#0
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

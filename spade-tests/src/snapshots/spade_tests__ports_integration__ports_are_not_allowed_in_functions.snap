@@ -4,18 +4,3 @@ source: spade-tests/src/ports_integration.rs
 fn not_allowed(a: &bool) -> bool {
     true
 }
-
-
-error: Port argument in function
-  ┌─ testinput:1:19
-  │
-1 │ fn not_allowed(a: &bool) -> bool {
-  │                   ^^^^^ This is a port
-  │
-  = note: Only entities and pipelines can take ports as arguments
-  = Consider making this an entity
-  │
-1 │ entity not_allowed(a: &bool) -> bool {
-  │ ~~~~~~
-
-

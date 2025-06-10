@@ -741,26 +741,6 @@ pub fn unit_head(
     // Check for ports in functions
     // We need to have the scope open to check this, but we also need to close
     // the scope if we fail here, so we'll store port_error in a variable
-    let mut port_error = Ok(());
-
-    if let ast::UnitKind::Function = head.unit_kind.inner {
-        for (_, _, ty) in &head.inputs.args {
-            if matches!(ctx.self_ctx, SelfContext::TraitDefinition(_)) && ty.is_self()? {
-                continue;
-            };
-
-            if visit_type_spec(ty, &TypeSpecKind::Argument, ctx)?.is_port(&ctx)? {
-                port_error = Err(Diagnostic::error(ty, "Port argument in function")
-                    .primary_label("This is a port")
-                    .note("Only entities and pipelines can take ports as arguments")
-                    .span_suggest_replace(
-                        "Consider making this an entity",
-                        &head.unit_kind,
-                        "entity",
-                    ))
-            }
-        }
-    }
 
     let unit_kind: Result<_> = head.unit_kind.try_map_ref(|k| {
         let inner = match k {
@@ -776,7 +756,6 @@ pub fn unit_head(
     });
 
     ctx.symtab.close_scope();
-    port_error?;
     let where_clauses = unit_where_clauses?
         .iter()
         .chain(scope_where_clauses.iter())
