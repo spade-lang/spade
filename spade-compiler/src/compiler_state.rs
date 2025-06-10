@@ -19,7 +19,7 @@ use spade_mir::{
     renaming::{VerilogNameMap, VerilogNameSource},
     unit_name::InstanceMap,
 };
-use spade_typeinference::{equation::TypedExpression, TypeState};
+use spade_typeinference::{equation::TypedExpression, HasType, TypeState};
 use spade_types::ConcreteType;
 
 #[derive(Serialize, Deserialize)]
@@ -218,7 +218,9 @@ pub fn type_of_hierarchical_value(
         }
     };
 
-    let ty = mir_ctx.type_state.type_of(&typed_expr);
+    let ty = typed_expr
+        .try_get_type(&mir_ctx.type_state)
+        .ok_or_else(|| anyhow!("Did not find a type for {}", typed_expr))?;
 
     let concrete = mir_ctx
         .type_state
