@@ -1,0 +1,35 @@
+[package]
+name = "spade-surfer-plugin"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+extism-pdk = "1.4.1"
+surfer-translation-types.git = "https://gitlab.com/surfer-project/surfer.git"
+surfer-translation-types.branch = "more_names_from_wasm"
+spade-lang.path = "../spade-compiler"
+spade-common.path = "../spade-common"
+spade-hir-lowering.path = "../spade-hir-lowering"
+spade-types.path = "../spade-types"
+spade-codespan.workspace = true
+camino = { version = "1.1.10", features = ["serde1"] }
+ecolor = { version = "0.31.1", features = ["serde"] }
+log = "0.4.27"
+num.workspace = true
+serde.workspace = true
+color-eyre.workspace = true
+ron.workspace = true
+serde_stacker = "0.1.12"
+itertools.workspace = true
+spade-hir.workspace = true
+bincode = {version = "2.0.1", features = ["serde"]}
+
+

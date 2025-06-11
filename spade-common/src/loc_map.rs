@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
 
+use serde::{Deserialize, Serialize};
 use spade_codespan::{ByteIndex, Span};
 
 use crate::location_info::Loc;
 
 /// A map that allows quick (O(log(n))) lookup of things by source code location.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LocMap<T> {
     inner: HashMap<usize, BTreeMap<ByteIndex, BTreeMap<ByteIndex, Vec<T>>>>,
 }

@@ -2,7 +2,7 @@ variables:
     CARGO_HOME: $CI_PROJECT_DIR/cargo
     FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
     GIT_SUBMODULE_STRATEGY: normal
-    RUST_VERSION: "1.82"
+    RUST_VERSION: "1.85"
     # Faster zipping helping with cache sync speeds (https://gitlab.com/gitlab-org/gitlab-runner/-/issues/1797)
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: fast
@@ -156,7 +156,7 @@ build:static:
   before_script:
     - apk add git musl-dev g++
   script:
-    - cargo build --release --workspace --exclude spade-python --exclude spade-language-server --target x86_64-unknown-linux-musl
+    - cargo build --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
     - strip target/x86_64-unknown-linux-musl/release/spade
     - strip target/x86_64-unknown-linux-musl/release/vcd-translate
   artifacts:
@@ -200,7 +200,7 @@ test:coverage:
         - apt-get install -y pkg-config
         # spade-python currently does not build with tarpaulin, but we also don't
         # have many tests there so we'll ignore it
-        - cargo tarpaulin --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --out xml --target-dir target/tarpaulin
+        - cargo tarpaulin --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --target-dir target/tarpaulin
     coverage: '/^\d+.\d+% coverage/'
     artifacts:
         reports:

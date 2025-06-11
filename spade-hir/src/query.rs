@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use spade_common::{
     id_tracker::ExprID,
     loc_map::LocMap,
@@ -13,7 +14,7 @@ use crate::{
     TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Thing {
     Pattern(Pattern),
     Expr(Expression),
@@ -21,6 +22,7 @@ pub enum Thing {
     Executable(ExecutableItem),
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct QueryCache {
     things: LocMap<Thing>,
     names: LocMap<NameID>,
