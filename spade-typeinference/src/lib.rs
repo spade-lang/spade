@@ -20,7 +20,6 @@ use hir::{
 use itertools::{Either, Itertools};
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, BigUint, Zero};
-use rand::random;
 use replacement::ReplacementStack;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
@@ -183,7 +182,7 @@ impl TypeState {
     /// Create a fresh type state, in most cases, this should be .create_child of an
     /// existing type state
     pub fn fresh() -> Self {
-        let key = random();
+        let key = fastrand::u64(..);
         Self {
             type_vars: vec![],
             key,
@@ -203,7 +202,7 @@ impl TypeState {
 
     pub fn create_child(&self) -> Self {
         let mut result = self.clone();
-        result.key = random();
+        result.key = fastrand::u64(..);
         result.keys.insert(result.key);
         result
     }

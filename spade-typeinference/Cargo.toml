@@ -20,7 +20,7 @@ itertools.workspace = true
 num.workspace = true
 serde.workspace = true
 tracing.workspace = true
-rand.workspace = true
+fastrand.workspace = true
 
 spade-common.workspace = true
 spade-diagnostics.workspace = true
