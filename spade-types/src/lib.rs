@@ -1,5 +1,7 @@
 pub mod meta_types;
 
+use std::collections::HashMap;
+
 use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::{
@@ -42,6 +44,7 @@ pub enum ConcreteType {
         name: NameID,
         is_port: bool,
         members: Vec<(Identifier, ConcreteType)>,
+        field_translators: HashMap<Identifier, String>,
     },
     Array {
         inner: Box<ConcreteType>,
@@ -67,6 +70,7 @@ impl ConcreteType {
                 name,
                 is_port: _,
                 members,
+                field_translators: _,
             } => (name, members),
             t => unreachable!("Assumed {} was a struct", t),
         }
@@ -80,6 +84,7 @@ impl ConcreteType {
                 name: _,
                 is_port,
                 members: _,
+                field_translators: _,
             } => *is_port,
             ConcreteType::Array { inner, size: _ } => inner.is_port(),
             // Enums cannot be ports
@@ -118,6 +123,7 @@ impl std::fmt::Display for ConcreteType {
                 name,
                 is_port,
                 members,
+                field_translators: _,
             } => {
                 let port = if *is_port { "port " } else { "" };
                 format!(

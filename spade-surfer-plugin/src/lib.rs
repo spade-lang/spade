@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Range};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use ecolor::Color32;
-use extism_pdk::{error, plugin_fn, FnResult, Json, WithReturnCode};
+use extism_pdk::{error, info, plugin_fn, FnResult, Json, WithReturnCode};
 
 use itertools::Itertools;
 use num::ToPrimitive;
@@ -451,6 +451,7 @@ fn not_present_value(ty: &ConcreteType) -> TranslationResult {
             name: _,
             members,
             is_port: _,
+            field_translators: _,
         } => members
             .iter()
             .map(|(n, t)| SubFieldTranslationResult::new(n, not_present_value(t)))
@@ -546,6 +547,7 @@ fn translate_concrete(
             name: _,
             members,
             is_port: _,
+            field_translators: _,
         } => {
             let mut subfields = vec![];
             let mut offset = 0;
@@ -737,10 +739,33 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
             name: _,
             members,
             is_port: _,
+            field_translators
         } => VariableInfo::Compound {
             subfields: members
                 .iter()
-                .map(|(f, inner)| Ok((f.0.clone(), info_from_concrete(inner)?)))
+                .map(|(f, inner)| {
+                    let inner = info_from_concrete(&inner)?;
+                    let inner = if let Some(translator) = field_translators.get(f) {
+                        match inner {
+                            VariableInfo::Bits => {
+                                VariableInfo::SuggestedSubtranslator(translator.clone())
+                            },
+                            VariableInfo::Compound { ..} |
+                            VariableInfo::Bool |
+                            VariableInfo::Clock |
+                            VariableInfo::String |
+                            VariableInfo::Real |
+                            VariableInfo::SuggestedSubtranslator(_) => {
+                                info!("Got a #[surfer_translator] attribute on a {f}, but it is not a primitive type, ignoring");
+                                inner
+                            }
+                        }
+                    } else {
+                        inner
+                    };
+
+                    Ok((f.0.clone(), inner))
+                })
                 .collect::<Result<_>>()?,
         },
         ConcreteType::Array { inner, size } => VariableInfo::Compound {

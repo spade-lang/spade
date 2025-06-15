@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 [dependencies]
 extism-pdk = "1.4.1"
 surfer-translation-types.git = "https://gitlab.com/surfer-project/surfer.git"
-surfer-translation-types.branch = "more_names_from_wasm"
+surfer-translation-types.branch = "subtranslators"
 spade-lang.path = "../spade-compiler"
 spade-common.path = "../spade-common"
 spade-hir-lowering.path = "../spade-hir-lowering"

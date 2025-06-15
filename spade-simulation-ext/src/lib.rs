@@ -739,6 +739,7 @@ impl Spade {
             name,
             ty,
             no_mangle,
+            field_translator: _,
         } in &head.inputs.0
         {
             if arg == name.0 {
@@ -950,6 +951,7 @@ fn concrete_ty_has_field(ty: &ConcreteType, field: &str) -> bool {
             name: _,
             is_port: _,
             members,
+            field_translators: _,
         } => members.iter().find(|(n, _)| n.0 == field).is_some(),
         ConcreteType::Backward(inner) | ConcreteType::Wire(inner) => {
             concrete_ty_has_field(inner, field)

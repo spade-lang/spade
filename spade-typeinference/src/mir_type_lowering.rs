@@ -131,6 +131,7 @@ impl TypeState {
                              name: ident,
                              ty: t,
                              no_mangle: _,
+                             field_translator: _,
                          }| {
                             (
                                 ident.inner.clone(),
@@ -140,10 +141,23 @@ impl TypeState {
                     )
                     .collect();
 
+                let translators = s.members.0.iter().filter_map(
+                    |Parameter {
+                         name,
+                         field_translator,
+                         ..
+                     }| {
+                        field_translator
+                            .as_ref()
+                            .map(|t| (name.inner.clone(), t.clone()))
+                    },
+                );
+
                 ConcreteType::Struct {
                     name: decl.name.inner.clone(),
                     is_port: s.is_port,
                     members,
+                    field_translators: translators.collect(),
                 }
             }
             hir::TypeDeclKind::Primitive(primitive) => ConcreteType::Single {

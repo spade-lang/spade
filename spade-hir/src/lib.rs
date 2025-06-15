@@ -588,6 +588,7 @@ pub struct Parameter {
     pub no_mangle: Option<Loc<()>>,
     pub name: Loc<Identifier>,
     pub ty: Loc<TypeSpec>,
+    pub field_translator: Option<String>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -617,6 +618,7 @@ impl ParameterList {
             name: arg,
             ty,
             no_mangle: _,
+            field_translator: _,
         } in &self.0
         {
             if &arg.inner == name {
@@ -638,6 +640,7 @@ impl ParameterList {
                         name,
                         ty: _,
                         no_mangle: _,
+                        field_translator: _,
                     },
                 )| {
                     if &name.inner == target {

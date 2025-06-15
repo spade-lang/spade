@@ -545,6 +545,7 @@ fn visit_parameter_list(
                 no_mangle: None,
                 name: Identifier(String::from("self")).at_loc(&self_loc),
                 ty: spec.clone(),
+                field_translator: None,
             }),
             // When visiting trait definitions, we don't need to add self to the
             // symtab at all since we won't be visiting unit bodies here.
@@ -553,6 +554,7 @@ fn visit_parameter_list(
                 no_mangle: None,
                 name: Identifier(String::from("self")).at_loc(&self_loc),
                 ty: hir::TypeSpec::TraitSelf(self_loc).at_loc(&self_loc),
+                field_translator: None,
             }),
         }
     }
@@ -573,12 +575,14 @@ fn visit_parameter_list(
             .consume_no_mangle()
             .map(|ident| ident.loc())
             .or(no_mangle_all);
+        let field_translator = attrs.consume_translator();
         attrs.report_unused("a parameter")?;
 
         result.push(hir::Parameter {
             name: name.clone(),
             ty: t,
             no_mangle,
+            field_translator,
         });
     }
     Ok(hir::ParameterList(result).at_loc(l))
@@ -1154,6 +1158,7 @@ pub fn visit_unit(
                  name: ident,
                  ty,
                  no_mangle: _,
+                 field_translator: _,
              }| {
                 (
                     ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
@@ -1442,6 +1447,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                  name: ident,
                                  ty: _,
                                  no_mangle: _,
+                                 field_translator: _,
                              }| ident.inner.clone(),
                         )
                         .collect::<HashSet<_>>();
@@ -1591,6 +1597,7 @@ fn try_visit_statement(
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
                 | ast::Attribute::Documentation { .. }
+                | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
             })?;
 
@@ -2246,156 +2253,6 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
     );
 
     Ok(stmts)
-}
-
-#[cfg(test)]
-mod entity_visiting {
-    use super::*;
-
-    use hir::{hparams, UnitName};
-    use spade_ast::testutil::{ast_ident, ast_path};
-    use spade_common::name::testutil::name_id;
-    use spade_common::{location_info::WithLocation, name::Identifier};
-
-    use crate::testutil::test_context;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn entity_visits_work() {
-        let input = ast::Unit {
-            head: ast::UnitHead {
-                extern_token: None,
-                name: Identifier("test".to_string()).nowhere(),
-                inputs: ParameterList::without_self(vec![(
-                    ast_ident("a"),
-                    ast::TypeSpec::Tuple(Vec::new()).nowhere(),
-                )])
-                .nowhere(),
-                output_type: None,
-                type_params: None,
-                attributes: ast::AttributeList(vec![]),
-                unit_kind: ast::UnitKind::Entity.nowhere(),
-                where_clauses: vec![],
-            },
-            body: Some(
-                ast::Expression::Block(Box::new(ast::Block {
-                    statements: vec![ast::Statement::binding(
-                        ast::Pattern::name("var"),
-                        Some(ast::TypeSpec::Tuple(Vec::new()).nowhere()),
-                        ast::Expression::int_literal_signed(0).nowhere(),
-                    )
-                    .nowhere()],
-                    result: Some(ast::Expression::int_literal_signed(0).nowhere()),
-                }))
-                .nowhere(),
-            ),
-        }
-        .nowhere();
-
-        let expected = hir::Unit {
-            name: UnitName::FullPath(name_id(0, "test")),
-            head: hir::UnitHead {
-                name: Identifier("test".to_string()).nowhere(),
-                inputs: hparams!(("a", hir::TypeSpec::unit().nowhere())).nowhere(),
-                output_type: None,
-                unit_type_params: vec![],
-                scope_type_params: vec![],
-                unit_kind: hir::UnitKind::Entity.nowhere(),
-                where_clauses: vec![],
-                documentation: "".to_string(),
-            },
-            attributes: hir::AttributeList::empty(),
-            inputs: vec![(name_id(1, "a"), hir::TypeSpec::unit().nowhere())],
-            body: hir::ExprKind::Block(Box::new(hir::Block {
-                statements: vec![hir::Statement::binding(
-                    hir::PatternKind::name(name_id(2, "var")).idless().nowhere(),
-                    Some(hir::TypeSpec::unit().nowhere()),
-                    hir::ExprKind::int_literal(0).idless().nowhere(),
-                )
-                .nowhere()],
-                result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
-            }))
-            .idless()
-            .nowhere(),
-        }
-        .nowhere();
-
-        let mut ctx = test_context();
-
-        global_symbols::visit_unit(&None, &input, &None, &vec![], &mut ctx)
-            .expect("Failed to collect global symbols");
-
-        let result = visit_unit(None, &input, &None, &mut ctx);
-
-        assert_eq!(result, Ok(hir::Item::Unit(expected)));
-
-        // But the local variables should not
-        assert!(!ctx.symtab.has_symbol(ast_path("a").inner));
-        assert!(!ctx.symtab.has_symbol(ast_path("var").inner));
-    }
-
-    #[ignore]
-    #[test]
-    fn entity_with_generics_works() {
-        unimplemented![]
-        // let input = ast::Entity {
-        //     name: Identifier("test".to_string()).nowhere(),
-        //     inputs: vec![(ast_ident("a"), ast::Type::UnitType.nowhere())],
-        //     output_type: ast::Type::UnitType.nowhere(),
-        //     body: ast::Expression::Block(Box::new(ast::Block {
-        //         statements: vec![ast::Statement::binding(
-        //             ast_ident("var"),
-        //             Some(ast::Type::UnitType.nowhere()),
-        //             ast::Expression::IntLiteral(0).nowhere(),
-        //         )
-        //         .nowhere()],
-        //         result: ast::Expression::IntLiteral(0).nowhere(),
-        //     }))
-        //     .nowhere(),
-        //     type_params: vec![
-        //         ast::TypeParam::TypeName(ast_ident("a").inner).nowhere(),
-        //         ast::TypeParam::Integer(ast_ident("b")).nowhere(),
-        //     ],
-        // };
-
-        // let expected = hir::Entity {
-        //     head: hir::EntityHead {
-        //         inputs: vec![
-        //             ((
-        //                 NameID(0, Path::from_strs(&["a"])),
-        //                 hir::Type::Unit.nowhere(),
-        //             )),
-        //         ],
-        //         output_type: hir::Type::Unit.nowhere(),
-        //         type_params: vec![
-        //             hir::TypeParam::TypeName(hir_ident("a").inner).nowhere(),
-        //             hir::TypeParam::Integer(hir_ident("b")).nowhere(),
-        //         ],
-        //     },
-        //     body: hir::ExprKind::Block(Box::new(hir::Block {
-        //         statements: vec![hir::Statement::binding(
-        //             hir_ident("var"),
-        //             Some(hir::Type::Unit.nowhere()),
-        //             hir::ExprKind::IntLiteral(0).idless().nowhere(),
-        //         )
-        //         .nowhere()],
-        //         result: hir::ExprKind::IntLiteral(0).idless().nowhere(),
-        //     }))
-        //     .idless()
-        //     .nowhere(),
-        // };
-
-        // let mut symtab = SymbolTable::new();
-        // let mut idtracker = ExprIdTracker::new();
-
-        // let result = visit_entity(&input, &mut symtab, &mut idtracker);
-
-        // assert_eq!(result, Ok(expected));
-
-        // // But the local variables should not
-        // assert!(!symtab.has_symbol(&hir_ident("a").inner));
-        // assert!(!symtab.has_symbol(&hir_ident("var").inner));
-    }
 }
 
 #[cfg(test)]

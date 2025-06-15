@@ -1666,6 +1666,7 @@ impl TypeState {
                         name: _,
                         ty: target_type,
                         no_mangle: _,
+                        field_translator: _,
                     },
                 ) in args.iter().zip(params.0.iter())
                 {

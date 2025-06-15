@@ -189,6 +189,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
             name: _,
             is_port: _,
             members,
+            field_translators: _,
         } => {
             let mut offset = 0;
 
@@ -330,6 +331,8 @@ pub fn value_from_str(s: &str) -> Vec<Value> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use spade_common::{name::testutil::name_id, num_ext::InfallibleToBigInt};
 
     use super::*;
@@ -414,6 +417,7 @@ mod tests {
         let ty = ConcreteType::Struct {
             name: name_id(0, "X").inner,
             is_port: false,
+            field_translators: HashMap::new(),
             members: vec![
                 (
                     ast_ident("a").inner,

@@ -719,11 +719,13 @@ fn check_params_for_impl_method_and_trait_method_match(
                     name: i_name,
                     ty: i_spec,
                     no_mangle: _,
+                    field_translator: _,
                 },
                 hir::Parameter {
                     name: t_name,
                     ty: t_spec,
                     no_mangle: _,
+                    field_translator: _,
                 },
             ) => {
                 if i_name != t_name {
@@ -749,6 +751,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 name,
                 ty: _,
                 no_mangle: _,
+                field_translator: _,
             }) => {
                 return Err(
                     Diagnostic::error(name, "Trait method does not have this argument")
@@ -760,6 +763,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 name,
                 ty: _,
                 no_mangle: _,
+                field_translator: _,
             }) => {
                 return Err(Diagnostic::error(
                     &impl_method.inputs,
@@ -821,6 +825,7 @@ fn map_trait_method_parameters(
                     name: param.name.clone(),
                     ty,
                     no_mangle: param.no_mangle,
+                    field_translator: None,
                 })
             })
             .collect::<Result<_>>()

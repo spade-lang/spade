@@ -1050,20 +1050,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    no_mangle_on_struct_fields_is_disallowed,
-    "struct T {
-        #[no_mangle] x: bool,
-    }"
-}
-
-snapshot_error! {
-    no_mangle_on_enum_members_is_disallowed,
-    "enum T {
-        A{#[no_mangle] x: bool}
-    }"
-}
-
-snapshot_error! {
     registers_can_not_be_no_mangle,
     "entity x(clk: clock) -> bool {
         #[no_mangle]

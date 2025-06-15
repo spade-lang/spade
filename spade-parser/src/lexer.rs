@@ -220,6 +220,9 @@ pub enum TokenKind {
     #[token("$")]
     Dollar,
 
+    #[regex(r#""[^"]*""#, |lex| lex.slice().replace("\"", ""))]
+    String(String),
+
     #[regex("///[^\n]*", |lex| lex.slice()[3..].to_string())]
     OutsideDocumentation(String),
     #[regex("//![^\n]*", |lex| lex.slice()[3..].to_string())]
@@ -332,6 +335,8 @@ impl TokenKind {
             TokenKind::Dollar => "$",
 
             TokenKind::Eof => "end of file",
+
+            TokenKind::String(_) => "string",
 
             TokenKind::OutsideDocumentation(_) => "///",
             TokenKind::InsideDocumentation(_) => "//!",

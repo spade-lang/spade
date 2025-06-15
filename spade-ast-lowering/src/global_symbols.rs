@@ -442,6 +442,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 let _ = variant.attributes.lower(&mut |attr| match &attr.inner {
                     ast::Attribute::Documentation { .. } => Ok(None),
                     ast::Attribute::Optimize { .. }
+                    | ast::Attribute::SurferTranslator(_)
                     | ast::Attribute::WalTraceable { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
@@ -491,6 +492,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum")),
             })?;
 
@@ -597,6 +599,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
             })?;
 

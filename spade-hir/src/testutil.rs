@@ -14,6 +14,6 @@ macro_rules! dtype {
 #[macro_export]
 macro_rules! hparams {
     ($(($name:expr, $type:expr)),*$(,)?) => {
-        hir::ParameterList(vec![$(hir::Parameter{name: ast_ident($name), ty: $type, no_mangle: None}),*])
+        hir::ParameterList(vec![$(hir::Parameter{name: ast_ident($name), ty: $type, no_mangle: None, field_translator: None }),*])
     }
 }

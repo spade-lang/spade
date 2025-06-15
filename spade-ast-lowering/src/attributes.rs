@@ -19,9 +19,21 @@ impl AttributeListExt for AttributeList {
                 mangle_attribute = Some(attr.loc());
                 false
             }
-            _ => false,
+            _ => true,
         });
         mangle_attribute
+    }
+
+    fn consume_translator(&mut self) -> Option<String> {
+        let mut translator_name = None;
+        self.0.retain(|attr| match &attr.inner {
+            Attribute::SurferTranslator(name) => {
+                translator_name = Some(name.clone());
+                false
+            }
+            _ => true,
+        });
+        translator_name
     }
 
     fn report_unused(&self, on: &str) -> Result<()> {

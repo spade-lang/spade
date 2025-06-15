@@ -554,6 +554,7 @@ pub enum Attribute {
     Documentation {
         content: String,
     },
+    SurferTranslator(String),
 }
 
 impl Attribute {
@@ -566,6 +567,7 @@ impl Attribute {
             Attribute::WalTrace { .. } => "wal_trace",
             Attribute::WalSuffix { .. } => "wal_suffix",
             Attribute::Documentation { .. } => "doc",
+            Attribute::SurferTranslator(_) => "surfer_translator",
         }
     }
 }
@@ -592,14 +594,8 @@ pub struct ParameterList {
 impl WithLocation for ParameterList {}
 
 impl ParameterList {
-    pub fn without_self(args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
-        Self {
-            self_: None,
-            args: args
-                .into_iter()
-                .map(|(n, t)| (AttributeList::empty(), n, t))
-                .collect(),
-        }
+    pub fn without_self(args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
+        Self { self_: None, args }
     }
 
     pub fn with_self(self_: Loc<()>, args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>) -> Self {

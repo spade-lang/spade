@@ -193,6 +193,7 @@ impl MirLowerable for ConcreteType {
                 name: _,
                 is_port: _,
                 members,
+                field_translators: _,
             } => {
                 let members = members
                     .iter()
@@ -713,6 +714,7 @@ pub fn do_wal_trace_lowering(
         name: _,
         is_port: _,
         members,
+        field_translators: _,
     } = ty
     {
         let inner_types = members
@@ -1671,6 +1673,7 @@ impl ExprLocal for Loc<Expression> {
                     name: _,
                     is_port: _,
                     members,
+                    field_translators: _,
                 } = ctype
                 {
                     let field_indices = members
@@ -3137,6 +3140,7 @@ pub fn generate_unit<'a>(
                     name: _,
                     ty: type_spec,
                     no_mangle,
+                    field_translator: _,
                 },
                 (name_id, _),
             )| {

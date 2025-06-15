@@ -257,6 +257,7 @@ impl PrettyPrint for Parameter {
     fn pretty_print(&self) -> String {
         let Parameter {
             no_mangle: _,
+            field_translator: _,
             name,
             ty,
         } = self;

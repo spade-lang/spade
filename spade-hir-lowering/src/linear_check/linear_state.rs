@@ -55,6 +55,7 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
             name: _,
             is_port: _,
             members,
+            field_translators: _,
         } => members.iter().any(|(_, ty)| is_linear(ty)),
         ConcreteType::Array { inner, size: _ } => is_linear(inner),
         ConcreteType::Enum { .. } => false,
@@ -332,6 +333,7 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
             name: _,
             is_port: _,
             members,
+            field_translators: _,
         } => {
             let inner = members
                 .iter()

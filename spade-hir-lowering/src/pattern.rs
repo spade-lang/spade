@@ -253,6 +253,7 @@ impl Constructor {
                     name: _,
                     is_port: _,
                     members,
+                    field_translators: _,
                 } => members.iter().map(|m| m.1.clone()).collect(),
                 ConcreteType::Array { inner, size } => (0..size
                     .to_u128()
@@ -406,6 +407,7 @@ impl std::fmt::Display for DeconstructedPattern {
                     name,
                     is_port: _,
                     members,
+                    field_translators: _,
                 } => {
                     write!(
                         f,

@@ -1145,7 +1145,7 @@ impl<'a> Parser<'a> {
     #[tracing::instrument(skip(self))]
     pub fn type_parameter_list(&mut self) -> Result<ParameterList> {
         Ok(ParameterList::without_self(
-            self.comma_separated(Self::name_and_type, &TokenKind::CloseBrace)
+            self.comma_separated(Self::parameter, &TokenKind::CloseBrace)
                 .no_context()?,
         ))
     }
@@ -1666,6 +1666,26 @@ impl<'a> Parser<'a> {
                         .map(|loc| loc.map(|ident| ident.0))
                         .collect(),
                 })
+            }
+            "surfer_translator" => {
+                let (result, _) = self.surrounded(
+                    &TokenKind::OpenParen,
+                    |s| {
+                        let tok = s.peek()?;
+                        if let TokenKind::String(name) = tok.kind {
+                            s.eat_unconditional()?;
+                            Ok(Attribute::SurferTranslator(name))
+                        } else {
+                            Err(UnexpectedToken {
+                                got: tok,
+                                expected: vec!["string"],
+                            }
+                            .into())
+                        }
+                    },
+                    &TokenKind::CloseParen,
+                )?;
+                Ok(result)
             }
             "wal_trace" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {

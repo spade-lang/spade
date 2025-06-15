@@ -42,6 +42,7 @@ impl<'a> Pass for InOutChecks<'a> {
                 no_mangle,
                 name: _,
                 ty: _,
+                field_translator: _,
             },
             (name, _ty),
         ) in unit.head.inputs.inner.0.iter().zip(&unit.inputs)
