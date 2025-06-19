@@ -1,4 +1,6 @@
-extern entity new_mut_wire<T>() -> inv &T;
+entity new_mut_wire<T>() -> inv &T {
+    port#1
+}
 
 /// Reads the current value of a `inv &T`
 extern entity read_mut_wire<T>(p: inv &T) -> T;

@@ -84,12 +84,15 @@ fn statement_declaration(
             };
 
             let backward_declaration = if binding.ty.backward_size() != BigUint::zero() {
-                vec![logic(
-                    &binding.name.backward_var_name(),
-                    &binding.ty.backward_size(),
-                )]
+                code![
+                    [0] source_attribute(&binding.loc, code);
+                    [0] logic(
+                        &binding.name.backward_var_name(),
+                        &binding.ty.backward_size(),
+                    );
+                ]
             } else {
-                vec![]
+                code![]
             };
 
             let ops = &binding

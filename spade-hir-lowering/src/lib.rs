@@ -304,7 +304,7 @@ impl PatternLocal for Loc<Pattern> {
                             operator: mir::Operator::IndexTuple(i as u64, inner_types.clone()),
                             operands: vec![self_name.clone()],
                             ty,
-                            loc: None,
+                            loc: Some(self.loc()),
                         }),
                         p,
                     );
@@ -338,7 +338,7 @@ impl PatternLocal for Loc<Pattern> {
                                 .types
                                 .concrete_type_of(p, ctx.symtab.symtab(), &ctx.item_list.types)?
                                 .to_mir_type(),
-                            loc: None,
+                            loc: Some(self.loc()),
                         }),
                         p,
                     );
@@ -386,7 +386,7 @@ impl PatternLocal for Loc<Pattern> {
                                             &ctx.item_list.types,
                                         )?
                                         .to_mir_type(),
-                                    loc: None,
+                                    loc: Some(self.loc()),
                                 }),
                                 value,
                             );
@@ -419,7 +419,7 @@ impl PatternLocal for Loc<Pattern> {
                                             &ctx.item_list.types,
                                         )?
                                         .to_mir_type(),
-                                    loc: None,
+                                    loc: Some(self.loc()),
                                 }),
                                 &p.value,
                             );
@@ -2177,7 +2177,6 @@ impl ExprLocal for Loc<Expression> {
             ["std", "ops", "reduce_xor"] => handle_reduce_xor,
             ["std", "ops", "comb_div"] => handle_comb_div,
             ["std", "ops", "comb_mod"] => handle_comb_mod,
-            ["std", "ports", "new_mut_wire"] => handle_new_mut_wire,
             ["std", "ports", "read_mut_wire"] => handle_read_mut_wire
         }
 
@@ -2798,7 +2797,7 @@ impl ExprLocal for Loc<Expression> {
 
     fn handle_concat(
         &self,
-        _path: &Loc<NameID>,
+        path: &Loc<NameID>,
         result: StatementList,
         args: &[Argument<Expression, TypeSpec>],
         ctx: &mut Context,
@@ -2834,7 +2833,7 @@ impl ExprLocal for Loc<Expression> {
                     operator: mir::Operator::Concat,
                     operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                     ty: self_type,
-                    loc: None,
+                    loc: Some(path.loc()),
                 }),
                 self,
             );
@@ -3033,39 +3032,9 @@ impl ExprLocal for Loc<Expression> {
         Ok(result)
     }
 
-    fn handle_new_mut_wire(
-        &self,
-        _path: &Loc<NameID>,
-        result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
-        ctx: &mut Context,
-    ) -> Result<StatementList> {
-        let mut result = result;
-
-        assert!(args.is_empty());
-
-        let self_type = ctx
-            .types
-            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-            .to_mir_type();
-
-        result.push_primary(
-            mir::Statement::Binding(mir::Binding {
-                name: self.variable(ctx)?,
-                operator: mir::Operator::Nop,
-                operands: vec![],
-                ty: self_type,
-                loc: None,
-            }),
-            self,
-        );
-
-        Ok(result)
-    }
-
     fn handle_read_mut_wire(
         &self,
-        _path: &Loc<NameID>,
+        path: &Loc<NameID>,
         result: StatementList,
         args: &[Argument<Expression, TypeSpec>],
         ctx: &mut Context,
@@ -3085,7 +3054,7 @@ impl ExprLocal for Loc<Expression> {
                 operator: mir::Operator::ReadPort,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
-                loc: None,
+                loc: Some(path.loc()),
             }),
             self,
         );
