@@ -46,7 +46,7 @@ pretty_assertions = "1.4.1"
 prettydiff = { version = "0.8", default-features = false }
 pyo3 = { version = "0.21.2", features = ["extension-module", "eyre", "abi3-py38"] }
 recursive = {version = "0.1.1"}
-ron = {version = "0.8.0", features=["integer128"]}
+ron = {version = "0.10.0", features=["integer128"]}
 fastrand = {version = "2.3.0"}
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.117"

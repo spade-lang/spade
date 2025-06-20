@@ -176,8 +176,10 @@ impl ServerBackend {
         // NOTE: We deliberately do not filter the lock file at this stage, since we only want
         // user-run commands (like `swim build`) to change it.
 
-        let self_files =
-            swim::spade::spade_files_in_dir(Namespace::new_lib(&config.name), src_dir(root_dir))?;
+        let self_files = swim::spade::spade_files_in_dir(
+            Namespace::new_lib(&config.package.name),
+            src_dir(root_dir),
+        )?;
 
         let spade_files: Vec<_> = self_files.into_iter().chain(library_files).collect();
 
