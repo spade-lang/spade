@@ -1811,7 +1811,9 @@ mod tests {
     fn assigning_ports_to_variables_works() {
         let code = r#"
             mod std {mod ports{
-                extern entity new_mut_wire<T>() -> inv &T;
+                entity new_mut_wire<T>() -> inv &T {
+                    port#1
+                }
             }}
 
             entity test() -> inv &int<10> {

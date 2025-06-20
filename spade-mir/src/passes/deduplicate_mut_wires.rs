@@ -34,6 +34,72 @@ fn recursive_lookup(map: &HashMap<&ValueName, ValueName>, name: ValueName) -> Op
     }
 }
 
+fn op_needs_deduplication(op: &Operator) -> bool {
+    match op {
+        Operator::IndexArray { .. }
+        | Operator::Alias
+        | Operator::IndexMemory
+        | Operator::RangeIndexArray { .. }
+        | Operator::RangeIndexBits { .. }
+        | Operator::ConstructTuple
+        | Operator::ConstructEnum { .. }
+        | Operator::IsEnumVariant { .. }
+        | Operator::EnumMember { .. }
+        | Operator::Select
+        | Operator::IndexTuple(_, _) => true,
+
+        Operator::Add
+        | Operator::UnsignedAdd
+        | Operator::Sub
+        | Operator::UnsignedSub
+        | Operator::Mul
+        | Operator::UnsignedMul
+        | Operator::Div
+        | Operator::UnsignedDiv
+        | Operator::Mod
+        | Operator::UnsignedMod
+        | Operator::Eq
+        | Operator::NotEq
+        | Operator::Gt
+        | Operator::UnsignedGt
+        | Operator::Lt
+        | Operator::UnsignedLt
+        | Operator::Ge
+        | Operator::UnsignedGe
+        | Operator::Le
+        | Operator::UnsignedLe
+        | Operator::LeftShift
+        | Operator::RightShift
+        | Operator::ArithmeticRightShift
+        | Operator::LogicalAnd
+        | Operator::LogicalOr
+        | Operator::LogicalXor
+        | Operator::LogicalNot
+        | Operator::BitwiseAnd
+        | Operator::BitwiseOr
+        | Operator::BitwiseXor
+        | Operator::ReduceAnd
+        | Operator::ReduceOr
+        | Operator::ReduceXor
+        | Operator::USub
+        | Operator::Not
+        | Operator::ReadPort
+        | Operator::BitwiseNot
+        | Operator::DivPow2
+        | Operator::SignExtend { .. }
+        | Operator::ZeroExtend { .. }
+        | Operator::Truncate
+        | Operator::Concat
+        | Operator::Match
+        | Operator::ConstructArray
+        | Operator::DeclClockedMemory { .. }
+        | Operator::FlipPort
+        | Operator::ReadMutWires
+        | Operator::Instance { .. }
+        | Operator::Nop => false,
+    }
+}
+
 fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
     let mut seen_statements: HashMap<(&Operator, &Vec<ValueName>, &crate::types::Type), ValueName> =
         HashMap::new();
@@ -49,7 +115,7 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
                 loc: _,
             }) => {
                 // We're only interested in mut wires
-                if ty.backward_size() != BigUint::ZERO && operator != &Operator::Nop {
+                if ty.backward_size() != BigUint::ZERO && op_needs_deduplication(operator) {
                     if let Some(prev_name) = seen_statements.get(&(operator, operands, ty)) {
                         replaced_names.insert(
                             name,
