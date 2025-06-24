@@ -263,15 +263,21 @@ pub fn compile(
     let mut frozen_symtab = symtab.freeze();
 
     let mut impl_type_state = TypeState::fresh();
-    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list);
 
-    errors.drain_diag_list(&mut impl_type_state.diags);
+    let type_inference_ctx = typeinference::Context {
+        symtab: frozen_symtab.symtab(),
+        items: &item_list,
+        trait_impls: &TraitImplList::new(),
+    };
+    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list, &type_inference_ctx);
 
     let type_inference_ctx = typeinference::Context {
         symtab: frozen_symtab.symtab(),
         items: &item_list,
         trait_impls: &mapped_trait_impls,
     };
+
+    errors.drain_diag_list(&mut impl_type_state.diags);
 
     let mut type_states = BTreeMap::new();
 

@@ -190,7 +190,7 @@ impl TypeVarID {
 
 /// A type which which should not be resolved directly but can be used to create new
 /// copies with unique type var ids
-#[derive(Clone, Copy, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TemplateTypeVarID {
     inner: TypeVarID,
 }

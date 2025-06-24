@@ -162,9 +162,11 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
-            ast::Item::TraitDef(_) => {
-                // FIXME: When we end up needing to refer to traits, we should add them
-                // to the symtab here
+            ast::Item::TraitDef(def) => {
+                ctx.symtab.add_unique_thing(
+                    Path(vec![def.name.clone()]).at_loc(&def.name),
+                    Thing::Trait(def.name.clone()),
+                )?;
             }
             ast::Item::Use(u) => {
                 let new_name = match &u.alias {
@@ -198,10 +200,10 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
         ast::Item::TraitDef(def) => {
-            let name = ctx.symtab.add_unique_thing(
-                Path(vec![def.name.clone()]).at_loc(&def.name),
-                Thing::Trait(def.name.clone()),
-            )?;
+            let (name, _) = ctx
+                .symtab
+                .lookup_trait(&Path(vec![def.name.clone()]).at_loc(&def.name))
+                .expect("Expected type symbol to already be in symtab");
 
             create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),

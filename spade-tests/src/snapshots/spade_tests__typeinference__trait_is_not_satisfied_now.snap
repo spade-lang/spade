@@ -18,7 +18,9 @@ error: Trait bound not satisfied. uint<9> does not implement Trait
    ┌─ testinput:10:17
    │
  5 │ fn needs_trait<T: Trait>(x: T) {}
-   │                   ----- Required because of the trait bound specified here
+   │                   ----- Trait Required because of the trait bound specified here
    ·
 10 │     needs_trait(x)
    │                 ^ uint<9> does not implement Trait
+   │
+   = help: The trait Trait<> is implemented for uint<8>

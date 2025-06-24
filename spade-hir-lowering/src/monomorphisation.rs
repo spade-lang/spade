@@ -177,6 +177,12 @@ pub fn compile_items(
         let mut reg_name_map = BTreeMap::new();
         match original_item {
             Some((ExecutableItem::Unit(u), old_type_state)) => {
+                let type_ctx = &spade_typeinference::Context {
+                    symtab: symtab.symtab(),
+                    items: item_list,
+                    trait_impls: &old_type_state.trait_impls,
+                };
+
                 let (u, old_type_state) =
                     if let Some(replacement) = body_replacements.get(&u.name.name_id().inner) {
                         let new_unit = match replacement.replace_in(u.clone(), idtracker) {
@@ -217,7 +223,7 @@ pub fn compile_items(
                                         ty.insert(type_state)
                                             .unify_with(&old_ty, type_state)
                                             .commit(type_state, ctx)
-                                            .into_default_diagnostic(unit, type_state)?;
+                                            .into_default_diagnostic(unit, type_state, type_ctx)?;
                                     }
                                     Ok(())
                                 },
@@ -234,11 +240,6 @@ pub fn compile_items(
                         (u, old_type_state)
                     };
 
-                let type_ctx = &spade_typeinference::Context {
-                    symtab: symtab.symtab(),
-                    items: item_list,
-                    trait_impls: &old_type_state.trait_impls,
-                };
                 let mut type_state = old_type_state.create_child();
                 let generic_list_token = if !u.head.get_type_params().is_empty() {
                     Some(GenericListToken::Definition(u.name.name_id().inner.clone()))
@@ -266,7 +267,7 @@ pub fn compile_items(
                         let tvar = new.insert(&mut type_state);
                         match type_state
                             .unify(&tvar, source_var, type_ctx)
-                            .into_default_diagnostic(u, &type_state)
+                            .into_default_diagnostic(u, &type_state, type_ctx)
                             .and_then(|_| type_state.check_requirements(true, type_ctx))
                         {
                             Ok(_) => {}

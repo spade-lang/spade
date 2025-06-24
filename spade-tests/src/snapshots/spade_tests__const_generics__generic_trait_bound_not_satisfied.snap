@@ -14,7 +14,9 @@ error: Trait bound not satisfied. bool does not implement X<bool>
   ┌─ testinput:6:10
   │
 4 │     where T: X<bool>
-  │              - Required because of the trait bound specified here
+  │              - X<bool> Required because of the trait bound specified here
 5 │ {
 6 │     test(false)
   │          ^^^^^ bool does not implement X<bool>
+  │
+  = help: The trait X<uint<8>> is implemented for bool

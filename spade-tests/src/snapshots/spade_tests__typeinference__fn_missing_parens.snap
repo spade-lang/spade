@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn req<F, T>(f: F)
+where F: Fn<bool, bool> {}
+
+fn test() {
+    req(fn (x) {0u8})
+}
+
+
+error: The first generic parameter of the `Fn` trait must be a tuple
+  ┌─ testinput:2:10
+  │
+2 │ where F: Fn<bool, bool> {}
+  │          ^^ Expected first parameter to be a tuple

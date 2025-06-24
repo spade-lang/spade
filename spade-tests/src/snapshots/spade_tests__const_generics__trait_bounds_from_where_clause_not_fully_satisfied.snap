@@ -15,7 +15,7 @@ error: Trait bound not satisfied. bool does not implement Y
   ┌─ testinput:7:10
   │
 5 │     where T: X + Y
-  │                  - Required because of the trait bound specified here
+  │                  - Y Required because of the trait bound specified here
 6 │ {
 7 │     test(false)
   │          ^^^^^ bool does not implement Y

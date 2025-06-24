@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+struct X {}
+
+impl Fn<bool, bool> for X {
+    fn call(self, args: bool) -> bool {true}
+}
+
+fn req<F>(f: F)
+where F: Fn<(bool), bool>
+{
+}
+
+fn test() {
+    req(X$())
+}
+
+
+error: The first generic parameter of the `Fn` trait must be a tuple
+  ┌─ testinput:8:10
+  │
+8 │ where F: Fn<(bool), bool>
+  │          ^^ Expected first parameter to be a tuple

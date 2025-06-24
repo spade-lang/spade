@@ -14,7 +14,7 @@ error: Trait bound not satisfied. bool does not implement Y
   ┌─ testinput:6:10
   │
 4 │ fn test<T: X + Y>(x: T)
-  │                - Required because of the trait bound specified here
+  │                - Y Required because of the trait bound specified here
 5 │ {
 6 │     test(false)
   │          ^^^^^ bool does not implement Y

@@ -1,5 +1,6 @@
 use crate::{
     equation::{TemplateTypeVarID, TypeVarID},
+    error::UnimpldTrait,
     TypeState,
 };
 use itertools::Itertools;
@@ -8,7 +9,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_hir::{ImplBlock, ImplTarget, TraitName};
 use std::collections::{BTreeSet, HashMap};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraitImpl {
     pub name: TraitName,
     pub target_type_params: Vec<TemplateTypeVarID>,
@@ -100,6 +101,12 @@ impl TraitList {
 
     pub fn from_vec(inner: Vec<Loc<TraitReq>>) -> Self {
         Self { inner }
+    }
+
+    pub fn from_unimpld(inner: Vec<UnimpldTrait>) -> Self {
+        Self {
+            inner: inner.into_iter().map(|u| u.req).collect(),
+        }
     }
 
     pub fn get_trait(&self, name: &TraitName) -> Option<&Loc<TraitReq>> {

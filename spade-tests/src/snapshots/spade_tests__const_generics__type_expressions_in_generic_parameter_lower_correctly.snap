@@ -11,7 +11,7 @@ expression: build_items(code)
                     "bar",
                 ],
             },
-            source: bar#2,
+            source: bar#4,
         },
         inputs: [],
         output: Expr(

@@ -2313,3 +2313,88 @@ snapshot_error! {
         }
     "
 }
+
+code_compiles! {
+    dirty_capturing_lambda_works,
+    "
+    struct IndirectCall<C, F> {
+        cap: C,
+        inner: F,
+    }
+
+    impl<C, F, A, O> Fn<(A), O> for IndirectCall<C, F>
+    where F: Fn<(C, A), O>
+    {
+        fn call(self, args: (A)) -> O {
+            self.inner.call((self.cap, args#0))
+        }
+    }
+
+    fn capture_test() -> uint<8> {
+        IndirectCall(false, fn (x) {
+            x
+        }).call((1u8,))
+    }
+    "
+}
+
+snapshot_error! {
+    fn_incorrect_argument_count,
+    "
+        fn req<F, T>(f: F)
+        where F: Fn<(T), bool> {}
+
+        fn test() {
+            req(fn (x, y) {0u8})
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    fn_no_arguments,
+    "
+        fn req<F, T>(f: F)
+        where F: Fn<(), bool> {}
+
+        fn test() {
+            req(fn (x) {0u8})
+        }
+    ",
+    false
+}
+
+
+
+snapshot_error! {
+    fn_missing_parens,
+    "
+        fn req<F, T>(f: F)
+        where F: Fn<bool, bool> {}
+
+        fn test() {
+            req(fn (x) {0u8})
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    fn_incorrect_fn_in_impl,
+    "
+        struct X {}
+
+        impl Fn<bool, bool> for X {
+            fn call(self, args: bool) -> bool {true}
+        }
+
+        fn req<F>(f: F)
+        where F: Fn<(bool), bool>
+        {
+        }
+
+        fn test() {
+            req(X$())
+        }
+    "
+}

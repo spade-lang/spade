@@ -1,9 +1,19 @@
 use itertools::Itertools;
 
-use spade_common::location_info::{FullSpan, Loc, WithLocation};
+use spade_common::{
+    location_info::{FullSpan, Loc, WithLocation},
+    name::Path,
+};
 use spade_diagnostics::Diagnostic;
+use spade_hir::TraitName;
+use spade_types::KnownType;
 
-use crate::{constraints::ConstraintSource, equation::TypeVarID, traits::TraitReq, TypeState};
+use crate::{
+    constraints::ConstraintSource,
+    equation::TypeVarID,
+    traits::{TraitImpl, TraitReq},
+    Context, TypeState,
+};
 
 use super::equation::TypeVar;
 
@@ -56,8 +66,9 @@ pub trait UnificationErrorExt<T>: Sized {
         self,
         unification_point: impl Into<FullSpan> + Clone,
         type_state: &TypeState,
+        ctx: &Context<'_>,
     ) -> std::result::Result<T, Diagnostic> {
-        self.into_diagnostic(unification_point, |d, _| d, type_state)
+        self.into_diagnostic(unification_point, |d, _| d, type_state, ctx)
     }
 
     /// Creates a diagnostic with a generic type mismatch error
@@ -66,14 +77,15 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         message: Option<F>,
         type_state: &TypeState,
+        ctx: &Context<'_>,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
         if let Some(message) = message {
-            self.into_diagnostic(unification_point, message, type_state)
+            self.into_diagnostic(unification_point, message, type_state, ctx)
         } else {
-            self.into_diagnostic(unification_point, |d, _| d, type_state)
+            self.into_diagnostic(unification_point, |d, _| d, type_state, ctx)
         }
     }
 
@@ -87,11 +99,12 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         message: F,
         type_state: &TypeState,
+        ctx: &Context<'_>,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
-        self.into_diagnostic_impl(unification_point, false, message, type_state)
+        self.into_diagnostic_impl(unification_point, false, message, type_state, ctx)
     }
 
     fn into_diagnostic_no_expected_source<F>(
@@ -99,11 +112,12 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         message: F,
         type_state: &TypeState,
+        ctx: &Context<'_>,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
-        self.into_diagnostic_impl(unification_point, true, message, type_state)
+        self.into_diagnostic_impl(unification_point, true, message, type_state, ctx)
     }
 
     fn into_diagnostic_impl<F>(
@@ -112,6 +126,7 @@ pub trait UnificationErrorExt<T>: Sized {
         omit_expected_source: bool,
         message: F,
         type_state: &TypeState,
+        ctx: &Context<'_>,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic;
@@ -160,6 +175,7 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
         omit_expected_source: bool,
         message: F,
         type_state: &TypeState,
+        ctx: &Context<'_>,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
@@ -217,35 +233,16 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                 UnificationError::UnsatisfiedTraits {
                     var,
                     traits,
-                    target_loc: _,
-                } => {
-                    let trait_bound_loc = ().at_loc(&traits[0]);
-                    let impls_str = if traits.len() >= 2 {
-                        format!(
-                            "{} and {}",
-                            traits[0..traits.len() - 1]
-                                .iter()
-                                .map(|i| i.inner.display_with_meta(display_meta, type_state))
-                                .join(", "),
-                            traits[traits.len() - 1].display_with_meta(display_meta, type_state)
-                        )
-                    } else {
-                        format!("{}", traits[0].display_with_meta(display_meta, type_state))
-                    };
-                    let short_msg = format!(
-                        "{var} does not implement {impls_str}",
-                        var = var.display_with_meta(display_meta, type_state)
-                    );
-                    Diagnostic::error(
-                        unification_point,
-                        format!("Trait bound not satisfied. {short_msg}"),
-                    )
-                    .primary_label(short_msg)
-                    .secondary_label(
-                        trait_bound_loc,
-                        "Required because of the trait bound specified here",
-                    )
-                }
+                    target_loc,
+                } => report_unsatisfied_traits(
+                    &var,
+                    &traits,
+                    &target_loc,
+                    display_meta,
+                    type_state,
+                    unification_point,
+                    ctx,
+                ),
                 UnificationError::FromConstraints {
                     expected,
                     got,
@@ -356,6 +353,239 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
     }
 }
 
+// We're going to treat the `Fn` trait completely differently if we got near misses. Due to only
+// being able to return a single diagnostic here, that means we won't emit errors for non-fn
+// traits if an fn is unimplemented. We'll also only report one missing Fn at a time, multiples
+// are a very unlikely situation
+fn fn_trait_diagnostic(
+    var: &TypeVarID,
+    traits: &Vec<UnimpldTrait>,
+    target_loc: &Loc<()>,
+    display_meta: bool,
+    type_state: &TypeState,
+    unification_point: impl Into<FullSpan> + Clone,
+    ctx: &Context<'_>,
+) -> Option<Diagnostic> {
+    let missing_fns = traits
+        .iter()
+        .filter(|unimpld| {
+            if let TraitName::Named(name) = &unimpld.req.name {
+                // This is kind of sketchy, but we should be fine to not look up the `Fn` trait
+                // in the symtab here since it'll be the only thing that can be at this namespace
+                name.1 == Path::from_strs(&["Fn"])
+            } else {
+                false
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let [first, ..] = missing_fns.as_slice() else {
+        return None;
+    };
+    // If we have no `Fn` candidates, there is no point in doing special reporting.
+    // We'll also only report one near miss, otherwise fall back.
+    let [near_miss] = first.near_misses.as_slice() else {
+        return None;
+    };
+    let [near_miss_args, near_miss_out] = near_miss.trait_type_params.as_slice() else {
+        return None;
+    };
+    let [req_args, req_out] = first.req.type_params.as_slice() else {
+        return None;
+    };
+
+    let mut type_state = type_state.create_child();
+    let near_miss_args = near_miss_args.make_copy(&mut type_state);
+    let near_miss_out = near_miss_out.make_copy(&mut type_state);
+
+    let result = match (
+        req_args.resolve(&type_state),
+        near_miss_args.resolve(&type_state),
+    ) {
+        // The normal case, do pattern matching and return an error if any of the
+        // individual arguments don't match
+        (
+            TypeVar::Known(_, KnownType::Tuple, req_args),
+            TypeVar::Known(_, KnownType::Tuple, nm_args),
+        ) => {
+            // The number of arguments should be the same
+            if req_args.len() != nm_args.len() {
+                return Some(
+                    Diagnostic::error(
+                        unification_point,
+                        format!(
+                            "Expected a `Fn` which takes {} parameter{}, found one which takes {}",
+                            req_args.len(),
+                            if req_args.len() == 1 { "" } else { "s" },
+                            nm_args.len()
+                        ),
+                    )
+                    .primary_label("Wrong number of parameters")
+                    .secondary_label(first.req.loc(), "Fn trait required here"),
+                );
+            } else {
+                let mut type_state = type_state.create_child();
+                for (i, (nm, exp)) in (nm_args.iter().zip(req_args.iter())).enumerate() {
+                    if !type_state.can_unify(nm, exp, ctx) {
+                        return Some(
+                            Diagnostic::error(
+                                unification_point,
+                                format!(
+                                "Fn argument missmatch, expected argument {} to be {}, found {}.",
+                                i,
+                                nm.display(&type_state),
+                                exp.display(&type_state)
+                            ),
+                            )
+                            .secondary_label(first.req.loc(), "Fn trait required here"),
+                        );
+                    }
+                }
+            }
+
+            if !type_state.can_unify(req_out, &near_miss_out, ctx) {
+                return Some(
+                    Diagnostic::error(
+                        unification_point.clone(),
+                        format!(
+                        "Fn output type mismatch, expected an `Fn` that returns {} but found {}",
+                        req_out.display(&type_state),
+                        near_miss_out.display(&type_state)
+                    ),
+                    )
+                    .primary_label("Fn output type mismatch")
+                    .secondary_label(first.req.loc(), "Fn trait required here"),
+                );
+            }
+        }
+        (TypeVar::Known(_, _, _), _) => {
+            return Some(
+                Diagnostic::error(
+                    first.req.loc(),
+                    "The first generic parameter of the `Fn` trait must be a tuple",
+                )
+                .primary_label("Expected first parameter to be a tuple"),
+            );
+        }
+        (_, TypeVar::Known(_, _, _)) => {
+            return Some(
+                Diagnostic::error(
+                    // NOTE: Safe unwrap, we know this is not annonymous
+                    near_miss.name.name_loc().unwrap(),
+                    "The first generic parameter of the `Fn` trait must be a tuple",
+                )
+                .primary_label("Expected first parameter to be a tuple"),
+            );
+        }
+        (_, _) => {},
+    };
+
+    None
+}
+
+fn report_unsatisfied_traits(
+    var: &TypeVarID,
+    traits: &Vec<UnimpldTrait>,
+    target_loc: &Loc<()>,
+    display_meta: bool,
+    type_state: &TypeState,
+    unification_point: impl Into<FullSpan> + Clone,
+    ctx: &Context<'_>,
+) -> Diagnostic {
+    if let Some(from_fn) = fn_trait_diagnostic(
+        var,
+        traits,
+        target_loc,
+        display_meta,
+        type_state,
+        unification_point.clone(),
+        ctx,
+    ) {
+        return from_fn;
+    }
+
+    let impls_str = if traits.len() >= 2 {
+        format!(
+            "{} and {}",
+            traits[0..traits.len() - 1]
+                .iter()
+                .map(|i| i.req.display_with_meta(display_meta, type_state))
+                .join(", "),
+            traits[traits.len() - 1]
+                .req
+                .display_with_meta(display_meta, type_state)
+        )
+    } else {
+        format!(
+            "{}",
+            traits[0].req.display_with_meta(display_meta, type_state)
+        )
+    };
+    let short_msg = format!(
+        "{var} does not implement {impls_str}",
+        var = var.display_with_meta(display_meta, type_state)
+    );
+    let mut diag = Diagnostic::error(
+        unification_point,
+        format!("Trait bound not satisfied. {short_msg}"),
+    )
+    .primary_label(short_msg);
+
+    for (_, tr) in traits.iter().enumerate() {
+        diag = diag.secondary_label(
+            ().at_loc(&tr.req),
+            format!(
+                "{} Required because of the trait bound specified here",
+                tr.req.display(type_state)
+            ),
+        )
+    }
+
+    for tr in traits {
+        match tr.near_misses.as_slice() {
+            [] => {}
+            [one] => {
+                diag = diag.help(format!(
+                    "The trait {}<{}> is implemented for {}",
+                    one.name,
+                    one.trait_type_params
+                        .iter()
+                        .map(|t| {
+                            let mut ts = type_state.create_child();
+                            t.make_copy(&mut ts).display(&ts)
+                        })
+                        .join(", "),
+                    one.impl_block.target
+                ))
+            }
+            rest => {
+                diag = diag.help(format!(
+                    "The trait is implemented the following generic parameters\n    {}",
+                    rest.iter()
+                        .map(|near_miss| {
+                            format!(
+                                "{}<{}> for {}",
+                                near_miss.name,
+                                near_miss
+                                    .trait_type_params
+                                    .iter()
+                                    .map(|t| {
+                                        let mut ts = type_state.create_child();
+                                        t.make_copy(&mut ts).display(&ts)
+                                    })
+                                    .join(", "),
+                                near_miss.impl_block.target
+                            )
+                        })
+                        .join("\n    ")
+                ))
+            }
+        }
+    }
+
+    diag
+}
+
 fn add_known_type_context(
     diag: Diagnostic,
     unification_point: impl Into<FullSpan> + Clone,
@@ -420,7 +650,13 @@ impl TypeMismatch {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
+pub struct UnimpldTrait {
+    pub req: Loc<TraitReq>,
+    pub near_misses: Vec<TraitImpl>,
+}
+
+#[derive(Debug, Clone)]
 pub enum UnificationError {
     Normal(TypeMismatch),
     MetaMismatch(TypeMismatch),
@@ -428,7 +664,7 @@ pub enum UnificationError {
     Specific(spade_diagnostics::Diagnostic),
     UnsatisfiedTraits {
         var: TypeVarID,
-        traits: Vec<Loc<TraitReq>>,
+        traits: Vec<UnimpldTrait>,
         target_loc: Loc<()>,
     },
     FromConstraints {

@@ -13,7 +13,7 @@ error: Trait bound not satisfied. bool does not implement X
   ┌─ testinput:5:10
   │
 3 │     where T: X
-  │              - Required because of the trait bound specified here
+  │              - X Required because of the trait bound specified here
 4 │ {
 5 │     test(false)
   │          ^^^^^ bool does not implement X

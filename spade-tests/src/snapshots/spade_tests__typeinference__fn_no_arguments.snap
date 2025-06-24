@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn req<F, T>(f: F)
+where F: Fn<(), bool> {}
+
+fn test() {
+    req(fn (x) {0u8})
+}
+
+
+error: Expected a `Fn` which takes 0 parameters, found one which takes 1
+  ┌─ testinput:5:9
+  │
+2 │ where F: Fn<(), bool> {}
+  │          -- Fn trait required here
+  ·
+5 │     req(fn (x) {0u8})
+  │         ^^^^^^^^^^^^ Wrong number of parameters
