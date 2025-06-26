@@ -9,6 +9,49 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.14.0] - 2025-06-26
+
+## Added
+- [!451][!451] Add lambda functions
+- [!442][!442] Add `unwrap_or`, `unwrap_or_undef` and `sliding_window` to `Option`
+- [!442][!442] Add `zip` to arrays
+- [!442][!442] Add `std::undef::undef` for creating an undefined value
+- [!446][!446] Add `trunc` on `uint` and `int`
+- [!452][!452] Add `map` and `and_then` to `Option`
+- [!452][!452] add `map` and `concat` to arrays
+- [!453][!453] Vastly improved hover info in LSP
+- [!454][!454] Don't bail on the first failing compilation stage
+- [!462][!462] Added surfer translation plugin
+- [!464][!464] Add `#[surfer_translator("...")]` on struct fields
+
+## Fixed
+- [!450][!450] Emit an error on creating recursive types
+- [!431][!431] Fix miscompilation on units with only output inv wires
+- [!465][!465] Add locations to pattern parts in translators
+
+## Changed
+- [!440][!440] **Breaking change**: Use Rust syntax for exclusive ranges (`[start..end]` replaces `[start:end]`)
+- [!441][!441] Refactored type inferrer to be faster and support late trait resolution
+- [!458][!458] Lift the restriction on functions not containing wires
+
+[!431]: https://gitlab.com/spade-lang/spade/-/merge_requests/431
+[!440]: https://gitlab.com/spade-lang/spade/-/merge_requests/440
+[!441]: https://gitlab.com/spade-lang/spade/-/merge_requests/441
+[!442]: https://gitlab.com/spade-lang/spade/-/merge_requests/442
+[!442]: https://gitlab.com/spade-lang/spade/-/merge_requests/442
+[!442]: https://gitlab.com/spade-lang/spade/-/merge_requests/442
+[!446]: https://gitlab.com/spade-lang/spade/-/merge_requests/446
+[!450]: https://gitlab.com/spade-lang/spade/-/merge_requests/450
+[!451]: https://gitlab.com/spade-lang/spade/-/merge_requests/451
+[!452]: https://gitlab.com/spade-lang/spade/-/merge_requests/452
+[!452]: https://gitlab.com/spade-lang/spade/-/merge_requests/452
+[!453]: https://gitlab.com/spade-lang/spade/-/merge_requests/453
+[!454]: https://gitlab.com/spade-lang/spade/-/merge_requests/454
+[!458]: https://gitlab.com/spade-lang/spade/-/merge_requests/458
+[!462]: https://gitlab.com/spade-lang/spade/-/merge_requests/462
+[!464]: https://gitlab.com/spade-lang/spade/-/merge_requests/464
+[!465]: https://gitlab.com/spade-lang/spade/-/merge_requests/465
+
 ## [0.13.0] - 2025-02-20
 
 ### Added
@@ -475,7 +518,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.14.0...main
+[0.14.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.14.0...v0.13.0
 [0.13.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...v0.12.0
 [0.12.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.12.0...v0.11.0
 [0.11.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.11.0...v0.10.0

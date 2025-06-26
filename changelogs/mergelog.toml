@@ -1,3 +1,0 @@
-sections = ["Added", "Fixed", "Changed", "Removed"]
-format = "[{link_short}][{link_short}] {item}"      # formats like `- [!69][!69] changed some stuff`
-short-links = true
