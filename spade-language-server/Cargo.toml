@@ -1,9 +1,12 @@
 [package]
 name = "spade-language-server"
-version = "0.1.0"
-edition = "2021"
-license = "EUPL-1.2"
-rust-version = "1.77.1"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Language Server for https://spade-lang.org/"
 
 [dependencies]
 spade-lang.path = "../spade-compiler"
