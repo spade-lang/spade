@@ -2926,7 +2926,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "surfer-translation-types"
 version = "0.4.0-dev"
-source = "git+https://gitlab.com/surfer-project/surfer.git?branch=subtranslators#84ededa41ed44a691f26265f35211c654c19a67b"
+source = "git+https://gitlab.com/surfer-project/surfer.git?branch=subtranslators#34d0516491c6dc09bcf64f6ff21abb723d52fa1f"
 dependencies = [
  "color-eyre",
  "derive_more",
