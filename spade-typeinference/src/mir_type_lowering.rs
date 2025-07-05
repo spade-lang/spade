@@ -187,6 +187,7 @@ impl TypeState {
     ) -> ConcreteType {
         match &expr {
             hir::TypeExpression::Integer(val) => ConcreteType::Integer(val.clone()),
+            hir::TypeExpression::String(val) => ConcreteType::String(val.clone()),
             hir::TypeExpression::TypeSpec(inner) => {
                 Self::type_spec_to_concrete(inner, type_list, generic_substitutions, invert)
             }
@@ -319,6 +320,14 @@ impl TypeState {
                 );
 
                 Some(ConcreteType::Bool(*val))
+            }
+            TypeVar::Known(_, KnownType::String(val), params) => {
+                assert!(
+                    params.is_empty(),
+                    "type level strings cannot have type parameters"
+                );
+
+                Some(ConcreteType::String(val.clone()))
             }
             TypeVar::Known(_, KnownType::Array, inner) => {
                 let value = self.inner_ungenerify_type(&inner[0], symtab, type_list, invert);

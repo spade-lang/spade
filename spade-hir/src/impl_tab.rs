@@ -124,16 +124,18 @@ pub fn type_specs_overlap(l: &TypeSpec, r: &TypeSpec) -> bool {
 
 pub fn type_exprs_overlap(l: &TypeExpression, r: &TypeExpression) -> bool {
     match (l, r) {
-        (TypeExpression::Integer(rval), TypeExpression::Integer(lval)) => rval == lval,
-        // The only way an integer overlaps with a type is if it is a generic, so both
-        // of these branches overlap
-        (TypeExpression::Integer(_), TypeExpression::TypeSpec(_)) => true,
-        (TypeExpression::TypeSpec(_), TypeExpression::Integer(_)) => true,
-        (TypeExpression::TypeSpec(lspec), TypeExpression::TypeSpec(rspec)) => {
-            type_specs_overlap(lspec, rspec)
-        }
         (TypeExpression::ConstGeneric(_), _) | (_, TypeExpression::ConstGeneric(_)) => {
             unreachable!("Const generic during type_exprs_overlap")
         }
+        (TypeExpression::TypeSpec(lspec), TypeExpression::TypeSpec(rspec)) => {
+            type_specs_overlap(lspec, rspec)
+        }
+        // The only way an integer or a string overlaps with a type is if it is a generic, so both
+        // of these branches overlap
+        (TypeExpression::TypeSpec(_), _) | (_, TypeExpression::TypeSpec(_)) => true,
+        // Base type-level values overlap if they are equal
+        (TypeExpression::Integer(rval), TypeExpression::Integer(lval)) => rval == lval,
+        (TypeExpression::String(rval), TypeExpression::String(lval)) => rval == lval,
+        _ => false,
     }
 }

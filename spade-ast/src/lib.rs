@@ -12,6 +12,7 @@ pub mod testutil;
 pub enum TypeExpression {
     TypeSpec(Box<Loc<TypeSpec>>),
     Integer(BigInt),
+    String(String),
     ConstGeneric(Box<Loc<Expression>>),
 }
 impl WithLocation for TypeExpression {}
@@ -21,6 +22,7 @@ impl std::fmt::Display for TypeExpression {
         match self {
             TypeExpression::TypeSpec(inner) => write!(f, "{inner}"),
             TypeExpression::Integer(inner) => write!(f, "{inner}"),
+            TypeExpression::String(inner) => write!(f, "{inner:?}"),
             TypeExpression::ConstGeneric(_) => write!(f, "{{...}}"),
         }
     }
@@ -248,9 +250,10 @@ impl WithLocation for BitLiteral {}
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expression {
     Identifier(Loc<Path>),
-    IntLiteral(IntLiteral),
-    BoolLiteral(bool),
-    BitLiteral(BitLiteral),
+    IntLiteral(Loc<IntLiteral>),
+    BoolLiteral(Loc<bool>),
+    StrLiteral(Loc<String>),
+    BitLiteral(Loc<BitLiteral>),
     /// `[1, 2, 3]`
     ArrayLiteral(Vec<Loc<Expression>>),
     /// `[<expr>; <amount>]`
@@ -332,12 +335,16 @@ impl WithLocation for Expression {}
 
 impl Expression {
     pub fn int_literal_signed(val: i32) -> Self {
-        Self::IntLiteral(IntLiteral::unsized_(val))
+        Self::IntLiteral(IntLiteral::unsized_(val).nowhere())
+    }
+
+    pub fn bool_literal(val: bool) -> Self {
+        Self::BoolLiteral(val.nowhere())
     }
 
     pub fn as_int_literal(self) -> Option<IntLiteral> {
         match self {
-            Expression::IntLiteral(lit) => Some(lit),
+            Expression::IntLiteral(lit) => Some(lit.inner),
             _ => None,
         }
     }
@@ -355,6 +362,7 @@ impl Expression {
             Expression::Identifier(_) => "identifier",
             Expression::IntLiteral(_) => "int literal",
             Expression::BoolLiteral(_) => "bool literal",
+            Expression::StrLiteral(_) => "str literal",
             Expression::BitLiteral(_) => "bit literal",
             Expression::ArrayLiteral(_) => "array literal",
             Expression::ArrayShorthandLiteral(_, _) => "array shorthand literal",

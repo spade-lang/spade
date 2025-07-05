@@ -813,6 +813,7 @@ fn map_type_expr_to_trait(
 ) -> Result<Loc<hir::TypeExpression>> {
     match &te.inner {
         hir::TypeExpression::Integer(_) => Ok(te.clone()),
+        hir::TypeExpression::String(_) => Ok(te.clone()),
         hir::TypeExpression::TypeSpec(s) => {
             let (inner, loc) = map_type_spec_to_trait(
                 &s.clone().at_loc(te),
@@ -868,6 +869,10 @@ fn map_type_spec_to_trait(
                         &impl_type_params[param_idx],
                         "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",
                     )),
+                    hir::TypeExpression::String(_) => Err(Diagnostic::bug(
+                        &impl_type_params[param_idx],
+                        "Expected a TypeExpression::TypeSpec, found TypeExpression::String",
+                    )),
                     hir::TypeExpression::ConstGeneric(_) => {
                         diag_bail!(ty, "Const generic in impl head")
                     }
@@ -884,6 +889,10 @@ fn map_type_spec_to_trait(
                         hir::TypeExpression::Integer(_) => Err(Diagnostic::bug(
                             &impl_method_type_params[param_idx],
                             "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",
+                        )),
+                        hir::TypeExpression::String(_) => Err(Diagnostic::bug(
+                            &impl_method_type_params[param_idx],
+                            "Expected a TypeExpression::TypeSpec, found TypeExpression::String",
                         )),
                         hir::TypeExpression::ConstGeneric(_) => {
                             diag_bail!(ty, "Const generic in impl head")

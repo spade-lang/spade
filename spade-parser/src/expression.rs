@@ -158,9 +158,12 @@ impl<'a> Parser<'a> {
         let expr_loc = ().between_locs(&op_loc, &rhs_loc);
         let expr: Result<Expression> = match (op, rhs) {
             (UnaryOperator::Sub, Expression::IntLiteral(int)) => {
-                let int = match int {
+                let int_literal = match &int.inner {
                     IntLiteral::Unsized(val) => Ok(IntLiteral::Unsized(-val)),
-                    IntLiteral::Signed { val, size } => Ok(IntLiteral::Signed { val: -val, size }),
+                    IntLiteral::Signed { val, size } => Ok(IntLiteral::Signed {
+                        val: -val,
+                        size: size.clone(),
+                    }),
                     IntLiteral::Unsigned { val, size } => Err(Diagnostic::error(
                         expr_loc,
                         "Cannot apply unary minus to unsigned integer literal",
@@ -172,7 +175,7 @@ impl<'a> Parser<'a> {
                         format!("-{val}i{size}"),
                     )),
                 }?;
-                Ok(Expression::IntLiteral(int))
+                Ok(Expression::IntLiteral(int_literal.at_loc(&int)))
             }
             (op, rhs) => Ok(Expression::UnaryOperator(
                 op.at_loc(&op_loc),
@@ -231,11 +234,13 @@ impl<'a> Parser<'a> {
         } else if let Some(instance) = self.entity_instance()? {
             Ok(instance)
         } else if let Some(val) = self.bool_literal()? {
-            Ok(val.map(Expression::BoolLiteral))
+            Ok(Expression::BoolLiteral(val).at_loc(&val))
+        } else if let Some(val) = self.str_literal()? {
+            Ok(Expression::StrLiteral(val.clone()).at_loc(&val))
         } else if let Some(val) = self.bit_literal()? {
-            Ok(val.map(Expression::BitLiteral))
+            Ok(Expression::BitLiteral(val.clone()).at_loc(&val))
         } else if let Some(val) = self.int_literal()? {
-            Ok(Expression::IntLiteral(val.inner.clone())).map(|v| v.at_loc(&val))
+            Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
         } else if let Some(block) = self.block(false)? {
             Ok(block.map(Box::new).map(Expression::Block))
         } else if let Some(if_expr) = self.if_expression(false)? {
@@ -681,7 +686,7 @@ mod test {
 
         let expected = Expression::TupleLiteral(vec![
             Expression::int_literal_signed(1).nowhere(),
-            Expression::BoolLiteral(true).nowhere(),
+            Expression::bool_literal(true).nowhere(),
         ])
         .nowhere();
 

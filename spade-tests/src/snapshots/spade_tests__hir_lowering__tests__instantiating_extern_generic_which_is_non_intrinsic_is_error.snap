@@ -8,7 +8,7 @@ fn main() -> int<32> {
 }
 
 
-error: Generic `extern`s with non-number parameters cannot be instantiated
+error: Generic `extern`s can only be instantiated with number or string parameters
   ┌─ testinput:4:5
   │
 1 │ extern fn a<T>() -> T;

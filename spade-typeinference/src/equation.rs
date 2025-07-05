@@ -100,6 +100,9 @@ impl TypeVarID {
             TypeVar::Known(_, KnownType::Bool(inner), _) => {
                 format!("{inner}")
             }
+            TypeVar::Known(_, KnownType::String(inner), _) => {
+                format!("{inner:?}")
+            }
             TypeVar::Known(_, KnownType::Tuple, params) => {
                 format!(
                     "({})",
@@ -161,6 +164,7 @@ impl TypeVarID {
                     KnownType::Named(name_id) => format!("{name_id}"),
                     KnownType::Integer(big_int) => format!("{big_int}"),
                     KnownType::Bool(val) => format!("{val}"),
+                    KnownType::String(val) => format!("{val:?}"),
                     KnownType::Tuple => format!("Tuple"),
                     KnownType::Array => format!("Array"),
                     KnownType::Wire => format!("&"),
@@ -430,6 +434,33 @@ impl TypeVar {
         }
     }
 
+    /// Assumes that this type is KnownType::String(val) and calls on_string then. Otherwise
+    /// calls on_unknown or on_other depending on the type. If the integer is given type params,
+    /// panics
+    pub fn expect_string<T, E, U, K, O>(
+        &self,
+        on_string: K,
+        on_unknown: U,
+        on_other: O,
+        on_error: E,
+    ) -> T
+    where
+        U: FnOnce() -> T,
+        E: FnOnce() -> T,
+        K: FnOnce(String) -> T,
+        O: FnOnce(&TypeVar) -> T,
+    {
+        match self {
+            TypeVar::Known(_, KnownType::String(val), params) => {
+                assert!(params.is_empty());
+                on_string(val.clone())
+            }
+            TypeVar::Known(_, KnownType::Error, _) => on_error(),
+            TypeVar::Unknown(_, _, _, _) => on_unknown(),
+            other => on_other(other),
+        }
+    }
+
     pub fn display(&self, type_state: &TypeState) -> String {
         self.display_with_meta(false, type_state)
     }
@@ -457,6 +488,9 @@ impl TypeVar {
             }
             TypeVar::Known(_, KnownType::Bool(inner), _) => {
                 format!("{inner}")
+            }
+            TypeVar::Known(_, KnownType::String(inner), _) => {
+                format!("{inner:?}")
             }
             TypeVar::Known(_, KnownType::Tuple, params) => {
                 format!(
@@ -538,6 +572,7 @@ impl std::fmt::Display for KnownTypeVar {
             }
             KnownType::Integer(val) => write!(f, "{val}"),
             KnownType::Bool(val) => write!(f, "{val}"),
+            KnownType::String(val) => write!(f, "{val:?}"),
             KnownType::Tuple => {
                 write!(f, "({})", params.iter().map(|t| format!("{t}")).join(", "))
             }

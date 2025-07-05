@@ -12,6 +12,7 @@ use crate::{
 pub enum ConstraintExpr {
     Bool(bool),
     Integer(BigInt),
+    String(String),
     Var(TypeVarID),
     Sum(Box<ConstraintExpr>, Box<ConstraintExpr>),
     Difference(Box<ConstraintExpr>, Box<ConstraintExpr>),
@@ -32,6 +33,7 @@ impl ConstraintExpr {
         match self {
             ConstraintExpr::Bool(b) => format!("{b}"),
             ConstraintExpr::Integer(v) => format!("{v}"),
+            ConstraintExpr::String(v) => format!("{v:?}"),
             ConstraintExpr::Var(type_var_id) => {
                 format!("{}", type_var_id.debug_resolve(type_state))
             }
@@ -109,10 +111,12 @@ impl ConstraintExpr {
         match self {
             ConstraintExpr::Integer(_) => self.clone(),
             ConstraintExpr::Bool(_) => self.clone(),
+            ConstraintExpr::String(_) => self.clone(),
             ConstraintExpr::Var(v) => match v.resolve(type_state) {
                 TypeVar::Known(_, known_type, _) => match known_type {
                     KnownType::Integer(i) => ConstraintExpr::Integer(i.clone()),
                     KnownType::Bool(b) => ConstraintExpr::Bool(b.clone()),
+                    KnownType::String(s) => ConstraintExpr::String(s.clone()),
                     KnownType::Error => self.clone(),
                     KnownType::Named(_)
                     | KnownType::Tuple
@@ -138,12 +142,18 @@ impl ConstraintExpr {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
                         ConstraintExpr::Bool(l == r)
                     }
+                    (ConstraintExpr::String(l), ConstraintExpr::String(r)) => {
+                        ConstraintExpr::Bool(l == r)
+                    }
                     _ => self.clone(),
                 }
             }
             ConstraintExpr::NotEq(lhs, rhs) => {
                 match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l != r)
+                    }
+                    (ConstraintExpr::String(l), ConstraintExpr::String(r)) => {
                         ConstraintExpr::Bool(l != r)
                     }
                     _ => self.clone(),
@@ -312,6 +322,18 @@ impl TypeConstraints {
                     ConstraintExpr::Bool(val) => {
                         let replacement = ConstraintReplacement {
                             val: KnownType::Bool(val.clone()),
+                            context: rhs.context.clone(),
+                        };
+                        new_known
+                            .push(().at_loc(&rhs).map(|_| (expr.clone(), replacement.clone())));
+
+                        None
+                    }
+                    // NOTE: If we add more branches that look like this, combine it with
+                    // Integer and Bool
+                    ConstraintExpr::String(val) => {
+                        let replacement = ConstraintReplacement {
+                            val: KnownType::String(val.clone()),
                             context: rhs.context.clone(),
                         };
                         new_known

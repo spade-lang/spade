@@ -253,6 +253,8 @@ impl TypeParam {
 pub enum TypeExpression {
     /// An integer value
     Integer(BigInt),
+    /// A string value
+    String(String),
     /// Another type
     TypeSpec(TypeSpec),
     ConstGeneric(Loc<ConstGeneric>),
@@ -266,6 +268,7 @@ impl TypeExpression {
                 TypeExpression::TypeSpec(type_spec.replace_in(from, to))
             }
             TypeExpression::Integer(_) => self,
+            TypeExpression::String(_) => self,
             TypeExpression::ConstGeneric(_) => self,
         }
     }
@@ -275,6 +278,7 @@ impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeExpression::Integer(val) => write!(f, "{val}"),
+            TypeExpression::String(val) => write!(f, "{val:?}"),
             TypeExpression::TypeSpec(val) => write!(f, "{val}"),
             TypeExpression::ConstGeneric(val) => write!(f, "{val}"),
         }
@@ -468,7 +472,8 @@ impl WithLocation for TypeDeclaration {}
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum ConstGeneric {
     Name(Loc<NameID>),
-    Const(BigInt),
+    Int(BigInt),
+    Str(String),
     Add(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     Sub(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     Mul(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
@@ -497,7 +502,8 @@ impl std::fmt::Display for ConstGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ConstGeneric::Name(n) => write!(f, "{n}"),
-            ConstGeneric::Const(val) => write!(f, "{val}"),
+            ConstGeneric::Int(val) => write!(f, "{val}"),
+            ConstGeneric::Str(val) => write!(f, "{val:?}"),
             ConstGeneric::Add(l, r) => write!(f, "({l} + {r})"),
             ConstGeneric::Sub(l, r) => write!(f, "({l} - {r})"),
             ConstGeneric::Mul(l, r) => write!(f, "({l} * {r})"),

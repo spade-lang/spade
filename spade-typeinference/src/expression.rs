@@ -281,7 +281,7 @@ impl TypeState {
                             .primary_label("The type of this must be known")
                     )
                 }
-                TypeVar::Unknown(ref other_source, _, _, meta @ (MetaType::Uint | MetaType::Int | MetaType::Number | MetaType::Bool)) => {
+                TypeVar::Unknown(ref other_source, _, _, meta @ (MetaType::Uint | MetaType::Int | MetaType::Number | MetaType::Bool | MetaType::Str)) => {
                     return Err(
                         Diagnostic::error(tup.as_ref(), "Cannot use tuple indexing on a type level number")
                             .primary_label("Tuple indexing on type level number")

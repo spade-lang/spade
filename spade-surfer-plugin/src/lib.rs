@@ -461,7 +461,7 @@ fn not_present_value(ty: &ConcreteType) -> TranslationResult {
             .collect(),
         ConcreteType::Enum { options } => not_present_enum_options(options),
         ConcreteType::Single { .. } => vec![],
-        ConcreteType::Integer(_) | ConcreteType::Bool(_) => vec![],
+        ConcreteType::Integer(_) | ConcreteType::Bool(_) | ConcreteType::String(_) => vec![],
         ConcreteType::Backward(inner) | ConcreteType::Wire(inner) => {
             not_present_value(inner).subfields
         }
@@ -716,6 +716,11 @@ fn translate_concrete(
             kind: ValueKind::Normal,
             subfields: vec![],
         },
+        ConcreteType::String(_) => TranslationResult {
+            val: ValueRepr::String(format!("{val:?}")),
+            kind: ValueKind::Normal,
+            subfields: vec![],
+        },
         ConcreteType::Backward(_) => TranslationResult {
             val: ValueRepr::String("*backward*".to_string()),
             kind: ValueKind::Custom(Color32::from_gray(128)),
@@ -801,6 +806,7 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
         } => VariableInfo::Clock,
         ConcreteType::Single { .. } => VariableInfo::Bits,
         ConcreteType::Integer(_) | ConcreteType::Bool(_) => VariableInfo::Bits,
+        ConcreteType::String(_) => VariableInfo::String,
         ConcreteType::Backward(inner) => info_from_concrete(inner)?,
         ConcreteType::Wire(inner) => info_from_concrete(inner)?,
         ConcreteType::Error => VariableInfo::Bool,

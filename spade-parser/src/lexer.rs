@@ -352,6 +352,11 @@ impl TokenKind {
     pub fn is_identifier(&self) -> bool {
         matches!(self, TokenKind::Identifier(_))
     }
+
+    pub fn is_string(&self) -> bool {
+        matches!(self, TokenKind::String(_))
+    }
+
     pub fn is_integer(&self) -> bool {
         matches!(
             self,

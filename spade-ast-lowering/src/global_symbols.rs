@@ -261,6 +261,7 @@ pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
     let meta = match meta.inner.0.as_str() {
         "int" => MetaType::Int,
         "uint" => MetaType::Uint,
+        "str" => MetaType::Str,
         "type" => MetaType::Type,
         _ => {
             return Err(Diagnostic::error(meta, "{meta} is not a valid meta-type")

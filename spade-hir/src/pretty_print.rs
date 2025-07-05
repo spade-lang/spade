@@ -46,6 +46,7 @@ impl MaybePrettyPrint for MetaType {
             MetaType::Int => Some("#int".to_string()),
             MetaType::Uint => Some("#uint".to_string()),
             MetaType::Bool => Some("#bool".to_string()),
+            MetaType::Str => Some("#str".to_string()),
         }
     }
 }
@@ -76,6 +77,7 @@ impl PrettyPrint for GenericArg {
                     spade_types::meta_types::MetaType::Int => "#int ",
                     spade_types::meta_types::MetaType::Uint => "#uint ",
                     spade_types::meta_types::MetaType::Bool => "#bool ",
+                    spade_types::meta_types::MetaType::Str => "#str ",
                 };
 
                 format!("{}{}", meta, name.pretty_print())
@@ -106,7 +108,8 @@ impl PrettyPrint for ConstGeneric {
     fn pretty_print(&self) -> String {
         match self {
             ConstGeneric::Name(n) => n.pretty_print(),
-            ConstGeneric::Const(big_int) => format!("{big_int}"),
+            ConstGeneric::Int(big_int) => format!("{big_int}"),
+            ConstGeneric::Str(s) => format!("{s:?}"),
             ConstGeneric::Add(lhs, rhs) => {
                 format!("({} + {})", lhs.pretty_print(), rhs.pretty_print())
             }
@@ -139,6 +142,7 @@ impl PrettyPrint for TypeExpression {
     fn pretty_print(&self) -> String {
         match self {
             TypeExpression::Integer(val) => format!("{val}"),
+            TypeExpression::String(val) => format!("{val:?}"),
             TypeExpression::TypeSpec(ts) => ts.pretty_print(),
             TypeExpression::ConstGeneric(cg) => cg.pretty_print(),
         }

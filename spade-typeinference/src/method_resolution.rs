@@ -33,7 +33,7 @@ impl IntoImplTarget for KnownType {
         match self {
             KnownType::Error => None,
             KnownType::Named(name) => Some(ImplTarget::Named(name.clone())),
-            KnownType::Integer(_) | KnownType::Bool(_) => None,
+            KnownType::Integer(_) | KnownType::Bool(_) | KnownType::String(_) => None,
             KnownType::Tuple => None,
             KnownType::Array => Some(ImplTarget::Array),
             KnownType::Wire => Some(ImplTarget::Wire),
@@ -210,9 +210,21 @@ fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVarID, type_state: &Type
                 Overlap::No
             }
         }
-        (TypeExpression::Integer(_), TypeVar::Unknown(_, _, _, _)) => Overlap::Maybe,
+        (TypeExpression::String(eval), TypeVar::Known(_, KnownType::String(vval), _)) => {
+            if eval == vval {
+                Overlap::Yes
+            } else {
+                Overlap::No
+            }
+        }
+        (TypeExpression::Integer(_) | TypeExpression::String(_), TypeVar::Unknown(_, _, _, _)) => {
+            Overlap::Maybe
+        }
         (TypeExpression::Integer(_), _) => {
             unreachable!("Non integer and non-generic type matched with integer")
+        }
+        (TypeExpression::String(_), _) => {
+            unreachable!("Non string and non-generic type matched with string")
         }
         (TypeExpression::TypeSpec(s), _v) => spec_is_overlapping(s, var, type_state),
         (TypeExpression::ConstGeneric(_), _) => {

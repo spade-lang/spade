@@ -240,6 +240,7 @@ pub fn visit_type_expression(
             Ok(hir::TypeExpression::TypeSpec(inner.inner))
         }
         ast::TypeExpression::Integer(val) => Ok(hir::TypeExpression::Integer(val.clone())),
+        ast::TypeExpression::String(val) => Ok(hir::TypeExpression::String(val.clone())),
         ast::TypeExpression::ConstGeneric(expr) => {
             let default_error = |message, primary| {
                 Err(Diagnostic::error(
@@ -355,10 +356,10 @@ pub fn visit_type_spec(
                 }
                 TypeSymbol::Alias(expr) => match &expr.inner {
                     TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
-                    TypeExpression::Integer(_) | TypeExpression::ConstGeneric(_) => {
+                    TypeExpression::Integer(_) | TypeExpression::ConstGeneric(_) | TypeExpression::String(_) => {
                         Err(Diagnostic::error(
                             t,
-                            "Type aliases to integers and const generics are currently unsupported",
+                            "Type aliases to integers, strings and const generics are currently unsupported",
                         )
                         .primary_label("Alias to non-type")
                         .secondary_label(expr, "Type alias points here"))
@@ -829,7 +830,8 @@ pub fn visit_const_generic(
                 }
             }
         }
-        ast::Expression::IntLiteral(val) => ConstGeneric::Const(val.clone().as_signed()),
+        ast::Expression::IntLiteral(val) => ConstGeneric::Int(val.inner.clone().as_signed()),
+        ast::Expression::StrLiteral(val) => ConstGeneric::Str(val.inner.clone()),
         ast::Expression::BinaryOperator(lhs, op, rhs) => {
             let lhs = visit_const_generic(lhs, ctx)?;
             let rhs = visit_const_generic(rhs, ctx)?;
@@ -856,7 +858,7 @@ pub fn visit_const_generic(
 
             match &op.inner {
                 ast::UnaryOperator::Sub => ConstGeneric::Sub(
-                    Box::new(ConstGeneric::Const(BigInt::zero()).at_loc(&operand)),
+                    Box::new(ConstGeneric::Int(BigInt::zero()).at_loc(&operand)),
                     Box::new(operand),
                 ),
                 other => {
@@ -1110,7 +1112,7 @@ pub fn visit_unit(
         ast::Attribute::NoMangle { .. } => {
             if let Some(generic_list) = type_params {
                 // if it's a verilog extern (so `body.is_none()`), then we allow generics insofar
-                // as they are numbers (checked later on)
+                // as they are numbers or strings (checked later on)
                 if body.is_some() {
                     Err(
                         Diagnostic::error(attr, "no_mangle is not allowed on generic units")
@@ -1783,18 +1785,25 @@ pub fn visit_turbofish(
 fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprKind> {
     match e {
         ast::Expression::IntLiteral(val) => {
-            let kind = match val {
+            let kind = match &val.inner {
                 ast::IntLiteral::Unsized(_) => IntLiteralKind::Unsized,
                 ast::IntLiteral::Signed { val: _, size } => IntLiteralKind::Signed(size.clone()),
                 ast::IntLiteral::Unsigned { val: _, size } => {
                     IntLiteralKind::Unsigned(size.clone())
                 }
             };
-            Ok(hir::ExprKind::IntLiteral(val.clone().as_signed(), kind))
+            Ok(hir::ExprKind::IntLiteral(
+                val.inner.clone().as_signed(),
+                kind,
+            ))
         }
-        ast::Expression::BoolLiteral(val) => Ok(hir::ExprKind::BoolLiteral(*val)),
+        ast::Expression::BoolLiteral(val) => Ok(hir::ExprKind::BoolLiteral(val.inner)),
+        ast::Expression::StrLiteral(val) => Err(Diagnostic::error(
+            val,
+            "Strings are not supported inside expressions",
+        )),
         ast::Expression::BitLiteral(lit) => {
-            let result = match lit {
+            let result = match lit.inner {
                 ast::BitLiteral::Low => hir::expression::BitLiteral::Low,
                 ast::BitLiteral::High => hir::expression::BitLiteral::High,
                 ast::BitLiteral::HighImp => hir::expression::BitLiteral::HighImp,
@@ -1994,7 +2003,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     let (name, ty) = &ty;
                     match ty.inner {
                         TypeSymbol::GenericMeta(
-                            MetaType::Int | MetaType::Uint | MetaType::Number,
+                            MetaType::Int | MetaType::Uint | MetaType::Number | MetaType::Str,
                         ) => Ok(hir::ExprKind::TypeLevelInteger(name.clone())),
                         TypeSymbol::GenericMeta(_) | TypeSymbol::GenericArg { traits: _ } => {
                             Err(Diagnostic::error(

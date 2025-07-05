@@ -572,6 +572,19 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
+    fn str_literal(&mut self) -> Result<Option<Loc<String>>> {
+        if self.peek_cond(TokenKind::is_string, "string")? {
+            let token = self.eat_unconditional()?;
+            match &token.kind {
+                TokenKind::String(val) => Ok(Some(val.clone().at_loc(&token.loc()))),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[trace_parser]
     fn bit_literal(&mut self) -> Result<Option<Loc<BitLiteral>>> {
         if let Some(tok) = self.peek_and_eat(&TokenKind::Low)? {
             Ok(Some(BitLiteral::Low.at(self.file_id, &tok.span)))
@@ -773,6 +786,8 @@ impl<'a> Parser<'a> {
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
         if let Some(val) = self.int_literal()? {
             Ok(TypeExpression::Integer(val.inner.clone().as_signed()).at_loc(&val))
+        } else if let Some(val) = self.str_literal()? {
+            Ok(TypeExpression::String(val.inner.clone()).at_loc(&val))
         } else if self.peek_kind(&TokenKind::OpenBrace)? {
             let (expr, span) = self.surrounded(
                 &TokenKind::OpenBrace,

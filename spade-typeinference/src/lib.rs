@@ -244,6 +244,11 @@ impl TypeState {
                 KnownType::Integer(i.clone()),
                 vec![],
             )),
+            hir::TypeExpression::String(s) => self.add_type_var(TypeVar::Known(
+                e.loc(),
+                KnownType::String(s.clone()),
+                vec![],
+            )),
             hir::TypeExpression::TypeSpec(spec) => {
                 self.type_var_from_hir(e.loc(), &spec.clone(), generic_list_token)?
             }
@@ -411,6 +416,11 @@ impl TypeState {
             TraitList::empty(),
             MetaType::Bool,
         ))
+    }
+
+    pub fn new_generic_tlstr(&mut self, loc: Loc<()>) -> TypeVarID {
+        let id = self.new_typeid();
+        self.add_type_var(TypeVar::Unknown(loc, id, TraitList::empty(), MetaType::Str))
     }
 
     pub fn new_generic_tluint(&mut self, loc: Loc<()>) -> TypeVarID {
@@ -2166,6 +2176,7 @@ impl TypeState {
                     TypeSymbol::GenericMeta(MetaType::Int) => self.new_generic_tlint(gen.loc()),
                     TypeSymbol::GenericMeta(MetaType::Uint) => self.new_generic_tluint(gen.loc()),
                     TypeSymbol::GenericMeta(MetaType::Bool) => self.new_generic_tlbool(gen.loc()),
+                    TypeSymbol::GenericMeta(MetaType::Str) => self.new_generic_tlstr(gen.loc()),
                     TypeSymbol::GenericMeta(MetaType::Any) => {
                         diag_bail!(gen, "Found any meta type")
                     }
@@ -2178,13 +2189,14 @@ impl TypeState {
                     }
                 }
             }
-            ConstGeneric::Const(_)
+            ConstGeneric::Int(_)
             | ConstGeneric::Add(_, _)
             | ConstGeneric::Sub(_, _)
             | ConstGeneric::Mul(_, _)
             | ConstGeneric::Div(_, _)
             | ConstGeneric::Mod(_, _)
             | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
+            ConstGeneric::Str(_) => self.new_generic_tlstr(gen.loc()),
             ConstGeneric::Eq(_, _) | ConstGeneric::NotEq(_, _) => {
                 self.new_generic_tlbool(gen.loc())
             }
@@ -2221,7 +2233,8 @@ impl TypeState {
                     })?;
                 ConstraintExpr::Var(*var)
             }
-            ConstGeneric::Const(val) => ConstraintExpr::Integer(val.clone()),
+            ConstGeneric::Int(val) => ConstraintExpr::Integer(val.clone()),
+            ConstGeneric::Str(val) => ConstraintExpr::String(val.clone()),
             ConstGeneric::Add(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Sum)?,
             ConstGeneric::Sub(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Difference)?,
             ConstGeneric::Mul(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Product)?,
@@ -2384,6 +2397,10 @@ impl TypeState {
                         // to all known types
                         unify_if!(val1 == val2, v1, vec![])
                     }
+                    (KnownType::String(val1), KnownType::String(val2)) => {
+                        // Copied from the (Integer, Integer) case, its remark may also apply
+                        unify_if!(val1 == val2, v1, vec![])
+                    }
                     (KnownType::Named(n1), KnownType::Named(n2)) => {
                         match (
                             &ctx.symtab.type_symbol_by_id(n1).inner,
@@ -2512,6 +2529,7 @@ impl TypeState {
                     Some(MetaType::Int) => self.new_generic_tlint(*new_loc),
                     Some(MetaType::Uint) => self.new_generic_tluint(*new_loc),
                     Some(MetaType::Bool) => self.new_generic_tlbool(*new_loc),
+                    Some(MetaType::Str) => self.new_generic_tlstr(*new_loc),
                     None => return Err(meta_err_producer!()),
                 };
                 Ok((new_t, vec![v1, v2]))
@@ -2570,6 +2588,7 @@ impl TypeState {
                     | (KnownType::Array, MetaType::Type)
                     | (KnownType::Wire, MetaType::Type)
                     | (KnownType::Bool(_), MetaType::Bool)
+                    | (KnownType::String(_), MetaType::Str)
                     | (KnownType::Inverted, MetaType::Type)
                     // Integers match ints and numbers
                     | (KnownType::Integer(_), MetaType::Int)
@@ -2597,6 +2616,10 @@ impl TypeState {
                     // Bools only unify with any or bool
                     (_, MetaType::Bool) => Err(meta_err_producer!()),
                     (KnownType::Bool(_), _) => Err(meta_err_producer!()),
+
+                    // Strings only unify with any or str
+                    (_, MetaType::Str) => Err(meta_err_producer!()),
+                    (KnownType::String(_), _) => Err(meta_err_producer!()),
 
                     // Type with integer
                     (KnownType::Named(_), MetaType::Int | MetaType::Number | MetaType::Uint)
@@ -2755,8 +2778,8 @@ impl TypeState {
                             KnownType::Named(name_id) => {
                                 return Err(format!("{name_id}<{}>", list));
                             }
-                            KnownType::Bool(_) | KnownType::Integer(_) => {
-                                unreachable!("Encountered recursive type level bool or int")
+                            KnownType::Bool(_) | KnownType::Integer(_) | KnownType::String(_) => {
+                                unreachable!("Encountered recursive type level bool, int or str")
                             }
                             KnownType::Tuple => return Err(format!("({})", list)),
                             KnownType::Array => return Err(format!("[{}]", list)),

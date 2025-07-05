@@ -182,6 +182,9 @@ impl MirLowerable for ConcreteType {
             CType::Bool(_) => {
                 unreachable!("Found a bool at the base level of a type")
             }
+            CType::String(_) => {
+                unreachable!("Found a string at the base level of a type")
+            }
             CType::Enum { options } => {
                 let inner = options
                     .iter()
@@ -2304,11 +2307,8 @@ impl ExprLocal for Loc<Expression> {
                 // Grab the number-like type vars and pair them with their monomorphized values
                 let verilog_parameters = type_params
                     .iter()
-                    .flat_map(|type_param| {
-                        if matches!(
-                            type_param.inner.meta,
-                            MetaType::Int | MetaType::Uint | MetaType::Number
-                        ) {
+                    .flat_map(|type_param| match type_param.inner.meta {
+                        MetaType::Number | MetaType::Int | MetaType::Uint => {
                             instance_list.get(&type_param.name_id).and_then(|type_var| {
                                 type_var
                                     .resolve(&ctx.types)
@@ -2319,11 +2319,36 @@ impl ExprLocal for Loc<Expression> {
                                         || Ok(BigUint::ZERO),
                                     )
                                     .ok()
-                                    .map(|value| (type_param.ident.inner.0.clone(), value))
+                                    .map(|value| {
+                                        (
+                                            type_param.ident.inner.0.clone(),
+                                            ConstantValue::Int(value.to_bigint()),
+                                        )
+                                    })
                             })
-                        } else {
-                            None
                         }
+
+                        MetaType::Str => {
+                            instance_list.get(&type_param.name_id).and_then(|type_var| {
+                                type_var
+                                    .resolve(&ctx.types)
+                                    .expect_string(
+                                        Result::Ok,
+                                        || unreachable!(),
+                                        |_| unreachable!(),
+                                        || Ok(String::new()),
+                                    )
+                                    .ok()
+                                    .map(|value| {
+                                        (
+                                            type_param.ident.inner.0.clone(),
+                                            ConstantValue::String(value),
+                                        )
+                                    })
+                            })
+                        }
+
+                        _ => None,
                     })
                     .collect_vec();
 
@@ -2333,7 +2358,7 @@ impl ExprLocal for Loc<Expression> {
                 if type_params.len() > verilog_parameters.len() {
                     let mut error = Diagnostic::error(
                         self.loc(),
-                        "Generic `extern`s with non-number parameters cannot be instantiated",
+                        "Generic `extern`s can only be instantiated with number or string parameters",
                     )
                     .primary_label("Invalid instance")
                     .secondary_label(head, "Because this generic `extern` has a type parameter");
@@ -2341,7 +2366,7 @@ impl ExprLocal for Loc<Expression> {
                     if let Some(example) = type_params.iter().find(|type_param| {
                         !matches!(
                             type_param.inner.meta,
-                            MetaType::Int | MetaType::Uint | MetaType::Number,
+                            MetaType::Int | MetaType::Uint | MetaType::Number | MetaType::Str,
                         )
                     }) {
                         error = error.span_suggest_remove("Remove this parameter", example);

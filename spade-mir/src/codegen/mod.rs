@@ -1026,6 +1026,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     format!("{sign}{size_spec}{val_abs}")
                 }
                 ConstantValue::Bool(val) => format!("{}", if *val { 1 } else { 0 }),
+                ConstantValue::String(val) => format!("{:?}", val),
                 ConstantValue::HighImp => "'bz".to_string(),
             };
 

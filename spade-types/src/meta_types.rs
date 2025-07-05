@@ -21,6 +21,7 @@ pub enum MetaType {
     Uint,
 
     Bool,
+    Str,
 }
 
 // Attempts to unify l and r, returning the resulting MetaType if they are compatible,
@@ -35,10 +36,13 @@ pub fn unify_meta(l: &MetaType, r: &MetaType) -> Option<MetaType> {
         | (MetaType::Int, MetaType::Int)
         | (MetaType::Number, MetaType::Number)
         | (MetaType::Bool, MetaType::Bool)
+        | (MetaType::Str, MetaType::Str)
         | (MetaType::Uint, MetaType::Uint) => Some(l.clone()),
 
         (MetaType::Bool, _) => None,
         (_, MetaType::Bool) => None,
+        (MetaType::Str, _) => None,
+        (_, MetaType::Str) => None,
         (MetaType::Type, MetaType::Int)
         | (MetaType::Type, MetaType::Uint)
         | (MetaType::Int, MetaType::Type)
@@ -71,6 +75,7 @@ impl std::fmt::Display for MetaType {
             MetaType::Int => write!(f, "#int"),
             MetaType::Uint => write!(f, "#uint"),
             MetaType::Bool => write!(f, "#bool"),
+            MetaType::Str => write!(f, "#str"),
             MetaType::Number => write!(f, "#number"),
         }
     }

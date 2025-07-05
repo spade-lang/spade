@@ -14,6 +14,7 @@ impl IsPort for hir::TypeExpression {
     fn is_port(&self, ctx: &Context) -> Result<bool> {
         match self {
             spade_hir::TypeExpression::Integer(_) => Ok(false),
+            spade_hir::TypeExpression::String(_) => Ok(false),
             spade_hir::TypeExpression::TypeSpec(s) => s.is_port(ctx),
             spade_hir::TypeExpression::ConstGeneric(_) => Ok(false),
         }
@@ -71,6 +72,7 @@ pub trait IsInOut {
 impl IsInOut for hir::TypeExpression {
     fn is_inout(&self, ctx: &Context) -> Result<bool> {
         match self {
+            spade_hir::TypeExpression::String(_) => Ok(false),
             spade_hir::TypeExpression::Integer(_) => Ok(false),
             spade_hir::TypeExpression::TypeSpec(s) => s.is_inout(ctx),
             spade_hir::TypeExpression::ConstGeneric(_) => Ok(false),

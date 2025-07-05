@@ -33,6 +33,7 @@ pub use unit_name::UnitName;
 pub enum ConstantValue {
     Int(BigInt),
     Bool(bool),
+    String(String),
     HighImp,
 }
 
@@ -47,6 +48,7 @@ impl std::fmt::Display for ConstantValue {
         match self {
             ConstantValue::Int(val) => write!(f, "{val}"),
             ConstantValue::Bool(val) => write!(f, "{val}"),
+            ConstantValue::String(val) => write!(f, "{val:?}"),
             ConstantValue::HighImp => write!(f, "HIGHIMP"),
         }
     }
@@ -304,7 +306,7 @@ pub enum Operator {
     /// critical path report readability
     Instance {
         name: UnitName,
-        params: Vec<(String, BigUint)>,
+        params: Vec<(String, ConstantValue)>,
         /// The names of the arguments in the same order as the operands.
         /// For instance, if the `i`th argument name is "foo" and the `i`th [`Binding`] is
         /// `my_port`, the verilog module will be instantiated with `.foo(my_port)`.

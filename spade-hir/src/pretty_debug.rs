@@ -115,6 +115,7 @@ impl PrettyDebug for TypeExpression {
     fn pretty_debug(&self) -> String {
         match self {
             TypeExpression::Integer(i) => format!("{i}"),
+            TypeExpression::String(s) => format!("{s:?}"),
             TypeExpression::TypeSpec(type_spec) => type_spec.pretty_debug(),
             TypeExpression::ConstGeneric(inner) => inner.pretty_debug(),
         }
@@ -151,7 +152,8 @@ impl PrettyDebug for ConstGeneric {
     fn pretty_debug(&self) -> String {
         match self {
             ConstGeneric::Name(n) => n.pretty_debug(),
-            ConstGeneric::Const(big_int) => format!("{big_int}"),
+            ConstGeneric::Int(big_int) => format!("{big_int}"),
+            ConstGeneric::Str(s) => format!("{s:?}"),
             ConstGeneric::Add(lhs, rhs) => {
                 format!("({} + {})", lhs.pretty_debug(), rhs.pretty_debug())
             }
