@@ -2,6 +2,8 @@ use std::option::Option;
 use std::option::Option::Some;
 use std::option::Option::None;
 
+use std::array::zip;
+
 use std::conv::trunc;
 use std::conv::sext;
 use std::conv::zext;

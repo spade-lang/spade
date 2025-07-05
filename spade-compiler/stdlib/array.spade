@@ -1,3 +1,13 @@
+/// Group elements from two arrays `[l0, l1, l2...]` and `[r0, r1, r2...]`
+/// to form `[(l0, r0), (l1, r1), (l2, r2)...]`
+fn zip<L, R, #uint N>(l: [L; N], r: [R; N]) -> [(L, R); N] {
+    gen if N == 0 {
+        []
+    } else {
+        [(l[0], r[0])] `concat_arrays` (l[1..N] `zip` r[1..N])
+    }
+}
+
 impl<T, #uint N> [T; N] {
     fn concat<#uint M, #uint OL>(self, other: [T; M]) -> [T; OL]
         where OL: {M + N}
@@ -16,10 +26,6 @@ impl<T, #uint N> [T; N] {
     }
 
     fn zip<O>(self, other: [O; N]) -> [(T, O); N] {
-        gen if N == 0 {
-            []
-        } else {
-            [(self[0], other[0])] `concat_arrays` self[1..N].zip(other[1..N])
-        }
+        self `zip` other
     }
 }
