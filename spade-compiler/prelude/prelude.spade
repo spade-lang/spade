@@ -2,6 +2,7 @@ use std::option::Option;
 use std::option::Option::Some;
 use std::option::Option::None;
 
+use std::array::interleave_arrays;
 use std::array::zip;
 
 use std::conv::trunc;
@@ -13,6 +14,8 @@ use std::conv::concat_arrays;
 use std::conv::bit_to_bool;
 use std::conv::int_to_uint;
 use std::conv::uint_to_int;
+
+use std::ops::interleave;
 
 use std::ports::new_mut_wire;
 use std::ports::read_mut_wire;

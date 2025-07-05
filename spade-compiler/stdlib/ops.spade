@@ -101,3 +101,10 @@ extern fn comb_div<N>(x: N, y: N) -> N;
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be comb_mod<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
 extern fn comb_mod<N>(x: N, y: N) -> N;
+
+/// Interleave the bits of two unsigned integers
+fn interleave<#uint N, #uint ON>(l: uint<N>, r: uint<N>) -> uint<ON>
+    where ON: {2 * N}
+{
+    (l.to_bits() `interleave_arrays` r.to_bits()).to_uint()
+}

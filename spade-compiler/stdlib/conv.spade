@@ -191,6 +191,12 @@ impl<#uint N> uint<N> {
     fn trunc<#uint M>(self) -> uint<M> {
         trunc(self)
     }
+
+    fn interleave<#uint ON>(self, other: Self) -> uint<ON>
+        where ON: {2 * N}
+    {
+        self `interleave` other
+    }
 }
 
 impl<#uint N> int<N> {
