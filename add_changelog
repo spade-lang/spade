@@ -28,6 +28,8 @@ if test -z "$pr_num" ; then
   exit 1
 fi
 
+mkdir -p changelogs
+
 file="changelogs/${pr_num}.md"
 if [ ! -f "$file" ]; then
   echo "$template" > "$file"
