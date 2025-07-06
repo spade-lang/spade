@@ -2095,19 +2095,6 @@ snapshot_error! {
     false
 }
 
-// NOTE: This test will start passing eventually, change it to code_compiles
-snapshot_error! {
-    non_overlapping_conflicting_trait_impls,
-    "
-        trait Trait<T> {}
-
-        struct X {}
-
-        impl Trait<bool> for X {}
-        impl Trait<uint<8>> for X {}
-    "
-}
-
 snapshot_error! {
     trait_is_not_satisfied_now,
     "

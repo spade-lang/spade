@@ -6,6 +6,7 @@ use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::symbol_table::TypeSymbol;
 use spade_hir::{self as hir, TraitName};
 use spade_types::meta_types::MetaType;
@@ -162,73 +163,23 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
     check_no_missing_methods(block, missing_methods)?;
 
-    let trait_type_params = if let Some(trait_type_params) = &trait_spec.type_params {
-        trait_type_params
-            .inner
-            .iter()
-            .map(Loc::strip_ref)
-            .cloned()
-            .collect()
-    } else {
-        vec![]
-    };
+    let insert_result = ctx.item_list.impls.insert(
+        target,
+        trait_spec.inner,
+        target_args,
+        hir::ImplBlock {
+            fns: trait_impl,
+            type_params: impl_type_params,
+            target: target_type,
+            id: impl_block_id,
+        }
+        .at_loc(block),
+    );
 
-    let impl_only_differing_by_trait_type_params = ctx
-        .item_list
-        .impls
-        .get(&target)
-        .map(|impls| {
-            impls
-                .iter()
-                .find_position(|((name, _), _)| name == &trait_name)
-                .map(|(idx, _)| idx)
-        })
-        .flatten();
-
-    let duplicate = ctx
-        .item_list
-        .impls
-        .entry(target.clone())
-        .or_default()
-        .insert(
-            (trait_name.clone(), trait_type_params),
-            hir::ImplBlock {
-                fns: trait_impl,
-                type_params: impl_type_params,
-                target: target_type,
-                id: impl_block_id,
-            }
-            .at_loc(block),
-        );
-
-    if let Some(duplicate) = duplicate {
-        let name = match &trait_name {
-            TraitName::Named(n) => n,
-            TraitName::Anonymous(_) => {
-                diag_bail!(block, "Found multiple impls of anonymous trait")
-            }
-        };
-        return Err(Diagnostic::error(
-            block,
-            format!(
-                "Multiple implementations of {} for {}",
-                name,
-                &target.display(&target_args)
-            ),
-        )
-        .secondary_label(duplicate, "Previous impl here"));
+    match insert_result {
+        Ok(()) => Ok(result),
+        Err(diag) => Err(diag),
     }
-
-    if let Some(_) = impl_only_differing_by_trait_type_params {
-        return Err(Diagnostic::error(
-            block,
-            format!("An impl of trait {trait_name} for {} already exists", target.display(&target_args)),
-        )
-            .primary_label(format!("An impl of trait {trait_name} for {} already exists", target.display(&target_args)))
-            .note("The impls only differ by type parameters of the trait, which is currently not supported"));
-    }
-
-    Ok(result)
 }
 
 pub fn get_or_create_trait(
@@ -1021,108 +972,39 @@ fn map_type_spec_to_trait(
 #[tracing::instrument(skip(item_list))]
 pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diagnostic> {
     let mut diags = vec![];
-    for (_impl_target, impls) in item_list.impls.iter_mut() {
-        let mut set: HashMap<Identifier, (Loc<()>, Vec<hir::TypeSpec>)> = HashMap::new();
-        *impls = impls
+    for (_impl_target, impls) in item_list.impls.inner.iter_mut() {
+        let mut set: HashMap<Identifier, Vec<(Loc<()>, hir::TypeSpec)>> = HashMap::new();
+
+        for block in impls
             .iter_mut()
-            .sorted_by_key(|(_f, target)| target.span)
-            .map(|((t, type_params), impl_block)| {
-                if !t.is_anonymous() {
-                    ((t.clone(), type_params.clone()), impl_block.clone())
+            .filter(|(trait_name, _)| trait_name.is_anonymous())
+            .flat_map(|(_, impls)| impls.values_mut())
+            .flat_map(|impls| impls.iter_mut())
+            .map(|(_, block)| block)
+            .sorted_by_key(|block| block.span)
+        {
+            let target = block.target.clone();
+            block.fns.retain(|f, (_f_nameid, f_loc)| {
+                let specs = set.entry(f.clone()).or_default();
+                if let Some((prev, _)) = specs
+                    .iter()
+                    .find(|(_, spec)| type_specs_overlap(&target.inner, spec))
+                {
+                    diags.push(
+                        Diagnostic::error(
+                            *f_loc,
+                            format!("{} already has a method named {f}", target),
+                        )
+                        .primary_label("Duplicate method")
+                        .secondary_label(prev.loc(), "Previous definition here"),
+                    );
+                    false
                 } else {
-                    let mut impl_block = impl_block.clone();
-                    let target = impl_block.target.clone();
-
-                    impl_block.fns.retain(|f, (_f_nameid, f_loc)| {
-                        if let Some((prev, specs)) = set.get_mut(f) {
-                            if specs
-                                .iter()
-                                .any(|spec| type_specs_overlap(&target.inner, &spec))
-                            {
-                                diags.push(
-                                    Diagnostic::error(
-                                        *f_loc,
-                                        format!("{} already has a method named {f}", target),
-                                    )
-                                    .primary_label("Duplicate method")
-                                    .secondary_label(prev.loc(), "Previous definition here"),
-                                );
-                                false
-                            } else {
-                                specs.push(target.inner.clone());
-                                true
-                            }
-                        } else {
-                            set.insert(f.clone(), (*f_loc, vec![target.inner.clone()]));
-                            true
-                        }
-                    });
-
-                    ((t.clone(), type_params.clone()), impl_block)
+                    specs.push((f_loc.loc(), target.inner.clone()));
+                    true
                 }
-            })
-            .collect()
+            });
+        }
     }
     diags
-}
-
-fn type_specs_overlap(l: &hir::TypeSpec, r: &hir::TypeSpec) -> bool {
-    match (l, r) {
-        // Generic types overlap with all types
-        (hir::TypeSpec::Generic(_), _) => true,
-        (_, hir::TypeSpec::Generic(_)) => true,
-        // Declared types overlap if their base is the same and their generics overlap
-        (hir::TypeSpec::Declared(lbase, lparams), hir::TypeSpec::Declared(rbase, rparams)) => {
-            lbase == rbase
-                && lparams
-                    .iter()
-                    .zip(rparams)
-                    .all(|(le, re)| type_exprs_overlap(le, re))
-        }
-        (hir::TypeSpec::Declared(_, _), _) => false,
-        (hir::TypeSpec::Tuple(linner), hir::TypeSpec::Tuple(rinner)) => linner
-            .iter()
-            .zip(rinner)
-            .all(|(l, r)| type_specs_overlap(l, r)),
-        (hir::TypeSpec::Tuple(_), _) => false,
-        (
-            hir::TypeSpec::Array {
-                inner: linner,
-                size: lsize,
-            },
-            hir::TypeSpec::Array {
-                inner: rinner,
-                size: rsize,
-            },
-        ) => type_specs_overlap(linner, rinner) && type_exprs_overlap(lsize, rsize),
-        (hir::TypeSpec::Array { .. }, _) => false,
-        (hir::TypeSpec::Inverted(linner), hir::TypeSpec::Inverted(rinner)) => {
-            type_specs_overlap(&linner.inner, &rinner.inner)
-        }
-        (hir::TypeSpec::Inverted(_), _) => todo!(),
-        (hir::TypeSpec::Wire(linner), hir::TypeSpec::Wire(rinner)) => {
-            type_specs_overlap(linner, rinner)
-        }
-        (hir::TypeSpec::Wire(_), _) => false,
-        (hir::TypeSpec::TraitSelf(_), _) => unreachable!("Self type cannot be checked for overlap"),
-        (hir::TypeSpec::Wildcard(_), _) => {
-            unreachable!("Wildcard type cannot be checked for overlap")
-        }
-    }
-}
-
-fn type_exprs_overlap(l: &hir::TypeExpression, r: &hir::TypeExpression) -> bool {
-    match (l, r) {
-        (hir::TypeExpression::Integer(rval), hir::TypeExpression::Integer(lval)) => rval == lval,
-        // The only way an integer overlaps with a type is if it is a generic, so both
-        // of these branches overlap
-        (hir::TypeExpression::Integer(_), hir::TypeExpression::TypeSpec(_)) => true,
-        (hir::TypeExpression::TypeSpec(_), hir::TypeExpression::Integer(_)) => true,
-        (hir::TypeExpression::TypeSpec(lspec), hir::TypeExpression::TypeSpec(rspec)) => {
-            type_specs_overlap(lspec, rspec)
-        }
-        (hir::TypeExpression::ConstGeneric(_), _) | (_, hir::TypeExpression::ConstGeneric(_)) => {
-            unreachable!("Const generic during type_exprs_overlap")
-        }
-    }
 }

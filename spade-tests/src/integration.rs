@@ -631,12 +631,43 @@ mod trait_tests {
         "
     }
 
+    #[test]
+    fn multiple_impls_of_same_trait_same_trait_args_different_target_args_works() {
+        let code = "
+        struct A<#uint I> {}
+        trait X<T> {}
+        impl X<bool> for A<0> {}
+        impl X<bool> for A<1> {}
+        ";
+        build_items(code);
+    }
+
+    #[test]
+    fn multiple_impls_of_same_trait_different_type_params_works() {
+        let code = "
+        trait X<T> {}
+        impl X<bool> for bool {}
+        impl X<uint<1>> for bool {}
+        ";
+        build_items(code);
+    }
+
     snapshot_error! {
-        multiple_impls_of_same_trait_different_type_params_is_error,
+        multiple_impls_of_same_trait_same_type_params_is_error,
         "
             trait X<T> {}
             impl X<bool> for bool {}
-            impl X<uint<1>> for bool {}
+            impl X<bool> for bool {}
+        "
+    }
+
+    snapshot_error! {
+        multiple_impls_of_same_trait_same_type_params_is_error2,
+        "
+            trait X<T> {}
+            struct A<#uint I> {}
+            impl X<bool> for A<1> {}
+            impl X<bool> for A<1> {}
         "
     }
 
@@ -647,6 +678,48 @@ mod trait_tests {
             trait A {}
 
             fn main() {}
+        "
+    }
+
+    snapshot_error! {
+        anonymous_traits_overlap_correctly_mentioned,
+        "
+            impl int<0> {
+                fn x(self) {}
+            }
+
+            impl int<2> {
+                fn x(self) {}
+            }
+
+            impl int<2> {
+                fn x(self) {}
+            }
+        "
+    }
+
+    snapshot_error! {
+        anonymous_generic_traits_overlap_correctly_mentioned,
+        "
+        impl int<2> {
+            fn x(self) {}
+        }
+
+        impl<#uint N> int<N> {
+            fn x(self) {}
+        }
+        "
+    }
+
+    snapshot_error! {
+        named_trait_overlap_correctly_mentioned,
+        "
+        trait T<X> {}
+
+        struct Struct {}
+
+        impl<X> T<X> for Struct {}
+        impl T<bool> for Struct {}
         "
     }
 

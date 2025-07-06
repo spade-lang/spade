@@ -1,4 +1,5 @@
 pub mod expression;
+pub mod impl_tab;
 pub mod param_util;
 pub mod pretty_debug;
 pub mod pretty_print;
@@ -21,6 +22,8 @@ use spade_common::{
 };
 use spade_diagnostics::Diagnostic;
 use spade_types::{meta_types::MetaType, PrimitiveType};
+
+use crate::impl_tab::ImplTab;
 
 /**
   Representation of the language with most language constructs still present, with
@@ -902,7 +905,7 @@ pub struct ItemList {
     /// by name. Anonymous impl blocks are also members here, but their name is never
     /// visible to the user.
     pub traits: HashMap<TraitName, TraitDef>,
-    pub impls: HashMap<ImplTarget, HashMap<(TraitName, Vec<TypeExpression>), Loc<ImplBlock>>>,
+    pub impls: ImplTab,
 }
 
 impl Default for ItemList {
@@ -918,7 +921,7 @@ impl ItemList {
             types: TypeList::new(),
             modules: BTreeMap::new(),
             traits: HashMap::new(),
-            impls: HashMap::new(),
+            impls: ImplTab::new(),
         }
     }
 

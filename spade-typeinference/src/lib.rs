@@ -1448,65 +1448,66 @@ impl TypeState {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_impl_blocks(&mut self, item_list: &ItemList) -> TraitImplList {
         let mut trait_impls = TraitImplList::new();
-        for (target, impls) in &item_list.impls {
-            for ((trait_name, type_expressions), impl_block) in impls {
-                let result = (|| {
-                    let generic_list = self.create_generic_list(
-                        GenericListSource::ImplBlock {
-                            target,
-                            id: impl_block.id,
-                        },
-                        &[],
-                        impl_block.type_params.as_slice(),
-                        None,
-                        &[],
-                    )?;
+        for (target, impls) in &item_list.impls.inner {
+            for (trait_name, impls) in impls {
+                for (target_args, impls) in impls {
+                    for (trait_args, impl_block) in impls {
+                        let result =
+                            (|| {
+                                let generic_list = self.create_generic_list(
+                                    GenericListSource::ImplBlock {
+                                        target,
+                                        id: impl_block.id,
+                                    },
+                                    &[],
+                                    impl_block.type_params.as_slice(),
+                                    None,
+                                    &[],
+                                )?;
 
-                    let loc = trait_name
-                        .name_loc()
-                        .map(|n| ().at_loc(&n))
-                        .unwrap_or(().at_loc(&impl_block));
+                                let loc = trait_name
+                                    .name_loc()
+                                    .map(|n| ().at_loc(&n))
+                                    .unwrap_or(().at_loc(&impl_block));
 
-                    let trait_type_params = type_expressions
-                        .iter()
-                        .map(|param| {
-                            Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
-                                &param.clone().at_loc(&loc),
-                                &generic_list,
-                            )?))
-                        })
-                        .collect::<Result<_>>()?;
+                                let trait_type_params = trait_args
+                                    .iter()
+                                    .map(|param| {
+                                        Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
+                                            &param.clone().at_loc(&loc),
+                                            &generic_list,
+                                        )?))
+                                    })
+                                    .collect::<Result<_>>()?;
 
-                    let target_type_params = impl_block
-                        .target
-                        .type_params()
-                        .into_iter()
-                        .map(|param| {
-                            Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
-                                &param.clone().at_loc(&loc),
-                                &generic_list,
-                            )?))
-                        })
-                        .collect::<Result<_>>()?;
+                                let target_type_params = target_args
+                                    .iter()
+                                    .map(|param| {
+                                        Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
+                                            &param.clone().at_loc(&loc),
+                                            &generic_list,
+                                        )?))
+                                    })
+                                    .collect::<Result<_>>()?;
 
-                    trait_impls
-                        .inner
-                        .entry(target.clone())
-                        .or_default()
-                        .push(TraitImpl {
-                            name: trait_name.clone(),
-                            target_type_params,
-                            trait_type_params,
+                                trait_impls.inner.entry(target.clone()).or_default().push(
+                                    TraitImpl {
+                                        name: trait_name.clone(),
+                                        target_type_params,
+                                        trait_type_params,
 
-                            impl_block: impl_block.inner.clone(),
-                        });
+                                        impl_block: impl_block.inner.clone(),
+                                    },
+                                );
 
-                    Ok(())
-                })();
+                                Ok(())
+                            })();
 
-                match result {
-                    Ok(()) => {}
-                    Err(e) => self.diags.errors.push(e),
+                        match result {
+                            Ok(()) => {}
+                            Err(e) => self.diags.errors.push(e),
+                        }
+                    }
                 }
             }
         }

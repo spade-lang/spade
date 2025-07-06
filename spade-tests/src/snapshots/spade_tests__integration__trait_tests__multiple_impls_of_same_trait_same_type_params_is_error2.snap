@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/integration.rs
+---
+trait X<T> {}
+struct A<#uint I> {}
+impl X<bool> for A<1> {}
+impl X<bool> for A<1> {}
+
+
+error: Multiple implementations of X for A<1>
+  ┌─ testinput:4:1
+  │
+3 │ impl X<bool> for A<1> {}
+  │ ------------------------ Previous impl here
+4 │ impl X<bool> for A<1> {}
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^

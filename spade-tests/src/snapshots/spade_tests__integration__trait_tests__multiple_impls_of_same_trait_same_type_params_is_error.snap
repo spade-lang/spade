@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/integration.rs
+---
+trait X<T> {}
+impl X<bool> for bool {}
+impl X<bool> for bool {}
+
+
+error: Multiple implementations of X for bool
+  ┌─ testinput:3:1
+  │
+2 │ impl X<bool> for bool {}
+  │ ------------------------ Previous impl here
+3 │ impl X<bool> for bool {}
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^

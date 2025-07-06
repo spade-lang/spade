@@ -3094,6 +3094,7 @@ mod module_visiting {
     use spade_ast::testutil::ast_ident;
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
+    use spade_hir::impl_tab::ImplTab;
 
     use crate::testutil::test_context;
     use pretty_assertions::assert_eq;
@@ -3160,7 +3161,7 @@ mod module_visiting {
             types: vec![].into_iter().collect(),
             modules: vec![].into_iter().collect(),
             traits: HashMap::new(),
-            impls: HashMap::new(),
+            impls: ImplTab::new(),
         };
 
         let mut ctx = test_context();
@@ -3218,7 +3219,7 @@ mod module_visiting {
             .into_iter()
             .collect(),
             traits: HashMap::new(),
-            impls: HashMap::new(),
+            impls: ImplTab::new(),
         };
 
         let mut ctx = test_context();

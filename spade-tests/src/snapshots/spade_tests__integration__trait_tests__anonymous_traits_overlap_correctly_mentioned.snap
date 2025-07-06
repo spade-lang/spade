@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/integration.rs
+---
+impl int<0> {
+    fn x(self) {}
+}
+
+impl int<2> {
+    fn x(self) {}
+}
+
+impl int<2> {
+    fn x(self) {}
+}
+
+
+error: int<2> already has a method named x
+   ┌─ testinput:10:5
+   │
+ 6 │     fn x(self) {}
+   │     ------------- Previous definition here
+   ·
+10 │     fn x(self) {}
+   │     ^^^^^^^^^^^^^ Duplicate method

@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/integration.rs
+---
+trait T<X> {}
+
+struct Struct {}
+
+impl<X> T<X> for Struct {}
+impl T<bool> for Struct {}
+
+
+error: Multiple implementations of T for Struct
+  ┌─ testinput:6:1
+  │
+5 │ impl<X> T<X> for Struct {}
+  │ -------------------------- Previous impl here
+6 │ impl T<bool> for Struct {}
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^
