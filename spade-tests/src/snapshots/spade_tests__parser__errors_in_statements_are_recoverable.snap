@@ -4,7 +4,7 @@ source: spade-tests/src/parser.rs
 fn test() {
     let x = ;
     let y ;
-    set z = true;
+    set z = &true;
 }
 
 
@@ -23,5 +23,5 @@ error: Unexpected `;`, expected `=`
 error: Use of undeclared name z
   ┌─ testinput:4:9
   │
-4 │     set z = true;
+4 │     set z = &true;
   │         ^ Undeclared name

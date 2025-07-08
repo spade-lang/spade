@@ -673,7 +673,7 @@ fn build_no_mangle_all_output_diagnostic(
                     SuggestionParts::new()
                         .part(
                             (Span::new(span.start(), span.start()), file),
-                            format!("set {} = ", suggested_name),
+                            format!("set {} = &", suggested_name),
                         )
                         .part((Span::new(span.end(), span.end()), file), ";"),
                 );

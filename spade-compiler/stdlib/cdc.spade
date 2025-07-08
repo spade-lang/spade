@@ -68,9 +68,9 @@ mod handshake_impl {
             (Some(d), TxState::WaitData) => d,
             _ => data_held,
         };
-        set out.data = data_held;
+        set out.data = &data_held;
 
-        set out.data_valid = match state {
+        set out.data_valid = &match state {
             TxState::WaitData => false,
             TxState::HoldData => false,
             TxState::WaitAck => true,
@@ -92,7 +92,7 @@ mod handshake_impl {
             (RxState::WaitInvalid, false) => (RxState::WaitValid, None),
         };
 
-        set in.ack = match state {
+        set in.ack = &match state {
             RxState::WaitValid => false,
             RxState::WaitInvalid => true,
         };
@@ -145,8 +145,8 @@ mod sync_wide_impl {
             TxState::Hold(data) => (true, data),
             TxState::WaitRelease => (false, UNDEF)
         };
-        set to_tx.valid = valid;
-        set to_tx.data = data;
+        set to_tx.valid = &valid;
+        set to_tx.data = &data;
     }
 
     enum RxState {
@@ -170,7 +170,7 @@ mod sync_wide_impl {
             _ => out
         };
 
-        set from_tx.ack = match state {
+        set from_tx.ack = &match state {
             RxState::WaitReceive => false,
             RxState::SendAck => true,
         };

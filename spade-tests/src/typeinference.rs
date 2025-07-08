@@ -188,7 +188,7 @@ snapshot_error! {
     "
     // NOTE: returning bool because we don't support unit types
     entity set_port(p: inv &int<10>, v: int<9>) -> bool {
-        set p = v;
+        set p = &v;
         false
     }
     "

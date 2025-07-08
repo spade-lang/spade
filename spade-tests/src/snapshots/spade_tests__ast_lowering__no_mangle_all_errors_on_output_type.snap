@@ -16,5 +16,5 @@ error: Cannot apply `#[no_mangle(all)]`
   │           ~~~~~~~~~~~~~~~~~~ ---------
   = ...and `set` the inverted input to the return value
   │
-2 │ entity foo() -> int<8> { set out = 0; }
-  │                          ++++++++++ +
+2 │ entity foo() -> int<8> { set out = &0; }
+  │                          +++++++++++ +

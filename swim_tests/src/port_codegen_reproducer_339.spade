@@ -1,6 +1,6 @@
 entity broken(x: &uint<8>) -> uint<8> {
     let (a, b): (Brick, inv Brick) = port;
-    set b.x = *x;
+    set b.x = x;
     *a.x
 }
 

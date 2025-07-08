@@ -167,7 +167,7 @@ fn field_access_works_on_flipped_ports() {
     let code = r#"
         struct port P {p1: &bool, p2: inv &bool}
         entity t(p: inv P) -> bool {
-            set p.p1 = true;
+            set p.p1 = &true;
             *p.p2
         }
     "#;
@@ -459,7 +459,7 @@ code_compiles! {
     inv_wires_are_allowed_in_fn_args,
     "
         fn a(x: inv &bool) {
-            set x = false;
+            set x = &false;
         }
     "
 }
@@ -1520,7 +1520,7 @@ mod trait_tests {
         "
             impl inv &bool {
                 entity method(self) {
-                    set self = true;
+                    set self = &true;
                 }
             }
 

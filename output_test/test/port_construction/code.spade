@@ -7,7 +7,7 @@ struct port ScalingPort {
 }
 
 entity scalee(p: ScalingPort, in: int<10>) -> int<12> {
-    set p.in = in;
+    set p.in = &in;
     *p.out
 }
 
@@ -16,7 +16,7 @@ entity scalee(p: ScalingPort, in: int<10>) -> int<12> {
 entity scaler_impl(p: inv ScalingPort) -> bool {
     let in = (*p.in);
     let out = sext(in) << 1;
-    set p.out = out;
+    set p.out = &out;
     true
 }
 

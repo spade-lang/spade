@@ -18,8 +18,8 @@ entity fifo_test_harness(
 ) -> FifoTestHarnessOut {
     let (w, r) = inst fifo::<4, int<8>, 16>$(write_clk, write_rst, read_clk, read_rst);
 
-    set w.write = write;
-    set r.ack = ack;
+    set w.write = &write;
+    set r.ack = &ack;
 
     FifoTestHarnessOut$(
         w_full: *w.full,

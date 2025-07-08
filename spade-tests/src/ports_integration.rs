@@ -104,16 +104,6 @@ fn wires_can_be_created() {
 }
 
 snapshot_error! {
-    assigning_ports_to_ports_is_disallowed,
-    "
-        entity not_allowed(a: ~& (&bool, &bool), b: (&bool, &bool)) -> bool {
-            set a = b;
-            true
-        }
-        "
-}
-
-snapshot_error! {
     ports_are_not_allowed_in_functions,
     "
         fn not_allowed(a: &bool) -> bool {

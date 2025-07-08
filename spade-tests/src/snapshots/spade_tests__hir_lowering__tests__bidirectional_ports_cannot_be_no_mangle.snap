@@ -2,7 +2,7 @@
 source: spade-tests/src/hir_lowering.rs
 ---
 entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
-    set t#1 = false;
+    set t#1 = &false;
     true
 }
 

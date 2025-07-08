@@ -1897,8 +1897,7 @@ impl TypeState {
                 self.visit_expression(value, ctx, generic_list);
 
                 let inner_type = self.new_generic_type(value.loc());
-                let outer_type =
-                    TypeVar::backward(stmt.loc(), inner_type.clone(), self).insert(self);
+                let outer_type = TypeVar::inverted(stmt.loc(), inner_type.clone()).insert(self);
                 self.unify_expression_generic_error(target, &outer_type, ctx)
                     .handle_in(&mut self.diags);
                 self.unify_expression_generic_error(value, &inner_type, ctx)

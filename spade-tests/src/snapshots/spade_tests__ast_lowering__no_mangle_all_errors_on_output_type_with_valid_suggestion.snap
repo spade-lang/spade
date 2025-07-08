@@ -20,5 +20,5 @@ error: Cannot apply `#[no_mangle(all)]`
   │                       +++++++++++++++++++  ---------
   = ...and `set` the inverted input to the return value
   │
-5 │     set out_ = b;
-  │     +++++++++++ +
+5 │     set out_ = &b;
+  │     ++++++++++++ +

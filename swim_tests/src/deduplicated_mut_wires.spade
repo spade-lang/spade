@@ -8,8 +8,8 @@ struct port Outer {
 }
 
 entity test_struct(_struct: Outer, x: bool, y: bool) -> (bool, bool) {
-    set _struct.w.x = x;
-    set _struct.w.y = y;
+    set _struct.w.x = &x;
+    set _struct.w.y = &y;
 
     (
         inst std::ports::read_mut_wire(_struct.w.x),

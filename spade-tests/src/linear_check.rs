@@ -211,7 +211,7 @@ fn reading_from_a_port_does_not_consume_it() {
 fn set_statement_consumes_port() {
     let code = "
         entity e(p: inv &bool) -> bool {
-            set p = false;
+            set p = &false;
             false
         }";
 
@@ -223,7 +223,7 @@ snapshot_error! {
     "
         entity test() {
             let a = [inst new_mut_wire(), inst new_mut_wire()];
-            set a[0] = 0u8;
+            set a[0] = &0u8;
         }
     "
 }
@@ -233,9 +233,9 @@ snapshot_error! {
     "
         entity test() {
             let a = [inst new_mut_wire(), inst new_mut_wire()];
-            set a[0] = 0u8;
-            set a[0] = 0u8;
-            set a[1] = 0;
+            set a[0] = &0u8;
+            set a[0] = &0u8;
+            set a[1] = &0;
         }
     "
 }
@@ -246,7 +246,7 @@ snapshot_error! {
         entity test() {
             let idx = 0;
             let a = [inst new_mut_wire(), inst new_mut_wire()];
-            set a[idx] = 0u8;
+            set a[idx] = &0u8;
         }
     "
 }

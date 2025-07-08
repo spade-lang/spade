@@ -787,7 +787,7 @@ snapshot_error! {
         fn test() {
             let x = ;
             let y ;
-            set z = true;
+            set z = &true;
         }
     "
 }

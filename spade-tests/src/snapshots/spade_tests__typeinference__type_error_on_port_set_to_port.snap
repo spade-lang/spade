@@ -8,15 +8,15 @@ entity set_port(p: inv &int<10>, v: inv &int<10>) -> bool {
 }
 
 
-error: Expected type int<10>, got inv &int<10>
+error: Expected type &int<10>, got inv &int<10>
   ┌─ testinput:3:13
   │
 2 │ entity set_port(p: inv &int<10>, v: inv &int<10>) -> bool {
   │                    ------------     ------------ Type inv &int<10> inferred here
   │                    │                 
-  │                    Type int<10> inferred here
+  │                    Type &int<10> inferred here
 3 │     set p = v;
-  │             ^ Expected int<10>
+  │             ^ Expected &int<10>
   │
-  = note: Expected: int<10>
+  = note: Expected: &int<10>
                Got: inv &int<10>

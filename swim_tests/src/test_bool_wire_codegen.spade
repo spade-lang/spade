@@ -3,7 +3,7 @@ struct port Inner {
 }
 
 entity harness(p: Inner) -> bool {
-    set p.b = true;
+    set p.b = &true;
     true
 }
 

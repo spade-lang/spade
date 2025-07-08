@@ -2066,7 +2066,7 @@ mod tests {
         bidirectional_ports_cannot_be_no_mangle,
         "
             entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
-                set t#1 = false;
+                set t#1 = &false;
                 true
             }
         "
@@ -2086,7 +2086,7 @@ mod tests {
     fn output_only_port_can_be_no_mangle() {
         let code = "
             entity x(#[no_mangle] t: inv &bool) -> bool {
-                set t = true;
+                set t = &true;
                 true
             }
         ";
@@ -2098,7 +2098,7 @@ mod tests {
         let code = "
             #[no_mangle(all)]
             entity x(a: int<8>, b: inv &uint<8>, c: clock, d: bool, e: [bool; 8]) {
-                set b = 137; // ty Astrid
+                set b = &137; // ty Astrid
             }
         ";
         assert_debug_snapshot!(build_items(code));

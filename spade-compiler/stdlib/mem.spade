@@ -46,7 +46,7 @@ struct port ReadPort<#uint W, D> {
 }
 
 pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, p: ReadPort<W, D>) -> D {
-        set p.addr = addr;
+        set p.addr = &addr;
     reg;
         *p.out
 }
@@ -150,7 +150,7 @@ mod fifo_impl {
             trunc((write_ptr_abs - zext(read_ptr)))
         };
 
-        set to_w.read_ptr = read_ptr;
+        set to_w.read_ptr = &read_ptr;
 
         FifoRead$(
             read: &if !empty { Some(out) } else { None },
@@ -183,13 +183,13 @@ mod fifo_impl {
             _ => write_ptr,
         };
 
-        set mem.addr = write_ptr;
-        set mem.write =  match (inst read_mut_wire(write_value), full) {
+        set mem.addr = &write_ptr;
+        set mem.write =  &match (inst read_mut_wire(write_value), full) {
             (Some(v), false) => Some(v),
             _ => None
         };
 
-        set from_w.write_ptr = write_ptr;
+        set from_w.write_ptr = &write_ptr;
         FifoWrite$(
             full: &full,
             write: write_value
@@ -214,6 +214,3 @@ entity fifo<#uint AddrWidth, Data, #uint NumElements>(
 
     (write, read)
 }
-
-
-

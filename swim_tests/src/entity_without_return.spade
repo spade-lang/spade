@@ -1,9 +1,9 @@
 entity no_output(input: bool, output: inv &bool) {
-    set output = !input;
+    set output = &!input;
 }
 
 entity void_return(input: bool, output: inv &bool) {
-    set output = !input;
+    set output = &!input;
 }
 
 entity also_no_output(input: bool, output: inv &bool) {

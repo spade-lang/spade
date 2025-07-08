@@ -9,9 +9,9 @@ struct port Nested {
 }
 
 entity dut(fwd: uint<8>, back: inv &uint<4>, nested: Nested) -> Nested {
-    set back = 0;
-    set nested.back = 0;
-    set nested.inner.back = 0;
+    set back = &0;
+    set nested.back = &0;
+    set nested.inner.back = &0;
 
     Nested$(
         fwd: &0,
