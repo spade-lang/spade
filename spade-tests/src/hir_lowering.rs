@@ -1573,6 +1573,18 @@ mod tests {
         all
     }
 
+    snapshot_mir! {
+        inv_clocks_codegen_correctly,
+        r#"
+        extern entity foo(clk: clock, clk_out: inv clock);
+
+        entity main(clk_in: clock, clk_out: inv clock) {
+            inst foo(clk_in, clk_out);
+        }
+        "#,
+        all
+    }
+
     snapshot_error! {
         invalid_field_access,
         "
@@ -3207,7 +3219,7 @@ code_compiles! {
                 reg * 3;
                 [1; N]
             }
-        } 
+        }
 
         entity test(clk: clock) {
             let _ = inst(3) par_multiply(clk, [[0; 2]; 4]);

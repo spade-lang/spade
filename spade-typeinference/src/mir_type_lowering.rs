@@ -8,7 +8,7 @@ use spade_common::name::NameID;
 use spade_diagnostics::Diagnostic;
 use spade_hir::{self as hir, ConstGenericWithId};
 use spade_hir::{TypeDeclaration, TypeList};
-use spade_types::{ConcreteType, KnownType};
+use spade_types::{ConcreteType, KnownType, PrimitiveType};
 
 use crate::equation::{TypeVar, TypeVarID, TypedExpression};
 use crate::TypeState;
@@ -158,6 +158,18 @@ impl TypeState {
                     is_port: s.is_port,
                     members,
                     field_translators: translators.collect(),
+                }
+            }
+            hir::TypeDeclKind::Primitive(PrimitiveType::Clock) => {
+                let concrete_type = ConcreteType::Single {
+                    base: PrimitiveType::Clock,
+                    params,
+                };
+
+                if invert {
+                    ConcreteType::Backward(Box::new(concrete_type))
+                } else {
+                    concrete_type
                 }
             }
             hir::TypeDeclKind::Primitive(primitive) => ConcreteType::Single {

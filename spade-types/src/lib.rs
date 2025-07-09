@@ -26,7 +26,7 @@ impl std::fmt::Display for PrimitiveType {
         let str = match self {
             PrimitiveType::Int => "int",
             PrimitiveType::Uint => "uint",
-            PrimitiveType::Clock => "clk",
+            PrimitiveType::Clock => "clock",
             PrimitiveType::Bool => "bool",
             PrimitiveType::Bit => "bit",
             PrimitiveType::Memory => "Memory",

@@ -1,0 +1,7 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \main ((clk_in, clk_in_n7, bool), (clk_out, clk_out_n8, &mut (bool))) -> () {
+	let e1: () = Instance(\foo )(clk_in_n7, clk_out_n8)
+} => e0
