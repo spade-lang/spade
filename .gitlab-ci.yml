@@ -283,7 +283,7 @@ yowaspPublish:
     # branch, it will silently fail. Make sure to use a protected branch for this step
     - npm config set //registry.npmjs.org/:_authToken ${NPM_ACCESS_TOKEN}
     - cat ~/.npmrc
-    - npm publish yowasp/npmjs/dist/$(ls yowasp/npmjs/dist)
+    - npm publish --tag latest yowasp/npmjs/dist/$(ls yowasp/npmjs/dist)
   rules:
     # only publish on the main branch
     - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
