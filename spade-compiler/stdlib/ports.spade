@@ -4,3 +4,10 @@ entity new_mut_wire<T>() -> inv &T {
 
 /// Reads the current value of a `inv &T`
 extern entity read_mut_wire<T>(p: inv &T) -> T;
+
+// Return an (output, input) pair of wires to interact with an `inout` port
+// When the value at the input is `Some(T)`, `p` is set to that value and the
+// output is `None`
+// When the value at the input is `None`, `p` is left in a high-impedance state
+// and the output is the incoming value `Some(T)`
+extern entity read_write_inout<T>(p: inout<T>) -> (&Option<T>, inv &Option<T>);

@@ -625,6 +625,10 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             }
         }
         Operator::ReadPort => ops[0].backward_var_name(),
+        Operator::ReadWriteInout => {
+            // NOTE Dummy. Set in statement_code
+            String::new()
+        }
         Operator::FlipPort => {
             // NOTE Dummy. Set in statement_code
             String::new()
@@ -791,6 +795,10 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
             // NOTE Dummy. Set in statement_code
             String::new()
         }
+        Operator::ReadWriteInout => {
+            // NOTE Dummy. Set in statement_code
+            String::new()
+        }
         Operator::Instance { .. } => String::new(),
         Operator::Alias => {
             // NOTE: Set in statement_code
@@ -841,7 +849,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
             let assignment = match &binding.operator {
                 Operator::Instance{name: module_name, params, argument_names, loc} => {
                     let param_string = if params.is_empty() {
-                        "".into() 
+                        "".into()
                     } else {
                         let param_strings = params.iter().map(|(name, value)| format!(".{}({})", name, value)).collect::<Vec<_>>();
                         format!("#({})", param_strings.join(", "))
@@ -931,6 +939,24 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     .to_string()
                 }
                 Operator::DeclClockedMemory { .. } => forward_expression.unwrap(),
+                Operator::ReadWriteInout => {
+                    let total_size_minus_one = binding.ty.size() - BigUint::one();
+                    let payload_size = binding.ty.size() - BigUint::one();
+                    let payload_size_minus_one = &payload_size - BigUint::one();
+                    code! {
+                        [0] format!("assign {} = {}[{}] ? {}[{}:0] : {}'bZ;",
+                                ops[0],
+                                back_name, total_size_minus_one,
+                                back_name, payload_size_minus_one,
+                                payload_size);
+                        [0] format!("assign {} = {}[{}] ? {{ 1'b0, {}'bX }} : {{ 1'b1, {} }};",
+                                name,
+                                back_name, total_size_minus_one,
+                                payload_size,
+                                ops[0])
+                    }
+                    .to_string()
+                }
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
                     [0] backward_expression.map(|b| format!("assign {} = {};", b, back_name));
