@@ -285,18 +285,22 @@ pub fn compile_items(
                         println!("{}", format_trace_stack(&type_state));
                     }
 
+                    let mut failed = false;
                     for diag in type_state.diags.drain() {
                         result.push(Err(state.add_mono_traceback(diag, &item)));
+                        failed = true
                     }
 
                     match revisit_result {
                         Ok(_) => {}
                         Err(e) => {
                             result.push(Err(state.add_mono_traceback(e, &item)));
-                            continue 'item_loop;
+                            failed = true
                         }
                     }
-
+                    if failed {
+                        continue 'item_loop;
+                    }
 
                     let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
 

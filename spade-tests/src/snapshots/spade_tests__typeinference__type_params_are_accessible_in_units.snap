@@ -29,19 +29,3 @@ error: Expected type int<9>, got bool
                Got: bool
   = The error is in a generic unit instantiated at
     ╰ testinput:9 test<int<9>>
-
-error: Generic `extern`s with non-number parameters cannot be instantiated
-  ┌─ testinput:5:16
-  │
-1 │ extern fn produce_something<T>() -> T;
-  │        ------------------------------- Because this generic `extern` has a type parameter
-  ·
-5 │     let a: T = produce_something::<bool>();
-  │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid instance
-  │
-  = The error is in a generic unit instantiated at
-    ╰ testinput:9 test<int<9>>
-  = Remove this parameter
-  │
-1 │ extern fn produce_something<T>() -> T;
-  │                             -
