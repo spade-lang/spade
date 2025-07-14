@@ -48,6 +48,7 @@ impl TypeList {
                     // No new types introduced
                 }
                 Statement::WalTrace { .. } => {}
+                Statement::Error => {}
             }
         }
     }

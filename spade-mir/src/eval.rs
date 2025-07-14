@@ -360,6 +360,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
             Statement::Assert(_) => panic!("trying to evaluate an assert statement"),
             Statement::Set { .. } => panic!("trying to evaluate a `set` statement"),
             Statement::WalTrace { .. } => panic!("trying to evaluate a `wal_trace`"),
+            Statement::Error => panic!("Trying to evaluate an Error statement"),
         };
 
         name_vals.insert(n, v.clone());

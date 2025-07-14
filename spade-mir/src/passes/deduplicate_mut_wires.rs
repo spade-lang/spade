@@ -133,6 +133,7 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
             Statement::Constant(_, _, _)
             | Statement::Assert(_)
             | Statement::Set { .. }
+            | Statement::Error
             | Statement::WalTrace { .. } => {}
         }
     }
@@ -164,6 +165,7 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
             // Unchanged things since they don't consume nor create mut wires
             s @ Statement::Register(_)
             | s @ Statement::Constant(_, _, _)
+            | s @ Statement::Error
             | s @ Statement::Assert(_) => Some(s),
             Statement::Set { target, value } => {
                 // If we replaced a mut wire with another, the other one is going to do

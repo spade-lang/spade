@@ -39,6 +39,7 @@ impl StatementList {
             Statement::Assert(_) => None,
             Statement::Set { .. } => None,
             Statement::WalTrace { .. } => None,
+            Statement::Error => None,
         };
         self.stmts.push(stmt);
         if let Some(name) = name {
@@ -62,6 +63,7 @@ impl StatementList {
             Statement::Assert(_) => None,
             Statement::Set { .. } => None,
             Statement::WalTrace { .. } => None,
+            Statement::Error => None,
         };
         self.stmts.push(stmt);
         if let Some(name) = name {

@@ -544,6 +544,7 @@ pub enum Statement {
         suffix: String,
         ty: Type,
     },
+    Error,
 }
 
 impl std::fmt::Display for Statement {
@@ -560,6 +561,7 @@ impl std::fmt::Display for Statement {
                 suffix,
                 ty: _,
             } => write!(f, "wal_trace({name}, {val}, {suffix})"),
+            Statement::Error => write!(f, "Error"),
         }
     }
 }
