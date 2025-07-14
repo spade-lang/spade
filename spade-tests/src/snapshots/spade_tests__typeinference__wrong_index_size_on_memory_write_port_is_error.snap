@@ -12,7 +12,10 @@ error: Expected type [(bool, uint<32>, int<8>); 1], got [(bool, uint<4>, int<8>)
   ┌─ testinput:3:60
   │
 3 │     let mem: Memory<int<8>, 16> = inst clocked_memory(clk, [(true, idx, 0)]);
-  │                                                            ^^^^^^^^^^^^^^^^ Expected [(bool, uint<32>, int<8>); 1], got [(bool, uint<4>, int<8>); 1]
+  │                                   -------------------------^^^^^^^^^^^^^^^^-
+  │                                   │                        │
+  │                                   │                        Expected [(bool, uint<32>, int<8>); 1], got [(bool, uint<4>, int<8>); 1]
+  │                                   The error occurred when unifying types here
   │
   = note: Expected: 32
                 in: [(bool, uint<32>, int<8>); 1]

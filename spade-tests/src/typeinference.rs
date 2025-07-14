@@ -2300,6 +2300,8 @@ snapshot_error! {
         }
     "
 }
+<<<<<<< Conflict 1 of 1
++++++++ Contents of side #1
 
 snapshot_error! {
     transmute_between_different_sizes_is_disallowed,
@@ -2336,4 +2338,28 @@ snapshot_error! {
             unsafe { std::conv::transmute(a) }
         }
     "
+}
+
+snapshot_error! {
+    failed_where_clauses_have_traceback,
+    "
+        struct Fp<#uint Size, #uint FracBits> {
+            inner: int<Size>
+        }
+
+        impl<#uint IntSize, #uint FracBits> int<IntSize> {
+            fn to_fixed<#uint OutSize>(self) -> Fp<OutSize, FracBits>
+                where OutSize: {IntSize + FracBits}
+            {
+                Fp(0)
+            }
+        }
+
+
+        entity test(clk: clock, rst: bool) {
+            reg(clk) exposure: Fp<{uint_bits_to_fit(4095) + 1}, 8> =
+                    1i18.to_fixed();
+        }
+    ",
+    false
 }

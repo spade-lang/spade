@@ -341,6 +341,10 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         ),
                         ConstraintSource::PipelineAvailDepth => diag,
                     }
+                    .secondary_label(
+                        unification_point,
+                        "The error occurred when unifying types here",
+                    )
                 }
                 UnificationError::Specific(e) => e.secondary_label(
                     unification_point,

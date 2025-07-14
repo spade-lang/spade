@@ -10,10 +10,16 @@ entity counter(clk: clock) -> int<8> {
 
 error: Expected type Number<8>, got Number<9>
   ┌─ testinput:3:13
-  │
-3 │     let x = x + 1;
-  │             ^^^^^ Expected Number<8>, got Number<9>
-  │
+  │  
+1 │   entity counter(clk: clock) -> int<8> {
+  │ ╭──────────────────────────────────────'
+2 │ │     decl x;
+3 │ │     let x = x + 1;
+  │ │             ^^^^^ Expected Number<8>, got Number<9>
+4 │ │     x
+5 │ │ }
+  │ ╰─' The error occurred when unifying types here
+  │  
   = note: Expected: 8
                 in: Number<8>
                Got: 9
