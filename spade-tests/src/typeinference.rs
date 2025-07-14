@@ -2300,8 +2300,6 @@ snapshot_error! {
         }
     "
 }
-<<<<<<< Conflict 1 of 1
-+++++++ Contents of side #1
 
 snapshot_error! {
     transmute_between_different_sizes_is_disallowed,
