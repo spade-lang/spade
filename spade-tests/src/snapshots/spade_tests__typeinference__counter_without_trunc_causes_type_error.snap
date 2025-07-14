@@ -9,10 +9,15 @@ entity counter(clk: clock, rst: bool) -> int<8> {
 
 error: Expected type Number<8>, got Number<9>
   ┌─ testinput:2:18
-  │
-2 │     reg(clk) x = x + 1;
-  │                  ^^^^^ Expected Number<8>, got Number<9>
-  │
+  │  
+1 │   entity counter(clk: clock, rst: bool) -> int<8> {
+  │ ╭─────────────────────────────────────────────────'
+2 │ │     reg(clk) x = x + 1;
+  │ │                  ^^^^^ Expected Number<8>, got Number<9>
+3 │ │     x
+4 │ │ }
+  │ ╰─' The error occurred when unifying types here
+  │  
   = note: Expected: 8
                 in: Number<8>
                Got: 9

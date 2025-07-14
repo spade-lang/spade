@@ -10,7 +10,10 @@ error: Expected type #uint, got -1
   ┌─ testinput:2:26
   │
 2 │     let unsized = [true; -1];
-  │                          ^^ Expected #uint, got -1
+  │                   -------^^-
+  │                   │      │
+  │                   │      Expected #uint, got -1
+  │                   The error occurred when unifying types here
   │
   = note: Expected: #uint
                 in: #uint

@@ -10,7 +10,9 @@ error: Expected type uint<7>, got uint<4>
   ┌─ testinput:2:7
   │
 2 │     x[idx]
-  │       ^^^ Expected uint<7>, got uint<4>
+  │     - ^^^ Expected uint<7>, got uint<4>
+  │     │  
+  │     The error occurred when unifying types here
   │
   = note: Expected: 7
                 in: uint<7>

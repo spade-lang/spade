@@ -1,0 +1,35 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+struct Fp<#uint Size, #uint FracBits> {
+    inner: int<Size>
+}
+
+impl<#uint IntSize, #uint FracBits> int<IntSize> {
+    fn to_fixed<#uint OutSize>(self) -> Fp<OutSize, FracBits>
+        where OutSize: {IntSize + FracBits}
+    {
+        Fp(0)
+    }
+}
+
+
+entity test(clk: clock, rst: bool) {
+    reg(clk) exposure: Fp<{uint_bits_to_fit(4095) + 1}, 8> =
+            1i18.to_fixed();
+}
+
+
+error: Expected type 13, got 26
+   ┌─ testinput:7:25
+   │
+ 7 │         where OutSize: {IntSize + FracBits}
+   │                         ^^^^^^^^^^^^^^^^^^ Expected 13, got 26
+   ·
+16 │             1i18.to_fixed();
+   │             --------------- The error occurred when unifying types here
+   │
+   = note: Expected: 13
+                 in: 13
+                Got: 26
+                 in: 26

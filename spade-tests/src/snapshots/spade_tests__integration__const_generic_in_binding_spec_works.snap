@@ -14,7 +14,9 @@ error: Expected type 8, got 3
   ┌─ testinput:6:18
   │
 6 │     let x: uint<{1 + 2}> = sized_zero::<8>();
-  │                  ^^^^^ Expected 8, got 3
+  │                  ^^^^^     ----------------- The error occurred when unifying types here
+  │                  │          
+  │                  Expected 8, got 3
   │
   = note: Expected: 8
                 in: 8

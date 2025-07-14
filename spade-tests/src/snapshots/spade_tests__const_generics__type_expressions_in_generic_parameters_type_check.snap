@@ -14,6 +14,9 @@ error: Expected type 2, got 3
   │
 1 │ fn foo<#uint N>(value: uint<{N + 1}>) {}
   │                              ^^^^^ Expected 2, got 3
+  ·
+5 │     foo::<2>(value)
+  │              ----- The error occurred when unifying types here
   │
   = note: Expected: 2
                 in: 2

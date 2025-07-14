@@ -14,6 +14,9 @@ error: Expected type 3, got 4
   │
 1 │ fn foo<#uint N>(value: uint<{N + 1}>) {}
   │                              ^^^^^ Expected 3, got 4
+  ·
+4 │     let _ = foo::<3>(0u3);
+  │                      --- The error occurred when unifying types here
   │
   = note: Expected: 3
                 in: 3
@@ -25,6 +28,9 @@ error: Expected type 4, got 5
   │
 1 │ fn foo<#uint N>(value: uint<{N + 1}>) {}
   │                              ^^^^^ Expected 4, got 5
+  ·
+5 │     let _ = foo::<4>(0u4);
+  │                      --- The error occurred when unifying types here
   │
   = note: Expected: 4
                 in: 4

@@ -279,9 +279,16 @@ pub fn compile_items(
                         type_ctx,
                     );
 
+                    if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
+                        println!("After mono of {} with {:?}", u.inner.name, item.params);
+                        type_state.print_equations();
+                        println!("{}", format_trace_stack(&type_state));
+                    }
+
                     for diag in type_state.diags.drain() {
                         result.push(Err(state.add_mono_traceback(diag, &item)));
                     }
+
                     match revisit_result {
                         Ok(_) => {}
                         Err(e) => {
@@ -290,11 +297,6 @@ pub fn compile_items(
                         }
                     }
 
-                    if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-                        println!("After mono of {} with {:?}", u.inner.name, item.params);
-                        type_state.print_equations();
-                        println!("{}", format_trace_stack(&type_state));
-                    }
 
                     let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
 
