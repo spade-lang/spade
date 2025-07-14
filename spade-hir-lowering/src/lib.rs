@@ -1112,7 +1112,7 @@ impl StatementLocal for Statement {
     fn lower(&self, ctx: &mut Context) -> Result<StatementList> {
         let mut result = StatementList::new();
         match self {
-            Statement::Error => {}
+            Statement::Error => result.push_anonymous(mir::Statement::Error),
             Statement::Binding(hir::Binding {
                 pattern,
                 ty: _,
@@ -1417,7 +1417,7 @@ impl ExprLocal for Loc<Expression> {
         let self_type = hir_type.to_mir_type();
 
         match &self.kind {
-            ExprKind::Error => {}
+            ExprKind::Error => result.push_primary(mir::Statement::Error, self),
             ExprKind::Identifier(_) => {
                 // Empty. The identifier will be defined elsewhere
             }

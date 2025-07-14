@@ -148,6 +148,12 @@ fn statement_declaration(
         Statement::WalTrace { .. } => {
             panic!("Encountered a WalTrace mir node during codegen");
         }
+        Statement::Error => {
+            println!("WARNING: Running codegen on a Statement::Error");
+            code!{
+                [0] "// Codegen ran for an Error statement"
+            }
+        },
     }
 }
 
@@ -1100,6 +1106,11 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
         }
         Statement::WalTrace { .. } => {
             panic!("Encountered a WalTrace mir node during codegen");
+        }
+        Statement::Error => {
+            code! {
+                [0] "// Codegen ran for an error node"
+            }
         }
     }
 }

@@ -178,6 +178,9 @@ where
             let name = translate_val_name(name, lhs_trans, rhs_trans);
             let val = translate_val_name(val, lhs_trans, rhs_trans);
             format!("wal_trace ({name}, {val}, '{suffix}', {ty})")
+        },
+        Statement::Error => {
+            format!("Error")
         }
     }
 }

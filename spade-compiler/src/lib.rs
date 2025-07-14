@@ -523,6 +523,13 @@ fn codegen(
             reg_name_map,
         }) = mir.or_report(errors)
         {
+            if mir
+                .statements
+                .iter()
+                .any(|stmt| matches!(stmt, spade_mir::Statement::Error))
+            {
+                continue;
+            }
             bumpy_mir_entities.push(mir.clone());
 
             let codegenable = prepare_codegen(mir, idtracker);
