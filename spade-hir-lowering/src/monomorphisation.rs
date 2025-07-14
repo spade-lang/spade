@@ -6,11 +6,12 @@ use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_diagnostics::{diag_anyhow, DiagHandler, Diagnostic};
+use spade_hir::Unit;
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
 use spade_typeinference::equation::KnownTypeVar;
 use spade_typeinference::error::UnificationErrorExt;
-use spade_typeinference::trace_stack::{format_trace_stack, TraceStackEntry};
+use spade_typeinference::trace_stack::format_trace_stack;
 use spade_typeinference::{GenericListToken, HasType, TypeState};
 
 use crate::error::Result;
@@ -177,7 +178,7 @@ pub fn compile_items(
         let mut reg_name_map = BTreeMap::new();
         match original_item {
             Some((ExecutableItem::Unit(u), old_type_state)) => {
-                let (u, old_type_state) =
+                let (u, preprocessor) =
                     if let Some(replacement) = body_replacements.get(&u.name.name_id().inner) {
                         let new_unit = match replacement.replace_in(u.clone(), idtracker) {
                             Ok(u) => u,
@@ -187,16 +188,14 @@ pub fn compile_items(
                             }
                         };
 
-                        (&new_unit.clone(), &{
-                            let mut type_state = impl_type_state.create_child();
-                            let type_ctx = &spade_typeinference::Context {
-                                symtab: symtab.symtab(),
-                                items: item_list,
-                                trait_impls: &old_type_state.trait_impls,
-                            };
-                            let unification_result = type_state.visit_unit_with_preprocessing(
-                                &new_unit,
-                                |type_state, unit, generic_list, ctx| {
+                        (
+                            new_unit,
+                            Some(
+                                |type_state: &mut TypeState,
+                                 unit: &Loc<Unit>,
+                                 generic_list: &GenericListToken,
+                                 ctx: &spade_typeinference::Context|
+                                 -> Result<_> {
                                     let gl = type_state
                                         .get_generic_list(generic_list)
                                         .ok_or_else(|| {
@@ -219,19 +218,13 @@ pub fn compile_items(
                                             .commit(type_state, ctx)
                                             .into_default_diagnostic(unit, type_state)?;
                                     }
+
                                     Ok(())
                                 },
-                                type_ctx,
-                            );
-                            if let Err(e) = unification_result {
-                                result.push(Err(state.add_mono_traceback(e, &item)));
-                                break 'item_loop;
-                            }
-
-                            type_state
-                        })
+                            ),
+                        )
                     } else {
-                        (u, old_type_state)
+                        (u.clone(), None)
                     };
 
                 let type_ctx = &spade_typeinference::Context {
@@ -239,59 +232,76 @@ pub fn compile_items(
                     items: item_list,
                     trait_impls: &old_type_state.trait_impls,
                 };
-                let mut type_state = old_type_state.create_child();
-                let generic_list_token = if !u.head.get_type_params().is_empty() {
-                    Some(GenericListToken::Definition(u.name.name_id().inner.clone()))
-                } else {
-                    None
-                };
 
-                if let Some(generic_list_token) = &generic_list_token {
-                    let generic_list = type_state
-                        .get_generic_list(generic_list_token)
-                        .expect("Found no generic list  when monomorphizing")
-                        .clone();
-                    for (source_param, new) in
-                        u.head.get_type_params().iter().zip(item.params.iter())
-                    {
-                        let source_var = &generic_list[&source_param.name_id()];
+                // If the unit is generic, we're going to re-do type inference from scratch
+                // with the known types from the outer context
+                let (mut type_state, generic_list_token) = if !u.head.get_type_params().is_empty() {
+                    let mut type_state = impl_type_state.create_child();
 
-                        type_state
-                            .trace_stack
-                            .push(TraceStackEntry::Message(format!(
-                                "Performing mono replacement of {source_var} -> {new:?}",
-                                source_var = source_var.debug_resolve(&type_state),
-                            )));
+                    let revisit_result = type_state.visit_unit_with_preprocessing(
+                        &u,
+                        |type_state, unit, generic_list, ctx| {
+                            let gl = type_state
+                                .get_generic_list(generic_list)
+                                .ok_or_else(|| diag_anyhow!(unit, "Did not have a generic list"))?
+                                .clone();
 
-                        let tvar = new.insert(&mut type_state);
-                        match type_state
-                            .unify(&tvar, source_var, type_ctx)
-                            .into_default_diagnostic(u, &type_state)
-                            .and_then(|_| type_state.check_requirements(true, type_ctx))
-                        {
-                            Ok(_) => {}
-                            Err(e) => {
-                                result.push(Err(state.add_mono_traceback(e, &item)));
-                                continue 'item_loop;
+                            let generic_map = u
+                                .head
+                                .get_type_params()
+                                .iter()
+                                .zip(item.params.iter())
+                                .map(|(param, outer_var)| {
+                                    (param.name_id().at_loc(param), outer_var.clone())
+                                })
+                                .collect::<Vec<_>>();
+
+                            for (name, outer_var) in generic_map {
+                                let inner_var = gl.get(&name).ok_or_else(|| {
+                                    diag_anyhow!(
+                                        name.clone(),
+                                        "Did not find a generic type for {name}"
+                                    )
+                                })?;
+
+                                let outer_var = outer_var.insert(type_state);
+                                type_state
+                                    .unify(&inner_var.clone(), &outer_var, ctx)
+                                    .into_default_diagnostic(name, type_state)?;
                             }
+
+                            if let Some(preprocessor) = preprocessor {
+                                preprocessor(type_state, unit, generic_list, ctx)?;
+                            }
+
+                            Ok(())
+                        },
+                        type_ctx,
+                    );
+
+                    for diag in type_state.diags.drain() {
+                        result.push(Err(state.add_mono_traceback(diag, &item)));
+                    }
+                    match revisit_result {
+                        Ok(_) => {}
+                        Err(e) => {
+                            result.push(Err(state.add_mono_traceback(e, &item)));
+                            continue 'item_loop;
                         }
                     }
 
                     if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-                        println!(
-                            "After mono of {} replacing {} with {}",
-                            u.inner.name,
-                            u.head
-                                .get_type_params()
-                                .iter()
-                                .map(|p| format!("{p:?}"))
-                                .join(", "),
-                            item.params.iter().map(|p| format!("{p}")).join(", ")
-                        );
+                        println!("After mono of {} with {:?}", u.inner.name, item.params);
                         type_state.print_equations();
                         println!("{}", format_trace_stack(&type_state));
                     }
-                }
+
+                    let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
+
+                    (type_state, tok)
+                } else {
+                    (old_type_state.clone(), None)
+                };
 
                 // Apply passes to the type checked module
                 let mut u = u.clone();

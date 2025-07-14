@@ -13,20 +13,35 @@ fn main() {
 }
 
 
-error: Expected type bool, got int<9>
-  ┌─ testinput:3:1
-  │  
-3 │ ╭ fn test<T>() {
-4 │ │ 
-5 │ │     let a: T = produce_something::<bool>();
-  │ │                                    ---- Type bool inferred here
-6 │ │ }
-  │ ╰─^ Expected bool
-  ·  
-9 │       test::<int<9>>()
-  │              ----- Type int<9> inferred here
-  │  
-  = note: Expected: bool
-               Got: int<9>
+error: Expected type int<9>, got bool
+  ┌─ testinput:5:16
+  │
+5 │     let a: T = produce_something::<bool>();
+  │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │                │                   │
+  │                │                   Type bool inferred here
+  │                Expected int<9>
+  ·
+9 │     test::<int<9>>()
+  │            ----- Type int<9> inferred here
+  │
+  = note: Expected: int<9>
+               Got: bool
   = The error is in a generic unit instantiated at
     ╰ testinput:9 test<int<9>>
+
+error: Generic `extern`s with non-number parameters cannot be instantiated
+  ┌─ testinput:5:16
+  │
+1 │ extern fn produce_something<T>() -> T;
+  │        ------------------------------- Because this generic `extern` has a type parameter
+  ·
+5 │     let a: T = produce_something::<bool>();
+  │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid instance
+  │
+  = The error is in a generic unit instantiated at
+    ╰ testinput:9 test<int<9>>
+  = Remove this parameter
+  │
+1 │ extern fn produce_something<T>() -> T;
+  │                             -

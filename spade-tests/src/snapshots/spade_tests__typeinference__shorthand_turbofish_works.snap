@@ -13,20 +13,18 @@ fn test() {
 }
 
 
-error: Expected type bool, got uint<8>
-  ┌─ testinput:3:1
-  │  
-3 │ ╭ fn func2<A>() {
-4 │ │     let a: bool = false;
-  │ │                   ----- Type bool inferred here
-5 │ │     func::$<A>(a)
-6 │ │ }
-  │ ╰─^ Expected bool
-  ·  
-9 │       func2::<uint<8>>()
-  │               ------ Type uint<8> inferred here
-  │  
-  = note: Expected: bool
-               Got: uint<8>
+error: Argument type mismatch. Expected uint<8> got bool
+  ┌─ testinput:5:16
+  │
+4 │     let a: bool = false;
+  │                   ----- Type bool inferred here
+5 │     func::$<A>(a)
+  │                ^ expected uint<8>
+  ·
+9 │     func2::<uint<8>>()
+  │             ------ Type uint<8> inferred here
+  │
+  = note: Expected: uint<8>
+               Got: bool
   = The error is in a generic unit instantiated at
     ╰ testinput:9 func2<uint<8>>
