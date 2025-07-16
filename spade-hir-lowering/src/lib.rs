@@ -3088,7 +3088,7 @@ impl ExprLocal for Loc<Expression> {
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::ReadWriteInout,
+                operator: mir::Operator::ReadWriteInOut,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(path.loc()),

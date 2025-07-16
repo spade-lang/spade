@@ -625,7 +625,7 @@ fn forward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueName
             }
         }
         Operator::ReadPort => ops[0].backward_var_name(),
-        Operator::ReadWriteInout => {
+        Operator::ReadWriteInOut => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
@@ -795,7 +795,7 @@ fn backward_expression_code(binding: &Binding, types: &TypeList, ops: &[ValueNam
             // NOTE Dummy. Set in statement_code
             String::new()
         }
-        Operator::ReadWriteInout => {
+        Operator::ReadWriteInOut => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
@@ -939,7 +939,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     .to_string()
                 }
                 Operator::DeclClockedMemory { .. } => forward_expression.unwrap(),
-                Operator::ReadWriteInout => {
+                Operator::ReadWriteInOut => {
                     let total_size_minus_one = binding.ty.size() - BigUint::one();
                     let payload_size = binding.ty.size() - BigUint::one();
                     let payload_size_minus_one = &payload_size - BigUint::one();

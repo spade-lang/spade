@@ -17,6 +17,15 @@ pub(crate) struct WireOfPort {
 }
 
 #[derive(IntoDiagnostic)]
+#[diagnostic(error, "Cannot create a wire of inout")]
+pub(crate) struct WireOfInOut {
+    #[diagnostic(primary, "This cannot be a wire")]
+    pub(crate) full_type: Loc<()>,
+    #[diagnostic(secondary, "Because this is an inout")]
+    pub(crate) inner_type: Loc<()>,
+}
+
+#[derive(IntoDiagnostic)]
 #[diagnostic(error, "Expected {} arguments, got {}", diag.expected, diag.got)]
 pub(crate) struct PatternListLengthMismatch {
     pub(crate) expected: usize,

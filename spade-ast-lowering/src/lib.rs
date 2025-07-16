@@ -27,7 +27,7 @@ use type_level_if::expand_type_level_if;
 use crate::attributes::AttributeListExt;
 pub use crate::impls::ensure_unique_anonymous_traits;
 use crate::pipelines::maybe_perform_pipelining_tasks;
-use crate::types::{IsPort, IsSelf};
+use crate::types::{IsInOut, IsPort, IsSelf};
 use ast::{Binding, CallKind, ParameterList};
 use hir::expression::{BinaryOperator, IntLiteralKind};
 use hir::param_util::ArgumentError;
@@ -443,6 +443,13 @@ pub fn visit_type_spec(
 
             if inner.is_port(&ctx)? {
                 return Err(Diagnostic::from(error::WireOfPort {
+                    full_type: t.loc(),
+                    inner_type: inner.loc(),
+                }));
+            }
+
+            if inner.is_inout(&ctx)? {
+                return Err(Diagnostic::from(error::WireOfInOut {
                     full_type: t.loc(),
                     inner_type: inner.loc(),
                 }));

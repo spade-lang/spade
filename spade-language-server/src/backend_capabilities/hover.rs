@@ -145,7 +145,7 @@ impl ServerBackend {
                         TypeDeclKind::Struct { is_port: true } => "struct port",
                         TypeDeclKind::Struct { is_port: false } => "struct",
                         TypeDeclKind::Enum => "enum",
-                        TypeDeclKind::Primitive { is_port: _ } => "primitive type",
+                        TypeDeclKind::Primitive { .. } => "primitive type",
                     };
 
                     let generics = match generics.as_slice() {

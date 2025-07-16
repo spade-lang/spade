@@ -120,7 +120,7 @@ impl Requirement {
                                 .primary_label(format!("expected a struct, got {}", type_name))
                                 .help("Field access is only allowed on structs"));
                             }
-                            TypeSymbol::Declared(_, TypeDeclKind::Primitive { is_port: _ }) => {
+                            TypeSymbol::Declared(_, TypeDeclKind::Primitive { .. }) => {
                                 return Err(Diagnostic::error(
                                     target_type,
                                     "Field access on a primitive type",
