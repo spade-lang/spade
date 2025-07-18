@@ -162,6 +162,7 @@ macro_rules! entity {
             statements: vec![
                 $( spade_mir::statement! $statement ),*
             ],
+            verilog_attr_groups: vec![],
         }
     }
 }
@@ -308,6 +309,7 @@ mod tests {
                 statement!(e(0); Type::int(6); Add; n(1, "value")),
                 statement!(reg n(1, "value"); Type::int(6); clock (n(0, "clk")); e(0)),
             ],
+            verilog_attr_groups: vec![],
         };
 
         let result = entity!(&["pong"]; ("_i_clk", n(0, "clk"), Type::Bool) -> Type::int(6); {

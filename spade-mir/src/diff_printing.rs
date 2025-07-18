@@ -201,7 +201,23 @@ where
         output,
         output_type,
         statements,
+        verilog_attr_groups,
     } = entity;
+
+    let verilog_attr_groups = verilog_attr_groups
+        .iter()
+        .map(|attrs| {
+            let contents = attrs
+                .iter()
+                .map(|(key, value)| match value {
+                    Some(v) => format!("{key} = {v:?}"),
+                    None => key.clone(),
+                })
+                .join(",");
+
+            format!("#[verilog_attrs({contents})]\n")
+        })
+        .join("");
 
     let inputs = inputs
         .iter()
@@ -233,9 +249,10 @@ where
         .join("\n");
 
     indoc::formatdoc!(
-        r#"entity {}({}) -> {} {{
+        r#"{}entity {}({}) -> {} {{
             {}
         }} => {}"#,
+        verilog_attr_groups,
         name,
         inputs,
         output_type,

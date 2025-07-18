@@ -230,7 +230,8 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
                     paren_sugar = true;
                     Ok(None)
                 }
-                ast::Attribute::Optimize { .. }
+                ast::Attribute::VerilogAttrs { .. }
+                | ast::Attribute::Optimize { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::WalTraceable { .. }
                 | ast::Attribute::NoMangle { .. }
@@ -485,6 +486,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 let _ = variant.attributes.lower(&mut |attr| match &attr.inner {
                     ast::Attribute::Documentation { .. } => Ok(None),
                     ast::Attribute::Optimize { .. }
+                    | ast::Attribute::VerilogAttrs { .. }
                     | ast::Attribute::SurferTranslator(_)
                     | ast::Attribute::SpadecParenSugar
                     | ast::Attribute::WalTraceable { .. }
@@ -532,6 +534,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             let _ = e.attributes.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::Documentation { .. } => Ok(None),
                 ast::Attribute::Optimize { .. }
+                | ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::WalTraceable { .. }
                 | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::NoMangle { .. }
@@ -644,6 +647,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 }
                 ast::Attribute::Documentation { .. } => Ok(None),
                 ast::Attribute::Optimize { .. }
+                | ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }

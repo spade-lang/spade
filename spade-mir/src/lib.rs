@@ -542,6 +542,7 @@ pub struct Entity {
     pub inputs: Vec<MirInput>,
     pub output: ValueName,
     pub output_type: Type,
+    pub verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
     pub statements: Vec<Statement>,
 }
 
@@ -553,6 +554,7 @@ impl std::fmt::Display for Entity {
             output,
             output_type,
             statements,
+            verilog_attr_groups,
         } = self;
 
         let inputs = inputs
@@ -573,6 +575,18 @@ impl std::fmt::Display for Entity {
             .join(", ");
 
         let statements = statements.iter().map(|s| format!("\t{s}\n")).join("");
+
+        for attrs in verilog_attr_groups {
+            let contents = attrs
+                .iter()
+                .map(|(key, value)| match value {
+                    Some(v) => format!("{key} = {v:?}"),
+                    None => key.clone(),
+                })
+                .join(",");
+
+            writeln!(f, "#[verilog_attrs({contents})]")?;
+        }
 
         writeln!(
             f,

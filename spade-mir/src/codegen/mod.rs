@@ -1197,6 +1197,25 @@ pub fn prepare_codegen(mut entity: Entity, expr_idtracker: &mut ExprIdTracker) -
     Codegenable(entity)
 }
 
+fn codegen_verilog_attr_groups(groups: &[Vec<(String, Option<String>)>]) -> Code {
+    let lines = groups
+        .iter()
+        .map(|attrs| {
+            let contents = attrs
+                .iter()
+                .map(|(key, value)| match value {
+                    Some(v) => format!(r#"{key} = "{v}""#),
+                    None => key.clone(),
+                })
+                .join(", ");
+
+            format!("(* {contents} *)")
+        })
+        .join("\n");
+
+    code! { [0] lines; }
+}
+
 /// Source code is used for two things: mapping expressions back to their original source code
 /// location, and for assertions. If source_code is None, no (* src = *) attributes will be
 /// emitted, however, assertions will cause a panic. This is convenient for tests where specifying
@@ -1212,6 +1231,8 @@ pub fn entity_code(
     let mut name_map = VerilogNameMap::new();
 
     let Codegenable(entity) = entity;
+
+    let verilog_attr_groups = codegen_verilog_attr_groups(&entity.verilog_attr_groups);
 
     let types = &TypeList::from_entity(entity);
 
@@ -1354,6 +1375,7 @@ pub fn entity_code(
         .join(",\n");
 
     let code = code! {
+        [0] verilog_attr_groups;
         [0] &format!("module {} (", entity_name);
                 [2] &port_definitions;
             [1] &");";
@@ -1544,6 +1566,59 @@ mod tests {
 
         let expected = indoc!(
             r#"
+
+            module \pong  (
+                    input[5:0] op_i,
+                    output[5:0] output__
+                );
+                `ifdef COCOTB_SIM
+                string __top_module;
+                string __vcd_file;
+                initial begin
+                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "pong" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
+                        $dumpfile (__vcd_file);
+                        $dumpvars (0, \pong );
+                    end
+                end
+                `endif
+                logic[5:0] \op ;
+                assign \op  = op_i;
+                logic[5:0] _e_0;
+                assign _e_0 = $signed(\op ) + $signed(_e_1);
+                assign output__ = _e_0;
+            endmodule"#
+        );
+
+        assert_same_code!(
+            &entity_code(
+                &prepare_codegen(input.clone(), &mut ExprIdTracker::new()),
+                &mut InstanceMap::new(),
+                &None
+            )
+            .0
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn verilog_attr_groups_work_on_entity_declarations() {
+        let mut input = entity!(&["pong"]; ("op", n(0, "op"), Type::int(6)) -> Type::int(6); {
+            (e(0); Type::int(6); Add; n(0, "op"), e(1))
+        } => e(0));
+
+        input.verilog_attr_groups = vec![
+            vec![("alone".into(), None)],
+            vec![
+                ("standalone".into(), None),
+                ("key".into(), Some("value".into())),
+            ],
+        ];
+
+        let expected = indoc!(
+            r#"
+            (* alone *)
+            (* standalone, key = "value" *)
             module \pong  (
                     input[5:0] op_i,
                     output[5:0] output__
@@ -1591,10 +1666,12 @@ mod tests {
             output: ValueName::Expr(ExprID(0)),
             output_type: Type::Bool,
             statements: vec![],
+            verilog_attr_groups: vec![],
         };
 
         let expected = indoc!(
             r#"
+
             module test (
                     input a,
                     output output__
@@ -1638,10 +1715,12 @@ mod tests {
             output: ValueName::Expr(ExprID(0)),
             output_type: Type::Bool,
             statements: vec![],
+            verilog_attr_groups: vec![],
         };
 
         let expected = indoc!(
             r#"
+
             module test (
                     output a,
                     output output__
@@ -1682,7 +1761,9 @@ mod tests {
         } => e(0));
 
         let expected = indoc!(
-            r#"module \test  (
+            r#"
+
+            module \test  (
                     output[2:0] a_o,
                     output[5:0] output__
                 );
@@ -1723,7 +1804,9 @@ mod tests {
         } => e(0));
 
         let expected = indoc!(
-            r#"module \test  (
+            r#"
+
+            module \test  (
                     input[3:0] a_i, output[2:0] a_o,
                     output[5:0] output__
                 );
@@ -1765,7 +1848,9 @@ mod tests {
         } => e(0));
 
         let expected = indoc!(
-            r#"module test (
+            r#"
+
+            module test (
                     output[3:0] output__,
                     input[2:0] input__
                 );
@@ -1834,6 +1919,7 @@ mod tests {
         // This test removes a lot of variables through alias resolution
         let expected = indoc!(
             r#"
+
             module \pl  (
                     input clk_i,
                     output[15:0] output__
@@ -1885,6 +1971,7 @@ mod tests {
 
         let expected = indoc!(
             r#"
+
             module \pl  (
                     output[15:0] output__
                 );
@@ -3429,10 +3516,12 @@ mod expression_tests {
             output: ValueName::Expr(ExprID(0)),
             output_type: Type::unit(),
             statements: vec![],
+            verilog_attr_groups: vec![],
         };
 
         let expected = indoc!(
             r#"
+
             module test (
                     inout a
                 );

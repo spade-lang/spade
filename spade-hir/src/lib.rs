@@ -813,13 +813,23 @@ impl std::fmt::Display for TraitName {
 /// ast node
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Attribute {
-    Optimize { passes: Vec<Loc<String>> },
-    Fsm { state: NameID },
-    WalTraceable { suffix: Identifier },
+    VerilogAttrs {
+        entries: Vec<(Loc<Identifier>, Option<Loc<String>>)>,
+    },
+    Optimize {
+        passes: Vec<Loc<String>>,
+    },
+    Fsm {
+        state: NameID,
+    },
+    WalTraceable {
+        suffix: Identifier,
+    },
 }
 impl Attribute {
     pub fn name(&self) -> &str {
         match self {
+            Attribute::VerilogAttrs { entries: _ } => "verilog_attrs",
             Attribute::Optimize { passes: _ } => "optimize",
             Attribute::Fsm { state: _ } => "fsm",
             Attribute::WalTraceable { suffix: _ } => "suffix",

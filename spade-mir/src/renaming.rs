@@ -105,6 +105,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
             output: _,
             output_type: _,
             statements,
+            verilog_attr_groups: _,
         } = e;
 
         for input in inputs {
@@ -150,6 +151,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
             output,
             output_type: _,
             statements,
+            verilog_attr_groups: _,
         } = e;
 
         for MirInput {

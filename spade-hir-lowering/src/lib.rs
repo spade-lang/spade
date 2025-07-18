@@ -1185,8 +1185,9 @@ impl StatementLocal for Statement {
                         traced = Some(state.value_name());
                         Ok(())
                     }
-                    Attribute::WalTraceable { .. } => Err(attr.report_unused("register")),
-                    Attribute::Optimize { .. } => Err(attr.report_unused("register")),
+                    Attribute::VerilogAttrs { .. }
+                    | Attribute::WalTraceable { .. }
+                    | Attribute::Optimize { .. } => Err(attr.report_unused("register")),
                 })?;
 
                 let initial = if let Some(init) = initial {
@@ -3370,6 +3371,7 @@ pub fn generate_unit<'a>(
     )?;
 
     let mut local_passes = opt_passes.to_vec();
+    let mut verilog_attr_groups = vec![];
     let pass_impls = spade_mir::passes::mir_passes();
     unit.attributes.lower(&mut |attr| match &attr.inner {
         Attribute::Optimize { passes: new_passes } => {
@@ -3386,6 +3388,19 @@ pub fn generate_unit<'a>(
             }
             Ok(())
         }
+        Attribute::VerilogAttrs { entries } => {
+            let group = entries
+                .iter()
+                .map(|(key, value)| {
+                    let key = key.inner.to_string();
+                    let value = value.clone().map(|v| v.inner);
+                    (key, value)
+                })
+                .collect();
+
+            verilog_attr_groups.push(group);
+            Ok(())
+        }
         Attribute::Fsm { .. } | Attribute::WalTraceable { .. } => Err(attr.report_unused("unit")),
     })?;
 
@@ -3400,6 +3415,7 @@ pub fn generate_unit<'a>(
         inputs: mir_inputs,
         output: unit.body.variable(&ctx)?,
         output_type: output_t,
+        verilog_attr_groups,
         statements,
     })
 }

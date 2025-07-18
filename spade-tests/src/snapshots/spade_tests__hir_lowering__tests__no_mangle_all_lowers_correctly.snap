@@ -99,6 +99,7 @@ expression: build_items(code)
         output_type: Tuple(
             [],
         ),
+        verilog_attr_groups: [],
         statements: [
             Constant(
                 ExprID(

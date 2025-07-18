@@ -338,6 +338,15 @@ fn inverted_port_type() {
     build_items(code);
 }
 
+code_compiles! {
+    verilog_attrs_works_on_entity_declarations,
+    r#"
+        #[verilog_attrs(single)]
+        #[verilog_attrs(standalone, key = "val")]
+        entity T() {}
+    "#
+}
+
 snapshot_error! {
     wal_traceable_with_unexpected_param_is_error,
     "

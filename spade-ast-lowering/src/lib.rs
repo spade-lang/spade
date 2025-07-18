@@ -1214,6 +1214,9 @@ pub fn visit_unit(
             wal_suffix = Some(suffix.clone());
             Ok(None)
         }
+        ast::Attribute::VerilogAttrs { entries } => Ok(Some(hir::Attribute::VerilogAttrs {
+            entries: entries.clone(),
+        })),
         ast::Attribute::Documentation { .. } => Ok(None),
         _ => Err(attr.report_unused("a unit")),
     })?;
@@ -1743,7 +1746,8 @@ fn try_visit_statement(
                     }
                     Ok(None)
                 }
-                ast::Attribute::NoMangle { .. }
+                ast::Attribute::VerilogAttrs { .. }
+                | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
                 | ast::Attribute::Documentation { .. }

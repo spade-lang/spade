@@ -564,6 +564,9 @@ impl GenericBound {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Attribute {
     SpadecParenSugar,
+    VerilogAttrs {
+        entries: Vec<(Loc<Identifier>, Option<Loc<String>>)>,
+    },
     Optimize {
         passes: Vec<Loc<String>>,
     },
@@ -596,9 +599,10 @@ impl Attribute {
     pub fn name(&self) -> &str {
         match self {
             Attribute::SpadecParenSugar => "spadec_paren_sugar",
+            Attribute::VerilogAttrs { .. } => "verilog_attrs",
             Attribute::Optimize { passes: _ } => "optimize",
             Attribute::NoMangle { .. } => "no_mangle",
-            Attribute::Fsm { state: _ } => "fsm",
+            Attribute::Fsm { .. } => "fsm",
             Attribute::WalTraceable { .. } => "wal_traceable",
             Attribute::WalTrace { .. } => "wal_trace",
             Attribute::WalSuffix { .. } => "wal_suffix",

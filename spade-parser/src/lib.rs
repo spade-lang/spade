@@ -1857,6 +1857,17 @@ impl<'a> Parser<'a> {
 
         match start.inner.0.as_str() {
             "spadec_paren_sugar" => Ok(Attribute::SpadecParenSugar),
+            "verilog_attrs" => {
+                let (entries, _) = self.surrounded(
+                    &TokenKind::OpenParen,
+                    |s| {
+                        s.comma_separated(|s| s.verilog_attr(), &TokenKind::CloseParen)
+                            .no_context()
+                    },
+                    &TokenKind::CloseParen,
+                )?;
+                Ok(Attribute::VerilogAttrs { entries })
+            }
             "no_mangle" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (all, _) = self.surrounded(
@@ -1960,6 +1971,21 @@ impl<'a> Parser<'a> {
                     .primary_label("Unrecognised attribute"),
             ),
         }
+    }
+
+    #[trace_parser]
+    fn verilog_attr(&mut self) -> Result<(Loc<Identifier>, Option<Loc<String>>)> {
+        let key = self.identifier()?;
+        let value = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
+            let token = self.eat_cond(TokenKind::is_string, "string")?;
+            match &token.kind {
+                TokenKind::String(val) => Some(val.clone().at_loc(&token.loc())),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        };
+        Ok((key, value))
     }
 
     #[trace_parser]

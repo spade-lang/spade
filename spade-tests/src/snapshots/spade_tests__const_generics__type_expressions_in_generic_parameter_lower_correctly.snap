@@ -22,6 +22,7 @@ expression: build_items(code)
         output_type: Tuple(
             [],
         ),
+        verilog_attr_groups: [],
         statements: [
             Constant(
                 ExprID(
@@ -217,6 +218,7 @@ expression: build_items(code)
         output_type: Tuple(
             [],
         ),
+        verilog_attr_groups: [],
         statements: [],
     },
     Entity {
@@ -253,6 +255,7 @@ expression: build_items(code)
         output_type: Tuple(
             [],
         ),
+        verilog_attr_groups: [],
         statements: [],
     },
 ]
