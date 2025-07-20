@@ -39,9 +39,9 @@ check:clippy:
         - cargo install --locked gitlab_clippy
         - cargo clippy -V
     script:
-        - cargo clippy --workspace --exclude spade-cxx -- --allow clippy::useless_format
+        - cargo clippy --locked --workspace --exclude spade-cxx -- --allow clippy::useless_format
     after_script:
-        - cargo clippy --workspace --exclude spade-cxx --message-format=json -- --allow clippy::useless_format | $CARGO_HOME/bin/gitlab-clippy > gl-code-quality-report.json
+        - cargo clippy --locked --workspace --exclude spade-cxx --message-format=json -- --allow clippy::useless_format | $CARGO_HOME/bin/gitlab-clippy > gl-code-quality-report.json
     artifacts:
         reports:
             codequality: gl-code-quality-report.json
@@ -54,8 +54,8 @@ test:linux:
         - cargo -V
         - rustc -V
     script:
-        - cargo test --workspace --exclude spade-cxx --color=always
-        - cargo doc --no-deps
+        - cargo test --locked  --workspace --exclude spade-cxx --color=always
+        - cargo doc --locked --no-deps
 
 test:linux-latest:
     stage: test
@@ -64,8 +64,8 @@ test:linux-latest:
         - cargo -V
         - rustc -V
     script:
-        - cargo test --workspace --exclude spade-cxx --color=always
-        - cargo doc --no-deps
+        - cargo test --locked --workspace --exclude spade-cxx --color=always
+        - cargo doc --locked --no-deps
 
 test:linux-nightly:
     variables:
@@ -77,9 +77,9 @@ test:linux-nightly:
         - rustup install nightly
         - rustup default nightly
     script:
-        - cargo build -p spade-lang
-        - cargo test --color=always
-        - cargo doc --no-deps
+        - cargo build --locked -p spade-lang
+        - cargo test --locked --color=always
+        - cargo doc --locked --no-deps
 
 test:macos-aarch64:
   rules:
@@ -99,8 +99,8 @@ test:macos-aarch64:
     - cargo -V
     - rustc -V
   script:
-    - cargo test --workspace --exclude spade-cxx --color=always
-    - cargo doc --no-deps
+    - cargo test --locked --workspace --exclude spade-cxx --color=always
+    - cargo doc --locked --no-deps
   cache:
     key:
       files:
@@ -156,7 +156,7 @@ build:static:
   before_script:
     - apk add git musl-dev g++
   script:
-    - cargo build --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
+    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
     - strip target/x86_64-unknown-linux-musl/release/spade
     - strip target/x86_64-unknown-linux-musl/release/vcd-translate
   artifacts:
@@ -200,7 +200,7 @@ test:coverage:
         - apt-get install -y pkg-config
         # spade-python currently does not build with tarpaulin, but we also don't
         # have many tests there so we'll ignore it
-        - cargo tarpaulin --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --target-dir target/tarpaulin
+        - cargo tarpaulin --locked --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --target-dir target/tarpaulin
     coverage: '/^\d+.\d+% coverage/'
     artifacts:
         reports:
