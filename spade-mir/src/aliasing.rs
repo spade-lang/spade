@@ -117,7 +117,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
             } => {
                 try_rename(name, &aliases);
                 try_rename(val, &aliases);
-            },
+            }
             Statement::Error => {}
         }
     }
