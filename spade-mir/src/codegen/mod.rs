@@ -150,10 +150,10 @@ fn statement_declaration(
         }
         Statement::Error => {
             println!("WARNING: Running codegen on a Statement::Error");
-            code!{
+            code! {
                 [0] "// Codegen ran for an Error statement"
             }
-        },
+        }
     }
 }
 

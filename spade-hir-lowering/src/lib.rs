@@ -394,6 +394,15 @@ impl PatternLocal for Loc<Pattern> {
     ) -> Result<StatementList> {
         let mut result = StatementList::new();
 
+        if let ConcreteType::Error =
+            &ctx.types
+                .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+        {
+            result.push_primary(spade_mir::Statement::Error, self);
+
+            return Ok(result);
+        }
+
         match &self.kind {
             hir::PatternKind::Integer(_) => {}
             hir::PatternKind::Bool(_) => {}
