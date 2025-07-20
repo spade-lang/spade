@@ -23,7 +23,6 @@ use error::use_before_ready;
 use error::{expect_entity, expect_function, expect_pipeline};
 use hir::expression::BitLiteral;
 use hir::expression::CallKind;
-use hir::expression::LocExprExt;
 use hir::ArgumentList;
 use hir::Attribute;
 use hir::Parameter;
@@ -72,10 +71,122 @@ use usefulness::{is_useful, PatStack, Usefulness};
 use crate::error::Result;
 use spade_common::{location_info::Loc, name::NameID};
 use spade_hir as hir;
-use spade_hir::{expression::BinaryOperator, ExprKind, Expression, Statement, Unit};
+use spade_hir::{
+    expression::BinaryOperator, expression::UnaryOperator, ExprKind, Expression, Statement, Unit,
+};
 use spade_mir as mir;
 use spade_typeinference::TypeState;
 use spade_types::{ConcreteType, PrimitiveType};
+
+pub trait LocExprExt {
+    fn runtime_requirement_witness(&self, ctx: &mut Context) -> Option<Loc<Expression>>;
+}
+
+impl LocExprExt for Loc<hir::Expression> {
+    /// Checks if the expression is evaluable at compile time, returning a Loc of
+    /// a (sub)-expression which requires runtime, and None if it is comptime evaluable.
+    ///
+    /// If this method returns None, `.eval()` on the resulting list of mir statements is
+    /// guaranteed to work
+    fn runtime_requirement_witness(&self, ctx: &mut Context) -> Option<Loc<Expression>> {
+        match &self.kind {
+            ExprKind::Error => Some(self.clone()),
+            ExprKind::Identifier(_) => Some(self.clone()),
+            ExprKind::TypeLevelInteger(_) => None,
+            ExprKind::IntLiteral(_, _) => None,
+            ExprKind::BoolLiteral(_) => None,
+            ExprKind::BitLiteral(_) => Some(self.clone()),
+            ExprKind::TupleLiteral(inner) => inner
+                .iter()
+                .find_map(|e| e.runtime_requirement_witness(ctx)),
+            ExprKind::ArrayLiteral(inner) => inner
+                .iter()
+                .find_map(|e| e.runtime_requirement_witness(ctx)),
+            ExprKind::ArrayShorthandLiteral(inner, _) => inner.runtime_requirement_witness(ctx),
+            ExprKind::CreatePorts => Some(self.clone()),
+            ExprKind::Index(l, r) => l
+                .runtime_requirement_witness(ctx)
+                .or_else(|| r.runtime_requirement_witness(ctx)),
+            ExprKind::RangeIndex { .. } => Some(self.clone()),
+            ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(ctx),
+            ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(ctx),
+            ExprKind::Call {
+                kind: CallKind::Function,
+                callee,
+                args,
+                ..
+            } => match ctx.item_list.executables.get(callee) {
+                Some(hir::ExecutableItem::EnumInstance { .. })
+                | Some(hir::ExecutableItem::StructInstance) => args
+                    .inner
+                    .expressions()
+                    .iter()
+                    .find_map(|e| e.runtime_requirement_witness(ctx)),
+                Some(_) => Some(self.clone()),
+                None => {
+                    unreachable!("Instantiating an item which is not known ({callee})")
+                }
+            },
+            // NOTE: We probably shouldn't see this here since we'll have lowered
+            // methods at this point, but this function doesn't throw
+            ExprKind::MethodCall { .. } | ExprKind::Call { .. } => Some(self.clone()),
+            ExprKind::BinaryOperator(l, operator, r) => {
+                if let Some(witness) = l
+                    .runtime_requirement_witness(ctx)
+                    .or_else(|| r.runtime_requirement_witness(ctx))
+                {
+                    Some(witness)
+                } else {
+                    match &operator.inner {
+                        BinaryOperator::Add => None,
+                        BinaryOperator::Sub => None,
+                        BinaryOperator::Mul
+                        | BinaryOperator::Div
+                        | BinaryOperator::Mod
+                        | BinaryOperator::Eq
+                        | BinaryOperator::NotEq
+                        | BinaryOperator::Gt
+                        | BinaryOperator::Lt
+                        | BinaryOperator::Ge
+                        | BinaryOperator::Le
+                        | BinaryOperator::LeftShift
+                        | BinaryOperator::RightShift
+                        | BinaryOperator::ArithmeticRightShift
+                        | BinaryOperator::LogicalAnd
+                        | BinaryOperator::LogicalOr
+                        | BinaryOperator::LogicalXor
+                        | BinaryOperator::BitwiseOr
+                        | BinaryOperator::BitwiseAnd
+                        | BinaryOperator::BitwiseXor => Some(self.clone()),
+                    }
+                }
+            }
+            ExprKind::UnaryOperator(op, operand) => {
+                if let Some(witness) = operand.runtime_requirement_witness(ctx) {
+                    Some(witness)
+                } else {
+                    match op.inner {
+                        UnaryOperator::Sub => None,
+                        UnaryOperator::Not
+                        | UnaryOperator::BitwiseNot
+                        | UnaryOperator::Dereference
+                        | UnaryOperator::Reference => Some(self.clone()),
+                    }
+                }
+            }
+            ExprKind::Match(_, _) => Some(self.clone()),
+            ExprKind::Block(_) => Some(self.clone()),
+            ExprKind::If(_, _, _) => Some(self.clone()),
+            ExprKind::TypeLevelIf(_, _, _) => Some(self.clone()),
+            ExprKind::PipelineRef { .. } => Some(self.clone()),
+            ExprKind::StageReady => Some(self.clone()),
+            ExprKind::StageValid => Some(self.clone()),
+            ExprKind::LambdaDef { .. } => Some(self.clone()),
+            ExprKind::StaticUnreachable(_) => None,
+            ExprKind::Null => None,
+        }
+    }
+}
 
 pub trait Manglable {
     fn mangled(&self) -> String;
@@ -1108,7 +1219,7 @@ impl StatementLocal for Statement {
                 })?;
 
                 let initial = if let Some(init) = initial {
-                    if let Some(witness) = init.runtime_requirement_witness() {
+                    if let Some(witness) = init.runtime_requirement_witness(ctx) {
                         return Err(Diagnostic::error(
                             init,
                             "Register initial values must be known at compile time",
@@ -2466,7 +2577,7 @@ impl ExprLocal for Loc<Expression> {
         let initial = if has_initial {
             let initial_arg = &args[2];
 
-            if let Some(witness) = initial_arg.value.runtime_requirement_witness() {
+            if let Some(witness) = initial_arg.value.runtime_requirement_witness(ctx) {
                 return Err(Diagnostic::error(
                     initial_arg.value,
                     "Memory initial values must be known at compile time",
