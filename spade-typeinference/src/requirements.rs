@@ -223,6 +223,9 @@ impl Requirement {
                 prev_generic_list,
                 call_kind,
             } => match &target_type.inner.resolve(type_state) {
+                TypeVar::Known(_, KnownType::Error, _) => {
+                    return Ok(RequirementResult::Satisfied(vec![]))
+                }
                 TypeVar::Known(_, _, _) => {
                     let Some(implementor) = select_method(
                         expr.loc(),
