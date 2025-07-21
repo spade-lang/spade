@@ -2361,3 +2361,16 @@ snapshot_error! {
     ",
     false
 }
+
+snapshot_error! {
+    error_types_silently_fail_method_resolution,
+    "
+        fn func(a: uint<8>) -> uint<8> {
+            a
+        }
+
+        fn test() {
+            func(true).method()
+        }
+    "
+}

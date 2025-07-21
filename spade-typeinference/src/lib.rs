@@ -169,6 +169,10 @@ pub struct TypeState {
     /// The type var containing the depth of the pipeline stage we are currently in
     pipeline_state: Option<PipelineState>,
 
+    /// An error type that can be accessed anywhere without mut access. This is an option
+    /// to facilitate safe initialization, in practice it can never be None
+    error_type: Option<TypeVarID>,
+
     pub trait_impls: TraitImplList,
 
     #[serde(skip)]
@@ -183,7 +187,7 @@ impl TypeState {
     /// existing type state
     pub fn fresh() -> Self {
         let key = fastrand::u64(..);
-        Self {
+        let mut result = Self {
             type_vars: vec![],
             key,
             keys: [key].into_iter().collect(),
@@ -195,9 +199,13 @@ impl TypeState {
             replacements: ReplacementStack::new(),
             generic_lists: HashMap::new(),
             trait_impls: TraitImplList::new(),
+            error_type: None,
             pipeline_state: None,
             diags: DiagList::new(),
-        }
+        };
+        result.error_type =
+            Some(result.add_type_var(TypeVar::Known(().nowhere(), KnownType::Error, vec![])));
+        result
     }
 
     pub fn create_child(&self) -> Self {
@@ -3097,7 +3105,7 @@ impl UnificationBuilder {
 pub trait HasType: std::fmt::Debug {
     fn get_type(&self, state: &TypeState) -> TypeVarID {
         self.try_get_type(state)
-            .expect(&format!("Did not find a type for {self:?}"))
+            .unwrap_or(state.error_type.unwrap())
     }
 
     fn try_get_type(&self, state: &TypeState) -> Option<TypeVarID> {

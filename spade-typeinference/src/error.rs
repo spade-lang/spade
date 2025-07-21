@@ -287,7 +287,7 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             .map(|o| o.display_with_meta(is_meta_error, type_state)),
                     );
 
-                    match source {
+                    let diag = match source {
                         ConstraintSource::AdditionOutput => diag.note(
                             "Addition creates one more output bit than the input to avoid overflow"
                                 .to_string(),
@@ -340,11 +340,16 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             ),
                         ),
                         ConstraintSource::PipelineAvailDepth => diag,
+                    };
+
+                    if unification_point.clone().into().0 != loc.span {
+                        diag.secondary_label(
+                            unification_point,
+                            "The error occurred when unifying types here",
+                        )
+                    } else {
+                        diag
                     }
-                    .secondary_label(
-                        unification_point,
-                        "The error occurred when unifying types here",
-                    )
                 }
                 UnificationError::Specific(e) => e.secondary_label(
                     unification_point,
