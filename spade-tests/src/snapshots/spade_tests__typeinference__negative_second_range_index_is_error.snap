@@ -22,10 +22,7 @@ error: Expected type [_; #uint], got [_; -6]
   ┌─ testinput:2:5
   │
 2 │     x[1..-5]
-  │     ^^^^^^^^
-  │     │
-  │     Expected [_; #uint], got [_; -6]
-  │     The error occurred when unifying types here
+  │     ^^^^^^^^ Expected [_; #uint], got [_; -6]
   │
   = note: Expected: #uint
                 in: [_; #uint]

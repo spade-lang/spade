@@ -523,6 +523,8 @@ fn codegen(
             reg_name_map,
         }) = mir.or_report(errors)
         {
+            // Codegen breaks if not all statements are valid, and since we don't need
+            // codegen if there are errors, we can safely bail from codegen of units with errors
             if mir
                 .statements
                 .iter()
