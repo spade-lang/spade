@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn func(a: uint<8>) -> uint<8> {
+    a
+}
+
+fn test() {
+    func(true).method()
+}
+
+
+error: Argument type mismatch. Expected uint<8> got bool
+  ┌─ testinput:6:10
+  │
+6 │     func(true).method()
+  │          ^^^^ expected uint<8>
+  │
+  = note: Expected: uint<8>
+               Got: bool
