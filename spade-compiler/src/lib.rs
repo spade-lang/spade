@@ -6,7 +6,6 @@ pub mod namespaced_file;
 use compiler_state::{CompilerState, MirContext};
 use error_handling::{ErrorHandler, Reportable};
 use logos::Logos;
-use ron::ser::PrettyConfig;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::Loc;
@@ -384,15 +383,14 @@ pub fn compile(
             }
         }
         if let Some(state_dump_file) = opts.state_dump_file {
-            let ron = ron::Options::default().without_recursion_limit();
-
-            match ron.to_string_pretty(&state, PrettyConfig::default()) {
+            // let ron = ron::Options::default().without_recursion_limit();
+            match bincode::serde::encode_to_vec(&state, bincode::config::standard()) {
                 Ok(encoded) => {
                     std::fs::write(state_dump_file, encoded).or_report(&mut errors);
                 }
                 Err(e) => {
                     errors.set_failed();
-                    println!("Failed to encode compiler state info as RON {:?}", e)
+                    println!("Failed to encode compiler state info as bincode {:?}", e)
                 }
             }
         }

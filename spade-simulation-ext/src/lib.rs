@@ -190,14 +190,14 @@ pub struct Spade {
 
 impl Spade {
     pub fn new_impl(uut_name: String, state_path: String) -> color_eyre::Result<Self> {
-        let state_str = std::fs::read_to_string(&state_path)
+        let state_bytes = std::fs::read(&state_path)
             .with_context(|| format!("Failed to read state file at {state_path}"))?;
 
-        // FIXME: IF we start running into stackoverflows we should use serde_stacker
-        let ron = ron::Options::default().without_recursion_limit();
-        let state = ron
-            .from_str::<CompilerState>(&state_str)
-            .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?;
+        let (state, _) = bincode::serde::borrow_decode_from_slice::<CompilerState, _>(
+            &state_bytes,
+            bincode::config::standard(),
+        )
+        .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?;
 
         let code = Rc::new(RwLock::new(CodeBundle::from_files(&state.code)));
         let mut error_buffer = Buffer::ansi();

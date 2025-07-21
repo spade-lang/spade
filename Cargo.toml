@@ -31,6 +31,7 @@ spade-parser = {path = "spade-parser", version = "0.14.0"}
 spade-typeinference = {path = "spade-typeinference", version = "0.14.0"}
 spade-types = {path = "spade-types", version = "0.14.0"}
 
+bincode = { version = "2.0.0", features = ["serde"] }
 clap = { version = "4.4", features = ["derive"] }
 color-eyre = "0.6.1"
 spade-codespan = {version = "0.12.0", features = ["serde"]}

@@ -2678,6 +2678,7 @@ dependencies = [
 name = "spade-lang"
 version = "0.14.0"
 dependencies = [
+ "bincode",
  "clap",
  "color-eyre",
  "colored 3.0.0",
@@ -2815,6 +2816,7 @@ dependencies = [
 name = "spade-simulation-ext"
 version = "0.14.0"
 dependencies = [
+ "bincode",
  "color-eyre",
  "itertools",
  "logos",

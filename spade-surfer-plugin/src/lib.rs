@@ -120,27 +120,26 @@ impl SpadeTranslator {
             })
             .ok_or_else(|| anyhow!("Failed to initialize Spade translator"))?;
 
-        Self::new_from_string(
+        Self::new_from_state_bytes(
             &top_name,
-            &read_file_to_string(&state_file)?,
+            &read_file(&state_file)?,
             Some(state_file.to_path_buf()),
         )
         .context(format!("When loading Spade state from {state_file}"))
     }
 
-    pub fn new_from_string(
+    pub fn new_from_state_bytes(
         top_name: &str,
-        state_content: &str,
+        state_content: &[u8],
         state_file: Option<Utf8PathBuf>,
     ) -> Result<Self> {
-        let mut opt = ron::Options::default();
-        opt.recursion_limit = None;
-
-        let mut de = ron::Deserializer::from_str_with_options(state_content, &opt)
-            .context("Failed to initialize ron deserializer")?;
-        let de = serde_stacker::Deserializer::new(&mut de);
         let state = Mutex::new(
-            CompilerState::deserialize(de).with_context(|| "Failed to decode Spade state")?,
+            bincode::serde::decode_from_slice::<CompilerState, _>(
+                state_content,
+                bincode::config::standard(),
+            )
+            .with_context(|| "Failed to decode Spade state")?
+            .0,
         );
 
         let path = top_name
