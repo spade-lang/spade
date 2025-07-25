@@ -2107,33 +2107,32 @@ impl TypeState {
                 trait_list.clone(),
             ));
 
-            let TypeVar::Unknown(loc, id, old_trait_list, MetaType::Type) = tvar.resolve(self)
-            else {
-                return Err(Diagnostic::bug(
-                    target,
-                    "Trait bounds on known type or type-level integer",
-                )
-                .primary_label(format!(
-                    "Trait bounds on {}, which should've been caught in ast-lowering",
-                    target.inner
-                )));
-            };
+            match tvar.resolve(self) {
+                TypeVar::Known(_, _, _) => {
+                    // NOTE: This branch is a no-op as it is only triggered when re-visiting
+                    // units for typeinference during monomorpization, a process which replaces
+                    // some unknown types with known counterparts.
+                    // Ideally, we'd re-run ensure_impls here but that requires a context which
+                    // isn't necessarily available here, so #yolo
+                }
+                TypeVar::Unknown(loc, id, old_trait_list, _meta_type) => {
+                    let new_tvar = self.add_type_var(TypeVar::Unknown(
+                        *loc,
+                        *id,
+                        old_trait_list.clone().extend(trait_list),
+                        MetaType::Type,
+                    ));
 
-            let new_tvar = self.add_type_var(TypeVar::Unknown(
-                *loc,
-                *id,
-                old_trait_list.clone().extend(trait_list),
-                MetaType::Type,
-            ));
+                    trace!(
+                        "Adding trait bound {} on type {}",
+                        new_tvar.display_with_meta(true, self),
+                        target.inner
+                    );
 
-            trace!(
-                "Adding trait bound {} on type {}",
-                new_tvar.display_with_meta(true, self),
-                target.inner
-            );
-
-            let generic_list = self.generic_lists.get_mut(generic_list_tok).unwrap();
-            generic_list.insert(target.inner.clone(), new_tvar);
+                    let generic_list = self.generic_lists.get_mut(generic_list_tok).unwrap();
+                    generic_list.insert(target.inner.clone(), new_tvar);
+                }
+            }
         }
 
         Ok(())
