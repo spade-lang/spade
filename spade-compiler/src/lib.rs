@@ -11,6 +11,7 @@ use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::Loc;
 pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::DiagList;
+use spade_hir::expression::Safety;
 use spade_mir::codegen::{prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
@@ -164,6 +165,7 @@ pub fn compile(
         self_ctx: SelfContext::FreeStanding,
         current_unit: None,
         diags: DiagList::new(),
+        safety: Safety::Default,
     };
 
     // Add all "root" project main.spade modules
@@ -251,6 +253,7 @@ pub fn compile(
         self_ctx: _,
         current_unit: _,
         mut diags,
+        safety: _,
     } = ctx;
 
     errors.drain_diag_list(&mut diags);

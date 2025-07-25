@@ -6,7 +6,7 @@ use spade_common::{
 };
 
 use crate::{
-    expression::{CapturedLambdaParam, NamedArgument},
+    expression::{CapturedLambdaParam, NamedArgument, Safety},
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
     Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression, TypeParam, TypeSpec,
     Unit, UnitHead, WhereClause,
@@ -41,6 +41,7 @@ impl PrettyDebug for Unit {
                     scope_type_params,
                     unit_kind,
                     where_clauses,
+                    unsafe_marker,
                     documentation,
                 },
             attributes,
@@ -68,8 +69,9 @@ impl PrettyDebug for Unit {
         code! [
             [0] documentation;
             [0] format!(
-                    "{} {unit_kind:?} {}{}({}) -> {}",
+                    "{} {}{unit_kind:?} {}{}({}) -> {}",
                     attributes.pretty_debug(),
+                    if unsafe_marker.is_some() { "unsafe " } else { "" },
                     name.name_id().pretty_debug(),
                     type_params,
                     inputs,
@@ -236,9 +238,10 @@ impl PrettyDebug for ExprKind {
                 args,
                 call_kind: _,
                 turbofish,
+                safety,
             } => {
                 code! {
-                    [0] format!("{}", target.pretty_debug());
+                    [0] format!("{}{}", if *safety == Safety::Unsafe { "unsafe " } else { "" }, target.pretty_debug());
                     [1]    format!(".{name}<{}>", turbofish.pretty_debug());
                     [1]    format!("{}", args.pretty_debug())
                 }.to_string()
@@ -248,9 +251,10 @@ impl PrettyDebug for ExprKind {
                 callee,
                 args,
                 turbofish,
+                safety,
             } => {
                 code! {
-                    [0] format!("{}::<{}>{}", callee.pretty_debug(), turbofish.pretty_debug(), args.pretty_debug());
+                    [0] format!("{}{}::<{}>{}", if *safety == Safety::Unsafe { "unsafe " } else { "" }, callee.pretty_debug(), turbofish.pretty_debug(), args.pretty_debug());
                 }.to_string()
             }
             crate::ExprKind::BinaryOperator(lhs, op, rhs) => {

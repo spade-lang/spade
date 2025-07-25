@@ -341,7 +341,7 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::MethodCall{call_kind, target, name, args, turbofish} = &expression => {
+        assuming_kind!(ExprKind::MethodCall{call_kind, target, name, args, turbofish, safety: _} = &expression => {
             // NOTE: We don't visit_expression here as it is being added to the argument_list
             // which we *do* visit
             // self.visit_expression(target, ctx, generic_list)?;

@@ -713,6 +713,7 @@ pub struct UnitHead {
     pub scope_type_params: Vec<Loc<TypeParam>>,
     pub unit_kind: Loc<UnitKind>,
     pub where_clauses: Vec<Loc<WhereClause>>,
+    pub unsafe_marker: Option<Loc<()>>,
     pub documentation: String,
 }
 impl WithLocation for UnitHead {}

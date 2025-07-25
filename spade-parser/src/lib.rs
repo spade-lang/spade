@@ -508,6 +508,27 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
+    pub fn unsafe_block(&mut self) -> Result<Option<Loc<Expression>>> {
+        let start = peek_for!(self, &TokenKind::Unsafe);
+
+        let Some(block) = self.block(false)? else {
+            let got = self.peek()?;
+            return Err(Diagnostic::error(
+                got.loc(),
+                format!("Unexpected `{}`, expected a block", got.kind.as_str()),
+            )
+            .primary_label("expected a block here"));
+        };
+
+        let block_loc = block.loc();
+        Ok(Some(Expression::Unsafe(Box::new(block)).between(
+            self.file_id,
+            &start.span,
+            &block_loc,
+        )))
+    }
+
+    #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn int_literal(&mut self) -> Result<Option<Loc<IntLiteral>>> {
         let plusminus = match &self.peek()?.kind {
@@ -1301,6 +1322,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn unit_head(&mut self, attributes: &AttributeList) -> Result<Option<Loc<UnitHead>>> {
+        let unsafe_token = self.peek_and_eat(&TokenKind::Unsafe)?;
         let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
         let start_token = self.peek()?;
         let Some(unit_kind) = self.unit_kind(&start_token)? else {
@@ -1335,6 +1357,7 @@ impl<'a> Parser<'a> {
 
         Ok(Some(
             UnitHead {
+                unsafe_token: unsafe_token.map(|token| token.loc()),
                 extern_token: extern_token.map(|token| token.loc()),
                 attributes: attributes.clone(),
                 unit_kind,
@@ -2563,6 +2586,7 @@ mod tests {
 
         let e1 = Unit {
             head: UnitHead {
+                unsafe_token: None,
                 extern_token: None,
                 attributes: AttributeList::empty(),
                 unit_kind: UnitKind::Entity.nowhere(),
@@ -2584,6 +2608,7 @@ mod tests {
 
         let e2 = Unit {
             head: UnitHead {
+                unsafe_token: None,
                 extern_token: None,
                 attributes: AttributeList::empty(),
                 unit_kind: UnitKind::Entity.nowhere(),

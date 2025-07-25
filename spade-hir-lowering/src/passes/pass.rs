@@ -73,6 +73,7 @@ impl Passable for Loc<Expression> {
                 args,
                 call_kind: _,
                 turbofish: _,
+                safety: _,
             } => {
                 subnodes!(self_);
                 for arg in args.expressions_mut() {
@@ -84,6 +85,7 @@ impl Passable for Loc<Expression> {
                 callee: _,
                 args,
                 turbofish: _,
+                safety: _,
             } => {
                 for arg in args.expressions_mut() {
                     arg.apply(pass)?;

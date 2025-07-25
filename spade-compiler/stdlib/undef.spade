@@ -4,6 +4,6 @@
 /// like Verilator may set this to 0, or a random value.
 fn undef<T>() -> T {
     let none: Option<T> = None;
-    let (_, result): (bool, T) = std::conv::unsafe::unsafe_cast(none);
+    let (_, result): (bool, T) = unsafe { std::conv::transmute(none) };
     result
 }

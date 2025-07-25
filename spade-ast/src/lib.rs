@@ -309,6 +309,7 @@ pub enum Expression {
         Box<Loc<Expression>>,
     ),
     Block(Box<Block>),
+    Unsafe(Box<Loc<Block>>),
     /// E.g. `stage(-5).x`, `stage('b).y`
     PipelineReference {
         /// ```text
@@ -381,6 +382,7 @@ impl Expression {
             Expression::UnaryOperator(_, _) => "unary operator",
             Expression::BinaryOperator(_, _, _) => "binary operator",
             Expression::Block(_) => "block",
+            Expression::Unsafe(_) => "unsafe",
             Expression::PipelineReference { .. } => "pipeline reference",
             Expression::StageValid => "stage.valid",
             Expression::StageReady => "stage.ready",
@@ -647,6 +649,7 @@ impl std::fmt::Display for UnitKind {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnitHead {
+    pub unsafe_token: Option<Loc<()>>,
     pub extern_token: Option<Loc<()>>,
     pub attributes: AttributeList,
     pub unit_kind: Loc<UnitKind>,

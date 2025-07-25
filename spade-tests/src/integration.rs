@@ -1530,3 +1530,121 @@ mod trait_tests {
         "
     }
 }
+
+#[cfg(test)]
+mod unsafe_tests {
+    use crate::{build_items, code_compiles, snapshot_error};
+
+    code_compiles! {
+        unsafe_invocation_in_unsafe_block,
+        "
+        unsafe fn method() {}
+
+        fn test() {
+            unsafe { method(); }
+        }
+        "
+    }
+
+    snapshot_error! {
+        unsafe_invocation_needs_block,
+        "
+        unsafe fn method() {}
+
+        fn test() {
+            method();
+        }
+        "
+    }
+
+    snapshot_error! {
+        unsafe_invocation_still_needs_block_in_unsafe_fn,
+        "
+        unsafe fn method() {}
+
+        unsafe fn test() {
+            method();
+        }
+        "
+    }
+
+    snapshot_error! {
+        unsafe_cx_resets_for_lambda,
+        "
+        unsafe fn method() {}
+
+        fn test() {
+            unsafe {
+                let lambda = fn() { method(); };
+                lambda.call(());
+            }
+        }
+        "
+    }
+
+    code_compiles! {
+        unsafe_expr_works,
+        "
+        unsafe fn method() -> bool { true }
+        
+        fn test() -> bool {
+            unsafe { method() }
+        }
+        "
+    }
+
+    // This compiles we need the warning diagnostic
+    snapshot_error! {
+        double_unsafe_block_gets_hint,
+        "
+        unsafe fn method() {}
+
+        fn test() {
+            unsafe {
+                unsafe {
+                    method();
+                }
+            }
+        }
+        "
+    }
+
+    code_compiles! {
+        unsafe_fn_in_trait,
+        "
+        trait X {
+            unsafe fn method(self);
+        }
+
+        impl X for bool {
+            unsafe fn method(self) { }
+        }
+        "
+    }
+
+    snapshot_error! {
+        unsafe_fn_in_trait_impl_requires_unsafe,
+        "
+        trait X {
+            unsafe fn method(self);
+        }
+
+        impl X for bool {
+            fn method(self) { }
+        }
+        "
+    }
+
+    snapshot_error! {
+        unsafe_fn_in_trait_impl_mustnt_have_unsafe,
+        "
+        trait X {
+            fn method(self);
+        }
+
+        impl X for bool {
+            unsafe fn method(self) { }
+        }
+        "
+    }
+}

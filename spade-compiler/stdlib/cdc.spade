@@ -8,34 +8,31 @@
 use std::ops::gray_to_bin;
 use std::ops::bin_to_gray;
 
-mod unsafe {
-    use std::ops::gray_to_bin;
-    use std::ops::bin_to_gray;
+/// NOTE: This function does not provide any guarantees about value
+/// integrity for / signals of more than one bit as crossing 2 domains with
+/// multi-bit signals can cause issues.
+/// It is primarily intended for other synchronization primitives
+unsafe entity sync2<T>(clk: clock, in: T) -> T {
+    reg(clk) sync1 = in;
+    reg(clk) sync2 = sync1;
+    sync2
+}
 
-    /// NOTE: This function does not provide any guarantees about value
-    /// integrity for / signals of more than one bit as crossing 2 domains with
-    /// multi-bit signals can cause issues.
-    /// It is primarily intended for other synchronization primitives
-    entity sync2<T>(clk: clock, in: T) -> T {
-        reg(clk) sync1 = in;
-        reg(clk) sync2 = sync1;
-        sync2
-    }
-
-    /// Synchronizes a uint counter signal between domains. *The counter*
-    /// aspect is important, it must be a N bit gray counter for this to do
-    /// anything useful.
-    entity sync_uint_counter<#uint N>(source_clk: clock, dest_clk: clock, in: uint<N>) -> uint<N> {
-        reg(source_clk) gray = bin_to_gray(in);
-        gray_to_bin(inst sync2(dest_clk, gray))
-    }
+/// Synchronizes a uint counter signal between domains. *The counter*
+/// aspect is important, it must be a N bit gray counter for this to do
+/// anything useful.
+unsafe entity sync_uint_counter<#uint N>(source_clk: clock, dest_clk: clock, in: uint<N>) -> uint<N> {
+    reg(source_clk) gray = bin_to_gray(in);
+    gray_to_bin(unsafe { inst sync2(dest_clk, gray) })
 }
 
 /// Synchronize a bool signal into another domain. This guarantees valid values, but does
 /// not guarantee that all values are transferred. If synchronizing a short pulse where
 /// seeing the pulse is important, `handshake` may be better
 entity sync2_bool(clk: clock, in: bool) -> bool {
-    inst unsafe::sync2(clk, in)
+    unsafe {
+        inst sync2(clk, in)
+    }
 }
 
 

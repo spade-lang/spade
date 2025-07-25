@@ -2300,3 +2300,40 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    transmute_between_different_sizes_is_disallowed,
+    "
+        fn test(a: bool) -> int<3> {
+            unsafe { std::conv::transmute(a) }
+        }
+    "
+}
+
+snapshot_error! {
+    transmute_from_inv_wire_container_is_disallowed,
+    "
+        struct port Container {
+            m: inv &bool,
+            r: &bool
+        }
+
+        fn test(a: Container) -> bool {
+            unsafe { std::conv::transmute(a) }
+        }
+    "
+}
+
+snapshot_error! {
+    transmute_to_inv_wire_container_is_disallowed,
+    "
+        struct port Container {
+            m: inv &bool,
+            r: &bool
+        }
+
+        entity test(a: bool) -> Container {
+            unsafe { std::conv::transmute(a) }
+        }
+    "
+}

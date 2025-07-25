@@ -211,6 +211,10 @@ impl Diagnostic {
         Self::new(DiagnosticLevel::Error, span, message)
     }
 
+    pub fn warning(span: impl Into<FullSpan>, message: impl Into<Message>) -> Self {
+        Self::new(DiagnosticLevel::Warning, span, message)
+    }
+
     pub fn level(mut self, level: DiagnosticLevel) -> Self {
         self.level = level;
         self

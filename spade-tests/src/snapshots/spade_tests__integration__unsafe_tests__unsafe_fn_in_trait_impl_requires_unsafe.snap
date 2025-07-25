@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/integration.rs
+---
+trait X {
+    unsafe fn method(self);
+}
+
+impl X for bool {
+    fn method(self) { }
+}
+
+
+error: Safeness of impl method does not match that of trait definition
+  ┌─ testinput:6:8
+  │
+2 │     unsafe fn method(self);
+  │     ------ But the trait definition is
+  ·
+6 │     fn method(self) { }
+  │        ^^^^^^ This impl isn't marked as unsafe
+  │
+  = Add unsafe here
+  │
+6 │     unsafe fn method(self) { }
+  │     +++++++

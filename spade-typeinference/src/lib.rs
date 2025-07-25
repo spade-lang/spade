@@ -738,6 +738,7 @@ impl TypeState {
                 callee,
                 args,
                 turbofish,
+                safety: _,
             } => {
                 let head = ctx.symtab.unit_by_id(&callee.inner);
 

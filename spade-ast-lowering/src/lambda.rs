@@ -210,6 +210,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .nowhere(),
         units: vec![ast::Unit {
             head: ast::UnitHead {
+                unsafe_token: None,
                 extern_token: None,
                 attributes: ast::AttributeList(vec![]),
                 unit_kind: unit_kind.clone(),

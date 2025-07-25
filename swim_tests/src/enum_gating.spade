@@ -7,7 +7,7 @@ struct Out {
 entity enum_gating(clk: clock, rst: bool, x: Option<uint<8>>) -> Out {
     reg(clk) result reset(rst: None()) = x;
     Out$(
-        raw: std::conv::unsafe::unsafe_cast(result),
+        raw: unsafe { std::conv::transmute(result) },
         cooked: result,
     )
 }

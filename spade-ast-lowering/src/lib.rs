@@ -20,6 +20,7 @@ use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_hir::expression::Safety;
 use spade_types::meta_types::MetaType;
 use tracing::{event, Level};
 use type_level_if::expand_type_level_if;
@@ -54,6 +55,7 @@ pub struct Context {
     pub self_ctx: SelfContext,
     pub current_unit: Option<hir::UnitHead>,
     pub diags: DiagList,
+    pub safety: Safety,
 }
 
 impl Context {
@@ -71,6 +73,7 @@ impl Context {
                 self_ctx,
                 current_unit,
                 diags: _,
+                safety: _,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
             std::mem::swap(self_ctx, &mut tmp_self_ctx);
@@ -87,6 +90,7 @@ impl Context {
                 self_ctx,
                 current_unit,
                 diags: _,
+                safety: _,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
             std::mem::swap(self_ctx, &mut tmp_self_ctx);
@@ -782,6 +786,7 @@ pub fn unit_head(
         scope_type_params,
         unit_kind: unit_kind?,
         where_clauses,
+        unsafe_marker: head.unsafe_token,
         documentation: head.attributes.merge_docs(),
     })
 }
@@ -1067,6 +1072,7 @@ pub fn visit_unit(
     let ast::Unit {
         head:
             ast::UnitHead {
+                unsafe_token: _,
                 extern_token: _,
                 name,
                 attributes,
@@ -1922,6 +1928,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     .as_ref()
                     .map(|t| visit_turbofish(t, ctx))
                     .transpose()?,
+                safety: ctx.safety,
             })
         }
         ast::Expression::If(cond, ontrue, onfalse) => {
@@ -1970,7 +1977,24 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         ast::Expression::Block(block) => {
             Ok(hir::ExprKind::Block(Box::new(visit_block(block, ctx)?)))
         }
-        ast::Expression::Lambda { .. } => visit_lambda(e, ctx),
+        ast::Expression::Unsafe(block) => {
+            let outside = ::core::mem::replace(&mut ctx.safety, Safety::Unsafe);
+            if outside == Safety::Unsafe {
+                ctx.diags.errors.push(
+                    Diagnostic::warning(block.loc(), "Unnecessary unsafe block")
+                        .note("This block is already in unsafe context"),
+                );
+            }
+            let res = visit_block(block, ctx);
+            ctx.safety = outside;
+            Ok(hir::ExprKind::Block(Box::new(res?)))
+        }
+        ast::Expression::Lambda { .. } => {
+            let outside = ::core::mem::replace(&mut ctx.safety, Safety::Default);
+            let res = visit_lambda(e, ctx);
+            ctx.safety = outside;
+            res
+        }
         ast::Expression::Call {
             kind,
             callee,
@@ -1992,6 +2016,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 callee: name_id.at_loc(callee),
                 args,
                 turbofish,
+                safety: ctx.safety,
             })
         }
         ast::Expression::Identifier(path) => {
@@ -2051,6 +2076,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                             callee,
                             args,
                             turbofish: None,
+                            safety: ctx.safety,
                         })
                     } else {
                         Err(LookupError::NotAValue(path, was.clone()).into())
@@ -2697,6 +2723,7 @@ mod expression_visiting {
             ])
             .nowhere(),
             turbofish: None,
+            safety: Safety::Default,
         }
         .idless();
 
@@ -2717,6 +2744,7 @@ mod expression_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                     where_clauses: vec![],
+                    unsafe_marker: None,
                     documentation: "".to_string(),
                 }
                 .nowhere(),
@@ -2770,6 +2798,7 @@ mod expression_visiting {
             ])
             .nowhere(),
             turbofish: None,
+            safety: Safety::Default,
         }
         .idless();
 
@@ -2790,6 +2819,7 @@ mod expression_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                     where_clauses: vec![],
+                    unsafe_marker: None,
                     documentation: "".to_string(),
                 }
                 .nowhere(),
@@ -2831,6 +2861,7 @@ mod expression_visiting {
             ])
             .nowhere(),
             turbofish: None,
+            safety: Safety::Default,
         }
         .idless();
 
@@ -2851,6 +2882,7 @@ mod expression_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Function(hir::FunctionKind::Fn).nowhere(),
                     where_clauses: vec![],
+                    unsafe_marker: None,
                     documentation: "".to_string(),
                 }
                 .nowhere(),
@@ -3048,6 +3080,7 @@ mod item_visiting {
         let input = ast::Item::Unit(
             ast::Unit {
                 head: ast::UnitHead {
+                    unsafe_token: None,
                     extern_token: None,
                     name: ast_ident("test"),
                     output_type: None,
@@ -3079,6 +3112,7 @@ mod item_visiting {
                     scope_type_params: vec![],
                     unit_kind: hir::UnitKind::Entity.nowhere(),
                     where_clauses: vec![],
+                    unsafe_marker: None,
                     documentation: "".to_string(),
                 },
                 attributes: hir::AttributeList::empty(),
@@ -3122,6 +3156,7 @@ mod module_visiting {
             members: vec![ast::Item::Unit(
                 ast::Unit {
                     head: ast::UnitHead {
+                        unsafe_token: None,
                         extern_token: None,
                         name: ast_ident("test"),
                         output_type: None,
@@ -3158,6 +3193,7 @@ mod module_visiting {
                             scope_type_params: vec![],
                             unit_kind: hir::UnitKind::Entity.nowhere(),
                             where_clauses: vec![],
+                            unsafe_marker: None,
                             documentation: "".to_string(),
                         },
                         inputs: vec![],

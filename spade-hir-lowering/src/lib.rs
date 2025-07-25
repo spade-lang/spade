@@ -54,8 +54,11 @@ use spade_common::location_info::WithLocation;
 use spade_common::name::{Identifier, Path};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::num_ext::InfallibleToBigUint;
+use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_anyhow;
+use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_assert, diag_bail, DiagHandler, Diagnostic};
+use spade_hir::expression::Safety;
 use spade_hir::UnitHead;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
@@ -973,6 +976,7 @@ pub fn do_wal_trace_lowering(
                         .nowhere()])
                         .nowhere(),
                         turbofish: None,
+                        safety: Safety::Default,
                     },
                 }
                 .nowhere()
@@ -2038,10 +2042,34 @@ impl ExprLocal for Loc<Expression> {
                 callee,
                 args,
                 turbofish: _,
+                safety,
             } => {
                 let head = ctx.symtab.symtab().unit_by_id(callee);
                 let args = match_args_with_params(args, &head.inputs.inner, false)
                     .map_err(Diagnostic::from)?;
+
+                if *safety == Safety::Default && head.unsafe_marker.is_some() {
+                    return Err(Diagnostic::error(
+                        callee,
+                        "You cannot call unsafe code in safe context",
+                    )
+                    .primary_label("This is missing an unsafe block")
+                    .span_suggest_multipart(
+                        "Consider wrapping the code in an unsafe block",
+                        SuggestionParts::new()
+                            .part(
+                                (
+                                    Span::new(self.span.start(), self.span.start()),
+                                    self.file_id,
+                                ),
+                                "unsafe { ",
+                            )
+                            .part(
+                                (Span::new(self.span.end(), self.span.end()), self.file_id),
+                                " }",
+                            ),
+                    ));
+                }
 
                 match (kind, &head.unit_kind.inner) {
                     (CallKind::Function, UnitKind::Function(_))
@@ -2284,7 +2312,7 @@ impl ExprLocal for Loc<Expression> {
             ["std", "conv", "sext"] => handle_sext,
             ["std", "conv", "zext"] => handle_zext,
             ["std", "conv", "concat"] => handle_concat,
-            ["std", "conv", "unsafe", "unsafe_cast"] => handle_unsafe_cast {allow_port},
+            ["std", "conv", "transmute"] => handle_transmute {allow_port},
             ["std", "ops", "div_pow2"] => handle_div_pow2,
             ["std", "ops", "reduce_and"] => handle_reduce_and,
             ["std", "ops", "reduce_or"] => handle_reduce_or,
@@ -2857,7 +2885,7 @@ impl ExprLocal for Loc<Expression> {
         Ok(result)
     }
 
-    fn handle_unsafe_cast(
+    fn handle_transmute(
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
@@ -2879,16 +2907,16 @@ impl ExprLocal for Loc<Expression> {
         if self_type.backward_size() != BigUint::zero() {
             return Err(Diagnostic::error(
                 self,
-                format!("Attempting to cast to type containing &mut value"),
+                format!("Attempting to transmute to type containing inv & value"),
             )
-            .primary_label(format!("{self_type_hir} has a &mut wire")));
+            .primary_label(format!("{self_type_hir} has an inv & wire")));
         }
         if input_type.backward_size() != BigUint::zero() {
             return Err(Diagnostic::error(
                 args[0].value,
-                format!("Attempting to cast from type containing &mut value"),
+                format!("Attempting to transmute from type containing inv & value"),
             )
-            .primary_label(format!("{input_type_hir} has a &mut wire")));
+            .primary_label(format!("{input_type_hir} has an inv & wire")));
         }
 
         if self_type.size() != input_type.size() {
@@ -2896,7 +2924,7 @@ impl ExprLocal for Loc<Expression> {
             return Err(Diagnostic::error(
                 self,
                 format!(
-                    "Type size mismatch. Attempting to cast {} to {}",
+                    "Type size mismatch. Attempting to transmute {} to {}",
                     bits_str(input_type.size()),
                     bits_str(self_type.size())
                 ),
@@ -2909,7 +2937,7 @@ impl ExprLocal for Loc<Expression> {
                 input_loc,
                 format!("The source has {}", bits_str(input_type.size()),),
             )
-            .help("unsafe_cast can only convert between types of identical size"));
+            .note("transmute can only convert between types of identical size"));
         }
 
         let extra_bits = if self_type.size() > input_type.size() {

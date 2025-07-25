@@ -25,6 +25,7 @@ impl<'a> Pass for LowerMethods<'a> {
                 call_kind,
                 // Turbofishes are only important during type inference
                 turbofish: _,
+                safety,
             } => {
                 let self_type = self_.get_type(self.type_state);
 
@@ -86,6 +87,7 @@ impl<'a> Pass for LowerMethods<'a> {
                     callee: method.inner.at_loc(name),
                     args: args.clone(),
                     turbofish: None,
+                    safety: *safety,
                 })
             }
             _ => None,

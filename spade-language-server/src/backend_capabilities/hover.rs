@@ -302,12 +302,14 @@ impl ExprKindExt for ExprKind {
                 args: _,
                 call_kind: _,
                 turbofish: _,
+                safety: _,
             } => name.contains_start(loc),
             ExprKind::Call {
                 kind: _,
                 callee,
                 args: _,
                 turbofish: _,
+                safety: _,
             } => callee.contains_start(loc),
             ExprKind::BinaryOperator(_, op, _) => op.contains_start(loc),
 

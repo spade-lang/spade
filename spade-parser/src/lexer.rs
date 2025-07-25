@@ -127,6 +127,8 @@ pub enum TokenKind {
 
     #[token("extern")]
     Extern,
+    #[token("unsafe")]
+    Unsafe,
 
     // Math operators
     #[token("+")]
@@ -287,6 +289,7 @@ impl TokenKind {
             TokenKind::Gen => "gen",
 
             TokenKind::Extern => "extern",
+            TokenKind::Unsafe => "unsafe",
 
             TokenKind::Assignment => "=",
             TokenKind::Plus => "+",

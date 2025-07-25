@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/integration.rs
+---
+unsafe fn method() {}
+
+fn test() {
+    unsafe {
+        let lambda = fn() { method(); };
+        lambda.call(());
+    }
+}
+
+
+error: You cannot call unsafe code in safe context
+  ┌─ testinput:5:29
+  │
+5 │         let lambda = fn() { method(); };
+  │                             ^^^^^^ This is missing an unsafe block
+  │
+  = The error is in a generic unit instantiated at
+    ╰ testinput:6 impl_10::call<()>
+  = Consider wrapping the code in an unsafe block
+  │
+5 │         let lambda = fn() { unsafe { method() }; };
+  │                             +++++++++        ++

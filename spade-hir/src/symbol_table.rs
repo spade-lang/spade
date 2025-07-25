@@ -152,6 +152,7 @@ impl EnumVariant {
             scope_type_params: self.type_params.clone(),
             unit_kind: UnitKind::Function(FunctionKind::Enum).at_loc(&self.name),
             where_clauses: vec![],
+            unsafe_marker: None,
             documentation: String::new(),
         }
     }
@@ -175,6 +176,7 @@ impl StructCallable {
             scope_type_params: vec![],
             unit_kind: UnitKind::Function(FunctionKind::Struct).at_loc(&self.name),
             where_clauses: vec![],
+            unsafe_marker: None,
             documentation: String::new(),
         }
     }

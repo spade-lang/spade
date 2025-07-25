@@ -251,6 +251,8 @@ impl<'a> Parser<'a> {
             Ok(match_expr)
         } else if let Some(stageref) = self.pipeline_reference()? {
             Ok(stageref)
+        } else if let Some(unsafe_expr) = self.unsafe_block()? {
+            Ok(unsafe_expr)
         } else if let Some(create_ports) = self.peek_and_eat(&TokenKind::Port)? {
             Ok(Expression::CreatePorts.at(self.file_id, &create_ports))
         } else if let Some((path, turbofish)) = self.path_with_turbofish()? {

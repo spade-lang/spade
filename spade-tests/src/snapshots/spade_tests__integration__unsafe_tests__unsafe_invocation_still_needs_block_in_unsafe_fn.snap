@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/integration.rs
+---
+unsafe fn method() {}
+
+unsafe fn test() {
+    method();
+}
+
+
+error: You cannot call unsafe code in safe context
+  ┌─ testinput:4:5
+  │
+4 │     method();
+  │     ^^^^^^ This is missing an unsafe block
+  │
+  = Consider wrapping the code in an unsafe block
+  │
+4 │     unsafe { method() };
+  │     +++++++++        ++

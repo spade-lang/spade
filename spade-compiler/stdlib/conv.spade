@@ -21,13 +21,17 @@ extern fn concat<N, M, K>(x: N, y: M) -> K;
 fn concat_arrays<T, #uint L, #uint R, #uint O>(l: [T; L], r: [T; R]) -> [T; O]
     where O: { L + R }
 {
-    std::conv::unsafe::unsafe_cast((r, l))
+    unsafe {
+        std::conv::transmute((r, l))
+    }
 }
 
 /// Casts a `bit` to a `bool`. low maps to false, high maps to true, but HIGHIMP is undefined.
 /// In practice, in a simulator, it will map to Z
 fn bit_to_bool(b: bit) -> bool {
-    unsafe::unsafe_cast(b)
+    unsafe {
+        transmute(b)
+    }
 }
 
 /// Completely reverses the order of the elements in the `in` array
@@ -53,11 +57,15 @@ fn flip_array<T, #uint N>(in: [T; N]) -> [T; N] {
 /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
 /// are written LSB first, while integers are written MSB first
 fn int_to_bits<#uint N>(input: int<N>) -> [bool; N] {
-    unsafe::unsafe_cast(input)
+    unsafe {
+        transmute(input)
+    }
 }
 
 fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
-    unsafe::unsafe_cast(input)
+    unsafe {
+        transmute(input)
+    }
 }
 
 /// Interpret a uint as the raw bit values. output[0] is the LSB of the integer
@@ -66,42 +74,52 @@ fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
 /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
 /// are written LSB first, while integers are written MSB first
 fn uint_to_bits<#uint N>(input: uint<N>) -> [bool; N] {
-    unsafe::unsafe_cast(input)
+    unsafe {
+        transmute(input)
+    }
 }
 fn bits_to_uint<#uint N>(input: [bool; N]) -> uint<N> {
-    unsafe::unsafe_cast(input)
+    unsafe {
+        transmute(input)
+    }
 }
 
 /// Cast an unsigned integer to a signed integer by re-interpreting the bits.
 fn uint_to_int <#uint N>(input: uint<N>) -> int<N> {
-    unsafe::unsafe_cast(input)
+    unsafe {
+        transmute(input)
+    }
 }
 /// Cast a signed integer to an unsigned integer by re-interpreting the bits.
 fn int_to_uint <#uint N>(input: int<N>) -> uint<N> {
-    unsafe::unsafe_cast(input)
+    unsafe {
+        transmute(input)
+    }
 }
 
-mod unsafe {
-    /// Reinterprets a value as another value of the same size. It is up to the caller
-    /// to ensure that the resulting value is valid
-    ///
-    /// **NOTE**: The representation of compound types is generally undefined and you should
-    /// not rely on it being fixed between compiler versions.
-    /// If you still want to use this function on compound types, the representation of types is
-    /// described here: https://docs.spade-lang.org/internal/type_representations.html
-    extern fn unsafe_cast<T, O>(in: T) -> O;
+/// Reinterprets a value as another value of the same size. It is up to the caller
+/// to ensure that the resulting value is valid
+///
+/// **NOTE**: The representation of compound types is generally undefined and you should
+/// not rely on it being fixed between compiler versions.
+/// If you still want to use this function on compound types, the representation of types is
+/// described here: https://docs.spade-lang.org/internal/type_representations.html
+unsafe extern fn transmute<T, O>(in: T) -> O;
 
-    /// Converts a clock signal to a bool by just reinterpreting the bits. This should rarely
-    /// be used but can be helpful in some situations, such as wanting to output a clock on a
-    /// pin for debugging
-    entity clock_to_bool(c: clock) -> bool {
-        unsafe_cast(c)
+/// Converts a clock signal to a bool by just reinterpreting the bits. This should rarely
+/// be used but can be helpful in some situations, such as wanting to output a clock on a
+/// pin for debugging
+unsafe entity clock_to_bool(c: clock) -> bool {
+    unsafe {
+        transmute(c)
     }
+}
 
-    /// Converts a bool to a clock by just reinterpreting the bits. It is up to the caller
-    /// to ensure that the result is a valid clock.
-    entity bool_to_clock(c: bool) -> clock {
-        unsafe_cast(c)
+/// Converts a bool to a clock by just reinterpreting the bits. It is up to the caller
+/// to ensure that the result is a valid clock.
+unsafe entity bool_to_clock(c: bool) -> clock {
+    unsafe {
+        transmute(c)
     }
 }
 

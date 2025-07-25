@@ -23,6 +23,7 @@ use spade_common::name::{Identifier, Path as SpadePath};
 use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, Diagnostic};
+use spade_hir::expression::Safety;
 use spade_hir::symbol_table::{LookupError, SymbolTable};
 use spade_hir::{symbol_table::FrozenSymtab, ItemList};
 use spade_hir::{Parameter, TypeSpec, UnitHead};
@@ -471,6 +472,7 @@ impl Spade {
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
             diags: DiagList::new(),
+            safety: Safety::Default,
         };
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
 
@@ -568,6 +570,7 @@ impl Spade {
             self_ctx: _,
             current_unit: _,
             mut diags,
+            safety: _,
         } = ast_ctx;
 
         self.handle_diags(&mut diags)?;
@@ -819,6 +822,7 @@ impl Spade {
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
             diags: DiagList::new(),
+            safety: Safety::Default,
         };
 
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
@@ -832,6 +836,7 @@ impl Spade {
             self_ctx: _,
             current_unit: _,
             mut diags,
+            safety: _,
         } = ast_ctx;
         self.handle_diags(&mut diags)?;
 

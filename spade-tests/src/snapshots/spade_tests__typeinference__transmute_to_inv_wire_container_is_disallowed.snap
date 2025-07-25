@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+struct port Container {
+    m: inv &bool,
+    r: &bool
+}
+
+entity test(a: bool) -> Container {
+    unsafe { std::conv::transmute(a) }
+}
+
+
+error: Attempting to transmute to type containing inv & value
+  ┌─ testinput:7:14
+  │
+7 │     unsafe { std::conv::transmute(a) }
+  │              ^^^^^^^^^^^^^^^^^^^^^^^ struct port Container {m: inv &bool, r: &bool} has an inv & wire

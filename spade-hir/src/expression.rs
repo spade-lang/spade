@@ -190,6 +190,12 @@ pub struct CapturedLambdaParam {
     pub name_in_body: Loc<NameID>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum Safety {
+    Default,
+    Unsafe,
+}
+
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Error,
@@ -216,12 +222,14 @@ pub enum ExprKind {
         args: Loc<ArgumentList<Expression>>,
         call_kind: CallKind,
         turbofish: Option<Loc<ArgumentList<TypeExpression>>>,
+        safety: Safety,
     },
     Call {
         kind: CallKind,
         callee: Loc<NameID>,
         args: Loc<ArgumentList<Expression>>,
         turbofish: Option<Loc<ArgumentList<TypeExpression>>>,
+        safety: Safety,
     },
     BinaryOperator(
         Box<Loc<Expression>>,

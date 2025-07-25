@@ -4,6 +4,7 @@ use spade_common::name::Identifier;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::Diagnostic;
 use spade_hir::expression::CallKind;
+use spade_hir::expression::Safety;
 use spade_hir::symbol_table::Thing;
 use spade_hir::ArgumentList;
 use spade_hir::Binding;
@@ -166,6 +167,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             callee: expanded_name,
             args,
             turbofish,
+            safety: Safety::Unsafe, // This essentially skips the safety check as we don't want to virtually generate a unsafe block around the generated call
         }
         .with_id(ctx.idtracker.next())
         .at_loc(&unit.body)

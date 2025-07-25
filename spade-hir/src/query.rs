@@ -125,6 +125,7 @@ impl<'a> QueryCache {
                 args,
                 call_kind: _,
                 turbofish: _,
+                safety: _,
             } => {
                 // FIXME: handle name and turbofish
                 self.visit_expression(target);
@@ -135,6 +136,7 @@ impl<'a> QueryCache {
                 callee,
                 args,
                 turbofish: _turbofish,
+                safety: _,
             } => {
                 self.names.insert(callee.clone());
                 // FIXME: handle callee and turbofish

@@ -7,8 +7,9 @@ use spade_common::{
 };
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
-    expression::CallKind, ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern,
-    Statement, TypeParam, TypeSpec, Unit, UnitHead,
+    expression::{CallKind, Safety},
+    ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern, Statement, TypeParam,
+    TypeSpec, Unit, UnitHead,
 };
 use spade_typeinference::{equation::KnownTypeVar, HasType, TypeState};
 
@@ -191,6 +192,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 callee: lambda_type.clone().at_loc(expression),
                 args: ArgumentList::Positional(vec![]).at_loc(expression),
                 turbofish: None,
+                safety: Safety::Default,
             }
             .with_id(expression.id)
             .at_loc(expression);

@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test(a: bool) -> int<3> {
+    unsafe { std::conv::transmute(a) }
+}
+
+
+error: Type size mismatch. Attempting to transmute 1 bit to 3 bits
+  ┌─ testinput:2:14
+  │
+2 │     unsafe { std::conv::transmute(a) }
+  │              ^^^^^^^^^^^^^^^^^^^^^^^
+  │              │                    │
+  │              │                    The source has 1 bit
+  │              The output type has 3 bits
+  │
+  = note: transmute can only convert between types of identical size

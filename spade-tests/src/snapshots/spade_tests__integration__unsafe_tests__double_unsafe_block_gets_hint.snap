@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/integration.rs
+---
+unsafe fn method() {}
+
+fn test() {
+    unsafe {
+        unsafe {
+            method();
+        }
+    }
+}
+
+
+warning: Unnecessary unsafe block
+  ┌─ testinput:5:16
+  │  
+5 │           unsafe {
+  │ ╭────────────────^
+6 │ │             method();
+7 │ │         }
+  │ ╰─────────^
+  │  
+  = note: This block is already in unsafe context

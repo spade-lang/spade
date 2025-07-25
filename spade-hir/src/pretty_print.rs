@@ -228,6 +228,7 @@ impl PrettyPrint for UnitHead {
             scope_type_params: _,
             unit_kind,
             where_clauses: _,
+            unsafe_marker,
             documentation: _,
         } = self;
         let output_type = match output_type {
@@ -247,7 +248,12 @@ impl PrettyPrint for UnitHead {
         };
         let inputs = inputs.pretty_print();
         format!(
-            "{} {}{}({}){}",
+            "{}{} {}{}({}){}",
+            if unsafe_marker.is_some() {
+                "unsafe "
+            } else {
+                ""
+            },
             unit_kind.pretty_print(),
             name,
             type_params,

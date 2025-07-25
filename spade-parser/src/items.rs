@@ -20,6 +20,7 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
             TokenKind::Entity,
             TokenKind::Pipeline,
             TokenKind::Extern,
+            TokenKind::Unsafe,
         ]
     }
 

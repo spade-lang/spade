@@ -139,6 +139,8 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
         let impl_method = &item.assume_unit().head;
 
+        check_safeness_for_impl_method_and_trait_method_match(impl_method, trait_method)?;
+
         check_type_params_for_impl_method_and_trait_method_match(impl_method, trait_method)?;
 
         let trait_method_mono =
@@ -516,6 +518,30 @@ fn check_no_missing_methods(
         )
     } else {
         Ok(())
+    }
+}
+
+fn check_safeness_for_impl_method_and_trait_method_match(
+    impl_method: &hir::UnitHead,
+    trait_method: &hir::UnitHead,
+) -> Result<()> {
+    let diag = || {
+        Diagnostic::error(
+            &impl_method.name,
+            "Safeness of impl method does not match that of trait definition",
+        )
+    };
+
+    match (impl_method.unsafe_marker, trait_method.unsafe_marker) {
+        (Some(_), Some(_)) | (None, None) => Ok(()),
+        (None, Some(def)) => Err(diag()
+            .primary_label("This impl isn't marked as unsafe")
+            .secondary_label(def, "But the trait definition is")
+            .span_suggest_insert_before("Add unsafe here", &impl_method.unit_kind, "unsafe ")),
+        (Some(loc), None) => Err(diag()
+            .primary_label("This impl is marked as unsafe")
+            .secondary_label(&trait_method.name, "But the trait definition isn't")
+            .span_suggest_remove("Remove unsafe here", loc)),
     }
 }
 

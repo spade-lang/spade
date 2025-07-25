@@ -216,6 +216,7 @@ impl ServerBackend {
                     args: _,
                     call_kind: _,
                     turbofish: _,
+                    safety: _,
                 } => {
                     if name.contains_start(loc) {
                         unit_type_state.as_ref().and_then(|ts| {
