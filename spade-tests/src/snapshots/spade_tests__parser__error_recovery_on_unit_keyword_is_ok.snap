@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn not a valid fn() {
+    unsafe abc
+}
+
+
+error: Unexpected `identifier`, expected `(`
+  ┌─ testinput:1:8
+  │
+1 │ fn not a valid fn() {
+  │        ^ expected `(`
+
+error: Unexpected `(`, expected `Identifier`
+  ┌─ testinput:1:18
+  │
+1 │ fn not a valid fn() {
+  │                  ^ expected `Identifier`
+
+error: Expected `fn`, `entity` or `pipeline`
+  ┌─ testinput:2:12
+  │
+2 │     unsafe abc
+  │     ------ ^^^ Expected `fn`, `entity` or `pipeline`
+  │     │       
+  │     Because of this keyword

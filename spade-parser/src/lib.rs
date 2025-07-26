@@ -1326,7 +1326,16 @@ impl<'a> Parser<'a> {
         let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
         let start_token = self.peek()?;
         let Some(unit_kind) = self.unit_kind(&start_token)? else {
-            return Ok(None);
+            if let Some(prev) = unsafe_token.or(extern_token) {
+                return Err(Diagnostic::error(
+                    start_token,
+                    "Expected `fn`, `entity` or `pipeline`",
+                )
+                .primary_label("Expected `fn`, `entity` or `pipeline`")
+                .secondary_label(prev, "Because of this keyword"));
+            } else {
+                return Ok(None);
+            }
         };
 
         let name = self.identifier()?;

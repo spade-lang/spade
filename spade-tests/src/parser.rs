@@ -887,3 +887,12 @@ code_compiles! {
         }
     "
 }
+
+snapshot_error! {
+    error_recovery_on_unit_keyword_is_ok,
+    "
+        fn not a valid fn() {
+            unsafe abc
+        }
+    "
+}

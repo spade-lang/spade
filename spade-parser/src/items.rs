@@ -28,7 +28,10 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
         let head = if let Some(head) = parser.unit_head(attributes)? {
             head
         } else {
-            panic!("Matched unit head but matches! returned true")
+            return Err(Diagnostic::bug(
+                parser.peek()?,
+                "UnitParser matched leading_tokens but parser returned None",
+            ));
         };
 
         parser.set_item_context(head.unit_kind.clone())?;
