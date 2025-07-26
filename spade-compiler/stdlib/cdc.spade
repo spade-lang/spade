@@ -23,7 +23,8 @@ unsafe entity sync2<T>(clk: clock, in: T) -> T {
 /// anything useful.
 unsafe entity sync_uint_counter<#uint N>(source_clk: clock, dest_clk: clock, in: uint<N>) -> uint<N> {
     reg(source_clk) gray = bin_to_gray(in);
-    gray_to_bin(unsafe { inst sync2(dest_clk, gray) })
+    reg(dest_clk) result = gray_to_bin(unsafe { inst sync2(dest_clk, gray) });
+    result
 }
 
 /// Synchronize a bool signal into another domain. This guarantees valid values, but does
