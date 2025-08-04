@@ -180,7 +180,8 @@ mod fifo_impl {
         let write_value = inst new_mut_wire();
 
         decl write_ptr;
-        let full = trunc(write_ptr + 1) == read_ptr;
+        reg(write_clk) read_ptr_sub = trunc(read_ptr - 1);
+        let full = write_ptr == read_ptr_sub;
 
         reg(write_clk) write_ptr reset(write_rst: 0) = match (inst read_mut_wire(write_value), full) {
             (Some(v), false) => trunc(write_ptr + 1),
