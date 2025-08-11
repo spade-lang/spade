@@ -25,8 +25,15 @@ cache:
         files:
             - Cargo.lock
     paths:
+        # https://doc.rust-lang.org/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
         - target
-        - $CARGO_HOME
+        - $CARGO_HOME/.crates.toml
+        - $CARGO_HOME/.crates2.json
+        - $CARGO_HOME/bin/
+        - $CARGO_HOME/registry/index/
+        - $CARGO_HOME/registry/cache/
+        - $CARGO_HOME/git/db/
+
 
 check:clippy:
     stage: test
@@ -167,7 +174,7 @@ build:static:
       - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
 
 build:wheel-manylinux:
-  image: quay.io/pypa/manylinux2014_x86_64
+  image: quay.io/pypa/manylinux_2_34_x86_64
   stage: test
   before_script:
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
