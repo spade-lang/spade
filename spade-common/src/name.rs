@@ -11,11 +11,8 @@ impl std::fmt::Display for Identifier {
     }
 }
 
-impl WithLocation for Identifier {}
-
 #[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Path(pub Vec<Loc<Identifier>>);
-impl WithLocation for Path {}
 
 impl Path {
     pub fn as_strs(&self) -> Vec<&str> {
@@ -95,7 +92,6 @@ impl std::fmt::Display for Path {
 /// use it
 #[derive(Clone, Serialize, Deserialize)]
 pub struct NameID(pub u64, pub Path);
-impl WithLocation for NameID {}
 
 impl std::cmp::PartialEq for NameID {
     fn eq(&self, other: &Self) -> bool {

@@ -26,7 +26,6 @@ pub enum ConstraintExpr {
     /// inner.log2().floor()+1
     UintBitsToRepresent(Box<ConstraintExpr>),
 }
-impl WithLocation for ConstraintExpr {}
 
 impl ConstraintExpr {
     pub fn debug_display(&self, type_state: &TypeState) -> String {
@@ -268,8 +267,6 @@ impl ConstraintRhs {
         self.constraint.debug_display(type_state)
     }
 }
-
-impl WithLocation for ConstraintRhs {}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TypeConstraints {

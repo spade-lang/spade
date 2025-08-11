@@ -4,7 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use spade_common::location_info::{Loc, WithLocation};
+use spade_common::location_info::Loc;
 use spade_hir::{ImplBlock, ImplTarget, TraitName};
 use std::collections::{BTreeSet, HashMap};
 
@@ -34,8 +34,6 @@ pub struct TraitReq {
     pub name: TraitName,
     pub type_params: Vec<TypeVarID>,
 }
-
-impl WithLocation for TraitReq {}
 
 impl TraitReq {
     pub fn display(&self, type_state: &TypeState) -> String {

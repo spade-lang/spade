@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::location_info::WithLocation;
-
 macro_rules! def_id_tracker {
     ($name:ident) => {
         #[derive(Debug, Serialize, Deserialize)]
@@ -90,11 +88,9 @@ pub struct NameIdInner(pub u64);
 /// type inferer.
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct ExprID(pub u64);
-impl WithLocation for ExprID {}
 
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct ImplID(pub u64);
-impl WithLocation for ImplID {}
 
 def_typed_id_tracker!(ExprIdTracker, ExprID);
 def_typed_id_tracker!(ImplIdTracker, ImplID);

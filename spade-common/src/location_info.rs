@@ -1,4 +1,3 @@
-use num::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
 use spade_codespan::{ByteOffset, Span};
 use spade_codespan_reporting::diagnostic::Label;
@@ -97,17 +96,7 @@ pub trait WithLocation: Sized {
     }
 }
 
-impl WithLocation for () {}
-impl WithLocation for BigInt {}
-impl WithLocation for BigUint {}
-impl WithLocation for u128 {}
-impl WithLocation for u64 {}
-impl WithLocation for i64 {}
-impl WithLocation for usize {}
-impl WithLocation for bool {}
-impl WithLocation for String {}
-impl<'a> WithLocation for &'a str {}
-impl<T> WithLocation for Vec<T> {}
+impl<T> WithLocation for T {}
 
 pub fn lspan(s: logos::Span) -> Span {
     Span::new(s.start as u32, s.end as u32)
@@ -272,6 +261,19 @@ impl<T, E> Loc<Result<T, E>> {
                 file_id: self.file_id,
             }),
             Err(e) => Err(err_fn(e, ().at(self.file_id, &self.span))),
+        }
+    }
+}
+
+impl<T> Loc<Option<T>>
+where
+    T: WithLocation,
+{
+    pub fn transpose(self) -> Option<Loc<T>> {
+        let loc = self.loc();
+        match self.inner {
+            Some(inner) => Some(inner.at_loc(&loc)),
+            None => None,
         }
     }
 }

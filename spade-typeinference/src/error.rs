@@ -18,7 +18,6 @@ pub struct UnificationTrace {
     pub failing: TypeVarID,
     pub inside: Option<TypeVarID>,
 }
-impl WithLocation for UnificationTrace {}
 
 impl UnificationTrace {
     pub fn new(failing: TypeVarID) -> Self {

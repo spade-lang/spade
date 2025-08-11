@@ -11,8 +11,6 @@ error: Attempt to use tuple indexing on non-tuple
 1 │ fn test(a: (bool,)) -> bool {
   │            ------- Type bool inferred here
 2 │     a#0#0
-  │     ^^^-- Because this is a tuple index
-  │     │   
+  │     ^^^ - Because this is a tuple index
+  │     │    
   │     expected tuple, got bool
-
-

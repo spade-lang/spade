@@ -140,7 +140,6 @@ pub struct EnumVariant {
     pub type_params: Vec<Loc<TypeParam>>,
     pub documentation: String,
 }
-impl WithLocation for EnumVariant {}
 
 impl EnumVariant {
     pub fn as_unit_head(&self) -> UnitHead {
@@ -165,7 +164,6 @@ pub struct StructCallable {
     pub params: Loc<ParameterList>,
     pub type_params: Vec<Loc<TypeParam>>,
 }
-impl WithLocation for StructCallable {}
 impl StructCallable {
     pub fn as_unit_head(&self) -> UnitHead {
         UnitHead {
@@ -261,7 +259,6 @@ pub struct Patternable {
     pub kind: PatternableKind,
     pub params: Loc<ParameterList>,
 }
-impl WithLocation for Patternable {}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GenericArg {
@@ -283,7 +280,6 @@ impl GenericArg {
         }
     }
 }
-impl WithLocation for GenericArg {}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TypeDeclKind {
@@ -326,7 +322,6 @@ pub enum TypeSymbol {
     /// stages can bail on finding this
     Alias(Loc<TypeExpression>),
 }
-impl WithLocation for TypeSymbol {}
 
 /// The declaration/definition status of a variable
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -339,7 +334,6 @@ pub enum DeclarationState {
     /// All variables must be in the declared state before the end of the scope
     Defined(Loc<()>),
 }
-impl WithLocation for DeclarationState {}
 
 pub type ScopeBarrier =
     dyn Fn(&Loc<Path>, &Loc<NameID>, &Thing) -> Result<(), Diagnostic> + Send + Sync;

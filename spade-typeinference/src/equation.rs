@@ -3,11 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};
-use spade_common::{
-    id_tracker::ExprID,
-    location_info::{Loc, WithLocation},
-    name::NameID,
-};
+use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_types::{meta_types::MetaType, KnownType};
 
 use crate::{
@@ -22,7 +18,6 @@ pub struct TypeVarID {
     /// of the type state for details
     pub type_state_key: u64,
 }
-impl WithLocation for TypeVarID {}
 
 impl TypeVarID {
     pub fn resolve(self, state: &TypeState) -> &TypeVar {
@@ -281,8 +276,6 @@ pub enum TypeVar {
     /// is done, the TypeVars will be carried over to the KnownType type vars
     Unknown(Loc<()>, u64, TraitList, MetaType),
 }
-
-impl WithLocation for TypeVar {}
 
 impl TypeVar {
     pub fn into_known(&self, type_state: &TypeState) -> Option<KnownTypeVar> {
@@ -594,8 +587,6 @@ pub enum TypedExpression {
     Id(ExprID),
     Name(NameID),
 }
-
-impl WithLocation for TypedExpression {}
 
 impl std::fmt::Display for TypedExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

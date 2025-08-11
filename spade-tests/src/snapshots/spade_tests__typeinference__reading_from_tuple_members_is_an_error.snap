@@ -16,8 +16,8 @@ error: Attempt to use tuple indexing on non-tuple
 3 │ entity uut(val: inv &(bool, int<3>)) -> bool {
   │                 ------------------- Type inv &(bool, int<3>) inferred here
 4 │     let x = inst read_mut_wire(val#0);
-  │                                ^^^-- Because this is a tuple index
-  │                                │   
+  │                                ^^^ - Because this is a tuple index
+  │                                │    
   │                                expected tuple, got inv &(bool, int<3>)
 
 error: Attempt to use tuple indexing on non-tuple
@@ -27,6 +27,6 @@ error: Attempt to use tuple indexing on non-tuple
   │                 ------------------- Type inv &(bool, int<3>) inferred here
 4 │     let x = inst read_mut_wire(val#0);
 5 │     let y = inst read_mut_wire(val#1);
-  │                                ^^^-- Because this is a tuple index
-  │                                │   
+  │                                ^^^ - Because this is a tuple index
+  │                                │    
   │                                expected tuple, got inv &(bool, int<3>)

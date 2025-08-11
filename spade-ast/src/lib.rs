@@ -15,7 +15,6 @@ pub enum TypeExpression {
     String(String),
     ConstGeneric(Box<Loc<Expression>>),
 }
-impl WithLocation for TypeExpression {}
 
 impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,14 +32,12 @@ pub enum NamedTurbofish {
     Short(Loc<Identifier>),
     Full(Loc<Identifier>, Loc<TypeExpression>),
 }
-impl WithLocation for NamedTurbofish {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TurbofishInner {
     Named(Vec<Loc<NamedTurbofish>>),
     Positional(Vec<Loc<TypeExpression>>),
 }
-impl WithLocation for TurbofishInner {}
 
 /// A specification of a type to be used. For example, the types of input/output arguments the type
 /// of fields in a struct etc.
@@ -61,7 +58,6 @@ pub enum TypeSpec {
     Wire(Box<Loc<TypeExpression>>),
     Wildcard,
 }
-impl WithLocation for TypeSpec {}
 
 impl std::fmt::Display for TypeSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -89,7 +85,6 @@ pub enum ArgumentPattern {
     Named(Vec<(Loc<Identifier>, Option<Loc<Pattern>>)>),
     Positional(Vec<Loc<Pattern>>),
 }
-impl WithLocation for ArgumentPattern {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Pattern {
@@ -100,7 +95,6 @@ pub enum Pattern {
     Array(Vec<Loc<Pattern>>),
     Type(Loc<Path>, Loc<ArgumentPattern>),
 }
-impl WithLocation for Pattern {}
 
 // Helper constructors for writing neater tests
 impl Pattern {
@@ -118,14 +112,12 @@ pub enum NamedArgument {
     /// Binds a local variable to an argument with the same name
     Short(Loc<Identifier>),
 }
-impl WithLocation for NamedArgument {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum ArgumentList {
     Positional(Vec<Loc<Expression>>),
     Named(Vec<NamedArgument>),
 }
-impl WithLocation for ArgumentList {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum WhereClause {
@@ -149,7 +141,6 @@ impl WhereClause {
         }
     }
 }
-impl WithLocation for WhereClause {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum BinaryOperator {
@@ -174,7 +165,6 @@ pub enum BinaryOperator {
     BitwiseOr,
     BitwiseXor,
 }
-impl WithLocation for BinaryOperator {}
 
 impl std::fmt::Display for BinaryOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -211,7 +201,6 @@ pub enum UnaryOperator {
     Dereference,
     Reference,
 }
-impl WithLocation for UnaryOperator {}
 
 impl std::fmt::Display for UnaryOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -237,7 +226,6 @@ pub enum CallKind {
     Entity(Loc<()>),
     Pipeline(Loc<()>, Loc<TypeExpression>),
 }
-impl WithLocation for CallKind {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum BitLiteral {
@@ -245,7 +233,6 @@ pub enum BitLiteral {
     High,
     HighImp,
 }
-impl WithLocation for BitLiteral {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expression {
@@ -332,7 +319,6 @@ pub enum Expression {
     StageReady,
     StaticUnreachable(Loc<String>),
 }
-impl WithLocation for Expression {}
 
 impl Expression {
     pub fn int_literal_signed(val: i32) -> Self {
@@ -399,7 +385,6 @@ pub enum IntLiteral {
     Signed { val: BigInt, size: BigUint },
     Unsigned { val: BigUint, size: BigUint },
 }
-impl WithLocation for IntLiteral {}
 
 impl IntLiteral {
     pub fn unsized_(val: i32) -> IntLiteral {
@@ -454,7 +439,6 @@ pub struct Block {
     pub statements: Vec<Loc<Statement>>,
     pub result: Option<Loc<Expression>>,
 }
-impl WithLocation for Block {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Binding {
@@ -480,7 +464,6 @@ pub enum Statement {
     },
     Assert(Loc<Expression>),
 }
-impl WithLocation for Statement {}
 
 impl Statement {
     // Creates a binding from name, type and values without any attributes.
@@ -510,7 +493,6 @@ pub enum TypeParam {
         name: Loc<Identifier>,
     },
 }
-impl WithLocation for TypeParam {}
 impl TypeParam {
     pub fn name(&self) -> &Loc<Identifier> {
         match self {
@@ -525,8 +507,6 @@ pub enum GenericBound {
     IntegerConstraint(Loc<Path>, Loc<Expression>),
     TypeConstraint(Loc<Path>, Vec<Loc<Identifier>>),
 }
-
-impl WithLocation for GenericBound {}
 
 impl GenericBound {
     pub fn path(&self) -> &Loc<Path> {
@@ -582,8 +562,6 @@ impl Attribute {
     }
 }
 
-impl WithLocation for Attribute {}
-
 #[derive(PartialEq, Debug, Clone)]
 pub struct AttributeList(pub Vec<Loc<Attribute>>);
 impl AttributeList {
@@ -601,7 +579,6 @@ pub struct ParameterList {
     pub self_: Option<Loc<()>>,
     pub args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>,
 }
-impl WithLocation for ParameterList {}
 
 impl ParameterList {
     pub fn without_self(args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
@@ -625,7 +602,6 @@ pub enum UnitKind {
     Entity,
     Pipeline(Loc<TypeExpression>),
 }
-impl WithLocation for UnitKind {}
 
 impl UnitKind {
     pub fn is_pipeline(&self) -> bool {
@@ -659,7 +635,6 @@ pub struct UnitHead {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
 }
-impl WithLocation for UnitHead {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Unit {
@@ -668,7 +643,6 @@ pub struct Unit {
     /// ensures that it is always a block. If body is `None`, the entity is `extern`.
     pub body: Option<Loc<Expression>>,
 }
-impl WithLocation for Unit {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Register {
@@ -680,7 +654,6 @@ pub struct Register {
     pub value_type: Option<Loc<TypeSpec>>,
     pub attributes: AttributeList,
 }
-impl WithLocation for Register {}
 
 /// A definition of a trait
 #[derive(PartialEq, Debug, Clone)]
@@ -690,7 +663,6 @@ pub struct TraitDef {
     pub where_clauses: Vec<WhereClause>,
     pub methods: Vec<Loc<UnitHead>>,
 }
-impl WithLocation for TraitDef {}
 
 /// A specification of a trait with type parameters
 #[derive(PartialEq, Debug, Clone)]
@@ -698,7 +670,6 @@ pub struct TraitSpec {
     pub path: Loc<Path>,
     pub type_params: Option<Loc<Vec<Loc<TypeExpression>>>>,
 }
-impl WithLocation for TraitSpec {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ImplBlock {
@@ -708,7 +679,6 @@ pub struct ImplBlock {
     pub target: Loc<TypeSpec>,
     pub units: Vec<Loc<Unit>>,
 }
-impl WithLocation for ImplBlock {}
 
 /// Declaration of an enum
 #[derive(PartialEq, Debug, Clone)]
@@ -717,7 +687,6 @@ pub struct Enum {
     pub name: Loc<Identifier>,
     pub variants: Vec<EnumVariant>,
 }
-impl WithLocation for Enum {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct EnumVariant {
@@ -733,7 +702,6 @@ pub struct Struct {
     pub members: Loc<ParameterList>,
     pub port_keyword: Option<Loc<()>>,
 }
-impl WithLocation for Struct {}
 
 impl Struct {
     pub fn is_port(&self) -> bool {
@@ -754,14 +722,12 @@ pub struct TypeDeclaration {
     pub kind: TypeDeclKind,
     pub generic_args: Option<Loc<Vec<Loc<TypeParam>>>>,
 }
-impl WithLocation for TypeDeclaration {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct UseStatement {
     pub path: Loc<Path>,
     pub alias: Option<Loc<Identifier>>,
 }
-impl WithLocation for UseStatement {}
 
 /// Items are things typically present at the top level of a module such as
 /// entities, pipelines, submodules etc.
@@ -775,7 +741,6 @@ pub enum Item {
     Use(Loc<UseStatement>),
     ImplBlock(Loc<ImplBlock>),
 }
-impl WithLocation for Item {}
 
 impl Item {
     pub fn name(&self) -> Option<&Identifier> {
@@ -808,11 +773,9 @@ pub struct Module {
     pub name: Loc<Identifier>,
     pub body: Loc<ModuleBody>,
 }
-impl WithLocation for Module {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ModuleBody {
     pub members: Vec<Item>,
     pub documentation: Vec<String>,
 }
-impl WithLocation for ModuleBody {}

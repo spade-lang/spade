@@ -355,7 +355,7 @@ impl<'a> Parser<'a> {
                     })?
                     .between(self.file_id, &hash, &index);
                 Ok(
-                    Expression::TupleIndex(Box::new(expr.clone()), index).between(
+                    Expression::TupleIndex(Box::new(expr.clone()), *index).between(
                         self.file_id,
                         &expr,
                         &index,

@@ -35,7 +35,6 @@ pub struct Block {
     pub statements: Vec<Loc<Statement>>,
     pub result: Option<Loc<Expression>>,
 }
-impl WithLocation for Block {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct PatternArgument {
@@ -43,7 +42,6 @@ pub struct PatternArgument {
     pub value: Loc<Pattern>,
     pub kind: ArgumentKind,
 }
-impl WithLocation for PatternArgument {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum PatternKind {
@@ -116,7 +114,6 @@ pub struct Pattern {
     pub id: ExprID,
     pub kind: PatternKind,
 }
-impl WithLocation for Pattern {}
 
 impl Pattern {
     pub fn get_names(&self) -> Vec<Loc<NameID>> {
@@ -147,8 +144,6 @@ pub struct WalTrace {
     pub clk: Option<Loc<Expression>>,
     pub rst: Option<Loc<Expression>>,
 }
-impl WithLocation for WalTrace {}
-
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Binding {
     pub pattern: Loc<Pattern>,
@@ -187,7 +182,6 @@ pub enum Statement {
         target: Loc<NameID>,
     },
 }
-impl WithLocation for Statement {}
 
 impl Statement {
     /// NOTE: For use in tests
@@ -224,7 +218,6 @@ pub struct Register {
     pub value_type: Option<Loc<TypeSpec>>,
     pub attributes: AttributeList,
 }
-impl WithLocation for Register {}
 
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord, Serialize, Deserialize)]
 pub struct Module {
@@ -242,7 +235,6 @@ pub struct TypeParam {
     pub trait_bounds: Vec<Loc<TraitSpec>>,
     pub meta: MetaType,
 }
-impl WithLocation for TypeParam {}
 impl TypeParam {
     pub fn name_id(&self) -> NameID {
         self.name_id.clone()
@@ -259,7 +251,6 @@ pub enum TypeExpression {
     TypeSpec(TypeSpec),
     ConstGeneric(Loc<ConstGeneric>),
 }
-impl WithLocation for TypeExpression {}
 
 impl TypeExpression {
     fn replace_in(self, from: &TypeSpec, to: &TypeSpec) -> Self {
@@ -309,7 +300,6 @@ pub enum TypeSpec {
     /// i.e. it is safe to emit a Diagnostic::bug if this is encountered where it is invalid
     Wildcard(Loc<()>),
 }
-impl WithLocation for TypeSpec {}
 
 // Quick functions for creating types without typing so much
 impl TypeSpec {
@@ -416,7 +406,6 @@ pub struct TraitSpec {
     pub name: TraitName,
     pub type_params: Option<Loc<Vec<Loc<TypeExpression>>>>,
 }
-impl WithLocation for TraitSpec {}
 
 /// Declaration of an enum
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -424,7 +413,6 @@ pub struct Enum {
     pub options: Vec<(Loc<NameID>, Loc<ParameterList>)>,
     pub documentation: String,
 }
-impl WithLocation for Enum {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct WalTraceable {
@@ -432,7 +420,6 @@ pub struct WalTraceable {
     pub uses_clk: bool,
     pub uses_rst: bool,
 }
-impl WithLocation for WalTraceable {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Struct {
@@ -442,7 +429,6 @@ pub struct Struct {
     pub wal_traceable: Option<Loc<WalTraceable>>,
     pub documentation: String,
 }
-impl WithLocation for Struct {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum TypeDeclKind {
@@ -467,7 +453,6 @@ pub struct TypeDeclaration {
     pub kind: TypeDeclKind,
     pub generic_args: Vec<Loc<TypeParam>>,
 }
-impl WithLocation for TypeDeclaration {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum ConstGeneric {
@@ -483,7 +468,6 @@ pub enum ConstGeneric {
     Eq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     NotEq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
 }
-impl WithLocation for ConstGeneric {}
 
 impl ConstGeneric {
     pub fn with_id(self, id: ExprID) -> ConstGenericWithId {
@@ -496,7 +480,6 @@ pub struct ConstGenericWithId {
     pub id: ExprID,
     pub inner: ConstGeneric,
 }
-impl WithLocation for ConstGenericWithId {}
 
 impl std::fmt::Display for ConstGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -527,7 +510,6 @@ pub enum WhereClause {
         traits: Vec<Loc<TraitSpec>>,
     },
 }
-impl WithLocation for WhereClause {}
 
 impl std::fmt::Display for WhereClause {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -588,7 +570,6 @@ pub struct Unit {
     pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
     pub body: Loc<Expression>,
 }
-impl WithLocation for Unit {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Parameter {
@@ -602,7 +583,6 @@ pub struct Parameter {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct ParameterList(pub Vec<Parameter>);
-impl WithLocation for ParameterList {}
 
 impl ParameterList {
     pub fn argument_num(&self) -> usize {
@@ -685,7 +665,6 @@ pub enum UnitKind {
         depth_typeexpr_id: ExprID,
     },
 }
-impl WithLocation for UnitKind {}
 
 impl UnitKind {
     pub fn name(&self) -> &'static str {
@@ -716,7 +695,6 @@ pub struct UnitHead {
     pub unsafe_marker: Option<Loc<()>>,
     pub documentation: String,
 }
-impl WithLocation for UnitHead {}
 
 impl UnitHead {
     pub fn output_type(&self) -> Loc<TypeSpec> {
@@ -761,7 +739,6 @@ pub enum ExecutableItem {
     Unit(Loc<Unit>),
     ExternUnit(UnitName, Loc<UnitHead>),
 }
-impl WithLocation for ExecutableItem {}
 
 pub type TypeList = HashMap<NameID, Loc<TypeDeclaration>>;
 
@@ -812,7 +789,6 @@ impl Attribute {
         }
     }
 }
-impl WithLocation for Attribute {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct AttributeList(pub Vec<Loc<Attribute>>);
@@ -832,14 +808,12 @@ pub struct ImplBlock {
     pub target: Loc<TypeSpec>,
     pub id: ImplID,
 }
-impl WithLocation for ImplBlock {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TraitDef {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub fns: HashMap<Identifier, Loc<UnitHead>>,
 }
-impl WithLocation for TraitDef {}
 
 #[derive(PartialEq, Hash, Eq, Debug, Clone, Serialize, Deserialize)]
 pub enum ImplTarget {

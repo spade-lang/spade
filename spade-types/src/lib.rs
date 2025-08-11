@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    location_info::WithLocation,
     name::{Identifier, NameID},
     num_ext::InfallibleToBigInt,
 };
@@ -202,8 +201,6 @@ pub enum KnownType {
     // on this type will produce invalid code.
     Error,
 }
-
-impl WithLocation for KnownType {}
 
 impl KnownType {
     pub fn integer(val: u64) -> Self {

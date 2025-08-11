@@ -380,7 +380,6 @@ pub enum ItemReference {
     Name(NameID),
     Anonymous(ExprID),
 }
-impl WithLocation for ItemReference {}
 
 impl ItemReference {
     fn anonymous(n: &Loc<ExprID>) -> Loc<Self> {

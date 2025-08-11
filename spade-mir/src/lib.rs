@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::ExprID;
 use types::Type;
 
-use spade_common::location_info::{Loc, WithLocation};
+use spade_common::location_info::Loc;
 use spade_common::name::NameID;
 use spade_common::num_ext::InfallibleToBigInt;
 
@@ -101,8 +101,6 @@ pub enum ValueName {
     /// An un-named expression. In the resulting verilog, this is called _e_$id
     Expr(ExprID),
 }
-
-impl WithLocation for ValueName {}
 
 impl ValueName {
     pub fn verilog_name_source_fwd(&self) -> VerilogNameSource {

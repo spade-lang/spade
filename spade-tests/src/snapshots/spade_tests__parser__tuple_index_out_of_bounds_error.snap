@@ -7,12 +7,10 @@ fn a(b: int<2>, c: int<2> ) -> int<3> {
 }
 
 error: Tuple index out of bounds
-  ┌─ testinput:3:8
+  ┌─ testinput:3:9
   │
 3 │     tup#2
-  │        ^^ Tuple only has 2 elements
+  │         ^ Tuple only has 2 elements
   │
   = note:      Index: 2
   = note: Tuple size: 2
-
-

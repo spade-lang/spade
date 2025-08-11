@@ -50,6 +50,12 @@ impl HasConcreteType for Loc<ExprID> {
     }
 }
 
+impl HasConcreteType for Loc<&ExprID> {
+    fn into_typed_expression(&self) -> Loc<TypedExpression> {
+        TypedExpression::Id(*self.inner).at_loc(self)
+    }
+}
+
 impl HasConcreteType for Loc<hir::Expression> {
     fn into_typed_expression(&self) -> Loc<TypedExpression> {
         TypedExpression::Id(self.id).at_loc(self)

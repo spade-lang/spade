@@ -7,7 +7,7 @@ use num::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
 use spade_common::{
     id_tracker::ExprID,
-    location_info::{Loc, WithLocation},
+    location_info::Loc,
     name::{Identifier, Path},
     num_ext::InfallibleToBigInt,
 };
@@ -62,7 +62,6 @@ impl std::fmt::Display for BinaryOperator {
         }
     }
 }
-impl WithLocation for BinaryOperator {}
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum UnaryOperator {
@@ -72,8 +71,6 @@ pub enum UnaryOperator {
     Dereference,
     Reference,
 }
-
-impl WithLocation for UnaryOperator {}
 
 impl std::fmt::Display for UnaryOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -96,7 +93,6 @@ pub enum NamedArgument<T> {
     /// Binds a local variable to an argument with the same name
     Short(Loc<Identifier>, Loc<T>),
 }
-impl<T> WithLocation for NamedArgument<T> {}
 
 /// Specifies how an argument is bound. Mainly used for error reporting without
 /// code duplication
@@ -139,7 +135,6 @@ impl<T> ArgumentList<T> {
         }
     }
 }
-impl<T> WithLocation for ArgumentList<T> {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Argument<T> {
@@ -161,7 +156,6 @@ pub enum CallKind {
         depth_typeexpr_id: ExprID,
     },
 }
-impl WithLocation for CallKind {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum BitLiteral {
@@ -182,7 +176,6 @@ pub enum PipelineRefKind {
     Absolute(Loc<NameID>),
     Relative(Loc<TypeExpression>),
 }
-impl WithLocation for PipelineRefKind {}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct CapturedLambdaParam {
@@ -275,7 +268,6 @@ pub enum ExprKind {
     // in type inference to create virtual expressions with specific IDs
     Null,
 }
-impl WithLocation for ExprKind {}
 
 impl ExprKind {
     pub fn with_id(self, id: ExprID) -> Expression {
@@ -301,7 +293,6 @@ pub struct Expression {
     // This ID is used to associate types with the expression
     pub id: ExprID,
 }
-impl WithLocation for Expression {}
 
 impl Expression {
     /// Create a new expression referencing an identifier with the specified
