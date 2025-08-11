@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct T<'a> {
+}
+
+
+error: Type declarations do not support domains
+  ┌─ testinput:1:10
+  │
+1 │ struct T<'a> {
+  │          ^^ Domain in type declaration

@@ -6,10 +6,12 @@ pub mod pretty_print;
 pub mod query;
 pub mod symbol_table;
 pub mod testutil;
+pub mod domains;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Formatter;
 
+use domains::Domain;
 pub use expression::{Argument, ArgumentKind, ArgumentList, ExprKind, Expression};
 use itertools::Itertools;
 use num::BigInt;
@@ -695,6 +697,7 @@ pub struct UnitHead {
     pub output_type: Option<Loc<TypeSpec>>,
     pub unit_type_params: Vec<Loc<TypeParam>>,
     pub scope_type_params: Vec<Loc<TypeParam>>,
+    pub domains: Vec<Domain>,
     pub unit_kind: Loc<UnitKind>,
     pub where_clauses: Vec<Loc<WhereClause>>,
     pub unsafe_marker: Option<Loc<()>>,

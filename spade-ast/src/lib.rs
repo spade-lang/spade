@@ -486,6 +486,10 @@ impl Statement {
 /// A generic type parameter
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeParam {
+    Domain {
+        name: Loc<Identifier>,
+        constraints: Option<Vec<Loc<Identifier>>>,
+    },
     TypeName {
         name: Loc<Identifier>,
         traits: Vec<Loc<TraitSpec>>,
@@ -498,6 +502,7 @@ pub enum TypeParam {
 impl TypeParam {
     pub fn name(&self) -> &Loc<Identifier> {
         match self {
+            TypeParam::Domain { name, constraints: _ } => name,
             TypeParam::TypeName { name, traits: _ } => name,
             TypeParam::TypeWithMeta { meta: _, name } => name,
         }

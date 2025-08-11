@@ -1216,6 +1216,23 @@ impl<'a> Parser<'a> {
                 name,
             }
             .at_loc(&loc))
+        } else if let Some(label) = self.peek_and_eat(&TokenKind::SingleQuote)? {
+            let name = self.identifier()?;
+            let name_loc = name.loc();
+            let name = name.inner.between_locs(&label.loc(), &name_loc);
+
+            let constraints = if let Some(_colon) = self.peek_and_eat(&TokenKind::Colon)? {
+                let constraints = self
+                    .token_separated(|s| s.identifier(), &TokenKind::Plus, vec![TokenKind::Comma])
+                    .no_context()?;
+                self.eat(&TokenKind::Comma)?;
+                Some(constraints)
+            } else {
+                None
+            };
+
+            let loc = name.loc();
+            Ok(TypeParam::Domain { name, constraints }.at_loc(&loc))
         } else {
             let (id, loc) = self.identifier()?.separate();
             let traits = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {

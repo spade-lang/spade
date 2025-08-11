@@ -1392,3 +1392,18 @@ snapshot_mir! {
     ",
     all
 }
+
+snapshot_error! {
+    domains_are_not_allowed_on_structs,
+    "
+        struct T<'a> {
+        }
+    "
+}
+snapshot_error! {
+    domains_are_not_allowed_on_enums,
+    "
+        enum T<'a> {
+        }
+    "
+}

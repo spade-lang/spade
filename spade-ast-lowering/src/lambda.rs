@@ -103,6 +103,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 .primary_label("Capturing a pipeline stage...")
                 .secondary_label(previous, "That is defined outside the lambda")),
                 spade_hir::symbol_table::Thing::Struct(_)
+                | spade_hir::symbol_table::Thing::Domain(_, _)
                 | spade_hir::symbol_table::Thing::EnumVariant(_)
                 | spade_hir::symbol_table::Thing::Unit(_)
                 | spade_hir::symbol_table::Thing::Alias {

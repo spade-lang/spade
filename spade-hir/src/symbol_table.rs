@@ -12,6 +12,7 @@ use spade_common::name::{Identifier, NameID, Path};
 use spade_diagnostics::diagnostic::Diagnostic;
 use spade_types::meta_types::MetaType;
 
+use crate::domains::{Domain, DomainConstraint};
 use crate::{
     FunctionKind, ParameterList, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
 };
@@ -154,6 +155,7 @@ impl EnumVariant {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
+            domains: vec![Domain::annonymous()]
         }
     }
 }
@@ -178,6 +180,7 @@ impl StructCallable {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
+            domains: vec![Domain::annonymous()]
         }
     }
 }
@@ -200,6 +203,7 @@ pub enum Thing {
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
     Trait(Loc<Identifier>),
+    Domain(Loc<Identifier>, Vec<Loc<DomainConstraint>>),
 }
 
 impl Thing {
@@ -213,6 +217,7 @@ impl Thing {
             Thing::PipelineStage(_) => "pipeline stage",
             Thing::Trait(_) => "trait",
             Thing::Module(_) => "module",
+            Thing::Domain(_, _) => "domain",
         }
     }
 
@@ -230,6 +235,7 @@ impl Thing {
             Thing::PipelineStage(i) => i.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
+            Thing::Domain(loc, _) => loc.loc()
         }
     }
 
@@ -247,6 +253,7 @@ impl Thing {
             Thing::PipelineStage(_) => todo!(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
+            Thing::Domain(loc, _) => loc.loc()
         }
     }
 }
@@ -1041,9 +1048,10 @@ impl SymbolTable {
                 Thing::Alias { path, in_namespace } => {
                     println!("{}", format!("alias => {path} in {in_namespace}").green())
                 }
-                Thing::PipelineStage(stage) => println!("'{stage}"),
+                Thing::PipelineStage(stage) => println!("pipeline stage {stage}"),
                 Thing::Trait(name) => println!("trait {}", name),
                 Thing::Module(name) => println!("mod {name}"),
+                Thing::Domain(name, _) => println!("domain {name}")
             }
         }
 

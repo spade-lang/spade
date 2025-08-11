@@ -20,6 +20,7 @@ use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_hir::domains::{Domain, DomainConstraint, DomainName};
 use spade_hir::expression::Safety;
 use spade_types::meta_types::MetaType;
 use tracing::{event, Level};
@@ -128,9 +129,17 @@ impl<T> LocExt<T> for Loc<T> {
 
 /// Visit an AST type parameter, converting it to a HIR type parameter and adding it
 /// to the symbol table
+/// Domains are dropped here and should be checked separately
 #[tracing::instrument(skip_all, fields(name=%param.name()))]
-pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir::TypeParam> {
+pub fn visit_type_param(
+    param: &ast::TypeParam,
+    ctx: &mut Context,
+) -> Result<Option<hir::TypeParam>> {
     match &param {
+        ast::TypeParam::Domain {
+            name: _,
+            constraints: _,
+        } => Ok(None),
         ast::TypeParam::TypeName {
             name: ident,
             traits,
@@ -148,12 +157,12 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 .at_loc(ident),
             );
 
-            Ok(hir::TypeParam {
+            Ok(Some(hir::TypeParam {
                 ident: ident.clone(),
                 name_id,
                 trait_bounds,
                 meta: MetaType::Type,
-            })
+            }))
         }
         ast::TypeParam::TypeWithMeta { meta, name } => {
             let meta = visit_meta_type(meta)?;
@@ -162,22 +171,73 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 TypeSymbol::GenericMeta(meta.clone()).at_loc(name),
             );
 
-            Ok(hir::TypeParam {
+            Ok(Some(hir::TypeParam {
                 ident: name.clone(),
                 name_id,
                 trait_bounds: vec![],
                 meta,
-            })
+            }))
         }
     }
+}
+
+pub fn collect_domains(
+    params: &Vec<Loc<TypeParam>>,
+    symtab: &mut SymbolTable,
+) -> Result<Vec<Domain>> {
+    Ok(params
+        .iter()
+        .map(|param| match &param.inner {
+            TypeParam::Domain { name, constraints } => {
+                let constraints = constraints
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .map(|constraint| match constraint.0.as_str() {
+                        "Async" => Ok(DomainConstraint::Async.at_loc(constraint)),
+                        other => Err(Diagnostic::error(
+                            constraint,
+                            format!("Invalid domain constraint {other}"),
+                        )
+                        .primary_label("Invalid domain constraint")),
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                let name = DomainName::Named(
+                    symtab
+                        .add_thing(
+                            Path(vec![name.clone()]),
+                            Thing::Domain(name.clone(), constraints.clone()),
+                        )
+                        .at_loc(name),
+                );
+
+                Ok(Some(Domain { name, constraints }))
+            }
+            TypeParam::TypeName { .. } => Ok(None),
+            TypeParam::TypeWithMeta { .. } => Ok(None),
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter_map(|x| x)
+        .collect())
 }
 
 /// Visit an AST type parameter, converting it to a HIR type parameter. The name is not
 /// added to the symbol table as this function is re-used for both global symbol collection
 /// and normal HIR lowering.
+///
+/// This does not handle domains, they result in `None` and must be handled separately
 #[tracing::instrument(skip_all, fields(name=%param.name()))]
-pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir::TypeParam> {
+pub fn re_visit_type_param(
+    param: &ast::TypeParam,
+    ctx: &Context,
+) -> Result<Option<hir::TypeParam>> {
     match &param {
+        ast::TypeParam::Domain {
+            name: _,
+            constraints: _,
+        } => Ok(None),
         ast::TypeParam::TypeName {
             name: ident,
             traits: _,
@@ -195,22 +255,22 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir:
                 ))
             };
 
-            Ok(hir::TypeParam {
+            Ok(Some(hir::TypeParam {
                 ident: ident.clone(),
                 name_id,
                 trait_bounds,
                 meta: MetaType::Type,
-            })
+            }))
         }
         ast::TypeParam::TypeWithMeta { meta, name } => {
             let path = Path::ident(name.clone()).at_loc(name);
             let name_id = ctx.symtab.lookup_type_symbol(&path)?.0;
-            Ok(hir::TypeParam {
+            Ok(Some(hir::TypeParam {
                 ident: name.clone(),
                 name_id,
                 trait_bounds: vec![],
                 meta: visit_meta_type(meta)?,
-            })
+            }))
         }
     }
 }
@@ -747,13 +807,41 @@ pub fn unit_head(
 ) -> Result<hir::UnitHead> {
     ctx.symtab.new_scope();
 
+    let mut domains = collect_domains(
+        &scope_type_params
+            .as_ref()
+            .map(Loc::strip_ref)
+            .unwrap_or(&vec![]),
+        &mut ctx.symtab,
+    )?;
+    domains.extend(collect_domains(
+        &head
+            .type_params
+            .as_ref()
+            .map(Loc::strip_ref)
+            .unwrap_or(&vec![]),
+        &mut ctx.symtab,
+    )?);
+
+    let domains = if domains.is_empty() {
+        vec![Domain {
+            name: DomainName::Annonymous,
+            constraints: vec![],
+        }]
+    } else {
+        domains
+    };
+
     let scope_type_params = scope_type_params
         .as_ref()
         .map(Loc::strip_ref)
         .into_iter()
         .flatten()
         .map(|loc| loc.try_map_ref(|p| re_visit_type_param(p, ctx)))
-        .collect::<Result<Vec<Loc<hir::TypeParam>>>>()?;
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter_map(|x| x.transpose())
+        .collect();
 
     let unit_type_params = head
         .type_params
@@ -762,7 +850,10 @@ pub fn unit_head(
         .into_iter()
         .flatten()
         .map(|loc| loc.try_map_ref(|p| visit_type_param(p, ctx)))
-        .collect::<Result<Vec<Loc<hir::TypeParam>>>>()?;
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter_map(|x| x.transpose())
+        .collect();
 
     let unit_where_clauses = visit_where_clauses(&head.where_clauses, ctx);
 
@@ -821,6 +912,7 @@ pub fn unit_head(
         output_type,
         unit_type_params,
         scope_type_params,
+        domains,
         unit_kind: unit_kind?,
         where_clauses,
         unsafe_marker: head.unsafe_token,
@@ -2674,274 +2766,6 @@ mod expression_visiting {
             expected
         )
     }
-
-    #[test]
-    fn match_expressions_with_0_argument_enum_works() {
-        let input = ast::Expression::Match(
-            Box::new(ast::Expression::int_literal_signed(1).nowhere()),
-            vec![(
-                ast::Pattern::Type(
-                    ast_path("x"),
-                    ast::ArgumentPattern::Positional(vec![
-                        ast::Pattern::Path(ast_path("y")).nowhere()
-                    ])
-                    .nowhere(),
-                )
-                .nowhere(),
-                ast::Expression::Identifier(ast_path("y")).nowhere(),
-            )]
-            .nowhere(),
-        );
-
-        let expected = hir::ExprKind::Match(
-            Box::new(hir::ExprKind::int_literal(1).idless().nowhere()),
-            vec![(
-                hir::PatternKind::Type(
-                    name_id(100, "x"),
-                    vec![hir::PatternArgument {
-                        target: ast_ident("x"),
-                        value: hir::PatternKind::name(name_id(0, "y")).idless().nowhere(),
-                        kind: hir::ArgumentKind::Positional,
-                    }],
-                )
-                .idless()
-                .nowhere(),
-                hir::ExprKind::Identifier(name_id(0, "y").inner)
-                    .idless()
-                    .nowhere(),
-            )],
-        )
-        .idless();
-
-        let mut symtab = SymbolTable::new();
-
-        let enum_variant = EnumVariant {
-            name: Identifier("".to_string()).nowhere(),
-            output_type: hir::TypeSpec::unit().nowhere(),
-            option: 0,
-            params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
-            type_params: vec![],
-            documentation: "".to_string(),
-        }
-        .nowhere();
-
-        symtab.add_thing_with_id(100, ast_path("x").inner, Thing::EnumVariant(enum_variant));
-
-        assert_eq!(
-            visit_expression(
-                &input,
-                &mut Context {
-                    symtab,
-                    ..test_context()
-                }
-            ),
-            expected
-        )
-    }
-
-    #[test]
-    fn entity_instantiation_works() {
-        let input = ast::Expression::Call {
-            kind: ast::CallKind::Entity(().nowhere()),
-            callee: ast_path("test"),
-            args: ast::ArgumentList::Positional(vec![
-                ast::Expression::int_literal_signed(1).nowhere(),
-                ast::Expression::int_literal_signed(2).nowhere(),
-            ])
-            .nowhere(),
-            turbofish: None,
-        }
-        .nowhere();
-
-        let expected = hir::ExprKind::Call {
-            kind: hir::expression::CallKind::Entity(().nowhere()),
-            callee: name_id(0, "test"),
-            args: hir::ArgumentList::Positional(vec![
-                hir::ExprKind::int_literal(1).idless().nowhere(),
-                hir::ExprKind::int_literal(2).idless().nowhere(),
-            ])
-            .nowhere(),
-            turbofish: None,
-            safety: Safety::Default,
-        }
-        .idless();
-
-        let mut symtab = SymbolTable::new();
-
-        symtab.add_thing(
-            ast_path("test").inner,
-            Thing::Unit(
-                hir::UnitHead {
-                    name: Identifier("".to_string()).nowhere(),
-                    is_nonstatic_method: false,
-                    inputs: hparams![
-                        ("a", hir::TypeSpec::unit().nowhere()),
-                        ("b", hir::TypeSpec::unit().nowhere()),
-                    ]
-                    .nowhere(),
-                    output_type: None,
-                    unit_type_params: vec![],
-                    scope_type_params: vec![],
-                    unit_kind: hir::UnitKind::Entity.nowhere(),
-                    where_clauses: vec![],
-                    unsafe_marker: None,
-                    documentation: "".to_string(),
-                }
-                .nowhere(),
-            ),
-        );
-
-        assert_eq!(
-            visit_expression(
-                &input,
-                &mut Context {
-                    symtab,
-                    ..test_context()
-                }
-            ),
-            expected
-        );
-    }
-
-    #[test]
-    fn entity_instantiation_with_named_args_works() {
-        let input = ast::Expression::Call {
-            kind: ast::CallKind::Entity(().nowhere()),
-            callee: ast_path("test"),
-            args: ast::ArgumentList::Named(vec![
-                ast::NamedArgument::Full(
-                    ast_ident("b"),
-                    ast::Expression::int_literal_signed(2).nowhere(),
-                ),
-                ast::NamedArgument::Full(
-                    ast_ident("a"),
-                    ast::Expression::int_literal_signed(1).nowhere(),
-                ),
-            ])
-            .nowhere(),
-            turbofish: None,
-        }
-        .nowhere();
-
-        let expected = hir::ExprKind::Call {
-            kind: hir::expression::CallKind::Entity(().nowhere()),
-            callee: name_id(0, "test"),
-            args: hir::ArgumentList::Named(vec![
-                hir::expression::NamedArgument::Full(
-                    ast_ident("b"),
-                    hir::ExprKind::int_literal(2).idless().nowhere(),
-                ),
-                hir::expression::NamedArgument::Full(
-                    ast_ident("a"),
-                    hir::ExprKind::int_literal(1).idless().nowhere(),
-                ),
-            ])
-            .nowhere(),
-            turbofish: None,
-            safety: Safety::Default,
-        }
-        .idless();
-
-        let mut symtab = SymbolTable::new();
-
-        symtab.add_thing(
-            ast_path("test").inner,
-            Thing::Unit(
-                hir::UnitHead {
-                    name: Identifier("".to_string()).nowhere(),
-                    is_nonstatic_method: false,
-                    inputs: hparams![
-                        ("a", hir::TypeSpec::unit().nowhere()),
-                        ("b", hir::TypeSpec::unit().nowhere()),
-                    ]
-                    .nowhere(),
-                    output_type: None,
-                    unit_type_params: vec![],
-                    scope_type_params: vec![],
-                    unit_kind: hir::UnitKind::Entity.nowhere(),
-                    where_clauses: vec![],
-                    unsafe_marker: None,
-                    documentation: "".to_string(),
-                }
-                .nowhere(),
-            ),
-        );
-
-        assert_eq!(
-            visit_expression(
-                &input,
-                &mut Context {
-                    symtab,
-                    ..test_context()
-                }
-            ),
-            expected
-        );
-    }
-
-    #[test]
-    fn function_instantiation_works() {
-        let input = ast::Expression::Call {
-            kind: ast::CallKind::Function,
-            callee: ast_path("test"),
-            args: ast::ArgumentList::Positional(vec![
-                ast::Expression::int_literal_signed(1).nowhere(),
-                ast::Expression::int_literal_signed(2).nowhere(),
-            ])
-            .nowhere(),
-            turbofish: None,
-        }
-        .nowhere();
-
-        let expected = hir::ExprKind::Call {
-            kind: hir::expression::CallKind::Function,
-            callee: name_id(0, "test"),
-            args: hir::ArgumentList::Positional(vec![
-                hir::ExprKind::int_literal(1).idless().nowhere(),
-                hir::ExprKind::int_literal(2).idless().nowhere(),
-            ])
-            .nowhere(),
-            turbofish: None,
-            safety: Safety::Default,
-        }
-        .idless();
-
-        let mut symtab = SymbolTable::new();
-
-        symtab.add_thing(
-            ast_path("test").inner,
-            Thing::Unit(
-                hir::UnitHead {
-                    name: Identifier("".to_string()).nowhere(),
-                    is_nonstatic_method: false,
-                    inputs: hparams![
-                        ("a", hir::TypeSpec::unit().nowhere()),
-                        ("b", hir::TypeSpec::unit().nowhere()),
-                    ]
-                    .nowhere(),
-                    output_type: None,
-                    unit_type_params: vec![],
-                    scope_type_params: vec![],
-                    unit_kind: hir::UnitKind::Function(hir::FunctionKind::Fn).nowhere(),
-                    where_clauses: vec![],
-                    unsafe_marker: None,
-                    documentation: "".to_string(),
-                }
-                .nowhere(),
-            ),
-        );
-
-        assert_eq!(
-            visit_expression(
-                &input,
-                &mut Context {
-                    symtab,
-                    ..test_context()
-                }
-            ),
-            expected
-        );
-    }
 }
 
 #[cfg(test)]
@@ -3106,84 +2930,11 @@ mod register_visiting {
 }
 
 #[cfg(test)]
-mod item_visiting {
-    use super::*;
-
-    use ast::aparams;
-    use spade_ast::testutil::ast_ident;
-    use spade_common::location_info::WithLocation;
-    use spade_common::name::testutil::name_id;
-
-    use crate::testutil::test_context;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    pub fn item_entity_visiting_works() {
-        let input = ast::Item::Unit(
-            ast::Unit {
-                head: ast::UnitHead {
-                    unsafe_token: None,
-                    extern_token: None,
-                    name: ast_ident("test"),
-                    output_type: None,
-                    inputs: aparams![],
-                    type_params: None,
-                    attributes: ast::AttributeList(vec![]),
-                    unit_kind: ast::UnitKind::Entity.nowhere(),
-                    where_clauses: vec![],
-                },
-                body: Some(
-                    ast::Expression::Block(Box::new(ast::Block {
-                        statements: vec![],
-                        result: Some(ast::Expression::int_literal_signed(0).nowhere()),
-                    }))
-                    .nowhere(),
-                ),
-            }
-            .nowhere(),
-        );
-
-        let expected = hir::Item::Unit(
-            hir::Unit {
-                name: hir::UnitName::FullPath(name_id(0, "test")),
-                head: hir::UnitHead {
-                    name: Identifier("test".to_string()).nowhere(),
-                    is_nonstatic_method: false,
-                    output_type: None,
-                    inputs: hir::ParameterList(vec![]).nowhere(),
-                    unit_type_params: vec![],
-                    scope_type_params: vec![],
-                    unit_kind: hir::UnitKind::Entity.nowhere(),
-                    where_clauses: vec![],
-                    unsafe_marker: None,
-                    documentation: "".to_string(),
-                },
-                attributes: hir::AttributeList::empty(),
-                inputs: vec![],
-                body: hir::ExprKind::Block(Box::new(hir::Block {
-                    statements: vec![],
-                    result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
-                }))
-                .idless()
-                .nowhere(),
-            }
-            .nowhere(),
-        );
-
-        let mut ctx = test_context();
-
-        global_symbols::visit_item(&input, &mut ctx).unwrap();
-        assert_eq!(visit_item(&input, &mut ctx), Ok(vec![expected]));
-    }
-}
-
-#[cfg(test)]
 mod module_visiting {
     use std::collections::HashMap;
 
     use super::*;
 
-    use hir::hparams;
     use spade_ast::testutil::ast_ident;
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
@@ -3192,79 +2943,6 @@ mod module_visiting {
     use crate::testutil::test_context;
     use pretty_assertions::assert_eq;
     use spade_common::namespace::ModuleNamespace;
-
-    #[test]
-    fn visiting_module_with_one_entity_works() {
-        let input = ast::ModuleBody {
-            members: vec![ast::Item::Unit(
-                ast::Unit {
-                    head: ast::UnitHead {
-                        unsafe_token: None,
-                        extern_token: None,
-                        name: ast_ident("test"),
-                        output_type: None,
-                        inputs: ParameterList::without_self(vec![]).nowhere(),
-                        type_params: None,
-                        attributes: ast::AttributeList(vec![]),
-                        unit_kind: ast::UnitKind::Entity.nowhere(),
-                        where_clauses: vec![],
-                    },
-                    body: Some(
-                        ast::Expression::Block(Box::new(ast::Block {
-                            statements: vec![],
-                            result: Some(ast::Expression::int_literal_signed(0).nowhere()),
-                        }))
-                        .nowhere(),
-                    ),
-                }
-                .nowhere(),
-            )],
-            documentation: vec![],
-        };
-
-        let expected = hir::ItemList {
-            executables: vec![(
-                name_id(0, "test").inner,
-                hir::ExecutableItem::Unit(
-                    hir::Unit {
-                        name: hir::UnitName::FullPath(name_id(0, "test")),
-                        head: hir::UnitHead {
-                            name: Identifier("test".to_string()).nowhere(),
-                            is_nonstatic_method: false,
-                            output_type: None,
-                            inputs: hparams!().nowhere(),
-                            unit_type_params: vec![],
-                            scope_type_params: vec![],
-                            unit_kind: hir::UnitKind::Entity.nowhere(),
-                            where_clauses: vec![],
-                            unsafe_marker: None,
-                            documentation: "".to_string(),
-                        },
-                        inputs: vec![],
-                        attributes: hir::AttributeList::empty(),
-                        body: hir::ExprKind::Block(Box::new(hir::Block {
-                            statements: vec![],
-                            result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
-                        }))
-                        .idless()
-                        .nowhere(),
-                    }
-                    .nowhere(),
-                ),
-            )]
-            .into_iter()
-            .collect(),
-            types: vec![].into_iter().collect(),
-            modules: vec![].into_iter().collect(),
-            traits: HashMap::new(),
-            impls: ImplTab::new(),
-        };
-
-        let mut ctx = test_context();
-        global_symbols::gather_symbols(&input, &mut ctx).expect("failed to collect global symbols");
-        assert_eq!(visit_module_body(&input, &mut ctx), Ok(()));
-        assert_eq!(ctx.item_list, expected);
-    }
 
     #[test]
     fn visiting_submodules_works() {

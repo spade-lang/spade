@@ -115,6 +115,9 @@ impl ServerBackend {
             symbol_table::Thing::PipelineStage(_) => {
                 format!("(pipeline stage)")
             }
+            symbol_table::Thing::Domain(name, _) => {
+                format!("domain '{name}")
+            }
             symbol_table::Thing::Module(_) => {
                 format!("(module)")
             }

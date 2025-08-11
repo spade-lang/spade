@@ -34,8 +34,9 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
     if let Some(type_params) = &block.type_params {
         for param in type_params.inner.iter() {
-            let param = param.try_map_ref(|p| visit_type_param(p, ctx))?;
-            impl_type_params.push(param);
+            if let Some(param) = param.try_map_ref(|p| visit_type_param(p, ctx))?.transpose() {
+                impl_type_params.push(param);
+            }
         }
     }
 
@@ -315,45 +316,65 @@ pub fn create_trait_from_unit_heads(
             params
                 .iter()
                 .map(|param| {
-                    param.try_map_ref(|tp| {
-                        let ident = tp.name();
-                        let type_symbol = match tp {
-                            ast::TypeParam::TypeName { name, traits } => {
-                                let traits = traits
-                                    .iter()
-                                    .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                                    .collect::<Result<Vec<_>>>()?;
-
-                                TypeSymbol::GenericArg { traits }.at_loc(name)
-                            }
-                            ast::TypeParam::TypeWithMeta { meta, name } => {
-                                TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name)
-                            }
-                        };
-                        let name_id = ctx.symtab.add_type(Path::ident(ident.clone()), type_symbol);
-                        Ok(match tp {
-                            ast::TypeParam::TypeName { name: _, traits } => {
-                                let trait_bounds = traits
-                                    .iter()
-                                    .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                                    .collect::<Result<_>>()?;
-
-                                hir::TypeParam {
-                                    ident: ident.clone(),
-                                    name_id,
-                                    trait_bounds,
-                                    meta: MetaType::Type,
+                    param
+                        .try_map_ref(|tp| {
+                            let ident = tp.name();
+                            let type_symbol = match tp {
+                                ast::TypeParam::Domain {
+                                    name: _,
+                                    constraints: _,
+                                } => {
+                                    return Ok(None);
                                 }
-                            }
-                            ast::TypeParam::TypeWithMeta { meta, name: _ } => hir::TypeParam {
-                                ident: ident.clone(),
-                                name_id,
-                                trait_bounds: vec![],
-                                meta: visit_meta_type(meta)?,
-                            },
+                                ast::TypeParam::TypeName { name, traits } => {
+                                    let traits = traits
+                                        .iter()
+                                        .map(|t| {
+                                            visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx)
+                                        })
+                                        .collect::<Result<Vec<_>>>()?;
+
+                                    TypeSymbol::GenericArg { traits }.at_loc(name)
+                                }
+                                ast::TypeParam::TypeWithMeta { meta, name } => {
+                                    TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name)
+                                }
+                            };
+                            let name_id =
+                                ctx.symtab.add_type(Path::ident(ident.clone()), type_symbol);
+                            Ok(match tp {
+                                ast::TypeParam::Domain {
+                                    name: _,
+                                    constraints: _,
+                                } => None,
+                                ast::TypeParam::TypeName { name: _, traits } => {
+                                    let trait_bounds = traits
+                                        .iter()
+                                        .map(|t| {
+                                            visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx)
+                                        })
+                                        .collect::<Result<_>>()?;
+
+                                    Some(hir::TypeParam {
+                                        ident: ident.clone(),
+                                        name_id,
+                                        trait_bounds,
+                                        meta: MetaType::Type,
+                                    })
+                                }
+                                ast::TypeParam::TypeWithMeta { meta, name: _ } => {
+                                    Some(hir::TypeParam {
+                                        ident: ident.clone(),
+                                        name_id,
+                                        trait_bounds: vec![],
+                                        meta: visit_meta_type(meta)?,
+                                    })
+                                }
+                            })
                         })
-                    })
+                        .map(|x| x.transpose())
                 })
+                .filter_map(|x| x.transpose())
                 .collect::<Result<Vec<_>>>()
         })?)
     } else {

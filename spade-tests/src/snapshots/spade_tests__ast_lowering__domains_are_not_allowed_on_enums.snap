@@ -1,0 +1,12 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+enum T<'a> {
+}
+
+
+error: Type declarations do not support domains
+  ┌─ testinput:1:8
+  │
+1 │ enum T<'a> {
+  │        ^^ Domain in type declaration

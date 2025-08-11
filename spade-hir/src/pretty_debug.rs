@@ -6,6 +6,7 @@ use spade_common::{
 };
 
 use crate::{
+    domains::{Domain, DomainConstraint, DomainName},
     expression::{NamedArgument, OuterLambdaParam, Safety},
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
     Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression, TypeParam, TypeSpec,
@@ -40,6 +41,7 @@ impl PrettyDebug for Unit {
                     output_type,
                     unit_type_params,
                     scope_type_params,
+                    domains,
                     unit_kind,
                     where_clauses,
                     unsafe_marker,
@@ -51,7 +53,8 @@ impl PrettyDebug for Unit {
         } = self;
 
         let type_params = format!(
-            "<{} | {}>",
+            "<{} | {} | {}>",
+            domains.iter().map(PrettyDebug::pretty_debug).join(", "),
             scope_type_params
                 .iter()
                 .map(PrettyDebug::pretty_debug)
@@ -59,7 +62,7 @@ impl PrettyDebug for Unit {
             unit_type_params
                 .iter()
                 .map(PrettyDebug::pretty_debug)
-                .join(", ")
+                .join(", "),
         );
 
         let inputs = inputs
@@ -84,6 +87,41 @@ impl PrettyDebug for Unit {
             [0] "}";
         ]
         .to_string()
+    }
+}
+
+impl PrettyDebug for DomainConstraint {
+    fn pretty_debug(&self) -> String {
+        match self {
+            DomainConstraint::Async => "Async".to_string(),
+        }
+    }
+}
+impl PrettyDebug for DomainName {
+    fn pretty_debug(&self) -> String {
+        match self {
+            DomainName::Annonymous => format!("'_"),
+            DomainName::Named(name) => format!("'{}", name.pretty_debug()),
+        }
+    }
+}
+impl PrettyDebug for Domain {
+    fn pretty_debug(&self) -> String {
+        format!(
+            "{}{}",
+            self.name.pretty_debug(),
+            if self.constraints.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    ": {}",
+                    self.constraints
+                        .iter()
+                        .map(|constraint| format!("{}", constraint.pretty_debug()))
+                        .join(" + ")
+                )
+            }
+        )
     }
 }
 

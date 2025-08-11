@@ -227,6 +227,8 @@ impl PrettyPrint for UnitHead {
             output_type,
             unit_type_params,
             scope_type_params: _,
+            // TODO: Actually print domains
+            domains: _,
             unit_kind,
             where_clauses: _,
             unsafe_marker,

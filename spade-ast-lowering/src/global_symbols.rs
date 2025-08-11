@@ -10,7 +10,7 @@ use spade_common::{
     name::{Identifier, Path},
     namespace::ModuleNamespace,
 };
-use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
 use spade_hir as hir;
 use spade_hir::WhereClause;
 use spade_types::meta_types::MetaType;
@@ -279,6 +279,15 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         .iter()
         .map(|arg| {
             let result = match &arg.inner {
+                ast::TypeParam::Domain {
+                    name: _,
+                    constraints: _,
+                } => {
+                    return Err(
+                        Diagnostic::error(arg, "Type declarations do not support domains")
+                            .primary_label("Domain in type declaration"),
+                    )
+                }
                 ast::TypeParam::TypeName { name, traits } => {
                     let traits = traits
                         .iter()
@@ -337,6 +346,9 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         .unwrap_or(&vec![])
     {
         let (name, symbol_type) = match &param.inner {
+            ast::TypeParam::Domain { name: _, constraints: _ } => {
+                diag_bail!(param, "Domain should already have been disallowed at this point")
+            }
             ast::TypeParam::TypeName { name: n, traits } => {
                 let resolved_traits = traits
                     .iter()
@@ -369,6 +381,9 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(name_id.clone().at_loc(arg)))
             .at_loc(arg);
         let param = match &arg.inner {
+            ast::TypeParam::Domain { name: _, constraints: _ } => {
+                diag_bail!(arg, "Domain should already have been disallowed at this point")
+            }
             ast::TypeParam::TypeName { name, traits } => {
                 let trait_bounds = traits
                     .iter()
