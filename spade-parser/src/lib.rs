@@ -17,9 +17,9 @@ use tracing::{debug, event, Level};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
-    EnumVariant, Expression, IntLiteral, Item, ModuleBody, NamedArgument, NamedTurbofish,
-    ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner,
-    TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
+    DomainName, EnumVariant, Expression, IntLiteral, Item, ModuleBody, NamedArgument,
+    NamedTurbofish, ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec,
+    TurbofishInner, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
@@ -1167,32 +1167,70 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parameter_domain(&mut self) -> Result<Option<Loc<DomainName>>> {
+        if let Some(domain) = self.peek_and_eat(&TokenKind::SingleQuote)? {
+            let name = self.identifier()?;
+            let name_loc = name.loc();
+            Ok(Some(
+                DomainName(name.inner).between_locs(&domain.loc(), &name_loc.loc()),
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+
     #[trace_parser]
-    pub fn parameter(&mut self) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
+    pub fn parameter(
+        &mut self,
+    ) -> Result<(
+        AttributeList,
+        Option<Loc<DomainName>>,
+        Loc<Identifier>,
+        Loc<TypeSpec>,
+    )> {
         let attrs = self.attributes()?;
+        let domain = self.parameter_domain()?;
         let (name, ty) = self.name_and_type()?;
-        Ok((attrs, name, ty))
+        Ok((attrs, domain, name, ty))
     }
 
     #[trace_parser]
     pub fn parameter_list(&mut self) -> Result<ParameterList> {
+        let mut leading_domain = self.parameter_domain()?;
         let self_ = if self.peek_cond(
             |tok| tok == &TokenKind::Identifier(String::from("self")),
             "Expected argument",
         )? {
             let self_tok = self.eat_unconditional()?;
             self.peek_and_eat(&TokenKind::Comma)?;
-            Some(().at(self.file_id, &self_tok))
+            Some((leading_domain.take(), ().at(self.file_id, &self_tok)))
         } else {
             None
         };
 
-        Ok(ParameterList {
-            self_,
-            args: self
-                .comma_separated(Self::parameter, &TokenKind::CloseParen)
-                .no_context()?,
-        })
+        let mut args = self
+            .comma_separated(Self::parameter, &TokenKind::CloseParen)
+            .no_context()?;
+
+        match (leading_domain, args.as_mut_slice()) {
+            (None, _) => {}
+            (Some(first), [(_, Some(second), _, _), ..]) => {
+                return Err(Diagnostic::error(
+                    &*second,
+                    "A signal can only belong to a single domain",
+                )
+                .primary_label("Second domain specified here")
+                .secondary_label(first, "First domain specified here")
+                .span_suggest_remove("Consider removing the second domain", &*second))
+            }
+            (Some(first), [(_, other, _, _), ..]) => *other = Some(first),
+            (Some(dom), []) => {
+                return Err(Diagnostic::error(dom, "Expected identifier after domain")
+                    .primary_label("Expected identifier"));
+            }
+        };
+
+        Ok(ParameterList { self_, args })
     }
 
     #[tracing::instrument(skip(self))]

@@ -242,7 +242,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             )
                             .at_loc(name_id);
 
-                            (ast::AttributeList::empty(), name_ident.clone(), ty)
+                            (ast::AttributeList::empty(), None, name_ident.clone(), ty)
                         })
                         .collect(),
                 )
@@ -317,16 +317,13 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 unit_kind: unit_kind.clone(),
                 name: Identifier("call".to_string()).nowhere(),
                 inputs: ast::ParameterList {
-                    self_: Some(().nowhere()),
-                    args: clock_arg
-                        .clone()
-                        .into_iter()
-                        .chain([(
-                            ast::AttributeList(vec![]),
-                            Identifier("args".to_string()).nowhere(),
-                            args_spec,
-                        )])
-                        .collect::<Vec<_>>(),
+                    self_: Some((None, ().nowhere())),
+                    args: vec![(
+                        ast::AttributeList(vec![]),
+                        None,
+                        Identifier("args".to_string()).nowhere(),
+                        args_spec,
+                    )],
                 }
                 .nowhere(),
                 output_type: Some((

@@ -346,8 +346,14 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         .unwrap_or(&vec![])
     {
         let (name, symbol_type) = match &param.inner {
-            ast::TypeParam::Domain { name: _, constraints: _ } => {
-                diag_bail!(param, "Domain should already have been disallowed at this point")
+            ast::TypeParam::Domain {
+                name: _,
+                constraints: _,
+            } => {
+                diag_bail!(
+                    param,
+                    "Domain should already have been disallowed at this point"
+                )
             }
             ast::TypeParam::TypeName { name: n, traits } => {
                 let resolved_traits = traits
@@ -381,8 +387,14 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(name_id.clone().at_loc(arg)))
             .at_loc(arg);
         let param = match &arg.inner {
-            ast::TypeParam::Domain { name: _, constraints: _ } => {
-                diag_bail!(arg, "Domain should already have been disallowed at this point")
+            ast::TypeParam::Domain {
+                name: _,
+                constraints: _,
+            } => {
+                diag_bail!(
+                    arg,
+                    "Domain should already have been disallowed at this point"
+                )
             }
             ast::TypeParam::TypeName { name, traits } => {
                 let trait_bounds = traits
@@ -434,7 +446,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .args
                     .clone()
                     .map(|l| {
-                        if let Some(self_) = l.self_ {
+                        if let Some((_, self_)) = l.self_ {
                             Err(Diagnostic::bug(self_, "enum member contains self"))
                         } else {
                             Ok(l.args.clone())
@@ -443,7 +455,15 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .unwrap_or(Ok(vec![]))?;
 
                 // Ensure that we don't have any port or inout types in the enum variants
-                for (_, _, ty) in args {
+                for (_, domain, _, ty) in args {
+                    if let Some(domain) = domain {
+                        return Err(Diagnostic::error(
+                            &domain,
+                            "Enum variant members cannot have domains",
+                        )
+                        .primary_label("Domain for enum variant member")
+                        .span_suggest_remove("Consider removing the domain", domain));
+                    }
                     let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
                     if ty.is_port(&ctx)? {
                         return Err(Diagnostic::error(ty, "Port in enum")
@@ -524,7 +544,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             )
         }
         ast::TypeDeclKind::Struct(s) => {
-            if let Some(self_) = s.members.self_ {
+            if let Some((_, self_)) = s.members.self_ {
                 return Err(Diagnostic::bug(
                     self_,
                     "struct contains self member which was let through parser",
@@ -533,7 +553,14 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
 
             // Disallow normal arguments if the struct is a port, and port types
             // if it is not
-            for (_, f, ty) in &s.members.args {
+            for (_, domain, f, ty) in &s.members.args {
+                if let Some(domain) = domain {
+                    return Err(
+                        Diagnostic::error(domain, "Struct members cannot have domains")
+                            .primary_label("Domain for struct member")
+                            .span_suggest_remove("Consider removing the domain", domain),
+                    );
+                }
                 let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
                 if hir_ty.is_inout(ctx)? {
                     return Err(Diagnostic::error(ty, "Inout in struct")

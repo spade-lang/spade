@@ -6,6 +6,7 @@ use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_hir::domains::DomainName;
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::symbol_table::TypeSymbol;
 use spade_hir::{self as hir, TraitName};
@@ -694,14 +695,29 @@ fn check_params_for_impl_method_and_trait_method_match(
                     ty: i_spec,
                     no_mangle: _,
                     field_translator: _,
+                    domain: i_domain,
                 },
                 hir::Parameter {
                     name: t_name,
                     ty: t_spec,
                     no_mangle: _,
                     field_translator: _,
+                    domain: t_domain,
                 },
             ) => {
+                // This is easy to support, we just need to do matching of domains, but in the
+                // interest of getting a domain MVP in, we'll leave it like this
+                match (i_domain, t_domain) {
+                    (DomainName::Annonymous, DomainName::Annonymous) => {}
+                    (DomainName::Named(loc), DomainName::Annonymous)
+                    | (DomainName::Named(loc), DomainName::Named(_))
+                    | (DomainName::Annonymous, DomainName::Named(loc)) => {
+                        return Err(Diagnostic::error(
+                            loc,
+                            "Domains are not currently supported in trait impls",
+                        ).primary_label("Domain in impl block"))
+                    }
+                }
                 if i_name != t_name {
                     return Err(Diagnostic::error(i_name, "Argument name mismatch")
                         .primary_label(format!("Expected `{t_name}`"))
@@ -726,6 +742,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 ty: _,
                 no_mangle: _,
                 field_translator: _,
+                domain: _,
             }) => {
                 return Err(
                     Diagnostic::error(name, "Trait method does not have this argument")
@@ -738,6 +755,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 ty: _,
                 no_mangle: _,
                 field_translator: _,
+                domain: _,
             }) => {
                 return Err(Diagnostic::error(
                     &impl_method.inputs,
@@ -800,6 +818,8 @@ fn map_trait_method_parameters(
                     ty,
                     no_mangle: param.no_mangle,
                     field_translator: None,
+                    // TODO: I don't know if this is the right thing to do, probablby not
+                    domain: param.domain.clone()
                 })
             })
             .collect::<Result<_>>()

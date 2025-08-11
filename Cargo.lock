@@ -2608,6 +2608,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "spade-domain-inference"
+version = "0.14.0"
+dependencies = [
+ "fastrand",
+ "serde",
+ "spade-common",
+ "spade-diagnostics",
+ "spade-hir",
+ "spade-macros",
+ "spade-typeinference",
+ "spade-types",
+]
+
+[[package]]
 name = "spade-hir"
 version = "0.14.0"
 dependencies = [

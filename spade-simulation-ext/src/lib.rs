@@ -743,6 +743,7 @@ impl Spade {
             ty,
             no_mangle,
             field_translator: _,
+            domain: _,
         } in &head.inputs.0
         {
             if arg == name.0 {

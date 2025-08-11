@@ -30,6 +30,7 @@ pub enum LookupError {
     NotAValue(Loc<Path>, Thing),
     NotAComptimeValue(Loc<Path>, Thing),
     NotATrait(Loc<Path>, Thing),
+    NotADomain(Loc<Path>, Thing),
     IsAType(Loc<Path>),
     BarrierError(Diagnostic),
 }
@@ -58,6 +59,8 @@ impl From<LookupError> for Diagnostic {
             | LookupError::NotAStruct(path, got)
             | LookupError::NotAValue(path, got)
             | LookupError::NotATrait(path, got)
+            | LookupError::NotADomain(path, got)
+            // TODO: I think we can get rid of this one
             | LookupError::NotAComptimeValue(path, got) => {
                 let expected = match lookup_error {
                     LookupError::NotATypeSymbol(_, _) => "a type",
@@ -69,6 +72,7 @@ impl From<LookupError> for Diagnostic {
                     LookupError::NotAValue(_, _) => "a value",
                     LookupError::NotAComptimeValue(_, _) => "a compile time value",
                     LookupError::NotATrait(_, _) => "a trait",
+                    LookupError::NotADomain(_, _) => "a domain",
                     LookupError::NoSuchSymbol(_)
                     | LookupError::IsAType(_)
                     | LookupError::BarrierError(_)
@@ -155,7 +159,7 @@ impl EnumVariant {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
-            domains: vec![Domain::annonymous()]
+            domains: vec![Domain::annonymous()],
         }
     }
 }
@@ -180,7 +184,7 @@ impl StructCallable {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
-            domains: vec![Domain::annonymous()]
+            domains: vec![Domain::annonymous()],
         }
     }
 }
@@ -235,7 +239,7 @@ impl Thing {
             Thing::PipelineStage(i) => i.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
-            Thing::Domain(loc, _) => loc.loc()
+            Thing::Domain(loc, _) => loc.loc(),
         }
     }
 
@@ -253,7 +257,7 @@ impl Thing {
             Thing::PipelineStage(_) => todo!(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
-            Thing::Domain(loc, _) => loc.loc()
+            Thing::Domain(loc, _) => loc.loc(),
         }
     }
 }
@@ -746,6 +750,9 @@ impl SymbolTable {
         },
         trait_by_id, lookup_trait, Identifier, NotATrait {
             Thing::Trait(t) => t.clone()
+        },
+        domain_by_id, lookup_domain, Identifier, NotADomain {
+            Thing::Domain(n, _) => n.clone()
         }
     }
 
@@ -783,18 +790,19 @@ impl SymbolTable {
         match self.lookup_id(&name.nowhere(), &[]) {
             Ok(_) => true,
             Err(LookupError::NoSuchSymbol(_)) => false,
-            Err(LookupError::BarrierError(_)) => unreachable!(),
-            Err(LookupError::NotATypeSymbol(_, _)) => unreachable!(),
-            Err(LookupError::NotAVariable(_, _)) => unreachable!(),
-            Err(LookupError::NotAUnit(_, _)) => unreachable!(),
-            Err(LookupError::NotAPatternableType(_, _)) => unreachable!(),
-            Err(LookupError::NotAnEnumVariant(_, _)) => unreachable!(),
-            Err(LookupError::NotAStruct(_, _)) => unreachable!(),
-            Err(LookupError::NotAValue(_, _)) => unreachable!(),
-            Err(LookupError::NotAComptimeValue(_, _)) => unreachable!(),
-            Err(LookupError::NotATrait(_, _)) => unreachable!(),
-            Err(LookupError::IsAType(_)) => unreachable!(),
-            Err(LookupError::NotAThing(_)) => unreachable!(),
+            Err(LookupError::BarrierError(_))
+            | Err(LookupError::NotATypeSymbol(_, _))
+            | Err(LookupError::NotAVariable(_, _))
+            | Err(LookupError::NotAUnit(_, _))
+            | Err(LookupError::NotAPatternableType(_, _))
+            | Err(LookupError::NotAnEnumVariant(_, _))
+            | Err(LookupError::NotAStruct(_, _))
+            | Err(LookupError::NotAValue(_, _))
+            | Err(LookupError::NotAComptimeValue(_, _))
+            | Err(LookupError::NotATrait(_, _))
+            | Err(LookupError::NotADomain(_, _))
+            | Err(LookupError::IsAType(_))
+            | Err(LookupError::NotAThing(_)) => unreachable!(),
         }
     }
 
@@ -1051,7 +1059,7 @@ impl SymbolTable {
                 Thing::PipelineStage(stage) => println!("pipeline stage {stage}"),
                 Thing::Trait(name) => println!("trait {}", name),
                 Thing::Module(name) => println!("mod {name}"),
-                Thing::Domain(name, _) => println!("domain {name}")
+                Thing::Domain(name, _) => println!("domain {name}"),
             }
         }
 

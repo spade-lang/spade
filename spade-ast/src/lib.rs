@@ -502,7 +502,10 @@ pub enum TypeParam {
 impl TypeParam {
     pub fn name(&self) -> &Loc<Identifier> {
         match self {
-            TypeParam::Domain { name, constraints: _ } => name,
+            TypeParam::Domain {
+                name,
+                constraints: _,
+            } => name,
             TypeParam::TypeName { name, traits: _ } => name,
             TypeParam::TypeWithMeta { meta: _, name } => name,
         }
@@ -582,22 +585,41 @@ impl AttributeList {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct DomainName(pub Identifier);
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct ParameterList {
-    pub self_: Option<Loc<()>>,
-    pub args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>,
+    pub self_: Option<(Option<Loc<DomainName>>, Loc<()>)>,
+    pub args: Vec<(
+        AttributeList,
+        Option<Loc<DomainName>>,
+        Loc<Identifier>,
+        Loc<TypeSpec>,
+    )>,
 }
 
 impl ParameterList {
-    pub fn without_self(args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
+    pub fn without_self(
+        args: Vec<(
+            AttributeList,
+            Option<Loc<DomainName>>,
+            Loc<Identifier>,
+            Loc<TypeSpec>,
+        )>,
+    ) -> Self {
         Self { self_: None, args }
     }
 
-    pub fn with_self(self_: Loc<()>, args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
+    pub fn with_self(
+        self_: Loc<()>,
+        self_domain: Option<Loc<DomainName>>,
+        args: Vec<(Option<Loc<DomainName>>, Loc<Identifier>, Loc<TypeSpec>)>,
+    ) -> Self {
         Self {
-            self_: Some(self_),
+            self_: Some((self_domain, self_)),
             args: args
                 .into_iter()
-                .map(|(n, t)| (AttributeList::empty(), n, t))
+                .map(|(n, d, t)| (AttributeList::empty(), n, d, t))
                 .collect(),
         }
     }

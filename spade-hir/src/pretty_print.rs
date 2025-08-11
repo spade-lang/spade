@@ -273,9 +273,13 @@ impl PrettyPrint for Parameter {
             field_translator: _,
             name,
             ty,
+            domain
         } = self;
 
-        format!("{}: {}", name.pretty_print(), ty.pretty_print())
+        format!("{}: {}{}", name.pretty_print(), ty.pretty_print(), match domain {
+            crate::domains::DomainName::Annonymous => format!(""),
+            crate::domains::DomainName::Named(name) => format!("'{name} ")
+        })
     }
 }
 

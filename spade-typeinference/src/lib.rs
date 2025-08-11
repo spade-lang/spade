@@ -65,7 +65,7 @@ pub mod expression;
 pub mod fixed_types;
 pub mod method_resolution;
 pub mod mir_type_lowering;
-mod replacement;
+pub mod replacement;
 mod requirements;
 pub mod testutil;
 pub mod trace_stack;
@@ -1743,6 +1743,7 @@ impl TypeState {
                         ty: target_type,
                         no_mangle: _,
                         field_translator: _,
+                        domain: _
                     },
                 ) in args.iter().zip(params.0.iter())
                 {
@@ -3159,8 +3160,8 @@ impl TypeState {
 
 #[must_use]
 pub struct UnificationBuilder {
-    lhs: TypeVarID,
-    rhs: TypeVarID,
+    pub lhs: TypeVarID,
+    pub rhs: TypeVarID,
 }
 impl UnificationBuilder {
     pub fn commit(

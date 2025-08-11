@@ -11,7 +11,7 @@ pub mod domains;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Formatter;
 
-use domains::Domain;
+use domains::{Domain, DomainName};
 pub use expression::{Argument, ArgumentKind, ArgumentList, ExprKind, Expression};
 use itertools::Itertools;
 use num::BigInt;
@@ -580,6 +580,7 @@ pub struct Parameter {
     pub no_mangle: Option<Loc<()>>,
     pub name: Loc<Identifier>,
     pub ty: Loc<TypeSpec>,
+    pub domain: DomainName,
     pub field_translator: Option<String>,
 }
 
@@ -610,6 +611,7 @@ impl ParameterList {
             ty,
             no_mangle: _,
             field_translator: _,
+            domain: _
         } in &self.0
         {
             if &arg.inner == name {
@@ -632,6 +634,7 @@ impl ParameterList {
                         ty: _,
                         no_mangle: _,
                         field_translator: _,
+                        domain: _
                     },
                 )| {
                     if &name.inner == target {

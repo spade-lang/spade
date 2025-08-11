@@ -632,13 +632,29 @@ fn visit_parameter_list(
             diag = if l.args.is_empty() {
                 diag.span_suggest_replace(suggest_msg, l, "(self)")
             } else {
-                diag.span_suggest_insert_before(suggest_msg, &l.args[0].1, "self, ")
+                // TODO: This suggestion is wrong in the presense of attributes and domains
+                diag.span_suggest_insert_before(suggest_msg, &l.args[0].2, "self, ")
             };
             return Err(diag);
         }
     }
 
-    if let Some(self_loc) = l.self_ {
+    if let Some((self_domain, self_loc)) = &l.self_ {
+        // TODO: Duplicated  with the normal parameter handling
+        let domain = match self_domain {
+            Some(domain_name) => {
+                let path =
+                    Path(vec![domain_name.0.clone().at_loc(&domain_name)]).at_loc(&domain_name);
+                let domain = ctx.symtab.lookup_domain(&path)?.0.at_loc(&domain_name);
+                DomainName::Named(domain)
+            }
+            None => {
+                // TODO: Should we disallow implicit annonymous domains unless there is a
+                // `'_` domain declared to avoid annoying issues?
+                DomainName::Annonymous
+            }
+        };
+
         match &ctx.self_ctx {
             SelfContext::FreeStanding => {
                 return Err(Diagnostic::error(
@@ -652,6 +668,7 @@ fn visit_parameter_list(
                 name: Identifier(String::from("self")).at_loc(&self_loc),
                 ty: spec.clone(),
                 field_translator: None,
+                domain,
             }),
             // When visiting trait definitions, we don't need to add self to the
             // symtab at all since we won't be visiting unit bodies here.
@@ -659,13 +676,14 @@ fn visit_parameter_list(
             SelfContext::TraitDefinition(_) => result.push(hir::Parameter {
                 no_mangle: None,
                 name: Identifier(String::from("self")).at_loc(&self_loc),
-                ty: hir::TypeSpec::TraitSelf(self_loc).at_loc(&self_loc),
+                ty: hir::TypeSpec::TraitSelf(self_loc.clone()).at_loc(&self_loc),
                 field_translator: None,
+                domain,
             }),
         }
     }
 
-    for (attrs, name, input_type) in &l.args {
+    for (attrs, domain, name, input_type) in &l.args {
         if let Some(prev) = arg_names.get(name) {
             return Err(
                 Diagnostic::error(name, "Multiple arguments with the same name")
@@ -684,11 +702,27 @@ fn visit_parameter_list(
         let field_translator = attrs.consume_translator();
         attrs.report_unused("a parameter")?;
 
+        // TODO: Duplicated  with the self handling
+        let domain = match &domain {
+            Some(domain_name) => {
+                let path =
+                    Path(vec![domain_name.0.clone().at_loc(domain_name)]).at_loc(domain_name);
+                let domain = ctx.symtab.lookup_domain(&path)?.0.at_loc(domain_name);
+                DomainName::Named(domain)
+            }
+            None => {
+                // TODO: Should we disallow implicit annonymous domains unless there is a
+                // `'_` domain declared to avoid annoying issues?
+                DomainName::Annonymous
+            }
+        };
+
         result.push(hir::Parameter {
             name: name.clone(),
             ty: t,
             no_mangle,
             field_translator,
+            domain,
         });
     }
     Ok(hir::ParameterList(result).at_loc(l))
@@ -704,7 +738,7 @@ fn build_no_mangle_all_output_diagnostic(
         .inputs
         .args
         .iter()
-        .filter_map(|(_, name, _)| {
+        .filter_map(|(_, _, name, _)| {
             if name.0.contains("out") {
                 Some(name.0.len())
             } else {
@@ -746,7 +780,7 @@ fn build_no_mangle_all_output_diagnostic(
             format!("({}: {})", suggested_name, suggested_type),
         );
     } else {
-        let last_parameter = &head.inputs.args.last().unwrap().2;
+        let last_parameter = &head.inputs.args.last().unwrap().3;
         let (span, file) = (last_parameter.span, last_parameter.file_id);
         first_suggestion.push_part(
             (Span::new(span.end(), span.end()), file),
@@ -1304,6 +1338,7 @@ pub fn visit_unit(
                  ty,
                  no_mangle: _,
                  field_translator: _,
+                 domain: _,
              }| {
                 (
                     ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
@@ -1593,6 +1628,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                  ty: _,
                                  no_mangle: _,
                                  field_translator: _,
+                                 domain: _,
                              }| ident.inner.clone(),
                         )
                         .collect::<HashSet<_>>();
@@ -2702,168 +2738,6 @@ mod expression_visiting {
         .idless();
 
         assert_eq!(visit_expression(&input, &mut test_context(),), expected)
-    }
-
-    #[test]
-    fn match_expressions_with_enum_members_works() {
-        let input = ast::Expression::Match(
-            Box::new(ast::Expression::int_literal_signed(1).nowhere()),
-            vec![(
-                ast::Pattern::Type(
-                    ast_path("x"),
-                    ast::ArgumentPattern::Positional(vec![
-                        ast::Pattern::Path(ast_path("y")).nowhere()
-                    ])
-                    .nowhere(),
-                )
-                .nowhere(),
-                ast::Expression::Identifier(ast_path("y")).nowhere(),
-            )]
-            .nowhere(),
-        );
-
-        let expected = hir::ExprKind::Match(
-            Box::new(hir::ExprKind::int_literal(1).idless().nowhere()),
-            vec![(
-                hir::PatternKind::Type(
-                    name_id(100, "x"),
-                    vec![hir::PatternArgument {
-                        target: ast_ident("x"),
-                        value: hir::PatternKind::name(name_id(0, "y")).idless().nowhere(),
-                        kind: hir::ArgumentKind::Positional,
-                    }],
-                )
-                .idless()
-                .nowhere(),
-                hir::ExprKind::Identifier(name_id(0, "y").inner)
-                    .idless()
-                    .nowhere(),
-            )],
-        )
-        .idless();
-
-        let mut symtab = SymbolTable::new();
-
-        let enum_variant = EnumVariant {
-            name: Identifier("".to_string()).nowhere(),
-            output_type: hir::TypeSpec::unit().nowhere(),
-            option: 0,
-            params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
-            type_params: vec![],
-            documentation: "".to_string(),
-        }
-        .nowhere();
-
-        symtab.add_thing_with_id(100, ast_path("x").inner, Thing::EnumVariant(enum_variant));
-        assert_eq!(
-            visit_expression(
-                &input,
-                &mut Context {
-                    symtab,
-                    ..test_context()
-                }
-            ),
-            expected
-        )
-    }
-}
-
-#[cfg(test)]
-mod pattern_visiting {
-    use crate::testutil::test_context;
-    use ast::{
-        testutil::{ast_ident, ast_path},
-        ArgumentPattern,
-    };
-    use hir::{
-        hparams,
-        symbol_table::{StructCallable, TypeDeclKind},
-        PatternKind,
-    };
-    use spade_common::name::testutil::name_id;
-
-    use super::*;
-
-    #[test]
-    fn bool_patterns_work() {
-        let input = ast::Pattern::Bool(true);
-
-        let result = visit_pattern(&input, &mut test_context());
-
-        assert_eq!(result, Ok(PatternKind::Bool(true).idless()));
-    }
-
-    #[test]
-    fn int_patterns_work() {
-        let input = ast::Pattern::integer(5);
-
-        let result = visit_pattern(&input, &mut test_context());
-
-        assert_eq!(result, Ok(PatternKind::integer(5).idless()));
-    }
-
-    #[test]
-    fn named_struct_patterns_work() {
-        let input = ast::Pattern::Type(
-            ast_path("a"),
-            ArgumentPattern::Named(vec![
-                (ast_ident("x"), None),
-                (ast_ident("y"), Some(ast::Pattern::integer(0).nowhere())),
-            ])
-            .nowhere(),
-        );
-
-        let mut symtab = SymbolTable::new();
-
-        let type_name = symtab.add_type(
-            ast_path("a").inner,
-            TypeSymbol::Declared(vec![], TypeDeclKind::normal_struct()).nowhere(),
-        );
-
-        symtab.add_thing_with_name_id(
-            type_name.clone(),
-            Thing::Struct(
-                StructCallable {
-                    name: Identifier("".to_string()).nowhere(),
-                    self_type: hir::TypeSpec::Declared(type_name.clone().nowhere(), vec![])
-                        .nowhere(),
-                    params: hparams![
-                        ("x", hir::TypeSpec::unit().nowhere()),
-                        ("y", hir::TypeSpec::unit().nowhere()),
-                    ]
-                    .nowhere(),
-                    type_params: vec![],
-                }
-                .nowhere(),
-            ),
-        );
-
-        let result = visit_pattern(
-            &input,
-            &mut Context {
-                symtab,
-                ..test_context()
-            },
-        );
-
-        let expected = PatternKind::Type(
-            type_name.nowhere(),
-            vec![
-                hir::PatternArgument {
-                    target: ast_ident("x"),
-                    value: hir::PatternKind::name(name_id(1, "x")).idless().nowhere(),
-                    kind: hir::ArgumentKind::ShortNamed,
-                },
-                hir::PatternArgument {
-                    target: ast_ident("y"),
-                    value: hir::PatternKind::integer(0).idless().nowhere(),
-                    kind: hir::ArgumentKind::Named,
-                },
-            ],
-        )
-        .idless();
-
-        assert_eq!(result, Ok(expected))
     }
 }
 

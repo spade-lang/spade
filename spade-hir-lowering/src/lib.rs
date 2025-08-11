@@ -3289,6 +3289,7 @@ pub fn generate_unit<'a>(
                     ty: type_spec,
                     no_mangle,
                     field_translator: _,
+                    domain: _,
                 },
                 (name_id, _),
             )| {

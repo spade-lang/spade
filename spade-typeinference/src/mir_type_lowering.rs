@@ -140,6 +140,7 @@ impl TypeState {
                              ty: t,
                              no_mangle: _,
                              field_translator: _,
+                             domain: _
                          }| {
                             (
                                 ident.inner.clone(),
