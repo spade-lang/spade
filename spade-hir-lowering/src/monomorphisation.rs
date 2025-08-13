@@ -356,13 +356,15 @@ pub fn compile_items(
                     symtab,
                 });
 
-                let mut ds = DomainState::new();
-                if let Err(e) = ds.visit_unit(&u) {
+                let mut domain_inference = DomainState::new();
+                let domain_inference_result = domain_inference.visit_unit(&u);
+                domain_inference.maybe_print_trace();
+                if let Err(e) = domain_inference_result {
                     result.push(Err(e));
                     continue 'item_loop;
                 }
                 let mut failed = false;
-                for diag in ds.diags.drain() {
+                for diag in domain_inference.diags.drain() {
                     result.push(Err(state.add_mono_traceback(diag, &item)));
                     failed = true
                 }

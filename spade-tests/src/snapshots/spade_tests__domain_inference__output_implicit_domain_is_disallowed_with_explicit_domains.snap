@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a>() -> bool {true}
+
+
+error: Missing a domain for this parameter
+  ┌─ testinput:1:22
+  │
+1 │ entity test<'a>() -> bool {true}
+  │                      ^^^^ Missing domain
+  │
+  = help: In a unit with explicit domains, every domain must have a parameter
+  = Consider specifying a domain
+  │
+1 │ entity test<'a>() -> '/*domain*/ bool {true}
+  │                      ++++++++++++
+  = Or explicitly adding an annonymous domain
+  │
+1 │ entity test<'_, 'a>() -> bool {true}
+  │             ++++

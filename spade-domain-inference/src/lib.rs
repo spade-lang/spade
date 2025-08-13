@@ -1,9 +1,11 @@
-mod visiting;
 pub mod domain_var;
+mod tracing;
+mod visiting;
 
 use std::{
     cell::RefCell,
     collections::{BTreeSet, HashMap},
+    sync::{Arc, RwLock},
 };
 
 use domain_var::DomainVar;
@@ -11,10 +13,13 @@ use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_diagnostics::{diag_list::DiagList, Diagnostic};
 use spade_hir::{
-    domains::{DomainConstraint, DomainName},
     Expression, Pattern,
 };
-use spade_typeinference::{equation::TypeVarID, replacement::ReplacementStack, GenericListToken};
+use spade_typeinference::{
+    equation::TypeVarID, replacement::ReplacementStack,
+    GenericListToken,
+};
+use tracing::TraceEntry;
 
 type Result<T> = std::result::Result<T, Diagnostic>;
 
@@ -26,7 +31,7 @@ enum DomainedExpression {
     Id(ExprID),
 }
 
-pub type DomainEquations = HashMap<DomainedExpression, TypeVarID>;
+type DomainEquations = HashMap<DomainedExpression, TypeVarID>;
 
 /// State of the type inference algorithm
 #[derive(Clone, Serialize, Deserialize)]
@@ -60,6 +65,9 @@ pub struct DomainState {
     error_domain: Option<TypeVarID>,
 
     #[serde(skip)]
+    pub traces: Arc<RwLock<Vec<TraceEntry>>>,
+
+    #[serde(skip)]
     pub diags: DiagList,
 }
 
@@ -75,6 +83,7 @@ impl DomainState {
             generic_lists: HashMap::new(),
             replacements: ReplacementStack::new(),
             error_domain: None,
+            traces: Arc::new(RwLock::new(vec![])),
             diags: DiagList::new(),
         };
 
@@ -98,6 +107,14 @@ impl DomainState {
     fn new_any(&mut self) -> TypeVarID {
         self.add_domain_var(DomainVar::Unknown(vec![]))
     }
+
+    fn replace(&mut self, from: TypeVarID, to: TypeVarID) {
+        self.trace(|| TraceEntry::Replacing(from, to));
+        let from = from.get_domain(self);
+        if from != to {
+            self.replacements.insert(from, to)
+        }
+    }
 }
 
 trait TypeVarIDExt {
@@ -111,6 +128,15 @@ impl TypeVarIDExt for TypeVarID {
     }
 
     fn insert_for_domained(self, f: DomainedExpression, state: &mut DomainState) {
+        state.trace(|| {
+            let binder = match &f {
+                DomainedExpression::AnnonymousOuter(_) => "AnnonOuter".to_string(),
+                DomainedExpression::AnnonymousInner(_) => "AnnonInner".to_string(),
+                DomainedExpression::Name(name) => name.to_string(),
+                DomainedExpression::Id(id) => format!("${}", id.0),
+            };
+            TraceEntry::Binding(binder, self)
+        });
         state.equations.insert(f, self);
     }
 }

@@ -19,5 +19,7 @@ spade-types.workspace = true
 # compiled in parallel
 spade-typeinference.workspace = true
 
+colored.workspace = true
 fastrand.workspace = true
+itertools.workspace = true
 serde.workspace = true

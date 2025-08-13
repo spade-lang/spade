@@ -571,7 +571,7 @@ impl TypeState {
         self.visit_expression(&entity.body, ctx, &generic_list);
 
         // Ensure that the output type matches what the user specified, and unit otherwise
-        if let Some(output_type) = &entity.head.output_type {
+        if let Some((_domain, output_type)) = &entity.head.output_type {
             let tvar = self.type_var_from_hir(output_type.loc(), output_type, &generic_list)?;
 
             self.trace_stack.push(TraceStackEntry::Message(format!(
@@ -1136,7 +1136,7 @@ impl TypeState {
         let return_type = head
             .output_type
             .as_ref()
-            .map(|o| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
+            .map(|(_domain, o)| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
             .transpose()?
             .unwrap_or_else(|| {
                 self.add_type_var(TypeVar::Known(

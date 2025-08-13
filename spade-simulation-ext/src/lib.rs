@@ -919,7 +919,7 @@ impl Spade {
     /// Return the output type of uut
     #[tracing::instrument(level = "trace", skip(self))]
     fn output_type(&mut self) -> Result<Option<Loc<TypeSpec>>> {
-        Ok(self.uut_head.output_type.clone())
+        Ok(self.uut_head.output_type.clone().map(|(_domain, ty)| ty))
     }
 
     #[tracing::instrument(level = "trace", skip(self))]

@@ -660,7 +660,7 @@ pub struct UnitHead {
     pub unit_kind: Loc<UnitKind>,
     pub name: Loc<Identifier>,
     pub inputs: Loc<ParameterList>,
-    pub output_type: Option<(Loc<()>, Loc<TypeSpec>)>,
+    pub output_type: Option<(Loc<()>, Option<Loc<DomainName>>, Loc<TypeSpec>)>,
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
 }

@@ -439,7 +439,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 let parameter_list = variant
                     .args
                     .clone()
-                    .map(|l| visit_parameter_list(&l, ctx, None))
+                    .map(|l| visit_parameter_list(&l, &[], ctx, None))
                     .unwrap_or_else(|| Ok(hir::ParameterList(vec![]).nowhere()))?;
 
                 let args = variant
@@ -596,7 +596,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 }
             }
 
-            let members = visit_parameter_list(&s.members, ctx, None)?;
+            let members = visit_parameter_list(&s.members, &[], ctx, None)?;
 
             let self_type =
                 hir::TypeSpec::Declared(declaration_id.clone(), output_type_exprs.clone())

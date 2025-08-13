@@ -2611,7 +2611,9 @@ dependencies = [
 name = "spade-domain-inference"
 version = "0.14.0"
 dependencies = [
+ "colored 3.0.0",
  "fastrand",
+ "itertools",
  "serde",
  "spade-common",
  "spade-diagnostics",

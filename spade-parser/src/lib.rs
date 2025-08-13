@@ -1424,7 +1424,7 @@ impl<'a> Parser<'a> {
 
         // Return type
         let output_type = if let Some(arrow) = self.peek_and_eat(&TokenKind::SlimArrow)? {
-            Some((arrow.loc(), self.type_spec()?))
+            Some((arrow.loc(), self.parameter_domain()?, self.type_spec()?))
         } else {
             None
         };
@@ -1433,7 +1433,7 @@ impl<'a> Parser<'a> {
 
         let end = output_type
             .as_ref()
-            .map(|o| o.1.loc())
+            .map(|o| o.2.loc())
             .unwrap_or(inputs.loc());
 
         Ok(Some(

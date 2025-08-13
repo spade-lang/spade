@@ -3,7 +3,7 @@ use spade_common::{location_info::Loc, name::NameID};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum DomainName {
-    Annonymous(Loc<()>),
+    Annonymous,
     Named(Loc<NameID>)
 }
 
@@ -29,9 +29,9 @@ pub struct Domain {
 }
 
 impl Domain {
-    pub fn annonymous(loc: Loc<()>) -> Domain {
+    pub fn annonymous() -> Domain {
         Domain {
-            name: DomainName::Annonymous(loc),
+            name: DomainName::Annonymous,
             constraints: vec![],
         }
     }

@@ -73,13 +73,15 @@ impl PrettyDebug for Unit {
         code! [
             [0] documentation;
             [0] format!(
-                    "{} {}{unit_kind:?} {}{}({}) -> {}",
+                    "{} {}{unit_kind:?} {}{}({}){}",
                     attributes.pretty_debug(),
                     if unsafe_marker.is_some() { "unsafe " } else { "" },
                     name.name_id().pretty_debug(),
                     type_params,
                     inputs,
-                    output_type.pretty_debug()
+                    output_type.as_ref().map(|(domain, ty)| {
+                        format!("-> {} {}", domain.pretty_debug(), ty.pretty_debug())
+                    }).unwrap_or_default()
                 );
             [1] format!("where: {}", where_clauses.iter().map(PrettyDebug::pretty_debug).join(", "));
             [0] "{";
@@ -101,7 +103,7 @@ impl PrettyDebug for DomainConstraint {
 impl PrettyDebug for DomainName {
     fn pretty_debug(&self) -> String {
         match self {
-            DomainName::Annonymous(_) => format!("'_"),
+            DomainName::Annonymous => format!("'_"),
             DomainName::Named(name) => format!("'{}", name.pretty_debug()),
         }
     }

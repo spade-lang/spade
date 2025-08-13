@@ -708,14 +708,15 @@ fn check_params_for_impl_method_and_trait_method_match(
                 // This is easy to support, we just need to do matching of domains, but in the
                 // interest of getting a domain MVP in, we'll leave it like this
                 match (i_domain, t_domain) {
-                    (DomainName::Annonymous(_), DomainName::Annonymous(_)) => {}
-                    (DomainName::Named(loc), DomainName::Annonymous(_))
+                    (DomainName::Annonymous, DomainName::Annonymous) => {}
+                    (DomainName::Named(loc), DomainName::Annonymous)
                     | (DomainName::Named(loc), DomainName::Named(_))
-                    | (DomainName::Annonymous(_), DomainName::Named(loc)) => {
+                    | (DomainName::Annonymous, DomainName::Named(loc)) => {
                         return Err(Diagnostic::error(
                             loc,
                             "Domains are not currently supported in trait impls",
-                        ).primary_label("Domain in impl block"))
+                        )
+                        .primary_label("Domain in impl block"))
                     }
                 }
                 if i_name != t_name {
@@ -819,7 +820,7 @@ fn map_trait_method_parameters(
                     no_mangle: param.no_mangle,
                     field_translator: None,
                     // TODO: I don't know if this is the right thing to do, probablby not
-                    domain: param.domain.clone()
+                    domain: param.domain.clone(),
                 })
             })
             .collect::<Result<_>>()
@@ -828,7 +829,8 @@ fn map_trait_method_parameters(
 
     let output_type = if let Some(ty) = trait_method.output_type.as_ref() {
         Some(map_type_spec_to_trait(
-            &ty,
+            // TODO: Handle domains
+            &ty.1,
             trait_type_params.as_slice(),
             trait_method_type_params.as_slice(),
             impl_type_params.as_slice(),
@@ -841,7 +843,8 @@ fn map_trait_method_parameters(
 
     Ok(hir::UnitHead {
         inputs,
-        output_type,
+        // TODO: Handle domains
+        output_type: output_type.map(|output_type| (DomainName::Annonymous, output_type)),
         ..trait_method.clone()
     })
 }

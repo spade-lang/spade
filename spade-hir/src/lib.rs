@@ -697,7 +697,7 @@ pub struct UnitHead {
     pub inputs: Loc<ParameterList>,
     pub is_nonstatic_method: bool,
     /// (-> token, type)
-    pub output_type: Option<Loc<TypeSpec>>,
+    pub output_type: Option<(DomainName, Loc<TypeSpec>)>,
     pub unit_type_params: Vec<Loc<TypeParam>>,
     pub scope_type_params: Vec<Loc<TypeParam>>,
     pub domains: Vec<Domain>,
@@ -710,7 +710,7 @@ pub struct UnitHead {
 impl UnitHead {
     pub fn output_type(&self) -> Loc<TypeSpec> {
         match &self.output_type {
-            Some(t) => t.clone(),
+            Some((_domain, t)) => t.clone(),
             None => {
                 // FIXME: We should point to the end of the argument list here
                 TypeSpec::unit().at_loc(&self.name.loc())

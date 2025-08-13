@@ -617,6 +617,7 @@ pub enum SelfContext {
 
 fn visit_parameter_list(
     l: &Loc<ParameterList>,
+    domains: &[hir::domains::Domain],
     ctx: &mut Context,
     no_mangle_all: Option<Loc<()>>,
 ) -> Result<Loc<hir::ParameterList>> {
@@ -641,21 +642,7 @@ fn visit_parameter_list(
     }
 
     if let Some((self_domain, self_loc)) = &l.self_ {
-        // TODO: Duplicated  with the normal parameter handling
-        let domain = match self_domain {
-            Some(domain_name) => {
-                let path =
-                    Path(vec![domain_name.0.clone().at_loc(&domain_name)]).at_loc(&domain_name);
-                let domain = ctx.symtab.lookup_domain(&path)?.0.at_loc(&domain_name);
-                DomainName::Named(domain)
-            }
-            None => {
-                // TODO: Should we disallow implicit annonymous domains unless there is a
-                // `'_` domain declared to avoid annoying issues?
-                // TODO: This really should not be ().nowhere()
-                DomainName::Annonymous(().nowhere())
-            }
-        };
+        let domain = visit_parameter_domain(self_domain, *self_loc, *self_loc, domains, ctx)?;
 
         match &ctx.self_ctx {
             SelfContext::FreeStanding => {
@@ -704,21 +691,7 @@ fn visit_parameter_list(
         let field_translator = attrs.consume_translator();
         attrs.report_unused("a parameter")?;
 
-        // TODO: Duplicated  with the self handling
-        let domain = match &domain {
-            Some(domain_name) => {
-                let path =
-                    Path(vec![domain_name.0.clone().at_loc(domain_name)]).at_loc(domain_name);
-                let domain = ctx.symtab.lookup_domain(&path)?.0.at_loc(domain_name);
-                DomainName::Named(domain)
-            }
-            None => {
-                // TODO: Should we disallow implicit annonymous domains unless there is a
-                // `'_` domain declared to avoid annoying issues?
-                // TODO: This really should not be ().nowhere()
-                DomainName::Annonymous(().nowhere())
-            }
-        };
+        let domain = visit_parameter_domain(domain, name.loc(), input_type.loc(), domains, ctx)?;
 
         result.push(hir::Parameter {
             name: name.clone(),
@@ -729,6 +702,55 @@ fn visit_parameter_list(
         });
     }
     Ok(hir::ParameterList(result).at_loc(l))
+}
+
+fn visit_parameter_domain(
+    domain: &Option<Loc<ast::DomainName>>,
+    param_loc: Loc<()>,
+    suggestion_loc: Loc<()>,
+    domains: &[hir::domains::Domain],
+    ctx: &mut Context,
+) -> Result<hir::domains::DomainName> {
+    match &domain {
+        Some(domain_name) => {
+            let path = Path(vec![domain_name.0.clone().at_loc(domain_name)]).at_loc(domain_name);
+            let domain = ctx.symtab.lookup_domain(&path)?.0.at_loc(domain_name);
+            Ok(DomainName::Named(domain))
+        }
+        None => {
+            if domains.is_empty()
+                || domains
+                    .iter()
+                    .find(|dom| dom.name == hir::domains::DomainName::Annonymous)
+                    .is_some()
+            {
+                Ok(DomainName::Annonymous)
+            } else {
+                let annonymous_insertion_loc = match &domains[0].name {
+                    DomainName::Annonymous => diag_bail!(
+                        param_loc,
+                        "Found an annonymous domain in a unit we determined not to have one"
+                    ),
+                    DomainName::Named(loc) => loc,
+                };
+                Err(
+                    Diagnostic::error(param_loc, "Missing a domain for this parameter")
+                        .primary_label("Missing domain")
+                        .help("In a unit with explicit domains, every domain must have a parameter")
+                        .span_suggest_insert_before(
+                            "Consider specifying a domain",
+                            suggestion_loc,
+                            "'/*domain*/ ",
+                        )
+                        .span_suggest_insert_before(
+                            "Or explicitly adding an annonymous domain",
+                            annonymous_insertion_loc,
+                            "'_, ",
+                        ),
+                )
+            }
+        }
+    }
 }
 
 /// Builds a diagnostic for a `#[no_mangle(all)]`-marked unit with a non-unit output type.
@@ -862,7 +884,7 @@ pub fn unit_head(
 
     let domains = if domains.is_empty() {
         vec![Domain {
-            name: DomainName::Annonymous(head.name.loc()),
+            name: DomainName::Annonymous,
             constraints: vec![],
         }]
     } else {
@@ -894,12 +916,12 @@ pub fn unit_head(
 
     let unit_where_clauses = visit_where_clauses(&head.where_clauses, ctx);
 
-    let output_type = if let Some(output_type) = &head.output_type {
-        Some(visit_type_spec(
-            &output_type.1,
-            &TypeSpecKind::OutputType,
-            ctx,
-        )?)
+    let output_type = if let Some((arrow, domain, ty)) = &head.output_type {
+        let domain = visit_parameter_domain(domain, ty.loc(), ty.loc(), &domains, ctx)?;
+        Some((
+            domain,
+            visit_type_spec(&ty, &TypeSpecKind::OutputType, ctx)?,
+        ))
     } else {
         None
     };
@@ -915,19 +937,20 @@ pub fn unit_head(
     if no_mangle_all.is_some()
         && output_type
             .as_ref()
-            .map(|output_type| {
+            .map(|(_domain, output_type)| {
                 !(matches!(&**output_type, TypeSpec::Tuple(inner) if inner.is_empty()))
             })
             .unwrap_or(false)
     {
         return Err(build_no_mangle_all_output_diagnostic(
             head,
-            output_type.as_ref().unwrap(),
+            // TODO: Handle domain
+            output_type.as_ref().map(|(_domain, ty)| ty).unwrap(),
             body_for_diagnostics,
         ));
     }
 
-    let inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
+    let inputs = visit_parameter_list(&head.inputs, &domains, ctx, no_mangle_all)?;
 
     // Check for ports in functions
     // We need to have the scope open to check this, but we also need to close

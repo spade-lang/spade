@@ -1,8 +1,7 @@
 ---
 source: spade-tests/src/domain_inference.rs
-assertion_line: 3
 ---
-entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> (bool, bool) {
+entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> 'a (bool, bool) {
     (a, b)
 }
 

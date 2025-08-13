@@ -6,8 +6,8 @@ use spade_common::{
 use spade_types::meta_types::MetaType;
 
 use crate::{
-    symbol_table::GenericArg, ConstGeneric, Parameter, ParameterList, TraitName, TraitSpec,
-    TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
+    domains::DomainName, symbol_table::GenericArg, ConstGeneric, Parameter, ParameterList,
+    TraitName, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
 };
 
 pub trait MaybePrettyPrint {
@@ -34,6 +34,15 @@ impl PrettyPrint for NameID {
 impl PrettyPrint for Identifier {
     fn pretty_print(&self) -> String {
         format!("{self}")
+    }
+}
+
+impl PrettyPrint for DomainName {
+    fn pretty_print(&self) -> String {
+        match self {
+            DomainName::Annonymous => "'_".to_string(),
+            DomainName::Named(name) => format!("'{name}"),
+        }
     }
 }
 
@@ -235,7 +244,11 @@ impl PrettyPrint for UnitHead {
             documentation: _,
         } = self;
         let output_type = match output_type {
-            Some(output_type) => format!(" -> {}", output_type.pretty_print()),
+            Some((output_domain, output_type)) => format!(
+                " -> {} {}",
+                output_domain.pretty_print(),
+                output_type.pretty_print()
+            ),
             None => "".to_string(),
         };
         let type_params = if unit_type_params.is_empty() {
@@ -273,13 +286,18 @@ impl PrettyPrint for Parameter {
             field_translator: _,
             name,
             ty,
-            domain
+            domain,
         } = self;
 
-        format!("{}: {}{}", name.pretty_print(), ty.pretty_print(), match domain {
-            crate::domains::DomainName::Annonymous(_) => format!(""),
-            crate::domains::DomainName::Named(name) => format!("'{name} ")
-        })
+        format!(
+            "{}: {}{}",
+            name.pretty_print(),
+            ty.pretty_print(),
+            match domain {
+                crate::domains::DomainName::Annonymous => format!(""),
+                crate::domains::DomainName::Named(name) => format!("'{name} "),
+            }
+        )
     }
 }
 

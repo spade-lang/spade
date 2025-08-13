@@ -12,7 +12,7 @@ use spade_common::name::{Identifier, NameID, Path};
 use spade_diagnostics::diagnostic::Diagnostic;
 use spade_types::meta_types::MetaType;
 
-use crate::domains::{Domain, DomainConstraint};
+use crate::domains::{Domain, DomainConstraint, DomainName};
 use crate::{
     FunctionKind, ParameterList, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
 };
@@ -152,14 +152,14 @@ impl EnumVariant {
             name: self.name.clone(),
             is_nonstatic_method: false,
             inputs: self.params.clone(),
-            output_type: Some(self.output_type.clone()),
+            output_type: Some((DomainName::Annonymous, self.output_type.clone())),
             unit_type_params: self.type_params.clone(),
             scope_type_params: self.type_params.clone(),
             unit_kind: UnitKind::Function(FunctionKind::Enum).at_loc(&self.name),
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
-            domains: vec![Domain::annonymous(self.name.loc())],
+            domains: vec![Domain::annonymous()],
         }
     }
 }
@@ -177,14 +177,14 @@ impl StructCallable {
             name: self.name.clone(),
             is_nonstatic_method: false,
             inputs: self.params.clone(),
-            output_type: Some(self.self_type.clone()),
+            output_type: Some((DomainName::Annonymous, self.self_type.clone())),
             unit_type_params: self.type_params.clone(),
             scope_type_params: vec![],
             unit_kind: UnitKind::Function(FunctionKind::Struct).at_loc(&self.name),
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
-            domains: vec![Domain::annonymous(self.name.loc())],
+            domains: vec![Domain::annonymous()],
         }
     }
 }
