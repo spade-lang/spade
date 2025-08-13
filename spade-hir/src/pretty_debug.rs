@@ -93,14 +93,15 @@ impl PrettyDebug for Unit {
 impl PrettyDebug for DomainConstraint {
     fn pretty_debug(&self) -> String {
         match self {
-            DomainConstraint::Async => "Async".to_string(),
+            DomainConstraint::HasClock => "HasClock".to_string(),
+            DomainConstraint::NoClock => "NoClock".to_string(),
         }
     }
 }
 impl PrettyDebug for DomainName {
     fn pretty_debug(&self) -> String {
         match self {
-            DomainName::Annonymous => format!("'_"),
+            DomainName::Annonymous(_) => format!("'_"),
             DomainName::Named(name) => format!("'{}", name.pretty_debug()),
         }
     }

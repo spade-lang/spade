@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+assertion_line: 3
+---
+entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> (bool, bool) {
+    (a, b)
+}
+
+error: Mixing signals in different domains
+  ┌─ testinput:2:9
+  │
+2 │     (a, b)
+  │      -  ^ This has domain 'b
+  │      │   
+  │      This has domain 'a
+  │
+  = help: All tuple members must be in the same domain

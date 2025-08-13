@@ -23,6 +23,7 @@ spade-ast = {path = "spade-ast", version = "0.14.0"}
 spade-ast-lowering = {path = "spade-ast-lowering", version = "0.14.0"}
 spade-common = {path = "spade-common", version = "0.14.0"}
 spade-diagnostics = { path = "spade-diagnostics" , version = "0.14.0"}
+spade-domain-inference = {path = "spade-domain-inference", version = "0.14.0"}
 spade-hir = {path = "spade-hir", version = "0.14.0"}
 spade-hir-lowering = {path = "spade-hir-lowering", version = "0.14.0"}
 spade-macros = {path = "spade-macros", version = "0.14.0"}

@@ -6,6 +6,7 @@ use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_diagnostics::{diag_anyhow, DiagHandler, Diagnostic};
+use spade_domain_inference::DomainState;
 use spade_hir::Unit;
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
@@ -354,6 +355,20 @@ pub fn compile_items(
                     items: item_list,
                     symtab,
                 });
+
+                let mut ds = DomainState::new();
+                if let Err(e) = ds.visit_unit(&u) {
+                    result.push(Err(e));
+                    continue 'item_loop;
+                }
+                let mut failed = false;
+                for diag in ds.diags.drain() {
+                    result.push(Err(state.add_mono_traceback(diag, &item)));
+                    failed = true
+                }
+                if failed {
+                    continue 'item_loop
+                }
 
                 let self_mono_item = Some(item.clone());
                 let out = generate_unit(

@@ -1,28 +1,29 @@
 mod visiting;
+pub mod domain_var;
 
-use std::{cell::RefCell, collections::{BTreeSet, HashMap}};
+use std::{
+    cell::RefCell,
+    collections::{BTreeSet, HashMap},
+};
 
+use domain_var::DomainVar;
 use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_diagnostics::{diag_list::DiagList, Diagnostic};
-use spade_hir::domains::Domain;
+use spade_hir::{
+    domains::{DomainConstraint, DomainName},
+    Expression, Pattern,
+};
 use spade_typeinference::{equation::TypeVarID, replacement::ReplacementStack, GenericListToken};
 
 type Result<T> = std::result::Result<T, Diagnostic>;
 
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum DomainedExpression {
     AnnonymousOuter(Loc<()>),
     AnnonymousInner(Loc<()>),
-    Name(Loc<NameID>),
-    Expr(Loc<ExprID>)
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-enum DomainVar {
-    Error,
-    Unknown,
-    Known(Domain)
+    Name(NameID),
+    Id(ExprID),
 }
 
 pub type DomainEquations = HashMap<DomainedExpression, TypeVarID>;
@@ -35,6 +36,7 @@ pub struct DomainState {
     /// into this type_vars list which is used to look up the actual type as currently
     /// seen by the type state
     domain_vars: Vec<DomainVar>,
+    replacements: ReplacementStack,
     /// This key is used to prevent bugs when multiple type states are mixed. Each TypeVarID
     /// holds the value of the key of the type state which created it, and this is checked
     /// to ensure that type vars are not mixed. The key is initialized randomly on type
@@ -53,7 +55,9 @@ pub struct DomainState {
     // Managed here because unification must update *all* TypeVars in existence.
     generic_lists: HashMap<GenericListToken, HashMap<NameID, DomainVar>>,
 
-    replacements: ReplacementStack,
+    /// An error type that can be accessed anywhere without mut access. This is an option
+    /// to facilitate safe initialization, in practice it can never be None
+    error_domain: Option<TypeVarID>,
 
     #[serde(skip)]
     pub diags: DiagList,
@@ -62,7 +66,7 @@ pub struct DomainState {
 impl DomainState {
     pub fn new() -> Self {
         let key = fastrand::u64(..);
-        Self {
+        let mut result = Self {
             domain_vars: vec![],
             key,
             keys: [key].into_iter().collect(),
@@ -70,8 +74,12 @@ impl DomainState {
             next_typeid: 0.into(),
             generic_lists: HashMap::new(),
             replacements: ReplacementStack::new(),
+            error_domain: None,
             diags: DiagList::new(),
-        }
+        };
+
+        result.error_domain = Some(result.add_domain_var(DomainVar::Error));
+        result
     }
 
     fn add_domain_var(&mut self, var: DomainVar) -> TypeVarID {
@@ -83,5 +91,91 @@ impl DomainState {
         }
     }
 
+    fn maybe_domain_of(&self, of: &DomainedExpression) -> Option<&TypeVarID> {
+        self.equations.get(&of)
+    }
+
+    fn new_any(&mut self) -> TypeVarID {
+        self.add_domain_var(DomainVar::Unknown(vec![]))
+    }
 }
 
+trait TypeVarIDExt {
+    fn resolve_domain<'a>(&'_ self, state: &'a DomainState) -> &'a DomainVar;
+
+    fn insert_for_domained(self, f: DomainedExpression, state: &mut DomainState);
+}
+impl TypeVarIDExt for TypeVarID {
+    fn resolve_domain<'a>(&'_ self, state: &'a DomainState) -> &'a DomainVar {
+        &state.domain_vars[self.get_domain(state).inner]
+    }
+
+    fn insert_for_domained(self, f: DomainedExpression, state: &mut DomainState) {
+        state.equations.insert(f, self);
+    }
+}
+
+pub trait HasDomain: std::fmt::Debug {
+    fn get_domain(&self, state: &DomainState) -> TypeVarID {
+        self.try_get_domain(state)
+            .unwrap_or(state.error_domain.unwrap())
+    }
+
+    fn try_get_domain(&self, state: &DomainState) -> Option<TypeVarID> {
+        let id = self.get_domain_impl(state);
+        id.map(|id| state.replacements.get(id))
+    }
+
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID>;
+}
+
+impl HasDomain for TypeVarID {
+    fn get_domain_impl(&self, _state: &DomainState) -> Option<TypeVarID> {
+        Some(*self)
+    }
+}
+impl HasDomain for Loc<TypeVarID> {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        self.inner.try_get_domain(state)
+    }
+}
+impl HasDomain for DomainedExpression {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        state.maybe_domain_of(self).cloned()
+    }
+}
+impl HasDomain for Expression {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        state
+            .maybe_domain_of(&DomainedExpression::Id(self.id))
+            .cloned()
+    }
+}
+impl HasDomain for Loc<Expression> {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        state
+            .maybe_domain_of(&DomainedExpression::Id(self.inner.id))
+            .cloned()
+    }
+}
+impl HasDomain for Pattern {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        state
+            .maybe_domain_of(&DomainedExpression::Id(self.id))
+            .cloned()
+    }
+}
+impl HasDomain for Loc<Pattern> {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        state
+            .maybe_domain_of(&DomainedExpression::Id(self.inner.id))
+            .cloned()
+    }
+}
+impl HasDomain for NameID {
+    fn get_domain_impl(&self, state: &DomainState) -> Option<TypeVarID> {
+        state
+            .maybe_domain_of(&DomainedExpression::Name(self.clone()))
+            .cloned()
+    }
+}

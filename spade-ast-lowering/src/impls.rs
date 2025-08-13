@@ -708,10 +708,10 @@ fn check_params_for_impl_method_and_trait_method_match(
                 // This is easy to support, we just need to do matching of domains, but in the
                 // interest of getting a domain MVP in, we'll leave it like this
                 match (i_domain, t_domain) {
-                    (DomainName::Annonymous, DomainName::Annonymous) => {}
-                    (DomainName::Named(loc), DomainName::Annonymous)
+                    (DomainName::Annonymous(_), DomainName::Annonymous(_)) => {}
+                    (DomainName::Named(loc), DomainName::Annonymous(_))
                     | (DomainName::Named(loc), DomainName::Named(_))
-                    | (DomainName::Annonymous, DomainName::Named(loc)) => {
+                    | (DomainName::Annonymous(_), DomainName::Named(loc)) => {
                         return Err(Diagnostic::error(
                             loc,
                             "Domains are not currently supported in trait impls",

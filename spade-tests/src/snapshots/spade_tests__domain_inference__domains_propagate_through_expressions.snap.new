@@ -1,0 +1,8 @@
+---
+source: spade-tests/src/domain_inference.rs
+assertion_line: 11
+---
+entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> (bool, bool) {
+    let c = (a, a);
+    (c#0, b)
+}

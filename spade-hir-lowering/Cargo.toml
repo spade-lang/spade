@@ -27,6 +27,7 @@ spade-hir.workspace = true
 spade-mir.workspace = true
 spade-typeinference.workspace = true
 spade-types.workspace = true
+spade-domain-inference.workspace = true
 # spade-wordlength-inference.workspace = true
 
 [dev-dependencies]

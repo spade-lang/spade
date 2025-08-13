@@ -2650,6 +2650,7 @@ dependencies = [
  "serde",
  "spade-common",
  "spade-diagnostics",
+ "spade-domain-inference",
  "spade-hir",
  "spade-mir",
  "spade-typeinference",

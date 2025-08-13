@@ -159,7 +159,7 @@ impl EnumVariant {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
-            domains: vec![Domain::annonymous()],
+            domains: vec![Domain::annonymous(self.name.loc())],
         }
     }
 }
@@ -184,7 +184,7 @@ impl StructCallable {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
-            domains: vec![Domain::annonymous()],
+            domains: vec![Domain::annonymous(self.name.loc())],
         }
     }
 }

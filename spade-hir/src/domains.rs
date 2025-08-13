@@ -3,7 +3,7 @@ use spade_common::{location_info::Loc, name::NameID};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum DomainName {
-    Annonymous,
+    Annonymous(Loc<()>),
     Named(Loc<NameID>)
 }
 
@@ -14,9 +14,12 @@ pub enum DomainName {
   - An enable signal
   - Supports any reset kind, including `initial`
 */
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(Eq, Hash, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum DomainConstraint {
-    Async,
+    /// Used in asynchronous domains which have no asociated clocks
+    NoClock,
+    /// Domains with registers which require a clock to be present
+    HasClock,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -26,9 +29,9 @@ pub struct Domain {
 }
 
 impl Domain {
-    pub fn annonymous() -> Domain {
+    pub fn annonymous(loc: Loc<()>) -> Domain {
         Domain {
-            name: DomainName::Annonymous,
+            name: DomainName::Annonymous(loc),
             constraints: vec![],
         }
     }

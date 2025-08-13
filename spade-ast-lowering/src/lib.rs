@@ -194,7 +194,8 @@ pub fn collect_domains(
                     .unwrap_or(&vec![])
                     .iter()
                     .map(|constraint| match constraint.0.as_str() {
-                        "Async" => Ok(DomainConstraint::Async.at_loc(constraint)),
+                        "NoClock" => Ok(DomainConstraint::NoClock.at_loc(constraint)),
+                        "HasClock" => Ok(DomainConstraint::HasClock.at_loc(constraint)),
                         other => Err(Diagnostic::error(
                             constraint,
                             format!("Invalid domain constraint {other}"),
@@ -651,7 +652,8 @@ fn visit_parameter_list(
             None => {
                 // TODO: Should we disallow implicit annonymous domains unless there is a
                 // `'_` domain declared to avoid annoying issues?
-                DomainName::Annonymous
+                // TODO: This really should not be ().nowhere()
+                DomainName::Annonymous(().nowhere())
             }
         };
 
@@ -713,7 +715,8 @@ fn visit_parameter_list(
             None => {
                 // TODO: Should we disallow implicit annonymous domains unless there is a
                 // `'_` domain declared to avoid annoying issues?
-                DomainName::Annonymous
+                // TODO: This really should not be ().nowhere()
+                DomainName::Annonymous(().nowhere())
             }
         };
 
@@ -859,7 +862,7 @@ pub fn unit_head(
 
     let domains = if domains.is_empty() {
         vec![Domain {
-            name: DomainName::Annonymous,
+            name: DomainName::Annonymous(head.name.loc()),
             constraints: vec![],
         }]
     } else {
@@ -2553,8 +2556,6 @@ mod expression_visiting {
     use super::*;
 
     use crate::testutil::test_context;
-    use hir::hparams;
-    use hir::symbol_table::EnumVariant;
     use spade_ast::testutil::{ast_ident, ast_path};
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;

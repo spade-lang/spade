@@ -962,11 +962,12 @@ impl<'a> Parser<'a> {
     ///
     /// name: Type
     #[trace_parser]
-    pub fn name_and_type(&mut self) -> Result<(Loc<Identifier>, Loc<TypeSpec>)> {
+    pub fn name_and_type(&mut self) -> Result<(Loc<Identifier>, Option<Loc<DomainName>>, Loc<TypeSpec>)> {
         let name = self.identifier()?;
         self.eat(&TokenKind::Colon)?;
+        let domain = self.parameter_domain()?;
         let t = self.type_spec()?;
-        Ok((name, t))
+        Ok((name, domain, t))
     }
 
     #[trace_parser]
@@ -1189,8 +1190,7 @@ impl<'a> Parser<'a> {
         Loc<TypeSpec>,
     )> {
         let attrs = self.attributes()?;
-        let domain = self.parameter_domain()?;
-        let (name, ty) = self.name_and_type()?;
+        let (name, domain, ty) = self.name_and_type()?;
         Ok((attrs, domain, name, ty))
     }
 
