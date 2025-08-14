@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+struct T {
+    x: bool
+}
+
+entity test<'a, 'b>(a: 'a T) -> 'b bool {
+    a.x
+}
+
+error: Mixing signals in different domains
+  ┌─ testinput:6:5
+  │
+5 │ entity test<'a, 'b>(a: 'a T) -> 'b bool {
+  │                                    ---- This has domain 'b
+6 │     a.x
+  │     ^^^ This has domain 'a

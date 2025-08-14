@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+pipeline(1) test<'a, 'b>(clk: 'a clock, a: 'a bool, b: 'b bool) -> 'a ((bool, bool), bool) {
+    let c = (a, a);
+reg;
+    (stage(+0).c, b)
+}
+
+error: Mixing signals in different domains
+  ┌─ testinput:4:19
+  │
+4 │     (stage(+0).c, b)
+  │      -----------  ^ This has domain 'b
+  │      │             
+  │      This has domain 'a
+  │
+  = help: All tuple members must be in the same domain

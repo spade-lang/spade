@@ -53,14 +53,14 @@ impl DomainState {
     }
 
     pub fn maybe_print_trace(&self) {
-        for stack in self.replacements.all() {
-            for (from, to) in stack.borrow().iter() {
-                println!("{} -> {}", from.inner, to.inner)
-            }
-        }
-
-        let mut result = String::new();
         if std::env::var("SPADE_TRACE_DOMAININFERENCE").is_ok() {
+            for stack in self.replacements.all() {
+                for (from, to) in stack.borrow().iter() {
+                    println!("{} -> {}", from.inner, to.inner)
+                }
+            }
+
+            let mut result = String::new();
             let mut indent_level = 0;
 
             for entry in self.traces.read().unwrap().iter() {
@@ -99,7 +99,14 @@ impl DomainState {
                         format!("{} {}->{}", "binding".yellow(), binder, bindee.inner)
                     }
                     TraceEntry::Replacing(from, to) => {
-                        format!("{} {}->{} ({:?} -> {:?})", "replacing".bright_yellow(), from.inner, to.inner, from.resolve_domain(self), to.resolve_domain(self))
+                        format!(
+                            "{} {}->{} ({:?} -> {:?})",
+                            "replacing".bright_yellow(),
+                            from.inner,
+                            to.inner,
+                            from.resolve_domain(self),
+                            to.resolve_domain(self)
+                        )
                     }
                     TraceEntry::Exit => {
                         next_indent_level -= 1;
@@ -117,7 +124,7 @@ impl DomainState {
                 }
                 indent_level = next_indent_level;
             }
+            println!("{result}")
         }
-        println!("{result}")
     }
 }

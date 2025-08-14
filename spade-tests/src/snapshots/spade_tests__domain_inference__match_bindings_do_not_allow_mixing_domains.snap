@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> 'b bool {
+    match a {
+        a => a && b,
+        false => a,
+    }
+}
+
+error: Mixing signals in different domains
+  ┌─ testinput:3:19
+  │
+3 │         a => a && b,
+  │              -    ^ This has domain 'b
+  │              │     
+  │              This has domain 'a

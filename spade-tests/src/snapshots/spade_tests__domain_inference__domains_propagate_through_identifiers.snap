@@ -2,15 +2,16 @@
 source: spade-tests/src/domain_inference.rs
 ---
 entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> 'a ((bool, bool), bool) {
-    ((a, a), b)
+    let c = (a, a);
+    (c, b)
 }
 
 error: Mixing signals in different domains
-  ┌─ testinput:2:14
+  ┌─ testinput:3:9
   │
-2 │     ((a, a), b)
-  │      ------  ^ This has domain 'b
-  │      │        
+3 │     (c, b)
+  │      -  ^ This has domain 'b
+  │      │   
   │      This has domain 'a
   │
   = help: All tuple members must be in the same domain

@@ -62,7 +62,7 @@ impl DomainState {
         .get_domain(self);
 
         // TODO: That Loc is all wrong
-        self.check_expression(&unit.body, output_domain.at_loc(&unit.head.name.loc()))?;
+        self.check_expression(&unit.body, output_domain.at_loc(&unit.head.output_type().loc()))?;
         Ok(())
     }
 
@@ -88,8 +88,8 @@ impl DomainState {
             }
             Statement::Register(register) => todo!(),
             Statement::Declaration(locs) => todo!(),
-            Statement::PipelineRegMarker(pipeline_reg_marker_extra) => todo!(),
-            Statement::Label(loc) => todo!(),
+            Statement::PipelineRegMarker(_) => Ok(()),
+            Statement::Label(loc) => Ok(()),
             Statement::Assert(loc) => todo!(),
             Statement::Set { target, value } => todo!(),
             Statement::WalSuffixed { suffix, target } => todo!(),
@@ -205,6 +205,7 @@ impl DomainState {
                 }
             }
             spade_hir::ExprKind::ArrayShorthandLiteral(inner, _) => self.synth_expression(inner),
+
             spade_hir::ExprKind::IntLiteral(_, _)
             | spade_hir::ExprKind::BoolLiteral(_)
             | spade_hir::ExprKind::BitLiteral(_)
@@ -220,7 +221,7 @@ impl DomainState {
 
             spade_hir::ExprKind::BinaryOperator(opa, _, opb) => {
                 let expected = self.synth_expression(opa)?;
-                self.check_expression(opb, expected.at_loc(opb))?;
+                self.check_expression(opb, expected.at_loc(opa))?;
                 Ok(expected)
             }
 
@@ -234,9 +235,21 @@ impl DomainState {
                 safety,
             } => todo!(),
 
-            spade_hir::ExprKind::Match(loc, items) => todo!(),
+            spade_hir::ExprKind::Match(cond, branches) => {
+                let expected = self.synth_expression(cond)?;
+                for (pat, val) in branches {
+                    self.check_pattern(pat, expected.at_loc(cond))?;
+                    self.check_expression(val, expected.at_loc(cond))?;
+                }
+                Ok(expected)
+            },
             spade_hir::ExprKind::Block(block) => todo!(),
-            spade_hir::ExprKind::If(loc, loc1, loc2) => todo!(),
+            spade_hir::ExprKind::If(cond, on_true, on_false) => {
+                let expected = self.synth_expression(cond)?;
+                self.check_expression(on_true, expected.at_loc(cond))?;
+                self.check_expression(on_false, expected.at_loc(cond))?;
+                Ok(expected)
+            },
             spade_hir::ExprKind::TypeLevelIf(loc, loc1, loc2) => todo!(),
             spade_hir::ExprKind::StageValid => todo!(),
             spade_hir::ExprKind::StageReady => todo!(),
@@ -304,8 +317,8 @@ impl DomainState {
                 self.synth_expression(op)
             },
 
-            spade_hir::ExprKind::Match(loc, items) => todo!(),
-            spade_hir::ExprKind::If(loc, loc1, loc2) => todo!(),
+            spade_hir::ExprKind::Match(_, _) => self.synth_expression(expr),
+            spade_hir::ExprKind::If(_, _, _) => self.synth_expression(expr),
 
             // Functions are special and will need special treatment
             spade_hir::ExprKind::Call {

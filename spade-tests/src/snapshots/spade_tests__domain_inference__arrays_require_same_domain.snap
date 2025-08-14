@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> 'a [bool; 2] {
+    [a, b]
+}
+
+error: Mixing signals in different domains
+  ┌─ testinput:2:9
+  │
+2 │     [a, b]
+  │      -  ^ This has domain 'b
+  │      │   
+  │      This has domain 'a
+  │
+  = help: All array members must be in the same domain
