@@ -130,12 +130,12 @@ impl<D: Borrow<DomainVar>> LocExt<D> for Loc<D> {
                 // on the domain
                 Ok(DomainVar::Known(kdomain.clone(), new_constraints))
             }
-            // TODO: Will hwe need to check the requirements for named domains?
+            // TODO: Will we need to check the requirements for named domains?
             (DomainVar::Known(n1, _), DomainVar::Known(n2, _)) => {
                 if n1 == n2 {
                     Ok(self.inner.borrow().clone())
                 } else {
-                    let mut diag = Diagnostic::error(self, "Mixing signals in different domains")
+                    let diag = Diagnostic::error(self, "Mixing signals in different domains")
                         .primary_label(match n1 {
                             DomainName::Annonymous => {
                                 format!("This has domain '{{de}}")

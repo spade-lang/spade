@@ -356,7 +356,10 @@ pub fn compile_items(
                     symtab,
                 });
 
-                let domain_ctx = spade_domain_inference::Context{types: &type_state, symtab: symtab.symtab()};
+                let domain_ctx = spade_domain_inference::Context {
+                    types: &type_state,
+                    symtab: symtab.symtab(),
+                };
                 let mut domain_inference = DomainState::new();
                 let domain_inference_result = domain_inference.visit_unit(&u, &domain_ctx);
                 domain_inference.maybe_print_trace();
@@ -370,7 +373,7 @@ pub fn compile_items(
                     failed = true
                 }
                 if failed {
-                    continue 'item_loop
+                    continue 'item_loop;
                 }
 
                 let self_mono_item = Some(item.clone());

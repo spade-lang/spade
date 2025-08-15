@@ -4,7 +4,7 @@ use spade_common::{location_info::Loc, name::NameID};
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum DomainName {
     Annonymous,
-    Named(Loc<NameID>)
+    Named(Loc<NameID>),
 }
 
 /**

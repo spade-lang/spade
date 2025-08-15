@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+pipeline(1) test<'a, 'b>(clk: 'a clock, other: 'b bool) -> 'b bool {
+    reg;
+    stage.valid && other
+}
+
+
+error: Mixing signals in different domains
+  ┌─ testinput:3:20
+  │
+3 │     stage.valid && other
+  │     -----------    ^^^^^ This has domain 'b
+  │     │               
+  │     This has domain 'a

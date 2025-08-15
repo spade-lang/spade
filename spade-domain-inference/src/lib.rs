@@ -12,12 +12,9 @@ use domain_var::DomainVar;
 use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_diagnostics::{diag_list::DiagList, Diagnostic};
-use spade_hir::{
-    domains::DomainConstraint, symbol_table::SymbolTable, Expression, Pattern
-};
+use spade_hir::{domains::DomainConstraint, symbol_table::SymbolTable, Expression, Pattern};
 use spade_typeinference::{
-    equation::TypeVarID, replacement::ReplacementStack,
-    GenericListToken, TypeState,
+    equation::TypeVarID, replacement::ReplacementStack, GenericListToken, TypeState,
 };
 use tracing::TraceEntry;
 
@@ -37,7 +34,6 @@ pub struct Context<'a> {
     pub types: &'a TypeState,
     pub symtab: &'a SymbolTable,
 }
-
 
 /// State of the type inference algorithm
 #[derive(Clone, Serialize, Deserialize)]
@@ -70,6 +66,9 @@ pub struct DomainState {
     /// to facilitate safe initialization, in practice it can never be None
     error_domain: Option<TypeVarID>,
 
+    /// The domain of the pipeline clock
+    pipeline_domain: Option<TypeVarID>,
+
     #[serde(skip)]
     pub traces: Arc<RwLock<Vec<TraceEntry>>>,
 
@@ -89,6 +88,7 @@ impl DomainState {
             generic_lists: HashMap::new(),
             replacements: ReplacementStack::new(),
             error_domain: None,
+            pipeline_domain: None,
             traces: Arc::new(RwLock::new(vec![])),
             diags: DiagList::new(),
         };

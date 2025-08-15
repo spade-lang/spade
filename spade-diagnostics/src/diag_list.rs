@@ -58,5 +58,3 @@ impl<T> ResultExt<T> for Result<T, Diagnostic> {
         }
     }
 }
-
-

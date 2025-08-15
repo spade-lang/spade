@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::{diag_bail, diag_list::ResultExt, Diagnostic};
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{
     domains::{DomainConstraint, DomainName},
     param_util::{match_args_with_params, Argument},
@@ -21,6 +21,11 @@ use crate::{
 
 impl DomainState {
     pub fn visit_unit(&mut self, unit: &Loc<Unit>, ctx: &Context) -> Result<()> {
+        let result = self.visit_unit_inner(unit, ctx);
+        self.pipeline_domain = None;
+        result
+    }
+    pub fn visit_unit_inner(&mut self, unit: &Loc<Unit>, ctx: &Context) -> Result<()> {
         let _t = self.trace_scope(|| TraceEntry::VisitingUnit(unit.name.to_string()));
 
         for domain in &unit.head.domains {
@@ -48,7 +53,8 @@ impl DomainState {
                 DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
             };
 
-            match dexpr.get_domain(self).resolve_domain(self) {
+            let pipeline_domain = dexpr.get_domain(self);
+            match pipeline_domain.resolve_domain(self) {
                 DomainVar::Error => {}
                 DomainVar::Unknown(_) => {
                     diag_bail!(&unit.head.name, "First argument had unknown domain")
@@ -65,6 +71,7 @@ impl DomainState {
                     }
                 }
             }
+            self.pipeline_domain = Some(pipeline_domain)
         }
 
         for (
@@ -407,8 +414,11 @@ impl DomainState {
                     }
                 }
             }
-            spade_hir::ExprKind::StageValid => todo!(),
-            spade_hir::ExprKind::StageReady => todo!(),
+            spade_hir::ExprKind::StageValid | spade_hir::ExprKind::StageReady => {
+                self.pipeline_domain.ok_or_else(|| {
+                    Diagnostic::bug(expr, "Stage ready/valid without a present pipeline domain")
+                })
+            }
             spade_hir::ExprKind::StaticUnreachable(_) => Ok(self.new_any()),
             spade_hir::ExprKind::Null => Ok(self.new_any()),
 
@@ -486,8 +496,8 @@ impl DomainState {
 
             // These have the same domain as the pipeline
             // NOTE: We need to enforce that
-            spade_hir::ExprKind::StageValid => todo!(),
-            spade_hir::ExprKind::StageReady => todo!(),
+            spade_hir::ExprKind::StageValid |
+            spade_hir::ExprKind::StageReady => self.synth_expression(expr, ctx),
 
             // Weird expressions
             spade_hir::ExprKind::StaticUnreachable(_) => self.synth_expression(expr, ctx),

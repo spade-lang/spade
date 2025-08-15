@@ -13,6 +13,8 @@ mod compiler_state;
 #[cfg(test)]
 mod const_generics;
 #[cfg(test)]
+mod domain_inference;
+#[cfg(test)]
 mod hir_lowering;
 #[cfg(test)]
 mod integration;
@@ -34,8 +36,6 @@ mod usefulness;
 mod verilator_wrapper;
 #[cfg(test)]
 mod wal_tracing;
-#[cfg(test)]
-mod domain_inference;
 
 // NOTE: word length inference tests no longer work after adding `int` and `uint`
 // #[cfg(test)]

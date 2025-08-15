@@ -198,7 +198,6 @@ snapshot_error! {
     false
 }
 
-
 snapshot_error! {
     domain_crossing_is_required_for_noclock_to_registers,
     "
@@ -299,7 +298,30 @@ snapshot_error! {
         pipeline(1) test<'a: NoClock>(clk: 'a clock) {
             reg;
         }
+    ",
+    false
+}
+
+snapshot_error! {
+    stage_ready_is_in_the_pipeline_domain,
     "
+        pipeline(1) test<'a, 'b>(clk: 'a clock, other: 'b bool) -> 'b bool {
+            reg;
+            stage.ready && other
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    stage_valid_is_in_the_pipeline_domain,
+    "
+        pipeline(1) test<'a, 'b>(clk: 'a clock, other: 'b bool) -> 'b bool {
+            reg;
+            stage.valid && other
+        }
+    ",
+    false
 }
 
 // TODO: Things left to test

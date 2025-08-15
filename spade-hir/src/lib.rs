@@ -1,3 +1,4 @@
+pub mod domains;
 pub mod expression;
 pub mod impl_tab;
 pub mod param_util;
@@ -6,7 +7,6 @@ pub mod pretty_print;
 pub mod query;
 pub mod symbol_table;
 pub mod testutil;
-pub mod domains;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Formatter;
@@ -611,7 +611,7 @@ impl ParameterList {
             ty,
             no_mangle: _,
             field_translator: _,
-            domain: _
+            domain: _,
         } in &self.0
         {
             if &arg.inner == name {
@@ -634,7 +634,7 @@ impl ParameterList {
                         ty: _,
                         no_mangle: _,
                         field_translator: _,
-                        domain: _
+                        domain: _,
                     },
                 )| {
                     if &name.inner == target {

@@ -916,7 +916,7 @@ pub fn unit_head(
 
     let unit_where_clauses = visit_where_clauses(&head.where_clauses, ctx);
 
-    let output_type = if let Some((arrow, domain, ty)) = &head.output_type {
+    let output_type = if let Some((_, domain, ty)) = &head.output_type {
         let domain = visit_parameter_domain(domain, ty.loc(), ty.loc(), &domains, ctx)?;
         Some((
             domain,
