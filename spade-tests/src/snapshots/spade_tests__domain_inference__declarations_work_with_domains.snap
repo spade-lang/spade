@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(a: 'a bool, b: 'b bool) {
+    decl c;
+    let x = (c, b);
+    let c = (a, a);
+}
+
+
+error: Mixing signals in different domains
+  ┌─ testinput:4:13
+  │
+4 │     let c = (a, a);
+  │         -   ^^^^^^ This has domain 'a
+  │         │    
+  │         This has domain 'b

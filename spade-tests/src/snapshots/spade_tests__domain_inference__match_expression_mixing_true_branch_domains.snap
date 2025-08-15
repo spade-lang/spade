@@ -9,12 +9,14 @@ entity test<'a, 'b>(a: 'a bool) -> 'b bool {
 }
 
 error: Mixing signals in different domains
-  ┌─ testinput:2:5
+  ┌─ testinput:1:44
   │  
 1 │   entity test<'a, 'b>(a: 'a bool) -> 'b bool {
   │                                         ---- This has domain 'b
-2 │ ╭     match true {
+  │ ╭────────────────────────────────────────────^
+2 │ │     match true {
 3 │ │         true => a,
 4 │ │         false => false,
 5 │ │     }
-  │ ╰─────^ This has domain 'a
+6 │ │ }
+  │ ╰─^ This has domain 'a

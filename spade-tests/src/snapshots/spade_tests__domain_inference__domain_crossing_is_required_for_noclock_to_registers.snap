@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a: NoClock>(clk: 'a clock, a: 'a bool) {
+    reg(clk) r = a;
+}
+
+
+error: Mixing a domain without clocks with one that requires a clock
+  ┌─ testinput:2:18
+  │
+1 │ entity test<'a: NoClock>(clk: 'a clock, a: 'a bool) {
+  │                 ------- The requirement to not have a clock comes from here
+2 │     reg(clk) r = a;
+  │     -------------^
+  │     │            │
+  │     │            This domain does not have a clock
+  │     But this requires a clock to be present
+  │     The clock is required here

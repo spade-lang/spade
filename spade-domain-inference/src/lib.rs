@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_diagnostics::{diag_list::DiagList, Diagnostic};
 use spade_hir::{
-    Expression, Pattern,
+    domains::DomainConstraint, Expression, Pattern
 };
 use spade_typeinference::{
     equation::TypeVarID, replacement::ReplacementStack,
@@ -106,6 +106,10 @@ impl DomainState {
 
     fn new_any(&mut self) -> TypeVarID {
         self.add_domain_var(DomainVar::Unknown(vec![]))
+    }
+
+    fn new_with_constraints(&mut self, constraints: Vec<Loc<DomainConstraint>>) -> TypeVarID {
+        self.add_domain_var(DomainVar::Unknown(constraints))
     }
 
     fn replace(&mut self, from: TypeVarID, to: TypeVarID) {

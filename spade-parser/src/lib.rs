@@ -962,7 +962,9 @@ impl<'a> Parser<'a> {
     ///
     /// name: Type
     #[trace_parser]
-    pub fn name_and_type(&mut self) -> Result<(Loc<Identifier>, Option<Loc<DomainName>>, Loc<TypeSpec>)> {
+    pub fn name_and_type(
+        &mut self,
+    ) -> Result<(Loc<Identifier>, Option<Loc<DomainName>>, Loc<TypeSpec>)> {
         let name = self.identifier()?;
         self.eat(&TokenKind::Colon)?;
         let domain = self.parameter_domain()?;
@@ -1261,9 +1263,12 @@ impl<'a> Parser<'a> {
 
             let constraints = if let Some(_colon) = self.peek_and_eat(&TokenKind::Colon)? {
                 let constraints = self
-                    .token_separated(|s| s.identifier(), &TokenKind::Plus, vec![TokenKind::Comma])
+                    .token_separated(
+                        |s| s.identifier(),
+                        &TokenKind::Plus,
+                        vec![TokenKind::Comma, TokenKind::Gt],
+                    )
                     .no_context()?;
-                self.eat(&TokenKind::Comma)?;
                 Some(constraints)
             } else {
                 None

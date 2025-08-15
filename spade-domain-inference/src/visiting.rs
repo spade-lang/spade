@@ -1,8 +1,9 @@
 use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::diag_bail;
 use spade_hir::{
-    domains::DomainName, pretty_debug::PrettyDebug, Binding, Expression, Parameter, Pattern,
-    PatternArgument, Statement, Unit,
+    domains::{DomainConstraint, DomainName},
+    pretty_debug::PrettyDebug,
+    Binding, Expression, Parameter, Pattern, PatternArgument, Register, Statement, Unit,
 };
 use spade_typeinference::equation::TypeVarID;
 
@@ -48,21 +49,28 @@ impl DomainState {
                 .insert_for_domained(DomainedExpression::Name(name_id.inner.clone()), self);
         }
 
-        let output_domain = match &unit.head.output_type {
-            Some((DomainName::Annonymous, _)) => {
-                DomainedExpression::AnnonymousOuter(unit.head.name.loc())
-            }
-            Some((DomainName::Named(name), _)) => DomainedExpression::Name(name.inner.clone()),
-            None => {
-                // TODO: This is not right, but i'm also not sure how to handle the unit type
-                // here
-                DomainedExpression::AnnonymousOuter(unit.head.name.loc())
-            }
-        }
-        .get_domain(self);
+        let output_domain = unit
+            .head
+            .output_type
+            .as_ref()
+            .map(|(domain, _)| {
+                match domain {
+                    DomainName::Annonymous => {
+                        DomainedExpression::AnnonymousOuter(unit.head.name.loc())
+                    }
+                    DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
+                }
+                .get_domain(self)
+            })
+            // If there is no output type, we can support any domain for the "output" since
+            // there will not be an output
+            .unwrap_or_else(|| self.new_any());
 
         // TODO: That Loc is all wrong
-        self.check_expression(&unit.body, output_domain.at_loc(&unit.head.output_type().loc()))?;
+        self.check_expression(
+            &unit.body,
+            output_domain.at_loc(&unit.head.output_type().loc()),
+        )?;
         Ok(())
     }
 
@@ -86,13 +94,53 @@ impl DomainState {
                 self.synth_expression(expr)?;
                 Ok(())
             }
-            Statement::Register(register) => todo!(),
-            Statement::Declaration(locs) => todo!(),
+            Statement::Register(Register {
+                pattern,
+                clock,
+                reset,
+                initial,
+                value,
+                value_type: _,
+                attributes: _,
+            }) => {
+                // Ensure that there is a clock in this domain
+                let value_domain =
+                    self.new_with_constraints(vec![DomainConstraint::HasClock.at_loc(stmt)]);
+
+                self.check_expression(value, value_domain.at_loc(stmt))?;
+                self.check_expression(clock, value_domain.at_loc(value))?;
+
+                if let Some((rst_trig, rst_val)) = reset {
+                    self.check_expression(rst_trig, value_domain.at_loc(value))?;
+                    self.check_expression(rst_val, value_domain.at_loc(value))?;
+                }
+                if let Some(initial) = initial {
+                    self.check_expression(initial, value_domain.at_loc(value))?;
+                }
+
+                self.check_pattern(pattern, value_domain.at_loc(value))?;
+
+                Ok(())
+            }
+            Statement::Declaration(names) => {
+                for name in names {
+                    self.new_any()
+                        .insert_for_domained(DomainedExpression::Name(name.inner.clone()), self);
+                }
+
+                Ok(())
+            }
             Statement::PipelineRegMarker(_) => Ok(()),
-            Statement::Label(loc) => Ok(()),
-            Statement::Assert(loc) => todo!(),
-            Statement::Set { target, value } => todo!(),
-            Statement::WalSuffixed { suffix, target } => todo!(),
+            Statement::Label(_) => Ok(()),
+            // We won't enforce anything for assertions since users may want to check
+            // cross domain things here
+            Statement::Assert(_) => Ok(()),
+            Statement::Set { target, value } => {
+                let value_domain = self.synth_expression(value)?;
+                self.check_expression(target, value_domain.at_loc(value))?;
+                Ok(())
+            },
+            Statement::WalSuffixed { .. } => Ok(()),
         }
     }
 
@@ -242,14 +290,23 @@ impl DomainState {
                     self.check_expression(val, expected.at_loc(cond))?;
                 }
                 Ok(expected)
-            },
-            spade_hir::ExprKind::Block(block) => todo!(),
+            }
+            spade_hir::ExprKind::Block(block) => {
+                for statement in &block.statements {
+                    self.visit_statement(&statement)?;
+                }
+                if let Some(result) = &block.result {
+                    self.synth_expression(result)
+                } else {
+                    Ok(self.new_any())
+                }
+            }
             spade_hir::ExprKind::If(cond, on_true, on_false) => {
                 let expected = self.synth_expression(cond)?;
                 self.check_expression(on_true, expected.at_loc(cond))?;
                 self.check_expression(on_false, expected.at_loc(cond))?;
                 Ok(expected)
-            },
+            }
             spade_hir::ExprKind::TypeLevelIf(loc, loc1, loc2) => todo!(),
             spade_hir::ExprKind::StageValid => todo!(),
             spade_hir::ExprKind::StageReady => todo!(),
@@ -273,9 +330,7 @@ impl DomainState {
             expected: expected.resolve_domain(self).clone(),
         });
         let self_domain = match &expr.inner.kind {
-            // TODO: Verify that this is correrct
-            spade_hir::ExprKind::Error => Ok(self.error_domain.unwrap()),
-            // TODO: This smells a whole lot like synthesis in the check function hmmmm
+            spade_hir::ExprKind::Error => self.synth_expression(expr),
             spade_hir::ExprKind::Identifier(_) |
             // Pipeline refs are just spicy identifiers
             // NOTE: This only holds until pipelines get upgraded to domains
@@ -301,12 +356,12 @@ impl DomainState {
 
             // TLif diverges depending on the branch taken in this function call. We need
             // a type state to be available for this
-            spade_hir::ExprKind::TypeLevelIf(loc, loc1, loc2) => todo!(),
+            spade_hir::ExprKind::TypeLevelIf(_, loc1, loc2) => todo!(),
 
             // Operators and friends have to have the same domain on all branches. We'll group
             // these based on their arity
-            spade_hir::ExprKind::Index(opa, opb) |
-            spade_hir::ExprKind::BinaryOperator(opa, _, opb) => {
+            spade_hir::ExprKind::Index(_, _) |
+            spade_hir::ExprKind::BinaryOperator(_, _, _) => {
                 self.synth_expression(expr)
             },
 
@@ -329,24 +384,16 @@ impl DomainState {
                 safety,
             } => todo!(),
             // Visit the statements, then ensure that the result has the same type as the result
-            spade_hir::ExprKind::Block(block) => {
-                for statement in &block.statements {
-                    self.visit_statement(&statement)?;
-                }
-                if let Some(result) = &block.result {
-                    self.check_expression(&result, expected)?;
-                }
-                // TODO: This feels weird, am I sure we should re-check checked results?
-                Ok(expected.inner)
-            },
+            spade_hir::ExprKind::Block(_) => self.synth_expression(expr),
 
-            // These have teh same domain as the pipeline
+            // These have the same domain as the pipeline
+            // NOTE: We need to enforce that
             spade_hir::ExprKind::StageValid => todo!(),
             spade_hir::ExprKind::StageReady => todo!(),
 
             // Weird expressions
-            spade_hir::ExprKind::StaticUnreachable(loc) => todo!(),
-            spade_hir::ExprKind::Null => todo!(),
+            spade_hir::ExprKind::StaticUnreachable(_) => Ok(self.new_any()),
+            spade_hir::ExprKind::Null => Ok(self.new_any()),
 
             spade_hir::ExprKind::MethodCall { .. } => {
                 diag_bail!(expr, "Method should be lowered already")

@@ -198,3 +198,45 @@ snapshot_error! {
     false
 }
 
+
+snapshot_error! {
+    domain_crossing_is_required_for_noclock_to_registers,
+    "
+        entity test<'a: NoClock>(clk: 'a clock, a: 'a bool) {
+            reg(clk) r = a;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    register_clock_must_match,
+    "
+        entity test<'a: NoClock, 'b>(clk: 'a clock, a: 'b bool) {
+            reg(clk) r = a;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    declarations_work_with_domains,
+    "
+    entity test<'a, 'b>(a: 'a bool, b: 'b bool) {
+        decl c;
+        let x = (c, b);
+        let c = (a, a);
+    }
+    ",
+    false
+}
+
+snapshot_error! {
+    set_statements_enforce_domains,
+    "
+        entity test<'a, 'b>(a: 'a &bool, b: 'b inv &bool) {
+            set b = a;
+        }
+    ",
+    false
+}
