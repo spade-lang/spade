@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+pipeline(1) test<'a: NoClock>(clk: 'a clock) {
+    reg;
+}
+
+
+error: The domain of a pipeline cannot be NoClock
+  ┌─ testinput:1:22
+  │
+1 │ pipeline(1) test<'a: NoClock>(clk: 'a clock) {
+  │                      ^^^^^^^

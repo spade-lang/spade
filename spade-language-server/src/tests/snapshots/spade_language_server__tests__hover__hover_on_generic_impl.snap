@@ -25,7 +25,7 @@ uint<8>
 ---
 ```spade
 impl<T> proj::S<uint<8>>
-fn meth(self: S<T>, x: T) -> T
+fn meth(self: S<T>, x: T) -> '_ T
 ```
 ---
  Docs

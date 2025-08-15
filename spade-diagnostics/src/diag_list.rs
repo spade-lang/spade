@@ -10,6 +10,10 @@ impl DiagList {
         Self { errors: vec![] }
     }
 
+    pub fn push(&mut self, diag: Diagnostic) {
+        self.errors.push(diag)
+    }
+
     pub fn drain(&mut self) -> Vec<Diagnostic> {
         let mut result = vec![];
         std::mem::swap(&mut self.errors, &mut result);
@@ -54,3 +58,5 @@ impl<T> ResultExt<T> for Result<T, Diagnostic> {
         }
     }
 }
+
+

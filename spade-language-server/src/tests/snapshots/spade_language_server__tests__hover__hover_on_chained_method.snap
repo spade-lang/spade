@@ -30,5 +30,5 @@ uint<8>
 ---
 ```spade
 impl bool
-fn meth2(self: bool) -> uint<8>
+fn meth2(self: bool) -> '_ uint<8>
 ```

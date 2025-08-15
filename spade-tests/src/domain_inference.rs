@@ -292,3 +292,18 @@ snapshot_error! {
     ",
     false
 }
+
+snapshot_error! {
+    pipeline_domains_need_clocks,
+    "
+        pipeline(1) test<'a: NoClock>(clk: 'a clock) {
+            reg;
+        }
+    "
+}
+
+// TODO: Things left to test
+// unsafe allows domain crossing
+// stage.ready, stage.valid
+// Constraints on the annonymous domain
+// Allow implicit propagation of constraints?

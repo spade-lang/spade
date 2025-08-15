@@ -31,7 +31,7 @@ bool
 ---
 ```spade
 impl proj::S
-fn meth(self: S, a: bool) -> bool
+fn meth(self: S, a: bool) -> '_ bool
 ```
 ---
  Docs

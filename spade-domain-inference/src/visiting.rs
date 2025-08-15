@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::{diag_bail, diag_list::ResultExt, Diagnostic};
 use spade_hir::{
     domains::{DomainConstraint, DomainName},
     param_util::{match_args_with_params, Argument},
@@ -33,6 +33,38 @@ impl DomainState {
                 DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
             };
             self.equations.insert(name, var);
+        }
+
+        if unit.head.unit_kind.is_pipeline() {
+            let dexpr = match &unit
+                .head
+                .inputs
+                .0
+                .first()
+                .map(|i| &i.domain)
+                .ok_or_else(|| Diagnostic::bug(unit, "Pipeline without arguments"))?
+            {
+                DomainName::Annonymous => DomainedExpression::AnnonymousOuter(unit.head.name.loc()),
+                DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
+            };
+
+            match dexpr.get_domain(self).resolve_domain(self) {
+                DomainVar::Error => {}
+                DomainVar::Unknown(_) => {
+                    diag_bail!(&unit.head.name, "First argument had unknown domain")
+                }
+                DomainVar::Known(_, constraints) => {
+                    if let Some(c) = constraints
+                        .iter()
+                        .find(|c| matches!(c.inner, DomainConstraint::NoClock))
+                    {
+                        self.diags.push(Diagnostic::error(
+                            c,
+                            "The domain of a pipeline cannot be NoClock",
+                        ))
+                    }
+                }
+            }
         }
 
         for (
