@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use spade_common::{location_info::Loc, name::NameID};
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum DomainName {
     Annonymous,
     Named(Loc<NameID>)

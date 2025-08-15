@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(a: 'a bool) -> 'b bool {
+    gen if 1 == 0 {
+        true
+    } else {
+        a
+    }
+}
+
+
+error: Mixing signals in different domains
+  ┌─ testinput:4:12
+  │  
+1 │   entity test<'a, 'b>(a: 'a bool) -> 'b bool {
+  │                                         ---- This has domain 'b
+  ·  
+4 │       } else {
+  │ ╭────────────^
+5 │ │         a
+6 │ │     }
+  │ ╰─────^ This has domain 'a

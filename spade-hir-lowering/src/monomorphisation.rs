@@ -356,8 +356,9 @@ pub fn compile_items(
                     symtab,
                 });
 
+                let domain_ctx = spade_domain_inference::Context{types: &type_state, symtab: symtab.symtab()};
                 let mut domain_inference = DomainState::new();
-                let domain_inference_result = domain_inference.visit_unit(&u);
+                let domain_inference_result = domain_inference.visit_unit(&u, &domain_ctx);
                 domain_inference.maybe_print_trace();
                 if let Err(e) = domain_inference_result {
                     result.push(Err(e));

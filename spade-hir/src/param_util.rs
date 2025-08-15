@@ -9,6 +9,7 @@ use spade_diagnostics::Diagnostic;
 
 use spade_common::{location_info::Loc, name::Identifier};
 
+use crate::domains::DomainName;
 use crate::expression::NamedArgument;
 use crate::{ArgumentList, ParameterList, TypeParam, TypeSpec};
 
@@ -126,17 +127,17 @@ pub enum ArgumentKind {
 pub struct Argument<'a, T, TypeLike> {
     pub target: &'a Loc<Identifier>,
     pub value: &'a Loc<T>,
-    pub target_type: &'a TypeLike,
+    pub target_type: TypeLike,
     pub kind: ArgumentKind,
 }
 
-pub struct ParameterListWrapper<'a, TypeLike>(Vec<(&'a Loc<Identifier>, &'a TypeLike)>);
+pub struct ParameterListWrapper<'a, TypeLike>(Vec<(&'a Loc<Identifier>, TypeLike)>);
 
 impl<'a, TypeLike> ParameterListWrapper<'a, TypeLike> {
-    fn try_get_arg_type(&self, name: &Identifier) -> Option<&'a TypeLike> {
+    fn try_get_arg_type(&'a self, name: &Identifier) -> Option<&'a TypeLike> {
         self.0.iter().find_map(|(aname, val)| {
             if &aname.inner == name {
-                Some(*val)
+                Some(val)
             } else {
                 None
             }
@@ -155,9 +156,9 @@ pub trait ParameterListLike<'a, TypeLike> {
     fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeLike>;
 }
 
-impl<'a> ParameterListLike<'a, TypeSpec> for ParameterList {
-    fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeSpec> {
-        ParameterListWrapper(self.0.iter().map(|p| (&p.name, &p.ty.inner)).collect())
+impl<'a> ParameterListLike<'a, (&'a DomainName, &'a TypeSpec)> for ParameterList {
+    fn as_listlike(&'a self) -> ParameterListWrapper<'a, (&'a DomainName, &'a TypeSpec)> {
+        ParameterListWrapper(self.0.iter().map(|p| (&p.name, (&p.domain, &p.ty.inner))).collect())
     }
 }
 
@@ -166,7 +167,7 @@ impl<'a> ParameterListLike<'a, ()> for &[Loc<TypeParam>] {
         ParameterListWrapper(
             self.iter()
                 .map(|p| match &p.inner {
-                    TypeParam { ident, .. } => (ident, &()),
+                    TypeParam { ident, .. } => (ident, ()),
                 })
                 .collect(),
         )
@@ -177,7 +178,7 @@ impl<'a> ParameterListLike<'a, ()> for &[Loc<TypeParam>] {
 /// the arguments match (correct amount of positional arguments, or unique mapping of named
 /// arguments), the mapping from argument to parameter is returned as a vector in positional order
 /// (but with named argument targets included for better diagnostics)
-pub fn match_args_with_params<'a, T: Clone, TypeLike>(
+pub fn match_args_with_params<'a, T: Clone, TypeLike: Clone>(
     arg_list: &'a Loc<ArgumentList<T>>,
     params: &'a impl ParameterListLike<'a, TypeLike>,
     is_method: bool,
@@ -252,7 +253,7 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                     bound.insert(target.clone());
 
                     let target_type = if let Some(t) = params.try_get_arg_type(&target.inner) {
-                        t
+                        t.clone()
                     } else {
                         return Err(ArgumentError::NoSuchArgument {
                             name: target.clone(),

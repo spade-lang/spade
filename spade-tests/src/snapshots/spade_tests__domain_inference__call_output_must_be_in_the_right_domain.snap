@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+fn func(a: bool) -> bool {true}
+
+fn test<'a, 'b>(a: 'a bool) -> 'b bool {
+    func(a)
+}
+
+
+error: Mixing signals in different domains
+  ┌─ testinput:3:40
+  │  
+3 │   fn test<'a, 'b>(a: 'a bool) -> 'b bool {
+  │                                     ---- This has domain 'b
+  │ ╭────────────────────────────────────────^
+4 │ │     func(a)
+5 │ │ }
+  │ ╰─^ This has domain 'a

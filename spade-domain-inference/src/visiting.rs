@@ -1,19 +1,26 @@
+use std::collections::HashMap;
+
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::diag_bail;
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{
     domains::{DomainConstraint, DomainName},
+    param_util::{match_args_with_params, Argument},
     pretty_debug::PrettyDebug,
     Binding, Expression, Parameter, Pattern, PatternArgument, Register, Statement, Unit,
 };
-use spade_typeinference::equation::TypeVarID;
+use spade_typeinference::{
+    equation::{TypeVar, TypeVarID},
+    HasType,
+};
+use spade_types::KnownType;
 
 use crate::{
-    domain_var::LocExt, tracing::TraceEntry, DomainState, DomainVar, DomainedExpression, HasDomain,
-    Result, TypeVarIDExt,
+    domain_var::LocExt, tracing::TraceEntry, Context, DomainState, DomainVar, DomainedExpression,
+    HasDomain, Result, TypeVarIDExt,
 };
 
 impl DomainState {
-    pub fn visit_unit(&mut self, unit: &Loc<Unit>) -> Result<()> {
+    pub fn visit_unit(&mut self, unit: &Loc<Unit>, ctx: &Context) -> Result<()> {
         let _t = self.trace_scope(|| TraceEntry::VisitingUnit(unit.name.to_string()));
 
         for domain in &unit.head.domains {
@@ -70,11 +77,12 @@ impl DomainState {
         self.check_expression(
             &unit.body,
             output_domain.at_loc(&unit.head.output_type().loc()),
+            ctx,
         )?;
         Ok(())
     }
 
-    fn visit_statement(&mut self, stmt: &Loc<Statement>) -> Result<()> {
+    fn visit_statement(&mut self, stmt: &Loc<Statement>, ctx: &Context) -> Result<()> {
         let _t = self.trace_scope(|| TraceEntry::VisitingStatement(stmt.pretty_debug()));
 
         match &stmt.inner {
@@ -85,13 +93,13 @@ impl DomainState {
                 value,
                 wal_trace: _,
             }) => {
-                let pattern_ty = self.synth_pattern(pattern)?;
-                self.check_expression(value, pattern_ty.at_loc(pattern))?;
+                let pattern_ty = self.synth_pattern(pattern, ctx)?;
+                self.check_expression(value, pattern_ty.at_loc(pattern), ctx)?;
 
                 Ok(())
             }
             Statement::Expression(expr) => {
-                self.synth_expression(expr)?;
+                self.synth_expression(expr, ctx)?;
                 Ok(())
             }
             Statement::Register(Register {
@@ -107,18 +115,18 @@ impl DomainState {
                 let value_domain =
                     self.new_with_constraints(vec![DomainConstraint::HasClock.at_loc(stmt)]);
 
-                self.check_expression(value, value_domain.at_loc(stmt))?;
-                self.check_expression(clock, value_domain.at_loc(value))?;
+                self.check_expression(value, value_domain.at_loc(stmt), ctx)?;
+                self.check_expression(clock, value_domain.at_loc(value), ctx)?;
 
                 if let Some((rst_trig, rst_val)) = reset {
-                    self.check_expression(rst_trig, value_domain.at_loc(value))?;
-                    self.check_expression(rst_val, value_domain.at_loc(value))?;
+                    self.check_expression(rst_trig, value_domain.at_loc(value), ctx)?;
+                    self.check_expression(rst_val, value_domain.at_loc(value), ctx)?;
                 }
                 if let Some(initial) = initial {
-                    self.check_expression(initial, value_domain.at_loc(value))?;
+                    self.check_expression(initial, value_domain.at_loc(value), ctx)?;
                 }
 
-                self.check_pattern(pattern, value_domain.at_loc(value))?;
+                self.check_pattern(pattern, value_domain.at_loc(value), ctx)?;
 
                 Ok(())
             }
@@ -136,15 +144,15 @@ impl DomainState {
             // cross domain things here
             Statement::Assert(_) => Ok(()),
             Statement::Set { target, value } => {
-                let value_domain = self.synth_expression(value)?;
-                self.check_expression(target, value_domain.at_loc(value))?;
+                let value_domain = self.synth_expression(value, ctx)?;
+                self.check_expression(target, value_domain.at_loc(value), ctx)?;
                 Ok(())
-            },
+            }
             Statement::WalSuffixed { .. } => Ok(()),
         }
     }
 
-    fn synth_pattern(&mut self, pattern: &Loc<Pattern>) -> Result<TypeVarID> {
+    fn synth_pattern(&mut self, pattern: &Loc<Pattern>, ctx: &Context) -> Result<TypeVarID> {
         let _t = self.trace_scope(|| TraceEntry::SynthPattern(pattern.pretty_debug()));
 
         let result = match &pattern.inner.kind {
@@ -164,9 +172,9 @@ impl DomainState {
                 if members.is_empty() {
                     self.new_any()
                 } else {
-                    let first_domain = self.synth_pattern(&members[0])?;
+                    let first_domain = self.synth_pattern(&members[0], ctx)?;
                     for member in &members[1..] {
-                        self.check_pattern(member, first_domain.at_loc(&members[0]))?;
+                        self.check_pattern(member, first_domain.at_loc(&members[0]), ctx)?;
                     }
                     first_domain
                 }
@@ -175,14 +183,14 @@ impl DomainState {
                 if args.is_empty() {
                     self.new_any()
                 } else {
-                    let first_domain = self.synth_pattern(&args[0].value)?;
+                    let first_domain = self.synth_pattern(&args[0].value, ctx)?;
                     for PatternArgument {
                         target: _,
                         value,
                         kind: _,
                     } in &args[1..]
                     {
-                        self.check_pattern(value, first_domain.at_loc(&args[0].value))?;
+                        self.check_pattern(value, first_domain.at_loc(&args[0].value), ctx)?;
                     }
                     first_domain
                 }
@@ -193,10 +201,15 @@ impl DomainState {
         Ok(result)
     }
 
-    fn check_pattern(&mut self, pattern: &Loc<Pattern>, expected: Loc<TypeVarID>) -> Result<()> {
+    fn check_pattern(
+        &mut self,
+        pattern: &Loc<Pattern>,
+        expected: Loc<TypeVarID>,
+        ctx: &Context,
+    ) -> Result<()> {
         let _t = self.trace_scope(|| TraceEntry::CheckPattern(pattern.pretty_debug()));
         // All patterns have a synthesizeable type if we look hard enough
-        let inner = self.synth_pattern(pattern)?;
+        let inner = self.synth_pattern(pattern, ctx)?;
 
         // NOTE: There is a potential for optimization here if we don't merge vars that are
         // the same
@@ -213,7 +226,7 @@ impl DomainState {
         Ok(())
     }
 
-    fn synth_expression(&mut self, expr: &Loc<Expression>) -> Result<TypeVarID> {
+    fn synth_expression(&mut self, expr: &Loc<Expression>, ctx: &Context) -> Result<TypeVarID> {
         let _t = self.trace_scope(|| TraceEntry::SynthExpr(expr.pretty_debug()));
         let result = match &expr.inner.kind {
             spade_hir::ExprKind::Error => Ok(self.error_domain.unwrap()),
@@ -229,9 +242,9 @@ impl DomainState {
                 if members.is_empty() {
                     Ok(self.new_any())
                 } else {
-                    let inner_domain = self.synth_expression(&members[0])?;
+                    let inner_domain = self.synth_expression(&members[0], ctx)?;
                     for member in &members[1..] {
-                        self.check_expression(member, inner_domain.at_loc(&members[0]))
+                        self.check_expression(member, inner_domain.at_loc(&members[0]), ctx)
                             .map_err(|e| e.help("All tuple members must be in the same domain"))?;
                     }
 
@@ -243,16 +256,18 @@ impl DomainState {
                 if members.is_empty() {
                     Ok(self.new_any())
                 } else {
-                    let inner_domain = self.synth_expression(&members[0])?;
+                    let inner_domain = self.synth_expression(&members[0], ctx)?;
                     for member in &members[1..] {
-                        self.check_expression(member, inner_domain.at_loc(&members[0]))
+                        self.check_expression(member, inner_domain.at_loc(&members[0]), ctx)
                             .map_err(|e| e.help("All array members must be in the same domain"))?;
                     }
 
                     Ok(inner_domain)
                 }
             }
-            spade_hir::ExprKind::ArrayShorthandLiteral(inner, _) => self.synth_expression(inner),
+            spade_hir::ExprKind::ArrayShorthandLiteral(inner, _) => {
+                self.synth_expression(inner, ctx)
+            }
 
             spade_hir::ExprKind::IntLiteral(_, _)
             | spade_hir::ExprKind::BoolLiteral(_)
@@ -265,53 +280,105 @@ impl DomainState {
             | spade_hir::ExprKind::RangeIndex { target: op, .. }
             | spade_hir::ExprKind::TupleIndex(op, _)
             | spade_hir::ExprKind::UnaryOperator(_, op)
-            | spade_hir::ExprKind::FieldAccess(op, _) => self.synth_expression(op),
+            | spade_hir::ExprKind::FieldAccess(op, _) => self.synth_expression(op, ctx),
 
             spade_hir::ExprKind::BinaryOperator(opa, _, opb) => {
-                let expected = self.synth_expression(opa)?;
-                self.check_expression(opb, expected.at_loc(opa))?;
+                let expected = self.synth_expression(opa, ctx)?;
+                self.check_expression(opb, expected.at_loc(opa), ctx)?;
                 Ok(expected)
             }
 
             // If we're in synthesis mode and find expressions which need checking,
             // we can return any since we can always fall back on the annonymous domain
             spade_hir::ExprKind::Call {
-                kind,
+                kind: _,
                 callee,
                 args,
-                turbofish,
-                safety,
-            } => todo!(),
+                turbofish: _,
+                safety: _,
+            } => {
+                let callee = ctx.symtab.unit_by_id(&callee);
+
+                let calee_domains = callee
+                    .domains
+                    .iter()
+                    .map(|dom| {
+                        (
+                            &dom.name,
+                            self.new_with_constraints(dom.constraints.clone()),
+                        )
+                    })
+                    .collect::<HashMap<_, _>>();
+
+                for Argument {
+                    target,
+                    value,
+                    target_type: (target_domain, _target_type),
+                    kind: _,
+                } in match_args_with_params(args, &callee.inputs.inner, false)?
+                {
+                    let domain = *calee_domains.get(target_domain).ok_or_else(|| {
+                        Diagnostic::bug(
+                            target,
+                            "The domain of this parameter is not in the domain list",
+                        )
+                    })?;
+
+                    self.check_expression(value, domain.at_loc(&target), ctx)?;
+                }
+
+                let output_domain = match &callee.output_type {
+                    Some((domain_name, _)) => *calee_domains.get(&domain_name).ok_or_else(|| Diagnostic::bug(&callee.name, "The output domain of this function was not declared in the domain list"))?,
+                    None => {
+                        self.new_any()
+                    }
+                };
+
+                Ok(output_domain)
+            }
 
             spade_hir::ExprKind::Match(cond, branches) => {
-                let expected = self.synth_expression(cond)?;
+                let expected = self.synth_expression(cond, ctx)?;
                 for (pat, val) in branches {
-                    self.check_pattern(pat, expected.at_loc(cond))?;
-                    self.check_expression(val, expected.at_loc(cond))?;
+                    self.check_pattern(pat, expected.at_loc(cond), ctx)?;
+                    self.check_expression(val, expected.at_loc(cond), ctx)?;
                 }
                 Ok(expected)
             }
             spade_hir::ExprKind::Block(block) => {
                 for statement in &block.statements {
-                    self.visit_statement(&statement)?;
+                    self.visit_statement(&statement, ctx)?;
                 }
                 if let Some(result) = &block.result {
-                    self.synth_expression(result)
+                    self.synth_expression(result, ctx)
                 } else {
                     Ok(self.new_any())
                 }
             }
             spade_hir::ExprKind::If(cond, on_true, on_false) => {
-                let expected = self.synth_expression(cond)?;
-                self.check_expression(on_true, expected.at_loc(cond))?;
-                self.check_expression(on_false, expected.at_loc(cond))?;
+                let expected = self.synth_expression(cond, ctx)?;
+                self.check_expression(on_true, expected.at_loc(cond), ctx)?;
+                self.check_expression(on_false, expected.at_loc(cond), ctx)?;
                 Ok(expected)
             }
-            spade_hir::ExprKind::TypeLevelIf(loc, loc1, loc2) => todo!(),
+            spade_hir::ExprKind::TypeLevelIf(cond, on_true, on_false) => {
+                match cond.get_type(ctx.types).resolve(ctx.types) {
+                    TypeVar::Known(_, KnownType::Bool(val), _) => {
+                        if *val {
+                            self.synth_expression(on_true, ctx)
+                        } else {
+                            self.synth_expression(on_false, ctx)
+                        }
+                    }
+                    _other => {
+                        diag_bail!(cond, "Found non-bool in gen if condition")
+                    }
+                }
+            }
             spade_hir::ExprKind::StageValid => todo!(),
             spade_hir::ExprKind::StageReady => todo!(),
-            spade_hir::ExprKind::StaticUnreachable(loc) => todo!(),
-            spade_hir::ExprKind::Null => todo!(),
+            spade_hir::ExprKind::StaticUnreachable(_) => Ok(self.new_any()),
+            spade_hir::ExprKind::Null => Ok(self.new_any()),
 
             spade_hir::ExprKind::MethodCall { .. } => {
                 diag_bail!(expr, "Method should be lowered already")
@@ -324,13 +391,18 @@ impl DomainState {
         Ok(result)
     }
 
-    fn check_expression(&mut self, expr: &Loc<Expression>, expected: Loc<TypeVarID>) -> Result<()> {
+    fn check_expression(
+        &mut self,
+        expr: &Loc<Expression>,
+        expected: Loc<TypeVarID>,
+        ctx: &Context,
+    ) -> Result<()> {
         let _t = self.trace_scope(|| TraceEntry::CheckExpr {
             expr: expr.inner.clone(),
             expected: expected.resolve_domain(self).clone(),
         });
         let self_domain = match &expr.inner.kind {
-            spade_hir::ExprKind::Error => self.synth_expression(expr),
+            spade_hir::ExprKind::Error => self.synth_expression(expr, ctx),
             spade_hir::ExprKind::Identifier(_) |
             // Pipeline refs are just spicy identifiers
             // NOTE: This only holds until pipelines get upgraded to domains
@@ -339,7 +411,7 @@ impl DomainState {
                 name: _,
                 declares_name: _,
                 depth_typeexpr_id: _,
-            } => self.synth_expression(expr),
+            } => self.synth_expression(expr, ctx),
 
             // Literals can be in any domain, so check cannot fail
             spade_hir::ExprKind::IntLiteral(_, _)
@@ -352,39 +424,33 @@ impl DomainState {
             // if they match, otherwise there is an error
             spade_hir::ExprKind::TupleLiteral(_) |
             spade_hir::ExprKind::ArrayLiteral(_) |
-            spade_hir::ExprKind::ArrayShorthandLiteral(_, _) => self.synth_expression(expr),
+            spade_hir::ExprKind::ArrayShorthandLiteral(_, _) => self.synth_expression(expr, ctx),
 
-            // TLif diverges depending on the branch taken in this function call. We need
-            // a type state to be available for this
-            spade_hir::ExprKind::TypeLevelIf(_, loc1, loc2) => todo!(),
+            spade_hir::ExprKind::TypeLevelIf(_, _, _) => self.synth_expression(expr, ctx),
 
             // Operators and friends have to have the same domain on all branches. We'll group
             // these based on their arity
             spade_hir::ExprKind::Index(_, _) |
             spade_hir::ExprKind::BinaryOperator(_, _, _) => {
-                self.synth_expression(expr)
+                self.synth_expression(expr, ctx)
             },
 
             spade_hir::ExprKind::UnaryOperator(_, op) |
             spade_hir::ExprKind::FieldAccess(op, _) |
             spade_hir::ExprKind::TupleIndex(op, _) |
             spade_hir::ExprKind::RangeIndex { target: op, start: _, end: _ } => {
-                self.synth_expression(op)
+                self.synth_expression(op, ctx)
             },
 
-            spade_hir::ExprKind::Match(_, _) => self.synth_expression(expr),
-            spade_hir::ExprKind::If(_, _, _) => self.synth_expression(expr),
+            spade_hir::ExprKind::Match(_, _) => self.synth_expression(expr, ctx),
+            spade_hir::ExprKind::If(_, _, _) => self.synth_expression(expr, ctx),
 
             // Functions are special and will need special treatment
             spade_hir::ExprKind::Call {
-                kind,
-                callee,
-                args,
-                turbofish,
-                safety,
-            } => todo!(),
+                ..
+            } => self.synth_expression(expr, ctx),
             // Visit the statements, then ensure that the result has the same type as the result
-            spade_hir::ExprKind::Block(_) => self.synth_expression(expr),
+            spade_hir::ExprKind::Block(_) => self.synth_expression(expr, ctx),
 
             // These have the same domain as the pipeline
             // NOTE: We need to enforce that
@@ -392,8 +458,8 @@ impl DomainState {
             spade_hir::ExprKind::StageReady => todo!(),
 
             // Weird expressions
-            spade_hir::ExprKind::StaticUnreachable(_) => Ok(self.new_any()),
-            spade_hir::ExprKind::Null => Ok(self.new_any()),
+            spade_hir::ExprKind::StaticUnreachable(_) => self.synth_expression(expr, ctx),
+            spade_hir::ExprKind::Null => self.synth_expression(expr, ctx),
 
             spade_hir::ExprKind::MethodCall { .. } => {
                 diag_bail!(expr, "Method should be lowered already")

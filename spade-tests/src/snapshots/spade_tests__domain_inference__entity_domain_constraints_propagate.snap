@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity func<'a: HasClock>(a: 'a bool) -> 'a bool {true}
+
+entity test<'a: NoClock>(a: 'a bool) -> 'a bool {
+    inst func(a)
+}
+
+
+error: Mixing a domain without clocks with one that requires a clock
+  ┌─ testinput:4:15
+  │
+1 │ entity func<'a: HasClock>(a: 'a bool) -> 'a bool {true}
+  │                 --------  - But this requires a clock to be present
+  │                 │          
+  │                 The clock is required here
+2 │ 
+3 │ entity test<'a: NoClock>(a: 'a bool) -> 'a bool {
+  │                 ------- The requirement to not have a clock comes from here
+4 │     inst func(a)
+  │               ^ This domain does not have a clock

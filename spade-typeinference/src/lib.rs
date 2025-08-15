@@ -26,6 +26,7 @@ use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
+use spade_hir::domains::DomainName;
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{unify_meta, MetaType};
 use trace_stack::TraceStack;
@@ -690,13 +691,13 @@ impl TypeState {
     #[trace_typechecker]
     fn type_check_argument_list(
         &mut self,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
         for Argument {
             target,
-            target_type,
+            target_type: (_target_domain, target_type),
             value,
             kind,
         } in args.iter()
@@ -1158,7 +1159,7 @@ impl TypeState {
         source_lhs_ty: TypeVarID,
         source_rhs_ty: TypeVarID,
         source_result_ty: TypeVarID,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &Context,
     ) -> Result<()> {
         let (lhs_type, lhs_size) = self.new_generic_number(expression_id.loc(), ctx);
@@ -1207,7 +1208,7 @@ impl TypeState {
         expression_id: Loc<ExprID>,
         source_in_ty: TypeVarID,
         source_result_ty: TypeVarID,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &Context,
     ) -> Result<()> {
         let (in_ty, _) = self.new_generic_number(expression_id.loc(), ctx);
@@ -1227,7 +1228,7 @@ impl TypeState {
     pub fn handle_comb_mod_or_div(
         &mut self,
         n_ty: TypeVarID,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &Context,
     ) -> Result<()> {
         let (num, _) = self.new_generic_number(args[0].value.loc(), ctx);
@@ -1240,7 +1241,7 @@ impl TypeState {
         &mut self,
         num_elements: TypeVarID,
         addr_size_arg: TypeVarID,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &Context,
     ) -> Result<()> {
         // FIXME: When we support where clauses, we should move this
@@ -1281,7 +1282,7 @@ impl TypeState {
         &mut self,
         num_elements: TypeVarID,
         addr_size_arg: TypeVarID,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &Context,
     ) -> Result<()> {
         let (addr_type, addr_size) = self.new_split_generic_uint(args[1].value.loc(), ctx.symtab);
@@ -1743,7 +1744,7 @@ impl TypeState {
                         ty: target_type,
                         no_mangle: _,
                         field_translator: _,
-                        domain: _
+                        domain: _,
                     },
                 ) in args.iter().zip(params.0.iter())
                 {
@@ -3238,5 +3239,11 @@ impl HasType for NameID {
         state
             .maybe_type_of(&TypedExpression::Name(self.clone()))
             .cloned()
+    }
+}
+
+impl HasType for ConstGenericWithId {
+    fn get_type_impl(&self, state: &TypeState) -> Option<TypeVarID> {
+        state.maybe_type_of(&TypedExpression::Id(self.id)).cloned()
     }
 }

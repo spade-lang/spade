@@ -240,3 +240,55 @@ snapshot_error! {
     ",
     false
 }
+
+snapshot_error! {
+    tlif_true_branch_checks_domains,
+    "
+        entity test<'a, 'b>(a: 'a bool) -> 'b bool {
+            gen if 1==1 {
+                a
+            } else {
+                true
+            }
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    tlif_false_branch_checks_domains,
+    "
+        entity test<'a, 'b>(a: 'a bool) -> 'b bool {
+            gen if 1 == 0 {
+                true
+            } else {
+                a
+            }
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    call_output_must_be_in_the_right_domain,
+    "
+        fn func(a: bool) -> bool {true}
+
+        fn test<'a, 'b>(a: 'a bool) -> 'b bool {
+            func(a)
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    entity_domain_constraints_propagate,
+    "
+        entity func<'a: HasClock>(a: 'a bool) -> 'a bool {true}
+
+        entity test<'a: NoClock>(a: 'a bool) -> 'a bool {
+            inst func(a)
+        }
+    ",
+    false
+}

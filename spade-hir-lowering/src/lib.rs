@@ -56,6 +56,7 @@ use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_assert, diag_bail, DiagHandler, Diagnostic};
+use spade_hir::domains::DomainName;
 use spade_hir::expression::Safety;
 use spade_hir::UnitHead;
 use spade_typeinference::equation::TypeVar;
@@ -2254,7 +2255,7 @@ impl ExprLocal for Loc<Expression> {
     fn handle_call(
         &self,
         name: &Loc<NameID>,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         unit_head: &Loc<UnitHead>,
         ctx: &mut Context,
     ) -> Result<StatementList> {
@@ -2592,7 +2593,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         self.handle_clocked_memory(result, args, ctx, false)
@@ -2602,7 +2603,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         self.handle_clocked_memory(result, args, ctx, true)
@@ -2611,7 +2612,7 @@ impl ExprLocal for Loc<Expression> {
     fn handle_clocked_memory(
         &self,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
         has_initial: bool,
     ) -> Result<StatementList> {
@@ -2691,7 +2692,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         // The localimpl macro is a bit stupid
@@ -2723,7 +2724,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -2770,7 +2771,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -2822,7 +2823,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -2873,7 +2874,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -2942,7 +2943,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -2989,7 +2990,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3017,7 +3018,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3045,7 +3046,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3073,7 +3074,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3101,7 +3102,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3140,7 +3141,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         _path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3179,7 +3180,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;
@@ -3209,7 +3210,7 @@ impl ExprLocal for Loc<Expression> {
         &self,
         path: &Loc<NameID>,
         result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
+        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = result;

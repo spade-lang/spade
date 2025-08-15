@@ -13,11 +13,11 @@ use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_diagnostics::{diag_list::DiagList, Diagnostic};
 use spade_hir::{
-    domains::DomainConstraint, Expression, Pattern
+    domains::DomainConstraint, symbol_table::SymbolTable, Expression, Pattern
 };
 use spade_typeinference::{
     equation::TypeVarID, replacement::ReplacementStack,
-    GenericListToken,
+    GenericListToken, TypeState,
 };
 use tracing::TraceEntry;
 
@@ -32,6 +32,12 @@ enum DomainedExpression {
 }
 
 type DomainEquations = HashMap<DomainedExpression, TypeVarID>;
+
+pub struct Context<'a> {
+    pub types: &'a TypeState,
+    pub symtab: &'a SymbolTable,
+}
+
 
 /// State of the type inference algorithm
 #[derive(Clone, Serialize, Deserialize)]
