@@ -59,6 +59,7 @@ impl IsPort for hir::TypeSpec {
                     diag_bail!(s, "Called is_port on self type while in a trait definition")
                 }
             },
+            spade_hir::TypeSpec::WithDomain(_, inner) => inner.is_port(ctx)?,
             spade_hir::TypeSpec::Wildcard(s) => diag_bail!(s, "Calling is_port on wildcard type"),
         };
         Ok(result)
@@ -102,6 +103,7 @@ impl IsInOut for hir::TypeSpec {
             spade_hir::TypeSpec::Array { .. } => false,
             spade_hir::TypeSpec::Inverted(_) => false,
             spade_hir::TypeSpec::Wire(_) => false,
+            spade_hir::TypeSpec::WithDomain(_, inner) => inner.is_inout(ctx)?,
             spade_hir::TypeSpec::TraitSelf(s) => match &ctx.self_ctx {
                 SelfContext::FreeStanding => diag_bail!(
                     s,

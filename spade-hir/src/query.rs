@@ -366,6 +366,7 @@ impl<'a> QueryCache {
             }
             TypeSpec::Inverted(inner) => self.visit_type_spec(inner),
             TypeSpec::Wire(inner) => self.visit_type_spec(inner),
+            TypeSpec::WithDomain(_, inner) => self.visit_type_spec(inner),
             TypeSpec::TraitSelf(_) => {}
             TypeSpec::Wildcard(_) => {}
         }

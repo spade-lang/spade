@@ -8,6 +8,7 @@ use spade_hir::{
     domains::{DomainConstraint, DomainName},
     pretty_debug::PrettyDebug,
 };
+use spade_typeinference::equation::TypeVarID;
 
 use crate::Result;
 
@@ -16,6 +17,7 @@ pub enum DomainVar {
     Error,
     Unknown(Vec<Loc<DomainConstraint>>),
     Known(DomainName, Vec<Loc<DomainConstraint>>),
+    Tuple(Vec<Loc<TypeVarID>>),
 }
 impl std::fmt::Debug for DomainVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -38,6 +40,16 @@ impl std::fmt::Debug for DomainVar {
                         .iter()
                         .map(|constraint| constraint.pretty_debug())
                         .join(" + ")
+                )
+            }
+            DomainVar::Tuple(members) => {
+                write!(
+                    f,
+                    "({})",
+                    members
+                        .iter()
+                        .map(|domain| format!("{domain:?}"))
+                        .join(", ")
                 )
             }
         }
@@ -108,6 +120,7 @@ fn check_and_merge_constraints(
 impl<D: Borrow<DomainVar>> LocExt<D> for Loc<D> {
     fn merge_domains<D2: Borrow<DomainVar>>(&self, other: &Loc<D2>) -> Result<DomainVar> {
         match (self.inner.borrow(), other.inner.borrow()) {
+            // Error merges with anything
             (DomainVar::Error, _) | (_, DomainVar::Error) => Ok(DomainVar::Error),
             (DomainVar::Unknown(e_constraints), DomainVar::Unknown(g_constraints)) => {
                 let new_constraints = check_and_merge_constraints(
@@ -118,6 +131,7 @@ impl<D: Borrow<DomainVar>> LocExt<D> for Loc<D> {
                 )?;
                 Ok(DomainVar::Unknown(new_constraints))
             }
+            // Unknown <=> Known is ok as long as there are not conflicting constraints
             (DomainVar::Unknown(e_constraints), DomainVar::Known(kdomain, g_constraints))
             | (DomainVar::Known(kdomain, e_constraints), DomainVar::Unknown(g_constraints)) => {
                 let new_constraints = check_and_merge_constraints(
@@ -129,6 +143,27 @@ impl<D: Borrow<DomainVar>> LocExt<D> for Loc<D> {
                 // TODO: Disallow constraints that are more restricitve than than what is specified
                 // on the domain
                 Ok(DomainVar::Known(kdomain.clone(), new_constraints))
+            }
+            // Unknown with tuple is OK if the constraints on the unknown are satisfied
+            // by _all_ tuple member domains, and Unkown is not Async since tuples cannot
+            // be stored in registers
+            (DomainVar::Unknown(u_constraints), DomainVar::Tuple(members))
+            | (DomainVar::Tuple(members), DomainVar::Unknown(u_constraints)) => {
+                if let Some(clock_constraint) = u_constraints
+                    .iter()
+                    .find(|c| c == DomainConstraint::HasClock)
+                {
+                    // If we have a clock constraint, we need to enforce the requirement that
+                    // all tuple members can be in the same domain. To do so, we will pick the
+                    // domain of the first member, replacing it with a placeholder Known domain
+                    // if it is 
+                    match members.as_slice() {
+                        [] => Ok(DomainVar::Unknown(u_constraints.clone())),
+                        [first, rest @ ..] => {
+                            
+                        }
+                    }
+                }
             }
             // TODO: Will we need to check the requirements for named domains?
             (DomainVar::Known(n1, _), DomainVar::Known(n2, _)) => {
@@ -174,3 +209,12 @@ impl<D: Borrow<DomainVar>> LocExt<D> for Loc<D> {
         }
     }
 }
+
+/*
+
+  {error} | anything else => {error}
+  {unknown} | {unknown} => Check for constraint compatibility, merge constraint list
+  {unknown} | {tuple} => Check for !Async, produce {tuple}
+  {known} | {tuple} => Merge {known} with all domains in the tuple, produce if successful {known}
+  {known} | {known} => Check for identical domains
+*/

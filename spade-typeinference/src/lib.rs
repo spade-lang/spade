@@ -339,6 +339,9 @@ impl TypeState {
                 let inner = self.type_var_from_hir(loc, inner, generic_list_token)?;
                 self.add_type_var(TypeVar::inverted(loc, inner))
             }
+            hir::TypeSpec::WithDomain(_domain, inner) => {
+                self.type_var_from_hir(loc, inner, generic_list_token)?
+            }
             hir::TypeSpec::Wildcard(_) => self.new_generic_any(),
             hir::TypeSpec::TraitSelf(_) => {
                 diag_bail!(
@@ -572,7 +575,7 @@ impl TypeState {
         self.visit_expression(&entity.body, ctx, &generic_list);
 
         // Ensure that the output type matches what the user specified, and unit otherwise
-        if let Some((_domain, output_type)) = &entity.head.output_type {
+        if let Some(output_type) = &entity.head.output_type {
             let tvar = self.type_var_from_hir(output_type.loc(), output_type, &generic_list)?;
 
             self.trace_stack.push(TraceStackEntry::Message(format!(
@@ -691,13 +694,13 @@ impl TypeState {
     #[trace_typechecker]
     fn type_check_argument_list(
         &mut self,
-        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
+        args: &[Argument<Expression, &TypeSpec>],
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
         for Argument {
             target,
-            target_type: (_target_domain, target_type),
+            target_type,
             value,
             kind,
         } in args.iter()
@@ -1137,7 +1140,7 @@ impl TypeState {
         let return_type = head
             .output_type
             .as_ref()
-            .map(|(_domain, o)| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
+            .map(|o| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
             .transpose()?
             .unwrap_or_else(|| {
                 self.add_type_var(TypeVar::Known(
@@ -1159,7 +1162,7 @@ impl TypeState {
         source_lhs_ty: TypeVarID,
         source_rhs_ty: TypeVarID,
         source_result_ty: TypeVarID,
-        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
+        args: &[Argument<Expression, &TypeSpec>],
         ctx: &Context,
     ) -> Result<()> {
         let (lhs_type, lhs_size) = self.new_generic_number(expression_id.loc(), ctx);
@@ -1208,7 +1211,7 @@ impl TypeState {
         expression_id: Loc<ExprID>,
         source_in_ty: TypeVarID,
         source_result_ty: TypeVarID,
-        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
+        args: &[Argument<Expression, &TypeSpec>],
         ctx: &Context,
     ) -> Result<()> {
         let (in_ty, _) = self.new_generic_number(expression_id.loc(), ctx);
@@ -1228,7 +1231,7 @@ impl TypeState {
     pub fn handle_comb_mod_or_div(
         &mut self,
         n_ty: TypeVarID,
-        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
+        args: &[Argument<Expression, &TypeSpec>],
         ctx: &Context,
     ) -> Result<()> {
         let (num, _) = self.new_generic_number(args[0].value.loc(), ctx);
@@ -1241,7 +1244,7 @@ impl TypeState {
         &mut self,
         num_elements: TypeVarID,
         addr_size_arg: TypeVarID,
-        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
+        args: &[Argument<Expression, &TypeSpec>],
         ctx: &Context,
     ) -> Result<()> {
         // FIXME: When we support where clauses, we should move this
@@ -1282,7 +1285,7 @@ impl TypeState {
         &mut self,
         num_elements: TypeVarID,
         addr_size_arg: TypeVarID,
-        args: &[Argument<Expression, (&DomainName, &TypeSpec)>],
+        args: &[Argument<Expression, &TypeSpec>],
         ctx: &Context,
     ) -> Result<()> {
         let (addr_type, addr_size) = self.new_split_generic_uint(args[1].value.loc(), ctx.symtab);
@@ -1744,7 +1747,6 @@ impl TypeState {
                         ty: target_type,
                         no_mangle: _,
                         field_translator: _,
-                        domain: _,
                     },
                 ) in args.iter().zip(params.0.iter())
                 {

@@ -962,14 +962,11 @@ impl<'a> Parser<'a> {
     ///
     /// name: Type
     #[trace_parser]
-    pub fn name_and_type(
-        &mut self,
-    ) -> Result<(Loc<Identifier>, Option<Loc<DomainName>>, Loc<TypeSpec>)> {
+    pub fn name_and_type(&mut self) -> Result<(Loc<Identifier>, Loc<TypeSpec>)> {
         let name = self.identifier()?;
         self.eat(&TokenKind::Colon)?;
-        let domain = self.parameter_domain()?;
         let t = self.type_spec()?;
-        Ok((name, domain, t))
+        Ok((name, t))
     }
 
     #[trace_parser]
@@ -1183,54 +1180,40 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn parameter(
-        &mut self,
-    ) -> Result<(
-        AttributeList,
-        Option<Loc<DomainName>>,
-        Loc<Identifier>,
-        Loc<TypeSpec>,
-    )> {
+    pub fn parameter(&mut self) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
         let attrs = self.attributes()?;
-        let (name, domain, ty) = self.name_and_type()?;
-        Ok((attrs, domain, name, ty))
+        let (name, ty) = self.name_and_type()?;
+        Ok((attrs, name, ty))
     }
 
     #[trace_parser]
     pub fn parameter_list(&mut self) -> Result<ParameterList> {
-        let mut leading_domain = self.parameter_domain()?;
-        let self_ = if self.peek_cond(
-            |tok| tok == &TokenKind::Identifier(String::from("self")),
-            "Expected argument",
-        )? {
-            let self_tok = self.eat_unconditional()?;
-            self.peek_and_eat(&TokenKind::Comma)?;
-            Some((leading_domain.take(), ().at(self.file_id, &self_tok)))
-        } else {
-            None
+        let self_ = match (
+            self.parameter_domain()?,
+            self.peek_cond(
+                |tok| tok == &TokenKind::Identifier(String::from("self")),
+                "Expected argument",
+            )?,
+        ) {
+            (None, false) => None,
+            (Some(domain), false) => {
+                // TODO: Add a test for this
+                return Err(
+                    Diagnostic::error(self.peek()?, "Expected self after leading domain")
+                        .primary_label("Expected self")
+                        .secondary_label(domain, "Because of this domain"),
+                );
+            }
+            (mut self_domain, true) => {
+                let self_tok = self.eat_unconditional()?;
+                self.peek_and_eat(&TokenKind::Comma)?;
+                Some((self_domain.take(), ().at(self.file_id, &self_tok)))
+            }
         };
 
-        let mut args = self
+        let args = self
             .comma_separated(Self::parameter, &TokenKind::CloseParen)
             .no_context()?;
-
-        match (leading_domain, args.as_mut_slice()) {
-            (None, _) => {}
-            (Some(first), [(_, Some(second), _, _), ..]) => {
-                return Err(Diagnostic::error(
-                    &*second,
-                    "A signal can only belong to a single domain",
-                )
-                .primary_label("Second domain specified here")
-                .secondary_label(first, "First domain specified here")
-                .span_suggest_remove("Consider removing the second domain", &*second))
-            }
-            (Some(first), [(_, other, _, _), ..]) => *other = Some(first),
-            (Some(dom), []) => {
-                return Err(Diagnostic::error(dom, "Expected identifier after domain")
-                    .primary_label("Expected identifier"));
-            }
-        };
 
         Ok(ParameterList { self_, args })
     }
@@ -1429,7 +1412,7 @@ impl<'a> Parser<'a> {
 
         // Return type
         let output_type = if let Some(arrow) = self.peek_and_eat(&TokenKind::SlimArrow)? {
-            Some((arrow.loc(), self.parameter_domain()?, self.type_spec()?))
+            Some((arrow.loc(), self.type_spec()?))
         } else {
             None
         };
@@ -1438,7 +1421,7 @@ impl<'a> Parser<'a> {
 
         let end = output_type
             .as_ref()
-            .map(|o| o.2.loc())
+            .map(|o| o.1.loc())
             .unwrap_or(inputs.loc());
 
         Ok(Some(

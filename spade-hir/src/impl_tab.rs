@@ -112,6 +112,9 @@ pub fn type_specs_overlap(l: &TypeSpec, r: &TypeSpec) -> bool {
         (TypeSpec::Inverted(linner), TypeSpec::Inverted(rinner)) => {
             type_specs_overlap(&linner.inner, &rinner.inner)
         }
+        (TypeSpec::WithDomain(_, l), TypeSpec::WithDomain(_, r)) => type_specs_overlap(l, r),
+        (TypeSpec::WithDomain(_, l), r) => type_specs_overlap(l, r),
+        (l, TypeSpec::WithDomain(_, r)) => type_specs_overlap(l, r),
         (TypeSpec::Inverted(_), _) => todo!(),
         (TypeSpec::Wire(linner), TypeSpec::Wire(rinner)) => type_specs_overlap(linner, rinner),
         (TypeSpec::Wire(_), _) => false,

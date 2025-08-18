@@ -600,6 +600,16 @@ pub fn visit_type_spec(
                 | TypeSpecKind::BindingType => Ok(hir::TypeSpec::Wildcard(t.loc())),
             }
         }
+        ast::TypeSpec::WithDomain(ast_domain, inner) => {
+            let (domain, _) = ctx
+                .symtab
+                .lookup_domain(&Path(vec![ast_domain.0.clone().at_loc(ast_domain)]).at_loc(ast_domain))?;
+
+            Ok(hir::TypeSpec::WithDomain(
+                hir::domains::DomainName::Named(domain.at_loc(ast_domain)).at_loc(ast_domain),
+                Box::new(visit_type_spec(inner, kind, ctx)?),
+            ))
+        }
     };
 
     Ok(result?.at_loc(t))
@@ -657,7 +667,6 @@ fn visit_parameter_list(
                 name: Identifier(String::from("self")).at_loc(&self_loc),
                 ty: spec.clone(),
                 field_translator: None,
-                domain,
             }),
             // When visiting trait definitions, we don't need to add self to the
             // symtab at all since we won't be visiting unit bodies here.
@@ -667,7 +676,6 @@ fn visit_parameter_list(
                 name: Identifier(String::from("self")).at_loc(&self_loc),
                 ty: hir::TypeSpec::TraitSelf(self_loc.clone()).at_loc(&self_loc),
                 field_translator: None,
-                domain,
             }),
         }
     }
@@ -698,7 +706,6 @@ fn visit_parameter_list(
             ty: t,
             no_mangle,
             field_translator,
-            domain,
         });
     }
     Ok(hir::ParameterList(result).at_loc(l))
@@ -916,12 +923,10 @@ pub fn unit_head(
 
     let unit_where_clauses = visit_where_clauses(&head.where_clauses, ctx);
 
-    let output_type = if let Some((_, domain, ty)) = &head.output_type {
-        let domain = visit_parameter_domain(domain, ty.loc(), ty.loc(), &domains, ctx)?;
-        Some((
-            domain,
+    let output_type = if let Some((_, ty)) = &head.output_type {
+        Some(
             visit_type_spec(&ty, &TypeSpecKind::OutputType, ctx)?,
-        ))
+        )
     } else {
         None
     };
@@ -937,15 +942,14 @@ pub fn unit_head(
     if no_mangle_all.is_some()
         && output_type
             .as_ref()
-            .map(|(_domain, output_type)| {
+            .map(|output_type| {
                 !(matches!(&**output_type, TypeSpec::Tuple(inner) if inner.is_empty()))
             })
             .unwrap_or(false)
     {
         return Err(build_no_mangle_all_output_diagnostic(
             head,
-            // TODO: Handle domain
-            output_type.as_ref().map(|(_domain, ty)| ty).unwrap(),
+            output_type.as_ref().map(|ty| ty).unwrap(),
             body_for_diagnostics,
         ));
     }
@@ -1364,7 +1368,6 @@ pub fn visit_unit(
                  ty,
                  no_mangle: _,
                  field_translator: _,
-                 domain: _,
              }| {
                 (
                     ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
@@ -1654,7 +1657,6 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                  ty: _,
                                  no_mangle: _,
                                  field_translator: _,
-                                 domain: _,
                              }| ident.inner.clone(),
                         )
                         .collect::<HashSet<_>>();

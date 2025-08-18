@@ -79,8 +79,8 @@ impl PrettyDebug for Unit {
                     name.name_id().pretty_debug(),
                     type_params,
                     inputs,
-                    output_type.as_ref().map(|(domain, ty)| {
-                        format!("-> {} {}", domain.pretty_debug(), ty.pretty_debug())
+                    output_type.as_ref().map(|ty| {
+                        format!("-> {}", ty.pretty_debug())
                     }).unwrap_or_default()
                 );
             [1] format!("where: {}", where_clauses.iter().map(PrettyDebug::pretty_debug).join(", "));
@@ -187,6 +187,7 @@ impl PrettyDebug for TypeSpec {
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_debug()),
             TypeSpec::Wire(inner) => format!("&{}", inner.pretty_debug()),
             TypeSpec::TraitSelf(_) => format!("TraitSelf"),
+            TypeSpec::WithDomain(domain, inner) => format!("{domain} {inner}"),
             TypeSpec::Wildcard(_) => format!("_"),
         }
     }

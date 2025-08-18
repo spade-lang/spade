@@ -56,6 +56,7 @@ pub enum TypeSpec {
     /// If applied to a struct port, all fields are inverted.
     Inverted(Box<Loc<TypeExpression>>),
     Wire(Box<Loc<TypeExpression>>),
+    WithDomain(Loc<DomainName>, Box<Loc<TypeSpec>>),
     Wildcard,
 }
 
@@ -75,6 +76,7 @@ impl std::fmt::Display for TypeSpec {
             }
             TypeSpec::Inverted(inner) => write!(f, "inv {inner}"),
             TypeSpec::Wire(inner) => write!(f, "&{inner}"),
+            TypeSpec::WithDomain(domain, inner) => write!(f, "{domain} {inner}"),
             TypeSpec::Wildcard => write!(f, "_"),
         }
     }
@@ -587,12 +589,17 @@ impl AttributeList {
 #[derive(PartialEq, Debug, Clone)]
 pub struct DomainName(pub Identifier);
 
+impl std::fmt::Display for DomainName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct ParameterList {
     pub self_: Option<(Option<Loc<DomainName>>, Loc<()>)>,
     pub args: Vec<(
         AttributeList,
-        Option<Loc<DomainName>>,
         Loc<Identifier>,
         Loc<TypeSpec>,
     )>,
@@ -602,7 +609,6 @@ impl ParameterList {
     pub fn without_self(
         args: Vec<(
             AttributeList,
-            Option<Loc<DomainName>>,
             Loc<Identifier>,
             Loc<TypeSpec>,
         )>,
@@ -613,13 +619,13 @@ impl ParameterList {
     pub fn with_self(
         self_: Loc<()>,
         self_domain: Option<Loc<DomainName>>,
-        args: Vec<(Option<Loc<DomainName>>, Loc<Identifier>, Loc<TypeSpec>)>,
+        args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>,
     ) -> Self {
         Self {
             self_: Some((self_domain, self_)),
             args: args
                 .into_iter()
-                .map(|(n, d, t)| (AttributeList::empty(), n, d, t))
+                .map(|(n, t)| (AttributeList::empty(), n, t))
                 .collect(),
         }
     }
@@ -660,7 +666,7 @@ pub struct UnitHead {
     pub unit_kind: Loc<UnitKind>,
     pub name: Loc<Identifier>,
     pub inputs: Loc<ParameterList>,
-    pub output_type: Option<(Loc<()>, Option<Loc<DomainName>>, Loc<TypeSpec>)>,
+    pub output_type: Option<(Loc<()>, Loc<TypeSpec>)>,
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
 }

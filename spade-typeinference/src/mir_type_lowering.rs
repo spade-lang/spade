@@ -140,7 +140,6 @@ impl TypeState {
                              ty: t,
                              no_mangle: _,
                              field_translator: _,
-                             domain: _,
                          }| {
                             (
                                 ident.inner.clone(),
@@ -293,6 +292,9 @@ impl TypeState {
                 // reaching another inversion, go back to the normal direction
                 !invert,
             ),
+            TypeSpec::WithDomain(_, inner) => {
+                Self::type_spec_to_concrete(inner, type_list, generic_substitutions, invert)
+            }
             TypeSpec::TraitSelf(_) => panic!("Trying to concretize HIR TraitSelf type"),
             TypeSpec::Wildcard(_) => panic!("Trying to concretize HIR Wildcard type"),
         }

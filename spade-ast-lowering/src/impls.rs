@@ -300,6 +300,12 @@ pub fn get_impl_target(
             )
             .primary_label("Impl target cannot be a tuple"));
         }
+        ast::TypeSpec::WithDomain(domain, _inner) => {
+            return Err(Diagnostic::error(
+                domain,
+                "Domains are not currently supportedd in impl blocks",
+            ));
+        }
     }
 }
 
@@ -695,30 +701,14 @@ fn check_params_for_impl_method_and_trait_method_match(
                     ty: i_spec,
                     no_mangle: _,
                     field_translator: _,
-                    domain: i_domain,
                 },
                 hir::Parameter {
                     name: t_name,
                     ty: t_spec,
                     no_mangle: _,
                     field_translator: _,
-                    domain: t_domain,
                 },
             ) => {
-                // This is easy to support, we just need to do matching of domains, but in the
-                // interest of getting a domain MVP in, we'll leave it like this
-                match (i_domain, t_domain) {
-                    (DomainName::Annonymous, DomainName::Annonymous) => {}
-                    (DomainName::Named(loc), DomainName::Annonymous)
-                    | (DomainName::Named(loc), DomainName::Named(_))
-                    | (DomainName::Annonymous, DomainName::Named(loc)) => {
-                        return Err(Diagnostic::error(
-                            loc,
-                            "Domains are not currently supported in trait impls",
-                        )
-                        .primary_label("Domain in impl block"))
-                    }
-                }
                 if i_name != t_name {
                     return Err(Diagnostic::error(i_name, "Argument name mismatch")
                         .primary_label(format!("Expected `{t_name}`"))
@@ -743,7 +733,6 @@ fn check_params_for_impl_method_and_trait_method_match(
                 ty: _,
                 no_mangle: _,
                 field_translator: _,
-                domain: _,
             }) => {
                 return Err(
                     Diagnostic::error(name, "Trait method does not have this argument")
@@ -756,7 +745,6 @@ fn check_params_for_impl_method_and_trait_method_match(
                 ty: _,
                 no_mangle: _,
                 field_translator: _,
-                domain: _,
             }) => {
                 return Err(Diagnostic::error(
                     &impl_method.inputs,
@@ -819,8 +807,6 @@ fn map_trait_method_parameters(
                     ty,
                     no_mangle: param.no_mangle,
                     field_translator: None,
-                    // TODO: I don't know if this is the right thing to do, probablby not
-                    domain: param.domain.clone(),
                 })
             })
             .collect::<Result<_>>()
@@ -830,7 +816,7 @@ fn map_trait_method_parameters(
     let output_type = if let Some(ty) = trait_method.output_type.as_ref() {
         Some(map_type_spec_to_trait(
             // TODO: Handle domains
-            &ty.1,
+            &ty,
             trait_type_params.as_slice(),
             trait_method_type_params.as_slice(),
             impl_type_params.as_slice(),
@@ -844,7 +830,7 @@ fn map_trait_method_parameters(
     Ok(hir::UnitHead {
         inputs,
         // TODO: Handle domains
-        output_type: output_type.map(|output_type| (DomainName::Annonymous, output_type)),
+        output_type,
         ..trait_method.clone()
     })
 }

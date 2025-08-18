@@ -7,6 +7,14 @@ pub enum DomainName {
     Named(Loc<NameID>),
 }
 
+impl std::fmt::Display for DomainName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DomainName::Annonymous => write!(f, "'_"),
+            DomainName::Named(name) => write!(f, "'{name}"),
+        }
+    }
+}
 /**
   Constraints placed on a domain to make it more restrictive than the default domain
   which has:

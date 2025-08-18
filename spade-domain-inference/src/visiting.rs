@@ -6,7 +6,7 @@ use spade_hir::{
     domains::{DomainConstraint, DomainName},
     param_util::{match_args_with_params, Argument},
     pretty_debug::PrettyDebug,
-    Binding, Expression, Parameter, Pattern, PatternArgument, Register, Statement, Unit,
+    Binding, Expression, Parameter, Pattern, PatternArgument, Register, Statement, TypeSpec, Unit,
 };
 use spade_typeinference::{
     equation::{TypeVar, TypeVarID},
@@ -28,70 +28,72 @@ impl DomainState {
     pub fn visit_unit_inner(&mut self, unit: &Loc<Unit>, ctx: &Context) -> Result<()> {
         let _t = self.trace_scope(|| TraceEntry::VisitingUnit(unit.name.to_string()));
 
-        for domain in &unit.head.domains {
-            let var = self.add_domain_var(DomainVar::Known(
-                domain.name.clone(),
-                domain.constraints.clone(),
-            ));
-            let name = match &domain.name {
-                DomainName::Annonymous => DomainedExpression::AnnonymousOuter(unit.head.name.loc()),
-                DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
-            };
-            self.equations.insert(name, var);
-        }
-
-        if unit.head.unit_kind.is_pipeline() {
-            let dexpr = match &unit
-                .head
-                .inputs
-                .0
-                .first()
-                .map(|i| &i.domain)
-                .ok_or_else(|| Diagnostic::bug(unit, "Pipeline without arguments"))?
-            {
-                DomainName::Annonymous => DomainedExpression::AnnonymousOuter(unit.head.name.loc()),
-                DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
-            };
-
-            let pipeline_domain = dexpr.get_domain(self);
-            match pipeline_domain.resolve_domain(self) {
-                DomainVar::Error => {}
-                DomainVar::Unknown(_) => {
-                    diag_bail!(&unit.head.name, "First argument had unknown domain")
-                }
-                DomainVar::Known(_, constraints) => {
-                    if let Some(c) = constraints
-                        .iter()
-                        .find(|c| matches!(c.inner, DomainConstraint::NoClock))
-                    {
-                        self.diags.push(Diagnostic::error(
-                            c,
-                            "The domain of a pipeline cannot be NoClock",
-                        ))
+        let outer_domain_map = unit
+            .head
+            .domains
+            .iter()
+            .map(|domain| {
+                let var = self.add_domain_var(DomainVar::Known(
+                    domain.name.clone(),
+                    domain.constraints.clone(),
+                ));
+                let name = match &domain.name {
+                    DomainName::Annonymous => {
+                        DomainedExpression::AnnonymousOuter(unit.head.name.loc())
                     }
-                }
-            }
-            self.pipeline_domain = Some(pipeline_domain)
-        }
+                    DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
+                };
+                self.equations.insert(name, var);
+                (domain.name, var)
+            })
+            .collect::<HashMap<_, _>>();
+
+        // TODO: Pipeline requirements
+        // if unit.head.unit_kind.is_pipeline() {
+        //     let dexpr = match &unit
+        //         .head
+        //         .inputs
+        //         .0
+        //         .first()
+        //         .map(|i| &i.domain)
+        //         .ok_or_else(|| Diagnostic::bug(unit, "Pipeline without arguments"))?
+        //     {
+        //         DomainName::Annonymous => DomainedExpression::AnnonymousOuter(unit.head.name.loc()),
+        //         DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
+        //     };
+
+        //     let pipeline_domain = dexpr.get_domain(self);
+        //     match pipeline_domain.resolve_domain(self) {
+        //         DomainVar::Error => {}
+        //         DomainVar::Unknown(_) => {
+        //             diag_bail!(&unit.head.name, "First argument had unknown domain")
+        //         }
+        //         DomainVar::Known(_, constraints) => {
+        //             if let Some(c) = constraints
+        //                 .iter()
+        //                 .find(|c| matches!(c.inner, DomainConstraint::NoClock))
+        //             {
+        //                 self.diags.push(Diagnostic::error(
+        //                     c,
+        //                     "The domain of a pipeline cannot be NoClock",
+        //                 ))
+        //             }
+        //         }
+        //     }
+        //     self.pipeline_domain = Some(pipeline_domain)
+        // }
 
         for (
             Parameter {
                 no_mangle: _,
                 name: _,
-                ty: _,
-                domain,
+                ty,
                 field_translator: _,
             },
             (name_id, _),
         ) in unit.head.inputs.0.iter().zip(unit.inputs.iter())
         {
-            let dexpr = match &domain {
-                DomainName::Annonymous => DomainedExpression::AnnonymousOuter(unit.head.name.loc()),
-                DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
-            };
-
-            dexpr
-                .get_domain(self)
+            self.type_spec_to_domain_var(ty, None, &outer_domain_map)?
                 .insert_for_domained(DomainedExpression::Name(name_id.inner.clone()), self);
         }
 
@@ -99,18 +101,12 @@ impl DomainState {
             .head
             .output_type
             .as_ref()
-            .map(|(domain, _)| {
-                match domain {
-                    DomainName::Annonymous => {
-                        DomainedExpression::AnnonymousOuter(unit.head.name.loc())
-                    }
-                    DomainName::Named(name) => DomainedExpression::Name(name.inner.clone()),
-                }
-                .get_domain(self)
+            .map(|ty| {
+                self.type_spec_to_domain_var(ty, None, &outer_domain_map)
             })
-            // If there is no output type, we can support any domain for the "output" since
-            // there will not be an output
-            .unwrap_or_else(|| self.new_any());
+            .transpose()?
+            // TODO: I think we need to use new_const here because of the subtyping issues
+            .unwrap_or(self.new_any());
 
         // TODO: That Loc is all wrong
         self.check_expression(
@@ -526,5 +522,54 @@ impl DomainState {
         self.replace(self_domain, merged_id);
 
         Ok(())
+    }
+
+    /// Converts a type spec to a domain var using the domain mapping in `domains`, which
+    /// is used to map the domains of units (either outer or inner) to the corresponding type var
+    fn type_spec_to_domain_var(
+        &mut self,
+        spec: &Loc<TypeSpec>,
+        // If we have an outer domain, i.e. `'a (...)`
+        outer_domain: Option<Loc<TypeVarID>>,
+        domains: &HashMap<DomainName, TypeVarID>,
+    ) -> Result<TypeVarID> {
+        match &spec.inner {
+            TypeSpec::Tuple(members) => {
+                let subdomains = members
+                    .iter()
+                    .map(|member| {
+                        self.type_spec_to_domain_var(member, outer_domain, domains)
+                            .map(|dom| dom.at_loc(member))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(self.add_domain_var(DomainVar::Tuple(subdomains)))
+            }
+            TypeSpec::WithDomain(domain, _) => {
+                // If we have an explicitly stated domain in an outside scope like 'a (T1, T2)
+                // then we need to disallow further specification like 'a (T1, 'b T2)
+                domains
+                    .get(&domain.inner)
+                    .ok_or_else(|| Diagnostic::bug(spec, "Did not find domain for this type spec"))
+                    .copied()
+            }
+
+            // Everything non-tuple for now is in a single domain
+            TypeSpec::Declared(_, _)
+            | TypeSpec::Generic(_)
+            | TypeSpec::Array { inner: _, size: _ }
+            | TypeSpec::Inverted(_)
+            | TypeSpec::Wire(_)
+            | TypeSpec::TraitSelf(_)
+            | TypeSpec::Wildcard(_) => domains
+                .get(&DomainName::Annonymous)
+                .ok_or_else(|| {
+                    Diagnostic::bug(
+                        spec,
+                        "Did not find a domain mapping for the annonymous domain",
+                    )
+                })
+                .copied(),
+        }
     }
 }

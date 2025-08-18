@@ -455,15 +455,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .unwrap_or(Ok(vec![]))?;
 
                 // Ensure that we don't have any port or inout types in the enum variants
-                for (_, domain, _, ty) in args {
-                    if let Some(domain) = domain {
-                        return Err(Diagnostic::error(
-                            &domain,
-                            "Enum variant members cannot have domains",
-                        )
-                        .primary_label("Domain for enum variant member")
-                        .span_suggest_remove("Consider removing the domain", domain));
-                    }
+                for (_, _, ty) in args {
+                    // TODO: Disallow domains in these type specs
                     let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
                     if ty.is_port(&ctx)? {
                         return Err(Diagnostic::error(ty, "Port in enum")
@@ -553,14 +546,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
 
             // Disallow normal arguments if the struct is a port, and port types
             // if it is not
-            for (_, domain, f, ty) in &s.members.args {
-                if let Some(domain) = domain {
-                    return Err(
-                        Diagnostic::error(domain, "Struct members cannot have domains")
-                            .primary_label("Domain for struct member")
-                            .span_suggest_remove("Consider removing the domain", domain),
-                    );
-                }
+            for (_, f, ty) in &s.members.args {
+                // TODO: Disallow domains
                 let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
                 if hir_ty.is_inout(ctx)? {
                     return Err(Diagnostic::error(ty, "Inout in struct")

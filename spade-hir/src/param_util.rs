@@ -156,12 +156,12 @@ pub trait ParameterListLike<'a, TypeLike> {
     fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeLike>;
 }
 
-impl<'a> ParameterListLike<'a, (&'a DomainName, &'a TypeSpec)> for ParameterList {
-    fn as_listlike(&'a self) -> ParameterListWrapper<'a, (&'a DomainName, &'a TypeSpec)> {
+impl<'a> ParameterListLike<'a, &'a TypeSpec> for ParameterList {
+    fn as_listlike(&'a self) -> ParameterListWrapper<'a, &'a TypeSpec> {
         ParameterListWrapper(
             self.0
                 .iter()
-                .map(|p| (&p.name, (&p.domain, &p.ty.inner)))
+                .map(|p| (&p.name, &p.ty.inner))
                 .collect(),
         )
     }

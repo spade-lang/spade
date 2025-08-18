@@ -294,6 +294,7 @@ pub enum TypeSpec {
     },
     Inverted(Box<Loc<TypeSpec>>),
     Wire(Box<Loc<TypeSpec>>),
+    WithDomain(Loc<DomainName>, Box<Loc<TypeSpec>>),
     /// The type of the `self` parameter in a trait method spec. Should not
     /// occur in non-traits. The Loc is only used for diag_bails, so an approximate
     /// reference is fine.
@@ -322,6 +323,8 @@ impl TypeSpec {
             }
             TypeSpec::Inverted(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
             TypeSpec::Wire(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
+            // TODO: I have no idea what this function does or if this is the right implmentation
+            TypeSpec::WithDomain(_domain, inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
             TypeSpec::TraitSelf(_) => vec![],
             TypeSpec::Wildcard(_) => vec![],
         }
@@ -355,6 +358,9 @@ impl TypeSpec {
                 }
                 TypeSpec::Wire(inner) => {
                     TypeSpec::Wire(Box::new(inner.map(|s| s.replace_in(from, to))))
+                }
+                TypeSpec::WithDomain(domain, inner) => {
+                    TypeSpec::WithDomain(domain, Box::new(inner.map(|s| s.replace_in(from, to))))
                 }
                 TypeSpec::TraitSelf(_) => self,
                 TypeSpec::Wildcard(_) => self,
@@ -395,6 +401,7 @@ impl std::fmt::Display for TypeSpec {
             TypeSpec::Array { inner, size } => format!("[{inner}; {size}]"),
             TypeSpec::Inverted(inner) => format!("~{inner}"),
             TypeSpec::Wire(inner) => format!("&{inner}"),
+            TypeSpec::WithDomain(domain, inner) => format!("{domain} {inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),
             TypeSpec::Wildcard(_) => "_".into(),
         };
@@ -580,7 +587,6 @@ pub struct Parameter {
     pub no_mangle: Option<Loc<()>>,
     pub name: Loc<Identifier>,
     pub ty: Loc<TypeSpec>,
-    pub domain: DomainName,
     pub field_translator: Option<String>,
 }
 
@@ -611,7 +617,6 @@ impl ParameterList {
             ty,
             no_mangle: _,
             field_translator: _,
-            domain: _,
         } in &self.0
         {
             if &arg.inner == name {
@@ -634,7 +639,6 @@ impl ParameterList {
                         ty: _,
                         no_mangle: _,
                         field_translator: _,
-                        domain: _,
                     },
                 )| {
                     if &name.inner == target {
@@ -694,13 +698,13 @@ impl UnitKind {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct UnitHead {
     pub name: Loc<Identifier>,
+    pub domains: Vec<Domain>,
     pub inputs: Loc<ParameterList>,
     pub is_nonstatic_method: bool,
     /// (-> token, type)
-    pub output_type: Option<(DomainName, Loc<TypeSpec>)>,
+    pub output_type: Option<Loc<TypeSpec>>,
     pub unit_type_params: Vec<Loc<TypeParam>>,
     pub scope_type_params: Vec<Loc<TypeParam>>,
-    pub domains: Vec<Domain>,
     pub unit_kind: Loc<UnitKind>,
     pub where_clauses: Vec<Loc<WhereClause>>,
     pub unsafe_marker: Option<Loc<()>>,
@@ -710,7 +714,7 @@ pub struct UnitHead {
 impl UnitHead {
     pub fn output_type(&self) -> Loc<TypeSpec> {
         match &self.output_type {
-            Some((_domain, t)) => t.clone(),
+            Some(t) => t.clone(),
             None => {
                 // FIXME: We should point to the end of the argument list here
                 TypeSpec::unit().at_loc(&self.name.loc())

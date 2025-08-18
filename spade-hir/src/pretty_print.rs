@@ -180,6 +180,7 @@ impl PrettyPrint for TypeSpec {
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_print()),
             TypeSpec::Wire(inner) => format!("&{}", inner.pretty_print()),
             TypeSpec::TraitSelf(_) => format!("self"),
+            TypeSpec::WithDomain(domain, inner) => format!("{domain} {inner}"),
             TypeSpec::Wildcard(_) => format!("_"),
         }
     }
@@ -236,17 +237,16 @@ impl PrettyPrint for UnitHead {
             output_type,
             unit_type_params,
             scope_type_params: _,
+            unit_kind,
             // TODO: Actually print domains
             domains: _,
-            unit_kind,
             where_clauses: _,
             unsafe_marker,
             documentation: _,
         } = self;
         let output_type = match output_type {
-            Some((output_domain, output_type)) => format!(
-                " -> {} {}",
-                output_domain.pretty_print(),
+            Some(output_type) => format!(
+                " -> {}",
                 output_type.pretty_print()
             ),
             None => "".to_string(),
@@ -286,17 +286,12 @@ impl PrettyPrint for Parameter {
             field_translator: _,
             name,
             ty,
-            domain,
         } = self;
 
         format!(
-            "{}: {}{}",
+            "{}: {}",
             name.pretty_print(),
             ty.pretty_print(),
-            match domain {
-                crate::domains::DomainName::Annonymous => format!(""),
-                crate::domains::DomainName::Named(name) => format!("'{name} "),
-            }
         )
     }
 }

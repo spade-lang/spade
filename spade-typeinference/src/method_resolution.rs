@@ -286,6 +286,7 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVarID, type_state: &TypeState)
         }
         (TypeSpec::Inverted(_), _) => Overlap::No,
         (TypeSpec::Wire(_), _) => Overlap::No,
+        (TypeSpec::WithDomain(_domain, inner), _) => spec_is_overlapping(inner, var, type_state),
 
         // TraitSelf cannot appear as the impl target, so what we do here is irrelevant
         (TypeSpec::TraitSelf(_), TypeVar::Known(_, _, _)) => {

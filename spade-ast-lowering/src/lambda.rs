@@ -328,7 +328,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 .nowhere(),
                 output_type: Some((
                     ().nowhere(),
-                    None,
                     ast::TypeSpec::Named(Path::ident(output_type_name.nowhere()).nowhere(), None)
                         .nowhere(),
                 )),
