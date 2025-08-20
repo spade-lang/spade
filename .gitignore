@@ -11,3 +11,5 @@ swim_tests/build
 
 # macos
 *.DS_Store
+
+domain_rules.pdf
