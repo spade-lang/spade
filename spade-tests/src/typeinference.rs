@@ -636,11 +636,51 @@ fn rom_is_describable() {
         use std::mem::read_memory;
 
         entity test(clk: clock, idx: uint<1>) -> int<8> {
-            let mem: Memory<int<8>, 2> = inst clocked_memory_init(clk, [(true, 0, 0)], [1, 2]);
+            let mem: Memory<int<8>, 2> = inst clocked_memory_init(clk, [], [1, 2]);
             inst read_memory(mem, idx)
         }
     ";
     build_items_with_stdlib(code);
+}
+
+snapshot_error! {
+    memory_init_literal_length,
+    "
+        use std::mem::clocked_memory_init;
+        use std::mem::read_memory;
+
+        entity test(clk: clock, idx: uint<2>) -> int<8> {
+            let mem: Memory<int<8>, 3> = inst clocked_memory_init(clk, [], [1, 2, 3, 4]);
+            inst read_memory(mem, idx)
+        }
+    "
+}
+
+#[test]
+fn repeat_init_allowed() {
+    let code = "
+        use std::mem::clocked_memory_init;
+        use std::mem::read_memory;
+
+        entity test(clk: clock, wr_idx: uint<4>, wr_data: int<8>, rd_idx: uint<4>) -> int<8> {
+            let mem: Memory<int<8>, 12> = inst clocked_memory_init(clk, [(true, wr_idx, wr_data)], [1; 12]);
+            inst read_memory(mem, rd_idx)
+        }
+    ";
+    build_items_with_stdlib(code);
+}
+
+snapshot_error! {
+    memory_init_repeat_length,
+    "
+        use std::mem::clocked_memory_init;
+        use std::mem::read_memory;
+
+        entity test(clk: clock, idx: uint<4>) -> int<8> {
+            let mem: Memory<int<8>, 12> = inst clocked_memory_init(clk, [], [5; 10]);
+            inst read_memory(mem, idx)
+        }
+    "
 }
 
 snapshot_error! {

@@ -2626,15 +2626,31 @@ impl ExprLocal for Loc<Expression> {
                 ));
             }
 
-            if let ExprKind::ArrayLiteral(elems) = &initial_arg.value.kind {
-                let values = elems
-                    .iter()
-                    .map(|e| Ok(e.lower(ctx)?.to_vec_no_source_map()))
-                    .collect::<Result<Vec<_>>>()?;
+            match &initial_arg.value.kind {
+                ExprKind::ArrayLiteral(elems) => {
+                    let values = elems
+                        .iter()
+                        .map(|e| Ok(e.lower(ctx)?.to_vec_no_source_map()))
+                        .collect::<Result<Vec<_>>>()?;
 
-                Some(values)
-            } else {
-                diag_bail!(initial_arg.value, "Memory initial value was not array")
+                    Some(values)
+                }
+                ExprKind::ArrayShorthandLiteral(elem, amount) => {
+                    let value = elem.lower(ctx)?.to_vec_no_source_map();
+
+                    let amount = amount.resolve_int(ctx)?.to_usize().ok_or_else(|| {
+                        Diagnostic::error(
+                            amount,
+                            format!(
+                                "Array using shorthand initialization cannot contain more than usize::max ({}) elements",
+                                usize::MAX
+                            ),
+                        )
+                    })?;
+
+                    Some(vec![value; amount])
+                }
+                _ => diag_bail!(initial_arg.value, "Memory initial value was not array"),
             }
         } else {
             None

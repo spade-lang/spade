@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+use std::mem::clocked_memory_init;
+use std::mem::read_memory;
+
+entity test(clk: clock, idx: uint<2>) -> int<8> {
+    let mem: Memory<int<8>, 3> = inst clocked_memory_init(clk, [], [1, 2, 3, 4]);
+    inst read_memory(mem, idx)
+}
+
+
+error: Expected type Memory<int<8>, 3>, got Memory<int<8>, 4>
+  ┌─ testinput:5:34
+  │
+5 │     let mem: Memory<int<8>, 3> = inst clocked_memory_init(clk, [], [1, 2, 3, 4]);
+  │                             -    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │                             │    │                                 │
+  │                             │    │                                 Type 4 inferred here
+  │                             │    Expected Memory<int<8>, 3>
+  │                             Type 3 inferred here
+  │
+  = note: Expected: 3
+                in: Memory<int<8>, 3>
+               Got: 4
+                in: Memory<int<8>, 4>
