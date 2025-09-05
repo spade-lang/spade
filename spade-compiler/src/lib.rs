@@ -515,6 +515,7 @@ fn codegen(
     let mut mir_code = vec![];
     let mut instance_map = InstanceMap::new();
     let mut mir_context = HashMap::new();
+    mir_code.push("`default_nettype none".to_string());
 
     for mir in mir_entities {
         if let Some(MirOutput {
