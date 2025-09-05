@@ -57,12 +57,17 @@ impl ReplacementStack {
 
         // store all nodes in the chain we're walking on
         let mut seen = Vec::new();
-        let mut replacements = top.replacements.borrow_mut();
-        while let Some(target) = replacements.get(&key) {
+        while let Some(target) = self
+            .inner
+            .iter()
+            .rev()
+            .find_map(|replacements| replacements.replacements.borrow().get(&key).copied())
+        {
             seen.push(key);
-            key = *target;
+            key = target;
         }
         let target = key;
+        let mut replacements = top.replacements.borrow_mut();
         // update all of them to the end of the chain
         for key in seen {
             replacements.insert(key, target);

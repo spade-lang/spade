@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 2418
+---
+entity main() {
+    200_i12 - 500_i12;
+}
+
+
+error: Values of type int<13> must be used
+  ┌─ testinput:2:5
+  │
+2 │     200_i12 - 500_i12;
+  │     ^^^^^^^^^^^^^^^^^ This must be used
+  │
+  = consider discarding value explicitly
+  │
+2 │     let _ = 200_i12 - 500_i12;
+  │     ++++++++

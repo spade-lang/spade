@@ -2436,3 +2436,13 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    int_typeinference_regression,
+    "
+    entity main() {
+        200_i12 - 500_i12;
+    }
+    ",
+    false
+}
