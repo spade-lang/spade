@@ -516,6 +516,10 @@ fn codegen(
     let mut instance_map = InstanceMap::new();
     let mut mir_context = HashMap::new();
 
+    // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
+    // defined, for example if a zero-sized wire is used.
+    module_code.push("`default_nettype none".into());
+
     for mir in mir_entities {
         if let Some(MirOutput {
             mir,
