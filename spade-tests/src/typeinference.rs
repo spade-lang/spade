@@ -2414,3 +2414,12 @@ snapshot_error! {
         }
     "
 }
+
+code_compiles! {
+    lambda_capture_panic,
+    "
+    entity cache<T> () {
+        let f = fn (addr) {};
+    }
+    "    
+}

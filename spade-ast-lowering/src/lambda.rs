@@ -119,7 +119,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             MetaType::Uint => Identifier("uint".to_string()).at_loc(tp),
                             MetaType::Bool => Identifier("bool".to_string()).at_loc(tp),
                             MetaType::Str => Identifier("str".to_string()).at_loc(tp),
-                            MetaType::Any | MetaType::Type | MetaType::Number => {
+                            MetaType::Type => Identifier("type".to_string()).at_loc(tp),
+                            MetaType::Any | MetaType::Number => {
                                 diag_bail!(loc, "Found unexpected meta in captured type args")
                             }
                         },
