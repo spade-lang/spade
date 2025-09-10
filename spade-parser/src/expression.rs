@@ -612,11 +612,14 @@ mod test {
             Box::new(Expression::Identifier(ast_path("a")).nowhere()),
             BinaryOperator::Add.nowhere(),
             Box::new(
-                Expression::BinaryOperator(
-                    Box::new(Expression::Identifier(ast_path("b")).nowhere()),
-                    BinaryOperator::Add.nowhere(),
-                    Box::new(Expression::Identifier(ast_path("c")).nowhere()),
-                )
+                Expression::Parenthesized(Box::new(
+                    Expression::BinaryOperator(
+                        Box::new(Expression::Identifier(ast_path("b")).nowhere()),
+                        BinaryOperator::Add.nowhere(),
+                        Box::new(Expression::Identifier(ast_path("c")).nowhere()),
+                    )
+                    .nowhere(),
+                ))
                 .nowhere(),
             ),
         )
@@ -627,18 +630,24 @@ mod test {
 
     #[test]
     fn repeated_bracketed_expressions_work() {
-        let expected_value = Expression::BinaryOperator(
-            Box::new(
-                Expression::BinaryOperator(
-                    Box::new(Expression::Identifier(ast_path("b")).nowhere()),
-                    BinaryOperator::Add.nowhere(),
-                    Box::new(Expression::Identifier(ast_path("c")).nowhere()),
-                )
-                .nowhere(),
-            ),
-            BinaryOperator::Add.nowhere(),
-            Box::new(Expression::Identifier(ast_path("a")).nowhere()),
-        )
+        let expected_value = Expression::Parenthesized(Box::new(
+            Expression::BinaryOperator(
+                Box::new(
+                    Expression::Parenthesized(Box::new(
+                        Expression::BinaryOperator(
+                            Box::new(Expression::Identifier(ast_path("b")).nowhere()),
+                            BinaryOperator::Add.nowhere(),
+                            Box::new(Expression::Identifier(ast_path("c")).nowhere()),
+                        )
+                        .nowhere(),
+                    ))
+                    .nowhere(),
+                ),
+                BinaryOperator::Add.nowhere(),
+                Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+            )
+            .nowhere(),
+        ))
         .nowhere();
 
         check_parse!("((b + c) + a)", expression, Ok(expected_value));

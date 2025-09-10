@@ -1870,6 +1870,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 }
             }
         }
+        ast::Expression::Parenthesized(expr) => visit_expression_result(expr, ctx),
         ast::Expression::TupleLiteral(exprs) => {
             let exprs = exprs
                 .iter()

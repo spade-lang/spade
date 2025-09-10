@@ -308,7 +308,12 @@ impl<'a> Parser<'a> {
 
         match &first_sep.kind {
             TokenKind::CloseParen => {
-                Ok(Some(first.inner.between(self.file_id, &start, &first_sep)))
+                let inner = first.inner.between(self.file_id, &start, &first_sep);
+                Ok(Some(Expression::Parenthesized(Box::new(inner)).between(
+                    self.file_id,
+                    &start,
+                    &first_sep,
+                )))
             }
             TokenKind::Comma => {
                 let rest = self

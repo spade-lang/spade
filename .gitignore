@@ -9,3 +9,5 @@ swim_tests/build
 .env
 .coverage
 
+# macos
+*.DS_Store
