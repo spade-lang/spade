@@ -1,5 +1,5 @@
 pub mod compiler_state;
-mod error_handling;
+pub mod error_handling;
 mod name_dump;
 pub mod namespaced_file;
 
