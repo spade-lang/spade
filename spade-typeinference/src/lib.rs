@@ -165,6 +165,10 @@ pub struct TypeState {
     requirements: Vec<Requirement>,
 
     replacements: ReplacementStack,
+    // Skipping serialization of these is fine as we only push checkpoints during
+    // trait resolution
+    #[serde(skip)]
+    checkpoints: Vec<(Vec<Requirement>, TypeConstraints)>,
 
     /// The type var containing the depth of the pipeline stage we are currently in
     pipeline_state: Option<PipelineState>,
@@ -199,6 +203,7 @@ impl TypeState {
             replacements: ReplacementStack::new(),
             generic_lists: HashMap::new(),
             trait_impls: TraitImplList::new(),
+            checkpoints: vec![],
             error_type: None,
             pipeline_state: None,
             diags: DiagList::new(),
@@ -3043,11 +3048,25 @@ impl TypeState {
         self.trace_stack
             .push(TraceStackEntry::Enter("Creating checkpoint".to_string()));
         self.replacements.push();
+
+        // This is relatively expensive if these lists are large, however, for now
+        // this is a much simpler solution than attempting to roll-back replaced requirements
+        // later
+        self.checkpoints
+            .push((self.requirements.clone(), self.constraints.clone()));
     }
 
     fn restore(&mut self) {
         self.replacements.discard_top();
         self.trace_stack.push(TraceStackEntry::Exit);
+
+        let (requirements, constraints) = self
+            .checkpoints
+            .pop()
+            .expect("Popped a checkpoint without any existing checkpoints.");
+
+        self.requirements = requirements;
+        self.constraints = constraints;
     }
 }
 

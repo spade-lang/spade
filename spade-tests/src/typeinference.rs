@@ -2437,12 +2437,11 @@ snapshot_error! {
     "
 }
 
-snapshot_error! {
+code_compiles! {
     int_typeinference_regression,
     "
     entity main() {
-        200_i12 - 500_i12;
+        let _ = 200_i12 - 500_i12;
     }
-    ",
-    false
+    "
 }
