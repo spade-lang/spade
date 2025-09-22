@@ -482,6 +482,16 @@ code_compiles! {
     "
 }
 
+code_compiles! {
+    paren_exprs_work_in_const_context,
+    "
+        fn test() -> [uint<8>; 0] {
+            [0u8][(0)..(0)]
+        }
+    "
+}
+
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

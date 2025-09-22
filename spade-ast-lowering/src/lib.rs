@@ -911,6 +911,9 @@ pub fn visit_const_generic(
                 .primary_label("Not supported in a type expression"))
             }
         },
+        ast::Expression::Parenthesized(inner) => {
+            visit_const_generic(inner, ctx)?.inner
+        }
         _ => {
             return Err(Diagnostic::error(
                 t,
