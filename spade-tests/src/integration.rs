@@ -491,7 +491,6 @@ code_compiles! {
     "
 }
 
-
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

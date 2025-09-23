@@ -2423,3 +2423,16 @@ code_compiles! {
     }
     "    
 }
+
+snapshot_error! {
+    tuples_require_type,
+    "
+    struct HasTuple<#uint N> {
+        inner: (N, N)
+    }
+
+    entity top() -> HasTuple<8> {
+        std::undef::undef()
+    }
+    "
+}

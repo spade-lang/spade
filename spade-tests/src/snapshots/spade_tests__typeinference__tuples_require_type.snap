@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+struct HasTuple<#uint N> {
+    inner: (N, N)
+}
+
+entity top() -> HasTuple<8> {
+    std::undef::undef()
+}
+
+
+error: Tuple members can only be types, found #uint
+  ┌─ testinput:2:13
+  │
+1 │ struct HasTuple<#uint N> {
+  │                  ------ N is defined as #uint here
+2 │     inner: (N, N)
+  │             ^ Expected type, found #uint

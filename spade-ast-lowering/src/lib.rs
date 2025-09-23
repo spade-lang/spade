@@ -390,7 +390,31 @@ pub fn visit_type_spec(
             let inner = inner
                 .iter()
                 .map(|p| match visit_type_expression(p, kind, ctx)? {
-                    hir::TypeExpression::TypeSpec(t) => Ok(t.at_loc(p)),
+                    hir::TypeExpression::TypeSpec(t) => match &t {
+                        TypeSpec::Tuple(_)
+                        | TypeSpec::Array { inner: _, size: _ }
+                        | TypeSpec::Inverted(_)
+                        | TypeSpec::Wire(_)
+                        | TypeSpec::TraitSelf(_)
+                        | TypeSpec::Wildcard(_)
+                        | TypeSpec::Declared(_, _) => Ok(t.at_loc(p)),
+                        TypeSpec::Generic(name) => {
+                            let inner = ctx.symtab.type_symbol_by_id(&name.inner);
+                            match &inner.inner {
+                                TypeSymbol::Declared(_, _)
+                                | TypeSymbol::GenericArg { traits: _ }
+                                | TypeSymbol::GenericMeta(MetaType::Type) => Ok(t.at_loc(p)),
+                                | TypeSymbol::GenericMeta(other_meta) => {
+                                    return Err(Diagnostic::error(name, format!("Tuple members can only be types, found {other_meta}"))
+                                    .primary_label(format!("Expected type, found {other_meta}"))
+                                    .secondary_label(&inner, format!("{name} is defined as {other_meta} here")))
+                                }
+                                TypeSymbol::Alias(_) => {
+                                    return Err(Diagnostic::bug(p, "Aliases in tuple types are currently unsupported"));
+                                },
+                            }
+                        }
+                    },
                     _ => {
                         return Err(Diagnostic::error(
                             p,
@@ -911,9 +935,7 @@ pub fn visit_const_generic(
                 .primary_label("Not supported in a type expression"))
             }
         },
-        ast::Expression::Parenthesized(inner) => {
-            visit_const_generic(inner, ctx)?.inner
-        }
+        ast::Expression::Parenthesized(inner) => visit_const_generic(inner, ctx)?.inner,
         _ => {
             return Err(Diagnostic::error(
                 t,
