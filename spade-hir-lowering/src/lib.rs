@@ -19,7 +19,6 @@ use const_generic::ConstGenericExt;
 use error::format_witnesses;
 use error::refutable_pattern_diagnostic;
 use error::undefined_variable;
-use error::use_before_ready;
 use error::{expect_entity, expect_function, expect_pipeline};
 use hir::expression::BitLiteral;
 use hir::expression::CallKind;
@@ -1324,11 +1323,44 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::Error => Ok(None),
             ExprKind::Identifier(ident) => match subs.lookup(ident) {
                 Substitution::Undefined => Err(undefined_variable(&ident.clone().at_loc(self))),
-                Substitution::Waiting(available_in, name) => Err(use_before_ready(
-                    &name.at_loc(self),
-                    subs.current_stage,
-                    available_in,
-                )),
+                Substitution::Waiting {
+                    stages_left,
+                    original_stage,
+                    available_at,
+                    definition: ref name,
+                } => {
+                    let plural = if stages_left == 1 { "" } else { "s" };
+
+                    Err(
+                        Diagnostic::error(self, format!("Use of {name} before it is ready"))
+                            .primary_label(format!(
+                                "{name} is unavailable for another {stages_left} stage{plural}"
+                            ))
+                            .secondary_label(
+                                self,
+                                format!("This is stage {}", available_at - stages_left),
+                            )
+                            .secondary_label(
+                                name,
+                                format!(
+                                    "{name} is defined here at stage {} with a latency of {}",
+                                    original_stage,
+                                    available_at - original_stage
+                                ),
+                            )
+                            .note(format!(
+                                "Requesting {name} at stage {}",
+                                available_at - stages_left
+                            ))
+                            .note(format!(
+                                "But it will not be available until stage {}",
+                                available_at
+                            ))
+                            .help(format!(
+            "Consider adding more reg; statements between the definition and use of {name}"
+        )),
+                    )
+                }
                 Substitution::Available(current) => Ok(Some(current.value_name())),
                 Substitution::Port | Substitution::ZeroSized => Ok(Some(ident.value_name())),
             },
@@ -1376,11 +1408,20 @@ impl ExprLocal for Loc<Expression> {
                 };
                 match subs.lookup_referenced(depth, name) {
                     Substitution::Undefined => Err(undefined_variable(name)),
-                    Substitution::Waiting(available_at, _) => {
+                    Substitution::Waiting {
+                        stages_left: _,
+                        original_stage,
+                        available_at,
+                        definition,
+                    } => {
                         // Available at is the amount of cycles left at the stage
                         // from which the variable is requested.
-                        let referenced_at_stage = subs.current_stage - available_at;
-                        Err(use_before_ready(name, referenced_at_stage, available_at))
+                        Err(Diagnostic::error(name, format!("Use of {name} before it is ready"))
+                            .primary_label(format!("{name} is unavailable at stage {depth}"))
+                            .secondary_label(stage, format!("This refers to stage {depth}"))
+                            .secondary_label(definition, format!("{name} is originally defined here at stage {original_stage}"))
+                            .note(format!("Since {name} is defined at stage {} with latency {}, it cannot be accessed before stage {}", original_stage, available_at - original_stage, available_at))
+                        )
                     }
                     Substitution::Available(name) => Ok(Some(name.value_name())),
                     Substitution::Port | Substitution::ZeroSized => Ok(Some(name.value_name())),

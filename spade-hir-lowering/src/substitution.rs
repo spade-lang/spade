@@ -15,7 +15,12 @@ pub enum Substitution {
     Undefined,
     /// The variable will not be available for another `n` cycles. When available,
     /// the variable name will be `NameID`
-    Waiting(usize, NameID),
+    Waiting {
+        stages_left: usize,
+        original_stage: usize,
+        available_at: usize,
+        definition: Loc<NameID>,
+    },
     /// The value is available now and the true name is `NameID`
     Available(NameID),
     /// The value is a port, so it should not be registered and is always available.
@@ -74,10 +79,23 @@ impl Substitutions {
                 // original name.
                 // 1 because we would now replace it with 0, indicating that the value is in fact
                 // available.
-                Substitution::Waiting(1, name) => Substitution::Available(name.clone()),
-                Substitution::Waiting(time_left, name) => {
-                    Substitution::Waiting(time_left - 1, name.clone())
-                }
+                Substitution::Waiting {
+                    stages_left: 1,
+                    original_stage: _,
+                    available_at: _,
+                    definition: name,
+                } => Substitution::Available(name.inner.clone()),
+                Substitution::Waiting {
+                    stages_left,
+                    original_stage,
+                    available_at,
+                    definition: name,
+                } => Substitution::Waiting {
+                    stages_left: stages_left - 1,
+                    original_stage: *original_stage,
+                    available_at: *available_at,
+                    definition: name.clone(),
+                },
                 Substitution::Available(previous) => {
                     // Insert the stage marker before the final name to improve order
                     // of names in the vcd dump
@@ -108,7 +126,13 @@ impl Substitutions {
 
     /// Mark the variable as available in the current pipeline stage under its
     /// own name
-    pub fn set_available(&mut self, from: Loc<NameID>, time: usize, ty: ConcreteType) {
+    pub fn set_available(
+        &mut self,
+        from: Loc<NameID>,
+        time: usize,
+        current_stage: usize,
+        ty: ConcreteType,
+    ) {
         self.live_vars.push(from.clone());
         let availability = if ty.is_port() {
             Substitution::Port
@@ -117,7 +141,12 @@ impl Substitutions {
         } else if time == 0 {
             Substitution::Available(from.inner.clone())
         } else {
-            Substitution::Waiting(time, from.inner.clone())
+            Substitution::Waiting {
+                stages_left: time,
+                original_stage: current_stage,
+                available_at: current_stage + time,
+                definition: from.clone(),
+            }
         };
         self.inner
             .last_mut()

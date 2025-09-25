@@ -15,10 +15,15 @@ pipeline(5) main(clk: clock, x: bool) -> bool {
 error: Use of x before it is ready
   ┌─ testinput:6:19
   │
+4 │         let x = inst(5) X(clk);
+  │             - x is defined here at stage 0 with a latency of 5
+5 │     reg;
 6 │         let res = x;
-  │                   ^ Is unavailable for another 4 stages
+  │                   ^
+  │                   │
+  │                   x is unavailable for another 4 stages
+  │                   This is stage 1
   │
-  = note: Requesting x from stage 1
+  = note: Requesting x at stage 1
   = note: But it will not be available until stage 5
-
-
+  = help: Consider adding more reg; statements between the definition and use of x

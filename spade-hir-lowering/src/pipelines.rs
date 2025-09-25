@@ -84,7 +84,7 @@ pub fn handle_statement(
                     &ctx.item_list.types,
                 )?;
 
-                ctx.subs.set_available(name, time, ty)
+                ctx.subs.set_available(name, time, *current_stage, ty)
             }
         }
         Statement::Expression(_) => {}
@@ -97,7 +97,7 @@ pub fn handle_statement(
                     &ctx.item_list.types,
                 )?;
 
-                ctx.subs.set_available(name, time, ty)
+                ctx.subs.set_available(name, time, *current_stage, ty)
             }
         }
         Statement::Declaration(_) => todo!(),
@@ -221,7 +221,7 @@ pub fn lower_pipeline<'a>(
             ctx.types
                 .concrete_type_of_name(name, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
-        ctx.subs.set_available(name.clone(), 0, ty)
+        ctx.subs.set_available(name.clone(), 0, 0, ty)
     }
 
     let num_stages = body_statements

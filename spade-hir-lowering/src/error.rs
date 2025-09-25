@@ -11,26 +11,6 @@ pub(crate) fn undefined_variable(name: &Loc<NameID>) -> Diagnostic {
         .primary_label("Undeclared name")
 }
 
-pub(crate) fn use_before_ready(
-    name: &Loc<NameID>,
-    referenced_at_stage: usize,
-    unavailable_for: usize,
-) -> Diagnostic {
-    let plural = if unavailable_for == 1 { "" } else { "s" };
-
-    Diagnostic::error(name, format!("Use of {name} before it is ready"))
-        .primary_label(format!(
-            "Is unavailable for another {unavailable_for} stage{plural}"
-        ))
-        .note(format!(
-            "Requesting {name} from stage {referenced_at_stage}"
-        ))
-        .note(format!(
-            "But it will not be available until stage {}",
-            referenced_at_stage + unavailable_for
-        ))
-}
-
 pub(crate) fn refutable_pattern_diagnostic(
     loc: Loc<()>,
     refutability: &Usefulness,

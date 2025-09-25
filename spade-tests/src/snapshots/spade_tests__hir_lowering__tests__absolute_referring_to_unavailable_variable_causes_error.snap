@@ -17,10 +17,12 @@ pipeline(6) main(clk: clock, x: bool) -> bool {
 error: Use of x before it is ready
   ┌─ testinput:8:31
   │
+4 │         let x = inst(5) X(clk);
+  │             - x is originally defined here at stage 0
+  ·
 8 │         let res = stage(here).x;
-  │                               ^ Is unavailable for another 1 stage
+  │                   ----------- ^ x is unavailable at stage 4
+  │                   │            
+  │                   This refers to stage 4
   │
-  = note: Requesting x from stage 4
-  = note: But it will not be available until stage 5
-
-
+  = note: Since x is defined at stage 0 with latency 5, it cannot be accessed before stage 5
