@@ -976,7 +976,12 @@ pub fn visit_where_clauses(
     let mut visited_where_clauses: Vec<Loc<hir::WhereClause>> = vec![];
     for where_clause in where_clauses {
         match where_clause {
-            WhereClause::GenericInt { target, expression } => {
+            WhereClause::GenericInt {
+                target,
+                kind,
+                expression,
+                if_unsatisfied,
+            } => {
                 let make_diag = |primary| {
                     Diagnostic::error(
                         target,
@@ -1000,7 +1005,16 @@ pub fn visit_where_clauses(
                     TypeSymbol::GenericMeta(_) => {
                         let clause = hir::WhereClause::Int {
                             target: name_id.at_loc(target),
+                            kind: match kind {
+                                ast::Inequality::Eq => hir::WhereClauseKind::Eq,
+                                ast::Inequality::Neq => hir::WhereClauseKind::Neq,
+                                ast::Inequality::Lt => hir::WhereClauseKind::Lt,
+                                ast::Inequality::Leq => hir::WhereClauseKind::Leq,
+                                ast::Inequality::Gt => hir::WhereClauseKind::Gt,
+                                ast::Inequality::Geq => hir::WhereClauseKind::Geq,
+                            },
                             constraint: visit_const_generic(expression, ctx)?,
+                            if_unsatisfied: if_unsatisfied.clone()
                         }
                         .between_locs(target, expression);
 

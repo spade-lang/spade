@@ -90,10 +90,19 @@ impl PrettyDebug for Unit {
 impl PrettyDebug for WhereClause {
     fn pretty_debug(&self) -> String {
         match self {
-            WhereClause::Int { target, constraint } => format!(
-                "{}: {{{}}}",
+            WhereClause::Int {
+                target,
+                kind,
+                constraint,
+                if_unsatisfied,
+            } => format!(
+                "{} {kind} {}{}",
                 target.pretty_debug(),
-                constraint.pretty_debug()
+                constraint.pretty_debug(),
+                if_unsatisfied
+                    .as_ref()
+                    .map(|message| format!(" else {message:?}"))
+                    .unwrap_or_default()
             ),
             WhereClause::Type { target, traits } => format!(
                 "{}: {}",

@@ -110,6 +110,10 @@ pub enum ArgumentList<T> {
 }
 
 impl<T> ArgumentList<T> {
+    pub fn empty() -> Self {
+        Self::Positional(vec![])
+    }
+
     pub fn expressions(&self) -> Vec<&Loc<T>> {
         match self {
             ArgumentList::Named(n) => n

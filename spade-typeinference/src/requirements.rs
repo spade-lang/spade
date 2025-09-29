@@ -9,7 +9,7 @@ use spade_common::{location_info::Loc, name::Identifier};
 use spade_diagnostics::{diag_anyhow, diag_assert, diag_bail, Diagnostic};
 use spade_hir::expression::CallKind;
 use spade_hir::symbol_table::{TypeDeclKind, TypeSymbol};
-use spade_hir::{ArgumentList, Expression, TypeExpression};
+use spade_hir::{ArgumentList, Expression, TypeExpression, WhereClauseKind};
 use spade_types::KnownType;
 
 use crate::equation::{ResolvedNamedOrInverted, TypeVar, TypeVarID};
@@ -82,6 +82,13 @@ pub enum Requirement {
         index: Loc<()>,
         array: Loc<TypeVarID>,
         array_size: Loc<TypeVarID>,
+    },
+    WhereInequality {
+        lhs: Loc<TypeVarID>,
+        rhs: Loc<TypeVarID>,
+        inequality: WhereClauseKind,
+        message: Option<String>,
+        callsite: Option<Loc<()>>,
     },
     /// The provided TypeVarID should all share a base type
     SharedBase(Vec<Loc<TypeVarID>>),
@@ -569,6 +576,53 @@ impl Requirement {
                 }
                 (TypeVar::Unknown(_, _, _, _), TypeVar::Unknown(_, _, _, _)) => {
                     Ok(RequirementResult::NoChange)
+                }
+            },
+            Requirement::WhereInequality {
+                lhs,
+                rhs,
+                inequality,
+                message,
+                callsite,
+            } => match (lhs.resolve(type_state), rhs.resolve(type_state)) {
+                (
+                    TypeVar::Known(_, KnownType::Integer(lhs_val), _),
+                    TypeVar::Known(_, KnownType::Integer(rhs_val), _),
+                ) => {
+                    let result = match inequality {
+                        WhereClauseKind::Eq => {
+                            diag_bail!(lhs, "Found an == constraint being handled by requirements")
+                        }
+                        WhereClauseKind::Neq => lhs_val != rhs_val,
+                        WhereClauseKind::Lt => lhs_val < rhs_val,
+                        WhereClauseKind::Leq => lhs_val <= rhs_val,
+                        WhereClauseKind::Gt => lhs_val > rhs_val,
+                        WhereClauseKind::Geq => lhs_val >= rhs_val,
+                    };
+
+                    if result {
+                        Ok(RequirementResult::Satisfied(vec![]))
+                    } else {
+                        let loc = callsite.unwrap_or(lhs.loc());
+                        let mut diag = Diagnostic::error(
+                            loc,
+                            format!("Expected {lhs_val} {inequality} {rhs_val}"),
+                        )
+                        .primary_label(format!("Expected {lhs_val} {inequality} {rhs_val}"));
+                        if let Some(message) = message {
+                            diag = diag.note(message.to_string())
+                        }
+                        Err(diag)
+                    }
+                }
+                (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
+                    Ok(RequirementResult::NoChange)
+                }
+                (TypeVar::Known(_, KnownType::Integer(_), _), _) => {
+                    diag_bail!(rhs, "Found non-integer in where clause inequality")
+                }
+                (_, TypeVar::Known(_, _, _)) => {
+                    diag_bail!(lhs, "Found non-integer in where clause inequality")
                 }
             },
             Requirement::SharedBase(types) => {

@@ -501,11 +501,36 @@ impl std::fmt::Display for ConstGeneric {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq, Copy)]
+pub enum WhereClauseKind {
+    Eq,
+    Neq,
+    Lt,
+    Leq,
+    Gt,
+    Geq,
+}
+
+impl std::fmt::Display for WhereClauseKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WhereClauseKind::Eq => write!(f, "=="),
+            WhereClauseKind::Neq => write!(f, "!="),
+            WhereClauseKind::Lt => write!(f, "<"),
+            WhereClauseKind::Leq => write!(f, "<="),
+            WhereClauseKind::Gt => write!(f, ">"),
+            WhereClauseKind::Geq => write!(f, ">="),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum WhereClause {
     Int {
         target: Loc<NameID>,
+        kind: WhereClauseKind,
         constraint: Loc<ConstGeneric>,
+        if_unsatisfied: Option<String>,
     },
     Type {
         target: Loc<NameID>,
@@ -516,8 +541,13 @@ pub enum WhereClause {
 impl std::fmt::Display for WhereClause {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let str = match self {
-            WhereClause::Int { target, constraint } => {
-                format!("{target}: {{ {constraint} }}")
+            WhereClause::Int {
+                target,
+                kind,
+                constraint,
+                if_unsatisfied,
+            } => {
+                format!("{target} {kind} {constraint} else {if_unsatisfied:?}")
             }
             WhereClause::Type { target, traits } => {
                 format!(

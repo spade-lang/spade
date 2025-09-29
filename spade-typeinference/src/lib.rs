@@ -91,7 +91,7 @@ macro_rules! add_trace {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GenericListSource<'a> {
     /// For when you just need a new generic list but have no need to refer back
     /// to it in the future
@@ -104,7 +104,7 @@ pub enum GenericListSource<'a> {
         id: ImplID,
     },
     /// For expressions which instantiate generic items
-    Expression(ExprID),
+    Expression(Loc<ExprID>),
 }
 
 /// Stored version of GenericListSource
@@ -761,8 +761,8 @@ impl TypeState {
                 self.visit_field_access(expression, ctx, generic_list)?
             }
             ExprKind::MethodCall { .. } => self.visit_method_call(expression, ctx, generic_list)?,
-            ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
             ExprKind::RangeIndex { .. } => self.visit_range_index(expression, ctx, generic_list)?,
+            ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
             ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,
             ExprKind::If(_, _, _) => self.visit_if(expression, ctx, generic_list)?,
             ExprKind::Match(_, _) => self.visit_match(expression, ctx, generic_list)?,
@@ -910,7 +910,7 @@ impl TypeState {
                 );
 
                 let unit_generic_list = self.create_generic_list(
-                    GenericListSource::Expression(expression.id),
+                    GenericListSource::Expression(expression.id.at_loc(expression)),
                     &type_params.all().cloned().collect::<Vec<_>>(),
                     &[],
                     None,
@@ -991,7 +991,7 @@ impl TypeState {
     ) -> Result<()> {
         // Add new symbols for all the type parameters
         let unit_generic_list = self.create_generic_list(
-            GenericListSource::Expression(expression_id.inner),
+            GenericListSource::Expression(expression_id),
             &head.unit_type_params,
             &head.scope_type_params,
             turbofish,
@@ -1435,15 +1435,19 @@ impl TypeState {
                 .collect(),
         ));
 
-        let token = self.add_mapped_generic_list(source, new_list.clone());
+        let token = self.add_mapped_generic_list(source.clone(), new_list.clone());
 
         for constraint in where_clauses.iter().chain(inline_trait_bounds.iter()) {
             match &constraint.inner {
                 WhereClause::Type { target, traits } => {
                     self.visit_trait_bounds(target, traits.as_slice(), &token)?;
                 }
-                WhereClause::Int { target, constraint } => {
-                    let int_constraint = self.visit_const_generic(constraint, &token)?;
+                WhereClause::Int {
+                    target,
+                    kind,
+                    constraint,
+                    if_unsatisfied,
+                } => {
                     let tvar = new_list.get(target).ok_or_else(|| {
                         Diagnostic::error(
                             target,
@@ -1451,14 +1455,41 @@ impl TypeState {
                         )
                         .primary_label("Not a generic parameter")
                     })?;
+                    let int_constraint = self.visit_const_generic(constraint, &token)?;
+                    match kind {
+                        spade_hir::WhereClauseKind::Eq => {
+                            self.add_constraint(
+                                tvar.clone(),
+                                int_constraint,
+                                constraint.loc(),
+                                &tvar,
+                                ConstraintSource::Where,
+                            );
+                        }
+                        _ => {
+                            let rhsvar = self.new_generic_tlint(constraint.loc());
+                            self.add_constraint(
+                                rhsvar.clone(),
+                                int_constraint,
+                                constraint.loc(),
+                                &tvar,
+                                ConstraintSource::Where,
+                            );
 
-                    self.add_constraint(
-                        tvar.clone(),
-                        int_constraint,
-                        constraint.loc(),
-                        &tvar,
-                        ConstraintSource::Where,
-                    );
+                            self.add_requirement(Requirement::WhereInequality {
+                                lhs: tvar.clone().at_loc(target),
+                                rhs: rhsvar.at_loc(&constraint.loc()),
+                                inequality: *kind,
+                                message: if_unsatisfied.clone(),
+                                callsite: match source {
+                                    GenericListSource::Anonymous => None,
+                                    GenericListSource::Definition(_) => None,
+                                    GenericListSource::ImplBlock { .. } => None,
+                                    GenericListSource::Expression(loc) => Some(loc.loc()),
+                                },
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -1478,7 +1509,7 @@ impl TypeState {
             GenericListSource::ImplBlock { target, id } => {
                 GenericListToken::ImplBlock(target.clone(), id)
             }
-            GenericListSource::Expression(id) => GenericListToken::Expression(id),
+            GenericListSource::Expression(id) => GenericListToken::Expression(id.inner),
         };
 
         if self
@@ -1498,7 +1529,7 @@ impl TypeState {
             GenericListSource::ImplBlock { target, id } => {
                 GenericListToken::ImplBlock(target.clone(), id)
             }
-            GenericListSource::Expression(id) => GenericListToken::Expression(id),
+            GenericListSource::Expression(id) => GenericListToken::Expression(id.inner),
         };
 
         self.generic_lists.remove(&reference.clone());

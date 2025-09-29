@@ -1,5 +1,6 @@
 ---
 source: spade-tests/src/typeinference.rs
+assertion_line: 1073
 ---
 fn test(x: int<8>) -> [int<8>; 2] {
     x[0..3]

@@ -144,10 +144,22 @@ pub enum ArgumentList {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum Inequality {
+    Eq,
+    Neq,
+    Lt,
+    Leq,
+    Gt,
+    Geq,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum WhereClause {
     GenericInt {
         target: Loc<Path>,
+        kind: Inequality,
         expression: Loc<Expression>,
+        if_unsatisfied: Option<String>,
     },
     TraitBounds {
         target: Loc<Path>,
@@ -159,7 +171,9 @@ impl WhereClause {
         match self {
             WhereClause::GenericInt {
                 target,
+                kind: _,
                 expression: _,
+                if_unsatisfied: _,
             } => target,
             WhereClause::TraitBounds { target, traits: _ } => target,
         }

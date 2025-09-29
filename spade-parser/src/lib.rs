@@ -17,9 +17,9 @@ use tracing::{debug, event, Level};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
-    EnumVariant, Expression, IntLiteral, Item, ModuleBody, NamedArgument, NamedTurbofish,
-    ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner,
-    TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
+    EnumVariant, Expression, Inequality, IntLiteral, Item, ModuleBody, NamedArgument,
+    NamedTurbofish, ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec,
+    TurbofishInner, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
@@ -1543,46 +1543,91 @@ impl<'a> Parser<'a> {
                     |s| {
                         if s.peek_cond(|t| matches!(t, &TokenKind::Identifier(_)), "identifier")? {
                             let name = s.path()?;
-                            let _colon = s.eat(&TokenKind::Colon)?;
+                            if let Some(_colon) = s.peek_and_eat(&TokenKind::Colon)? {
+                                // We'll grandfather in the old : {} syntax for now
+                                if s.peek_cond(
+                                    |tok| tok == &TokenKind::OpenBrace || tok == &TokenKind::Semi,
+                                    "{",
+                                )? {
+                                    let expression = s
+                                        .surrounded(
+                                            &TokenKind::OpenBrace,
+                                            Self::expression,
+                                            &TokenKind::CloseBrace,
+                                        )?
+                                        .0;
 
-                            if s.peek_cond(
-                                |tok| tok == &TokenKind::OpenBrace || tok == &TokenKind::Semi,
-                                "{",
-                            )? {
-                                let expression = s
-                                    .surrounded(
-                                        &TokenKind::OpenBrace,
-                                        Self::expression,
-                                        &TokenKind::CloseBrace,
-                                    )?
-                                    .0;
+                                    Ok(WhereClause::GenericInt {
+                                        target: name,
+                                        kind: spade_ast::Inequality::Eq,
+                                        expression,
+                                        if_unsatisfied: None,
+                                    })
+                                } else {
+                                    let traits = s
+                                        .token_separated(
+                                            Self::trait_spec,
+                                            &TokenKind::Plus,
+                                            vec![
+                                                TokenKind::Comma,
+                                                TokenKind::OpenBrace,
+                                                TokenKind::Semi,
+                                            ],
+                                        )
+                                        .extra_expected(vec!["identifier"])?
+                                        .into_iter()
+                                        .map(|spec| {
+                                            let loc = ().at_loc(&spec.path);
+                                            spec.at_loc(&loc)
+                                        })
+                                        .collect();
+
+                                    Ok(WhereClause::TraitBounds {
+                                        target: name,
+                                        traits,
+                                    })
+                                }
+                            } else {
+                                let next = s.eat_unconditional()?;
+                                let inequality = match next.kind {
+                                    TokenKind::Equals => Inequality::Eq,
+                                    TokenKind::NotEquals => Inequality::Neq,
+                                    TokenKind::Gt => Inequality::Gt,
+                                    TokenKind::Ge => Inequality::Geq,
+                                    TokenKind::Lt => Inequality::Lt,
+                                    TokenKind::Le => Inequality::Leq,
+                                    _ => {
+                                        return Err(Diagnostic::from(UnexpectedToken {
+                                            got: next,
+                                            expected: vec![":", "==", "!=", ">", ">=", "<=", "<"],
+                                        })
+                                        .into())
+                                    }
+                                };
+
+                                let expression = s.expression()?;
+
+                                let if_unsatisfied =
+                                    if let Some(_) = s.peek_and_eat(&TokenKind::Else)? {
+                                        let message = s.eat_unconditional()?;
+                                        match message.kind {
+                                            TokenKind::String(s) => Some(s),
+                                            _ => {
+                                                return Err(Diagnostic::from(UnexpectedToken {
+                                                    got: message,
+                                                    expected: vec!["\""],
+                                                }))
+                                            }
+                                        }
+                                    } else {
+                                        None
+                                    };
 
                                 Ok(WhereClause::GenericInt {
                                     target: name,
+                                    kind: inequality,
                                     expression,
-                                })
-                            } else {
-                                let traits = s
-                                    .token_separated(
-                                        Self::trait_spec,
-                                        &TokenKind::Plus,
-                                        vec![
-                                            TokenKind::Comma,
-                                            TokenKind::OpenBrace,
-                                            TokenKind::Semi,
-                                        ],
-                                    )
-                                    .extra_expected(vec!["identifier"])?
-                                    .into_iter()
-                                    .map(|spec| {
-                                        let loc = ().at_loc(&spec.path);
-                                        spec.at_loc(&loc)
-                                    })
-                                    .collect();
-
-                                Ok(WhereClause::TraitBounds {
-                                    target: name,
-                                    traits,
+                                    if_unsatisfied,
                                 })
                             }
                         } else {

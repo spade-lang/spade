@@ -12,6 +12,7 @@ pub mod substitution;
 mod usefulness;
 
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use attributes::AttributeListExt;
 use attributes::LocAttributeExt;
@@ -1333,8 +1334,8 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::CreatePorts => Ok(None),
             ExprKind::ArrayLiteral { .. } => Ok(None),
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
-            ExprKind::Index(_, _) => Ok(None),
             ExprKind::RangeIndex { .. } => Ok(None),
+            ExprKind::Index(_, _) => Ok(None),
             ExprKind::Block(block) => {
                 if let Some(result) = &block.result {
                     result.variable(ctx).map(Some)

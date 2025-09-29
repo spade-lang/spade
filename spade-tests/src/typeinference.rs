@@ -2452,3 +2452,18 @@ code_compiles! {
     }
     "
 }
+
+snapshot_error! {
+    inequality_constraints_with_else_work,
+    r#"
+        fn thing<#uint N>()
+        where N > 5 else "This is disallowed"
+        {
+            
+        }
+
+        fn test() {
+            thing::<4>()
+        }
+    "#
+}
