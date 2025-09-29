@@ -112,11 +112,6 @@ impl<'a> QueryCache {
                 self.visit_expression(lhs);
                 self.visit_expression(rhs);
             }
-            crate::ExprKind::RangeIndex {
-                target,
-                start: _,
-                end: _,
-            } => self.visit_expression(target),
             crate::ExprKind::TupleIndex(target, _) => self.visit_expression(target),
             crate::ExprKind::FieldAccess(target, _) => self.visit_expression(target),
             crate::ExprKind::MethodCall {

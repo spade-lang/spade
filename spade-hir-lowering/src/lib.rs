@@ -109,7 +109,6 @@ impl LocExprExt for Loc<hir::Expression> {
             ExprKind::Index(l, r) => l
                 .runtime_requirement_witness(ctx)
                 .or_else(|| r.runtime_requirement_witness(ctx)),
-            ExprKind::RangeIndex { .. } => Some(self.clone()),
             ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::Call {
@@ -1334,7 +1333,6 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::CreatePorts => Ok(None),
             ExprKind::ArrayLiteral { .. } => Ok(None),
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
-            ExprKind::RangeIndex { .. } => Ok(None),
             ExprKind::Index(_, _) => Ok(None),
             ExprKind::Block(block) => {
                 if let Some(result) = &block.result {
@@ -1885,34 +1883,6 @@ impl ExprLocal for Loc<Expression> {
                     self,
                 )
             }
-            ExprKind::RangeIndex { target, start, end } => {
-                result.append(target.lower(ctx)?);
-
-                let start_val = start.resolve_int(ctx)?;
-                let start = start_val.to_biguint().ok_or_else(|| {
-                    Diagnostic::error(start, "The start of a range cannot be negative")
-                        .primary_label(format!("Inferred negative range start ({start_val})"))
-                })?;
-                let end_val = end.resolve_int(ctx)?;
-                let end = end_val.to_biguint().ok_or_else(|| {
-                    Diagnostic::error(end, "The end of a range cannot be negative")
-                        .primary_label(format!("Inferred negative range end ({end_val})"))
-                })?;
-
-                result.push_primary(
-                    mir::Statement::Binding(mir::Binding {
-                        name: self.variable(ctx)?,
-                        operator: mir::Operator::RangeIndexArray {
-                            start: start.clone(),
-                            end_exclusive: end.clone(),
-                        },
-                        operands: vec![target.variable(ctx)?],
-                        ty: self_type,
-                        loc: Some(self.loc()),
-                    }),
-                    self,
-                )
-            }
             ExprKind::Block(block) => {
                 for statement in &block.statements {
                     result.append(statement.lower(ctx)?);
@@ -2320,12 +2290,12 @@ impl ExprLocal for Loc<Expression> {
         // handle
         macro_rules! handle_special_function {
             ([$($path:expr),*] $allow_port:expr => $handler:ident {allow_port}) => {
-                handle_special_function!([$($path),*] => $handler true)
+                handle_special_function!([$($path),*] => $handler args: allow_port: true)
             };
-            ([$($path:expr),*] $allow_port:expr => $handler:ident) => {
-                handle_special_function!([$($path),*] => $handler false)
+            ([$($path:expr),*] $allow_port:expr => $handler:ident$(($($extra_args:expr),*))?) => {
+                handle_special_function!([$($path),*] => $handler args: $(($($extra_args)*))? allow_port: false)
             };
-            ([$($path:expr),*] => $handler:ident $allow_port:expr) => {
+            ([$($path:expr),*] => $handler:ident args: $(($($extra_args:expr),*))? allow_port: $allow_port:expr) => {
                 let path = Path(vec![$(Identifier($path.to_string()).nowhere()),*]).nowhere();
                 let final_id = ctx.symtab.symtab().try_lookup_final_id(&path, &[]);
                 if final_id
@@ -2336,14 +2306,14 @@ impl ExprLocal for Loc<Expression> {
                         generic_port_check()?;
                     }
 
-                    return self.$handler(&name, result, args, ctx);
+                    return self.$handler(&name, result, args, ctx, $($($extra_args,)*)?);
                 };
             }
         }
         macro_rules! handle_special_functions {
-            ($([$($path:expr),*] => $handler:ident $({$extra:tt})?),*) => {
+            ($([$($path:expr),*] => $handler:ident$(($($extra_args:expr),*))? $({$extra:tt})?),*) => {
                 $(
-                    handle_special_function!([$($path),*] true => $handler $({$extra})?)
+                    handle_special_function!([$($path),*] true => $handler$(($($extra_args),*))? $({$extra})?)
                 );*
             };
         }
@@ -2364,7 +2334,8 @@ impl ExprLocal for Loc<Expression> {
             ["std", "ops", "comb_div"] => handle_comb_div,
             ["std", "ops", "comb_mod"] => handle_comb_mod,
             ["std", "ports", "read_mut_wire"] => handle_read_mut_wire,
-            ["std", "ports", "read_write_inout"] => handle_read_write_inout
+            ["std", "ports", "read_write_inout"] => handle_read_write_inout,
+            ["std", "index", "intrinsics", "range_index"] => handle_range_index(tok)
         }
 
         generic_port_check()?;
@@ -3236,6 +3207,99 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(path.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
+    }
+
+    fn handle_range_index(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+        tok: GenericListToken,
+    ) -> Result<StatementList> {
+        let mut result = result;
+        let instance_list = ctx
+            .types
+            .get_generic_list(&tok)
+            .ok_or_else(|| diag_anyhow!(path, "Found no generic list for call"))?
+            .clone();
+
+        let target = args
+            .get(0)
+            .ok_or_else(|| Diagnostic::bug(path, "Found a range_index call with no target"))?
+            .value;
+
+        result.append(target.lower(ctx)?);
+
+        // We're going to do some hacks to access the named type parameters in a form that we can work with
+        let generic_values = instance_list
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.1 .0.last().unwrap().0.clone(),
+                    value.resolve(&ctx.types).expect_integer(
+                        |int| Ok(int),
+                        || {
+                            Err(Diagnostic::bug(
+                                path,
+                                "Found non-integer type in the type parameters for range_index",
+                            ))
+                        },
+                        |_| {
+                            Err(Diagnostic::bug(
+                                path,
+                                "Found non-integer type in the type parameters for range_index",
+                            ))
+                        },
+                        || {
+                            Err(Diagnostic::bug(
+                                path,
+                                "Found non-integer type in the type parameters for range_index",
+                            ))
+                        },
+                    ),
+                )
+            })
+            .map(|(k, v)| v.map(|v| (k, v)))
+            .collect::<Result<HashMap<_, _>>>()?;
+
+        let start_val = generic_values.get("Lower").ok_or_else(|| {
+            Diagnostic::bug(target, "Did not find `Lower` in the generics for this call")
+        })?;
+        let end_val = generic_values.get("Upper").ok_or_else(|| {
+            Diagnostic::bug(target, "Did not find `Upper` in the generics for this call")
+        })?;
+
+        // TODO: Handle the locs here
+        let start = start_val.to_biguint().ok_or_else(|| {
+            Diagnostic::error(().nowhere(), "The start of a range cannot be negative")
+                .primary_label(format!("Inferred negative range start ({start_val})"))
+        })?;
+        let end = end_val.to_biguint().ok_or_else(|| {
+            Diagnostic::error(().nowhere(), "The end of a range cannot be negative")
+                .primary_label(format!("Inferred negative range end ({end_val})"))
+        })?;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator: mir::Operator::RangeIndexArray {
+                    start: start.clone(),
+                    end_exclusive: end.clone(),
+                },
+                operands: vec![target.variable(ctx)?],
+                ty: self_type,
+                loc: Some(self.loc()),
             }),
             self,
         );

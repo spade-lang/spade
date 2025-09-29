@@ -1,6 +1,7 @@
 mod array;
 mod cdc;
 mod conv;
+mod index;
 mod io;
 mod mem;
 mod ops;

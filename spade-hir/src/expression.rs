@@ -229,11 +229,6 @@ pub enum ExprKind {
     ArrayLiteral(Vec<Loc<Expression>>),
     ArrayShorthandLiteral(Box<Loc<Expression>>, Loc<ConstGenericWithId>),
     Index(Box<Loc<Expression>>, Box<Loc<Expression>>),
-    RangeIndex {
-        target: Box<Loc<Expression>>,
-        start: Loc<ConstGenericWithId>,
-        end: Loc<ConstGenericWithId>,
-    },
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
     MethodCall {

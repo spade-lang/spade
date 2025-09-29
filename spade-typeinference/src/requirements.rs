@@ -69,15 +69,6 @@ pub enum Requirement {
     PositivePipelineDepth {
         depth: Loc<TypeVarID>,
     },
-    RangeIndexEndAfterStart {
-        expr: Loc<()>,
-        start: Loc<TypeVarID>,
-        end: Loc<TypeVarID>,
-    },
-    RangeIndexInArray {
-        index: Loc<TypeVarID>,
-        size: Loc<TypeVarID>,
-    },
     ArrayIndexeeIsNonZero {
         index: Loc<()>,
         array: Loc<TypeVarID>,
@@ -440,64 +431,6 @@ impl Requirement {
                         Err(diag_anyhow!(depth, "Got non integer pipeline depth"))
                     }
                     TypeVar::Unknown(_, _, _, _) => Ok(RequirementResult::NoChange),
-                }
-            }
-            Requirement::RangeIndexEndAfterStart { expr, start, end } => {
-                match (&start.resolve(type_state), &end.resolve(type_state)) {
-                    (
-                        TypeVar::Known(_, KnownType::Integer(start_val), _),
-                        TypeVar::Known(_, KnownType::Integer(end_val), _),
-                    ) => {
-                        if start_val > end_val {
-                            Err(Diagnostic::error(
-                                expr,
-                                "The end of the range must be after the start",
-                            )
-                            .primary_label("Range end before start")
-                            .secondary_label(start, format!("Start was inferred to be {start_val}"))
-                            .secondary_label(end, format!("End was inferred to be {end_val}"))
-                            .help("If you want to swap the order of the elements, you can use `std::conv::flip_array`"))
-                        } else {
-                            Ok(RequirementResult::Satisfied(vec![]))
-                        }
-                    }
-                    (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
-                        Ok(RequirementResult::NoChange)
-                    }
-                    (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
-                        start,
-                        "Got non-integer ranges ({start}:{end})",
-                        start = start.display(type_state),
-                        end = end.display(type_state),
-                    )),
-                }
-            }
-            Requirement::RangeIndexInArray { index, size } => {
-                match (&index.resolve(type_state), &size.resolve(type_state)) {
-                    (
-                        TypeVar::Known(_, KnownType::Integer(index_val), _),
-                        TypeVar::Known(_, KnownType::Integer(size_val), _),
-                    ) => {
-                        if index_val > size_val {
-                            Err(Diagnostic::error(index, "Range index out of bounds")
-                                .primary_label(format!("Index `{index_val}` out of bounds"))
-                                .secondary_label(
-                                    size,
-                                    format!("The array only has {size_val} elements"),
-                                ))
-                        } else {
-                            Ok(RequirementResult::Satisfied(vec![]))
-                        }
-                    }
-                    (TypeVar::Unknown(_, _, _, _), _) | (_, TypeVar::Unknown(_, _, _, _)) => {
-                        Ok(RequirementResult::NoChange)
-                    }
-                    (TypeVar::Known(_, _, _), TypeVar::Known(_, _, _)) => Err(diag_anyhow!(
-                        index,
-                        "Got non-integer index or size (index: {index}, size: {size})",
-                        index = index.display(type_state),
-                        size = size.display(type_state),
-                    )),
                 }
             }
             Requirement::ArrayIndexeeIsNonZero {

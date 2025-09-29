@@ -325,7 +325,6 @@ impl ExprKindExt for ExprKind {
             | ExprKind::ArrayLiteral(_)
             | ExprKind::ArrayShorthandLiteral(_, _)
             | ExprKind::Index(_, _)
-            | ExprKind::RangeIndex { .. }
             | ExprKind::TupleIndex(_, _)
             | ExprKind::FieldAccess(_, _)
             | ExprKind::UnaryOperator(_, _)

@@ -228,14 +228,6 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::Index(base, idx) => {
                 format!("{}[{}]", base.pretty_debug(), idx.pretty_debug())
             }
-            crate::ExprKind::RangeIndex { target, start, end } => {
-                format!(
-                    "{}[{}..{}]",
-                    target.pretty_debug(),
-                    start.pretty_debug(),
-                    end.pretty_debug()
-                )
-            }
             crate::ExprKind::TupleIndex(base, idx) => {
                 format!("{}.{}", base.pretty_debug(), idx)
             }

@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 1144
+---
+fn test(x: [int<8>; 6]) -> [int<8>; 1] {
+    x[1..-5]
+}
+
+
+error: Expected type #uint, got -6
+   ┌─ <compiler dir>/stdlib/index.spade:37:25
+   │
+37 │         where NewLen : {Current + Upper - Lower},
+   │                         ^^^^^^^^^^^^^^^^^^^^^^^ Expected #uint, got -6
+   │
+   ┌─ testinput:2:7
+   │
+ 2 │     x[1..-5]
+   │       ----- The error occurred when unifying types here
+   │
+   = note: Expected: #uint
+                 in: #uint
+                Got: -6
+                 in: -6

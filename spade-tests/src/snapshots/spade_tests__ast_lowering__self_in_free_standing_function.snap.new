@@ -4,8 +4,14 @@ assertion_line: 793
 ---
 fn a(self) -> bool {true}
 
-error: 'self' cannot be used in free standing units
+bug: Trying to convert TraitSelf to type inference type var
   ┌─ testinput:1:6
   │
 1 │ fn a(self) -> bool {true}
-  │      ^^^^ not allowed here
+  │      ^^^^
+  │
+  = note: This is an internal bug in the compiler.
+          We would appreciate if you opened an issue in the repository:
+          https://gitlab.com/spade-lang/spade/-/issues/new?issuable_template=Internal%20bug
+  = note: Triggered at spade-typeinference/src/lib.rs:344
+          Rerun with RUST_BACKTRACE=1 to capture a backtrace

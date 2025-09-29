@@ -35,7 +35,6 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             spade_hir::ExprKind::ArrayLiteral(_) => Ok(()),
             spade_hir::ExprKind::ArrayShorthandLiteral(_, _) => Ok(()),
             spade_hir::ExprKind::Index(_, _) => Ok(()),
-            spade_hir::ExprKind::RangeIndex { .. } => Ok(()),
             spade_hir::ExprKind::TupleIndex(_, _) => Ok(()),
             spade_hir::ExprKind::FieldAccess(_, _) => Ok(()),
             spade_hir::ExprKind::MethodCall { .. } => Ok(()),

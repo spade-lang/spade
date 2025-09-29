@@ -8,6 +8,7 @@ pub mod pipelines;
 pub mod testutil;
 mod type_level_if;
 pub mod types;
+mod method_util;
 
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
@@ -28,6 +29,7 @@ use type_level_if::expand_type_level_if;
 
 use crate::attributes::AttributeListExt;
 pub use crate::impls::ensure_unique_anonymous_traits;
+use crate::method_util::ExprExt;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::{IsInOut, IsPort, IsSelf};
 use ast::{Binding, CallKind, ParameterList};
@@ -37,7 +39,7 @@ use hir::symbol_table::DeclarationState;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
 use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
 use rustc_hash::FxHashSet as HashSet;
-use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
+use spade_ast::{self as ast, Attribute, Expression, PartialRangeIndex, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
@@ -2032,13 +2034,55 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let index = index.visit(visit_expression, ctx);
             Ok(hir::ExprKind::Index(Box::new(target), Box::new(index)))
         }
-        ast::Expression::RangeIndex { target, start, end } => {
+        ast::Expression::RangeIndex { target, indices } => {
             let target = target.visit(visit_expression, ctx);
-            Ok(hir::ExprKind::RangeIndex {
-                target: Box::new(target),
-                start: visit_const_generic(start, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
-                end: visit_const_generic(end, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
-            })
+            let const_indices = indices
+                .iter()
+                .map(|PartialRangeIndex { start, end }| {
+                    Ok((
+                        visit_const_generic(start, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
+                        visit_const_generic(end, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            let mut base = target.clone().call_method(
+                "range_index".at_loc(indices),
+                None,
+                hir::ArgumentList::empty().at_loc(indices),
+                ctx,
+            );
+
+            for (start, end) in &const_indices {
+                base = base.between_locs(start, end).call_method(
+                    "and_index".between_locs(start, end),
+                    Some(
+                        hir::ArgumentList::Positional(vec![
+                            hir::TypeExpression::ConstGeneric(
+                                start.clone().map(|cg| cg.inner).clone(),
+                            )
+                            .at_loc(&start),
+                            hir::TypeExpression::ConstGeneric(
+                                end.clone().map(|cg| cg.inner).clone(),
+                            )
+                            .at_loc(&end),
+                            hir::TypeExpression::TypeSpec(TypeSpec::Wildcard(().at_loc(&target)))
+                                .at_loc(&target),
+                        ])
+                        .between_locs(start, end),
+                    ),
+                    hir::ArgumentList::empty().between_locs(start, end),
+                    ctx,
+                )
+            }
+
+            // FIXME: We should probably add "poisoned LOCs" that emit a Diagnostic::bug instead of error if we encounter them
+            Ok(base.at_loc(&target).call_method(
+                "commit".at_loc(&target),
+                None,
+                hir::ArgumentList::empty().at_loc(&target),
+                ctx,
+            ))
         }
         ast::Expression::TupleIndex {
             target,

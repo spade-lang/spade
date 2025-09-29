@@ -7,16 +7,22 @@ fn test(x: int<8>) -> [int<8>; 2] {
 }
 
 
-error: Index target must be an array, got int<8>
-  ┌─ testinput:2:5
-  │
-1 │ fn test(x: int<8>) -> [int<8>; 2] {
-  │            ------ Type int<8> inferred here
-2 │     x[0..3]
-  │     ^------
-  │     │
-  │     Type [_; _] inferred here
-  │     Expected array
-  │
-  = note: Expected: [_; _]
-               Got: int<8>
+error: Output type mismatch. Expected [int<8>; 2], got [bool; 3]
+   ┌─ testinput:1:35
+   │  
+ 1 │   fn test(x: int<8>) -> [int<8>; 2] {
+   │                         ----------- [int<8>; 2] type specified here
+   │ ╭───────────────────────────────────^
+ 2 │ │     x[0..3]
+ 3 │ │ }
+   │ ╰─^ Found type [bool; 3]
+   │  
+   ┌─ <compiler dir>/stdlib/index.spade:18:57
+   │
+18 │     fn range_index(self) -> intrinsics::MultiRangeIndex<bool, N, 0> {
+   │                                                         ---- Type bool inferred here
+   │
+   = note: Expected: int<8>
+                 in: [int<8>; 2]
+                Got: bool
+                 in: [bool; 3]

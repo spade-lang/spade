@@ -1,6 +1,6 @@
 use num::ToPrimitive;
 use spade_ast::{
-    ArgumentList, BinaryOperator, Block, CallKind, Expression, IntLiteral, UnaryOperator,
+    ArgumentList, BinaryOperator, Block, CallKind, Expression, IntLiteral, UnaryOperator, PartialRangeIndex
 };
 use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::diag_list::ResultExt;
@@ -507,10 +507,51 @@ impl<'a> Parser<'a> {
                     if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
                         // double dot => range index: `[1..2]`
                         let end = s.expression()?;
+
+                        let first_index = PartialRangeIndex {
+                            start: Box::new(start.clone()),
+                            end: Box::new(end.clone()),
+                        };
+
+                        let rest_indices = if let Some(_) = s.peek_and_eat(&TokenKind::Comma)? {
+                            s.comma_separated(
+                                |s| {
+                                    let start = Box::new(s.expression()?);
+                                    s.eat(&TokenKind::DotDot).map_err(|e| {
+                                        e.secondary_label(
+                                            start.loc(),
+                                            "Multiple indices have to be range indices",
+                                        )
+                                        .span_suggest_insert_after(
+                                            "Consider adding an end index",
+                                            start.loc(),
+                                            "../* END */",
+                                        )
+                                    })?;
+                                    let end = Box::new(s.expression()?);
+
+                                    Ok(PartialRangeIndex { start, end })
+                                },
+                                &TokenKind::CloseBracket,
+                            )
+                            .no_context()?
+                        } else {
+                            vec![]
+                        };
+
                         Ok(Expression::RangeIndex {
                             target: Box::new(expr.clone()),
-                            start: Box::new(start),
-                            end: Box::new(end),
+                            indices: [first_index]
+                                .into_iter()
+                                .chain(rest_indices.clone())
+                                .collect::<Vec<_>>()
+                                .between_locs(
+                                    &start,
+                                    &rest_indices
+                                        .last()
+                                        .map(|i| i.end.loc())
+                                        .unwrap_or(end.loc()),
+                                ),
                         })
                     } else {
                         Ok(Expression::Index(Box::new(expr.clone()), Box::new(start)))

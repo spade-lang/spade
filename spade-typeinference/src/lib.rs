@@ -761,7 +761,6 @@ impl TypeState {
                 self.visit_field_access(expression, ctx, generic_list)?
             }
             ExprKind::MethodCall { .. } => self.visit_method_call(expression, ctx, generic_list)?,
-            ExprKind::RangeIndex { .. } => self.visit_range_index(expression, ctx, generic_list)?,
             ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
             ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,
             ExprKind::If(_, _, _) => self.visit_if(expression, ctx, generic_list)?,

@@ -545,52 +545,6 @@ impl TypeState {
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_range_index(
-        &mut self,
-        expression: &Loc<Expression>,
-        ctx: &Context,
-        generic_list: &GenericListToken,
-    ) -> Result<()> {
-        assuming_kind!(ExprKind::RangeIndex{
-            target,
-            ref start,
-            ref end,
-        } = &expression => {
-            self.visit_expression(target, ctx, generic_list);
-            // Add constraints
-            let inner_type = self.new_generic_type(target.loc());
-
-            let start_var = self.visit_const_generic_with_id(start, generic_list, ConstraintSource::RangeIndex, ctx)?;
-            let end_var = self.visit_const_generic_with_id(end, generic_list, ConstraintSource::RangeIndex, ctx)?;
-
-            let in_array_size = self.new_generic_tluint(target.loc());
-            let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone()).insert(self);
-            let out_array_size = self.new_generic_tluint(target.loc());
-            let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone()).insert(self);
-
-            let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
-            self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
-
-            self.add_requirement(Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start), end: end_var.clone().at_loc(end) });
-            self.add_requirement(Requirement::RangeIndexInArray { index: end_var.at_loc(end), size: in_array_size.at_loc(&target.loc()) });
-
-            self.unify(&expression.inner, &out_array_type, ctx)
-                .into_default_diagnostic(expression, self)?;
-
-
-            self.unify(&target.inner, &in_array_type, ctx)
-                .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
-                    let got = got.display(self);
-                    diag
-                        .message(format!("Index target must be an array, got {}", got))
-                        .primary_label("Expected array".to_string())
-                }, self)?;
-        });
-        Ok(())
-    }
-
-    #[trace_typechecker]
-    #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_block_expr(
         &mut self,
         expression: &Loc<Expression>,

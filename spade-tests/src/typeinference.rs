@@ -1131,23 +1131,12 @@ snapshot_error! {
     "
 }
 
-#[test]
-fn end_at_array_bound_is_allowed() {
-    let code = "
+code_compiles! {
+    end_at_array_bound_is_allowed,
+    "
     fn test(x: [int<8>; 6]) -> [int<8>; 2] {
         x[4..6]
-    }";
-
-    build_items(code);
-}
-
-snapshot_error! {
-    zero_size_range_index_is_error,
-    "
-        fn test(x: [int<8>; 6]) -> [int<8>; 1] {
-            x[7..7]
-        }
-    "
+    }"
 }
 
 snapshot_error! {

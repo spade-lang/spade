@@ -58,13 +58,6 @@ impl Passable for Loc<Expression> {
             ExprKind::Index(lhs, rhs) => {
                 subnodes!(lhs, rhs)
             }
-            ExprKind::RangeIndex {
-                target,
-                start: _,
-                end: _,
-            } => {
-                subnodes!(target)
-            }
             ExprKind::TupleIndex(lhs, _) => subnodes!(lhs),
             ExprKind::FieldAccess(lhs, _) => subnodes!(lhs),
             ExprKind::MethodCall {

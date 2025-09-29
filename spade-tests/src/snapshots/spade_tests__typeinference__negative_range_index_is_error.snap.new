@@ -1,14 +1,16 @@
 ---
 source: spade-tests/src/typeinference.rs
-assertion_line: 1146
+assertion_line: 1135
 ---
 fn test(x: [int<8>; 6]) -> [int<8>; 6] {
     x[-1..5]
 }
 
 
-error: The start of a range cannot be negative
-  ┌─ testinput:2:7
+error: Expected std::index::intrinsics::Lower >= 0 but std::index::intrinsics::Lower is -1 
+  ┌─ testinput:2:5
   │
 2 │     x[-1..5]
-  │       ^^ Inferred negative range start (-1)
+  │     ^ Expected std::index::intrinsics::Lower >= 0, but std::index::intrinsics::Lower is -1
+  │
+  = note: The start index cannot be negative

@@ -632,11 +632,6 @@ impl PipelineAvailability for Expression {
             ExprKind::Index(lhs, idx) => {
                 try_compute_availability(&[lhs.as_ref(), idx.as_ref()], ctx)
             }
-            ExprKind::RangeIndex {
-                target,
-                start: _,
-                end: _,
-            } => try_compute_availability(&[target.as_ref()], ctx),
             ExprKind::TupleIndex(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::FieldAccess(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::BinaryOperator(lhs, _, rhs) => {

@@ -7,10 +7,10 @@ fn test(x: [int<8>; 6]) -> [int<8>; 2] {
 }
 
 
-error: Range index out of bounds
-  ┌─ testinput:2:10
+error: Expected std::index::intrinsics::Upper <= 6 but std::index::intrinsics::Upper is 7 
+  ┌─ testinput:2:5
   │
 2 │     x[5..7]
-  │     -    ^ Index `7` out of bounds
-  │     │     
-  │     The array only has 6 elements
+  │     ^ Expected std::index::intrinsics::Upper <= 6, but std::index::intrinsics::Upper is 7
+  │
+  = note: The end index has to be inside the array

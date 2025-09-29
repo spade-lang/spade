@@ -273,6 +273,12 @@ pub enum BitLiteral {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct PartialRangeIndex {
+    pub start: Box<Loc<Expression>>,
+    pub end: Box<Loc<Expression>>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expression {
     Identifier(Loc<Path>),
     IntLiteral(Loc<IntLiteral>),
@@ -288,8 +294,7 @@ pub enum Expression {
     RangeIndex {
         target: Box<Loc<Expression>>,
         // NOTE: These are const generics
-        start: Box<Loc<Expression>>,
-        end: Box<Loc<Expression>>,
+        indices: Loc<Vec<PartialRangeIndex>>,
     },
     Parenthesized(Box<Loc<Expression>>),
     TupleLiteral(Vec<Loc<Expression>>),

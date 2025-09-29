@@ -1,0 +1,55 @@
+trait RangeIndex<T, #uint N> {
+    fn range_index(self) -> intrinsics::MultiRangeIndex<T, N, 0>;
+}
+
+impl<T, #uint N> RangeIndex<T, N> for [T; N] {
+    fn range_index(self) -> intrinsics::MultiRangeIndex<T, N, 0> {
+        intrinsics::MultiRangeIndex$(current: [], indexee: self)
+    }
+}
+
+impl<#uint N> RangeIndex<bool, N> for uint<N> {
+    fn range_index(self) -> intrinsics::MultiRangeIndex<bool, N, 0> {
+        self.to_bits().range_index()
+    }
+}
+
+impl<#uint N> RangeIndex<bool, N> for int<N> {
+    fn range_index(self) -> intrinsics::MultiRangeIndex<bool, N, 0> {
+        self.to_bits().range_index()
+    }
+}
+
+// The units in this module should generally not be used manually, they are desugaring targets
+// for the range index operation
+mod intrinsics {
+    /// Primitive for doing range indexing.
+    extern fn range_index<#uint N, #uint Lower, #uint Upper, #uint Out>(indexee: [bool; N]) -> [bool; Out]
+    where Out: {Upper - Lower};
+
+    struct MultiRangeIndex<T, #uint IndexeeLen, #uint Current> {
+      current: [T; Current],
+      indexee: [T; IndexeeLen],
+    }
+
+    impl<T, #uint IndexeeLen, #uint Current> MultiRangeIndex<T, IndexeeLen, Current> {
+        fn and_index<#int Lower, #int Upper, #uint NewLen>(self) -> MultiRangeIndex<T, IndexeeLen, NewLen>
+        where NewLen : {Current + Upper - Lower},
+              Lower < IndexeeLen else "The start index has to be inside the array",
+              Upper <= IndexeeLen else "The end index has to be inside the array",
+              Upper >= 0 else "The end index cannot be negative",
+              Lower >= 0 else "The start index cannot be negative",
+              Upper >= Lower else "The end has to be after the start. If you want to reverse the order, use std::conv::flip_array"
+        {
+            MultiRangeIndex$(
+                current: self.current `concat_arrays` self.indexee[Lower..Upper],
+                indexee: self.indexee
+            )
+        }
+
+        fn commit(self) -> [T; Current]{
+            self.current
+        }
+    }
+}
+
