@@ -1,0 +1,6 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+fn test<'a>(a: 'a bool, b: 'a bool)  -> 'a (bool, bool) {
+    (a, b)
+}

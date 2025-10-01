@@ -743,7 +743,6 @@ impl Spade {
             ty,
             no_mangle,
             field_translator: _,
-            domain: _,
         } in &head.inputs.0
         {
             if arg == name.0 {
@@ -919,7 +918,7 @@ impl Spade {
     /// Return the output type of uut
     #[tracing::instrument(level = "trace", skip(self))]
     fn output_type(&mut self) -> Result<Option<Loc<TypeSpec>>> {
-        Ok(self.uut_head.output_type.clone().map(|(_domain, ty)| ty))
+        Ok(self.uut_head.output_type.clone())
     }
 
     #[tracing::instrument(level = "trace", skip(self))]

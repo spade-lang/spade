@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+fn test<'a, 'b>(a: 'a bool, b: 'b bool)  -> 'a (bool, bool) {
+    (a, b)
+}
+
+
+error: Domain mismatch, expected 'a, but it is in ('a, 'b)
+  ┌─ testinput:2:5
+  │
+1 │ fn test<'a, 'b>(a: 'a bool, b: 'b bool)  -> 'a (bool, bool) {
+  │                                             --------------- 'a was specified here
+2 │     (a, b)
+  │     ^^^^^^ Expected domain 'a, found ('a, 'b)

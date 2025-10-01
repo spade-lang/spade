@@ -680,7 +680,7 @@ fn visit_parameter_list(
         }
     }
 
-    for (attrs, domain, name, input_type) in &l.args {
+    for (attrs, name, input_type) in &l.args {
         if let Some(prev) = arg_names.get(name) {
             return Err(
                 Diagnostic::error(name, "Multiple arguments with the same name")
@@ -698,8 +698,6 @@ fn visit_parameter_list(
             .or(no_mangle_all);
         let field_translator = attrs.consume_translator();
         attrs.report_unused("a parameter")?;
-
-        let domain = visit_parameter_domain(domain, name.loc(), input_type.loc(), domains, ctx)?;
 
         result.push(hir::Parameter {
             name: name.clone(),
@@ -770,7 +768,7 @@ fn build_no_mangle_all_output_diagnostic(
         .inputs
         .args
         .iter()
-        .filter_map(|(_, _, name, _)| {
+        .filter_map(|(_, name, _)| {
             if name.0.contains("out") {
                 Some(name.0.len())
             } else {
@@ -812,7 +810,7 @@ fn build_no_mangle_all_output_diagnostic(
             format!("({}: {})", suggested_name, suggested_type),
         );
     } else {
-        let last_parameter = &head.inputs.args.last().unwrap().3;
+        let last_parameter = &head.inputs.args.last().unwrap().2;
         let (span, file) = (last_parameter.span, last_parameter.file_id);
         first_suggestion.push_part(
             (Span::new(span.end(), span.end()), file),

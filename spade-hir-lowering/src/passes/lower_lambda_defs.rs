@@ -207,7 +207,6 @@ impl LambdaReplacement {
                             name: i.name,
                             ty: self.update_type_spec(i.ty),
                             field_translator: i.field_translator,
-                            domain: i.domain,
                         })
                         .collect(),
                 )

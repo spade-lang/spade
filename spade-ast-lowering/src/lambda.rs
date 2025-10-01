@@ -320,7 +320,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     self_: Some((None, ().nowhere())),
                     args: vec![(
                         ast::AttributeList(vec![]),
-                        None,
                         Identifier("args".to_string()).nowhere(),
                         args_spec,
                     )],

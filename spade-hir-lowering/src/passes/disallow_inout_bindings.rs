@@ -42,7 +42,6 @@ impl<'a> Pass for InOutChecks<'a> {
                 no_mangle,
                 name: _,
                 ty: _,
-                domain: _,
                 field_translator: _,
             },
             (name, _ty),

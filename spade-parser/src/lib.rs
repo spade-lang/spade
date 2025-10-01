@@ -843,7 +843,16 @@ impl<'a> Parser<'a> {
     // Types
     #[trace_parser]
     pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
-        if let Some(inv) = self.peek_and_eat(&TokenKind::Inv)? {
+        if let Some(quote) = self.peek_and_eat(&TokenKind::SingleQuote)? {
+            let (ident, ident_loc) = self.identifier()?.split_loc();
+            let domain = DomainName(ident);
+            let (rest, rest_loc) = self.type_spec()?.split_loc();
+            Ok(TypeSpec::WithDomain(
+                domain.between(self.file_id, &quote, &ident_loc),
+                Box::new(rest.at_loc(&rest_loc)),
+            )
+            .between(self.file_id, &quote, &rest_loc))
+        } else if let Some(inv) = self.peek_and_eat(&TokenKind::Inv)? {
             let rest = self.type_expression()?;
             Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(self.file_id, &inv, &rest))
         } else if let Some(tilde) = self.peek_and_eat(&TokenKind::Tilde)? {
