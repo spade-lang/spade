@@ -76,6 +76,112 @@ code_compiles! {
     "
 }
 
+code_compiles! {
+    set_works_on_same_domain,
+    "
+        fn test<'a>(a: 'a bool, b: 'a inv &bool) {
+            set b = &a;
+        }
+    "
+}
+
+snapshot_error! {
+    set_cannot_mix_unrelated_domains,
+    "
+        fn test<'a, 'b>(a: 'a bool, b: 'b inv &bool) {
+            set b = &a;
+        }
+    ",
+    false
+}
+
+code_compiles! {
+    set_const_is_allowed,
+    "
+        fn test<'a>(a: 'a inv &bool) {
+            set a = &false;
+        }
+    "
+}
+
+snapshot_error! {
+    set_cannot_set_specific_to_async,
+    "
+        fn test<'a>(a: 'async bool, b: 'a inv &bool) {
+            set b = &a;
+        }
+    ",
+    false
+}
+
+code_compiles! {
+    set_can_set_async_to_specific,
+    "
+        fn test<'a>(a: 'a bool, b: 'async inv &bool) {
+            set b = &a;
+        }
+    "
+}
+
+snapshot_error! {
+    const_domain_cannot_be_set_with_named,
+    "
+        fn test<'a>(a: 'a bool, b: 'const inv &bool) {
+            set b = &a;
+        }
+    ",
+    false
+}
+
+code_compiles! {
+    const_domain_can_be_set_from_const,
+    "
+        fn test(a: 'const bool, b: 'const inv &bool) {
+            set b = &a;
+        }
+    "
+}
+
+snapshot_error! {
+    registers_need_a_clock,
+    "
+        entity test(clk: clock, a: 'async bool) {
+            reg(clk) x = a;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    mixed_signals_cannot_be_put_in_a_register,
+    "
+        entity test<'a, 'b>(clk: clock, a: 'a bool, b: 'b bool) {
+            reg(clk) x = (a, b);
+        }
+    ",
+    false
+}
+
+
+snapshot_error! {
+    recursive_mixed_signals_cannot_be_put_in_a_register,
+    "
+        entity test<'a, 'b>(clk: clock, a: 'a bool, b: 'b bool) {
+            reg(clk) x = (true, (a, b));
+        }
+    ",
+    false
+}
+
+code_compiles! {
+    const_and_known_can_be_stored_in_register,
+    "
+        entity test<'a>(clk: clock, a: 'a bool) {
+            reg(clk) x = (a, false);
+        }
+    "
+}
+
 // snapshot_error! {
 //     parameter_implicit_domain_is_disallowed_with_explicit_domains,
 //     "

@@ -601,12 +601,21 @@ pub fn visit_type_spec(
             }
         }
         ast::TypeSpec::WithDomain(ast_domain, inner) => {
-            let (domain, _) = ctx
-                .symtab
-                .lookup_domain(&Path(vec![ast_domain.0.clone().at_loc(ast_domain)]).at_loc(ast_domain))?;
+            let domain = match &ast_domain.inner {
+                spade_ast::DomainName::Const => hir::domains::DomainName::Const,
+                spade_ast::DomainName::Async => hir::domains::DomainName::Async,
+                spade_ast::DomainName::Annon => hir::domains::DomainName::Annonymous,
+                spade_ast::DomainName::Named(name) => {
+                    let (domain, _) = ctx.symtab.lookup_domain(
+                        &Path(vec![name.clone().at_loc(ast_domain)]).at_loc(ast_domain),
+                    )?;
+
+                    hir::domains::DomainName::Named(domain.at_loc(ast_domain))
+                }
+            };
 
             Ok(hir::TypeSpec::WithDomain(
-                hir::domains::DomainName::Named(domain.at_loc(ast_domain)).at_loc(ast_domain),
+                domain.at_loc(ast_domain),
                 Box::new(visit_type_spec(inner, kind, ctx)?),
             ))
         }
@@ -627,7 +636,6 @@ pub enum SelfContext {
 
 fn visit_parameter_list(
     l: &Loc<ParameterList>,
-    domains: &[hir::domains::Domain],
     ctx: &mut Context,
     no_mangle_all: Option<Loc<()>>,
 ) -> Result<Loc<hir::ParameterList>> {
@@ -652,8 +660,6 @@ fn visit_parameter_list(
     }
 
     if let Some((self_domain, self_loc)) = &l.self_ {
-        let domain = visit_parameter_domain(self_domain, *self_loc, *self_loc, domains, ctx)?;
-
         match &ctx.self_ctx {
             SelfContext::FreeStanding => {
                 return Err(Diagnostic::error(
@@ -707,55 +713,6 @@ fn visit_parameter_list(
         });
     }
     Ok(hir::ParameterList(result).at_loc(l))
-}
-
-fn visit_parameter_domain(
-    domain: &Option<Loc<ast::DomainName>>,
-    param_loc: Loc<()>,
-    suggestion_loc: Loc<()>,
-    domains: &[hir::domains::Domain],
-    ctx: &mut Context,
-) -> Result<hir::domains::DomainName> {
-    match &domain {
-        Some(domain_name) => {
-            let path = Path(vec![domain_name.0.clone().at_loc(domain_name)]).at_loc(domain_name);
-            let domain = ctx.symtab.lookup_domain(&path)?.0.at_loc(domain_name);
-            Ok(DomainName::Named(domain))
-        }
-        None => {
-            if domains.is_empty()
-                || domains
-                    .iter()
-                    .find(|dom| dom.name == hir::domains::DomainName::Annonymous)
-                    .is_some()
-            {
-                Ok(DomainName::Annonymous)
-            } else {
-                let annonymous_insertion_loc = match &domains[0].name {
-                    DomainName::Annonymous => diag_bail!(
-                        param_loc,
-                        "Found an annonymous domain in a unit we determined not to have one"
-                    ),
-                    DomainName::Named(loc) => loc,
-                };
-                Err(
-                    Diagnostic::error(param_loc, "Missing a domain for this parameter")
-                        .primary_label("Missing domain")
-                        .help("In a unit with explicit domains, every domain must have a parameter")
-                        .span_suggest_insert_before(
-                            "Consider specifying a domain",
-                            suggestion_loc,
-                            "'/*domain*/ ",
-                        )
-                        .span_suggest_insert_before(
-                            "Or explicitly adding an annonymous domain",
-                            annonymous_insertion_loc,
-                            "'_, ",
-                        ),
-                )
-            }
-        }
-    }
 }
 
 /// Builds a diagnostic for a `#[no_mangle(all)]`-marked unit with a non-unit output type.
@@ -922,9 +879,7 @@ pub fn unit_head(
     let unit_where_clauses = visit_where_clauses(&head.where_clauses, ctx);
 
     let output_type = if let Some((_, ty)) = &head.output_type {
-        Some(
-            visit_type_spec(&ty, &TypeSpecKind::OutputType, ctx)?,
-        )
+        Some(visit_type_spec(&ty, &TypeSpecKind::OutputType, ctx)?)
     } else {
         None
     };
@@ -952,7 +907,7 @@ pub fn unit_head(
         ));
     }
 
-    let inputs = visit_parameter_list(&head.inputs, &domains, ctx, no_mangle_all)?;
+    let inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
 
     // Check for ports in functions
     // We need to have the scope open to check this, but we also need to close

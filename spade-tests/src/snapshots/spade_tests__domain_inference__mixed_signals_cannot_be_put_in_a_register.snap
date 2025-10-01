@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(clk: clock, a: 'a bool, b: 'b bool) {
+    reg(clk) x = (a, b);
+}
+
+
+error: A value in the ('a, 'b) domain cannot be stored in a register.
+  ┌─ testinput:2:18
+  │
+2 │     reg(clk) x = (a, b);
+  │                  ^^^^^^ ('a, 'b) in a register
+  │
+  = help: Values stored in registers must have a clock
+  = note: Tuples can only be stored in registers if all elements have a common domain

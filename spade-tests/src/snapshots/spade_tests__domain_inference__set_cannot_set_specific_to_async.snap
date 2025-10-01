@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+fn test<'a>(a: 'async bool, b: 'a inv &bool) {
+    set b = &a;
+}
+
+
+error: Domain mismatch, expected 'a, but it is in 'async
+  ┌─ testinput:2:14
+  │
+2 │     set b = &a;
+  │         -    ^ Expected domain 'a, found 'async
+  │         │     
+  │         'a inferred here
+  │
+  = help: The domain of the set value must be compatible with the domain of the target

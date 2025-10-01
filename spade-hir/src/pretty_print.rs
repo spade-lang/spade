@@ -42,6 +42,8 @@ impl PrettyPrint for DomainName {
         match self {
             DomainName::Annonymous => "'_".to_string(),
             DomainName::Named(name) => format!("'{name}"),
+            DomainName::Const => format!("'const"),
+            DomainName::Async => format!("'async"),
         }
     }
 }

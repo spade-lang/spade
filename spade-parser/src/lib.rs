@@ -845,7 +845,14 @@ impl<'a> Parser<'a> {
     pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
         if let Some(quote) = self.peek_and_eat(&TokenKind::SingleQuote)? {
             let (ident, ident_loc) = self.identifier()?.split_loc();
-            let domain = DomainName(ident);
+
+            let domain = match ident.0.as_str() {
+                "async" => DomainName::Async,
+                "const" => DomainName::Const,
+                "_" => DomainName::Annon,
+                _ => DomainName::Named(ident),
+            };
+
             let (rest, rest_loc) = self.type_spec()?.split_loc();
             Ok(TypeSpec::WithDomain(
                 domain.between(self.file_id, &quote, &ident_loc),
@@ -1181,7 +1188,7 @@ impl<'a> Parser<'a> {
             let name = self.identifier()?;
             let name_loc = name.loc();
             Ok(Some(
-                DomainName(name.inner).between_locs(&domain.loc(), &name_loc.loc()),
+                DomainName::Named(name.inner).between_locs(&domain.loc(), &name_loc.loc()),
             ))
         } else {
             Ok(None)

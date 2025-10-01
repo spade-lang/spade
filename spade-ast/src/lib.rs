@@ -587,11 +587,21 @@ impl AttributeList {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct DomainName(pub Identifier);
+pub enum DomainName {
+    Const,
+    Async,
+    Annon,
+    Named(Identifier)
+}
 
 impl std::fmt::Display for DomainName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}", self.0)
+        match self {
+            DomainName::Const => write!(f, "'const"),
+            DomainName::Async => write!(f, "'async"),
+            DomainName::Annon => write!(f, "'_"),
+            DomainName::Named(name) => write!(f, "'{name}"),
+        }
     }
 }
 

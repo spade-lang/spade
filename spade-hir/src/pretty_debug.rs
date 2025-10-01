@@ -105,6 +105,8 @@ impl PrettyDebug for DomainName {
         match self {
             DomainName::Annonymous => format!("'_"),
             DomainName::Named(name) => format!("'{}", name.pretty_debug()),
+            DomainName::Const => format!("'const"),
+            DomainName::Async => format!("'async"),
         }
     }
 }

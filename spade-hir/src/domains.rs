@@ -4,6 +4,8 @@ use spade_common::{location_info::Loc, name::NameID};
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum DomainName {
     Annonymous,
+    Const,
+    Async,
     Named(Loc<NameID>),
 }
 
@@ -12,6 +14,8 @@ impl std::fmt::Display for DomainName {
         match self {
             DomainName::Annonymous => write!(f, "'_"),
             DomainName::Named(name) => write!(f, "'{name}"),
+            DomainName::Const => write!(f, "'const"),
+            DomainName::Async => write!(f, "'async"),
         }
     }
 }

@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+fn test<'a>(a: 'a bool, b: 'const inv &bool) {
+    set b = &a;
+}
+
+
+error: Domain mismatch, expected 'const, but it is in 'a
+  ┌─ testinput:2:14
+  │
+2 │     set b = &a;
+  │         -    ^ Expected domain 'const, found 'a
+  │         │     
+  │         'const inferred here
+  │
+  = help: The domain of the set value must be compatible with the domain of the target

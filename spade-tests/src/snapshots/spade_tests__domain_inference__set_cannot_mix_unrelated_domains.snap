@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+fn test<'a, 'b>(a: 'a bool, b: 'b inv &bool) {
+    set b = &a;
+}
+
+
+error: Domain mismatch, expected 'b, but it is in 'a
+  ┌─ testinput:2:14
+  │
+2 │     set b = &a;
+  │         -    ^ Expected domain 'b, found 'a
+  │         │     
+  │         'b inferred here
+  │
+  = help: The domain of the set value must be compatible with the domain of the target
