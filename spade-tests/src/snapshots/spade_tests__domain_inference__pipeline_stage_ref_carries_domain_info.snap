@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+pipeline(1) test<'a, 'b>(clk: clock, x: 'a bool) -> 'b bool {
+    reg;
+        stage(-1).x
+}
+
+
+error: Domain mismatch, expected 'b, but it is in 'a
+  ┌─ testinput:3:9
+  │
+1 │ pipeline(1) test<'a, 'b>(clk: clock, x: 'a bool) -> 'b bool {
+  │                                                     ------- 'b was specified here
+2 │     reg;
+3 │         stage(-1).x
+  │         ^^^^^^^^^^^ Expected domain 'b, found 'a

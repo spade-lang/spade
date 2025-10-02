@@ -3,8 +3,7 @@ mod tracing;
 mod visiting;
 
 use std::{
-    cell::RefCell,
-    collections::{BTreeSet, HashMap},
+    collections::HashMap,
     sync::{Arc, RwLock},
 };
 
@@ -12,9 +11,9 @@ use domain_var::DomainVar;
 use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_diagnostics::{diag_list::DiagList, Diagnostic};
-use spade_hir::{domains::DomainConstraint, symbol_table::SymbolTable, Expression, Pattern};
+use spade_hir::symbol_table::SymbolTable;
 use spade_typeinference::{
-    equation::TypeVarID, replacement::ReplacementStack, GenericListToken, TypeState,
+    equation::TypeVarID, TypeState,
 };
 use tracing::TraceEntry;
 

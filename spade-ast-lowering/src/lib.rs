@@ -462,6 +462,8 @@ pub fn visit_type_spec(
                         | TypeSpec::Wire(_)
                         | TypeSpec::TraitSelf(_)
                         | TypeSpec::Wildcard(_)
+                        // TODO: This will compile but i'm pretty sure it is incorrect, we need to do the check for type level integers with domains too
+                        | TypeSpec::WithDomain(_, _) 
                         | TypeSpec::Declared(_, _) => Ok(t.at_loc(p)),
                         TypeSpec::Generic(name) => {
                             let inner = ctx.symtab.type_symbol_by_id(&name.inner);

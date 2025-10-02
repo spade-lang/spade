@@ -1,13 +1,18 @@
-use std::collections::HashMap;
-
 use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
-use spade_hir::{ExprKind, Expression, Pattern, PatternKind, Register, Statement, Unit};
+use spade_hir::{
+    domains::DomainName, Binding, ExprKind, Expression, Parameter, Pattern, PatternKind, Register,
+    Statement, Unit,
+};
 use spade_typeinference::equation::TypeVarID;
 
-use crate::{domain_var::DomainVar, Context, DomainState, Result};
+use crate::{
+    domain_var::{DomainVar, KnownDomain},
+    Context, DomainState, Result,
+};
 
 impl DomainState {
+    // TODO: Don't make this bail on first error
     pub fn visit_unit(&mut self, unit: &Loc<Unit>, ctx: &Context) -> Result<()> {
         let result = self.visit_unit_inner(unit, ctx);
 
@@ -41,7 +46,17 @@ impl DomainState {
     fn visit_statement(&mut self, stmt: &Loc<Statement>, ctx: &Context) -> Result<()> {
         match &stmt.inner {
             Statement::Error => {}
-            Statement::Binding(binding) => todo!(),
+            Statement::Binding(Binding {
+                pattern,
+                ty: _,
+                value,
+                wal_trace: _,
+            }) => {
+                let expected = self.synth_expression(value, ctx)?.at_loc(value);
+
+                self.check_pattern(pattern, &expected, ctx)
+                    .add_default_source_message()?;
+            }
             Statement::Expression(expr) => {
                 self.synth_expression(expr, ctx)?;
             }
@@ -49,15 +64,17 @@ impl DomainState {
                 pattern,
                 clock,
                 reset,
-                initial,
+                // Initial values are checked elsewhere
+                initial: _,
                 value,
-                value_type,
-                attributes,
+                value_type: _,
+                attributes: _,
             }) => {
                 let expected = self.synth_expression(value, ctx)?.at_loc(value);
+                let collapsed = expected.collapse_tuple_domains().at_loc(value);
 
                 // Ensure that the domain has a clock
-                match &self.collapse_tuple_domains(&expected.inner) {
+                match &collapsed.inner {
                     DomainVar::Error => {}
                     DomainVar::Const => {
                         // This should be an error unless we can infer a more specific
@@ -81,7 +98,7 @@ impl DomainState {
                             diag.add_note("Tuples can only be stored in registers if all elements have a common domain");
                         }
 
-                        return Err(diag)
+                        return Err(diag);
                     }
                     DomainVar::Known(_) => {}
                     DomainVar::Tuple(_) => {
@@ -89,14 +106,39 @@ impl DomainState {
                     }
                 }
 
-                // TODO: Ensure that the clock, reset, and initial are in the right
-                // domains
+                self.check_expression(clock, &collapsed, ctx)
+                    .add_expected_source(|d, expected| {
+                        d.secondary_label(&expected, format!("The value is in domain {expected}."))
+                            .help(format!(
+                                "The domain of the clock must be the same as the value"
+                            ))
+                    })?;
 
-                self.check_pattern(pattern, expected, ctx)?;
+                match reset {
+                    Some((trigger, value)) => {
+                        self.check_expression(trigger, &collapsed, ctx).add_expected_source(|d, expected| {
+                        d.secondary_label(&expected, format!("The value is in domain {expected}."))
+                            .help(format!(
+                                "The domain of the reset trigger must be the same as the register value"
+                            ))
+                        })?;
+
+                        self.check_expression(value, &expected, ctx).add_expected_source(|d, expected| {
+                        d.secondary_label(&expected, format!("The value is in domain {expected}."))
+                            .help(format!(
+                                "The domain of the reset value must be the same as the register value"
+                            ))
+                        })?;
+                    }
+                    None => {}
+                }
+
+                self.check_pattern(pattern, &expected, ctx)
+                    .add_default_source_message()?;
             }
             Statement::Declaration(locs) => todo!(),
-            Statement::PipelineRegMarker(pipeline_reg_marker_extra) => {}
-            Statement::Label(loc) => {}
+            Statement::PipelineRegMarker(_) => {}
+            Statement::Label(_) => {}
             // TODO: Consider if we should do domain checking on asserts
             Statement::Assert(_expr) => {}
             Statement::Set { target, value } => {
@@ -107,23 +149,21 @@ impl DomainState {
                         .help(format!("The domain of the set value must be compatible with the domain of the target"))
                     })?;
             }
-            Statement::WalSuffixed { suffix, target } => todo!(),
+            Statement::WalSuffixed {
+                suffix: _,
+                target: _,
+            } => {}
         }
 
         Ok(())
     }
 
-    fn synth_pattern(&mut self, pattern: &Loc<Pattern>, ctx: &Context) -> Result<TypeVarID> {
-        todo!()
-    }
-
-    // TODO: This should return a CheckError
     fn check_pattern(
         &mut self,
         pattern: &Loc<Pattern>,
-        expected: Loc<DomainVar>,
+        expected: &Loc<DomainVar>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), CheckError> {
         match &pattern.kind {
             // Integer patterns are always 'const, so we don't need to check
             PatternKind::Integer(_) => Ok(()),
@@ -132,11 +172,35 @@ impl DomainState {
                 if *pre_declared {
                     todo!("Handle pre-declared")
                 }
-                self.name_domains.insert(name.inner.clone(), expected.inner);
+                self.name_domains
+                    .insert(name.inner.clone(), expected.inner.clone());
                 Ok(())
             }
-            PatternKind::Tuple(locs) => todo!(),
-            PatternKind::Array(locs) => todo!(),
+            PatternKind::Tuple(members) => match &expected.inner {
+                DomainVar::Error | DomainVar::Const | DomainVar::Async | DomainVar::Known(_) => {
+                    for member in members {
+                        self.check_pattern(member, expected, ctx)?
+                    }
+                    Ok(())
+                }
+                DomainVar::Tuple(member_domains) => {
+                    if member_domains.len() != members.len() {
+                        Err(CheckError::SynthesisFailure(diag_anyhow!(pattern, "Found an expected domain with {} members, but a pattern with {} members", member_domains.len(), members.len())))
+                    } else {
+                        for (m, d) in members.iter().zip(member_domains) {
+                            // NOTE: This Loc is not very helpful, but this is also infallible
+                            self.check_pattern(m, &d.clone().at_loc(pattern), ctx)?;
+                        }
+                        Ok(())
+                    }
+                }
+            },
+            PatternKind::Array(values) => {
+                for val in values {
+                    self.check_pattern(val, &expected, ctx)?;
+                }
+                Ok(())
+            }
             PatternKind::Type(loc, pattern_arguments) => todo!(),
         }
     }
@@ -144,6 +208,16 @@ impl DomainState {
     fn synth_expression(&mut self, expr: &Loc<Expression>, ctx: &Context) -> Result<DomainVar> {
         match &expr.kind {
             ExprKind::Error => Ok(DomainVar::Error),
+            ExprKind::PipelineRef {
+                stage: _,
+                name,
+                declares_name: _,
+                depth_typeexpr_id: _,
+            } => Ok(self
+                .name_domains
+                .get(name)
+                .ok_or_else(|| diag_anyhow!(expr, "Did not find a domain for this name"))?
+                .clone()),
             ExprKind::Identifier(name) => Ok(self
                 .name_domains
                 .get(name)
@@ -182,11 +256,32 @@ impl DomainState {
                     Ok(result)
                 }
             },
+            ExprKind::TupleIndex(indexee, index) => {
+                let indexee_domain = self.synth_expression(indexee, ctx)?;
+
+                match indexee_domain {
+                    other @ DomainVar::Error
+                    | other @ DomainVar::Const
+                    | other @ DomainVar::Async
+                    | other @ DomainVar::Known(_) => {
+                        // TODO: This is a bit strange, and we should convince ourselves that
+                        // it is the right strategy. The idea is that if we're not a tuple,
+                        // the indexed value will have the same domain as the indexee
+                        Ok(other)
+                    }
+                    DomainVar::Tuple(domain_vars) => {
+                        let inner = domain_vars
+                            .get(index.inner as usize)
+                            .ok_or_else(|| diag_anyhow!(expr, "Tuple index out of range"))?;
+
+                        Ok(inner.clone())
+                    }
+                }
+            }
 
             ExprKind::ArrayShorthandLiteral(loc, loc1) => todo!(),
             ExprKind::Index(loc, loc1) => todo!(),
             ExprKind::RangeIndex { target, start, end } => todo!(),
-            ExprKind::TupleIndex(loc, loc1) => todo!(),
             ExprKind::FieldAccess(loc, loc1) => todo!(),
             ExprKind::MethodCall {
                 target,
@@ -197,24 +292,56 @@ impl DomainState {
                 safety,
             } => todo!(),
             ExprKind::Call {
-                kind,
+                kind: _,
                 callee,
                 args,
-                turbofish,
-                safety,
-            } => todo!(),
+                turbofish: _,
+                safety: _,
+            } => {
+                let unit = ctx.symtab.unit_by_id(&callee);
+
+                let mut inner_domain_map =
+                    unit.inner
+                        .domains
+                        .iter()
+                        .filter_map(|domain| match domain.name {
+                            DomainName::Annonymous => Some((KnownDomain::Annonymous, None)),
+                            DomainName::Const => None,
+                            DomainName::Async => None,
+                            DomainName::Named(name) => {
+                                Some((KnownDomain::Named(name.inner.clone()), None))
+                            }
+                        });
+
+                for (
+                    Parameter {
+                        no_mangle: _,
+                        name,
+                        ty,
+                        field_translator: _,
+                    },
+                    expr,
+                ) in unit.inputs.0.iter().zip(args.expressions())
+                {
+                    let callee_domain = self.domain_from_type_spec(ty);
+
+                    // The default behaviour for arguments in a bidirectinoal
+                    // type checker seems to be to check them against the 
+                    // expected type. However, we have slightly different
+                    // constraints here since all units are "generic" over a
+                    // domain. Instead, we'll synthesize the domain of the argument
+                    
+                    let arg_domain = self.synth_expression(expr, ctx)?;
+
+                    callee_domain.map_to_foreign(arg_domain);
+                }
+            }
             ExprKind::BinaryOperator(loc, loc1, loc2) => todo!(),
             ExprKind::UnaryOperator(loc, loc1) => todo!(),
             ExprKind::Match(loc, items) => todo!(),
             ExprKind::Block(block) => todo!(),
             ExprKind::If(loc, loc1, loc2) => todo!(),
             ExprKind::TypeLevelIf(loc, loc1, loc2) => todo!(),
-            ExprKind::PipelineRef {
-                stage,
-                name,
-                declares_name,
-                depth_typeexpr_id,
-            } => todo!(),
             ExprKind::LambdaDef {
                 lambda_type,
                 lambda_type_params,
@@ -249,47 +376,57 @@ impl DomainState {
             | ExprKind::BoolLiteral(_)
             | ExprKind::BitLiteral(_)
             | ExprKind::TypeLevelInteger(_)
-            | ExprKind::TupleLiteral(_) |
+            | ExprKind::TupleLiteral(_)
+            // Calls require synthesizing the output domain
+            | ExprKind::Call { .. }
+            // Tuple indexing requires knowing the inner => synthesis
+            | ExprKind::TupleIndex(_, _)
             // Array literals are synthesized
-            ExprKind::ArrayLiteral(_) |
-            ExprKind::ArrayShorthandLiteral(_, _)
+            | ExprKind::ArrayLiteral(_)
+            | ExprKind::ArrayShorthandLiteral(_, _)
             // Identifiers are synthesized
+            | ExprKind::PipelineRef {
+                stage: _,
+                name: _,
+                declares_name: _,
+                depth_typeexpr_id: _,
+            }
             | ExprKind::Identifier(_) => {
                 let synth_result = self
                     .synth_expression(expr, ctx)
                     .map_err(|e| CheckError::SynthesisFailure(e))?;
 
-                match self.is_subtype_of(&expected, &synth_result) {
-                    Some(_) => Ok(()),
-                    None => Err(Diagnostic::error(
+                if !expected.is_subdomain_of(&synth_result) {
+                    Err(Diagnostic::error(
                         expr,
                         format!(
                             "Domain mismatch, expected {expected}, but it is in {synth_result}"
                         ),
                     )
-                    .primary_label(format!("Expected domain {expected}, found {synth_result}"))),
+                    .primary_label(format!("Expected domain {expected}, found {synth_result}")))
+                } else {
+                    Ok(())
                 }
             }
-            ExprKind::CreatePorts => todo!(),
-            ExprKind::Index(loc, loc1) => todo!(),
-            ExprKind::RangeIndex { target, start, end } => todo!(),
-            ExprKind::TupleIndex(loc, loc1) => todo!(),
-            ExprKind::FieldAccess(loc, loc1) => todo!(),
-            ExprKind::MethodCall {
-                target,
-                name,
-                args,
-                call_kind,
-                turbofish,
-                safety,
-            } => todo!(),
-            ExprKind::Call {
-                kind,
-                callee,
-                args,
-                turbofish,
-                safety,
-            } => todo!(),
+            // Ports can be in any domain
+            ExprKind::CreatePorts => {
+                Ok(())
+            },
+            // TODO: Write a test
+            ExprKind::Index(indexee, _) => {
+                self.check_expression(indexee, expected, ctx)?;
+                Ok(())
+            },
+            // TODO: Write a test
+            ExprKind::RangeIndex { target, start: _, end: _ } => {
+                self.check_expression(target, expected, ctx)?;
+                Ok(())
+            },
+            // TODO: Write a test
+            ExprKind::FieldAccess(target, _) => {
+                self.check_expression(target, expected, ctx)?;
+                Ok(())
+            },
             ExprKind::BinaryOperator(loc, loc1, loc2) => todo!(),
             ExprKind::UnaryOperator(_, value) => {
                 self.check_expression(value, expected, ctx)?;
@@ -310,12 +447,6 @@ impl DomainState {
             }
             ExprKind::If(loc, loc1, loc2) => todo!(),
             ExprKind::TypeLevelIf(loc, loc1, loc2) => todo!(),
-            ExprKind::PipelineRef {
-                stage,
-                name,
-                declares_name,
-                depth_typeexpr_id,
-            } => todo!(),
             ExprKind::LambdaDef {
                 lambda_type,
                 lambda_type_params,
@@ -326,104 +457,14 @@ impl DomainState {
             } => todo!(),
             ExprKind::StageValid => todo!(),
             ExprKind::StageReady => todo!(),
-            ExprKind::StaticUnreachable(loc) => todo!(),
+            ExprKind::StaticUnreachable(_) => todo!(),
             ExprKind::Null => todo!(),
+            // TODO: Write a test
+            ExprKind::MethodCall { .. } => {
+                return Err(CheckError::SynthesisFailure(diag_anyhow!(expr, "Method call should already be lowered")))
+            },
         };
         result.map_err(|e| CheckError::CheckFailure(e, expected.clone()))
-    }
-
-    // TODO: We could make this a static method as implemented
-    // TODO: Can we implement this in terms of least_upper_domain
-    fn is_subtype_of(&self, a: &DomainVar, b: &DomainVar) -> Option<DomainVar> {
-        // For ordering it is simpler to write this as a :> b, instead of `b <: a`
-        match (a, b) {
-            // Anything can subtype with error
-            (DomainVar::Error, _) | (_, DomainVar::Error) => Some(DomainVar::Error),
-
-            // The const domain is a subdomain of every other domain
-            (k @ DomainVar::Const, DomainVar::Const)
-            | (k @ DomainVar::Async, DomainVar::Const)
-            | (k @ DomainVar::Known(_), DomainVar::Const)
-            | (k @ DomainVar::Tuple(_), DomainVar::Const) => Some(k.clone()),
-
-            // The async domain is not a subdomain of anything but itself
-            (DomainVar::Async, DomainVar::Async) => Some(DomainVar::Async),
-            (DomainVar::Const, DomainVar::Async)
-            | (DomainVar::Known(_), DomainVar::Async)
-            | (DomainVar::Tuple(_), DomainVar::Async) => None,
-
-            (DomainVar::Const, DomainVar::Known(_)) => None,
-            (DomainVar::Async, DomainVar::Known(_)) => Some(DomainVar::Async),
-            (k @ DomainVar::Known(d1), DomainVar::Known(d2)) => {
-                if d1 == d2 {
-                    Some(k.clone())
-                } else {
-                    None
-                }
-            }
-            // TODO Not entirely clear what we should do in this case. The only
-            // case this holds is if this is (a, a) <: a
-            (DomainVar::Tuple(_), DomainVar::Known(_)) => todo!(),
-
-            (any, DomainVar::Tuple(inner)) => inner
-                .into_iter()
-                .all(|i| self.is_subtype_of(any, &i).is_some())
-                .then(|| Some(any.clone()))
-                .unwrap_or_default(),
-        }
-    }
-
-    fn least_upper_domain(&self, a: &DomainVar, b: &DomainVar) -> DomainVar {
-        match (a, b) {
-            (DomainVar::Error, _) | (_, DomainVar::Error) => DomainVar::Error,
-            (DomainVar::Const, DomainVar::Const) => a.clone(),
-            (DomainVar::Async, _) | (_, DomainVar::Async) => DomainVar::Async,
-
-            (DomainVar::Const, other) | (other, DomainVar::Const) => other.clone(),
-
-            (DomainVar::Known(d1), DomainVar::Known(d2)) => {
-                if d1 == d2 {
-                    a.clone()
-                } else {
-                    DomainVar::Async
-                }
-            }
-
-            (name @ DomainVar::Known(_), DomainVar::Tuple(inner))
-            | (DomainVar::Tuple(inner), name @ DomainVar::Known(_)) => {
-                let mut result = name.clone();
-                for i in inner {
-                    result = self.least_upper_domain(&result, i)
-                }
-                result
-            }
-
-            (DomainVar::Tuple(l), DomainVar::Tuple(r)) => DomainVar::Tuple(
-                l.iter()
-                    .zip(r)
-                    .map(|(l, r)| self.least_upper_domain(l, r))
-                    .collect(),
-            ),
-        }
-    }
-
-    /// Collapses the domains in a tuple into the least upper domain of all tuple elements.
-    /// Primarily used for checking things like clock constraints
-    fn collapse_tuple_domains(&self, var: &DomainVar) -> DomainVar {
-        match var {
-            DomainVar::Tuple(inner) => match inner.as_slice() {
-                [] => DomainVar::Const,
-                [single] => single.clone(),
-                [first, rest @ ..] => {
-                    let mut result = self.collapse_tuple_domains(first);
-                    for i in rest {
-                        result = self.least_upper_domain(&result, &self.collapse_tuple_domains(i))
-                    }
-                    result
-                }
-            },
-            _ => var.clone(),
-        }
     }
 }
 
@@ -446,6 +487,7 @@ impl CheckError {
 }
 
 trait ResultExt<T> {
+    fn add_default_source_message(self) -> Result<T>;
     fn add_expected_source(self, f: impl Fn(Diagnostic, Loc<DomainVar>) -> Diagnostic)
         -> Result<T>;
 }
@@ -455,5 +497,11 @@ impl<T> ResultExt<T> for std::result::Result<T, CheckError> {
         f: impl Fn(Diagnostic, Loc<DomainVar>) -> Diagnostic,
     ) -> Result<T> {
         self.map_err(|e| e.add_expected_source(f))
+    }
+
+    fn add_default_source_message(self) -> Result<T> {
+        self.add_expected_source(|d, expected| {
+            d.secondary_label(&expected, format!("Domain {expected} inferred here"))
+        })
     }
 }

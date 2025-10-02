@@ -176,11 +176,104 @@ snapshot_error! {
 code_compiles! {
     const_and_known_can_be_stored_in_register,
     "
-        entity test<'a>(clk: clock, a: 'a bool) {
+        entity test<'a>(clk: 'a clock, a: 'a bool) {
             reg(clk) x = (a, false);
         }
     "
 }
+
+snapshot_error! {
+    explicit_reg_clock_must_be_in_same_domain_as_value,
+    "
+        entity test<'a, 'b>(clk: 'a clock, b: 'b bool) {
+            reg(clk) x = b;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    register_output_domain_must_be_same_as_input,
+    "
+        entity test<'a, 'b>(clk: 'a clock, b: 'a bool) -> 'b bool {
+            reg(clk) x = b;
+            b
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    explicit_reg_reset_value_must_be_same_as_value,
+    "
+        entity test<'a, 'b>(clk: 'a clock, rst_val: 'b bool, b: 'a bool) {
+            reg(clk) x reset(false: rst_val) = b;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    explicit_reg_reset_trigger_must_be_same_as_value,
+    "
+        entity test<'a, 'b>(clk: 'a clock, rst: 'b bool, b: 'a bool) {
+            reg(clk) x reset(rst: false) = b;
+        }
+    ",
+    false
+}
+
+code_compiles! {
+    tuple_destructuring_preserves_domains,
+    "
+        entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> ('a bool, 'b bool) {
+            let (x, y) = (a, b);
+            (x, y)
+        }
+    "
+}
+
+code_compiles! {
+    array_of_tuples_with_mixed_domains_is_ok,
+    "
+        entity test<'a, 'b>(a: 'a bool, b: 'b bool) -> ('a bool, 'b bool) {
+            let [a, b] = [(a, b), (a, b)];
+            a
+        }
+    "
+}
+
+snapshot_error! {
+    pipeline_stage_ref_carries_domain_info,
+    "
+    pipeline(1) test<'a, 'b>(clk: clock, x: 'a bool) -> 'b bool {
+        reg;
+            stage(-1).x
+    }
+    ",
+    false
+}
+
+snapshot_error! {
+    tuple_indexing_inherits_non_tuple_domains,
+    "
+        entity test<'a, 'b>(tup: 'a (bool, bool)) -> 'b bool {
+            tup#0
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    tuple_indexing_retains_tuple_domains,
+    "
+        entity test<'a, 'b>(tup: ('a bool, 'b bool)) -> 'b bool {
+            tup#0
+        }
+    ",
+    false
+}
+
 
 // snapshot_error! {
 //     parameter_implicit_domain_is_disallowed_with_explicit_domains,

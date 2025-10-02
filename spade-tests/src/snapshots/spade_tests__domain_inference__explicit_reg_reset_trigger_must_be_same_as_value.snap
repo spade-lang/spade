@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(clk: 'a clock, rst: 'b bool, b: 'a bool) {
+    reg(clk) x reset(rst: false) = b;
+}
+
+
+error: Domain mismatch, expected 'a, but it is in 'b
+  ┌─ testinput:2:22
+  │
+2 │     reg(clk) x reset(rst: false) = b;
+  │                      ^^^           - The value is in domain 'a.
+  │                      │              
+  │                      Expected domain 'a, found 'b
+  │
+  = help: The domain of the reset trigger must be the same as the register value

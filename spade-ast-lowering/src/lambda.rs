@@ -242,7 +242,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             )
                             .at_loc(name_id);
 
-                            (ast::AttributeList::empty(), None, name_ident.clone(), ty)
+                            (ast::AttributeList::empty(), name_ident.clone(), ty)
                         })
                         .collect(),
                 )

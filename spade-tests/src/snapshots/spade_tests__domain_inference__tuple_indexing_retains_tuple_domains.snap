@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(tup: ('a bool, 'b bool)) -> 'b bool {
+    tup#0
+}
+
+
+error: Domain mismatch, expected 'b, but it is in 'a
+  ┌─ testinput:2:5
+  │
+1 │ entity test<'a, 'b>(tup: ('a bool, 'b bool)) -> 'b bool {
+  │                                                 ------- 'b was specified here
+2 │     tup#0
+  │     ^^^^^ Expected domain 'b, found 'a

@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(clk: 'a clock, b: 'a bool) -> 'b bool {
+    reg(clk) x = b;
+    b
+}
+
+
+error: Domain mismatch, expected 'b, but it is in 'a
+  ┌─ testinput:3:5
+  │
+1 │ entity test<'a, 'b>(clk: 'a clock, b: 'a bool) -> 'b bool {
+  │                                                   ------- 'b was specified here
+2 │     reg(clk) x = b;
+3 │     b
+  │     ^ Expected domain 'b, found 'a

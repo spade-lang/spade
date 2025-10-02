@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/domain_inference.rs
+---
+entity test<'a, 'b>(clk: 'a clock, b: 'b bool) {
+    reg(clk) x = b;
+}
+
+
+error: Domain mismatch, expected 'b, but it is in 'a
+  ┌─ testinput:2:9
+  │
+2 │     reg(clk) x = b;
+  │         ^^^      - The value is in domain 'b.
+  │         │         
+  │         Expected domain 'b, found 'a
+  │
+  = help: The domain of the clock must be the same as the value
