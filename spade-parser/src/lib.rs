@@ -80,6 +80,12 @@ impl From<Token> for FullSpan {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Comment {
+    Line(Token),
+    Block(Token, Token),
+}
+
 // Clone for when you want to call a parse function but maybe discard the new parser state
 // depending on some later condition.
 #[derive(Clone)]
@@ -93,6 +99,7 @@ pub struct Parser<'a> {
     unit_context: Option<Loc<UnitKind>>,
     pub diags: DiagList,
     recovering_tokens: Vec<Vec<TokenKind>>,
+    comments: Vec<Comment>,
 }
 
 impl<'a> Parser<'a> {
@@ -106,7 +113,12 @@ impl<'a> Parser<'a> {
             unit_context: None,
             diags: DiagList::new(),
             recovering_tokens: vec![vec![TokenKind::Eof]],
+            comments: vec![],
         }
+    }
+
+    pub fn comments(&self) -> &[Comment] {
+        &self.comments
     }
 }
 
@@ -2258,7 +2270,28 @@ impl<'a> Parser<'a> {
     }
 
     fn next_token(&mut self) -> Result<Token> {
-        let out = match self.lex.next() {
+        self.next_token_helper(0)
+    }
+
+    fn next_token_helper(&mut self, block_comment_depth: usize) -> Result<Token> {
+        let lex_dot_next = {
+            let mut break_value: Option<std::result::Result<_, _>> = None;
+            while let Some(next) = self.lex.next() {
+                if matches!(next, Ok(TokenKind::Comment)) {
+                    self.comments.push(Comment::Line(Token {
+                        kind: TokenKind::Comment,
+                        span: self.lex.span(),
+                        file_id: self.file_id,
+                    }));
+                } else {
+                    break_value = Some(next);
+                    break;
+                }
+            }
+            break_value
+        };
+
+        let out = match lex_dot_next {
             Some(Ok(k)) => Ok(Token::new(k, &self.lex, self.file_id)),
             Some(Err(_)) => Err(Diagnostic::error(
                 Loc::new((), lspan(self.lex.span()), self.file_id),
@@ -2280,9 +2313,14 @@ impl<'a> Parser<'a> {
 
         match out.kind {
             TokenKind::BlockCommentStart => loop {
-                let next = self.next_token()?;
+                let next = self.next_token_helper(block_comment_depth + 1)?;
                 match next.kind {
-                    TokenKind::BlockCommentEnd => break self.next_token(),
+                    TokenKind::BlockCommentEnd => {
+                        if block_comment_depth == 0 {
+                            self.comments.push(Comment::Block(out, next));
+                        }
+                        break self.next_token_helper(block_comment_depth);
+                    }
                     TokenKind::Eof => {
                         break Err(Diagnostic::error(next, "Unterminated block comment")
                             .primary_label("Expected */")

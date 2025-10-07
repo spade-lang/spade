@@ -1,3 +1,9 @@
+use std::{rc::Rc, sync::RwLock};
+
+use logos::Logos;
+use spade_codespan_reporting::{files::SimpleFiles, term::termcolor::Buffer};
+use spade_diagnostics::{emitter::CodespanEmitter, CodeBundle, DiagHandler};
+
 use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error! {
@@ -895,4 +901,57 @@ snapshot_error! {
             unsafe abc
         }
     "
+}
+
+#[test]
+fn parser_extracts_comments() {
+    const FILE_ID: usize = 0;
+
+    let code = "
+// a simple test
+
+
+// more simple test
+
+
+/* basic block comment */
+
+/* nested /* block */ comment */
+
+fn test() {
+    let a = 4; // comment inside
+    let b = /* comment also inside */ 5;
+}
+";
+
+    let mut files = SimpleFiles::new();
+    files.add("test".into(), code.into());
+
+    let diagnostic_handler = DiagHandler::new(Box::new(CodespanEmitter));
+
+    let code_bundle = Rc::new(RwLock::new(CodeBundle { files }));
+
+    let mut buffer = Buffer::no_color();
+
+    let mut error_handler = spade::error_handling::ErrorHandler::new(
+        &mut buffer,
+        diagnostic_handler,
+        code_bundle.clone(),
+    );
+
+    let mut parser =
+        spade_parser::Parser::new(spade_parser::lexer::TokenKind::lexer(&code), FILE_ID);
+
+    let _ = match parser.top_level_module_body() {
+        Ok(root) => root,
+        Err(error) => {
+            error_handler.report(&error);
+            for error in &parser.diags.errors {
+                error_handler.report(error);
+            }
+            panic!("Exiting due to errors")
+        }
+    };
+
+    insta::assert_debug_snapshot!(parser.comments());
 }

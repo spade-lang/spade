@@ -234,7 +234,7 @@ pub enum TokenKind {
     #[regex("[ \t\n\r]", logos::skip)]
     Whitespace,
 
-    #[regex("//[^\n]*", logos::skip)]
+    #[regex("//[^\n]*")]
     Comment,
 
     #[token("/*")]

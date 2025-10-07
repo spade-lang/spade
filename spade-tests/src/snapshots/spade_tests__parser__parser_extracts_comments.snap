@@ -1,0 +1,63 @@
+---
+source: spade-tests/src/parser.rs
+expression: parser.comments()
+---
+[
+    Line(
+        Token {
+            kind: Comment,
+            span: 1..17,
+            file_id: 0,
+        },
+    ),
+    Line(
+        Token {
+            kind: Comment,
+            span: 20..39,
+            file_id: 0,
+        },
+    ),
+    Block(
+        Token {
+            kind: BlockCommentStart,
+            span: 42..44,
+            file_id: 0,
+        },
+        Token {
+            kind: BlockCommentEnd,
+            span: 65..67,
+            file_id: 0,
+        },
+    ),
+    Block(
+        Token {
+            kind: BlockCommentStart,
+            span: 69..71,
+            file_id: 0,
+        },
+        Token {
+            kind: BlockCommentEnd,
+            span: 99..101,
+            file_id: 0,
+        },
+    ),
+    Line(
+        Token {
+            kind: Comment,
+            span: 130..147,
+            file_id: 0,
+        },
+    ),
+    Block(
+        Token {
+            kind: BlockCommentStart,
+            span: 160..162,
+            file_id: 0,
+        },
+        Token {
+            kind: BlockCommentEnd,
+            span: 183..185,
+            file_id: 0,
+        },
+    ),
+]
