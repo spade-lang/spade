@@ -773,17 +773,6 @@ snapshot_error! {
     "
 }
 
-snapshot_error! {
-    extern_pipeline_methods_produce_error,
-    "
-        struct X {}
-        impl X {
-            // NOTE: This error should change once
-            // pipelines as methods are added
-            extern pipeline(1) x(self, x: bool) -> bool;
-        }
-    "
-}
 
 snapshot_error! {
     named_struct_patterns_errors_if_missing_bindings,

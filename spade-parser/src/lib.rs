@@ -1468,17 +1468,7 @@ impl<'a> Parser<'a> {
     pub fn impl_body(&mut self) -> Result<Vec<Loc<Unit>>> {
         let result = self.keyword_peeking_parser_seq(
             vec![Box::new(items::UnitParser {}.map(|u| {
-                if u.head.unit_kind.is_pipeline() {
-                    return Err(Diagnostic::error(
-                        u.head.unit_kind.loc(),
-                        "Pipelines are currently not allowed in impl blocks",
-                    )
-                    .primary_label("Not allowed here")
-                    .note("This limitation is likely to be lifted in the future")
-                    .help("Consider defining a free-standing pipeline for now"));
-                } else {
-                    Ok(u)
-                }
+                Ok(u)
             }))],
             true,
             vec![TokenKind::CloseBrace],

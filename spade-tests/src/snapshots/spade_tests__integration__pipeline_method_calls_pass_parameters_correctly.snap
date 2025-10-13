@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/integration.rs
+expression: "format! (\"{}\", items [0])"
+---
+entity \test ((clk, clk_n12, bool)) -> () {
+	const e7: uint<8> = 2
+	let e6: {x: uint<8>} = ConstructTuple(e7)
+	const e9: uint<16> = 3
+	let e5: () = Instance(\impl_0::a )(e6, clk_n12, e9)
+} => e5

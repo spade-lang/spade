@@ -36,6 +36,7 @@ impl PrettyDebug for Unit {
                 UnitHead {
                     name: _,
                     inputs: _,
+                    is_nonstatic_method: _,
                     output_type,
                     unit_type_params,
                     scope_type_params,

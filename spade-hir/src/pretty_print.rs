@@ -223,6 +223,7 @@ impl PrettyPrint for UnitHead {
         let Self {
             name,
             inputs,
+            is_nonstatic_method: _,
             output_type,
             unit_type_params,
             scope_type_params: _,

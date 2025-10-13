@@ -9,11 +9,10 @@ impl X {
 }
 
 
-error: Pipelines are currently not allowed in impl blocks
+error: Methods cannot be `extern`
   ┌─ testinput:5:12
   │
 5 │     extern pipeline(1) x(self, x: bool) -> bool;
-  │            ^^^^^^^^^^^ Not allowed here
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   │
-  = note: This limitation is likely to be lifted in the future
-  = help: Consider defining a free-standing pipeline for now
+  = help: Consider defining a free-standing function

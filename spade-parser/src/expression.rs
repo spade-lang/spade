@@ -370,6 +370,21 @@ impl<'a> Parser<'a> {
         } else if self.peek_and_eat(&TokenKind::Dot)?.is_some() {
             let inst = self.peek_and_eat(&TokenKind::Instance)?;
 
+            // Check if this is a pipeline or not
+            let pipeline_depth = if inst.is_some() {
+                if self.peek_kind(&TokenKind::OpenParen)? {
+                    Some(self.surrounded(
+                        &TokenKind::OpenParen,
+                        |s| s.type_expression(),
+                        &TokenKind::CloseParen,
+                    )?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
             let field = self.identifier()?;
 
             let turbofish = self.turbofish()?;
@@ -379,8 +394,13 @@ impl<'a> Parser<'a> {
                     target: Box::new(expr.clone()),
                     name: field.clone(),
                     args: args.clone(),
-                    kind: inst
-                        .map(|i| CallKind::Entity(().at(self.file_id, &i)))
+                    kind: pipeline_depth
+                        .map(|(depth, _)| {
+                            CallKind::Pipeline(().at(self.file_id, &inst.clone().unwrap()), depth)
+                        })
+                        .or_else(|| {
+                            inst.map(|i| CallKind::Entity(().at(self.file_id, &i)))
+                        })
                         .unwrap_or(CallKind::Function),
                     turbofish,
                 }

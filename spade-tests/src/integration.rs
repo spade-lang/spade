@@ -491,6 +491,40 @@ code_compiles! {
     "
 }
 
+code_compiles! {
+    pipeline_methods_are_allowed,
+    "
+        struct X {}
+
+        impl X {
+            pipeline(3) a(self, clk: clock) {
+                reg * 3;
+            }
+        }
+
+        entity test(clk: clock) {
+            X().inst(3) a(clk)
+        }
+    "
+}
+
+snapshot_mir!{
+    pipeline_method_calls_pass_parameters_correctly,
+    "
+        struct X {x: uint<8>}
+
+        impl X {
+            pipeline(3) a(self, clk: clock, val: uint<16>) {
+                reg * 3;
+            }
+        }
+
+        entity test(clk: clock) {
+            X(2).inst(3) a(clk, 3)
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
@@ -558,32 +592,6 @@ mod trait_tests {
 
             impl X {
                 fn a(self) -> bool {false}
-            }
-        "
-    }
-
-    snapshot_error! {
-        instantiating_pipeline_methods_fails_gracefully,
-        "
-            struct X {}
-
-            impl X {
-                pipeline(10) a(self) -> bool {true}
-            }
-
-            fn t(x: X) -> bool {
-                x.a()
-            }
-        "
-    }
-
-    snapshot_error! {
-        pipelines_in_impl_blocks_are_gracefully_disallowed,
-        "
-            struct X {}
-
-            impl X {
-                pipeline(0) a(self) -> bool {true}
             }
         "
     }

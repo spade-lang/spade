@@ -804,6 +804,7 @@ pub fn unit_head(
 
     Ok(hir::UnitHead {
         name: head.name.clone(),
+        is_nonstatic_method: head.inputs.self_.is_some(),
         inputs,
         output_type,
         unit_type_params,
@@ -2760,6 +2761,7 @@ mod expression_visiting {
             Thing::Unit(
                 hir::UnitHead {
                     name: Identifier("".to_string()).nowhere(),
+                    is_nonstatic_method: false,
                     inputs: hparams![
                         ("a", hir::TypeSpec::unit().nowhere()),
                         ("b", hir::TypeSpec::unit().nowhere()),
@@ -2835,6 +2837,7 @@ mod expression_visiting {
             Thing::Unit(
                 hir::UnitHead {
                     name: Identifier("".to_string()).nowhere(),
+                    is_nonstatic_method: false,
                     inputs: hparams![
                         ("a", hir::TypeSpec::unit().nowhere()),
                         ("b", hir::TypeSpec::unit().nowhere()),
@@ -2898,6 +2901,7 @@ mod expression_visiting {
             Thing::Unit(
                 hir::UnitHead {
                     name: Identifier("".to_string()).nowhere(),
+                    is_nonstatic_method: false,
                     inputs: hparams![
                         ("a", hir::TypeSpec::unit().nowhere()),
                         ("b", hir::TypeSpec::unit().nowhere()),
@@ -3132,6 +3136,7 @@ mod item_visiting {
                 name: hir::UnitName::FullPath(name_id(0, "test")),
                 head: hir::UnitHead {
                     name: Identifier("test".to_string()).nowhere(),
+                    is_nonstatic_method: false,
                     output_type: None,
                     inputs: hir::ParameterList(vec![]).nowhere(),
                     unit_type_params: vec![],
@@ -3213,6 +3218,7 @@ mod module_visiting {
                         name: hir::UnitName::FullPath(name_id(0, "test")),
                         head: hir::UnitHead {
                             name: Identifier("test".to_string()).nowhere(),
+                            is_nonstatic_method: false,
                             output_type: None,
                             inputs: hparams!().nowhere(),
                             unit_type_params: vec![],

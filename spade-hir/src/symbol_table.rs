@@ -145,6 +145,7 @@ impl EnumVariant {
     pub fn as_unit_head(&self) -> UnitHead {
         UnitHead {
             name: self.name.clone(),
+            is_nonstatic_method: false,
             inputs: self.params.clone(),
             output_type: Some(self.output_type.clone()),
             unit_type_params: self.type_params.clone(),
@@ -168,6 +169,7 @@ impl StructCallable {
     pub fn as_unit_head(&self) -> UnitHead {
         UnitHead {
             name: self.name.clone(),
+            is_nonstatic_method: false,
             inputs: self.params.clone(),
             output_type: Some(self.self_type.clone()),
             unit_type_params: self.type_params.clone(),
