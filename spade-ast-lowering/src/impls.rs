@@ -14,8 +14,8 @@ use spade_types::meta_types::MetaType;
 use crate::error::Result;
 use crate::global_symbols::{self, visit_meta_type};
 use crate::{
-    types::IsPort, unit_head, visit_trait_spec, visit_type_expression, visit_type_param,
-    visit_type_spec, visit_unit, visit_where_clauses, Context, SelfContext, TypeSpecKind,
+    unit_head, visit_trait_spec, visit_type_expression, visit_type_param, visit_type_spec,
+    visit_unit, visit_where_clauses, Context, SelfContext, TypeSpecKind,
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
@@ -97,8 +97,6 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
                 format!("This is an impl for the trait `{trait_name}`"),
             ));
         };
-
-        check_is_no_function_on_port_type(unit, &target_type, ctx)?;
 
         let path_suffix = Some(Path(vec![
             Identifier(format!("impl_{}", impl_block_id.0)).nowhere()
@@ -456,28 +454,6 @@ fn check_generic_params_match_trait_def(
                 "Generic type parameters specified for anonymous trait, which should not be possible",
             ))
         }
-    } else {
-        Ok(())
-    }
-}
-
-fn check_is_no_function_on_port_type(
-    unit: &Loc<ast::Unit>,
-    target_type: &Loc<hir::TypeSpec>,
-    ctx: &mut Context,
-) -> Result<()> {
-    if matches!(unit.head.unit_kind.inner, ast::UnitKind::Function) && target_type.is_port(ctx)? {
-        Err(Diagnostic::error(
-            &unit.head.unit_kind,
-            "Functions are not allowed on port types",
-        )
-        .primary_label("Function on port type")
-        .secondary_label(target_type.clone(), "This is a port type")
-        .span_suggest_replace(
-            "Consider making this an entity",
-            &unit.head.unit_kind,
-            "entity",
-        ))
     } else {
         Ok(())
     }

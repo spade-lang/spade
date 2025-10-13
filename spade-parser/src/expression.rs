@@ -398,9 +398,7 @@ impl<'a> Parser<'a> {
                         .map(|(depth, _)| {
                             CallKind::Pipeline(().at(self.file_id, &inst.clone().unwrap()), depth)
                         })
-                        .or_else(|| {
-                            inst.map(|i| CallKind::Entity(().at(self.file_id, &i)))
-                        })
+                        .or_else(|| inst.map(|i| CallKind::Entity(().at(self.file_id, &i))))
                         .unwrap_or(CallKind::Function),
                     turbofish,
                 }

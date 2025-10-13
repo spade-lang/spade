@@ -37,18 +37,37 @@ struct port WritePort<#uint W, D> {
     write: inv &Option<D>,
 }
 
+impl<#uint W, D> WritePort<W, D> {
+    fn write(self, addr: uint<W>, write: Option<D>) {
+        let WritePort$(addr: saddr, write: swrite) = self;
+        set saddr = &addr;
+        set swrite = &write;
+    }
+}
+
 
 /// A read port for a memory. It is not recommended to manually read the signals
-/// in this struct, instead use `read_read_port` to access the port.
+/// in this struct, instead use `.read()` to access the port.
 struct port ReadPort<#uint W, D> {
     addr: inv &uint<W>,
     out: &D,
 }
 
-pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, p: ReadPort<W, D>) -> D {
-        set p.addr = &addr;
+impl<#uint W, D> ReadPort<W, D> {
+    /// Read the value stored at `addr`
+    pipeline(1) read(self, read_clk: clock, addr: uint<W>) -> D {
+        let ReadPort(saddr, sout) = self;
+        set saddr = &addr;
     reg;
-        *p.out
+        *sout
+    }
+}
+
+/// Read a read port. Deprecated, prefer using the `ReadPort::read()` method instead
+pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, p: ReadPort<W, D>) -> D {
+    let result = p.inst(1) read(read_clk, addr);
+reg;
+    result
 }
 
 /// A dual port block RAM that supports read and write ports being in different domains.

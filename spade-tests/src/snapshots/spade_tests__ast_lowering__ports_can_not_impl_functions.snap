@@ -6,19 +6,3 @@ struct port A {}
 impl A {
     fn test(self) -> bool {true}
 }
-
-
-error: Functions are not allowed on port types
-  ┌─ testinput:4:5
-  │
-3 │ impl A {
-  │      - This is a port type
-4 │     fn test(self) -> bool {true}
-  │     ^^ Function on port type
-  │
-  = Consider making this an entity
-  │
-4 │     entity test(self) -> bool {true}
-  │     ~~~~~~
-
-

@@ -508,7 +508,7 @@ code_compiles! {
     "
 }
 
-snapshot_mir!{
+snapshot_mir! {
     pipeline_method_calls_pass_parameters_correctly,
     "
         struct X {x: uint<8>}

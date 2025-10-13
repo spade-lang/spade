@@ -622,17 +622,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    ports_can_not_impl_functions,
-    "
-    struct port A {}
-
-    impl A {
-        fn test(self) -> bool {true}
-    }
-    "
-}
-
-snapshot_error! {
     duplicate_enum_variants,
     "
     enum E {
@@ -772,7 +761,6 @@ snapshot_error! {
         }
     "
 }
-
 
 snapshot_error! {
     named_struct_patterns_errors_if_missing_bindings,

@@ -546,7 +546,11 @@ impl TypeState {
                 depth: depth_var.at_loc(depth),
             });
 
-            let clock_index = if entity.head.is_nonstatic_method {1} else {0};
+            let clock_index = if entity.head.is_nonstatic_method {
+                1
+            } else {
+                0
+            };
 
             TypedExpression::Name(entity.inputs[clock_index].0.clone().inner)
                 .unify_with(&self.t_clock(entity.head.unit_kind.loc(), ctx.symtab), self)

@@ -1467,9 +1467,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn impl_body(&mut self) -> Result<Vec<Loc<Unit>>> {
         let result = self.keyword_peeking_parser_seq(
-            vec![Box::new(items::UnitParser {}.map(|u| {
-                Ok(u)
-            }))],
+            vec![Box::new(items::UnitParser {}.map(|u| Ok(u)))],
             true,
             vec![TokenKind::CloseBrace],
         )?;
