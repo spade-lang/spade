@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/integration.rs
+---
+entity test() {
+    entity (not_clk) {};
+}
+
+
+error: The first argument of a non-function lambda must be called `clk`
+  ┌─ testinput:2:13
+  │
+2 │     entity (not_clk) {};
+  │             ^^^^^^^ Expected `clk`
+  │
+  = Consider renaming the first argument
+  │
+2 │     entity (clk) {};
+  │             ~~~
+  = Or adding a adding a clock
+  │
+2 │     entity (clk, not_clk) {};
+  │             +++++

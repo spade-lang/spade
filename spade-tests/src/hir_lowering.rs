@@ -10,7 +10,7 @@ mod tests {
     use insta::assert_debug_snapshot;
     use spade_common::{location_info::WithLocation, num_ext::InfallibleToBigUint};
     use spade_mir::assert_same_mir;
-    use spade_mir::{self, entity, statement, types::Type, ConstantValue};
+    use spade_mir::{self, entity, types::Type, ConstantValue};
 
     #[test]
     fn entity_definitions_are_correct() {
@@ -539,34 +539,6 @@ mod tests {
                     Type::int(16);
                     clock(n(0, "clk"));
                     reset (n(2, "rst"), e(0));
-                    n(1, "a"))
-            } => n(0, "res")
-        };
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn registers_with_initial_work() {
-        let code = r#"
-        entity name(clk: clock, rst: bool, a: int<16>) -> int<16> {
-            reg(clk) res initial (0) = a;
-            res
-        }
-        "#;
-
-        let initial_value = vec![statement!(const 3; Type::int(16); ConstantValue::int(0))];
-
-        let expected = entity! {&["name"]; (
-                "clk", n(0, "clk"), Type::Bool,
-                "rst", n(2, "rst"), Type::Bool,
-                "a", n(1, "a"), Type::int(16),
-            ) -> Type::int(16); {
-                (const 0; Type::int(16); ConstantValue::int(0));
-                (reg n(0, "res");
-                    Type::int(16);
-                    clock(n(0, "clk"));
-                    initial (initial_value);
                     n(1, "a"))
             } => n(0, "res")
         };

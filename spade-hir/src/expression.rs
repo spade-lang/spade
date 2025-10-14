@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 
-use crate::{ConstGenericWithId, Pattern, TypeExpression, TypeParam};
+use crate::{ConstGenericWithId, Pattern, TypeExpression, TypeParam, UnitKind};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -252,6 +252,7 @@ pub enum ExprKind {
         depth_typeexpr_id: ExprID,
     },
     LambdaDef {
+        unit_kind: Loc<UnitKind>,
         /// The type that this lambda definition creates
         lambda_type: NameID,
         lambda_type_params: Vec<Loc<TypeParam>>,
@@ -260,6 +261,7 @@ pub enum ExprKind {
         lambda_unit: NameID,
         arguments: Vec<Loc<Pattern>>,
         body: Box<Loc<Expression>>,
+        clock: Option<Loc<NameID>>,
     },
     StageValid,
     StageReady,

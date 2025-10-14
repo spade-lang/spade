@@ -1111,10 +1111,20 @@ impl StatementLocal for Statement {
 
                 let mir_ty = concrete_ty.to_mir_type();
 
-                if mir_ty.must_use() {
+                let Some(ty) = expr.try_get_type(&ctx.types) else {
+                    diag_bail!(
+                        expr,
+                        "Did not find non-concrete type type that was concreteized"
+                    );
+                };
+
+                if concrete_ty != ConcreteType::Error && mir_ty.must_use() {
                     return Err(Diagnostic::error(
                         expr,
-                        format!("Values of type {mir_ty} must be used"),
+                        format!(
+                            "Values of type {} must be used",
+                            ty.resolve(&ctx.types).display(&ctx.types)
+                        ),
                     )
                     .primary_label("This must be used")
                     .span_suggest_insert_before(
@@ -3267,6 +3277,7 @@ pub fn generate_unit<'a>(
             &mut statements,
             &mut ctx,
             name_map,
+            unit.head.is_nonstatic_method,
         )?;
     }
 

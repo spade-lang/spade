@@ -6,3 +6,11 @@ impl<#uint N> Number<N> for int<N> {}
 trait Fn<Args, Output> {
     fn call(self, args: Args) -> Output;
 }
+
+trait Entity<Args, Output> {
+    fn call(self, clk: clock, args: Args) -> Output;
+}
+
+trait Pipeline<#int Depth, Args, Output> {
+    pipeline(Depth) call(self, clk: clock, args: Args) -> Output;
+}

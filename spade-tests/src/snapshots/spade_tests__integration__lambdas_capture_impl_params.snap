@@ -3,16 +3,16 @@ source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \test () -> () {
-	let e12: {} = ConstructTuple()
-	let e11: () = Instance(\impl_0::test[28] )(e12)
-} => e11
-entity \impl_0::test[28] ((self, self_n12, {})) -> () {
-	let e2: {} = ConstructTuple()
-	let e8: () = ConstructTuple()
-	let e1: () = Instance(\impl_1::call[29] )(e2, e8)
-	let l_n23: () = Alias(e1)
-} => e0
-entity \impl_1::call[29] ((self, self_n20, {}), (args, args_n21, ())) -> () {
-	const e5: uint<8> = 5
-	let x_n22: uint<8> = Alias(e5)
-} => e7
+	let e13: {} = ConstructTuple()
+	let e12: () = Instance(\impl_0::test[35] )(e13)
+} => e12
+entity \impl_0::test[35] ((self, self_n19, {})) -> () {
+	let e3: {} = ConstructTuple()
+	let e9: () = ConstructTuple()
+	let e2: () = Instance(\impl_1::call[36] )(e3, e9)
+	let l_n30: () = Alias(e2)
+} => e1
+entity \impl_1::call[36] ((self, self_n27, {}), (args, args_n28, ())) -> () {
+	const e6: uint<8> = 5
+	let x_n29: uint<8> = Alias(e6)
+} => e8

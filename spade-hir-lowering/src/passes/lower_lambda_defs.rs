@@ -8,8 +8,8 @@ use spade_common::{
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
     expression::{CallKind, Safety},
-    ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern, Statement, TypeParam,
-    TypeSpec, Unit, UnitHead,
+    ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern, PatternKind, Statement,
+    TypeParam, TypeSpec, Unit, UnitHead,
 };
 use spade_typeinference::{equation::KnownTypeVar, HasType, TypeState};
 
@@ -21,6 +21,7 @@ pub(crate) struct LambdaReplacement {
     pub new_body: Loc<Expression>,
     pub arguments: Vec<(Loc<Pattern>, KnownTypeVar)>,
     pub captured_type_params: HashMap<NameID, NameID>,
+    pub clock: Option<Loc<NameID>>,
 }
 
 impl LambdaReplacement {
@@ -70,12 +71,15 @@ impl LambdaReplacement {
             .enumerate()
             .map(|(i, (arg, _))| {
                 // .1, .0 is self
-                let (input, _) = old.inputs.get(1).ok_or_else(|| {
-                    diag_anyhow!(
-                        arg,
-                        "Did not find any arguments to the generated lambda body"
-                    )
-                })?;
+                let (input, _) = old
+                    .inputs
+                    .get(if self.clock.is_some() { 2 } else { 1 })
+                    .ok_or_else(|| {
+                        diag_anyhow!(
+                            arg,
+                            "Did not find any arguments to the generated lambda body"
+                        )
+                    })?;
                 Ok(Statement::binding(
                     arg.clone(),
                     None,
@@ -93,6 +97,38 @@ impl LambdaReplacement {
                 .at_loc(arg))
             })
             .collect::<Result<Vec<_>>>()?;
+
+        let clock_binding = if let Some(clock) = &self.clock {
+            let (input, _) = old.inputs.get(1).ok_or_else(|| {
+                diag_anyhow!(
+                    clock,
+                    "Did not find any arguments to the generated lambda body"
+                )
+            })?;
+
+            Some(
+                Statement::binding(
+                    PatternKind::Name {
+                        name: clock.clone(),
+                        pre_declared: false,
+                    }
+                    .with_id(idtracker.next())
+                    .at_loc(&clock),
+                    None,
+                    ExprKind::Identifier(input.inner.clone())
+                        .with_id(idtracker.next())
+                        .at_loc(&clock),
+                )
+                .at_loc(&clock),
+            )
+        } else {
+            None
+        };
+
+        let arg_bindings = arg_bindings
+            .into_iter()
+            .chain(clock_binding)
+            .collect::<Vec<_>>();
 
         let scope_type_params = self.replace_type_params(&old.head.scope_type_params);
         let unit_type_params = self.replace_type_params(&old.head.unit_type_params);
@@ -151,12 +187,14 @@ pub(crate) struct LowerLambdaDefs<'a> {
 impl<'a> Pass for LowerLambdaDefs<'a> {
     fn visit_expression(&mut self, expression: &mut Loc<Expression>) -> Result<()> {
         if let ExprKind::LambdaDef {
+            unit_kind: _,
             lambda_unit,
             lambda_type,
             lambda_type_params: _,
             captured_generic_params,
             arguments,
             body,
+            clock,
         } = &expression.kind
         {
             let arguments = arguments
@@ -184,6 +222,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                         .iter()
                         .map(|tp| (tp.name_in_lambda.clone(), tp.name_in_body.inner.clone()))
                         .collect(),
+                    clock: clock.clone(),
                 },
             );
 

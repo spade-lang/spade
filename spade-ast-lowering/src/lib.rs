@@ -713,6 +713,19 @@ fn build_no_mangle_all_output_diagnostic(
     diagnostic
 }
 
+pub fn visit_unit_kind(kind: &ast::UnitKind, ctx: &mut Context) -> Result<hir::UnitKind> {
+    let inner = match kind {
+        ast::UnitKind::Function => hir::UnitKind::Function(hir::FunctionKind::Fn),
+        ast::UnitKind::Entity => hir::UnitKind::Entity,
+        ast::UnitKind::Pipeline(depth) => hir::UnitKind::Pipeline {
+            depth: depth
+                .try_map_ref(|t| visit_type_expression(t, &TypeSpecKind::PipelineDepth, ctx))?,
+            depth_typeexpr_id: ctx.idtracker.next(),
+        },
+    };
+    Ok(inner)
+}
+
 /// Visit the head of an entity to generate an entity head
 #[tracing::instrument(skip_all, fields(name=%head.name))]
 pub fn unit_head(
@@ -782,18 +795,7 @@ pub fn unit_head(
     // We need to have the scope open to check this, but we also need to close
     // the scope if we fail here, so we'll store port_error in a variable
 
-    let unit_kind: Result<_> = head.unit_kind.try_map_ref(|k| {
-        let inner = match k {
-            ast::UnitKind::Function => hir::UnitKind::Function(hir::FunctionKind::Fn),
-            ast::UnitKind::Entity => hir::UnitKind::Entity,
-            ast::UnitKind::Pipeline(depth) => hir::UnitKind::Pipeline {
-                depth: depth
-                    .try_map_ref(|t| visit_type_expression(t, &TypeSpecKind::PipelineDepth, ctx))?,
-                depth_typeexpr_id: ctx.idtracker.next(),
-            },
-        };
-        Ok(inner)
-    });
+    let unit_kind: Result<_> = head.unit_kind.try_map_ref(|k| visit_unit_kind(k, ctx));
 
     ctx.symtab.close_scope();
     let where_clauses = unit_where_clauses?

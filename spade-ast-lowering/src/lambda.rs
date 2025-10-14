@@ -1,4 +1,5 @@
 use spade_ast as ast;
+use spade_ast::UnitKind;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::Path;
@@ -14,6 +15,7 @@ use crate::global_symbols::visit_type_declaration;
 use crate::impls::visit_impl;
 use crate::visit_block;
 use crate::visit_pattern;
+use crate::visit_unit_kind;
 use crate::Context;
 use crate::LocExt;
 use crate::Result;
@@ -65,6 +67,78 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         panic!("visit_lambda called with non-lambda");
     };
 
+    let (clock_arg, actual_args) = match &unit_kind.inner {
+        UnitKind::Function => (None, args.inner.clone()),
+        UnitKind::Entity | UnitKind::Pipeline(_) => {
+            match args.as_slice() {
+                [] => {
+                    return Err(
+                        Diagnostic::error(args, "Non-function lambdas must take a clock.")
+                            .primary_label("Expected a clock")
+                            .secondary_label(unit_kind, "Required because this is not a `fn`")
+                            .span_suggest_replace("Consider adding a clock", args, "(clk)"),
+                    )
+                }
+                [clock, rest @ ..] => {
+                    match &clock.inner {
+                        spade_ast::Pattern::Path(p) => {
+                            match p.inner.0.iter().map(|arg| arg.0.as_str()).collect::<Vec<_>>().as_slice() {
+                            ["clk"] => (
+                                Some((
+                                    ast::AttributeList(vec![]),
+                                    p.0.last().unwrap().clone(),
+                                    ast::TypeSpec::Named(Path::from_strs(&["clock"]).nowhere(), None)
+                                        .nowhere(),
+                                )),
+                                rest.to_vec(),
+                            ),
+                            [_] => {
+                                return Err(Diagnostic::error(
+                                    clock,
+                                    "The first argument of a non-function lambda must be called `clk`",
+                                )
+                                .primary_label("Expected `clk`")
+                                .span_suggest_replace(
+                                    "Consider renaming the first argument",
+                                    clock,
+                                    "clk",
+                                )
+                                .span_suggest_insert_before(
+                                    "Or adding a adding a clock",
+                                    clock,
+                                    "clk, ",
+                                ))
+                            }
+                            _ => return Err(Diagnostic::error(
+                                clock,
+                                "The first argument of a non-function lambda must be a clock",
+                            )
+                            .primary_label("Expected clock")
+                            .span_suggest_insert_before(
+                                "Consider adding a clock",
+                                clock,
+                                "clk, ",
+                            )),
+                        }
+                        }
+                        _ => {
+                            return Err(Diagnostic::error(
+                                clock,
+                                "The first argument of a non-function lambda must be a clock",
+                            )
+                            .primary_label("Expected clock")
+                            .span_suggest_insert_before(
+                                "Consider adding a clock",
+                                clock,
+                                "clk, ",
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+    };
+
     let debug_loc = unit_kind.loc();
     let loc = ().between_locs(unit_kind, body);
 
@@ -75,7 +149,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         diag_anyhow!(loc, "Did not have a current_unit when visiting this lambda")
     })?;
 
-    let arg_output_generic_param_names = args
+    let arg_output_generic_param_names = actual_args
         .iter()
         .enumerate()
         .map(|(i, arg)| Identifier(format!("A{i}")).at_loc(arg))
@@ -135,7 +209,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .at_loc(&debug_loc);
 
     let args_spec = ast::TypeSpec::Tuple(
-        args.iter()
+        actual_args
+            .iter()
             .enumerate()
             .map(|(i, arg)| {
                 ast::TypeExpression::TypeSpec(Box::new(
@@ -172,9 +247,19 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let impl_block = ast::ImplBlock {
         r#trait: Some(
             ast::TraitSpec {
-                path: Path::from_strs(&["Fn"]).nowhere(),
+                path: match &unit_kind.inner {
+                    UnitKind::Function => Path::from_strs(&["Fn"]).at_loc(unit_kind),
+                    UnitKind::Entity => Path::from_strs(&["Entity"]).at_loc(unit_kind),
+                    UnitKind::Pipeline(_) => Path::from_strs(&["Pipeline"]).at_loc(unit_kind),
+                },
                 type_params: Some(
-                    vec![
+                    match &unit_kind.inner {
+                        UnitKind::Function => vec![],
+                        UnitKind::Entity => vec![],
+                        UnitKind::Pipeline(depth) => vec![depth.clone()],
+                    }
+                    .into_iter()
+                    .chain([
                         ast::TypeExpression::TypeSpec(Box::new(args_spec.clone())).nowhere(),
                         ast::TypeExpression::TypeSpec(Box::new(
                             ast::TypeSpec::Named(
@@ -184,7 +269,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             .nowhere(),
                         ))
                         .nowhere(),
-                    ]
+                    ])
+                    .collect::<Vec<_>>()
                     .nowhere(),
                 ),
             }
@@ -218,11 +304,15 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 name: Identifier("call".to_string()).nowhere(),
                 inputs: ast::ParameterList {
                     self_: Some(().nowhere()),
-                    args: vec![(
-                        ast::AttributeList(vec![]),
-                        Identifier("args".to_string()).nowhere(),
-                        args_spec,
-                    )],
+                    args: clock_arg
+                        .clone()
+                        .into_iter()
+                        .chain([(
+                            ast::AttributeList(vec![]),
+                            Identifier("args".to_string()).nowhere(),
+                            args_spec,
+                        )])
+                        .collect::<Vec<_>>(),
                 }
                 .nowhere(),
                 output_type: Some((
@@ -235,7 +325,14 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             },
             body: Some(
                 ast::Expression::Block(Box::new(ast::Block {
-                    statements: vec![],
+                    statements: match &unit_kind.inner {
+                        UnitKind::Function => vec![],
+                        UnitKind::Entity => vec![],
+                        UnitKind::Pipeline(depth) => {
+                            vec![ast::Statement::PipelineRegMarker(Some(depth.clone()), None)
+                                .at_loc(body)]
+                        }
+                    },
                     result: Some(
                         ast::Expression::StaticUnreachable(
                             "Compiler bug: Lambda body was not lowered during monomorphization"
@@ -252,6 +349,16 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     };
 
     let lambda_unit = ctx.in_fresh_unit(|ctx| {
+        match &unit_kind.inner {
+            UnitKind::Function => {}
+            UnitKind::Entity => {}
+            UnitKind::Pipeline(_) => {
+                // TODO: Check this number
+                ctx.pipeline_ctx = Some(crate::pipelines::PipelineContext {
+                    scope: ctx.symtab.current_scope() + 1,
+                })
+            }
+        };
         match visit_impl(&impl_block.at_loc(&debug_loc), ctx)?.as_slice() {
             [item] => {
                 let u = item.assume_unit();
@@ -259,6 +366,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     u.name.name_id().clone(),
                     hir::ExecutableItem::Unit(u.clone().at_loc(&loc)),
                 )?;
+
                 Ok::<_, Diagnostic>(u.clone())
             }
             _ => diag_bail!(loc, "Lambda impl block produced more than one item"),
@@ -292,7 +400,10 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             | spade_hir::symbol_table::Thing::Module(_)
             | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),
         }));
-    let arguments = args
+
+    let clock =
+        clock_arg.map(|(_, clk, _)| ctx.symtab.add_local_variable(clk.clone()).at_loc(&clk));
+    let arguments = actual_args
         .iter()
         .map(|arg| arg.try_visit(visit_pattern, ctx))
         .collect::<Result<Vec<_>>>()?;
@@ -303,6 +414,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     );
 
     Ok(hir::ExprKind::LambdaDef {
+        unit_kind: visit_unit_kind(unit_kind, ctx)?.at_loc(unit_kind),
         lambda_type: callee_name,
         lambda_type_params: callee_struct.type_params.clone(),
         lambda_unit: lambda_unit.name.name_id().inner.clone(),
@@ -324,5 +436,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             .collect(),
         arguments,
         body,
+        clock,
     })
 }

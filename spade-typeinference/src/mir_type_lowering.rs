@@ -90,8 +90,10 @@ impl TypeState {
 
         assert!(
             params.len() == decl.generic_args.len(),
-            "Too few type decl params in {:?}",
-            decl
+            "Too few type decl params in {:?}\n\n    params: {:?}\n    decl: {:?}",
+            decl,
+            params,
+            decl.generic_args
         );
 
         let generic_subs = decl

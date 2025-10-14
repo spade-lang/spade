@@ -1,0 +1,6 @@
+---
+source: spade-tests/src/integration.rs
+---
+entity test() {
+    let _ = fn () {};
+}

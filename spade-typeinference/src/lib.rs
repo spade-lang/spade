@@ -814,18 +814,59 @@ impl TypeState {
                 self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
             }
             ExprKind::LambdaDef {
+                unit_kind,
                 arguments,
                 body,
                 lambda_type,
                 lambda_type_params,
                 captured_generic_params,
                 lambda_unit: _,
+                // TODO: Do we care about the clock?
+                clock: _,
             } => {
                 for arg in arguments {
                     self.visit_pattern(arg, ctx, generic_list)?;
                 }
 
+                // TODO: Let's deduplicate this code
+                let outer_pipeline_state = self.pipeline_state.take();
+                match &unit_kind.inner {
+                    UnitKind::Pipeline {
+                        depth,
+                        depth_typeexpr_id,
+                    } => {
+                        let depth_var = self.hir_type_expr_to_var(depth, &generic_list)?;
+                        self.add_equation(
+                            TypedExpression::Id(*depth_typeexpr_id),
+                            depth_var.clone(),
+                        );
+                        self.pipeline_state = Some(PipelineState {
+                            current_stage_depth: self.add_type_var(TypeVar::Known(
+                                unit_kind.loc(),
+                                KnownType::Integer(BigInt::zero()),
+                                vec![],
+                            )),
+                            pipeline_loc: unit_kind.loc(),
+                            total_depth: depth_var.clone().at_loc(depth),
+                        });
+                        self.add_requirement(Requirement::PositivePipelineDepth {
+                            depth: depth_var.at_loc(depth),
+                        });
+
+                        // TODO: Correctly handle the clock
+
+                        // if let Some(arg) = arguments.first() {
+                        //     arg.unify_with(&self.t_clock(arg.loc(), ctx.symtab), self)
+                        //         .commit(self, ctx)
+                        //         .into_default_diagnostic(arg, self)?
+                        // } else {
+                        //     diag_bail!(body.loc(), "Found lambda pipeline without clock")
+                        // };
+                    }
+                    _ => {}
+                }
                 self.visit_expression(body, ctx, generic_list);
+                self.pipeline_state = outer_pipeline_state;
 
                 let lambda_params = arguments
                     .iter()

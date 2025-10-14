@@ -52,6 +52,21 @@ impl<T> Option<T> {
         }
     }
 
+    pipeline(Depth) pmap<#int Depth, F, O>(self, clk: clock, f: F) -> Option<O>
+        where F: Pipeline<Depth, (T), O>
+    {
+        let pipe_in = match self {
+            Some(x) => x,
+            None => std::undef::undef(),
+        };
+        let pipe_out = f.inst(Depth) call(clk, (pipe_in,));
+    reg * Depth;
+        match self {
+            Some(_) => Some(pipe_out),
+            None => None
+        }
+    }
+
     /// If the value is `None`, returns `None`, otherwise calls `f` on the contained
     /// value. `f` returns another Option
     ///

@@ -677,6 +677,10 @@ impl UnitKind {
         }
     }
 
+    pub fn is_function_like(&self) -> bool {
+        matches!(self, UnitKind::Function(_))
+    }
+
     pub fn is_pipeline(&self) -> bool {
         matches!(self, UnitKind::Pipeline { .. })
     }

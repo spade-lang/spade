@@ -143,12 +143,14 @@ impl<'a> QueryCache {
                 self.visit_arg_list(args)
             }
             crate::ExprKind::LambdaDef {
+                unit_kind: _,
                 lambda_type: _,
                 lambda_type_params: _,
                 lambda_unit: _,
                 arguments: _,
                 captured_generic_params: _,
                 body,
+                clock: _,
             } => {
                 // FIXME: Handle arguments
                 self.visit_expression(body);

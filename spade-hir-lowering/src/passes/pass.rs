@@ -171,12 +171,14 @@ impl Passable for Loc<Expression> {
                 }
             }
             ExprKind::LambdaDef {
+                unit_kind: _,
                 arguments: _,
                 body,
                 lambda_type: _,
                 lambda_type_params: _,
                 captured_generic_params: _,
                 lambda_unit: _,
+                clock: _,
             } => {
                 subnodes!(body)
             }

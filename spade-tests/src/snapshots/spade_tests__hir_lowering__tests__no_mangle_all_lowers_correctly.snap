@@ -14,10 +14,10 @@ expression: build_items(code)
             MirInput {
                 name: "a",
                 val_name: Named(
-                    6,
+                    13,
                     "a",
                     Name(
-                        a#6,
+                        a#13,
                     ),
                 ),
                 ty: Int(
@@ -30,10 +30,10 @@ expression: build_items(code)
             MirInput {
                 name: "b",
                 val_name: Named(
-                    7,
+                    14,
                     "b",
                     Name(
-                        b#7,
+                        b#14,
                     ),
                 ),
                 ty: Backward(
@@ -48,10 +48,10 @@ expression: build_items(code)
             MirInput {
                 name: "c",
                 val_name: Named(
-                    8,
+                    15,
                     "c",
                     Name(
-                        c#8,
+                        c#15,
                     ),
                 ),
                 ty: Bool,
@@ -62,10 +62,10 @@ expression: build_items(code)
             MirInput {
                 name: "d",
                 val_name: Named(
-                    9,
+                    16,
                     "d",
                     Name(
-                        d#9,
+                        d#16,
                     ),
                 ),
                 ty: Bool,
@@ -76,10 +76,10 @@ expression: build_items(code)
             MirInput {
                 name: "e",
                 val_name: Named(
-                    10,
+                    17,
                     "e",
                     Name(
-                        e#10,
+                        e#17,
                     ),
                 ),
                 ty: Array {
@@ -93,7 +93,7 @@ expression: build_items(code)
         ],
         output: Expr(
             ExprID(
-                0,
+                1,
             ),
         ),
         output_type: Tuple(
@@ -102,7 +102,7 @@ expression: build_items(code)
         statements: [
             Constant(
                 ExprID(
-                    3,
+                    4,
                 ),
                 UInt(
                     8,
@@ -115,14 +115,14 @@ expression: build_items(code)
                 Binding {
                     name: Expr(
                         ExprID(
-                            2,
+                            3,
                         ),
                     ),
                     operator: Alias,
                     operands: [
                         Expr(
                             ExprID(
-                                3,
+                                4,
                             ),
                         ),
                     ],
@@ -136,15 +136,15 @@ expression: build_items(code)
             ),
             Set {
                 target: Named(
-                    7,
+                    14,
                     "b",
                     Name(
-                        b#7,
+                        b#14,
                     ),
                 ),
                 value: Expr(
                     ExprID(
-                        2,
+                        3,
                     ),
                 ),
             },

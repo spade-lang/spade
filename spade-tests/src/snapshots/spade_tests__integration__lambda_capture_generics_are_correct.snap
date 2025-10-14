@@ -3,13 +3,13 @@ source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \test () -> uint<8> {
-	let e9: uint<8> = Instance(\generic[21] )()
-} => e9
-entity \generic[21] () -> uint<8> {
-	let e2: {} = ConstructTuple()
-	let e7: () = ConstructTuple()
-	let e1: uint<8> = Instance(\impl_0::call[22] )(e2, e7)
-} => e1
-entity \impl_0::call[22] ((self, self_n15, {}), (args, args_n16, ())) -> uint<8> {
-	const e5: uint<8> = 10
-} => e5
+	let e10: uint<8> = Instance(\generic[28] )()
+} => e10
+entity \generic[28] () -> uint<8> {
+	let e3: {} = ConstructTuple()
+	let e8: () = ConstructTuple()
+	let e2: uint<8> = Instance(\impl_0::call[29] )(e3, e8)
+} => e2
+entity \impl_0::call[29] ((self, self_n22, {}), (args, args_n23, ())) -> uint<8> {
+	const e6: uint<8> = 10
+} => e6

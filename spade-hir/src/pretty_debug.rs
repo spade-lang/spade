@@ -300,15 +300,17 @@ impl PrettyDebug for ExprKind {
                 depth_typeexpr_id: _,
             } => format!("[pipeline ref omitted]"),
             crate::ExprKind::LambdaDef {
+                unit_kind,
                 lambda_type,
                 lambda_type_params,
                 captured_generic_params,
                 lambda_unit,
                 arguments,
                 body,
+                clock: _,
             } => {
                 code!{
-                    [0] format!("fn ({}) {{", arguments.iter().map(PrettyDebug::pretty_debug).join(", "));
+                    [0] format!("{unit_kind:?} ({}) {{", arguments.iter().map(PrettyDebug::pretty_debug).join(", "));
                     [1]     body.pretty_debug();
                     [0] "}";
                     [2] format!("Lambda creates {}", lambda_unit.pretty_debug());

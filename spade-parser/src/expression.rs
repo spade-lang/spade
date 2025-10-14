@@ -312,7 +312,7 @@ impl<'a> Parser<'a> {
         )?;
         let args = args.at_loc(&args_loc);
 
-        let Some(body) = self.block(false)? else {
+        let Some(body) = self.block(unit_kind.is_pipeline())? else {
             let loc = self.peek()?;
             return Err(Diagnostic::error(&loc.loc(), "Expected lambda body")
                 .primary_label("Expected body")

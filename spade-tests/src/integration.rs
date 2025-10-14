@@ -522,6 +522,92 @@ snapshot_mir! {
         entity test(clk: clock) {
             X(2).inst(3) a(clk, 3)
         }
+    ",
+    all
+}
+
+code_compiles! {
+    clocks_are_usable_inside_lambda_clocked_things,
+    "
+        entity test(clk: clock) {
+            let _ = pipeline(1) (clk) {
+                clk
+            };
+        }
+    "
+}
+
+code_compiles! {
+    lambda_pipelines_can_be_defined,
+    "
+        entity test() {
+            let _ = pipeline(1) (clk) {
+                reg;
+            };
+        }
+    "
+}
+
+code_compiles! {
+    lambda_pipelines_can_be_used,
+    "
+        entity test(clk: clock) -> uint<8> {
+            let pl = pipeline(1) (clk, x) {
+                reg;
+                x
+            };
+
+            pl.inst(1) call(clk, (1u8,))
+        }
+    "
+}
+
+code_compiles! {
+    zero_parameter_lambda_function_works,
+    "
+        entity test() {
+            let _ = fn () {};
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_pipelines_need_correctly_named_clocks,
+    "
+        entity test() {
+            pipeline(1) (not_clk) {
+                reg;
+            };
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_entities_need_correctly_named_clocks,
+    "
+        entity test() {
+            entity (not_clk) {};
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_entities_need_clock,
+    "
+        entity test() {
+            entity () {};
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_pipelines_need_clock,
+    "
+        entity test() {
+            pipeline(1) () {
+                reg;
+            };
+        }
     "
 }
 

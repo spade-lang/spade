@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/integration.rs
+---
+entity test() {
+    pipeline(1) (not_clk) {
+        reg;
+    };
+}
+
+
+error: The first argument of a non-function lambda must be called `clk`
+  ┌─ testinput:2:18
+  │
+2 │     pipeline(1) (not_clk) {
+  │                  ^^^^^^^ Expected `clk`
+  │
+  = Consider renaming the first argument
+  │
+2 │     pipeline(1) (clk) {
+  │                  ~~~
+  = Or adding a adding a clock
+  │
+2 │     pipeline(1) (clk, not_clk) {
+  │                  +++++
