@@ -611,6 +611,45 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    pipeline_inst_supports_wildcard,
+    "
+        pipeline(1) pl(clk: clock) {
+            reg;
+        }
+
+        entity test(clk: clock) {
+            inst(_) pl(clk)
+        }
+    "
+}
+
+snapshot_error! {
+    wildcards_in_pipeline_heads_are_disallowed,
+    "
+        pipeline(_) pl(clk: clock) {
+            reg;
+        }
+
+        entity test(clk: clock) {
+            inst(_) pl(clk)
+        }
+    "
+}
+
+snapshot_error! {
+    wildcards_in_pipeline_reg_count_are_not_allowed,
+    "
+        pipeline(1) pl(clk: clock) {
+            reg * _;
+        }
+
+        entity test(clk: clock) {
+            inst(_) pl(clk)
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(_) pl(clk: clock) {
+    reg;
+}
+
+entity test(clk: clock) {
+    inst(_) pl(clk)
+}
+
+
+error: Pipeline depths cannot have wildcards in their type
+  ┌─ testinput:1:10
+  │
+1 │ pipeline(_) pl(clk: clock) {
+  │          ^ Wildcard in pipeline depth

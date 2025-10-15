@@ -226,7 +226,9 @@ pub enum TypeSpecKind {
     ImplTarget,
     BindingType,
     Turbofish,
-    PipelineDepth,
+    PipelineHeadDepth,
+    PipelineRegCount,
+    PipelineInstDepth,
     TraitBound,
     TypeLevelIf,
 }
@@ -266,7 +268,9 @@ pub fn visit_type_expression(
                 | TypeSpecKind::Turbofish
                 | TypeSpecKind::TypeLevelIf
                 | TypeSpecKind::BindingType
-                | TypeSpecKind::PipelineDepth => {
+                | TypeSpecKind::PipelineInstDepth
+                | TypeSpecKind::PipelineRegCount
+                | TypeSpecKind::PipelineHeadDepth => {
                     visit_const_generic(expr.as_ref(), ctx).map(hir::TypeExpression::ConstGeneric)
                 }
             }
@@ -520,13 +524,19 @@ pub fn visit_type_spec(
                 TypeSpecKind::ImplTarget => default_error("Impl targets", "impl target"),
                 TypeSpecKind::EnumMember => default_error("Enum members", "enum member"),
                 TypeSpecKind::StructMember => default_error("Struct members", "struct member"),
-                TypeSpecKind::PipelineDepth => default_error("Pipeline depth", "pipeline depth"),
+                TypeSpecKind::PipelineHeadDepth => {
+                    default_error("Pipeline depths", "pipeline depth")
+                }
+                TypeSpecKind::PipelineRegCount => {
+                    default_error("Register counts", "register count")
+                }
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bound", "trait bound")
                 }
-                TypeSpecKind::TypeLevelIf | TypeSpecKind::Turbofish | TypeSpecKind::BindingType => {
-                    Ok(hir::TypeSpec::Wildcard(t.loc()))
-                }
+                TypeSpecKind::PipelineInstDepth
+                | TypeSpecKind::TypeLevelIf
+                | TypeSpecKind::Turbofish
+                | TypeSpecKind::BindingType => Ok(hir::TypeSpec::Wildcard(t.loc())),
             }
         }
     };
@@ -719,7 +729,7 @@ pub fn visit_unit_kind(kind: &ast::UnitKind, ctx: &mut Context) -> Result<hir::U
         ast::UnitKind::Entity => hir::UnitKind::Entity,
         ast::UnitKind::Pipeline(depth) => hir::UnitKind::Pipeline {
             depth: depth
-                .try_map_ref(|t| visit_type_expression(t, &TypeSpecKind::PipelineDepth, ctx))?,
+                .try_map_ref(|t| visit_type_expression(t, &TypeSpecKind::PipelineHeadDepth, ctx))?,
             depth_typeexpr_id: ctx.idtracker.next(),
         },
     };
@@ -1670,7 +1680,7 @@ fn try_visit_statement(
                 (None, None) => None,
                 (Some(count), None) => Some(hir::PipelineRegMarkerExtra::Count {
                     count: count.try_map_ref(|c| {
-                        visit_type_expression(c, &TypeSpecKind::PipelineDepth, ctx)
+                        visit_type_expression(c, &TypeSpecKind::PipelineRegCount, ctx)
                     })?,
                     count_typeexpr_id: ctx.idtracker.next(),
                 }),
@@ -1770,7 +1780,7 @@ pub fn visit_call_kind(
         ast::CallKind::Entity(loc) => hir::expression::CallKind::Entity(*loc),
         ast::CallKind::Pipeline(loc, depth) => {
             let depth = depth
-                .try_map_ref(|e| visit_type_expression(e, &TypeSpecKind::PipelineDepth, ctx))?;
+                .try_map_ref(|e| visit_type_expression(e, &TypeSpecKind::PipelineInstDepth, ctx))?;
             hir::expression::CallKind::Pipeline {
                 inst_loc: *loc,
                 depth,
@@ -2125,7 +2135,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let stage = match stage {
                 ast::PipelineStageReference::Relative(offset) => {
                     hir::expression::PipelineRefKind::Relative(offset.try_map_ref(|t| {
-                        visit_type_expression(t, &TypeSpecKind::PipelineDepth, ctx)
+                        visit_type_expression(t, &TypeSpecKind::PipelineInstDepth, ctx)
                     })?)
                 }
                 ast::PipelineStageReference::Absolute(name) => {

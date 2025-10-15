@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(1) pl(clk: clock) {
+    reg * _;
+}
+
+entity test(clk: clock) {
+    inst(_) pl(clk)
+}
+
+
+error: Register counts cannot have wildcards in their type
+  ┌─ testinput:2:11
+  │
+2 │     reg * _;
+  │           ^ Wildcard in register count
