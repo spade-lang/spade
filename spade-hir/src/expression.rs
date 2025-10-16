@@ -262,6 +262,7 @@ pub enum ExprKind {
         arguments: Vec<Loc<Pattern>>,
         body: Box<Loc<Expression>>,
         clock: Option<Loc<NameID>>,
+        captures: Vec<(Loc<Identifier>, Loc<NameID>)>,
     },
     StageValid,
     StageReady,

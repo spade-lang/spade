@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use spade_common::{
     id_tracker::ExprIdTracker,
     location_info::{Loc, WithLocation},
-    name::NameID,
+    name::{Identifier, NameID},
 };
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
@@ -22,6 +22,7 @@ pub(crate) struct LambdaReplacement {
     pub arguments: Vec<(Loc<Pattern>, KnownTypeVar)>,
     pub captured_type_params: HashMap<NameID, NameID>,
     pub clock: Option<Loc<NameID>>,
+    pub captures: Vec<(Loc<Identifier>, Loc<NameID>)>,
 }
 
 impl LambdaReplacement {
@@ -125,9 +126,49 @@ impl LambdaReplacement {
             None
         };
 
-        let arg_bindings = arg_bindings
+        let capture_bindings = self
+            .captures
+            .iter()
+            .map(|(cap_ident, cap_name)| {
+                Ok(Statement::binding(
+                    PatternKind::Name {
+                        name: cap_name.clone(),
+                        pre_declared: false,
+                    }
+                    .with_id(idtracker.next())
+                    .at_loc(cap_name),
+                    None,
+                    ExprKind::FieldAccess(
+                        Box::new(
+                            ExprKind::Identifier(
+                                old.inputs
+                                    .get(0)
+                                    .ok_or_else(|| {
+                                        diag_anyhow!(
+                                            cap_name,
+                                            "Did not find a self argument in lambda call"
+                                        )
+                                    })?
+                                    .0
+                                    .inner
+                                    .clone(),
+                            )
+                            .with_id(idtracker.next())
+                            .at_loc(cap_name),
+                        ),
+                        cap_ident.clone(),
+                    )
+                    .with_id(idtracker.next())
+                    .at_loc(cap_name),
+                )
+                .at_loc(&cap_name.loc()))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let new_bindings = arg_bindings
             .into_iter()
             .chain(clock_binding)
+            .chain(capture_bindings)
             .collect::<Vec<_>>();
 
         let scope_type_params = self.replace_type_params(&old.head.scope_type_params);
@@ -136,7 +177,7 @@ impl LambdaReplacement {
         let body = self.new_body.clone().map(|mut body| {
             let block = body.assume_block_mut();
 
-            block.statements = arg_bindings
+            block.statements = new_bindings
                 .clone()
                 .into_iter()
                 .chain(block.statements.clone())
@@ -179,7 +220,8 @@ impl LambdaReplacement {
 }
 
 pub(crate) struct LowerLambdaDefs<'a> {
-    pub type_state: &'a TypeState,
+    pub type_state: &'a mut TypeState,
+    pub idtracker: &'a mut ExprIdTracker,
 
     pub replacements: &'a mut HashMap<NameID, LambdaReplacement>,
 }
@@ -195,6 +237,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
             arguments,
             body,
             clock,
+            captures,
         } = &expression.kind
         {
             let arguments = arguments
@@ -223,13 +266,31 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                         .map(|tp| (tp.name_in_lambda.clone(), tp.name_in_body.inner.clone()))
                         .collect(),
                     clock: clock.clone(),
+                    captures: captures.clone(),
                 },
             );
 
             *expression = ExprKind::Call {
                 kind: CallKind::Function,
                 callee: lambda_type.clone().at_loc(expression),
-                args: ArgumentList::Positional(vec![]).at_loc(expression),
+                args: ArgumentList::Positional(
+                    captures
+                        .iter()
+                        .map(|(_, name_id)| {
+                            let id = self.idtracker.next();
+
+                            self.type_state.add_equation(
+                                spade_typeinference::equation::TypedExpression::Id(id),
+                                name_id.get_type(self.type_state),
+                            );
+
+                            ExprKind::Identifier(name_id.clone().inner)
+                                .with_id(id)
+                                .at_loc(name_id)
+                        })
+                        .collect(),
+                )
+                .at_loc(expression),
                 turbofish: None,
                 safety: Safety::Default,
             }

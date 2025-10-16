@@ -1,5 +1,9 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use spade_ast as ast;
 use spade_ast::UnitKind;
+use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::Path;
@@ -67,78 +71,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         panic!("visit_lambda called with non-lambda");
     };
 
-    let (clock_arg, actual_args) = match &unit_kind.inner {
-        UnitKind::Function => (None, args.inner.clone()),
-        UnitKind::Entity | UnitKind::Pipeline(_) => {
-            match args.as_slice() {
-                [] => {
-                    return Err(
-                        Diagnostic::error(args, "Non-function lambdas must take a clock.")
-                            .primary_label("Expected a clock")
-                            .secondary_label(unit_kind, "Required because this is not a `fn`")
-                            .span_suggest_replace("Consider adding a clock", args, "(clk)"),
-                    )
-                }
-                [clock, rest @ ..] => {
-                    match &clock.inner {
-                        spade_ast::Pattern::Path(p) => {
-                            match p.inner.0.iter().map(|arg| arg.0.as_str()).collect::<Vec<_>>().as_slice() {
-                            ["clk"] => (
-                                Some((
-                                    ast::AttributeList(vec![]),
-                                    p.0.last().unwrap().clone(),
-                                    ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
-                                        .at_loc(clock),
-                                )),
-                                rest.to_vec(),
-                            ),
-                            [_] => {
-                                return Err(Diagnostic::error(
-                                    clock,
-                                    "The first argument of a non-function lambda must be called `clk`",
-                                )
-                                .primary_label("Expected `clk`")
-                                .span_suggest_replace(
-                                    "Consider renaming the first argument",
-                                    clock,
-                                    "clk",
-                                )
-                                .span_suggest_insert_before(
-                                    "Or adding a adding a clock",
-                                    clock,
-                                    "clk, ",
-                                ))
-                            }
-                            _ => return Err(Diagnostic::error(
-                                clock,
-                                "The first argument of a non-function lambda must be a clock",
-                            )
-                            .primary_label("Expected clock")
-                            .span_suggest_insert_before(
-                                "Consider adding a clock",
-                                clock,
-                                "clk, ",
-                            )),
-                        }
-                        }
-                        _ => {
-                            return Err(Diagnostic::error(
-                                clock,
-                                "The first argument of a non-function lambda must be a clock",
-                            )
-                            .primary_label("Expected clock")
-                            .span_suggest_insert_before(
-                                "Consider adding a clock",
-                                clock,
-                                "clk, ",
-                            ))
-                        }
-                    }
-                }
-            }
-        }
-    };
-
     let debug_loc = unit_kind.loc();
     let loc = ().between_locs(unit_kind, body);
 
@@ -149,13 +81,70 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         diag_anyhow!(loc, "Did not have a current_unit when visiting this lambda")
     })?;
 
+    let (clock_arg, actual_args) = handle_unit_kind(unit_kind, args)?;
+
+    let shared_captures = Arc::new(Mutex::new(vec![]));
+    {
+        let captures = shared_captures.clone();
+        ctx.symtab
+            .new_scope_with_barrier(Box::new(move |name: _, previous, thing| match thing {
+                spade_hir::symbol_table::Thing::Variable(name) => {
+                    captures
+                        .lock()
+                        .unwrap()
+                        .push((name.clone(), previous.clone()));
+                    Ok(())
+                }
+                spade_hir::symbol_table::Thing::PipelineStage(_) => Err(Diagnostic::error(
+                    name,
+                    "Pipeline stages cannot cross lambda functions",
+                )
+                .primary_label("Capturing a pipeline stage...")
+                .secondary_label(previous, "That is defined outside the lambda")),
+                spade_hir::symbol_table::Thing::Struct(_)
+                | spade_hir::symbol_table::Thing::EnumVariant(_)
+                | spade_hir::symbol_table::Thing::Unit(_)
+                | spade_hir::symbol_table::Thing::Alias {
+                    path: _,
+                    in_namespace: _,
+                }
+                | spade_hir::symbol_table::Thing::Module(_)
+                | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),
+            }))
+    };
+
+    let clock = clock_arg
+        .as_ref()
+        .map(|(_, clk, _)| ctx.symtab.add_local_variable(clk.clone()).at_loc(&clk));
+    let arguments = actual_args
+        .iter()
+        .map(|arg| arg.try_visit(visit_pattern, ctx))
+        .collect::<Result<Vec<_>>>()?;
+    let hir_body = body.try_map_ref(|body| visit_block(body, ctx));
+    ctx.symtab.close_scope();
+    let hir_body = Box::new(
+        hir_body?.map(|body| hir::ExprKind::Block(Box::new(body)).with_id(ctx.idtracker.next())),
+    );
+
+    // Get rid of the mutex for more reasable code
+    let mut captures = vec![];
+    std::mem::swap(&mut *shared_captures.lock().unwrap(), &mut captures);
+
+    // Generic params for all the captured variables
+    let captured_value_generic_param_names = captures
+        .iter()
+        .enumerate()
+        .map(|(i, cap)| Identifier(format!("C{i}")).at_loc(&cap.1));
+
     let arg_output_generic_param_names = actual_args
         .iter()
         .enumerate()
         .map(|(i, arg)| Identifier(format!("A{i}")).at_loc(arg))
         .chain(vec![output_type_name.clone().nowhere()])
+        .chain(captured_value_generic_param_names)
         .collect::<Vec<_>>();
 
+    // Generic params of the environment in which the lambda is defined
     let captured_generic_params = current_unit
         .unit_type_params
         .iter()
@@ -232,7 +221,23 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             ast::Struct {
                 attributes: ast::AttributeList::empty(),
                 name: type_name.clone().at_loc(&debug_loc),
-                members: ast::ParameterList::without_self(vec![]).at_loc(&debug_loc),
+                members: ast::ParameterList::without_self(
+                    captures
+                        .iter()
+                        .enumerate()
+                        .map(|(i, (name_ident, name_id))| {
+                            let ty = ast::TypeSpec::Named(
+                                Path::ident(Identifier(format!("C{i}")).at_loc(name_id))
+                                    .at_loc(name_ident),
+                                None,
+                            )
+                            .at_loc(name_id);
+
+                            (ast::AttributeList::empty(), name_ident.clone(), ty)
+                        })
+                        .collect(),
+                )
+                .at_loc(&debug_loc),
                 port_keyword: None,
             }
             .at_loc(&debug_loc),
@@ -376,47 +381,12 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .symtab
         .lookup_struct(&Path::ident(type_name.at_loc(&debug_loc)).at_loc(&debug_loc))?;
 
-    ctx.symtab
-        .new_scope_with_barrier(Box::new(|name, previous, thing| match thing {
-            spade_hir::symbol_table::Thing::Variable(_) => {
-                Err(Diagnostic::error(name, "Lambda captures are not supported")
-                    .primary_label("This variable is captured")
-                    .secondary_label(previous, "The variable is defined outside the lambda here"))
-            }
-            spade_hir::symbol_table::Thing::PipelineStage(_) => Err(Diagnostic::error(
-                name,
-                "Pipeline stages cannot cross lambda functions",
-            )
-            .primary_label("Capturing a pipeline stage...")
-            .secondary_label(previous, "That is defined outside the lambda")),
-            spade_hir::symbol_table::Thing::Struct(_)
-            | spade_hir::symbol_table::Thing::EnumVariant(_)
-            | spade_hir::symbol_table::Thing::Unit(_)
-            | spade_hir::symbol_table::Thing::Alias {
-                path: _,
-                in_namespace: _,
-            }
-            | spade_hir::symbol_table::Thing::Module(_)
-            | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),
-        }));
-
-    let clock =
-        clock_arg.map(|(_, clk, _)| ctx.symtab.add_local_variable(clk.clone()).at_loc(&clk));
-    let arguments = actual_args
-        .iter()
-        .map(|arg| arg.try_visit(visit_pattern, ctx))
-        .collect::<Result<Vec<_>>>()?;
-    let body = body.try_map_ref(|body| visit_block(body, ctx));
-    ctx.symtab.close_scope();
-    let body = Box::new(
-        body?.map(|body| hir::ExprKind::Block(Box::new(body)).with_id(ctx.idtracker.next())),
-    );
-
     Ok(hir::ExprKind::LambdaDef {
         unit_kind: visit_unit_kind(unit_kind, ctx)?.at_loc(unit_kind),
         lambda_type: callee_name,
         lambda_type_params: callee_struct.type_params.clone(),
         lambda_unit: lambda_unit.name.name_id().inner.clone(),
+        captures,
         captured_generic_params: captured_generic_params
             .iter()
             // Kind of cursed, but we need to figure out what name IDs we gave to the captured
@@ -434,7 +404,88 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             })
             .collect(),
         arguments,
-        body,
+        body: hir_body,
         clock,
     })
+}
+
+fn handle_unit_kind(
+    unit_kind: &Loc<UnitKind>,
+    args: &Loc<Vec<Loc<ast::Pattern>>>,
+) -> Result<(
+    Option<(ast::AttributeList, Loc<Identifier>, Loc<ast::TypeSpec>)>,
+    Vec<Loc<ast::Pattern>>,
+)> {
+    let result = match &unit_kind.inner {
+        UnitKind::Function => (None, args.inner.clone()),
+        UnitKind::Entity | UnitKind::Pipeline(_) => {
+            match args.as_slice() {
+                [] => {
+                    return Err(
+                        Diagnostic::error(args, "Non-function lambdas must take a clock.")
+                            .primary_label("Expected a clock")
+                            .secondary_label(unit_kind, "Required because this is not a `fn`")
+                            .span_suggest_replace("Consider adding a clock", args, "(clk)"),
+                    )
+                }
+                [clock, rest @ ..] => {
+                    match &clock.inner {
+                        spade_ast::Pattern::Path(p) => {
+                            match p.inner.0.iter().map(|arg| arg.0.as_str()).collect::<Vec<_>>().as_slice() {
+                            ["clk"] => (
+                                Some((
+                                    ast::AttributeList(vec![]),
+                                    p.0.last().unwrap().clone(),
+                                    ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
+                                        .at_loc(clock),
+                                )),
+                                rest.to_vec(),
+                            ),
+                            [_] => {
+                                return Err(Diagnostic::error(
+                                    clock,
+                                    "The first argument of a non-function lambda must be called `clk`",
+                                )
+                                .primary_label("Expected `clk`")
+                                .span_suggest_replace(
+                                    "Consider renaming the first argument",
+                                    clock,
+                                    "clk",
+                                )
+                                .span_suggest_insert_before(
+                                    "Or adding a adding a clock",
+                                    clock,
+                                    "clk, ",
+                                ))
+                            }
+                            _ => return Err(Diagnostic::error(
+                                clock,
+                                "The first argument of a non-function lambda must be a clock",
+                            )
+                            .primary_label("Expected clock")
+                            .span_suggest_insert_before(
+                                "Consider adding a clock",
+                                clock,
+                                "clk, ",
+                            )),
+                        }
+                        }
+                        _ => {
+                            return Err(Diagnostic::error(
+                                clock,
+                                "The first argument of a non-function lambda must be a clock",
+                            )
+                            .primary_label("Expected clock")
+                            .span_suggest_insert_before(
+                                "Consider adding a clock",
+                                clock,
+                                "clk, ",
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+    };
+    Ok(result)
 }

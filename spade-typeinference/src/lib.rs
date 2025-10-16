@@ -840,6 +840,7 @@ impl TypeState {
                 captured_generic_params,
                 lambda_unit: _,
                 clock,
+                captures,
             } => {
                 for arg in arguments {
                     self.visit_pattern(arg, ctx, generic_list)?;
@@ -872,6 +873,7 @@ impl TypeState {
                 let lambda_params = arguments
                     .iter()
                     .map(|arg| arg.get_type(self))
+                    .chain(captures.iter().map(|(_, cap_name)| cap_name.get_type(self)))
                     .chain(vec![body.get_type(self)])
                     .chain(
                         captured_generic_params

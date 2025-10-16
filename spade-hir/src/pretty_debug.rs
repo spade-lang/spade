@@ -307,6 +307,7 @@ impl PrettyDebug for ExprKind {
                 lambda_unit,
                 arguments,
                 body,
+                captures: _,
                 clock: _,
             } => {
                 code!{

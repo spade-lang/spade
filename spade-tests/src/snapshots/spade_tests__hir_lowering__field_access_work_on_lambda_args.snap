@@ -10,8 +10,8 @@ entity \test () -> () {
 	let e2: bool = Instance(\impl_0::call[29] )(e3, e10)
 	let x_n24: bool = Alias(e2)
 } => e1
-entity \impl_0::call[29] ((self, self_n21, {}), (args, args_n22, ({value: bool}))) -> bool {
-	let e15: {value: bool} = IndexTuple(0)(args_n22)
-	let a_n23: {value: bool} = Alias(e15)
-	let e7: bool = IndexTuple(0)(a_n23)
-} => e7
+entity \impl_0::call[29] ((self, self_n22, {}), (args, args_n23, ({value: bool}))) -> bool {
+	let e15: {value: bool} = IndexTuple(0)(args_n23)
+	let a_n14: {value: bool} = Alias(e15)
+	let e5: bool = IndexTuple(0)(a_n14)
+} => e5

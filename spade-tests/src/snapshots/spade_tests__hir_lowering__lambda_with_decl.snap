@@ -9,4 +9,4 @@ entity \test () -> () {
 	let e7: () = Instance(\impl_0::call[25] )(x_n13, e9)
 } => e1
 entity \impl_0::call[25] ((self, self_n19, {}), (args, args_n20, ())) -> () {
-} => e5
+} => e3

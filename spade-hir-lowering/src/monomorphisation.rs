@@ -311,45 +311,47 @@ pub fn compile_items(
 
                 // Apply passes to the type checked module
                 let mut u = u.clone();
-                let passes = [
-                    &mut LowerLambdaDefs {
-                        type_state: &type_state,
-                        replacements: &mut body_replacements,
-                    } as &mut dyn Pass,
-                    &mut FlattenRegs {
-                        type_state: &type_state,
-                        items: item_list,
-                        symtab,
-                    } as &mut dyn Pass,
-                    &mut LowerMethods {
-                        type_state: &type_state,
-                        items: item_list,
-                        symtab,
-                    } as &mut dyn Pass,
-                    &mut LowerTypeLevelIf {
-                        type_state: &type_state,
-                        items: item_list,
-                        symtab,
-                        allowed_ids: Default::default(),
-                    } as &mut dyn Pass,
-                    &mut InOutChecks {
-                        type_state: &type_state,
-                        items: item_list,
-                        symtab,
-                    } as &mut dyn Pass,
-                    &mut DisallowZeroSize {
-                        type_state: &type_state,
-                        items: item_list,
-                        symtab,
-                    } as &mut dyn Pass,
-                ];
-                for pass in passes {
-                    let pass_result = u.apply(pass);
-                    if let Err(e) = pass_result {
-                        result.push(Err(e));
-                        continue 'item_loop;
-                    }
-                }
+
+                macro_rules! run_pass {
+                    ($pass:expr) => {
+                        let pass_result = u.apply(&mut $pass);
+                        if let Err(e) = pass_result {
+                            result.push(Err(e));
+                            continue 'item_loop;
+                        }
+                    };
+                };
+                run_pass!(LowerLambdaDefs {
+                    type_state: &mut type_state,
+                    idtracker: idtracker,
+                    replacements: &mut body_replacements,
+                });
+                run_pass!(FlattenRegs {
+                    type_state: &type_state,
+                    items: item_list,
+                    symtab,
+                });
+                run_pass!(LowerMethods {
+                    type_state: &type_state,
+                    items: item_list,
+                    symtab,
+                });
+                run_pass!(LowerTypeLevelIf {
+                    type_state: &type_state,
+                    items: item_list,
+                    symtab,
+                    allowed_ids: Default::default(),
+                });
+                run_pass!(InOutChecks {
+                    type_state: &type_state,
+                    items: item_list,
+                    symtab,
+                });
+                run_pass!(DisallowZeroSize {
+                    type_state: &type_state,
+                    items: item_list,
+                    symtab,
+                });
 
                 let self_mono_item = Some(item.clone());
                 let out = generate_unit(

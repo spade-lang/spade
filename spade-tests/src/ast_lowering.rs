@@ -1,4 +1,4 @@
-use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
+use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error, snapshot_mir};
 
 snapshot_error! {
     impl_method_generic_args_length_does_not_match_trait_method_generic_args_length,
@@ -1352,16 +1352,17 @@ snapshot_error! {
     "
 }
 
-snapshot_error! {
-    lambda_captures_are_disallowed,
+snapshot_mir! {
+    lambda_captures_work,
     "
         fn test() {
             let x = 0u8;
             let l = fn() {
                 let y = x;
-            };
+            }.call((,));
         }
-    "
+    ",
+    all
 }
 
 code_compiles! {

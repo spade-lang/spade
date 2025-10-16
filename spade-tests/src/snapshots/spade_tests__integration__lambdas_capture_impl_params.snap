@@ -12,7 +12,7 @@ entity \impl_0::test[35] ((self, self_n19, {})) -> () {
 	let e2: () = Instance(\impl_1::call[36] )(e3, e9)
 	let l_n30: () = Alias(e2)
 } => e1
-entity \impl_1::call[36] ((self, self_n27, {}), (args, args_n28, ())) -> () {
-	const e6: uint<8> = 5
-	let x_n29: uint<8> = Alias(e6)
-} => e8
+entity \impl_1::call[36] ((self, self_n28, {}), (args, args_n29, ())) -> () {
+	const e4: uint<8> = 5
+	let x_n20: uint<8> = Alias(e4)
+} => e6

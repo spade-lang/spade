@@ -19,8 +19,8 @@ entity \generic[31] () -> uint<8> {
 	let e2: uint<8> = Instance(\impl_0::call[33] )(e3, e8)
 } => e2
 entity \impl_0::call[32] ((self, self_n22, {}), (args, args_n23, ())) -> uint<8> {
-	const e6: uint<8> = 10
-} => e6
+	const e4: uint<8> = 10
+} => e4
 entity \impl_0::call[33] ((self, self_n22, {}), (args, args_n23, ())) -> uint<8> {
-	const e6: uint<8> = 20
-} => e6
+	const e4: uint<8> = 20
+} => e4

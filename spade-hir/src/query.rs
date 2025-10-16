@@ -150,6 +150,7 @@ impl<'a> QueryCache {
                 arguments: _,
                 captured_generic_params: _,
                 body,
+                captures: _,
                 clock: _,
             } => {
                 // FIXME: Handle arguments
