@@ -87,8 +87,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                                 Some((
                                     ast::AttributeList(vec![]),
                                     p.0.last().unwrap().clone(),
-                                    ast::TypeSpec::Named(Path::from_strs(&["clock"]).nowhere(), None)
-                                        .nowhere(),
+                                    ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
+                                        .at_loc(clock),
                                 )),
                                 rest.to_vec(),
                             ),
@@ -353,9 +353,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             UnitKind::Function => {}
             UnitKind::Entity => {}
             UnitKind::Pipeline(_) => {
-                // TODO: Check this number
                 ctx.pipeline_ctx = Some(crate::pipelines::PipelineContext {
-                    scope: ctx.symtab.current_scope() + 1,
+                    scope: ctx.symtab.current_scope(),
                 })
             }
         };

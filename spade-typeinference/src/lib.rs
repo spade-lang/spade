@@ -531,20 +531,13 @@ impl TypeState {
             depth_typeexpr_id,
         } = &entity.head.unit_kind.inner
         {
-            let depth_var = self.hir_type_expr_to_var(depth, &generic_list)?;
-            self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth_var.clone());
-            self.pipeline_state = Some(PipelineState {
-                current_stage_depth: self.add_type_var(TypeVar::Known(
-                    entity.head.unit_kind.loc(),
-                    KnownType::Integer(BigInt::zero()),
-                    vec![],
-                )),
-                pipeline_loc: entity.loc(),
-                total_depth: depth_var.clone().at_loc(depth),
-            });
-            self.add_requirement(Requirement::PositivePipelineDepth {
-                depth: depth_var.at_loc(depth),
-            });
+            self.setup_pipeline_state(
+                &entity.head.unit_kind,
+                &entity.body,
+                &generic_list,
+                depth,
+                depth_typeexpr_id,
+            )?;
 
             let clock_index = if entity.head.is_nonstatic_method {
                 1
@@ -646,6 +639,31 @@ impl TypeState {
         // may help track something down
         self.pipeline_state = None;
 
+        Ok(())
+    }
+
+    fn setup_pipeline_state(
+        &mut self,
+        unit_kind: &Loc<UnitKind>,
+        body_loc: &Loc<Expression>,
+        generic_list: &GenericListToken,
+        depth: &Loc<TypeExpression>,
+        depth_typeexpr_id: &ExprID,
+    ) -> Result<()> {
+        let depth_var = self.hir_type_expr_to_var(depth, generic_list)?;
+        self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth_var.clone());
+        self.pipeline_state = Some(PipelineState {
+            current_stage_depth: self.add_type_var(TypeVar::Known(
+                unit_kind.loc(),
+                KnownType::Integer(BigInt::zero()),
+                vec![],
+            )),
+            pipeline_loc: body_loc.loc(),
+            total_depth: depth_var.clone().at_loc(depth),
+        });
+        self.add_requirement(Requirement::PositivePipelineDepth {
+            depth: depth_var.at_loc(depth),
+        });
         Ok(())
     }
 
@@ -821,49 +839,32 @@ impl TypeState {
                 lambda_type_params,
                 captured_generic_params,
                 lambda_unit: _,
-                // TODO: Do we care about the clock?
-                clock: _,
+                clock,
             } => {
                 for arg in arguments {
                     self.visit_pattern(arg, ctx, generic_list)?;
                 }
 
-                // TODO: Let's deduplicate this code
+                if let Some(clock) = clock {
+                    clock
+                        .unify_with(&self.t_clock(clock.loc(), ctx.symtab), self)
+                        .commit(self, ctx)
+                        .into_default_diagnostic(clock, self)?;
+                }
+
                 let outer_pipeline_state = self.pipeline_state.take();
-                match &unit_kind.inner {
-                    UnitKind::Pipeline {
+                if let UnitKind::Pipeline {
+                    depth,
+                    depth_typeexpr_id,
+                } = &unit_kind.inner
+                {
+                    self.setup_pipeline_state(
+                        unit_kind,
+                        body,
+                        &generic_list,
                         depth,
                         depth_typeexpr_id,
-                    } => {
-                        let depth_var = self.hir_type_expr_to_var(depth, &generic_list)?;
-                        self.add_equation(
-                            TypedExpression::Id(*depth_typeexpr_id),
-                            depth_var.clone(),
-                        );
-                        self.pipeline_state = Some(PipelineState {
-                            current_stage_depth: self.add_type_var(TypeVar::Known(
-                                unit_kind.loc(),
-                                KnownType::Integer(BigInt::zero()),
-                                vec![],
-                            )),
-                            pipeline_loc: unit_kind.loc(),
-                            total_depth: depth_var.clone().at_loc(depth),
-                        });
-                        self.add_requirement(Requirement::PositivePipelineDepth {
-                            depth: depth_var.at_loc(depth),
-                        });
-
-                        // TODO: Correctly handle the clock
-
-                        // if let Some(arg) = arguments.first() {
-                        //     arg.unify_with(&self.t_clock(arg.loc(), ctx.symtab), self)
-                        //         .commit(self, ctx)
-                        //         .into_default_diagnostic(arg, self)?
-                        // } else {
-                        //     diag_bail!(body.loc(), "Found lambda pipeline without clock")
-                        // };
-                    }
-                    _ => {}
+                    )?;
                 }
                 self.visit_expression(body, ctx, generic_list);
                 self.pipeline_state = outer_pipeline_state;

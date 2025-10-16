@@ -650,6 +650,17 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    lambda_entity_clock_must_be_clock,
+    "
+        entity test(clk: clock) {
+            let _ = entity (clk) {
+                let clk: uint<8> = clk;
+            }.inst call(clk, ());
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

@@ -8,7 +8,7 @@ expression: build_items(code)
             kind: Unescaped(
                 "x",
             ),
-            source: x#0,
+            source: x#4,
         },
         inputs: [
             MirInput {

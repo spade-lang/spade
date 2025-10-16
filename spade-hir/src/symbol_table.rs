@@ -854,7 +854,7 @@ impl SymbolTable {
         match self.lookup_final_id(name, forbidden) {
             Ok(id) => Some(id),
             Err(LookupError::NoSuchSymbol(_)) => None,
-            Err(_) => unreachable!(),
+            Err(err) => unreachable!("Got {err:?} when looking up final ID"),
         }
     }
 

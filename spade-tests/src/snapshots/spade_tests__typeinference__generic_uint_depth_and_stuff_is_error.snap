@@ -13,10 +13,11 @@ entity a(clk: clock) -> bool {
 
 
 error: Pipeline depth mismatch. Expected #uint got #int
-  ┌─ testinput:1:1
+  ┌─ testinput:1:62
   │  
-1 │ ╭ pipeline(N) p<#uint N, #uint O>(clk: clock, x: bool) -> bool {
+1 │   pipeline(N) p<#uint N, #uint O>(clk: clock, x: bool) -> bool {
   │                  ------ Type #uint inferred here
+  │ ╭──────────────────────────────────────────────────────────────^
 2 │ │     reg * {N};
 3 │ │         let a = stage(+O).x;
 4 │ │         x

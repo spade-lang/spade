@@ -9,10 +9,11 @@ pipeline(3) pipe(clk: clock) -> bool {
 
 
 error: Pipeline depth mismatch. Expected 3 got 2
-  ┌─ testinput:1:1
+  ┌─ testinput:1:38
   │  
-1 │ ╭ pipeline(3) pipe(clk: clock) -> bool {
+1 │   pipeline(3) pipe(clk: clock) -> bool {
   │            - Type 3 inferred here
+  │ ╭──────────────────────────────────────^
 2 │ │     reg;
 3 │ │     reg;
 4 │ │         true

@@ -162,9 +162,11 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
-            ast::Item::TraitDef(_) => {
-                // FIXME: When we end up needing to refer to traits, we should add them
-                // to the symtab here
+            ast::Item::TraitDef(r#trait) => {
+                ctx.symtab.add_unique_thing(
+                    Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
+                    Thing::Trait(r#trait.name.clone()),
+                )?;
             }
             ast::Item::Use(u) => {
                 let new_name = match &u.alias {
@@ -198,11 +200,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
         ast::Item::TraitDef(def) => {
-            let name = ctx.symtab.add_unique_thing(
-                Path(vec![def.name.clone()]).at_loc(&def.name),
-                Thing::Trait(def.name.clone()),
-            )?;
-
+            let (name, _) = ctx.symtab.lookup_trait(&Path::ident(def.name.clone()).at_loc(&def.name)).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
             create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.type_params,

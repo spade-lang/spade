@@ -9,10 +9,11 @@ pipeline(10) p(clk: clock, x: bool) -> bool {
 
 
 error: Pipeline depth mismatch. Expected 10 got 9
-  ┌─ testinput:1:1
+  ┌─ testinput:1:45
   │  
-1 │ ╭ pipeline(10) p(clk: clock, x: bool) -> bool {
+1 │   pipeline(10) p(clk: clock, x: bool) -> bool {
   │            -- Type 10 inferred here
+  │ ╭─────────────────────────────────────────────^
 2 │ │     reg * {8};
 3 │ │     reg;
 4 │ │         x
