@@ -1377,16 +1377,18 @@ code_compiles! {
     "
 }
 
-snapshot_error! {
-    nested_lambdas_cannot_capture,
+snapshot_mir! {
+    nested_lambdas_can_capture,
     "
         fn test() {
+            let x = 0u8;
             let l2 = fn() {
-                let x = 0;
-                let l = fn() {
-                    let y = x;
-                };
-            };
+                let z = 0u8;
+                let l: () = fn() {
+                    let y = (x, z);
+                }.call((,));
+            }.call((,));
         }
-    "
+    ",
+    all
 }

@@ -178,7 +178,7 @@ pub enum PipelineRefKind {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct CapturedLambdaParam {
+pub struct OuterLambdaParam {
     pub name_in_lambda: NameID,
     pub name_in_body: Loc<NameID>,
 }
@@ -187,6 +187,29 @@ pub struct CapturedLambdaParam {
 pub enum Safety {
     Default,
     Unsafe,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct LambdaTypeParams {
+    /// The parameters that will contain the types of each argument
+    pub arg: Vec<Loc<TypeParam>>,
+    pub output: Loc<TypeParam>,
+    /// The parameters that will contain the types of the captured variables
+    pub captures: Vec<Loc<TypeParam>>,
+    /// The type parameters that are inherited from the unit in which the lambda is defined
+    pub outer: Vec<Loc<TypeParam>>,
+}
+
+impl LambdaTypeParams {
+    pub fn all(&self) -> impl Iterator<Item = &Loc<TypeParam>> {
+        let Self {
+            arg,
+            output,
+            captures,
+            outer,
+        } = self;
+        arg.iter().chain(Some(output)).chain(captures).chain(outer)
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -255,8 +278,8 @@ pub enum ExprKind {
         unit_kind: Loc<UnitKind>,
         /// The type that this lambda definition creates
         lambda_type: NameID,
-        lambda_type_params: Vec<Loc<TypeParam>>,
-        captured_generic_params: Vec<CapturedLambdaParam>,
+        type_params: LambdaTypeParams,
+        outer_generic_params: Vec<OuterLambdaParam>,
         /// The unit which is the `call` method on this lambda
         lambda_unit: NameID,
         arguments: Vec<Loc<Pattern>>,

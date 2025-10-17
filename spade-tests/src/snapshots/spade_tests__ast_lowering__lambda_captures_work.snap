@@ -5,6 +5,13 @@ expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 entity \test () -> () {
 	const e2: uint<8> = 0
 	let x_n13: uint<8> = Alias(e2)
-	let e4: {x: ()} = ConstructTuple(x_n13)
-	let l_n24: {x: ()} = Alias(e4)
+	let e5: {x: uint<8>} = ConstructTuple(x_n13)
+	let e11: () = ConstructTuple()
+	let e4: () = Instance(\impl_0::call[29] )(e5, e11)
+	let l_n24: () = Alias(e4)
 } => e1
+entity \impl_0::call[29] ((self, self_n22, {x: uint<8>}), (args, args_n23, ())) -> () {
+	let e16: uint<8> = IndexTuple(0)(self_n22)
+	let x_n13: uint<8> = Alias(e16)
+	let y_n14: uint<8> = Alias(x_n13)
+} => e8

@@ -57,14 +57,16 @@ impl TypeState {
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify integer literal with integer")
                 }, self)?;
-            let generic = self
+            let generic_list = self
                 .get_generic_list(generic_list)
                 .ok_or_else(|| {
                     diag_anyhow!(expression, "Found no generic list here")
-                })?
-                .get(value).ok_or_else(|| {
-                Diagnostic::bug(expression, "Found entry for {value} in generic list")
-            })?;
+                })?;
+            let generic = generic_list
+                .get(value)
+                .ok_or_else(|| {
+                    diag_anyhow!(expression, "Found no entry for {value:?} in generic list. It has {generic_list:?}")
+                })?;
             self.add_requirement(
                 Requirement::FitsIntLiteral {
                     value: ConstantInt::Generic(generic.clone()),

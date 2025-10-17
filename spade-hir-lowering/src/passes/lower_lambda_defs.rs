@@ -20,7 +20,7 @@ use super::pass::Pass;
 pub(crate) struct LambdaReplacement {
     pub new_body: Loc<Expression>,
     pub arguments: Vec<(Loc<Pattern>, KnownTypeVar)>,
-    pub captured_type_params: HashMap<NameID, NameID>,
+    pub outer_type_params: HashMap<NameID, NameID>,
     pub clock: Option<Loc<NameID>>,
     pub captures: Vec<(Loc<Identifier>, Loc<NameID>)>,
 }
@@ -39,7 +39,7 @@ impl LambdaReplacement {
                 } = tp.inner;
                 TypeParam {
                     name_id: self
-                        .captured_type_params
+                        .outer_type_params
                         .get(&name_id)
                         .cloned()
                         .unwrap_or(name_id),
@@ -54,11 +54,11 @@ impl LambdaReplacement {
 
     fn update_type_spec(&self, ts: Loc<TypeSpec>) -> Loc<TypeSpec> {
         let mut new_ts = ts.clone();
-        for (from, to) in &self.captured_type_params {
+        for (from, to) in &self.outer_type_params {
             new_ts = new_ts.map(|ty| {
-                ty.replace_in(
-                    &TypeSpec::Generic(from.clone().at_loc(&ts)),
-                    &TypeSpec::Generic(to.clone().at_loc(&ts)),
+                dbg!(ty).replace_in(
+                    &TypeSpec::Generic(dbg!(from).clone().at_loc(&ts)),
+                    &TypeSpec::Generic(dbg!(to).clone().at_loc(&ts)),
                 )
             })
         }
@@ -232,8 +232,8 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
             unit_kind: _,
             lambda_unit,
             lambda_type,
-            lambda_type_params: _,
-            captured_generic_params,
+            type_params: _,
+            outer_generic_params,
             arguments,
             body,
             clock,
@@ -261,7 +261,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 LambdaReplacement {
                     new_body: body.as_ref().clone(),
                     arguments: arguments.clone(),
-                    captured_type_params: captured_generic_params
+                    outer_type_params: outer_generic_params
                         .iter()
                         .map(|tp| (tp.name_in_lambda.clone(), tp.name_in_body.inner.clone()))
                         .collect(),

@@ -1,0 +1,30 @@
+---
+source: spade-tests/src/ast_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \test () -> () {
+	const e2: uint<8> = 0
+	let x_n13: uint<8> = Alias(e2)
+	let e5: {x: uint<8>} = ConstructTuple(x_n13)
+	let e22: () = ConstructTuple()
+	let e4: () = Instance(\impl_1::call[42] )(e5, e22)
+	let l2_n37: () = Alias(e4)
+} => e1
+entity \impl_1::call[42] ((self, self_n35, {x: uint<8>}), (args, args_n36, ())) -> () {
+	let e29: uint<8> = IndexTuple(0)(self_n35)
+	let x_n13: uint<8> = Alias(e29)
+	const e6: uint<8> = 0
+	let z_n14: uint<8> = Alias(e6)
+	let e9: {x: uint<8>, z: uint<8>} = ConstructTuple(x_n13, z_n14)
+	let e17: () = ConstructTuple()
+	let e8: () = Instance(\impl_0::call[43] )(e9, e17)
+	let l_n27: () = Alias(e8)
+} => e19
+entity \impl_0::call[43] ((self, self_n25, {x: uint<8>, z: uint<8>}), (args, args_n26, ())) -> () {
+	let e32: uint<8> = IndexTuple(0)(self_n25)
+	let x_n13: uint<8> = Alias(e32)
+	let e35: uint<8> = IndexTuple(1)(self_n25)
+	let z_n14: uint<8> = Alias(e35)
+	let e10: (uint<8>, uint<8>) = ConstructTuple(x_n13, z_n14)
+	let y_n15: (uint<8>, uint<8>) = Alias(e10)
+} => e14

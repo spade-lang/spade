@@ -836,8 +836,8 @@ impl TypeState {
                 arguments,
                 body,
                 lambda_type,
-                lambda_type_params,
-                captured_generic_params,
+                type_params,
+                outer_generic_params,
                 lambda_unit: _,
                 clock,
                 captures,
@@ -873,10 +873,10 @@ impl TypeState {
                 let lambda_params = arguments
                     .iter()
                     .map(|arg| arg.get_type(self))
-                    .chain(captures.iter().map(|(_, cap_name)| cap_name.get_type(self)))
                     .chain(vec![body.get_type(self)])
+                    .chain(captures.iter().map(|(_, cap_name)| cap_name.get_type(self)))
                     .chain(
-                        captured_generic_params
+                        outer_generic_params
                             .iter()
                             .map(|cap| {
                                 let t = self
@@ -910,13 +910,13 @@ impl TypeState {
 
                 let unit_generic_list = self.create_generic_list(
                     GenericListSource::Expression(expression.id),
-                    &lambda_type_params,
+                    &type_params.all().cloned().collect::<Vec<_>>(),
                     &[],
                     None,
                     &[],
                 )?;
 
-                for (p, tp) in lambda_params.iter().zip(lambda_type_params) {
+                for (p, tp) in lambda_params.iter().zip(type_params.all()) {
                     let gl = self.get_generic_list(&unit_generic_list).unwrap();
                     // Safe unwrap, we're just unifying unknowns with unknowns
                     p.unify_with(

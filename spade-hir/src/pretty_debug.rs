@@ -6,7 +6,7 @@ use spade_common::{
 };
 
 use crate::{
-    expression::{CapturedLambdaParam, NamedArgument, Safety},
+    expression::{NamedArgument, OuterLambdaParam, Safety},
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
     Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression, TypeParam, TypeSpec,
     Unit, UnitHead, WhereClause,
@@ -302,8 +302,8 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::LambdaDef {
                 unit_kind,
                 lambda_type,
-                lambda_type_params,
-                captured_generic_params,
+                type_params,
+                outer_generic_params: captured_generic_params,
                 lambda_unit,
                 arguments,
                 body,
@@ -316,9 +316,11 @@ impl PrettyDebug for ExprKind {
                     [0] "}";
                     [2] format!("Lambda creates {}", lambda_unit.pretty_debug());
                     [2] format!(
-                        "with type {}<{}>",
+                        "with type {}<Args: {}, Captures: {}, Outer: {}>",
                         lambda_type.pretty_debug(),
-                        lambda_type_params.iter().map(PrettyDebug::pretty_debug).join(", ")
+                        type_params.arg.iter().map(PrettyDebug::pretty_debug).join(", "),
+                        type_params.captures.iter().map(PrettyDebug::pretty_debug).join(", "),
+                        type_params.outer.iter().map(PrettyDebug::pretty_debug).join(", ")
                     );
                     [2] format!(
                         "and captures type params [{}]",
@@ -369,7 +371,7 @@ impl PrettyDebug for TraitSpec {
     }
 }
 
-impl PrettyDebug for CapturedLambdaParam {
+impl PrettyDebug for OuterLambdaParam {
     fn pretty_debug(&self) -> String {
         let Self {
             name_in_lambda,

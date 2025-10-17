@@ -145,10 +145,10 @@ impl<'a> QueryCache {
             crate::ExprKind::LambdaDef {
                 unit_kind: _,
                 lambda_type: _,
-                lambda_type_params: _,
+                type_params: _,
                 lambda_unit: _,
                 arguments: _,
-                captured_generic_params: _,
+                outer_generic_params: _,
                 body,
                 captures: _,
                 clock: _,

@@ -11,7 +11,8 @@ use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
-use spade_hir::expression::CapturedLambdaParam;
+use spade_hir::expression::LambdaTypeParams;
+use spade_hir::expression::OuterLambdaParam;
 use spade_types::meta_types::MetaType;
 
 use crate::global_symbols::re_visit_type_declaration;
@@ -130,39 +131,46 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let mut captures = vec![];
     std::mem::swap(&mut *shared_captures.lock().unwrap(), &mut captures);
 
-    // Generic params for all the captured variables
-    let captured_value_generic_param_names = captures
-        .iter()
-        .enumerate()
-        .map(|(i, cap)| Identifier(format!("C{i}")).at_loc(&cap.1));
-
-    let arg_output_generic_param_names = actual_args
+    let arg_generic_param_names = actual_args
         .iter()
         .enumerate()
         .map(|(i, arg)| Identifier(format!("A{i}")).at_loc(arg))
-        .chain(vec![output_type_name.clone().nowhere()])
-        .chain(captured_value_generic_param_names)
         .collect::<Vec<_>>();
 
+    let output_generic_param_name = output_type_name.clone().at_loc(body);
+
     // Generic params of the environment in which the lambda is defined
-    let captured_generic_params = current_unit
+    let outer_generic_params = current_unit
         .unit_type_params
         .iter()
         .chain(current_unit.scope_type_params.iter())
         .cloned()
         .collect::<Vec<_>>();
 
-    let all_generic_param_names = arg_output_generic_param_names
+    // Generic params for all the captured variables
+    let captured_value_generic_param_names = captures
+        .iter()
+        .enumerate()
+        .map(|(i, cap)| Identifier(format!("C{i}")).at_loc(&cap.1));
+
+    let manufactured_generic_params = arg_generic_param_names
         .clone()
         .into_iter()
+        .chain(Some(output_generic_param_name.clone()))
+        .chain(captured_value_generic_param_names.clone())
+        .collect::<Vec<_>>();
+
+    let all_generic_param_names = manufactured_generic_params
+        .iter()
+        .cloned()
         .chain(
-            captured_generic_params
+            outer_generic_params
                 .iter()
                 .map(|p| p.name_id().1.tail().at_loc(&p)),
         )
         .collect::<Vec<_>>();
 
-    let type_params = arg_output_generic_param_names
+    let type_params = manufactured_generic_params
         .iter()
         .map(|name| {
             ast::TypeParam::TypeName {
@@ -172,7 +180,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             .at_loc(name)
         })
         .chain(
-            captured_generic_params
+            outer_generic_params
                 .iter()
                 .map(|tp| {
                     Ok(ast::TypeParam::TypeWithMeta {
@@ -377,32 +385,57 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         }
     })?;
 
+    // For the rest of the process, we need the HIR type params which we have to extract
+    // from the HIR struct that was created earlier
     let (callee_name, callee_struct) = ctx
         .symtab
         .lookup_struct(&Path::ident(type_name.at_loc(&debug_loc)).at_loc(&debug_loc))?;
+    let struct_type_params = callee_struct.type_params.clone();
+    if struct_type_params.len() != all_generic_param_names.len() {
+        diag_bail!(
+            debug_loc,
+            "Did not find the right number of type params in the struct created by this lambda"
+        )
+    }
+    let struct_type_params = &mut struct_type_params.iter();
+    let type_params = LambdaTypeParams {
+        arg: struct_type_params
+            .take(arg_generic_param_names.len())
+            .cloned()
+            .collect(),
+        output: struct_type_params.take(1).next().unwrap().clone(),
+        captures: struct_type_params
+            .take(captured_value_generic_param_names.len())
+            .cloned()
+            .collect(),
+        outer: struct_type_params
+            .take(outer_generic_params.len())
+            .cloned()
+            .collect(),
+    };
 
     Ok(hir::ExprKind::LambdaDef {
         unit_kind: visit_unit_kind(unit_kind, ctx)?.at_loc(unit_kind),
         lambda_type: callee_name,
-        lambda_type_params: callee_struct.type_params.clone(),
         lambda_unit: lambda_unit.name.name_id().inner.clone(),
         captures,
-        captured_generic_params: captured_generic_params
+        outer_generic_params: outer_generic_params
             .iter()
-            // Kind of cursed, but we need to figure out what name IDs we gave to the captured
-            // arguments while visiting the unit so we can replace them later
+            // Kind of cursed, but we need to figure out what name IDs we gave to
+            // the outer type params while visiting the unit so we can replace them later
             .zip(
                 lambda_unit
                     .head
                     .scope_type_params
                     .iter()
-                    .skip(arg_output_generic_param_names.len()),
+                    .skip(manufactured_generic_params.len()),
             )
-            .map(|(in_body, in_lambda)| CapturedLambdaParam {
+            .map(|(in_body, in_lambda)| OuterLambdaParam {
                 name_in_lambda: in_lambda.name_id(),
                 name_in_body: in_body.name_id().at_loc(in_body),
             })
             .collect(),
+        type_params,
         arguments,
         body: hir_body,
         clock,

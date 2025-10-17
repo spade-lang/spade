@@ -23,7 +23,7 @@ use crate::passes::flatten_regs::FlattenRegs;
 use crate::passes::lower_lambda_defs::{LambdaReplacement, LowerLambdaDefs};
 use crate::passes::lower_methods::LowerMethods;
 use crate::passes::lower_type_level_if::LowerTypeLevelIf;
-use crate::passes::pass::{Pass, Passable};
+use crate::passes::pass::Passable;
 
 /// An item to be monomorphised
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -312,7 +312,7 @@ pub fn compile_items(
                 // Apply passes to the type checked module
                 let mut u = u.clone();
 
-                macro_rules! run_pass {
+                macro_rules! run_pass (
                     ($pass:expr) => {
                         let pass_result = u.apply(&mut $pass);
                         if let Err(e) = pass_result {
@@ -320,7 +320,7 @@ pub fn compile_items(
                             continue 'item_loop;
                         }
                     };
-                };
+                );
                 run_pass!(LowerLambdaDefs {
                     type_state: &mut type_state,
                     idtracker: idtracker,
