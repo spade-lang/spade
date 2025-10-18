@@ -41,7 +41,7 @@ fn generate_split_code(
             let reg_name = ValueName::Expr(expr_idtracker.next());
             let split_stmt = Statement::Binding(Binding {
                 name: split_name.clone(),
-                operator: Operator::IndexTuple(i as u64, members.clone()),
+                operator: Operator::IndexTuple(i as u64),
                 operands: vec![reg.value.clone()],
                 ty: member.clone(),
                 loc: None,
@@ -134,7 +134,6 @@ mod test {
 
     #[test]
     fn splitting_tuple_works() {
-        let members = vec![Type::int(4), Type::int(8)];
         let ty = Type::Tuple(vec![Type::int(4), Type::int(8)]);
 
         let before = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
@@ -147,9 +146,9 @@ mod test {
             pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
-            (e(10); Type::int(4); IndexTuple((0, members.clone())); n(2, "val"));
+            (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
             (reg e(11); Type::int(4); clock (n(0, "clk")); e(10));
-            (e(20); Type::int(8); IndexTuple((1, members.clone())); n(2, "val"));
+            (e(20); Type::int(8); IndexTuple((1)); n(2, "val"));
             (reg e(21); Type::int(8); clock (n(0, "clk")); e(20));
 
             (n(1, "value"); ty; ConstructTuple; e(11), e(21));
@@ -160,7 +159,6 @@ mod test {
 
     #[test]
     fn splitting_struct_works() {
-        let members = vec![Type::int(4), Type::int(8)];
         let ty = Type::Struct(vec![
             ("a".to_string(), Type::int(4)),
             ("b".to_string(), Type::int(8)),
@@ -176,9 +174,9 @@ mod test {
             pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
-            (e(10); Type::int(4); IndexTuple((0, members.clone())); n(2, "val"));
+            (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
             (reg e(11); Type::int(4); clock (n(0, "clk")); e(10));
-            (e(20); Type::int(8); IndexTuple((1, members.clone())); n(2, "val"));
+            (e(20); Type::int(8); IndexTuple((1)); n(2, "val"));
             (reg e(21); Type::int(8); clock (n(0, "clk")); e(20));
 
             (n(1, "value"); ty; ConstructTuple; e(11), e(21));
@@ -204,13 +202,13 @@ mod test {
             pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
-            (e(10); Type::int(4); IndexTuple((0, members.clone())); n(2, "val"));
+            (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
             (reg e(11); Type::int(4); clock (n(0, "clk")); e(10));
-            (e(20); inner_ty.clone(); IndexTuple((1, members.clone())); n(2, "val"));
+            (e(20); inner_ty.clone(); IndexTuple((1)); n(2, "val"));
 
-            (e(30); Type::int(4); IndexTuple((0, inner_members.clone())); e(20));
+            (e(30); Type::int(4); IndexTuple((0)); e(20));
             (reg e(31); Type::int(4); clock (n(0, "clk")); e(30));
-            (e(40); Type::int(8); IndexTuple((1, inner_members.clone())); e(20));
+            (e(40); Type::int(8); IndexTuple((1)); e(20));
             (reg e(41); Type::int(8); clock (n(0, "clk")); e(40));
 
             (e(21); inner_ty; ConstructTuple; e(31), e(41));

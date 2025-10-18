@@ -46,7 +46,7 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::IsEnumVariant { .. }
         | Operator::EnumMember { .. }
         | Operator::Select
-        | Operator::IndexTuple(_, _) => true,
+        | Operator::IndexTuple(_) => true,
 
         Operator::Add
         | Operator::UnsignedAdd

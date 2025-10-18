@@ -275,11 +275,11 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     Operator::Not => todo!(),
                     Operator::BitwiseNot => todo!(),
                     Operator::DivPow2 => todo!(),
-                    Operator::ReduceAnd { .. } => todo!(),
-                    Operator::ReduceOr { .. } => todo!(),
-                    Operator::ReduceXor { .. } => todo!(),
-                    Operator::SignExtend { .. } => todo!(),
-                    Operator::ZeroExtend { .. } => todo!(),
+                    Operator::ReduceAnd => todo!(),
+                    Operator::ReduceOr => todo!(),
+                    Operator::ReduceXor => todo!(),
+                    Operator::SignExtend => todo!(),
+                    Operator::ZeroExtend => todo!(),
                     Operator::Truncate => todo!(),
                     Operator::Concat => todo!(),
                     Operator::Select => todo!(),
@@ -288,20 +288,21 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                         Value::Concat(ops.iter().rev().map(|op| name_vals[op].clone()).collect())
                     }
                     Operator::DeclClockedMemory { .. } => todo!(),
-                    Operator::IndexArray { .. } => todo!(),
+                    Operator::IndexArray => todo!(),
                     Operator::IndexMemory => todo!(),
                     Operator::RangeIndexArray { .. } => todo!(),
                     Operator::RangeIndexBits { .. } => todo!(),
                     Operator::ConstructTuple => {
                         Value::Concat(ops.iter().map(|op| name_vals[op].clone()).collect())
                     }
-                    Operator::ConstructEnum {
-                        variant,
-                        variant_count,
-                    } => {
-                        let tag_size = BigUint::from(enum_util::tag_size(*variant_count));
+                    Operator::ConstructEnum { variant } => {
+                        let Type::Enum(options) = ty else {
+                            panic!("Attempted enum construction of non-enum");
+                        };
 
-                        let mut to_concat = if *variant_count == 1 {
+                        let tag_size = BigUint::from(enum_util::tag_size(options.len()));
+
+                        let mut to_concat = if options.len() <= 1 {
                             vec![]
                         } else {
                             vec![Value::UInt {
@@ -330,7 +331,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     }
                     Operator::IsEnumVariant { .. } => todo!(),
                     Operator::EnumMember { .. } => todo!(),
-                    Operator::IndexTuple(_, _) => todo!(),
+                    Operator::IndexTuple(_) => todo!(),
                     Operator::ReadPort => todo!(),
                     Operator::ReadWriteInOut => todo!(),
                     Operator::FlipPort => todo!(),
@@ -456,7 +457,7 @@ mod test {
 
         let mir = vec![
             statement!(const 0; Type::int(16); ConstantValue::int(5)),
-            statement!(e(1); enum_t; ConstructEnum({variant: 1, variant_count: 3}); e(0)),
+            statement!(e(1); enum_t; ConstructEnum({variant: 1}); e(0)),
         ];
 
         let result = eval_statements(&mir);
@@ -473,7 +474,7 @@ mod test {
 
         let mir = vec![
             statement!(const 0; Type::int(3); ConstantValue::int(5)),
-            statement!(e(1); enum_t; ConstructEnum({variant: 1, variant_count: 3}); e(0)),
+            statement!(e(1); enum_t; ConstructEnum({variant: 1}); e(0)),
         ];
 
         let result = eval_statements(&mir);
@@ -490,7 +491,7 @@ mod test {
 
         let mir = vec![
             statement!(const 0; Type::int(8); ConstantValue::int(0b1010)),
-            statement!(e(1); enum_t; ConstructEnum({variant: 0, variant_count: 2}); e(0)),
+            statement!(e(1); enum_t; ConstructEnum({variant: 0}); e(0)),
         ];
 
         assert_eq!("000001010", eval_statements(&mir).as_string())

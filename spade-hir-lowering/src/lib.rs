@@ -407,16 +407,6 @@ impl PatternLocal for Loc<Pattern> {
             hir::PatternKind::Bool(_) => {}
             hir::PatternKind::Name { .. } => {}
             hir::PatternKind::Tuple(inner) => {
-                let inner_types = if let mir::types::Type::Tuple(inner) = &ctx
-                    .types
-                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    .to_mir_type()
-                {
-                    inner.clone()
-                } else {
-                    unreachable!("Tuple destructuring of non-tuple");
-                };
-
                 for (i, p) in inner.iter().enumerate() {
                     let ty = ctx
                         .types
@@ -426,7 +416,7 @@ impl PatternLocal for Loc<Pattern> {
                     result.push_primary(
                         mir::Statement::Binding(mir::Binding {
                             name: p.value_name(),
-                            operator: mir::Operator::IndexTuple(i as u64, inner_types.clone()),
+                            operator: mir::Operator::IndexTuple(i as u64),
                             operands: vec![self_name.clone()],
                             ty,
                             loc: Some(self.loc()),
@@ -438,7 +428,6 @@ impl PatternLocal for Loc<Pattern> {
                 }
             }
             hir::PatternKind::Array(inner) => {
-                let array_size = inner.len().to_biguint();
                 let index_ty =
                     MirType::Int((((inner.len() as f32).log2().floor() + 1.) as u128).to_biguint());
                 for (i, p) in inner.iter().enumerate() {
@@ -455,9 +444,7 @@ impl PatternLocal for Loc<Pattern> {
                     result.push_primary(
                         mir::Statement::Binding(mir::Binding {
                             name: p.value_name(),
-                            operator: mir::Operator::IndexArray {
-                                array_size: array_size.clone(),
-                            },
+                            operator: mir::Operator::IndexArray,
                             operands: vec![self_name.clone(), ValueName::Expr(idx_id)],
                             ty: ctx
                                 .types
@@ -477,16 +464,6 @@ impl PatternLocal for Loc<Pattern> {
                     PatternableKind::Struct => {
                         let s = ctx.symtab.symtab().struct_by_id(path);
 
-                        let mir_type = &ctx
-                            .types
-                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-                            .to_mir_type();
-                        let inner_types = if let mir::types::Type::Struct(inner) = mir_type {
-                            inner.iter().map(|s| s.1.clone()).collect::<Vec<_>>()
-                        } else {
-                            unreachable!("Struct destructuring of non-struct");
-                        };
-
                         for PatternArgument {
                             target,
                             value,
@@ -498,10 +475,7 @@ impl PatternLocal for Loc<Pattern> {
                             result.push_primary(
                                 mir::Statement::Binding(mir::Binding {
                                     name: value.value_name(),
-                                    operator: mir::Operator::IndexTuple(
-                                        i as u64,
-                                        inner_types.clone(),
-                                    ),
+                                    operator: mir::Operator::IndexTuple(i as u64),
                                     operands: vec![self_name.clone()],
                                     ty: ctx
                                         .types
@@ -521,10 +495,6 @@ impl PatternLocal for Loc<Pattern> {
                     }
                     PatternableKind::Enum => {
                         let enum_variant = ctx.symtab.symtab().enum_variant_by_id(path);
-                        let self_type = ctx
-                            .types
-                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-                            .to_mir_type();
 
                         for (i, p) in args.iter().enumerate() {
                             result.push_primary(
@@ -533,7 +503,6 @@ impl PatternLocal for Loc<Pattern> {
                                     operator: mir::Operator::EnumMember {
                                         variant: enum_variant.option,
                                         member_index: i,
-                                        enum_type: self_type.clone(),
                                     },
                                     operands: vec![self_name.clone()],
                                     ty: ctx
@@ -675,11 +644,6 @@ impl PatternLocal for Loc<Pattern> {
             hir::PatternKind::Type(path, args) => {
                 let patternable = ctx.symtab.symtab().patternable_type_by_id(path);
 
-                let self_type = ctx
-                    .types
-                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    .to_mir_type();
-
                 let self_condition_id = ctx.idtracker.next();
                 let self_condition_name = ValueName::Expr(self_condition_id);
                 let self_condition = match patternable.kind {
@@ -690,7 +654,6 @@ impl PatternLocal for Loc<Pattern> {
                             name: self_condition_name.clone(),
                             operator: mir::Operator::IsEnumVariant {
                                 variant: enum_variant.option,
-                                enum_type: self_type,
                             },
                             operands: vec![value_name.clone()],
                             ty: MirType::Bool,
@@ -842,11 +805,6 @@ pub fn do_wal_trace_lowering(
         field_translators: _,
     } = ty
     {
-        let inner_types = members
-            .iter()
-            .map(|(_, t)| t.to_mir_type())
-            .collect::<Vec<_>>();
-
         // Sanity check that all fields are either pure input or pure output
         for (n, ty) in members {
             let mir_ty = ty.to_mir_type();
@@ -862,14 +820,6 @@ pub fn do_wal_trace_lowering(
                 )));
             }
         }
-
-        let inner_backward_types = members
-            .iter()
-            .filter_map(|(_, t)| match t.to_mir_type() {
-                MirType::Backward(i) => Some(i.as_ref().clone()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
 
         // If we have &mut wires, we need a flipped port to read the values from because
         // we need to work around a small bug. Create an anonymous value for this
@@ -910,7 +860,7 @@ pub fn do_wal_trace_lowering(
                         true,
                         *b,
                         ValueName::Expr(flipped_id),
-                        mir::Operator::IndexTuple(i_backward, inner_backward_types.clone()),
+                        mir::Operator::IndexTuple(i_backward),
                     );
                     i_backward += 1;
                     i_all += 1;
@@ -921,7 +871,7 @@ pub fn do_wal_trace_lowering(
                         false,
                         other,
                         main_value_name.clone(),
-                        mir::Operator::IndexTuple(i_all, inner_types.clone()),
+                        mir::Operator::IndexTuple(i_all),
                     );
                     i_all += 1;
                     result
@@ -1719,20 +1669,10 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::TupleIndex(tup, idx) => {
                 result.append(tup.lower(ctx)?);
 
-                let types = if let mir::types::Type::Tuple(inner) = &ctx
-                    .types
-                    .concrete_type_of(tup, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    .to_mir_type()
-                {
-                    inner.clone()
-                } else {
-                    unreachable!("Tuple indexing of non-tuple: {:?}", self_type);
-                };
-
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
                         name: self.variable(ctx)?,
-                        operator: mir::Operator::IndexTuple(idx.inner as u64, types),
+                        operator: mir::Operator::IndexTuple(idx.inner as u64),
                         operands: vec![tup.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
@@ -1830,13 +1770,6 @@ impl ExprLocal for Loc<Expression> {
                     &ctx.item_list.types,
                 )?;
 
-                let member_types =
-                    if let mir::types::Type::Struct(members) = &ctype.clone().to_mir_type() {
-                        members.iter().map(|s| s.1.clone()).collect::<Vec<_>>()
-                    } else {
-                        unreachable!("Field access on non-struct {:?}", self_type)
-                    };
-
                 let field_index = if let ConcreteType::Struct {
                     name: _,
                     is_port: _,
@@ -1873,7 +1806,7 @@ impl ExprLocal for Loc<Expression> {
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
                         name: self.variable(ctx)?,
-                        operator: mir::Operator::IndexTuple(field_index as u64, member_types),
+                        operator: mir::Operator::IndexTuple(field_index as u64),
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
@@ -1930,21 +1863,10 @@ impl ExprLocal for Loc<Expression> {
                 result.append(target.lower(ctx)?);
                 result.append(index.lower(ctx)?);
 
-                let array_size = match ctx.types.concrete_type_of(
-                    target,
-                    ctx.symtab.symtab(),
-                    &ctx.item_list.types,
-                )? {
-                    ConcreteType::Array { inner: _, size } => size
-                        .to_biguint()
-                        .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
-                    other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
-                };
-
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
                         name: self.variable(ctx)?,
-                        operator: mir::Operator::IndexArray { array_size },
+                        operator: mir::Operator::IndexArray,
                         operands: vec![target.variable(ctx)?, index.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
@@ -1954,17 +1876,6 @@ impl ExprLocal for Loc<Expression> {
             }
             ExprKind::RangeIndex { target, start, end } => {
                 result.append(target.lower(ctx)?);
-
-                let in_array_size = match ctx.types.concrete_type_of(
-                    target,
-                    ctx.symtab.symtab(),
-                    &ctx.item_list.types,
-                )? {
-                    ConcreteType::Array { inner: _, size } => size
-                        .to_biguint()
-                        .ok_or_else(|| diag_anyhow!(self, "Inferred negative array size"))?,
-                    other => diag_bail!(self, "Inferred non-array type ({other}) index target"),
-                };
 
                 let start_val = start.resolve_int(ctx)?;
                 let start = start_val.to_biguint().ok_or_else(|| {
@@ -1983,7 +1894,6 @@ impl ExprLocal for Loc<Expression> {
                         operator: mir::Operator::RangeIndexArray {
                             start: start.clone(),
                             end_exclusive: end.clone(),
-                            in_array_size,
                         },
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
@@ -2377,35 +2287,25 @@ impl ExprLocal for Loc<Expression> {
 
         // Look up the name in the executable list to see if this is a type instantiation
         match ctx.item_list.executables.get(name) {
-            Some(hir::ExecutableItem::EnumInstance { base_enum, variant }) => {
-                let variant_count = match ctx.item_list.types.get(base_enum) {
-                    Some(type_decl) => match &type_decl.kind {
-                        hir::TypeDeclKind::Enum(e) => e.inner.options.len(),
-                        _ => panic!("Instantiating enum of type which is not an enum"),
-                    },
-                    None => panic!("No type declaration found for {}", base_enum),
-                };
-
-                result.push_primary(
-                    mir::Statement::Binding(mir::Binding {
-                        name: self.variable(ctx)?,
-                        ty: ctx
-                            .types
-                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-                            .to_mir_type(),
-                        operator: mir::Operator::ConstructEnum {
-                            variant: *variant,
-                            variant_count,
-                        },
-                        operands: args
-                            .iter()
-                            .map(|arg| arg.value.variable(ctx))
-                            .collect::<Result<_>>()?,
-                        loc: Some(self.loc()),
-                    }),
-                    self,
-                )
-            }
+            Some(hir::ExecutableItem::EnumInstance {
+                base_enum: _,
+                variant,
+            }) => result.push_primary(
+                mir::Statement::Binding(mir::Binding {
+                    name: self.variable(ctx)?,
+                    ty: ctx
+                        .types
+                        .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                        .to_mir_type(),
+                    operator: mir::Operator::ConstructEnum { variant: *variant },
+                    operands: args
+                        .iter()
+                        .map(|arg| arg.value.variable(ctx))
+                        .collect::<Result<_>>()?,
+                    loc: Some(self.loc()),
+                }),
+                self,
+            ),
             Some(hir::ExecutableItem::StructInstance) => result.push_primary(
                 mir::Statement::Binding(mir::Binding {
                     name: self.variable(ctx)?,
@@ -2636,22 +2536,6 @@ impl ExprLocal for Loc<Expression> {
         // The localimpl macro is a bit stupid
         let mut result = result;
 
-        let elem_count = if let ConcreteType::Single {
-            base: PrimitiveType::Memory,
-            params,
-        } =
-            ctx.types
-                .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-        {
-            if let ConcreteType::Integer(size) = params[1].clone() {
-                size
-            } else {
-                panic!("Second param of memory declaration type was not integer")
-            }
-        } else {
-            panic!("Decl memory declares a non-memory")
-        };
-
         let initial = if has_initial {
             let initial_arg = &args[2];
 
@@ -2697,58 +2581,25 @@ impl ExprLocal for Loc<Expression> {
             None
         };
 
-        // Figure out the sizes of the operands
-        let port_t =
-            ctx.types
-                .concrete_type_of(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
-        if let ConcreteType::Array { inner, size } = port_t {
-            if let ConcreteType::Tuple(tup_inner) = *inner {
-                assert!(
-                    tup_inner.len() == 3,
-                    "Expected exactly 3 types in write port tuple"
-                );
-                let write_ports = size;
-                let addr_w = tup_inner[1].to_mir_type().size();
-                let inner_w = tup_inner[2].to_mir_type().size();
-
-                result.push_primary(
-                    mir::Statement::Binding(mir::Binding {
-                        name: self.variable(ctx)?,
-                        operator: mir::Operator::DeclClockedMemory {
-                            addr_w,
-                            inner_w,
-                            write_ports: write_ports.to_biguint().ok_or_else(|| {
-                                diag_anyhow!(
-                                    self,
-                                    "Found negative number of write ports for memory"
-                                )
-                            })?,
-                            elems: elem_count.clone().to_biguint().ok_or_else(|| {
-                                diag_anyhow!(self, "Found negative number of elements for memory")
-                            })?,
-                            initial,
-                        },
-                        operands: args
-                            .iter()
-                            // The third argument (if present) is the initial values which
-                            // are passed in the operand
-                            .take(2)
-                            .map(|arg| arg.value.variable(ctx))
-                            .collect::<Result<Vec<_>>>()?,
-                        ty: ctx
-                            .types
-                            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-                            .to_mir_type(),
-                        loc: Some(self.loc()),
-                    }),
-                    self,
-                )
-            } else {
-                panic!("Clocked array write port inner was not tuple")
-            }
-        } else {
-            panic!("Clocked array write ports were not array")
-        }
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator: mir::Operator::DeclClockedMemory { initial },
+                operands: args
+                    .iter()
+                    // The third argument (if present) is the initial values which
+                    // are passed in the operand
+                    .take(2)
+                    .map(|arg| arg.value.variable(ctx))
+                    .collect::<Result<Vec<_>>>()?,
+                ty: ctx
+                    .types
+                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    .to_mir_type(),
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
 
         Ok(result)
     }
@@ -2871,19 +2722,10 @@ impl ExprLocal for Loc<Expression> {
                 ));
         }
 
-        let extra_bits = if self_type.size() > input_type.size() {
-            self_type.size() - input_type.size()
-        } else {
-            BigUint::zero()
-        };
-
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::SignExtend {
-                    extra_bits,
-                    operand_size: input_type.size(),
-                },
+                operator: mir::Operator::SignExtend,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
@@ -2931,16 +2773,10 @@ impl ExprLocal for Loc<Expression> {
                 ));
         }
 
-        let extra_bits = if self_type.size() > input_type.size() {
-            self_type.size() - input_type.size()
-        } else {
-            BigUint::zero()
-        };
-
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::ZeroExtend { extra_bits },
+                operator: mir::Operator::ZeroExtend,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
@@ -3006,16 +2842,10 @@ impl ExprLocal for Loc<Expression> {
             .note("transmute can only convert between types of identical size"));
         }
 
-        let extra_bits = if self_type.size() > input_type.size() {
-            self_type.size() - input_type.size()
-        } else {
-            BigUint::zero()
-        };
-
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::ZeroExtend { extra_bits },
+                operator: mir::Operator::ZeroExtend,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,

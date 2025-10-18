@@ -189,16 +189,15 @@ mod test {
             ("a".to_string(), Type::int(4)),
             ("b".to_string(), Type::int(8)),
         ];
-        let inner_types = inner.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
         let ty = Type::Struct(inner);
 
         let mut input = entity!(&["name"]; (
             "x", n(2, "x"), ty.clone(),
         ) -> Type::Bool; {
             (n(0, "y"); ty.clone(); Alias; n(2, "x"));
-            (e(0); Type::int(4); IndexTuple((0, inner_types.clone())); n(0, "y"));
+            (e(0); Type::int(4); IndexTuple((0)); n(0, "y"));
             (wal_trace(n(0, "y"), e(0), "__a__wal_suffix__", Type::int(4)));
-            (e(1); Type::int(8); IndexTuple((1, inner_types.clone())); n(0, "y"));
+            (e(1); Type::int(8); IndexTuple((1)); n(0, "y"));
             (wal_trace(n(0, "y"), e(1), "__b__wal_suffix__", Type::int(8)))
         } => n(2, "x"));
 
@@ -206,9 +205,9 @@ mod test {
             "x", n(2, "x"), ty.clone(),
         ) -> Type::Bool; {
             (n(0, "y"); ty.clone(); Alias; n(2, "x"));
-            (e(0); Type::int(4); IndexTuple((0, inner_types.clone())); n(0, "y"));
+            (e(0); Type::int(4); IndexTuple((0)); n(0, "y"));
             (n(4, "y__a__wal_suffix__"); Type::int(4); Alias; e(0));
-            (e(1); Type::int(8); IndexTuple((1, inner_types.clone())); n(0, "y"));
+            (e(1); Type::int(8); IndexTuple((1)); n(0, "y"));
             (n(5, "y__b__wal_suffix__"); Type::int(8); Alias; e(1));
         } => n(2, "x"));
 

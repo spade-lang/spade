@@ -11,7 +11,7 @@ entity \test () -> () {
 	let x_n17: bool = Alias(e1)
 } => e0
 entity \impl_0::call[22] ((self, self_n14, {}), (args, args_n15, ({value: bool}))) -> bool {
-	let e14: {value: bool} = IndexTuple(0, [Struct([("value", Bool)])])(args_n15)
+	let e14: {value: bool} = IndexTuple(0)(args_n15)
 	let a_n16: {value: bool} = Alias(e14)
-	let e6: bool = IndexTuple(0, [Bool])(a_n16)
+	let e6: bool = IndexTuple(0)(a_n16)
 } => e6

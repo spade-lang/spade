@@ -206,13 +206,8 @@ pub enum Operator {
     // Divide op[0] by 2**op[1] rounding towards 0
     DivPow2,
     /// Sign extend the first operand with the provided amount of extra bits
-    SignExtend {
-        extra_bits: BigUint,
-        operand_size: BigUint,
-    },
-    ZeroExtend {
-        extra_bits: BigUint,
-    },
+    SignExtend,
+    ZeroExtend,
     /// Truncate the first operand to fit the size of the target operand.
     /// Should not be used on operands which are smaller than the target
     Truncate,
@@ -232,26 +227,15 @@ pub enum Operator {
     /// the second argument is an array of (write enable, write address, write data) tuples
     /// which update the array.
     DeclClockedMemory {
-        write_ports: BigUint,
-        /// Width of the write address
-        addr_w: BigUint,
-        /// Number of elements in the array
-        inner_w: BigUint,
-        /// Number of elements in the array
-        elems: BigUint,
         /// Initial values for the memory. Must be const evaluatable
         initial: Option<Vec<Vec<Statement>>>,
     },
-    /// Index an array with elements of the specified size
-    IndexArray {
-        array_size: BigUint,
-    },
+    IndexArray,
     IndexMemory,
     /// Indexes an array to extract a range of elements
     RangeIndexArray {
         start: BigUint,
         end_exclusive: BigUint,
-        in_array_size: BigUint,
     },
     /// Compiles to verilog [end_exclusive:start]. Supports single bit indexing, (when
     /// end_exclusive == start + 1, in which case it compiles to [start]
@@ -264,23 +248,19 @@ pub enum Operator {
     /// Construct the nth enum variant with the operand expressions as the payload
     ConstructEnum {
         variant: usize,
-        variant_count: usize,
     },
     /// 1 if the input is the specified enum variant
     IsEnumVariant {
         variant: usize,
-        enum_type: Type,
     },
     /// Get the `member_index`th member of the `variant`th variant.
     EnumMember {
-        enum_type: Type,
         variant: usize,
         member_index: usize,
     },
     /// Get the `.0`th element of a tuple or a type of the same representation as a tuple, for
-    /// example a Struct. The types of the elements are specified
-    /// in the second argument
-    IndexTuple(u64, Vec<Type>),
+    /// example a Struct.
+    IndexTuple(u64),
 
     /// Inverts the direction of all bits of a port. I.e. the forward ports
     /// become backward ports. This is only valid when converting from T to ~T
@@ -377,55 +357,38 @@ impl std::fmt::Display for Operator {
             Operator::Match => write!(f, "Match"),
             Operator::LeftShift => write!(f, "LeftShift"),
             Operator::DivPow2 => write!(f, "DivPow2"),
-            Operator::SignExtend {
-                extra_bits,
-                operand_size,
-            } => write!(f, "SignExtend({extra_bits}, {operand_size})"),
-            Operator::ZeroExtend { extra_bits } => write!(f, "ZeroExtend({extra_bits})"),
+            Operator::SignExtend => write!(f, "SignExtend"),
+            Operator::ZeroExtend => write!(f, "ZeroExtend"),
             Operator::Truncate => write!(f, "Truncate"),
             Operator::Concat => write!(f, "Concat"),
-            Operator::ConstructEnum {
-                variant,
-                variant_count,
-            } => write!(f, "ConstructEnum({}, {})", variant, variant_count),
-            Operator::IsEnumVariant {
-                variant,
-                enum_type: _,
-            } => write!(f, "IsEnumVariant({})", variant),
+            Operator::ConstructEnum { variant } => write!(f, "ConstructEnum({})", variant),
+            Operator::IsEnumVariant { variant } => write!(f, "IsEnumVariant({})", variant),
             Operator::EnumMember {
                 variant,
                 member_index,
-                enum_type: _,
             } => write!(f, "EnumMember({} {})", variant, member_index),
             Operator::ConstructTuple => write!(f, "ConstructTuple"),
             Operator::ConstructArray => write!(f, "ConstructArray"),
-            Operator::DeclClockedMemory {
-                write_ports,
-                addr_w,
-                inner_w,
-                elems,
-                initial,
-            } => write!(
+            Operator::DeclClockedMemory { initial } => write!(
                 f,
-                "DeclClockedMemory({write_ports}, {addr_w}, {inner_w}, {elems}{})",
+                "DeclClockedMemory({})",
                 if let Some(values) = initial {
                     format!(
-                        ", [{}]",
+                        "[{}]",
                         values
                             .iter()
                             .map(|v| format!("[{}]", v.iter().map(|v| format!("{v}")).join(", ")))
                             .join(", ")
                     )
                 } else {
-                    String::new()
+                    "None".to_owned()
                 }
             ),
-            Operator::IndexArray { array_size } => write!(f, "IndexArray({array_size})"),
-            Operator::IndexTuple(idx, ty) => write!(f, "IndexTuple({}, {ty:?})", idx),
+            Operator::IndexArray => write!(f, "IndexArray"),
+            Operator::IndexTuple(idx) => write!(f, "IndexTuple({})", idx),
             Operator::RangeIndexArray {
                 start,
                 end_exclusive: end,
-                in_array_size: _,
             } => write!(f, "RangeIndexArray({start}, {end})"),
             Operator::RangeIndexBits {
                 start,

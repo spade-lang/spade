@@ -512,8 +512,8 @@ mod tests {
                 "a", n(1, "a"), tup_type.clone(),
             ) -> Type::int(16); {
                 (reg e(0); tup_type; clock(n(0, "clk")); n(1, "a"));
-                (n(2, "x"); Type::int(16); IndexTuple((0, tup_inner.clone())); e(0));
-                (n(3, "y"); Type::int(8); IndexTuple((1, tup_inner)); e(0));
+                (n(2, "x"); Type::int(16); IndexTuple((0)); e(0));
+                (n(3, "y"); Type::int(8); IndexTuple((1)); e(0));
             } => n(2, "x")
         };
 
@@ -636,7 +636,7 @@ mod tests {
         ) -> Type::int(2); {
             (const 0; Type::uint(3); ConstantValue::int(2));
             (n(1, "idx"); Type::uint(3); Alias; e(0));
-            (e(4); Type::int(2); IndexArray({array_size: 5u32.to_biguint()}); n(0, "a"), n(1, "idx"));
+            (e(4); Type::int(2); IndexArray; n(0, "a"), n(1, "idx"));
         } => e(4));
 
         assert_same_mir!(&build_entity!(code), &expected);
@@ -659,7 +659,7 @@ mod tests {
             ) -> Type::int(8); {
                 (e(1); tup_type.clone(); ConstructTuple; n(0, "a"), n(1, "b"));
                 (n(2, "compound"); tup_type; Alias; e(1));
-                (e(0); Type::int(8); IndexTuple((1, tup_inner)); n(2, "compound"));
+                (e(0); Type::int(8); IndexTuple((1)); n(2, "compound"));
             } => e(0)
         );
 
@@ -684,8 +684,8 @@ mod tests {
                 // but removing it seems a bit pointless as it would introduce a special case in
                 // the code
                 (e(0); tup_type; Alias; n(0, "x"));
-                (n(1, "a"); Type::int(16); IndexTuple((0, tup_inner.clone())); n(0, "x"));
-                (n(2, "b"); Type::int(8); IndexTuple((1, tup_inner)); n(0, "x"))
+                (n(1, "a"); Type::int(16); IndexTuple((0)); n(0, "x"));
+                (n(2, "b"); Type::int(8); IndexTuple((1)); n(0, "x"))
             } => n(1, "a")
         );
 
@@ -1064,7 +1064,6 @@ mod tests {
             ("a".to_string(), Type::int(16)),
             ("b".to_string(), Type::int(8)),
         ];
-        let inner_types = struct_inner.iter().map(|s| s.1.clone()).collect::<Vec<_>>();
         let struct_type = Type::Struct(struct_inner.clone());
         let expected = vec![entity!(&["name"]; (
                 "a", n(0, "a"), Type::int(16),
@@ -1072,7 +1071,7 @@ mod tests {
             ) -> Type::int(8); {
                 (e(1); struct_type.clone(); ConstructTuple; n(0, "a"), n(1, "b"));
                 (n(2, "compound"); struct_type; Alias; e(1));
-                (e(0); Type::int(8); IndexTuple((1, inner_types)); n(2, "compound"));
+                (e(0); Type::int(8); IndexTuple((1)); n(2, "compound"));
             } => e(0)
         )];
 
@@ -1097,7 +1096,7 @@ mod tests {
         let expected = vec![entity!(&["test"]; (
                 "payload", n(0, "payload"), Type::Bool,
             ) -> mir_enum.clone(); {
-                (e(1); mir_enum; ConstructEnum({variant: 0, variant_count: 2}); n(0, "payload"));
+                (e(1); mir_enum; ConstructEnum({variant: 0}); n(0, "payload"));
             } => e(1)
         )];
 
@@ -1124,7 +1123,7 @@ mod tests {
             ) -> mir_enum.clone(); {
                 (const 3; Type::int(15); ConstantValue::int(1));
                 (e(2); Type::int(16); Add; n(0, "payload"), e(3));
-                (e(1); mir_enum; ConstructEnum({variant: 0, variant_count: 2}); e(2));
+                (e(1); mir_enum; ConstructEnum({variant: 0}); e(2));
             } => e(1)
         )];
 
@@ -1149,7 +1148,7 @@ mod tests {
         let expected = vec![entity!(&["test"]; (
                 "payload", n(0, "payload"), Type::int(5),
             ) -> mir_enum.clone(); {
-                (e(1); mir_enum; ConstructEnum({variant: 0, variant_count: 2}); n(0, "payload"));
+                (e(1); mir_enum; ConstructEnum({variant: 0}); n(0, "payload"));
             } => e(1)
         )];
 
@@ -1169,7 +1168,7 @@ mod tests {
         let expected = vec![entity!(&["test"]; (
                 "payload", n(0, "payload"), Type::int(5),
             ) -> mir_enum.clone(); {
-                (e(1); mir_enum; ConstructEnum({variant: 1, variant_count: 2}); n(0, "payload"));
+                (e(1); mir_enum; ConstructEnum({variant: 1}); n(0, "payload"));
             } => e(1)
         )];
 
@@ -1193,8 +1192,8 @@ mod tests {
             entity! {&["unwrap_or_0"]; ("e", n(0, "e"), mir_type.clone()) -> Type::int(16); {
                 (e(20); mir_type.clone(); Alias; n(0, "e"));
                 // Conditions for branches
-                (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0, enum_type: mir_type.clone()}); n(0, "e"));
-                (e(2); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type.clone()}); n(0, "e"));
+                (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0}); n(0, "e"));
+                (e(2); Type::Bool; IsEnumVariant({variant: 1}); n(0, "e"));
                 (const 10; Type::Bool; ConstantValue::Bool(true));
                 (e(11); Type::Bool; LogicalAnd; e(2), e(10));
                 (n(21, "other"); mir_type.clone(); Alias; n(0, "e"));
@@ -1279,13 +1278,13 @@ mod tests {
                 "a", n(0, "a"), tup_type.clone()
             ) -> Type::int(16); {
                 (e(50); tup_type.clone(); Alias; n(0, "a"));
-                (e(0); Type::Bool; IndexTuple((0, tup_inner.clone())); n(0, "a"));
-                (e(1); Type::Bool; IndexTuple((1, tup_inner.clone())); n(0, "a"));
+                (e(0); Type::Bool; IndexTuple((0)); n(0, "a"));
+                (e(1); Type::Bool; IndexTuple((1)); n(0, "a"));
                 (e(3); Type::Bool; LogicalAnd; e(0), e(1));
                 (const 10; Type::int(16); ConstantValue::int(0));
                 (e(51); tup_type.clone(); Alias; n(0, "a"));
-                (e(20); Type::Bool; IndexTuple((0, tup_inner.clone())); n(0, "a"));
-                (e(21); Type::Bool; IndexTuple((1, tup_inner)); n(0, "a"));
+                (e(20); Type::Bool; IndexTuple((0)); n(0, "a"));
+                (e(21); Type::Bool; IndexTuple((1)); n(0, "a"));
                 (e(4); Type::Bool; LogicalNot; e(20));
                 (e(5); Type::Bool; LogicalAnd; e(4), e(21));
                 (const 11; Type::int(16); ConstantValue::int(1));
@@ -1318,8 +1317,8 @@ mod tests {
             entity! {&["unwrap_or_0"]; ("e", n(0, "e"), mir_type.clone()) -> Type::int(16); {
                 (e(100); mir_type.clone(); Alias; n(0, "e"));
                 // Conditions for branch 1
-                (e(11); Type::int(16); EnumMember({variant: 1, member_index: 0, enum_type: mir_type.clone()}); n(0, "e"));
-                (e(15); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type.clone()}); n(0, "e"));
+                (e(11); Type::int(16); EnumMember({variant: 1, member_index: 0}); n(0, "e"));
+                (e(15); Type::Bool; IsEnumVariant({variant: 1}); n(0, "e"));
                 (const 10; Type::int(16); ConstantValue::int(10));
                 (e(12); Type::Bool; Eq; e(11), e(10));
                 (e(14); Type::Bool; LogicalAnd; e(15), e(12));
@@ -1327,8 +1326,8 @@ mod tests {
 
                 (e(101); mir_type.clone(); Alias; n(0, "e"));
                 // Condition for branch 2
-                (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0, enum_type: mir_type.clone()}); n(0, "e"));
-                (e(2); Type::Bool; IsEnumVariant({variant: 1, enum_type: mir_type.clone()}); n(0, "e"));
+                (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0}); n(0, "e"));
+                (e(2); Type::Bool; IsEnumVariant({variant: 1}); n(0, "e"));
                 (const 3; Type::Bool; ConstantValue::Bool(true));
                 (e(20); Type::Bool; LogicalAnd; e(2), e(3));
 
@@ -1362,7 +1361,7 @@ mod tests {
         let expected = vec![
             entity! {&["test"]; ("x", n(0, "x"), ty.clone()) -> Type::int(10); {
                 (e(20); ty.clone(); Alias; n(0, "x"));
-                (e(1); Type::Bool; IndexTuple((0, vec![Type::Bool])); n(0, "x"));
+                (e(1); Type::Bool; IndexTuple((0)); n(0, "x"));
                 (const 10; Type::Bool; ConstantValue::Bool(true));
                 (e(11); Type::Bool; LogicalAnd; e(10), e(1));
                 (const 0; Type::int(10); ConstantValue::int(10));
@@ -1391,15 +1390,14 @@ mod tests {
             ("a".to_string(), Type::int(16)),
             ("b".to_string(), Type::int(8)),
         ];
-        let inner_types = struct_inner.iter().map(|s| s.1.clone()).collect::<Vec<_>>();
         let struct_type = Type::Struct(struct_inner.clone());
         let expected = vec![entity! {&["name"]; (
                 "clk", n(0, "clk"), Type::Bool,
                 "a", n(1, "a"), struct_type.clone(),
             ) -> Type::int(16); {
                 (reg e(0); struct_type; clock(n(0, "clk")); n(1, "a"));
-                (n(2, "x"); Type::int(16); IndexTuple((0, inner_types.clone())); e(0));
-                (n(3, "y"); Type::int(8); IndexTuple((1, inner_types)); e(0));
+                (n(2, "x"); Type::int(16); IndexTuple((0)); e(0));
+                (n(3, "y"); Type::int(8); IndexTuple((1)); e(0));
             } => n(2, "x")
         }];
 
@@ -1421,15 +1419,14 @@ mod tests {
             ("a".to_string(), Type::int(16)),
             ("b".to_string(), Type::int(8)),
         ];
-        let inner_types = struct_inner.iter().map(|s| s.1.clone()).collect::<Vec<_>>();
         let struct_type = Type::Struct(struct_inner.clone());
         let expected = vec![entity! {&["name"]; (
                 "clk", n(0, "clk"), Type::Bool,
                 "a", n(1, "a"), struct_type.clone(),
             ) -> Type::int(16); {
                 (reg e(0); struct_type; clock(n(0, "clk")); n(1, "a"));
-                (n(2, "x"); Type::int(16); IndexTuple((0, inner_types.clone())); e(0));
-                (n(3, "y"); Type::int(8); IndexTuple((1, inner_types)); e(0));
+                (n(2, "x"); Type::int(16); IndexTuple((0)); e(0));
+                (n(3, "y"); Type::int(8); IndexTuple((1)); e(0));
             } => n(2, "x")
         }];
 
@@ -1488,7 +1485,7 @@ mod tests {
         let expected = vec![entity! {&["name"]; (
                 "a", n(0, "a"), Type::uint(16),
             ) -> Type::uint(24); {
-                (e(0); Type::uint(24); ZeroExtend({extra_bits: 8u32.to_biguint()}); n(0, "a"))
+                (e(0); Type::uint(24); ZeroExtend; n(0, "a"))
             } => e(0)
         }];
 
@@ -2245,15 +2242,14 @@ mod tests {
             ("b".to_string(), Type::int(4)),
         ];
         let ty = Type::Struct(fields.clone());
-        let inner_types = fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let expected = entity!(&["main"]; (
             "x", n(0, "x"), ty.clone(),
         ) -> ty.clone(); {
             (n(1, "y"); ty.clone(); Alias; n(0, "x"));
-            (e(0); Type::int(8); IndexTuple((0, inner_types.clone())); n(1, "y"));
+            (e(0); Type::int(8); IndexTuple((0)); n(1, "y"));
             (wal_trace(n(1, "y"), e(0), "__a__wal_suffix__", Type::int(8)));
-            (e(1); Type::int(4); IndexTuple((1, inner_types.clone())); n(1, "y"));
+            (e(1); Type::int(4); IndexTuple((1)); n(1, "y"));
             (wal_trace(n(1, "y"), e(1), "__b__wal_suffix__", Type::int(4)))
         } => n(0, "x"));
 
@@ -2283,15 +2279,14 @@ mod tests {
             ("b".to_string(), Type::int(4)),
         ];
         let ty = Type::Struct(fields.clone());
-        let inner_types = fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let expected = entity!(&["main"]; (
             "x", n(0, "x"), ty.clone(),
         ) -> ty.clone(); {
             (n(1, "y"); ty.clone(); Alias; n(0, "x"));
-            (e(0); Type::int(8); IndexTuple((0, inner_types.clone())); n(1, "y"));
+            (e(0); Type::int(8); IndexTuple((0)); n(1, "y"));
             (wal_trace(n(1, "y"), e(0), "__a__m::Test", Type::int(8)));
-            (e(1); Type::int(4); IndexTuple((1, inner_types.clone())); n(1, "y"));
+            (e(1); Type::int(4); IndexTuple((1)); n(1, "y"));
             (wal_trace(n(1, "y"), e(1), "__b__m::Test", Type::int(4)))
         } => n(0, "x"));
 
@@ -2319,11 +2314,9 @@ mod tests {
             ("b".to_string(), Type::Backward(Box::new(Type::int(4)))),
         ];
         let ty = Type::Struct(fields.clone());
-        let inner_types = fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let back_fields = vec![("b".to_string(), Type::int(4))];
         let back_ty = Type::Struct(back_fields.clone());
-        let back_inner_types = back_fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let unit_name = spade_mir::UnitName::_test_from_strs(&["main"]);
         let expected = entity!(&unit_name; (
@@ -2331,9 +2324,9 @@ mod tests {
         ) -> ty.clone(); {
             (n(1, "y"); ty.clone(); Alias; n(0, "x"));
             (e(10); back_ty.clone(); ReadMutWires; n(1, "y"));
-            (e(0); Type::int(8); IndexTuple((0, inner_types.clone())); n(1, "y"));
+            (e(0); Type::int(8); IndexTuple((0)); n(1, "y"));
             (wal_trace(n(1, "y"), e(0), "__a__wal_suffix__", Type::int(8)));
-            (e(1); Type::int(4); IndexTuple((0, back_inner_types.clone())); e(10));
+            (e(1); Type::int(4); IndexTuple((0)); e(10));
             (wal_trace(n(1, "y"), e(1), "__b__wal_suffix__", Type::int(4)))
         } => n(1, "y"));
 
@@ -2371,14 +2364,12 @@ mod tests {
             ("d".to_string(), Type::Backward(Box::new(Type::int(7)))),
         ];
         let ty = Type::Struct(fields.clone());
-        let inner_types = fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let back_fields = vec![
             ("b".to_string(), Type::int(4)),
             ("d".to_string(), Type::int(7)),
         ];
         let back_ty = Type::Struct(back_fields.clone());
-        let back_inner_types = back_fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let unit_name = spade_mir::UnitName::_test_from_strs(&["main"]);
         let expected = entity!(&unit_name; (
@@ -2386,13 +2377,13 @@ mod tests {
         ) -> ty.clone(); {
             (n(1, "y"); ty.clone(); Alias; n(0, "x"));
             (e(10); back_ty.clone(); ReadMutWires; n(1, "y"));
-            (e(0); Type::int(8); IndexTuple((0, inner_types.clone())); n(1, "y"));
+            (e(0); Type::int(8); IndexTuple((0)); n(1, "y"));
             (wal_trace(n(1, "y"), e(0), "__a__wal_suffix__", Type::int(8)));
-            (e(1); Type::int(4); IndexTuple((0, back_inner_types.clone())); e(10));
+            (e(1); Type::int(4); IndexTuple((0)); e(10));
             (wal_trace(n(1, "y"), e(1), "__b__wal_suffix__", Type::int(4)));
-            (e(2); Type::int(16); IndexTuple((2, inner_types.clone())); n(1, "y"));
+            (e(2); Type::int(16); IndexTuple((2)); n(1, "y"));
             (wal_trace(n(1, "y"), e(2), "__c__wal_suffix__", Type::int(16)));
-            (e(3); Type::int(7); IndexTuple((1, back_inner_types.clone())); e(10));
+            (e(3); Type::int(7); IndexTuple((1)); e(10));
             (wal_trace(n(1, "y"), e(3), "__d__wal_suffix__", Type::int(7)));
         } => n(1, "y"));
 
@@ -2426,7 +2417,6 @@ mod tests {
             ("b".to_string(), Type::int(4)),
         ];
         let ty = Type::Struct(fields.clone());
-        let inner_types = fields.iter().map(|f| f.1.clone()).collect::<Vec<_>>();
 
         let expected = entity!(&["main"]; (
             "clk", n(10, "clk"), Type::Bool,
@@ -2436,9 +2426,9 @@ mod tests {
             (n(1, "y"); ty.clone(); Alias; n(0, "x"));
             (wal_trace(n(1, "y"), n(10, "clk"), "__clk__wal_suffix__", Type::Bool));
             (wal_trace(n(1, "y"), n(11, "rst"), "__rst__wal_suffix__", Type::Bool));
-            (e(0); Type::int(8); IndexTuple((0, inner_types.clone())); n(1, "y"));
+            (e(0); Type::int(8); IndexTuple((0)); n(1, "y"));
             (wal_trace(n(1, "y"), e(0), "__a__wal_suffix__", Type::int(8)));
-            (e(1); Type::int(4); IndexTuple((1, inner_types.clone())); n(1, "y"));
+            (e(1); Type::int(4); IndexTuple((1)); n(1, "y"));
             (wal_trace(n(1, "y"), e(1), "__b__wal_suffix__", Type::int(4)))
         } => n(0, "x"));
 
