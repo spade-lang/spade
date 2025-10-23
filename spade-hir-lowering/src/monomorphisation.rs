@@ -169,7 +169,8 @@ pub fn compile_items(
         }
     }
 
-    let mut body_replacements: HashMap<NameID, LambdaReplacement> = HashMap::new();
+    let mut body_replacements: HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement> =
+        HashMap::new();
 
     let mut result = vec![];
     'item_loop: while let Some(item) = state.next_target() {
@@ -178,54 +179,55 @@ pub fn compile_items(
         let mut reg_name_map = BTreeMap::new();
         match original_item {
             Some((ExecutableItem::Unit(u), old_type_state)) => {
-                let (u, preprocessor) =
-                    if let Some(replacement) = body_replacements.get(&u.name.name_id().inner) {
-                        let new_unit = match replacement.replace_in(u.clone(), idtracker) {
-                            Ok(u) => u,
-                            Err(e) => {
-                                result.push(Err(state.add_mono_traceback(e, &item)));
-                                break 'item_loop;
-                            }
-                        };
+                let (u, preprocessor) = if let Some(replacement) =
+                    body_replacements.get(&(u.name.name_id().inner.clone(), item.params.clone()))
+                {
+                    let new_unit = match replacement.replace_in(u.clone(), idtracker) {
+                        Ok(u) => u,
+                        Err(e) => {
+                            result.push(Err(state.add_mono_traceback(e, &item)));
+                            break 'item_loop;
+                        }
+                    };
 
-                        (
-                            new_unit,
-                            Some(
-                                |type_state: &mut TypeState,
-                                 unit: &Loc<Unit>,
-                                 generic_list: &GenericListToken,
-                                 ctx: &spade_typeinference::Context|
-                                 -> Result<_> {
-                                    let gl = type_state
-                                        .get_generic_list(generic_list)
+                    (
+                        new_unit,
+                        Some(
+                            |type_state: &mut TypeState,
+                             unit: &Loc<Unit>,
+                             generic_list: &GenericListToken,
+                             ctx: &spade_typeinference::Context|
+                             -> Result<_> {
+                                let gl = type_state
+                                    .get_generic_list(generic_list)
+                                    .ok_or_else(|| {
+                                        diag_anyhow!(unit, "Did not have a generic list")
+                                    })?
+                                    .clone();
+                                for (i, (_, ty)) in replacement.arguments.iter().enumerate() {
+                                    let old_ty = gl
+                                        .get(&unit.head.get_type_params()[i].name_id)
                                         .ok_or_else(|| {
-                                            diag_anyhow!(unit, "Did not have a generic list")
+                                            diag_anyhow!(
+                                                unit,
+                                                "Did not have an entry for argument {i}"
+                                            )
                                         })?
                                         .clone();
-                                    for (i, (_, ty)) in replacement.arguments.iter().enumerate() {
-                                        let old_ty = gl
-                                            .get(&unit.head.get_type_params()[i].name_id)
-                                            .ok_or_else(|| {
-                                                diag_anyhow!(
-                                                    unit,
-                                                    "Did not have an entry for argument {i}"
-                                                )
-                                            })?
-                                            .clone();
 
-                                        ty.insert(type_state)
-                                            .unify_with(&old_ty, type_state)
-                                            .commit(type_state, ctx)
-                                            .into_default_diagnostic(unit, type_state)?;
-                                    }
+                                    ty.insert(type_state)
+                                        .unify_with(&old_ty, type_state)
+                                        .commit(type_state, ctx)
+                                        .into_default_diagnostic(unit, type_state)?;
+                                }
 
-                                    Ok(())
-                                },
-                            ),
-                        )
-                    } else {
-                        (u.clone(), None)
-                    };
+                                Ok(())
+                            },
+                        ),
+                    )
+                } else {
+                    (u.clone(), None)
+                };
 
                 let type_ctx = &spade_typeinference::Context {
                     symtab: symtab.symtab(),

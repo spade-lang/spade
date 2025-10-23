@@ -11,7 +11,7 @@ use spade_hir::{
     ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern, PatternKind, Statement,
     TypeParam, TypeSpec, Unit, UnitHead,
 };
-use spade_typeinference::{equation::KnownTypeVar, HasType, TypeState};
+use spade_typeinference::{equation::KnownTypeVar, GenericListToken, HasType, TypeState};
 
 use crate::error::Result;
 
@@ -56,9 +56,9 @@ impl LambdaReplacement {
         let mut new_ts = ts.clone();
         for (from, to) in &self.outer_type_params {
             new_ts = new_ts.map(|ty| {
-                dbg!(ty).replace_in(
-                    &TypeSpec::Generic(dbg!(from).clone().at_loc(&ts)),
-                    &TypeSpec::Generic(dbg!(to).clone().at_loc(&ts)),
+                ty.replace_in(
+                    &TypeSpec::Generic(from.clone().at_loc(&ts)),
+                    &TypeSpec::Generic(to.clone().at_loc(&ts)),
                 )
             })
         }
@@ -223,7 +223,7 @@ pub(crate) struct LowerLambdaDefs<'a> {
     pub type_state: &'a mut TypeState,
     pub idtracker: &'a mut ExprIdTracker,
 
-    pub replacements: &'a mut HashMap<NameID, LambdaReplacement>,
+    pub replacements: &'a mut HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement>,
 }
 
 impl<'a> Pass for LowerLambdaDefs<'a> {
@@ -232,7 +232,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
             unit_kind: _,
             lambda_unit,
             lambda_type,
-            type_params: _,
+            type_params,
             outer_generic_params,
             arguments,
             body,
@@ -256,8 +256,33 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 })
                 .collect::<Result<Vec<_>>>()?;
 
+            let token = GenericListToken::Expression(expression.id);
+            let generic_list = self.type_state.get_generic_list(&token).ok_or_else(|| {
+                diag_anyhow!(&*expression, "Did not find a generic list for this lambda")
+            })?;
+
+            let concrete_type_params = type_params
+                .all()
+                .map(|tp| {
+                    let result = generic_list
+                        .get(&tp.name_id)
+                        .ok_or_else(|| {
+                            diag_anyhow!(
+                            tp,
+                            "The type of this type param in the lambda was not in the generic list"
+                        )
+                        })?
+                        .resolve(&self.type_state)
+                        .into_known(&self.type_state)
+                        .ok_or_else(|| {
+                            diag_anyhow!(tp, "The type of {} was not fully known", tp.name_id)
+                        })?;
+                    Ok(result)
+                })
+                .collect::<Result<_>>()?;
+
             self.replacements.insert(
-                lambda_unit.clone(),
+                (lambda_unit.clone(), concrete_type_params),
                 LambdaReplacement {
                     new_body: body.as_ref().clone(),
                     arguments: arguments.clone(),

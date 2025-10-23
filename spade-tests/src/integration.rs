@@ -661,6 +661,26 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    lambdas_are_hygienic,
+    "
+        entity test<T>(val: Option<T>) -> Option<T> {
+          val
+            .map(fn (t) {
+              t
+            })
+        }
+
+        entity concrete1() {
+          let _ = inst test(Some(1u8));
+        }
+        entity concrete2() {
+          let _ = inst test(Some(1u9));
+        }
+    ",
+    all
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

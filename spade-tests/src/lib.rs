@@ -168,6 +168,13 @@ macro_rules! code_compiles {
             build_items(code);
         }
     };
+    ($fn:ident, $src:literal, all) => {
+        #[test]
+        fn $fn() {
+            let code = $src;
+            crate::build_items_with_stdlib(code);
+        }
+    };
 }
 
 #[macro_export]
