@@ -2,9 +2,10 @@ use std::{collections::HashMap, ops::Range};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use ecolor::Color32;
-use extism_pdk::{error, info, plugin_fn, FnResult, Json, WithReturnCode};
+use extism_pdk::{plugin_fn, FnResult, Json, WithReturnCode};
 
 use itertools::Itertools;
+use log::{error, info, warn};
 use num::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use spade::compiler_state::CompilerState;
@@ -30,6 +31,7 @@ use surfer_translation_types::{
     ValueRepr,
     VariableMeta,
     VariableNameInfo,
+    VariableRef,
     WaveSource,
 };
 
@@ -76,6 +78,25 @@ impl<T> ResultExt<T> for Result<T> {
 
 static STATE: Mutex<Option<SpadeTranslator>> = Mutex::new(None);
 
+trait VariableRefExt {
+    fn full_path_without_verilator_top(&self) -> Vec<String>;
+}
+
+impl<VarId, ScopeId> VariableRefExt for VariableRef<VarId, ScopeId> {
+    fn full_path_without_verilator_top(&self) -> Vec<String> {
+        let result = self.full_path();
+        if !result.is_empty() {
+            if result[0] == "TOP" {
+                result[1..].to_vec()
+            } else {
+                result
+            }
+        } else {
+            result
+        }
+    }
+}
+
 /// Same as the swim::SurferInfo struct
 #[derive(Deserialize, Clone)]
 pub struct SpadeTestInfo {
@@ -112,9 +133,7 @@ impl SpadeTranslator {
                 if let Some(top) = info.top_names.get(wave_file) {
                     Some((top.clone(), info.state_file.clone()))
                 } else {
-                    extism_pdk::warn!(
-                        "Found no spade info for {wave_file}. Disabling spade translation"
-                    );
+                    warn!("Found no spade info for {wave_file}. Disabling spade translation");
                     None
                 }
             })
@@ -217,7 +236,10 @@ pub fn translate(
         .state
         .lock()
         .unwrap()
-        .type_of_hierarchical_value(&ctx.top, &variable.var.full_path()[1..])
+        .type_of_hierarchical_value(
+            &ctx.top,
+            &variable.var.full_path_without_verilator_top()[1..],
+        )
         .handle()?;
 
     let val_vcd_raw = match value {
@@ -261,7 +283,10 @@ pub fn variable_info(variable: VariableMeta<(), ()>) -> FnResult<VariableInfo> {
         .state
         .lock()
         .unwrap()
-        .type_of_hierarchical_value(&ctx.top, &variable.var.full_path()[1..])
+        .type_of_hierarchical_value(
+            &ctx.top,
+            &variable.var.full_path_without_verilator_top()[1..],
+        )
         .handle()?;
 
     info_from_concrete(&ty).handle()
@@ -280,7 +305,10 @@ pub fn translates(variable: VariableMeta<(), ()>) -> FnResult<TranslationPrefere
         .state
         .lock()
         .unwrap()
-        .type_of_hierarchical_value(&ctx.top, &variable.var.full_path()[1..])
+        .type_of_hierarchical_value(
+            &ctx.top,
+            &variable.var.full_path_without_verilator_top()[1..],
+        )
         .handle()?;
 
     match ty {
@@ -308,7 +336,7 @@ pub fn variable_name_info(
     let Some(info) = state
         .name_source_of_hierarchical_value(
             &ctx.top,
-            &variable.var.full_path()[1..],
+            &variable.var.full_path_without_verilator_top()[1..],
             &ctx.query_cache,
         )
         .ok()
