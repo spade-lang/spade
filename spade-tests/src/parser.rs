@@ -146,7 +146,7 @@ fn three_generic_end_chars_work() {
 
 snapshot_error! {
     missing_argument_list_for_inst_method_works,
-    "fn a() -> bool {
+    "entity a() -> bool {
         a.inst b
     }"
 }
@@ -730,7 +730,7 @@ snapshot_error! {
 snapshot_error! {
     inst_method_turbofish_without_argument_list,
     "
-        fn test() {
+        entity test() {
             a.inst field::<bool>
         }
     "
@@ -900,6 +900,18 @@ snapshot_error! {
         fn not a valid fn() {
             unsafe abc
         }
+    "
+}
+
+snapshot_error! {
+    entity_methods_are_not_allowed_in_functions,
+    "struct X{}
+    impl X {
+        entity e(self) {}
+    }
+    fn test() {
+        X().inst e()
+    }
     "
 }
 

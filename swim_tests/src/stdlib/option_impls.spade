@@ -8,15 +8,13 @@ struct CombinatorsOut {
     and_then: Option<uint<17>>,
 }
 
-fn combinators(clk: clock, val: Option<uint<16>>) -> CombinatorsOut {
-    let plresult = val
-        .inst(3) pmap(clk, pipeline(3) (clk, x) {
-        reg*3;
-            x
-        });
+entity combinators(clk: clock, val: Option<uint<16>>) -> CombinatorsOut {
     CombinatorsOut$(
         map: val.map(fn (x) {x + 1}),
-        pipeline_map: plresult,
+        pipeline_map: val.inst(3) pmap(clk, pipeline(3) (clk, x) {
+            reg*3;
+                x
+            }),
         and_then: val.and_then(fn (x) {if x < 10 {Some(x + 1)} else {None}}),
     )
 }

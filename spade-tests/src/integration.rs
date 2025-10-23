@@ -1044,7 +1044,7 @@ mod trait_tests {
                 fn a(self) -> bool {true}
             }
 
-            fn t(x: X) -> bool {
+            entity t(x: X) -> bool {
                 x.inst a()
             }
         "

@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/parser.rs
+---
+struct X{}
+impl X {
+    entity e(self) {}
+}
+fn test() {
+    X().inst e()
+}
+
+
+error: cannot instantiate entities and pipelines in functions
+  ┌─ testinput:6:9
+  │
+5 │ fn test() {
+  │ -- this is a function
+6 │     X().inst e()
+  │         ^^^^ inst not allowed here
+  │
+  = note: functions can only contain combinatorial logic
+  = consider making the function an entity
+  │
+5 │ entity test() {
+  │ ~~~~~~

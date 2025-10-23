@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/parser.rs
 ---
-fn a() -> bool {
+entity a() -> bool {
     a.inst b
 }
 
@@ -19,5 +19,3 @@ error: Expected argument list
   │
 2 │     a.inst b$(...)
   │             ++++++
-
-

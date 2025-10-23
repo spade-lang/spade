@@ -1,10 +1,12 @@
 use num::ToPrimitive;
 use spade_ast::{ArgumentList, BinaryOperator, CallKind, Expression, IntLiteral, UnaryOperator};
 use spade_common::location_info::{Loc, WithLocation};
+use spade_diagnostics::diag_list::ResultExt;
 use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;
 
 use crate::error::{CSErrorTransformations, ExpectedArgumentList, Result, UnexpectedToken};
+use crate::item_type::UnitKindLocal;
 use crate::{lexer::TokenKind, ParseStackEntry, Parser};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
@@ -369,6 +371,12 @@ impl<'a> Parser<'a> {
             }
         } else if self.peek_and_eat(&TokenKind::Dot)?.is_some() {
             let inst = self.peek_and_eat(&TokenKind::Instance)?;
+
+            if let Some(inst) = &inst {
+                self.unit_context
+                    .allows_inst(().at(self.file_id, inst))
+                    .handle_in(&mut self.diags);
+            }
 
             // Check if this is a pipeline or not
             let pipeline_depth = if inst.is_some() {

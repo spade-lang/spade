@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/parser.rs
 ---
-fn test() {
+entity test() {
     a.inst field::<bool>
 }
 

@@ -45,4 +45,3 @@ pub fn format_witnesses(witnesses: &[Witness]) -> String {
         )
     }
 }
-
