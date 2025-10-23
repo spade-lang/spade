@@ -12,18 +12,19 @@ fn t(x: X) -> bool {
 }
 
 
-error: Expected a to be a function
+error: Expected `inst` to instantiate entity
   ┌─ testinput:8:7
   │
 4 │     entity a(self) -> bool {true}
-  │     ----------------------------- a is an entity
+  │     ------ a is defined as an entity here
   ·
 8 │     x.a()
-  │       ^ Expected function
+  │       ^
+  │       │
+  │       Expected `inst`
+  │       Because a is an entity
   │
-  = consider adding inst
+  = Consider adding `inst`
   │
 8 │     x.inst a()
   │       +++++
-
-

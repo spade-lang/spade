@@ -7,20 +7,18 @@ entity test(clk: clock) -> bool {
     inst x(clk)
 }
 
-error: Expected x to be an entity
-  ┌─ testinput:4:10
+error: Expected pipeline depth
+  ┌─ testinput:4:5
   │
 1 │ pipeline(0) x(clk: clock) -> bool {true}
-  │ ---------------------------------------- x is a pipeline
+  │ ----------- x is defined as a pipeline here
   ·
 4 │     inst x(clk)
-  │     ---- ^ Expected entity
+  │     ^^^^ - Because x is a pipeline
   │     │     
-  │     because of this inst
+  │     Expected pipeline depth
   │
-  = Consider adding depth
+  = Consider specifying the pipeline depth
   │
-4 │     inst(0) x(clk)
-  │         +++
-
-
+4 │     inst(/*depth*/) x(clk)
+  │         +++++++++++

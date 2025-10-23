@@ -7,18 +7,19 @@ entity test() -> bool {
     x()
 }
 
-error: Expected x to be a function
+error: Expected `inst` to instantiate entity
   ┌─ testinput:4:5
   │
 1 │ entity x() -> bool {true}
-  │ ------------------------- x is an entity
+  │ ------ x is defined as an entity here
   ·
 4 │     x()
-  │     ^ Expected function
+  │     ^
+  │     │
+  │     Expected `inst`
+  │     Because x is an entity
   │
-  = consider adding inst
+  = Consider adding `inst`
   │
 4 │     inst x()
   │     +++++
-
-

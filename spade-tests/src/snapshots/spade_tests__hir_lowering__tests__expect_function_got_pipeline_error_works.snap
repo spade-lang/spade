@@ -7,18 +7,19 @@ entity test(clk: clock) -> bool {
     x(clk)
 }
 
-error: Expected x to be a function
+error: Expected `inst` and pipeline depth for pipeline instantiation
   ┌─ testinput:4:5
   │
 1 │ pipeline(0) x(clk: clock) -> bool {true}
-  │ ---------------------------------------- x is a pipeline
+  │ ----------- x is defined as a pipeline here
   ·
 4 │     x(clk)
-  │     ^ Expected function
+  │     ^
+  │     │
+  │     Expected pipeline instantiation
+  │     Because x is a pipeline
   │
-  = consider adding inst
+  = Consider instantiating the pipeline with a depth
   │
-4 │     inst(0) x(clk)
-  │     ++++++++
-
-
+4 │     inst(/*depth*/) x(clk)
+  │     ++++++++++++++++

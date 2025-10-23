@@ -13,20 +13,18 @@ entity test() -> bool {
 }
 
 
-error: Expected foo to be an entity
-  ┌─ testinput:9:10
+error: Unexpected `inst` for function call
+  ┌─ testinput:9:5
   │
 3 │     fn foo() -> bool { true }
-  │     ------------------------- foo is a function
+  │     -- foo is defined as a function here
   ·
 9 │     inst foo()
-  │     ---- ^^^ Expected entity
+  │     ^^^^ --- Because foo is a function
   │     │     
-  │     because of this inst
+  │     Unexpected `inst`
   │
-  = Consider removing inst
+  = Consider removing the `inst`
   │
 9 │     inst foo()
   │     ----
-
-

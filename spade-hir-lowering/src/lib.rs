@@ -19,7 +19,6 @@ use const_generic::ConstGenericExt;
 use error::format_witnesses;
 use error::refutable_pattern_diagnostic;
 use error::undefined_variable;
-use error::{expect_entity, expect_function, expect_pipeline};
 use hir::expression::BitLiteral;
 use hir::expression::CallKind;
 use hir::ArgumentList;
@@ -2041,38 +2040,107 @@ impl ExprLocal for Loc<Expression> {
                     ));
                 }
 
-                match (kind, &head.unit_kind.inner) {
-                    (CallKind::Function, UnitKind::Function(_))
-                    | (CallKind::Entity(_), UnitKind::Entity) => {
+                match (&head.unit_kind.inner, kind) {
+                    (UnitKind::Function(_), CallKind::Function)
+                    | (UnitKind::Entity, CallKind::Entity(_)) => {
                         result.append(self.handle_call(callee, &args, &head, ctx)?);
                     }
                     (
-                        CallKind::Pipeline {
-                            inst_loc: _,
+                        UnitKind::Pipeline {
                             depth: _,
                             depth_typeexpr_id: _,
                         },
-                        UnitKind::Pipeline {
+                        CallKind::Pipeline {
+                            inst_loc: _,
                             depth: _,
                             depth_typeexpr_id: _,
                         },
                     ) => {
                         result.append(self.handle_call(callee, &args, &head, ctx)?);
                     }
-                    (CallKind::Function, other) => {
-                        return Err(expect_function(callee, head.loc(), other))
-                    }
-                    (CallKind::Entity(inst), other) => {
-                        return Err(expect_entity(inst, callee, head.loc(), other))
-                    }
                     (
-                        CallKind::Pipeline {
+                        UnitKind::Function(_),
+                        CallKind::Entity(loc) | CallKind::Pipeline { inst_loc: loc, .. },
+                    ) => {
+                        return Err(
+                            Diagnostic::error(loc, "Unexpected `inst` for function call")
+                                .primary_label("Unexpected `inst`")
+                                .secondary_label(
+                                    callee,
+                                    format!("Because {} is a function", head.name),
+                                )
+                                .secondary_label(
+                                    &head.unit_kind,
+                                    format!("{} is defined as a function here", head.name),
+                                )
+                                .span_suggest_remove("Consider removing the `inst`", loc),
+                        );
+                    }
+                    (UnitKind::Entity, CallKind::Function) => {
+                        return Err(Diagnostic::error(
+                            callee,
+                            "Expected `inst` to instantiate entity",
+                        )
+                        .primary_label("Expected `inst`")
+                        .secondary_label(callee, format!("Because {} is an entity", head.name))
+                        .secondary_label(
+                            &head.unit_kind,
+                            format!("{} is defined as an entity here", head.name),
+                        )
+                        .span_suggest_insert_before(
+                            "Consider adding `inst`",
+                            callee,
+                            "inst ",
+                        ))
+                    }
+                    (UnitKind::Entity, CallKind::Pipeline { inst_loc, .. }) => {
+                        return Err(Diagnostic::error(
                             inst_loc,
-                            depth: _,
-                            depth_typeexpr_id: _,
-                        },
-                        other,
-                    ) => return Err(expect_pipeline(inst_loc, callee, head.loc(), other)),
+                            "Unexpected pipeline depth for entity",
+                        )
+                        .primary_label("Expected plain `inst`")
+                        .secondary_label(callee, format!("Because {} is an entity", head.name))
+                        .secondary_label(
+                            &head.unit_kind,
+                            format!("{} is defined as an entity here", head.name),
+                        )
+                        .span_suggest_replace(
+                            "Consider removing the pipeline depth",
+                            inst_loc,
+                            "inst",
+                        ))
+                    }
+                    (UnitKind::Pipeline { .. }, CallKind::Function) => {
+                        return Err(Diagnostic::error(
+                            callee,
+                            "Expected `inst` and pipeline depth for pipeline instantiation",
+                        )
+                        .primary_label("Expected pipeline instantiation")
+                        .secondary_label(callee, format!("Because {} is a pipeline", head.name))
+                        .secondary_label(
+                            &head.unit_kind,
+                            format!("{} is defined as a pipeline here", head.name),
+                        )
+                        .span_suggest_insert_before(
+                            "Consider instantiating the pipeline with a depth",
+                            callee,
+                            "inst(/*depth*/) ",
+                        ))
+                    }
+                    (UnitKind::Pipeline { .. }, CallKind::Entity(loc)) => {
+                        return Err(Diagnostic::error(loc, "Expected pipeline depth")
+                            .primary_label("Expected pipeline depth")
+                            .secondary_label(callee, format!("Because {} is a pipeline", head.name))
+                            .secondary_label(
+                                &head.unit_kind,
+                                format!("{} is defined as a pipeline here", head.name),
+                            )
+                            .span_suggest_insert_after(
+                                "Consider specifying the pipeline depth",
+                                loc,
+                                "(/*depth*/)",
+                            ))
+                    }
                 }
             }
             ExprKind::PipelineRef { .. } => {

@@ -10,20 +10,18 @@ entity x() -> X {
 }
 
 
-error: Expected A to be an entity
-  ┌─ testinput:6:10
+error: Unexpected `inst` for function call
+  ┌─ testinput:6:5
   │
 2 │     A
-  │     - A is a enum variant
+  │     - A is defined as a function here
   ·
 6 │     inst X::A()
-  │     ---- ^^^^ Expected entity
+  │     ^^^^ ---- Because A is a function
   │     │     
-  │     because of this inst
+  │     Unexpected `inst`
   │
-  = Consider removing inst
+  = Consider removing the `inst`
   │
 6 │     inst X::A()
   │     ----
-
-

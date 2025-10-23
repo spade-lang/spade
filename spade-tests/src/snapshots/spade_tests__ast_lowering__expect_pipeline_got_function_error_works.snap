@@ -7,20 +7,18 @@ entity test() -> bool {
     inst(0) x()
 }
 
-error: Expected x to be a pipeline
-  ┌─ testinput:4:13
+error: Unexpected `inst` for function call
+  ┌─ testinput:4:5
   │
 1 │ fn x() -> bool {true}
-  │ --------------------- x is a function
+  │ -- x is defined as a function here
   ·
 4 │     inst(0) x()
-  │     ------- ^ Expected pipeline
+  │     ^^^^^^^ - Because x is a function
   │     │        
-  │     because of this inst
+  │     Unexpected `inst`
   │
-  = Consider removing inst
+  = Consider removing the `inst`
   │
 4 │     inst(0) x()
   │     -------
-
-
