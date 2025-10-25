@@ -79,8 +79,8 @@ static STATE: Mutex<Option<SpadeTranslator>> = Mutex::new(None);
 /// Same as the swim::SurferInfo struct
 #[derive(Deserialize, Clone)]
 pub struct SpadeTestInfo {
-    state_file: Utf8PathBuf,
-    top_names: HashMap<Utf8PathBuf, String>,
+    pub state_file: Utf8PathBuf,
+    pub top_names: HashMap<Utf8PathBuf, String>,
 }
 
 #[derive(Deserialize, Serialize)]
