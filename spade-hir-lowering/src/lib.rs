@@ -1951,27 +1951,31 @@ impl ExprLocal for Loc<Expression> {
                     &ctx.item_list.types,
                 )?;
 
-                // Check for missing branches
-                let pat_stacks = branches
-                    .iter()
-                    .map(|(pat, _)| PatStack::new(vec![DeconstructedPattern::from_hir(pat, ctx)]))
-                    .collect::<Vec<_>>();
+                if !operand_ty.is_error_recursively() {
+                    // Check for missing branches
+                    let pat_stacks = branches
+                        .iter()
+                        .map(|(pat, _)| {
+                            PatStack::new(vec![DeconstructedPattern::from_hir(pat, ctx)])
+                        })
+                        .collect::<Vec<_>>();
 
-                // The patterns which make a wildcard useful are the ones that are missing
-                // from the match statement
-                let wildcard_useful = is_useful(
-                    &PatStack::new(vec![DeconstructedPattern::wildcard(&operand_ty)]),
-                    &usefulness::Matrix::new(&pat_stacks),
-                );
+                    // The patterns which make a wildcard useful are the ones that are missing
+                    // from the match statement
+                    let wildcard_useful = is_useful(
+                        &PatStack::new(vec![DeconstructedPattern::wildcard(&operand_ty)]),
+                        &usefulness::Matrix::new(&pat_stacks),
+                    );
 
-                if wildcard_useful.is_useful() {
-                    let witnesses = format_witnesses(&wildcard_useful.witnesses);
+                    if wildcard_useful.is_useful() {
+                        let witnesses = format_witnesses(&wildcard_useful.witnesses);
 
-                    return Err(Diagnostic::error(
-                        self.loc(),
-                        format!("Non-exhaustive match: {witnesses} not covered"),
-                    )
-                    .primary_label(format!("{witnesses} not covered")));
+                        return Err(Diagnostic::error(
+                            self.loc(),
+                            format!("Non-exhaustive match: {witnesses} not covered"),
+                        )
+                        .primary_label(format!("{witnesses} not covered")));
+                    }
                 }
 
                 result.append(operand.lower(ctx)?);

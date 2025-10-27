@@ -76,6 +76,34 @@ impl ConcreteType {
         }
     }
 
+    pub fn is_error_recursively(&self) -> bool {
+        match self {
+            ConcreteType::Error => true,
+            ConcreteType::Tuple(inner) => inner.iter().any(|ty| ty.is_error_recursively()),
+            ConcreteType::Struct {
+                name: _,
+                is_port: _,
+                members,
+                field_translators: _,
+            } => members.iter().any(|(_, ty)| ty.is_error_recursively()),
+            ConcreteType::Array { inner, size: _ } => inner.is_error_recursively(),
+            ConcreteType::Enum { options } => options.iter().any(|option| {
+                option
+                    .1
+                    .iter()
+                    .any(|(_, member)| member.is_error_recursively())
+            }),
+            ConcreteType::Single { base: _, params } => {
+                params.iter().any(|p| p.is_error_recursively())
+            }
+            ConcreteType::Integer(_) => false,
+            ConcreteType::Bool(_) => false,
+            ConcreteType::String(_) => false,
+            ConcreteType::Backward(inner) => inner.is_error_recursively(),
+            ConcreteType::Wire(inner) => inner.is_error_recursively(),
+        }
+    }
+
     pub fn is_port(&self) -> bool {
         match self {
             ConcreteType::Error => false,
