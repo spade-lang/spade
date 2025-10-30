@@ -37,7 +37,7 @@ struct Context<'a> {
 }
 
 /// Produces a source location verilog attribute if the loc and code bundle are defined
-fn source_attribute(loc: &Option<Loc<()>>, code: &Option<CodeBundle>) -> Option<String> {
+fn source_attribute<T>(loc: &Option<Loc<T>>, code: &Option<CodeBundle>) -> Option<String> {
     match (loc, code) {
         (Some(l), Some(c)) => Some(format!(r#"(* src = "{}" *)"#, c.source_loc(l))),
         _ => None,
@@ -1305,6 +1305,7 @@ pub fn entity_code(
     let output_size = entity.output_type.size();
     let (output_definition, output_assignment) = if output_size != BigUint::zero() {
         let def = code! {
+            [0] source_attribute(&Some(entity.output.clone()), source_code);
             [0] format!("output{} output__", size_spec(&output_size))
         };
         let assignment = code! {[0] assign("output__", &entity.output.var_name())};
@@ -1578,7 +1579,7 @@ mod tests {
                 ty: Type::Bool,
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::Bool,
             statements: vec![],
         };
@@ -1625,7 +1626,7 @@ mod tests {
                 ty: Type::Backward(Box::new(Type::Bool)),
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::Bool,
             statements: vec![],
         };
@@ -3414,7 +3415,7 @@ mod expression_tests {
                 ty: Type::InOut(Box::new(Type::Bool)),
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::unit(),
             statements: vec![],
         };

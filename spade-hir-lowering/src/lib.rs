@@ -3397,7 +3397,7 @@ pub fn generate_unit<'a>(
     Ok(mir::Entity {
         name: name.as_mir(),
         inputs: mir_inputs,
-        output: unit.body.variable(&ctx)?,
+        output: unit.body.variable(&ctx)?.at_loc(&unit.body),
         output_type: output_t,
         statements,
     })

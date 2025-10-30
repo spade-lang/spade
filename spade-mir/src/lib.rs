@@ -540,7 +540,7 @@ pub struct Entity {
     pub name: UnitName,
     /// A module input which is called `.1` externally and `.2` internally in the module
     pub inputs: Vec<MirInput>,
-    pub output: ValueName,
+    pub output: Loc<ValueName>,
     pub output_type: Type,
     pub statements: Vec<Statement>,
 }

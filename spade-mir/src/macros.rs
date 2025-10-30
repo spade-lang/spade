@@ -157,7 +157,7 @@ macro_rules! entity {
                     }
                 ),*
             ],
-            output: spade_mir::value_name!($output_name_kind $output_name),
+            output: spade_common::location_info::WithLocation::nowhere(spade_mir::value_name!($output_name_kind $output_name)),
             output_type: $output_type,
             statements: vec![
                 $( spade_mir::statement! $statement ),*
@@ -195,6 +195,7 @@ macro_rules! assert_same_mir {
 #[cfg(test)]
 mod tests {
     use spade_common::id_tracker::ExprID;
+    use spade_common::location_info::WithLocation;
     use spade_common::name::{NameID, Path};
     use spade_mir::unit_name::UnitNameKind;
 
@@ -302,7 +303,7 @@ mod tests {
                 ty: Type::Bool,
                 no_mangle: None,
             }],
-            output: ValueName::_test_named(1, "value".to_string()),
+            output: ValueName::_test_named(1, "value".to_string()).nowhere(),
             output_type: Type::int(6),
             statements: vec![
                 statement!(e(0); Type::int(6); Add; n(1, "value")),

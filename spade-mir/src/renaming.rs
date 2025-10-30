@@ -163,7 +163,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
             *val = state.get(val)
         }
 
-        *output = state.get(output);
+        output.inner = state.get(&output.inner);
 
         for stmt in statements.iter_mut() {
             match stmt {
