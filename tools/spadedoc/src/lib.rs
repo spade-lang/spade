@@ -225,35 +225,45 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
     }
 
     let mut flattened_impls: BTreeMap<NameID, Vec<(TraitName, ImplBlock)>> = BTreeMap::new();
-    for (_, map) in root_item_list.impls {
-        for ((name, _), block) in map {
-            fn flatten_targets(spec: spade_hir::TypeSpec, targets: &mut HashSet<NameID>) {
-                match spec {
-                    spade_hir::TypeSpec::Array { inner, .. } => {
-                        flatten_targets(inner.inner, targets)
-                    }
-                    spade_hir::TypeSpec::Declared(loc, _) => {
-                        targets.insert(loc.inner);
-                    }
-                    spade_hir::TypeSpec::Generic(_) => {}
-                    spade_hir::TypeSpec::Tuple(specs) => {
-                        for spec in specs {
-                            flatten_targets(spec.inner, targets);
+    for (_, map) in root_item_list.impls.inner {
+        for (trait_name, block) in map {
+            match trait_name {
+                TraitName::Named(named) => {
+                    let name = named.inner;
+                    fn flatten_targets(spec: spade_hir::TypeSpec, targets: &mut HashSet<NameID>) {
+                        match spec {
+                            spade_hir::TypeSpec::Array { inner, .. } => {
+                                flatten_targets(inner.inner, targets)
+                            }
+                            spade_hir::TypeSpec::Declared(loc, _) => {
+                                targets.insert(loc.inner);
+                            }
+                            spade_hir::TypeSpec::Generic(_) => {}
+                            spade_hir::TypeSpec::Tuple(specs) => {
+                                for spec in specs {
+                                    flatten_targets(spec.inner, targets);
+                                }
+                            }
+                            spade_hir::TypeSpec::Inverted(loc) => {
+                                flatten_targets(loc.inner, targets)
+                            }
+                            spade_hir::TypeSpec::Wire(loc) => flatten_targets(loc.inner, targets),
+                            spade_hir::TypeSpec::TraitSelf(_) => {
+                                todo!("Not sure if we even need this")
+                            }
+                            spade_hir::TypeSpec::Wildcard(_) => todo!("Not even sure what that is"),
                         }
                     }
-                    spade_hir::TypeSpec::Inverted(loc) => flatten_targets(loc.inner, targets),
-                    spade_hir::TypeSpec::Wire(loc) => flatten_targets(loc.inner, targets),
-                    spade_hir::TypeSpec::TraitSelf(_) => todo!("Not sure if we even need this"),
-                    spade_hir::TypeSpec::Wildcard(_) => todo!("Not even sure what that is"),
+                    let mut targets = HashSet::new();
+                    flatten_targets(block.inner.target.inner.clone(), &mut targets);
+                    for target in targets {
+                        flattened_impls
+                            .entry(target)
+                            .or_default()
+                            .push((TraitName::Named(name.clone()), block.inner.clone()));
+                    }
                 }
-            }
-            let mut targets = HashSet::new();
-            flatten_targets(block.inner.target.inner.clone(), &mut targets);
-            for target in targets {
-                flattened_impls
-                    .entry(target)
-                    .or_default()
-                    .push((name.clone(), block.inner.clone()));
+                TraitName::Anonymous(impl_id) => todo!(),
             }
         }
     }

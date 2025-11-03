@@ -115,6 +115,7 @@ impl<'r> Spec<'r> {
             }
             TypeExpression::TypeSpec(ts) => Ok(Self::mirror_typespec(ts)?),
             TypeExpression::ConstGeneric(cg) => Ok(Self::mirror_constgeneric(cg, true, false)?),
+            TypeExpression::String(_) => todo!(),
         }
     }
 
@@ -130,7 +131,7 @@ impl<'r> Spec<'r> {
                 name: Cow::Owned(name.inner.1.tail()),
                 type_args: vec![],
             },
-            ConstGeneric::Const(const_number) => {
+            ConstGeneric::Int(const_number) => {
                 Self::Number(const_number.iter_u64_digits().next().unwrap() as i64)
             }
             ConstGeneric::Add(lhs, rhs) => Self::ConstGenericBinOp {
@@ -172,6 +173,7 @@ impl<'r> Spec<'r> {
                 op: "!=".into(),
                 rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
             },
+            ConstGeneric::Str(_) => todo!(),
         };
         if root {
             Ok(Self::ConstGenericRoot(Box::new(spec)))
@@ -179,7 +181,7 @@ impl<'r> Spec<'r> {
             if needs_surround
                 && !matches!(
                     expr,
-                    ConstGeneric::Name(_) | ConstGeneric::Const(_) | ConstGeneric::UintBitsToFit(_)
+                    ConstGeneric::Name(_) | ConstGeneric::Int(_) | ConstGeneric::UintBitsToFit(_)
                 )
             {
                 spec = Self::Parenthesized(Box::new(spec));
