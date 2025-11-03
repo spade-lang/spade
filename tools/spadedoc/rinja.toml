@@ -1,0 +1,3 @@
+[general]
+dirs = ["src/html"]
+whitespace = "suppress"

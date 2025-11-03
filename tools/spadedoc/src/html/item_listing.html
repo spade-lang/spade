@@ -1,0 +1,6 @@
+<h3 class="sdoc_item_listing_title">{{ title }}</h3>
+<ul class="clean_ul">
+    {% for entry in entries %}
+    <li><a class="sdoc_item_listed" href="{{ entry.link }}">{{ entry.name }}</a></li>
+    {% endfor %}
+</ul>

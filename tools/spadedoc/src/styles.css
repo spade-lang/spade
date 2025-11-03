@@ -1,0 +1,261 @@
+:root {
+    --font-dm-sans: "DM Sans", sans-serif;
+    --font-courier: 'Courier New', Courier, monospace;
+
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+
+    --badge-padding-vertical: var(--spacing-xs);
+    --badge-padding-horizontal: var(--spacing-sm);
+    --badge-border-radius: 0.7rem;
+    --badge-font-size: 0.9rem;
+    --badge-font-weight: 500;
+
+    --sdoc-name-font-size: 2.5rem;
+    --sdoc-name-margin: 0;
+
+    /* COLOR PALATE -- ONLY USE THESE COLORS */
+    --white: #ffffff;
+    --white2: #f2f2f2;
+    --light-gray: #d0d0d0;
+    --black: #161616;
+    --gray-blue: #37474F;
+    --pale-blue: #90A4AE;
+    --gray: #525252;
+    --aqua: #08bdba;
+    --pink: #ff7eb6;
+    --pink2: #ee5396;
+    --orange: #ff6f00;
+    --blue: #0f62fe;
+    --purple: #673ab7;
+    --green: #42be65;
+    --light-purple: #be95ff;
+    --peach: #ffab91;
+
+    --listing-title-font-size: 1.25rem;
+    --listing-title-margin-top: 1.5rem;
+    --listing-title-margin-bottom: 1rem;
+    --listing-title-padding-top: 0.2rem;
+    --listing-title-padding-bottom: 0.6rem;
+    --listing-title-border-color: var(--light-gray);
+
+    --text-color: var(--black);
+    --border-color: var(--light-gray);
+    --signature-bg: var(--white2);
+    --background: --var(white);
+
+    --sidebar-width: 15rem;
+    --sidebar-bg: var(--white2);
+    --sidebar-hamburger-size: 36px;
+
+    --toggle-bg: #333333;
+    --toggle-text: #ffffff;
+
+    /* todo: move these all over to the palatte */
+    --badge-bg-module: #6fb5e3;
+    --badge-bg-function: #9b70b8;
+    --badge-bg-entity: var(--pink);
+    --badge-bg-pipeline: #77ddb6;
+    --badge-bg-struct: #ffdb5c;
+    --badge-bg-enum: #c7e478;
+    --badge-bg-primitive: #ff8750;
+    --badge-bg-trait: #db5dd1;
+    --badge-text-color: var(--black);
+}
+
+@font-face {
+    font-family: "DM Sans";
+    src: url("DMSans-VariableFont_opsz,wght.ttf");
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-dm-sans);
+    background: var(--background);
+    color: var(--text-color);
+}
+
+
+.sdoc_sidebar {
+    padding: var(--spacing-sm);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.sdoc_sidebar>nav>* {
+    margin: 0;
+}
+
+.sdoc_content {
+    padding: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+    .sdoc_header {
+        display: none;
+    }
+
+    #sdoc_sidebar_toggle {
+        display: none;
+    }
+
+    .sdoc_sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: var(--sidebar-width);
+        height: 100%;
+    }
+
+    .sdoc_content {
+        margin-left: calc(var(--sidebar-width) + var(--spacing-md));
+    }
+}
+
+#sdoc_sidebar_toggle {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .sdoc_header {
+        display: flex;
+        align-items: center;
+        background: var(--sidebar-bg);
+        padding: 0;
+        margin: 0;
+        padding-left: var(--spacing-sm);
+        border-bottom: 1px solid var(--border-color);
+        height: calc(var(--sidebar-hamburger-size) + 2 * var(--spacing-sm));
+    }
+
+    .sdoc_sidebar {
+        display: none;
+        position: fixed;
+        top: calc(var(--sidebar-hamburger-size) + 2 * var(--spacing-sm));
+        left: -var(--sidebar-width);
+        width: var(--sidebar-width);
+        height: 100%;
+        z-index: 1000;
+    }
+
+    .sdoc_sidebar_label {
+        padding: 0;
+        margin: 0;
+        height: var(--sidebar-hamburger-size);
+    }
+
+    .sdoc_sidebar_hamburger {
+        padding: 0;
+        margin: 0;
+    }
+
+    .sdoc_sidebar_hamburger:hover {
+        filter: brightness(90%);
+    }
+
+    .sdoc_sidebar_hamburger:active {
+        filter: brightness(80%);
+    }
+
+    #sdoc_sidebar_toggle:checked~.sdoc_sidebar {
+        display: block;
+    }
+}
+
+.sdoc_badge {
+    padding: var(--badge-padding-vertical) var(--badge-padding-horizontal);
+    border-radius: var(--badge-border-radius);
+    font-family: var(--font-dm-sans);
+    font-weight: var(--badge-font-weight);
+    font-size: var(--badge-font-size);
+    color: var(--badge-text-color);
+}
+
+.sdoc_badge_module {
+    background-color: var(--badge-bg-module);
+}
+
+.sdoc_badge_function {
+    background-color: var(--badge-bg-function);
+}
+
+.sdoc_badge_entity {
+    background-color: var(--badge-bg-entity);
+}
+
+.sdoc_badge_pipeline {
+    background-color: var(--badge-bg-pipeline);
+}
+
+.sdoc_badge_struct {
+    background-color: var(--badge-bg-struct);
+}
+
+.sdoc_badge_enum {
+    background-color: var(--badge-bg-enum);
+}
+
+.sdoc_badge_primitive {
+    background-color: var(--badge-bg-primitive);
+}
+
+.sdoc_badge_trait {
+    background-color: var(--badge-bg-trait);
+}
+
+.sdoc_name {
+    margin: var(--sdoc-name-margin);
+    font-family: var(--font-dm-sans);
+    font-size: var(--sdoc-name-font-size);
+}
+
+.sdoc_path {
+    margin-top: 0;
+    color: var(--text-color);
+}
+
+.sdoc_path_whole {
+    font-family: var(--font-courier);
+    font-weight: 700;
+}
+
+.sdoc_item_listing_title {
+    width: 100%;
+    border-bottom: 1px solid var(--listing-title-border-color);
+    font-family: var(--font-dm-sans);
+    font-size: var(--listing-title-font-size);
+    margin: var(--listing-title-margin-top) 0 var(--listing-title-margin-bottom) 0;
+    display: block;
+    padding: var(--listing-title-padding-top) 0 var(--listing-title-padding-bottom) 0;
+}
+
+.sdoc_impl_header {
+    width: 100%;
+    border-bottom: 1px solid var(--listing-title-border-color);
+    font-family: var(--font-courier);
+    font-size: var(--listing-title-font-size);
+    margin: var(--listing-title-margin-top) 0 var(--listing-title-margin-bottom) 0;
+    display: block;
+    padding: var(--listing-title-padding-top) 0 var(--listing-title-padding-bottom) 0;
+}
+
+.clean_ul {
+    list-style-type: none;
+}
+
+.sdoc_item_listed {
+    font-family: var(--font-dm-sans);
+}
+
+.sdoc_signature {
+    font-family: var(--font-courier);
+    padding: 0.5rem 0.25rem;
+    background-color: var(--signature-bg);
+    overflow: scroll;
+}
+
+pre.sdoc_signature>code {
+    font-family: var(--font-courier);
+}

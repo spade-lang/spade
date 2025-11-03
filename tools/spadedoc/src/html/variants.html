@@ -1,0 +1,10 @@
+{% for variant in self.0 %}
+{% if let Variant::Unit(name, doc) = variant %}
+<h3>{{ name }}</h3>
+<p>{{ doc|safe }}</p>
+{% endif %}
+{% if let Variant::Valued(name, params, doc) = variant %}
+<h3>{{ name }}{{ "{" }} {{ params|join(", ") }} {{ "}" }}</h3>
+<p>{{ doc|safe }}</p>
+{% endif %}
+{% endfor %}

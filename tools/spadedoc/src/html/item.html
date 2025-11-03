@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spade Documentation Index</title>
+    <link rel="stylesheet" href="{{ style_ref }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="{{ spade_highlight_path }}"></script>
+    <link rel="stylesheet" href="{{ spade_css_path }}">
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body>
+    <input type="checkbox" id="sdoc_sidebar_toggle">
+    <header class="sdoc_header">
+        <label for="sdoc_sidebar_toggle" class="sdoc_sidebar_toggle sdoc_sidebar_label">
+            <!--https://tabler.io/icons-->
+            <svg class="sdoc_sidebar_hamburger" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#161616" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M4 6l16 0" />
+                <path d="M4 12l16 0" />
+                <path d="M4 18l16 0" />
+            </svg>
+        </label>
+    </header>
+    <div class="sdoc_sidebar">
+        <nav>
+            <h2><a href="{{ root_namespace_path }}">{{ root_namespace }}</a></h2>
+            <p>Also put table of contents for current page here with links</p>
+        </nav>
+    </div>
+    <div class="sdoc_content">
+        {# Badge #}
+        {% match kind %}
+        {% when ItemKind::Module %}
+        <span class="sdoc_badge sdoc_badge_module">Module</span>
+        {% when ItemKind::Function %}
+        <span class="sdoc_badge sdoc_badge_function">Function</span>
+        {% when ItemKind::Entity %}
+        <span class="sdoc_badge sdoc_badge_entity">Entity</span>
+        {% when ItemKind::Pipeline %}
+        <span class="sdoc_badge sdoc_badge_pipeline">Pipeline</span>
+        {% when ItemKind::Struct %}
+        <span class="sdoc_badge sdoc_badge_struct">Struct</span>
+        {% when ItemKind::Enum %}
+        <span class="sdoc_badge sdoc_badge_enum">Enum</span>
+        {% when ItemKind::Primitive %}
+        <span class="sdoc_badge sdoc_badge_primitive">Primitive</span>
+        {% when ItemKind::Trait %}
+        <span class="sdoc_badge sdoc_badge_trait">Trait</span>
+        {% endmatch %}
+
+        {# Name #}
+        <h1 class="sdoc_name">{{ name }}</h1>
+
+        {# Path where it lives #}
+        {% if let Some(namespace) = namespace %}
+        <p class="sdoc_path">in {{+ namespace|safe }}</p>
+        {% endif %}
+
+        {% if let Some(signature) = signature %}
+        <pre class="sdoc_signature"><code class="language-spade">{{ signature }}</code></pre>
+        {% endif %}
+
+        {{ doc|safe }}
+
+        {# Item Content #}
+        {% for c in content %}
+        {{ c|safe }}
+        {% endfor %}
+    </div>
+</body>
+
+</html>

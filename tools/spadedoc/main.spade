@@ -1,0 +1,43 @@
+//! root documentation
+
+/// documentation
+struct S {}
+
+/// As the name suggests, it does nothing.
+fn do_nothing() { }
+
+/// This is **the** documentation of an _amazing_ ~~pipeline~~ entity.
+///
+/// # Heading O.o
+/// we can write <script>alert()</script> but it get's sanitized :3
+///
+/// Oh! and `this` and 
+/// ```
+/// code blocks!
+/// ```
+entity top() {}
+
+/// A very cool pipeline
+pipeline(2) my_pipeline(clk: clock) {
+    reg*2;
+}
+
+trait SuperCool {}
+
+mod inner {
+    //! This is my inner module :3
+
+    /// inner documentation
+    /// now work with multiple lines
+    struct S {}
+
+    impl lib::SuperCool for S {}
+
+    /// This is a simple enum.
+    enum Heh {
+        /// wow what a nice `A`
+        A { thing: int<8> },
+        /// WOW THAT IS REALLY COOL!!
+        B,
+    }
+}

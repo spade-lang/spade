@@ -1,0 +1,6 @@
+<span class="sdoc_path_whole">
+    {% for segment in segments %}
+    <span class="sdoc_path_seg">{{ segment.value }}</span>::
+    {% endfor %}
+    <span class="sdoc_path_seg">{{ last.value }}</span>
+</span>

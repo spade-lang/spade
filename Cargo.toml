@@ -3,6 +3,7 @@
 members = [
     "spade-*",
     "vcd-translate",
+    "tools/spadedoc"
 ]
 
 resolver = "2"
