@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     fs::File,
     io::{Read, Write},
 };
@@ -16,7 +16,7 @@ use spade_common::{
 };
 use spade_diagnostics::{emitter::CodespanEmitter, DiagHandler};
 use spade_hir::{
-    symbol_table::FrozenSymtab, ExecutableItem, ImplBlock, ItemList, Module, TraitName,
+    symbol_table::FrozenSymtab, ExecutableItem, ImplBlock, ImplTarget, ItemList, Module, TraitName,
 };
 
 pub mod html;
@@ -28,7 +28,7 @@ pub struct Documentation {
     pub documentables: HashMap<SpadePath, HashMap<Identifier, Item>>,
     pub root: (String, Module),
     pub symtab: FrozenSymtab,
-    pub flattened_impls: BTreeMap<NameID, Vec<(TraitName, ImplBlock)>>,
+    pub flattened_impls: BTreeMap<ImplTarget, Vec<(TraitName, ImplBlock)>>,
 
     pub dependencies: BTreeMap<String, Documentation>,
 }
@@ -57,8 +57,6 @@ impl SpadePathExt for SpadePath {
 
 pub struct PreprocessedItemList {
     root_item_list: ItemList,
-    /// REMEMBER TO SORT IN ALPHABETICAL ORDER!!!
-    dependency_item_lists: HashMap<String, ItemList>,
 }
 
 fn preprocess_item_list(item_list: ItemList, root_name: &str) -> PreprocessedItemList {
@@ -109,7 +107,6 @@ fn preprocess_item_list(item_list: ItemList, root_name: &str) -> PreprocessedIte
         }
     }
 
-    // TODO: this needs to be applied to every itemlist somehow?
     root_item_list.impls = item_list.impls;
 
     for (name, module) in item_list.modules {
@@ -124,10 +121,7 @@ fn preprocess_item_list(item_list: ItemList, root_name: &str) -> PreprocessedIte
         }
     }
 
-    PreprocessedItemList {
-        root_item_list,
-        dependency_item_lists,
-    }
+    PreprocessedItemList { root_item_list }
 }
 
 pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentation, Buffer> {
@@ -174,10 +168,8 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
     let artefacts =
         spade::compile(sources.unwrap(), true, opts, diag_handler).map_err(|_| buffer)?;
 
-    let PreprocessedItemList {
-        root_item_list,
-        dependency_item_lists,
-    } = preprocess_item_list(artefacts.item_list, root_name);
+    let PreprocessedItemList { root_item_list } =
+        preprocess_item_list(artefacts.item_list, root_name);
 
     let mut documentables: HashMap<SpadePath, HashMap<Identifier, Item>> = HashMap::new();
 
@@ -224,46 +216,16 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
             .insert(name, Item::Trait(id.inner, def));
     }
 
-    let mut flattened_impls: BTreeMap<NameID, Vec<(TraitName, ImplBlock)>> = BTreeMap::new();
-    for (_, map) in root_item_list.impls.inner {
-        for (trait_name, block) in map {
-            match trait_name {
-                TraitName::Named(named) => {
-                    let name = named.inner;
-                    fn flatten_targets(spec: spade_hir::TypeSpec, targets: &mut HashSet<NameID>) {
-                        match spec {
-                            spade_hir::TypeSpec::Array { inner, .. } => {
-                                flatten_targets(inner.inner, targets)
-                            }
-                            spade_hir::TypeSpec::Declared(loc, _) => {
-                                targets.insert(loc.inner);
-                            }
-                            spade_hir::TypeSpec::Generic(_) => {}
-                            spade_hir::TypeSpec::Tuple(specs) => {
-                                for spec in specs {
-                                    flatten_targets(spec.inner, targets);
-                                }
-                            }
-                            spade_hir::TypeSpec::Inverted(loc) => {
-                                flatten_targets(loc.inner, targets)
-                            }
-                            spade_hir::TypeSpec::Wire(loc) => flatten_targets(loc.inner, targets),
-                            spade_hir::TypeSpec::TraitSelf(_) => {
-                                todo!("Not sure if we even need this")
-                            }
-                            spade_hir::TypeSpec::Wildcard(_) => todo!("Not even sure what that is"),
-                        }
-                    }
-                    let mut targets = HashSet::new();
-                    flatten_targets(block.inner.target.inner.clone(), &mut targets);
-                    for target in targets {
-                        flattened_impls
-                            .entry(target)
-                            .or_default()
-                            .push((TraitName::Named(name.clone()), block.inner.clone()));
-                    }
+    let mut flattened_impls: BTreeMap<ImplTarget, Vec<(TraitName, ImplBlock)>> = BTreeMap::new();
+    for (target, traits) in root_item_list.impls.inner {
+        for (trait_name, per_typeexpr) in traits {
+            for (_target_typeexprs, impl_blocks) in per_typeexpr {
+                for (_, impl_block) in impl_blocks {
+                    flattened_impls
+                        .entry(target.clone())
+                        .or_default()
+                        .push((trait_name.clone(), impl_block.inner.clone()));
                 }
-                TraitName::Anonymous(impl_id) => todo!(),
             }
         }
     }
@@ -275,9 +237,6 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
             root = Some((root_name.to_string(), module));
             continue;
         }
-        //if path.0.len() == 1 && path.tail().0.as_str() == root_name {
-        //    root = Some((root_name.to_string(), module.clone()));
-        //}
 
         let namespace = path.prelude();
         let name = path.tail();
@@ -293,7 +252,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
             root,
             symtab: artefacts.state.symtab,
             flattened_impls,
-            dependencies: BTreeMap::new(), //TODO
+            dependencies: BTreeMap::new(),
         })
     } else {
         // TODO(ethan): there has to be a better way to return an error

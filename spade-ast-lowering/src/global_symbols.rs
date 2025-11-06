@@ -47,10 +47,18 @@ pub fn handle_external_modules(
                     let path = ctx.symtab.current_namespace().push_ident(name.clone());
 
                     // We're going to eagerly add the `mod` first in order to detect duplicates.
-                    ctx.symtab.add_unique_thing(
+                    let name_id = ctx.symtab.add_unique_thing(
                         Path::ident(name.clone()).at_loc(&name),
                         Thing::Module(name.clone()),
                     )?;
+
+                    ctx.item_list.modules.insert(
+                        name_id.clone(),
+                        spade_hir::Module {
+                            name: name_id.at_loc(&name),
+                            documentation: String::new(),
+                        },
+                    );
 
                     if namespaces.remove(&path).is_none() {
                         let name_parts = this_file.split("/").collect::<Vec<_>>();

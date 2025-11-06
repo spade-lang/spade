@@ -820,7 +820,7 @@ pub struct TraitDef {
     pub fns: HashMap<Identifier, Loc<UnitHead>>,
 }
 
-#[derive(PartialEq, Hash, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Hash, Eq, Debug, Clone, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum ImplTarget {
     Array,
     Inverted,

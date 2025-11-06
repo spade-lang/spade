@@ -8,7 +8,7 @@ use error_handling::{ErrorHandler, Reportable};
 use logos::Logos;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
-use spade_common::location_info::Loc;
+use spade_common::location_info::{Loc, WithLocation};
 pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::DiagList;
 use spade_hir::expression::Safety;
@@ -175,11 +175,18 @@ pub fn compile(
     {
         let namespace = &root.0;
         if !namespace.namespace.0.is_empty() {
-            ctx.symtab.add_thing(
+            let name_id = ctx.symtab.add_thing(
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
                     namespace.namespace.0.last().unwrap().clone(),
                 ),
+            );
+            ctx.item_list.modules.insert(
+                name_id.clone(),
+                spade_hir::Module {
+                    name: name_id.at_loc(&root.1),
+                    documentation: "".to_string(),
+                },
             );
         }
     }

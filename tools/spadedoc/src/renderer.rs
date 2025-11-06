@@ -291,7 +291,7 @@ impl<'d> Renderer<'d> {
     fn type_impls(&self, item: Documentable<&Item>) -> Result<Vec<ItemContent<'d>>> {
         if let Item::Type(ty) = item.inner {
             let mut impls = vec![];
-            if let Some(i) = self.documentation.flattened_impls.get(&ty.name.inner) {
+            if let Some(i) = self.documentation.flattened_impls.get(&spade_hir::ImplTarget::Named(ty.name.inner.clone())) {
                 for (traitname, implblock) in i {
                     let target = Spec::mirror_typespec(&implblock.target.inner)?;
                     impls.push(ItemContent::Implementation(html::Implementation {
