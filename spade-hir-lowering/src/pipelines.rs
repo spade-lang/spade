@@ -10,6 +10,7 @@ use spade_common::name::Path;
 use spade_common::{location_info::Loc, name::NameID};
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
+use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::Diagnostic;
 use spade_hir::expression::CallKind;
 use spade_hir::Binding;
@@ -425,6 +426,27 @@ pub fn lower_pipeline<'a>(
         ready_signals,
         valid_signals,
     });
+
+    let result_latency = body.kind.available_in(ctx)?;
+    if result_latency != 0 {
+        // TODO: Add a test for this with `gen if`, depending on codegen we may fail that
+        let ExprKind::Block(block) = &body.kind else {
+            diag_bail!(body, "Unit result was not a block")
+        };
+        let Some(result) = &block.result else {
+            diag_bail!(body, "Found a block with latency but without a result");
+        };
+        return Err(
+            Diagnostic::error(result, "Use of result before it is ready")
+                .primary_label("Use of result before it is ready")
+                .span_suggest_multipart(
+                    "Consider binding the result to a variable and adding the required pipeline stages",
+                    SuggestionParts::new()
+                        .part(result.start_span(), "let result = ")
+                        .part(result.end_span(), format!("; reg * {result_latency}; result"))
+                )
+        );
+    }
 
     Ok(())
 }

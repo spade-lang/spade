@@ -209,6 +209,16 @@ impl<T> Loc<T> {
             && other.span.start() < self.span.end()
     }
 
+    pub fn start_span(&self) -> Loc<()> {
+        ().at(
+            self.file_id,
+            &Span::new(self.span.start(), self.span.start()),
+        )
+    }
+    pub fn end_span(&self) -> Loc<()> {
+        ().at(self.file_id, &Span::new(self.span.end(), self.span.end()))
+    }
+
     /// Shrinks a Loc on the left size by the width of the specified string.
     /// For example (( abc ))
     ///             ^^^^^^^^^ .shrink_left("((")

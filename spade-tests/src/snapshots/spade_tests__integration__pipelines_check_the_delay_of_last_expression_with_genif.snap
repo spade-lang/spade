@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(1) subpipe(clk: clock) -> bool {
+reg;
+    false
+}
+
+pipeline(0) test(clk: clock) -> bool {
+    gen if 1 == 1 {
+        inst(1) subpipe(clk)
+    } else {
+        false
+    }
+}
+
+
+error: Use of result before it is ready
+  ┌─ testinput:8:9
+  │
+8 │         inst(1) subpipe(clk)
+  │         ^^^^^^^^^^^^^^^^^^^^ Use of result before it is ready
+  │
+  = Consider binding the result to a variable and adding the required pipeline stages
+  │
+8 │         let result = inst(1) subpipe(clk); reg * 1; result
+  │         +++++++++++++                    +++++++++++++++++

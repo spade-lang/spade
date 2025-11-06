@@ -681,6 +681,38 @@ code_compiles! {
     all
 }
 
+snapshot_error! {
+    pipelines_check_the_delay_of_last_expression,
+    "
+        pipeline(1) subpipe(clk: clock) -> bool {
+        reg;
+            false
+        }
+
+        pipeline(0) test(clk: clock) -> bool {
+            inst(1) subpipe(clk)
+        }
+    "
+}
+
+snapshot_error! {
+    pipelines_check_the_delay_of_last_expression_with_genif,
+    "
+        pipeline(1) subpipe(clk: clock) -> bool {
+        reg;
+            false
+        }
+
+        pipeline(0) test(clk: clock) -> bool {
+            gen if 1 == 1 {
+                inst(1) subpipe(clk)
+            } else {
+                false
+            }
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

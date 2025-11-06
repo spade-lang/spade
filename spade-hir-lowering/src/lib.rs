@@ -1316,8 +1316,8 @@ impl ExprLocal for Loc<Expression> {
                                 available_at
                             ))
                             .help(format!(
-            "Consider adding more reg; statements between the definition and use of {name}"
-        )),
+                                "Consider adding more reg; statements between the definition and use of {name}"
+                            )),
                     )
                 }
                 Substitution::Available(current) => Ok(Some(current.value_name())),
