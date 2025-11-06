@@ -1,0 +1,29 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(10) test(clk: clock) -> [bool; 8] {
+  reg*10;
+    [false; 8]
+}
+
+impl [bool; 8] {
+    fn takes_an_arg(self, x: uint<8>) -> int<8> {
+        0
+    }
+}
+
+pipeline(1) main(clk: clock) -> int<8> {
+    let a = 5;
+    let x = inst(10) test(clk).takes_an_arg(a);
+  reg;
+    x
+}
+
+
+error: All subexpressions need the same pipeline delay
+   ┌─ testinput:14:45
+   │
+14 │     let x = inst(10) test(clk).takes_an_arg(a);
+   │             ------------------              ^ This has delay 0
+   │             │                                
+   │             But this has delay 10

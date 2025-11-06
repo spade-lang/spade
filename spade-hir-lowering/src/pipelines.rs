@@ -77,7 +77,7 @@ pub fn handle_statement(
             wal_trace: _,
             ty: _,
         }) => {
-            let time = expr.inner.kind.available_in(ctx)?;
+            let time = expr.inner.available_in(ctx)?;
             for name in pat.get_names() {
                 let ty = ctx.types.concrete_type_of_name(
                     &name,
@@ -85,12 +85,13 @@ pub fn handle_statement(
                     &ctx.item_list.types,
                 )?;
 
-                ctx.subs.set_available(name, time, *current_stage, ty)
+                ctx.subs
+                    .set_available(name, time.unwrap_or(0), *current_stage, ty)
             }
         }
         Statement::Expression(_) => {}
         Statement::Register(reg) => {
-            let time = reg.value.kind.available_in(ctx)?;
+            let time = reg.value.available_in(ctx)?;
             for name in reg.pattern.get_names() {
                 let ty = ctx.types.concrete_type_of_name(
                     &name,
@@ -98,7 +99,8 @@ pub fn handle_statement(
                     &ctx.item_list.types,
                 )?;
 
-                ctx.subs.set_available(name, time, *current_stage, ty)
+                ctx.subs
+                    .set_available(name, time.unwrap_or(0), *current_stage, ty)
             }
         }
         Statement::Declaration(_) => todo!(),
@@ -427,9 +429,8 @@ pub fn lower_pipeline<'a>(
         valid_signals,
     });
 
-    let result_latency = body.kind.available_in(ctx)?;
+    let result_latency = body.available_in(ctx)?.unwrap_or(0);
     if result_latency != 0 {
-        // TODO: Add a test for this with `gen if`, depending on codegen we may fail that
         let ExprKind::Block(block) = &body.kind else {
             diag_bail!(body, "Unit result was not a block")
         };
@@ -570,16 +571,17 @@ pub fn constexpr_inv(
 pub fn try_compute_availability(
     exprs: &[impl std::borrow::Borrow<Loc<Expression>>],
     ctx: &Context,
-) -> Result<usize> {
+) -> Result<Option<usize>> {
     let mut result = None;
     for expr in exprs {
-        let a = expr.borrow().kind.available_in(ctx)?;
+        let a = expr.borrow().available_in(ctx)?;
 
-        result = match result {
-            None => Some(a),
-            Some(prev) if a == prev => result,
+        result = match (a, result) {
+            (a, None) => a,
+            (None, prev) => prev,
+            (Some(a), Some(prev)) if a == prev => result,
             // NOTE: Safe index. This branch can only be reached in iteration 2 of the loop
-            _ => {
+            (Some(a), Some(_)) => {
                 let prev = exprs[0].borrow().clone().map(|_| result.unwrap());
                 let new = expr.borrow().clone().map(|_| a);
                 return Err(Diagnostic::error(
@@ -591,21 +593,37 @@ pub fn try_compute_availability(
             }
         }
     }
-    Ok(result.unwrap_or(0))
+    Ok(result)
 }
 
 #[local_impl]
-impl PipelineAvailability for ExprKind {
-    fn available_in(&self, ctx: &Context) -> Result<usize> {
-        match self {
-            ExprKind::Error => Ok(0),
-            ExprKind::Identifier(_) => Ok(0),
-            ExprKind::IntLiteral(_, _) => Ok(0),
-            ExprKind::TypeLevelInteger(_) => Ok(0),
-            ExprKind::BoolLiteral(_) => Ok(0),
-            ExprKind::BitLiteral(_) => Ok(0),
-            ExprKind::CreatePorts => Ok(0),
-            ExprKind::StageReady | ExprKind::StageValid => Ok(0),
+impl PipelineAvailability for Expression {
+    // Computes the availability of an expression. Returns `None` if the expression is always
+    // available, i.e. it is constant or a port
+    fn available_in(&self, ctx: &Context) -> Result<Option<usize>> {
+        // Port types are considered always available
+        match ctx.types.concrete_type_of(
+            &self.clone().nowhere(),
+            ctx.symtab.symtab(),
+            &ctx.item_list.types,
+        ) {
+            Ok(ty) => {
+                if ty.is_port() {
+                    return Ok(None);
+                }
+            }
+            _ => {}
+        }
+
+        match &self.kind {
+            ExprKind::Error => Ok(None),
+            ExprKind::Identifier(_) => Ok(Some(0)),
+            ExprKind::IntLiteral(_, _) => Ok(None),
+            ExprKind::TypeLevelInteger(_) => Ok(None),
+            ExprKind::BoolLiteral(_) => Ok(None),
+            ExprKind::BitLiteral(_) => Ok(None),
+            ExprKind::CreatePorts => Ok(None),
+            ExprKind::StageReady | ExprKind::StageValid => Ok(Some(0)),
             ExprKind::TupleLiteral(inner) => try_compute_availability(inner, ctx),
             ExprKind::ArrayLiteral(elems) => try_compute_availability(elems, ctx),
             ExprKind::ArrayShorthandLiteral(inner, _) => {
@@ -619,12 +637,12 @@ impl PipelineAvailability for ExprKind {
                 start: _,
                 end: _,
             } => try_compute_availability(&[target.as_ref()], ctx),
-            ExprKind::TupleIndex(lhs, _) => lhs.inner.kind.available_in(ctx),
-            ExprKind::FieldAccess(lhs, _) => lhs.inner.kind.available_in(ctx),
+            ExprKind::TupleIndex(lhs, _) => lhs.inner.available_in(ctx),
+            ExprKind::FieldAccess(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::BinaryOperator(lhs, _, rhs) => {
                 try_compute_availability(&[lhs.as_ref(), rhs.as_ref()], ctx)
             }
-            ExprKind::UnaryOperator(_, val) => val.inner.kind.available_in(ctx),
+            ExprKind::UnaryOperator(_, val) => val.inner.available_in(ctx),
             ExprKind::Match(_, values) => try_compute_availability(
                 &values.iter().map(|(_, expr)| expr).collect::<Vec<_>>(),
                 ctx,
@@ -637,50 +655,54 @@ impl PipelineAvailability for ExprKind {
                 //      x // Will appear as having availability 1
                 // }
                 if let Some(result) = &inner.result {
-                    result.kind.available_in(ctx)
+                    result.available_in(ctx)
                 } else {
-                    Ok(0)
+                    Ok(None)
                 }
             }
-            ExprKind::Call {
-                kind:
+            ExprKind::Call { kind, args, .. } => {
+                // FIXME: Re-add this check to allow nested pipelines
+                let arg_availability = try_compute_availability(
+                    &args
+                        .expressions()
+                        .iter()
+                        .map(|arg| *arg)
+                        .collect::<Vec<_>>(),
+                    ctx,
+                )?;
+                match &kind {
                     CallKind::Pipeline {
                         inst_loc,
                         depth,
                         depth_typeexpr_id,
-                    },
-                ..
-            } => {
-                // FIXME: Re-add this check to allow nested pipelines
-                // let arg_availability = try_compute_availability(
-                //     &args.iter().map(|arg| &arg.value).collect::<Vec<_>>(),
-                // )?;
-                match ctx.types.concrete_type_of(
-                    depth_typeexpr_id.at_loc(depth),
-                    ctx.symtab.symtab(),
-                    &ctx.item_list.types,
-                ) {
-                    Ok(ConcreteType::Integer(val)) => Ok(val.to_usize().ok_or_else(|| {
-                        diag_anyhow!(inst_loc, "Inferred more than `usize::MAX` pipeline stages")
-                    })?),
-                    Ok(_) => diag_bail!(depth, "Found non-integer for pipeline depth"),
-                    Err(_) => Err(Diagnostic::error(
-                        depth,
-                        "The latency of this pipeline instantiation is not known",
-                    )
-                    .primary_label("Unknown latency")),
+                    } => {
+                        match ctx.types.concrete_type_of(
+                            depth_typeexpr_id.at_loc(depth),
+                            ctx.symtab.symtab(),
+                            &ctx.item_list.types,
+                        ) {
+                            Ok(ConcreteType::Integer(val)) => Ok(Some(
+                                arg_availability.unwrap_or(0)
+                                    + val.to_usize().ok_or_else(|| {
+                                        diag_anyhow!(
+                                            inst_loc,
+                                            "Inferred more than `usize::MAX` pipeline stages"
+                                        )
+                                    })?,
+                            )),
+                            Ok(_) => diag_bail!(depth, "Found non-integer for pipeline depth"),
+                            Err(_) => Err(Diagnostic::error(
+                                depth,
+                                "The latency of this pipeline instantiation is not known",
+                            )
+                            .primary_label("Unknown latency")),
+                        }
+                    }
+                    _ => Ok(arg_availability),
                 }
             }
-            ExprKind::Call {
-                kind: CallKind::Function,
-                ..
-            }
-            | ExprKind::Call {
-                kind: CallKind::Entity(_),
-                ..
-            } => Ok(0),
             ExprKind::If(_, t, f) => try_compute_availability(&[t.as_ref(), f.as_ref()], ctx),
-            ExprKind::PipelineRef { .. } => Ok(0),
+            ExprKind::PipelineRef { .. } => Ok(Some(0)),
             ExprKind::TypeLevelIf(cond, _, _) => diag_bail!(
                 cond,
                 "Type level if should already have been lowered by this point"

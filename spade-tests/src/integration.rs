@@ -713,6 +713,67 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    methods_cannot_launder_pipeline_latency,
+    "
+        pipeline(10) test(clk: clock) -> [bool; 8] {
+          reg*10;
+            [false; 8]
+        }
+
+        pipeline(1) main(clk: clock) -> int<8> {
+            let x = inst(10) test(clk).to_int();
+          reg;
+            x
+        }
+    "
+}
+
+snapshot_error! {
+    mixed_latency_arguments_is_not_allowed,
+    "
+        pipeline(10) test(clk: clock) -> [bool; 8] {
+          reg*10;
+            [false; 8]
+        }
+
+        impl [bool; 8] {
+            fn takes_an_arg(self, x: uint<8>) -> int<8> {
+                0
+            }
+        }
+
+        pipeline(1) main(clk: clock) -> int<8> {
+            let a = 5;
+            let x = inst(10) test(clk).takes_an_arg(a);
+          reg;
+            x
+        }
+    "
+}
+
+code_compiles! {
+    mixed_latency_arguments_is_allowed_on_ports,
+    "
+        pipeline(10) test(clk: clock) -> [bool; 8] {
+          reg*10;
+            [false; 8]
+        }
+
+        impl [bool; 8] {
+            entity takes_an_arg(self, clk: clock) -> int<8> {
+                0
+            }
+        }
+
+        pipeline(10) main(clk: clock) -> int<8> {
+            let x = inst(10) test(clk).inst takes_an_arg(clk);
+          reg * 10;
+            x
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

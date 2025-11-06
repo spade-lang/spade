@@ -1,0 +1,30 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(10) test(clk: clock) -> [bool; 8] {
+  reg*10;
+    [false; 8]
+}
+
+pipeline(1) main(clk: clock) -> int<8> {
+    let x = inst(10) test(clk).to_int();
+  reg;
+    x
+}
+
+
+error: Use of x before it is ready
+  ┌─ testinput:9:5
+  │
+7 │     let x = inst(10) test(clk).to_int();
+  │         - x is defined here at stage 0 with a latency of 10
+8 │   reg;
+9 │     x
+  │     ^
+  │     │
+  │     x is unavailable for another 9 stages
+  │     This is stage 1
+  │
+  = note: Requesting x at stage 1
+  = note: But it will not be available until stage 10
+  = help: Consider adding more reg; statements between the definition and use of x

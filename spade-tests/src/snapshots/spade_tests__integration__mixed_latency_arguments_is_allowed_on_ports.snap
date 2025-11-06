@@ -1,0 +1,37 @@
+---
+source: spade-tests/src/integration.rs
+---
+pipeline(10) test(clk: clock) -> [bool; 8] {
+  reg*10;
+    [false; 8]
+}
+
+impl [bool; 8] {
+    entity takes_an_arg(self, clk: clock) -> int<8> {
+        0
+    }
+}
+
+pipeline(1) main(clk: clock) -> int<8> {
+    let x = inst(10) test(clk).takes_an_arg(clk);
+  reg;
+    x
+}
+
+
+error: Expected `inst` to instantiate entity
+   ┌─ testinput:13:32
+   │
+ 7 │     entity takes_an_arg(self, clk: clock) -> int<8> {
+   │     ------ takes_an_arg is defined as an entity here
+   ·
+13 │     let x = inst(10) test(clk).takes_an_arg(clk);
+   │                                ^^^^^^^^^^^^
+   │                                │
+   │                                Expected `inst`
+   │                                Because takes_an_arg is an entity
+   │
+   = Consider adding `inst`
+   │
+13 │     let x = inst(10) test(clk).inst takes_an_arg(clk);
+   │                                +++++
