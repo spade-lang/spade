@@ -698,6 +698,19 @@ impl AttributeList {
     pub fn from_vec(attrs: Vec<Loc<Attribute>>) -> Self {
         Self(attrs)
     }
+
+    pub fn merge_docs(&self) -> String {
+        self.0
+            .iter()
+            .filter_map(|attr| {
+                if let Attribute::Documentation { content } = &attr.inner {
+                    Some(content)
+                } else {
+                    None
+                }
+            })
+            .join("\n")
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]

@@ -27,10 +27,6 @@ struct Spadedoc {
     #[argh(option, default = "Utf8PathBuf::from(\"doc\")")]
     output: Utf8PathBuf,
 
-    /// the library to document (think --crate in rustdoc)
-    #[argh(option)]
-    lib: String,
-
     /// files to document
     #[argh(positional)]
     files: Vec<NamespacedFileLocal>,
@@ -57,9 +53,9 @@ fn main() -> color_eyre::Result<()> {
         .map(|file| file.0)
         .collect::<Vec<_>>();
 
-    match spadedoc::doc(files, &opts.lib) {
+    match spadedoc::doc(files, opts.output) {
         Ok(doc) => {
-            spadedoc::renderer::Renderer::new(opts.output, &doc).render()?;
+            //spadedoc::renderer::Renderer::new(opts.output, &doc).render()?;
         }
         Err(buffer) => {
             eprintln!("{}", String::from_utf8_lossy(buffer.as_slice()));

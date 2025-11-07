@@ -1,130 +1,39 @@
 #![recursion_limit = "256"]
 
 use std::{
-    collections::{BTreeMap, HashMap},
     fs::File,
-    io::{Read, Write},
+    io::Read,
+    sync::{Arc, Mutex, RwLock},
 };
 
+use camino::Utf8PathBuf;
 use color_eyre::{Result, eyre::Context};
-use item::Item;
-use spade::{ModuleNamespace, namespaced_file::NamespacedFile};
+use rustc_hash::FxHashMap as HashMap;
+use spade::{
+    ModuleNamespace, core_files, do_in_namespace,
+    error_handling::{ErrorHandler, Reportable},
+    namespaced_file::NamespacedFile,
+    parse, stdlib_files,
+};
+use spade_ast_lowering::{SelfContext, global_symbols};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::{
-    location_info::WithLocation,
-    name::{Identifier, NameID, Path as SpadePath},
+    id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker},
+    location_info::WithLocation as _,
+    name::{Path, PathSegment, Visibility},
 };
-use spade_diagnostics::{DiagHandler, emitter::CodespanEmitter};
-use spade_hir::{
-    ExecutableItem, ImplBlock, ImplTarget, ItemList, Module, TraitName, symbol_table::FrozenSymtab,
-};
+use spade_diagnostics::{CodeBundle, DiagHandler, diag_list::DiagList, emitter::CodespanEmitter};
+use spade_hir::{ItemList, expression::Safety, symbol_table::SymbolTable};
 
-pub mod html;
-pub mod item;
-pub mod renderer;
+use crate::impls::Impls;
 
-pub struct Documentation {
-    /// Map from the namespace over all direct items in it, e.g. `a::b::c` is `[a::b, [c, {..}]]`
-    pub documentables: HashMap<SpadePath, HashMap<Identifier, Item>>,
-    pub root: (String, Module),
-    pub symtab: FrozenSymtab,
-    pub flattened_impls: BTreeMap<ImplTarget, Vec<(TraitName, ImplBlock)>>,
+mod errors;
+mod generate;
+mod html;
+mod impls;
+mod print;
 
-    pub dependencies: BTreeMap<String, Documentation>,
-}
-
-trait SpadePathExt {
-    fn as_lib(&self, library: &str) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn as_dep_lib(&self) -> Option<String>;
-}
-
-impl SpadePathExt for SpadePath {
-    fn as_lib(&self, library: &str) -> Option<Self> {
-        if !self.0.is_empty() && self.0[0].to_named_str() == Some(library) {
-            Some(Self(self.0.iter().skip(1).cloned().collect()))
-        } else {
-            None
-        }
-    }
-
-    fn as_dep_lib(&self) -> Option<String> {
-        self.0.first().map(|first| first.to_string())
-    }
-}
-
-pub struct PreprocessedItemList {
-    root_item_list: ItemList,
-}
-
-fn preprocess_item_list(item_list: ItemList, root_name: &str) -> PreprocessedItemList {
-    let mut root_item_list = ItemList::default();
-    let mut dependency_item_lists: HashMap<String, ItemList> = HashMap::new();
-
-    for (name, executable) in item_list.executables {
-        if let Some(path) = name.1.as_lib(root_name) {
-            root_item_list
-                .executables
-                .insert(NameID(name.0, path), executable);
-        } else if let Some(dep_name) = name.1.as_dep_lib() {
-            dependency_item_lists
-                .entry(dep_name)
-                .or_default()
-                .executables
-                .insert(name, executable);
-        }
-    }
-    for (name, ty) in item_list.types {
-        if let Some(path) = name.1.as_lib(root_name) {
-            root_item_list.types.insert(NameID(name.0, path), ty);
-        } else if let Some(dep_name) = name.1.as_dep_lib() {
-            dependency_item_lists
-                .entry(dep_name)
-                .or_default()
-                .types
-                .insert(name, ty);
-        }
-    }
-
-    for (name, def) in item_list.traits {
-        let TraitName::Named(_, name_id) = name.clone() else {
-            continue;
-        };
-
-        if let Some(path) = name_id.1.as_lib(root_name) {
-            root_item_list.traits.insert(
-                TraitName::Named(None, NameID(name_id.0, path).at_loc(&name_id.loc())),
-                def,
-            );
-        } else if let Some(dep_name) = name_id.1.as_dep_lib() {
-            dependency_item_lists
-                .entry(dep_name)
-                .or_default()
-                .traits
-                .insert(name, def);
-        }
-    }
-
-    root_item_list.impls = item_list.impls;
-
-    for (name, module) in item_list.modules {
-        if let Some(path) = name.1.as_lib(root_name) {
-            root_item_list.modules.insert(NameID(name.0, path), module);
-        } else if let Some(dep_name) = name.1.as_dep_lib() {
-            dependency_item_lists
-                .entry(dep_name)
-                .or_default()
-                .modules
-                .insert(name, module);
-        }
-    }
-
-    PreprocessedItemList { root_item_list }
-}
-
-pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentation, Buffer> {
+pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buffer> {
     let mut buffer = Buffer::ansi();
 
     let sources: Result<Vec<(ModuleNamespace, String, String)>> = infiles
@@ -151,6 +60,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
             },
         )
         .collect();
+    let mut sources = sources.unwrap();
 
     let opts = spade::Opt {
         error_buffer: &mut buffer,
@@ -164,102 +74,187 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
     };
     // Codespan emitter so compilation errors are reported as normal.
     let diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
-    let artefacts =
-        spade::compile(sources.unwrap(), true, opts, diag_handler).map_err(|_| buffer)?;
 
-    let PreprocessedItemList { root_item_list } =
-        preprocess_item_list(artefacts.item_list, root_name);
+    let diags = Arc::new(Mutex::new(DiagList::new()));
 
-    let mut documentables: HashMap<SpadePath, HashMap<Identifier, Item>> = HashMap::new();
+    // The following is a part of spade::compile but only until parsing with parts of ast-lowering
+    let mut symtab = SymbolTable::new(diags.clone());
+    let mut item_list = ItemList::new();
 
-    for (NameID(_, path), executable) in root_item_list.executables {
-        let namespace = path.prelude();
-        let name = path.tail().unwrap_named().inner.clone();
-
-        let is_extern = matches!(executable, ExecutableItem::ExternUnit(_, _));
-
-        let head = match executable {
-            ExecutableItem::Unit(unit) => unit.inner.head,
-            ExecutableItem::ExternUnit(_, head) => head.inner,
-            ExecutableItem::EnumInstance { .. } | ExecutableItem::StructInstance => {
-                continue;
-            }
-        };
-        documentables
-            .entry(namespace)
-            .or_default()
-            .insert(name, Item::Unit(head, is_extern));
-    }
-
-    for (NameID(_, path), ty) in root_item_list.types {
-        let namespace = path.prelude();
-        let name = path.tail().unwrap_named().inner.clone();
-
-        documentables
-            .entry(namespace)
-            .or_default()
-            .insert(name, Item::Type(ty.inner));
-    }
-
-    for (name, def) in root_item_list.traits {
-        let TraitName::Named(_, id) = name else {
-            continue;
-        };
-
-        let namespace = id.1.prelude();
-        let name = id.1.tail().unwrap_named().inner.clone();
-
-        documentables
-            .entry(namespace)
-            .or_default()
-            .insert(name, Item::Trait(id.inner, def));
-    }
-
-    let mut flattened_impls: BTreeMap<ImplTarget, Vec<(TraitName, ImplBlock)>> = BTreeMap::new();
-    for (target, traits) in root_item_list.impls.inner {
-        for (trait_name, per_typeexpr) in traits {
-            for (_target_typeexprs, impl_blocks) in per_typeexpr {
-                for (_, impl_block) in impl_blocks {
-                    flattened_impls
-                        .entry(target.clone())
-                        .or_default()
-                        .push((trait_name.clone(), impl_block.inner.clone()));
-                }
-            }
-        }
-    }
-
-    let mut root = None;
-    for (NameID(_, path), module) in root_item_list.modules {
-        if path.0.is_empty() {
-            // root namespace
-            root = Some((root_name.to_string(), module));
-            continue;
-        }
-
-        let namespace = path.prelude();
-        let name = path.tail().unwrap_named().inner.clone();
-
-        documentables
-            .entry(namespace)
-            .or_default()
-            .insert(name, Item::Module(module));
-    }
-    if let Some(root) = root {
-        Ok(Documentation {
-            documentables,
-            root,
-            symtab: artefacts.state.symtab,
-            flattened_impls,
-            dependencies: BTreeMap::new(),
-        })
+    let include_stdlib_and_prelude = true;
+    let mut sources = if include_stdlib_and_prelude {
+        // We want to build stdlib and prelude before building user code,
+        // to give `previously defined <here>` pointing into user code, instead
+        // of stdlib code
+        let mut all_sources = stdlib_files();
+        all_sources.append(&mut sources);
+        all_sources
     } else {
-        // FIXME(ethan): there has to be a better way to return an error
-        let mut buffer = Buffer::no_color();
-        let _ = writeln!(
-            &mut buffer,
-            "error: Requested root library {root_name} not found"
-        );
-        Err(buffer)
+        sources
+    };
+    sources.append(&mut core_files());
+
+    spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
+
+    let code = Arc::new(RwLock::new(CodeBundle::new("".to_string())));
+
+    let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Arc::clone(&code));
+
+    let module_asts = parse(
+        sources,
+        Arc::clone(&code),
+        opts.print_parse_traceback,
+        &mut errors,
+    );
+    errors.errors_are_recoverable();
+
+    let mut ctx = spade_ast_lowering::Context {
+        symtab,
+        item_list,
+        idtracker: Arc::new(ExprIdTracker::new()),
+        impl_idtracker: ImplIdTracker::new(),
+        generic_idtracker: GenericIdTracker::new(),
+        pipeline_ctx: None,
+        self_ctx: SelfContext::FreeStanding,
+        current_unit: None,
+        diags: diags.clone(),
+        safety: Safety::Default,
+    };
+
+    // Add all "root" project main.spade modules
+    for root in module_asts
+        .iter()
+        .filter(|(ns, _ast)| ns.base_namespace == ns.namespace)
+    {
+        let namespace = &root.0;
+        if !namespace.namespace.0.is_empty() {
+            let _name_id = ctx.symtab.add_thing(
+                namespace.namespace.clone(),
+                spade_hir::symbol_table::Thing::Module(
+                    ().nowhere(),
+                    namespace.namespace.0.last().unwrap().unwrap_named().clone(),
+                ),
+                Some(Visibility::Implicit.nowhere()),
+                None,
+            );
+        }
     }
+
+    let mut missing_namespace_set = module_asts
+        .iter()
+        .map(|(ns, _ast)| (ns.namespace.clone(), ns.file.clone()))
+        .collect::<HashMap<_, _>>();
+
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::handle_external_modules(
+                &namespace.file,
+                None,
+                module_ast,
+                &mut missing_namespace_set,
+                ctx,
+            )
+            .or_report(&mut errors);
+        })
+    }
+
+    if errors.failed_now() {
+        return Err(buffer);
+    }
+
+    for err in global_symbols::report_missing_mod_declarations(&module_asts, &missing_namespace_set)
+    {
+        errors.report(&err);
+    }
+
+    errors.errors_are_recoverable();
+
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::gather_traits_and_modules(module_ast, ctx).or_report(&mut errors);
+        })
+    }
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::gather_types(module_ast, ctx).or_report(&mut errors);
+        })
+    }
+
+    if errors.failed_now() {
+        errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
+        return Err(buffer);
+    }
+
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::gather_symbols(module_ast, ctx).or_report(&mut errors);
+        })
+    }
+
+    if errors.failed_now() {
+        errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
+        return Err(buffer);
+    }
+
+    let mut impls = Impls {
+        for_type: HashMap::default(),
+    };
+
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            impls::gather_impls(module_ast, &mut impls, ctx).or_report(&mut errors);
+        })
+    }
+
+    if errors.failed_now() {
+        errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
+        return Err(buffer);
+    }
+
+    let mut generator = generate::Generator {
+        symtab: ctx.symtab,
+        current_dir: gen_dir.clone(),
+        impls,
+        diags: ctx.diags,
+    };
+
+    std::fs::create_dir_all(&gen_dir).or_report(&mut errors);
+    std::fs::write(&gen_dir.join("styles.css"), include_str!("./styles.css"))
+        .or_report(&mut errors);
+    for (namespace, module_ast) in &module_asts {
+        generator.current_dir = gen_dir.clone();
+        for seg in &namespace.namespace.0 {
+            let PathSegment::Named(ident) = seg else {
+                panic!(
+                    "Spadedoc assumes that modules can't be in impls/entites: {}",
+                    &namespace.namespace
+                );
+            };
+            generator.current_dir.push(ident.inner.as_str());
+            // NOTE: These identifiers do not have the correct file_id. However,
+            // as far as I know, they will never be part of an error, so we *should*
+            // be safe.
+            generator
+                .symtab
+                .push_namespace(PathSegment::Named(ident.clone()));
+        }
+        std::fs::create_dir_all(&generator.current_dir).or_report(&mut errors);
+        generator
+            .symtab
+            .set_base_namespace(namespace.base_namespace.clone());
+        generator.doc_mod(module_ast).unwrap(); // TODO: error handling
+        generator.symtab.set_base_namespace(Path(vec![]));
+        for _ in &namespace.namespace.0 {
+            generator.symtab.pop_namespace();
+        }
+    }
+
+    if errors.failed_now() {
+        errors.drain_diag_list(&mut generator.diags.lock().unwrap());
+        return Err(buffer);
+    }
+
+    //ctx.symtab.print_symbols();
+
+    Ok(())
 }

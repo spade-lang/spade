@@ -18,7 +18,10 @@ fn do_nothing() { }
 entity top() {}
 
 /// A very cool pipeline
-pipeline(2) my_pipeline(clk: clock) {
+pipeline(2) my_pipeline<T>(clk: clock, _: T)
+where
+    T: SuperCool,
+{
     reg*2;
 }
 

@@ -469,7 +469,7 @@ pub fn compile(
     }
 }
 
-fn do_in_namespace(
+pub fn do_in_namespace(
     namespace: &ModuleNamespace,
     ctx: &mut AstLoweringCtx,
     to_do: &mut dyn FnMut(&mut AstLoweringCtx),
@@ -490,7 +490,7 @@ fn do_in_namespace(
 }
 
 #[tracing::instrument(skip_all)]
-fn parse(
+pub fn parse(
     sources: Vec<(ModuleNamespace, String, String)>,
     code: Arc<RwLock<CodeBundle>>,
     print_parse_traceback: bool,

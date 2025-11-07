@@ -6,11 +6,10 @@ license.workspace = true
 
 [dependencies]
 ammonia = "4.1.2"
-askama = { version = "0.15.1", features = ["code-in-doc"] }
 camino = "1.1.2"
 spade-codespan-reporting.workspace = true
 color-eyre = "0.6.1"
-pathdiff = { version = "0.2.1", features = ["camino"] }
+itertools = "0.14.0"
 pulldown-cmark = "0.13.0"
 rustc-hash.workspace = true
 spade-lang = { path = "../../spade-compiler/" }
@@ -18,6 +17,8 @@ spade-common.workspace = true
 spade-diagnostics.workspace = true
 spade-hir.workspace = true
 spade-types.workspace = true
+spade-ast.workspace = true
+spade-ast-lowering.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-tree.workspace = true

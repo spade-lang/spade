@@ -605,7 +605,10 @@ impl SymbolTable {
 
     #[tracing::instrument(skip_all)]
     pub fn pop_namespace(&mut self) {
-        self.namespace = self.namespace.pop();
+        self.namespace
+            .0
+            .pop()
+            .expect("Failed to pop identifier from path");
     }
 
     pub fn current_namespace(&self) -> &Path {
