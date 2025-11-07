@@ -97,6 +97,10 @@ body {
         display: none;
     }
 
+    .sdoc_content {
+        max-width: 1200px;
+    }
+
     #sdoc_sidebar_toggle {
         display: none;
     }
@@ -258,4 +262,23 @@ body {
 
 pre.sdoc_signature>code {
     font-family: var(--font-courier);
+}
+
+pre.member .hljs {
+    background-color: var(--white);
+    font-size: 1rem;
+    padding: 0.5em 0em;
+}
+
+pre code.sdoc_impl_header.hljs {
+    background-color: var(--white);
+    font-size: 1.35rem;
+    padding: 0.5em 0em;
+}
+
+.sdoc_item_listed {
+    font-family: var(--font-courier);
+    font-weight: bold;
+    text-decoration: none;
+    color: var(--blue);
 }

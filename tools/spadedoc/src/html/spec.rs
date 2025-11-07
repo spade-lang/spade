@@ -111,7 +111,7 @@ impl<'r> Spec<'r> {
     pub fn mirror_typeexpr(expr: &'r TypeExpression) -> Result<Self> {
         match expr {
             TypeExpression::Integer(i) => {
-                Ok(Spec::Number(i.iter_u64_digits().next().unwrap() as i64))
+                Ok(Spec::Number(i.iter_u64_digits().next().unwrap_or(0) as i64))
             }
             TypeExpression::TypeSpec(ts) => Ok(Self::mirror_typespec(ts)?),
             TypeExpression::ConstGeneric(cg) => Ok(Self::mirror_constgeneric(cg, true, false)?),

@@ -135,11 +135,11 @@ impl<'r> GenericTypeParam<'r> {
 /// )
 /// {% if let Some(out) = output +%} -> {{ " " }} {{ out|safe }}{% endif %}
 /// {% if !where_clauses.is_empty() %}
-/// {{ " where "}}
+/// {{ "\n    where "}}
 /// {% if where_clauses.len() > 2 %}
-/// {{"\n    "}}
+/// {{"\n          "}}
 /// {% endif %}
-/// {{ where_clauses|join(",\n    ") }}
+/// {{ where_clauses|join(",\n          ") }}
 /// {% endif %}
 /// ;
 /// ```
@@ -265,7 +265,7 @@ pub enum Variant<'r> {
 }
 
 /// ```rinja
-/// <p><code class="language-spade">{{ signature }}</code></p>
+/// <pre class="member"><code class="language-spade hljs">{{ signature }}</code></pre>
 /// {{ doc|safe }}
 /// ````
 #[derive(Debug, Template)]

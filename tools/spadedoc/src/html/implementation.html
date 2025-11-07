@@ -1,9 +1,9 @@
-<code class="language-spade sdoc_impl_header">
-    impl
+<pre><code class="language-spade sdoc_impl_header hljs">
+impl
     {%if !type_params.is_empty()%}
     <{%if type_params.len() > 2 %} {{"\n "}}{{ type_params|join(",\n    ")|safe }}{{"\n"}} {%else%} {{ type_params|join(", ")|safe }} {%endif%}>
         {%endif%}
         {{" "}} {% if let Some(t) = impld_trait %}{{ t }} {{" "}}for{{" "}} {% endif %}{{ target }}
-</code>
+</code></pre>
 
 {{ members|join("\n\n")|safe }}
