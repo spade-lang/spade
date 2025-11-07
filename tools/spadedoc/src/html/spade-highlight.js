@@ -18,6 +18,8 @@ const KEYWORDS = [
   "port",
   "if",
   "else",
+  "where",
+  "trait"
 ];
 const LITERALS = [
   "true",
