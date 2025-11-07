@@ -139,16 +139,10 @@ impl<'d> Renderer<'d> {
         std::fs::write(font, include_bytes!("DMSans-VariableFont_opsz,wght.ttf"))?;
 
         let highlight_js = self.state.root.join("spade-highlight.js");
-        std::fs::write(
-            highlight_js,
-            include_str!(concat!(env!("OUT_DIR"), "/spade-highlight.js")),
-        )?;
+        std::fs::write(highlight_js, include_str!("html/spade-highlight.js"))?;
 
         let highlight_css = self.state.root.join("spade-theme.css");
-        std::fs::write(
-            highlight_css,
-            include_str!(concat!(env!("OUT_DIR"), "/spade-theme.css")),
-        )?;
+        std::fs::write(highlight_css, include_str!("html/spade-theme.css"))?;
 
         Ok(())
     }
@@ -291,7 +285,11 @@ impl<'d> Renderer<'d> {
     fn type_impls(&self, item: Documentable<&Item>) -> Result<Vec<ItemContent<'d>>> {
         if let Item::Type(ty) = item.inner {
             let mut impls = vec![];
-            if let Some(i) = self.documentation.flattened_impls.get(&spade_hir::ImplTarget::Named(ty.name.inner.clone())) {
+            if let Some(i) = self
+                .documentation
+                .flattened_impls
+                .get(&spade_hir::ImplTarget::Named(ty.name.inner.clone()))
+            {
                 for (traitname, implblock) in i {
                     let target = Spec::mirror_typespec(&implblock.target.inner)?;
                     impls.push(ItemContent::Implementation(html::Implementation {
@@ -410,33 +408,31 @@ impl<'d> Renderer<'d> {
     fn signature<'a>(&self, item: &'a Item) -> Result<Option<Signature<'a>>> {
         match item {
             Item::Unit(head, is_external) => self.unit_signature(head, *is_external),
-            Item::Type(ty_decl) => {
-                match &ty_decl.kind {
-                    TypeDeclKind::Struct(struct_decl) => {
-                        Ok(Some(Signature::StructSignature(StructSignature {
-                            attributes: vec![],
-                            name: ty_decl.name.1.tail().to_string(),
-                            type_params: ty_decl
-                                .generic_args
-                                .iter()
-                                .map(|type_param| GenericTypeParam::mirror_typeparam(type_param))
-                                .collect::<Result<Vec<_>>>()?,
-                            members: struct_decl
-                                .members
-                                .0
-                                .iter()
-                                .map(|param| {
-                                    Ok(html::Param(
-                                        &param.name.0,
-                                        Spec::mirror_typespec(&param.ty)?,
-                                    ))
-                                })
-                                .collect::<Result<_>>()?,
-                        })))
-                    }
-                    _ => Ok(None), // todo!()
+            Item::Type(ty_decl) => match &ty_decl.kind {
+                TypeDeclKind::Struct(struct_decl) => {
+                    Ok(Some(Signature::StructSignature(StructSignature {
+                        attributes: vec![],
+                        name: ty_decl.name.1.tail().to_string(),
+                        type_params: ty_decl
+                            .generic_args
+                            .iter()
+                            .map(|type_param| GenericTypeParam::mirror_typeparam(type_param))
+                            .collect::<Result<Vec<_>>>()?,
+                        members: struct_decl
+                            .members
+                            .0
+                            .iter()
+                            .map(|param| {
+                                Ok(html::Param(
+                                    &param.name.0,
+                                    Spec::mirror_typespec(&param.ty)?,
+                                ))
+                            })
+                            .collect::<Result<_>>()?,
+                    })))
                 }
-            }
+                _ => Ok(None),
+            },
             _ => Ok(None),
         }
     }

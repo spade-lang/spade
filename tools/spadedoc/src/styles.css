@@ -15,7 +15,7 @@
     --sdoc-name-font-size: 2.5rem;
     --sdoc-name-margin: 0;
 
-    /* COLOR PALATE -- ONLY USE THESE COLORS */
+    /* COLOR PALETTE -- ONLY USE THESE COLORS */
     --white: #ffffff;
     --white2: #f2f2f2;
     --light-gray: #d0d0d0;
@@ -52,7 +52,7 @@
     --toggle-bg: #333333;
     --toggle-text: #ffffff;
 
-    /* todo: move these all over to the palatte */
+    /* todo: move these all over to the palette */
     --badge-bg-module: #6fb5e3;
     --badge-bg-function: #9b70b8;
     --badge-bg-entity: var(--pink);

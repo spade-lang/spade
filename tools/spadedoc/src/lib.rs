@@ -255,7 +255,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
             dependencies: BTreeMap::new(),
         })
     } else {
-        // TODO(ethan): there has to be a better way to return an error
+        // FIXME(ethan): there has to be a better way to return an error
         let mut buffer = Buffer::no_color();
         let _ = writeln!(
             &mut buffer,

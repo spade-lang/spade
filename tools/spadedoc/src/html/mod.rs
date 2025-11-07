@@ -103,7 +103,7 @@ impl<'r> GenericTypeParam<'r> {
     }
 }
 
-// TODO: params.len() > 2 is a dumb heuristic, should actually compute length
+// FIXME: params.len() > 2 is a dumb heuristic, should actually compute length
 /// ```rinja
 /// {% if is_external %}
 ///     {{"extern "}}

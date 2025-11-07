@@ -1,0 +1,39 @@
+
+.light, .rust {
+  .language-error {
+    .hljs-unset {
+      color: var(--fg);
+    }
+    .hljs-red {
+      color: #e00;
+    }
+    .hljs-blue {
+      color: #1f71bb;
+    }
+    .hljs-green {
+      color: #00a83a;
+    }
+    .hljs-suggestion {
+      color: #26a87d;
+    }
+  }
+}
+.ayu, .coal, .navy {
+  .language-error {
+    .hljs-unset {
+      color: var(--fg);
+    }
+    .hljs-red {
+      color: #ea6262;
+    }
+    .hljs-blue {
+      color: #5fa2df;
+    }
+    .hljs-green {
+      color: #62ea91;
+    }
+    .hljs-suggestion {
+      color: #fdf02e;
+    }
+  }
+}
