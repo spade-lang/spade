@@ -1,0 +1,31 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2897
+---
+extern fn test(a: bool, b: bool) -> bool;
+fn main() -> bool {
+    test$(a: true, a: true, b: true)
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:3:9
+  │
+3 │     test$(a: true, a: true, b: true)
+  │         ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+3 │     test$(a: true, a: true, b: true)
+  │         -
+
+error: a specified multiple times
+  ┌─ testinput:3:20
+  │
+1 │ extern fn test(a: bool, b: bool) -> bool;
+  │        ---------------------------------- function defined here
+2 │ fn main() -> bool {
+3 │     test$(a: true, a: true, b: true)
+  │           -        ^ Later specified here
+  │           │         
+  │           First specified here

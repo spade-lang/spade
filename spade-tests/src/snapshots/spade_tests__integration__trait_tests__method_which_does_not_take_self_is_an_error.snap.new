@@ -1,0 +1,35 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 1020
+---
+struct X {}
+impl X {
+    fn test(x: bool) -> bool {true}
+}
+
+fn main(x: X) -> bool {
+    x.test$(y: 1)
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:7:11
+  │
+7 │     x.test$(y: 1)
+  │           ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+7 │     x.test$(y: 1)
+  │           -
+
+error: Method must take 'self' as the first parameter
+  ┌─ testinput:3:12
+  │
+3 │     fn test(x: bool) -> bool {true}
+  │            ^^^^^^^^^ Missing self
+  │
+  = Consider adding self
+  │
+3 │     fn test(self, x: bool) -> bool {true}
+  │             ++++++

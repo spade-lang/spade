@@ -87,7 +87,7 @@ entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (Write
 
     reg(read_clk) read_result = inst read_memory(mem, inst read_mut_wire(r_addr));
 
-    (WritePort$(addr: w_addr, write: w_write), ReadPort$(addr: r_addr, out: &read_result))
+    (WritePort(addr: w_addr, write: w_write), ReadPort(addr: r_addr, out: &read_result))
 }
 
 
@@ -137,7 +137,7 @@ mod fifo_impl {
     ) -> FifoRead<W, D> {
         // Synchronization stuff
         let write_ptr = unsafe {
-            inst lib::cdc::sync_uint_counter$(
+            inst lib::cdc::sync_uint_counter(
                 source_clk: write_clk,
                 dest_clk: read_clk,
                 in: *to_w.write_ptr,
@@ -173,9 +173,9 @@ mod fifo_impl {
 
         set to_w.read_ptr = &read_ptr;
 
-        FifoRead$(
+        FifoRead(
             read: &if !empty { Some(out) } else { None },
-            ack,
+            ack: ,
             num_elements: &num_elements,
         )
     }
@@ -188,7 +188,7 @@ mod fifo_impl {
         read_clk: clock
     ) -> FifoWrite<D> {
         let read_ptr = unsafe {
-            inst cdc::sync_uint_counter$(
+            inst cdc::sync_uint_counter(
                 source_clk: read_clk,
                 dest_clk: write_clk,
                 in: *from_w.read_ptr,
@@ -213,7 +213,7 @@ mod fifo_impl {
         };
 
         set from_w.write_ptr = &write_ptr;
-        FifoWrite$(
+        FifoWrite(
             full: &full,
             write: write_value
         )
@@ -228,12 +228,12 @@ entity fifo<#uint AddrWidth, Data, #uint NumElements>(
     read_clk: clock,
     read_rst: bool,
 ) -> (FifoWrite<Data>, FifoRead<AddrWidth, Data>) {
-    let (mem_write, mem_read) = inst dp_bram::<AddrWidth, Data, NumElements>$(write_clk, read_clk);
+    let (mem_write, mem_read) = inst dp_bram::<AddrWidth, Data, NumElements>(write_clk:, read_clk:);
 
     let (from_w, to_w) = port;
 
-    let write = inst fifo_impl::fifo_write::<AddrWidth, Data>$(write_clk, write_rst, mem: mem_write, from_w, read_clk);
-    let read = inst fifo_impl::fifo_read::<AddrWidth, Data, NumElements>$(read_clk, read_rst, mem: mem_read, to_w, write_clk);
+    let write = inst fifo_impl::fifo_write::<AddrWidth, Data>(write_clk:, write_rst:, mem: mem_write, from_w:, read_clk:);
+    let read = inst fifo_impl::fifo_read::<AddrWidth, Data, NumElements>(read_clk:, read_rst:, mem: mem_read, to_w:, write_clk:);
 
     (write, read)
 }

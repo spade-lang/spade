@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2945
+---
+struct Test{a: bool, b: bool}
+
+fn main() -> Test {
+    Test$(a: true, a: true, b: true)
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:4:9
+  │
+4 │     Test$(a: true, a: true, b: true)
+  │         ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+4 │     Test$(a: true, a: true, b: true)
+  │         -
+
+error: a specified multiple times
+  ┌─ testinput:4:20
+  │
+1 │ struct Test{a: bool, b: bool}
+  │ ----------------------------- struct defined here
+  ·
+4 │     Test$(a: true, a: true, b: true)
+  │           -        ^ Later specified here
+  │           │         
+  │           First specified here

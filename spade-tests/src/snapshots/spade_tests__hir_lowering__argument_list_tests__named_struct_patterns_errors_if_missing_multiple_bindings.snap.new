@@ -1,0 +1,30 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2925
+---
+struct Test{a: bool, b: bool}
+
+fn main() -> Test {
+    Test$()
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:4:9
+  │
+4 │     Test$()
+  │         ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+4 │     Test$()
+  │         -
+
+error: Missing arguments: a, b
+  ┌─ testinput:4:10
+  │
+1 │ struct Test{a: bool, b: bool}
+  │ ----------------------------- struct defined here
+  ·
+4 │     Test$()
+  │          ^^ Missing arguments: a, b

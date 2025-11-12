@@ -104,19 +104,49 @@ impl<'a> Parser<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn maybe_expression(&mut self) -> Result<Option<Loc<Expression>>> {
+        self.maybe_non_comptime_expression()
+    }
+
     pub fn expression(&mut self) -> Result<Loc<Expression>> {
-        self.non_comptime_expression()
+        match self.maybe_expression()? {
+            Some(expr) => Ok(expr),
+            None => {
+                let got = self.peek()?;
+                Err(Diagnostic::error(
+                    got.loc(),
+                    format!("Unexpected `{}`, expected expression", got.kind.as_str()),
+                )
+                .primary_label("expected expression here"))
+            }
+        }
     }
 
     /// We need a function like this in order to not run into parser conflicts when
     /// parsing blocks, since both statements and expressions can start with $if.
     #[tracing::instrument(skip(self))]
-    pub fn non_comptime_expression(&mut self) -> Result<Loc<Expression>> {
+    pub fn maybe_non_comptime_expression(&mut self) -> Result<Option<Loc<Expression>>> {
         self.custom_infix_operator()
     }
 
-    fn custom_infix_operator(&mut self) -> Result<Loc<Expression>> {
-        let lhs_val = self.expr_bp(OpBindingPower::None)?;
+    pub fn non_comptime_expression(&mut self) -> Result<Loc<Expression>> {
+        match self.maybe_non_comptime_expression()? {
+            Some(expr) => Ok(expr),
+            None => {
+                let got = self.peek()?;
+                Err(Diagnostic::error(
+                    got.loc(),
+                    format!("Unexpected `{}`, expected expression", got.kind.as_str()),
+                )
+                .primary_label("expected expression here"))
+            }
+        }
+    }
+
+    fn custom_infix_operator(&mut self) -> Result<Option<Loc<Expression>>> {
+        let Some(lhs_val) = self.maybe_expr_bp(OpBindingPower::None)? else {
+            return Ok(None);
+        };
 
         if self.peek_kind(&TokenKind::InfixOperatorSeparator)? {
             let (Some((callee, turbofish)), _) = self.surrounded(
@@ -131,21 +161,30 @@ impl<'a> Parser<'a> {
                 }));
             };
 
-            let rhs_val = self.custom_infix_operator()?;
+            let rhs_val = self.custom_infix_operator()?.ok_or_else(|| {
+                let got = self.peek().unwrap();
+                Diagnostic::error(
+                    got.loc(),
+                    format!("Unexpected `{}`, expected expression", got.kind.as_str()),
+                )
+                .primary_label("expected expression here")
+            })?;
 
-            Ok(Expression::Call {
-                kind: CallKind::Function,
-                callee,
-                args: ArgumentList::Positional(vec![lhs_val.clone(), rhs_val.clone()]).between(
-                    self.file_id,
-                    &lhs_val,
-                    &rhs_val,
-                ),
-                turbofish,
-            }
-            .between(self.file_id, &lhs_val, &rhs_val))
+            Ok(Some(
+                Expression::Call {
+                    kind: CallKind::Function,
+                    callee,
+                    args: ArgumentList::Positional(vec![lhs_val.clone(), rhs_val.clone()]).between(
+                        self.file_id,
+                        &lhs_val,
+                        &rhs_val,
+                    ),
+                    turbofish,
+                }
+                .between(self.file_id, &lhs_val, &rhs_val),
+            ))
         } else {
-            Ok(lhs_val)
+            Ok(Some(lhs_val))
         }
     }
 
@@ -187,80 +226,97 @@ impl<'a> Parser<'a> {
         Ok(expr?.at_loc(&expr_loc))
     }
 
+    fn expr_bp(&mut self, min_power: OpBindingPower) -> Result<Loc<Expression>> {
+        match self.maybe_expr_bp(min_power)? {
+            Some(expr) => Ok(expr),
+            None => {
+                let got = self.peek()?;
+                Err(Diagnostic::error(
+                    got.loc(),
+                    format!("Unexpected `{}`, expected expression", got.kind.as_str()),
+                )
+                .primary_label("expected expression here"))
+            }
+        }
+    }
+
     // Based on matklads blog post on pratt parsing:
     // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
-    fn expr_bp(&mut self, min_power: OpBindingPower) -> Result<Loc<Expression>> {
+    fn maybe_expr_bp(&mut self, min_power: OpBindingPower) -> Result<Option<Loc<Expression>>> {
         let next_tok = self.peek()?;
-        let mut lhs = if let Some((tok, op)) =
+        let lhs = if let Some((tok, op)) =
             Self::unop_from_kind(&next_tok.kind).map(|op| (next_tok, op))
         {
             self.eat_unconditional()?;
             let op_power = unop_binding_power(&op);
             let rhs = self.expr_bp(op_power)?;
-            self.inline_negative_literal(op.at_loc(&tok.loc()), rhs)?
+            Some(self.inline_negative_literal(op.at_loc(&tok.loc()), rhs)?)
         } else {
             self.base_expression()?
         };
 
-        while let Some(op) = Self::binop_from_kind(&self.peek()?.kind) {
-            let op_power = binop_binding_power(&op);
+        if let Some(mut lhs) = lhs {
+            while let Some(op) = Self::binop_from_kind(&self.peek()?.kind) {
+                let op_power = binop_binding_power(&op);
 
-            if op_power <= min_power {
-                break;
+                if op_power <= min_power {
+                    break;
+                }
+
+                let op_tok = self.eat_unconditional()?;
+
+                let rhs = self.expr_bp(op_power)?;
+                lhs = Expression::BinaryOperator(
+                    Box::new(lhs.clone()),
+                    op.at(self.file_id, &op_tok),
+                    Box::new(rhs.clone()),
+                )
+                .between(self.file_id, &lhs, &rhs)
             }
-
-            let op_tok = self.eat_unconditional()?;
-
-            let rhs = self.expr_bp(op_power)?;
-            lhs = Expression::BinaryOperator(
-                Box::new(lhs.clone()),
-                op.at(self.file_id, &op_tok),
-                Box::new(rhs.clone()),
-            )
-            .between(self.file_id, &lhs, &rhs)
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
         }
-
-        Ok(lhs)
     }
 
     // Expression parsing
 
     #[trace_parser]
-    fn base_expression(&mut self) -> Result<Loc<Expression>> {
+    fn base_expression(&mut self) -> Result<Option<Loc<Expression>>> {
         let expr = if let Some(tuple) = self.tuple_literal()? {
-            Ok(tuple)
+            tuple
         } else if let Some(lambda) = self.lambda()? {
-            Ok(lambda)
+            lambda
         } else if let Some(array) = self.array_literal()? {
-            Ok(array)
+            array
         } else if let Some(instance) = self.entity_instance()? {
-            Ok(instance)
+            instance
         } else if let Some(val) = self.bool_literal()? {
-            Ok(Expression::BoolLiteral(val).at_loc(&val))
+            Expression::BoolLiteral(val).at_loc(&val)
         } else if let Some(val) = self.str_literal()? {
-            Ok(Expression::StrLiteral(val.clone()).at_loc(&val))
+            Expression::StrLiteral(val.clone()).at_loc(&val)
         } else if let Some(val) = self.bit_literal()? {
-            Ok(Expression::BitLiteral(val.clone()).at_loc(&val))
+            Expression::BitLiteral(val.clone()).at_loc(&val)
         } else if let Some(val) = self.int_literal()? {
-            Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
+            Expression::IntLiteral(val.clone()).at_loc(&val)
         } else if let Some(block) = self.block(false)? {
-            Ok(block.map(Box::new).map(Expression::Block))
+            block.map(Box::new).map(Expression::Block)
         } else if let Some(if_expr) = self.if_expression(false)? {
-            Ok(if_expr)
+            if_expr
         } else if let Some(if_expr) = self.type_level_if()? {
-            Ok(if_expr)
+            if_expr
         } else if let Some(match_expr) = self.match_expression()? {
-            Ok(match_expr)
+            match_expr
         } else if let Some(stageref) = self.pipeline_reference()? {
-            Ok(stageref)
+            stageref
         } else if let Some(unsafe_expr) = self.unsafe_block()? {
-            Ok(unsafe_expr)
+            unsafe_expr
         } else if let Some(create_ports) = self.peek_and_eat(&TokenKind::Port)? {
-            Ok(Expression::CreatePorts.at(self.file_id, &create_ports))
+            Expression::CreatePorts.at(self.file_id, &create_ports)
         } else if let Some((path, turbofish)) = self.path_with_turbofish()? {
             let span = path.span;
             match (turbofish, self.argument_list()?) {
-                (None, None) => Ok(Expression::Identifier(path).at(self.file_id, &span)),
+                (None, None) => Expression::Identifier(path).at(self.file_id, &span),
                 (Some(tf), None) => {
                     return Err(Diagnostic::error(self.peek()?, "Expected argument list")
                         .primary_label("Expected argument list")
@@ -273,25 +329,20 @@ impl<'a> Parser<'a> {
                     // Doing this avoids cloning result and args
                     let span = ().between(self.file_id, &path, &args);
 
-                    Ok(Expression::Call {
+                    Expression::Call {
                         kind: CallKind::Function,
                         callee: path,
                         args,
                         turbofish: tf,
                     }
-                    .at_loc(&span))
+                    .at_loc(&span)
                 }
             }
         } else {
-            let got = self.peek()?;
-            Err(Diagnostic::error(
-                got.loc(),
-                format!("Unexpected `{}`, expected expression", got.kind.as_str()),
-            )
-            .primary_label("expected expression here"))
-        }?;
+            return Ok(None);
+        };
 
-        self.expression_suffix(expr)
+        self.expression_suffix(expr).map(Some)
     }
 
     #[trace_parser]

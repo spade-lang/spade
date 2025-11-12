@@ -1,0 +1,39 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 1041
+---
+struct X {
+    b: bool,
+}
+
+entity main() -> bool {
+    let x = X$(b: true);
+    match x {
+        X$(b: 0) => true,
+        _ => false,
+    }
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:6:14
+  │
+6 │     let x = X$(b: true);
+  │              ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+6 │     let x = X$(b: true);
+  │              -
+
+error: Argument type mismatch. Expected bool got Number<#uint>
+  ┌─ testinput:8:15
+  │
+2 │     b: bool,
+  │        ---- Type bool inferred here
+  ·
+8 │         X$(b: 0) => true,
+  │               ^ expected bool
+  │
+  = note: Expected: bool
+               Got: Number<_>

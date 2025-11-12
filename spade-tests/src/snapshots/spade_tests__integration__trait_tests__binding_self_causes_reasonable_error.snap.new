@@ -1,0 +1,35 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 1034
+---
+struct X {}
+impl X {
+    fn test(self, x: bool) -> bool {true}
+}
+
+fn main(x: X) -> bool {
+    x.test$(self: X())
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:7:11
+  │
+7 │     x.test$(self: X())
+  │           ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+7 │     x.test$(self: X())
+  │           -
+
+error: self specified multiple times
+  ┌─ testinput:7:5
+  │
+3 │     fn test(self, x: bool) -> bool {true}
+  │     ------------------------------------- function defined here
+  ·
+7 │     x.test$(self: X())
+  │     ^       ---- First specified here
+  │     │        
+  │     Later specified here

@@ -1,0 +1,101 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 1443
+---
+struct ReadPort_<W> { }
+
+struct port FifoRead<#uint W> { }
+
+entity fifo_read_side<#uint W>(
+    write_ptr_w: uint<W>,
+    ram_read: ReadPort_<W>,
+    read_ptr_wire: inv &uint<W>,
+) -> FifoRead<W> {
+    FifoRead$()
+}
+
+entity fifo<#uint W>(
+    ram_read: ReadPort_<W>
+) -> FifoRead<W> {
+    let read_ptr_wire = inst new_mut_wire();
+
+    let read_ptr_w = inst read_mut_wire(read_ptr_wire);
+
+    let write_ptr_w  = 0;
+
+    let full_w = 0 == read_ptr_w;
+
+
+    inst fifo_read_side$(
+            write_ptr_w,
+            ram_read,
+            read_ptr_wire,
+        )
+}
+
+entity fifo_test_harness(
+    ram_read: ReadPort_<4>
+) {
+    let _ = inst fifo::<4>$(ram_read);
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+   ┌─ testinput:10:13
+   │
+10 │     FifoRead$()
+   │             ^ Use of deprecated named arguments
+   │
+   = Consider removing the dollar sign
+   │
+10 │     FifoRead$()
+   │             -
+
+warning: The dollar syntax for named arguments is deprecated
+   ┌─ testinput:25:24
+   │
+25 │     inst fifo_read_side$(
+   │                        ^ Use of deprecated named arguments
+   │
+   = Consider removing the dollar sign
+   │
+25 │     inst fifo_read_side$(
+   │                        -
+   = And adding a : for this shorthand argument
+   │
+26 │             write_ptr_w: ,
+   │                        ++
+   = And adding a : for this shorthand argument
+   │
+27 │             ram_read: ,
+   │                     ++
+   = And adding a : for this shorthand argument
+   │
+28 │             read_ptr_wire: ,
+   │                          ++
+
+warning: The dollar syntax for named arguments is deprecated
+   ┌─ testinput:35:27
+   │
+35 │     let _ = inst fifo::<4>$(ram_read);
+   │                           ^ Use of deprecated named arguments
+   │
+   = Consider removing the dollar sign
+   │
+35 │     let _ = inst fifo::<4>$(ram_read);
+   │                           -
+   = And adding a : for this shorthand argument
+   │
+35 │     let _ = inst fifo::<4>$(ram_read: );
+   │                                     ++
+
+error: read_ptr_wire is unused
+  ┌─ testinput:8:5
+  │
+8 │     read_ptr_wire: inv &uint<W>,
+  │     ^^^^^^^^^^^^^ read_ptr_wire is unused
+  │
+  = note: read_ptr_wire is an inverted wire (`inv &`) which must be set
+  = The error is in a generic unit instantiated at
+    ╰ testinput:25 fifo_read_side<4>
+    ╰ testinput:35 fifo<4>

@@ -11,7 +11,7 @@ use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
 use logos::Lexer;
-use spade_diagnostics::diag_list::DiagList;
+use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterParser, SetParser};
 use tracing::{debug, event, Level};
 
@@ -764,47 +764,173 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    fn argument_list(&mut self) -> Result<Option<Loc<ArgumentList>>> {
-        let is_named = self.peek_and_eat(&TokenKind::Dollar)?.is_some();
-        let opener = peek_for!(self, &TokenKind::OpenParen);
+    fn legacy_argument_list(&mut self, dollar: &Token) -> Result<Loc<ArgumentList>> {
+        let dollar_loc = ().at(self.file_id, &dollar.span);
+        let mut deprecation_warning = Diagnostic::warning(
+            dollar_loc,
+            "The dollar syntax for named arguments is deprecated",
+        )
+        .primary_label("Use of deprecated named arguments")
+        .span_suggest_remove("Consider removing the dollar sign", dollar_loc);
 
-        let argument_list = if is_named {
-            let args = self
-                .comma_separated(Self::named_argument, &TokenKind::CloseParen)
-                .extra_expected(vec![":"])
-                .map_err(|e| {
-                    debug!("check named arguments =");
-                    let Ok(tok) = self.peek() else {
-                        return e;
-                    };
-                    debug!("{:?}", tok);
-                    if tok.kind == TokenKind::Assignment {
-                        e.span_suggest_replace(
-                            "named arguments are specified with `:`",
-                            // FIXME: expand into whitespace
-                            // lifeguard: spade#309
-                            tok.loc(),
-                            ":",
-                        )
-                    } else {
-                        e
-                    }
-                })?
-                .into_iter()
-                .map(Loc::strip)
-                .collect();
-            ArgumentList::Named(args)
-        } else {
-            let args = self
-                .comma_separated(Self::expression, &TokenKind::CloseParen)
-                .no_context()?;
-
-            ArgumentList::Positional(args)
-        };
+        let opener = self.eat(&TokenKind::OpenParen)?;
+        let args = self
+            .comma_separated(Self::named_argument, &TokenKind::CloseParen)
+            .extra_expected(vec![":"])
+            .map_err(|e| {
+                let Ok(tok) = self.peek() else {
+                    return e;
+                };
+                if tok.kind == TokenKind::Assignment {
+                    e.span_suggest_replace(
+                        "named arguments are specified with `:`",
+                        // FIXME: expand into whitespace
+                        // lifeguard: spade#309
+                        tok.loc(),
+                        ":",
+                    )
+                } else {
+                    e
+                }
+            })?
+            .into_iter()
+            .map(Loc::strip)
+            .collect::<Vec<_>>();
         let end = self.eat(&TokenKind::CloseParen)?;
         let span = lspan(opener.span).merge(lspan(end.span));
-        Ok(Some(argument_list.at(self.file_id, &span)))
+
+        for arg in &args {
+            match arg {
+                NamedArgument::Full(_, _) => {}
+                NamedArgument::Short(ident) => {
+                    deprecation_warning = deprecation_warning.span_suggest_insert_after(
+                        "And adding a : for this shorthand argument",
+                        ident,
+                        ": ",
+                    )
+                }
+            }
+        }
+
+        self.diags.errors.push(deprecation_warning);
+
+        Ok(ArgumentList::Named(args).at(self.file_id, &span))
     }
+
+    #[trace_parser]
+    fn argument_list(&mut self) -> Result<Option<Loc<ArgumentList>>> {
+        enum ArgKind {
+            Positional(Loc<Expression>),
+            Named(Loc<NamedArgument>, Loc<()>),
+        }
+
+        let dollar = self.peek_and_eat(&TokenKind::Dollar)?;
+        if let Some(dollar) = dollar {
+            self.legacy_argument_list(&dollar).map(Some)
+        } else {
+            if !self.peek_kind(&TokenKind::OpenParen)? {
+                return Ok(None);
+            };
+
+            let (args, args_loc) = self.surrounded(
+                &TokenKind::OpenParen,
+                |s| {
+                    s.comma_separated(
+                        |s| {
+                            let base = s.expression()?;
+
+                            if let Expression::Identifier(path) = &base.inner {
+                                let next = s.peek()?;
+                                if path.0.len() == 1 && matches!(next.kind, TokenKind::Colon) {
+                                    s.eat_unconditional()?;
+
+                                    // Safe index since we check the length earlier
+                                    let name = path.0[0].clone();
+
+                                    if let Some(value) = s.maybe_expression()? {
+                                        let loc = ().between(s.file_id, &next, &value);
+                                        Ok(ArgKind::Named(
+                                            NamedArgument::Full(name.clone(), value)
+                                                .between_locs(&name, &loc),
+                                            loc,
+                                        ))
+                                    } else {
+                                        let loc = ().at(s.file_id, &next);
+                                        Ok(ArgKind::Named(
+                                            NamedArgument::Short(name.clone())
+                                                .between_locs(&name, &loc),
+                                            loc,
+                                        ))
+                                    }
+                                } else {
+                                    Ok(ArgKind::Positional(base))
+                                }
+                            } else {
+                                Ok(ArgKind::Positional(base))
+                            }
+                        },
+                        &TokenKind::CloseParen,
+                    )
+                    .extra_expected(vec![":"])
+                },
+                &TokenKind::CloseParen,
+            )?;
+
+            match args.as_slice() {
+                [] => Ok(Some(ArgumentList::Positional(vec![]).at_loc(&args_loc))),
+                [ArgKind::Positional(pos), rest @ ..] => {
+                    let mut all_args = vec![pos.clone()];
+
+                    for arg in rest {
+                        match arg {
+                            ArgKind::Named(named, named_part) => {
+                                return Err(Diagnostic::error(
+                                    named,
+                                    "Mixing positional and named arguments",
+                                )
+                                .primary_label("Expected another positional argument")
+                                .secondary_label(pos, "Because this is a positional argument")
+                                .span_suggest_remove(
+                                    "If you meant to just pass {name}, remove the :",
+                                    named_part,
+                                ));
+                            }
+                            ArgKind::Positional(arg) => all_args.push(arg.clone()),
+                        }
+                    }
+                    Ok(Some(ArgumentList::Positional(all_args).at_loc(&args_loc)))
+                }
+                [ArgKind::Named(named, args_loc), rest @ ..] => {
+                    let mut all_args = vec![named.inner.clone()];
+
+                    for arg in rest {
+                        match arg {
+                            ArgKind::Named(named, named_part) => all_args.push(named.inner.clone()),
+                            ArgKind::Positional(arg) => {
+                                let base_diag =
+                                    Diagnostic::error(arg, "Mixing positional and named arguments")
+                                        .primary_label("Expected a named argument")
+                                        .secondary_label(named, "Because this is a named argument");
+
+                                return Err(if let Expression::Identifier(_) = &arg.inner {
+                                    base_diag.span_suggest_insert_after("Consider adding a : to make this a shorthand named argument", arg, ": ")
+                                } else {
+                                    base_diag.span_suggest_insert_before(
+                                        "Consider specifying the argument name",
+                                        arg,
+                                        "/* name */: ",
+                                    )
+                                });
+                            }
+                        }
+                    }
+
+                    Ok(Some(ArgumentList::Named(all_args).at_loc(&args_loc)))
+                }
+            }
+        }
+    }
+
     #[trace_parser]
     fn named_argument(&mut self) -> Result<Loc<NamedArgument>> {
         // This is a named arg

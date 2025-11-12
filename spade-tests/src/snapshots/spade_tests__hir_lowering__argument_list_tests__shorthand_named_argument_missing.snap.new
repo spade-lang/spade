@@ -1,0 +1,34 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2868
+---
+extern fn test(a: bool, b: bool) -> bool;
+fn main() -> bool {
+    let (a, b, c) = (true, true, true);
+    test$(a)
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:4:9
+  │
+4 │     test$(a)
+  │         ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+4 │     test$(a)
+  │         -
+  = And adding a : for this shorthand argument
+  │
+4 │     test$(a: )
+  │            ++
+
+error: Missing argument: b
+  ┌─ testinput:4:10
+  │
+1 │ extern fn test(a: bool, b: bool) -> bool;
+  │        ---------------------------------- function defined here
+  ·
+4 │     test$(a)
+  │          ^^^ Missing argument: b

@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 1006
+---
+struct X {}
+impl X {
+    fn test(self, x: bool) -> bool {true}
+}
+
+fn main(x: X) -> bool {
+    x.test$(y: 1)
+}
+
+
+warning: The dollar syntax for named arguments is deprecated
+  ┌─ testinput:7:11
+  │
+7 │     x.test$(y: 1)
+  │           ^ Use of deprecated named arguments
+  │
+  = Consider removing the dollar sign
+  │
+7 │     x.test$(y: 1)
+  │           -
+
+error: No such argument: y
+  ┌─ testinput:7:13
+  │
+3 │     fn test(self, x: bool) -> bool {true}
+  │     ------------------------------------- function defined here
+  ·
+7 │     x.test$(y: 1)
+  │             ^ No such argument
