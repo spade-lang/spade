@@ -301,17 +301,21 @@ impl<'a> Parser<'a> {
             return Ok(None);
         };
 
-        let (args, args_loc) = self.surrounded(
-            &TokenKind::OpenParen,
-            |s| {
-                let args = s
-                    .comma_separated(|s| s.pattern(), &TokenKind::CloseParen)
-                    .no_context()?;
+        let (args, args_loc) = match self.peek_and_eat(&TokenKind::LogicalOr)? {
+            Some(thing) => (vec![], thing.loc()),
+            None => self.surrounded(
+                &TokenKind::BitwiseOr,
+                |s| {
+                    let args = s
+                        .comma_separated(|s| s.pattern(), &TokenKind::BitwiseOr)
+                        .no_context()?;
 
-                Ok(args)
-            },
-            &TokenKind::CloseParen,
-        )?;
+                    Ok(args)
+                },
+                &TokenKind::BitwiseOr,
+            )?,
+        };
+
         let args = args.at_loc(&args_loc);
 
         let Some(body) = self.block(unit_kind.is_pipeline())? else {

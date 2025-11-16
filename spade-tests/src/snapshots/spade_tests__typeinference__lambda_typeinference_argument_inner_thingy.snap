@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test() -> bool {
-    fn (a) {
+    fn |a| {
         let x: bool = a;
         true
     }.call((1,))

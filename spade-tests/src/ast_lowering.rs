@@ -1344,7 +1344,7 @@ snapshot_error! {
     lambda_variables_are_not_visible_externally,
     "
         fn test() {
-            let l = fn () {
+            let l = fn || {
                 let x = 0u8;
             };
             let y = x;
@@ -1357,7 +1357,7 @@ snapshot_mir! {
     "
         fn test() {
             let x = 0u8;
-            let l = fn() {
+            let l = fn|| {
                 let y = x;
             }.call((,));
         }
@@ -1369,9 +1369,9 @@ code_compiles! {
     lambdas_do_not_clear_the_current_unit_context,
     "
         fn test() {
-            let l2 = fn() {
+            let l2 = fn|| {
             };
-            let l = fn() {
+            let l = fn|| {
             };
         }
     "
@@ -1382,9 +1382,9 @@ snapshot_mir! {
     "
         fn test() {
             let x = 0u8;
-            let l2 = fn() {
+            let l2 = fn|| {
                 let z = 0u8;
-                let l: () = fn() {
+                let l: () = fn|| {
                     let y = (x, z);
                 }.call((,));
             }.call((,));

@@ -2211,7 +2211,7 @@ snapshot_error! {
     lambdas_cannot_have_type_errors_in_them,
     "
         fn test() {
-            fn () {
+            fn || {
                 let x: uint<8> = true;
             };
         }
@@ -2222,7 +2222,7 @@ snapshot_error! {
     lambda_return_type_must_match,
     "
         fn test() -> bool {
-            fn () {
+            fn || {
                 1
             }.call(())
         }
@@ -2233,7 +2233,7 @@ snapshot_error! {
     lambda_arguments_drive_typeinference,
     "
         fn test() -> bool {
-            fn ((a, b)) {
+            fn |(a, b)| {
                 true
             }.call((1,))
         }
@@ -2244,7 +2244,7 @@ snapshot_error! {
     lambda_typeinference_argument_inner_thingy,
     "
         fn test() -> bool {
-            fn (a) {
+            fn |a| {
                 let x: bool = a;
                 true
             }.call((1,))
@@ -2277,7 +2277,7 @@ code_compiles! {
 
         fn test() {
             let x = Option::Some(8u8);
-            let addr: Option<uint<4>> = x.map(fn (addr) {trunc(addr)});
+            let addr: Option<uint<4>> = x.map(fn |addr| {trunc(addr)});
         }
     "
 }
@@ -2302,7 +2302,7 @@ code_compiles! {
 
         fn test() {
             let a = S();
-            fn (x) {
+            fn |x| {
                 x.method()
             }.call((a,));
         }
@@ -2419,9 +2419,9 @@ code_compiles! {
     lambda_capture_panic,
     "
     entity cache<T> () {
-        let f = fn (addr) {};
+        let f = fn |addr| {};
     }
-    "    
+    "
 }
 
 snapshot_error! {

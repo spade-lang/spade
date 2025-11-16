@@ -27,7 +27,7 @@ impl<T> Option<T> {
     /// of the undefined value are described in detail in `std::undef::undef`. Importantly,
     /// reading an undef value is undefined behaviour so this method should only be used
     /// if you guarantee that the value is never read when the value is `None`, for example
-    /// by checking the Option type again 
+    /// by checking the Option type again
     fn unwrap_or_undef(self) -> T {
         match self {
             Some(t) => t,
@@ -70,7 +70,7 @@ impl<T> Option<T> {
     /// If the value is `None`, returns `None`, otherwise calls `f` on the contained
     /// value. `f` returns another Option
     ///
-    /// let filtered = option.and_then(fn (x) {if x < 10 {Some(x)} else {None}
+    /// let filtered = option.and_then(fn |x| {if x < 10 {Some(x)} else {None}
     fn and_then<F, O>(self, f: F) -> Option<O>
         where F: Fn<(T), Option<O>>
     {
@@ -105,13 +105,13 @@ impl<T> Option<T> {
     }
 
     /// Gathers `N` values and outputs them as an array
-    /// 
+    ///
     /// Unlike sliding_window, each value seen in the input is only seen once in the output.
     ///
     /// The 0th output element is the oldest
     ///
     /// There is a one clock cycle latency between input and output
-    /// 
+    ///
     /// input.sliding_window::<2>(clk, rst, 0)
     /// ```
     /// input:  | None | Some(1) | Some(2)       | None         | Some(3) | Some(4) | -

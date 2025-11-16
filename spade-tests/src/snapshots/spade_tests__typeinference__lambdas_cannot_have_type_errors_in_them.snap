@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test() {
-    fn () {
+    fn || {
         let x: uint<8> = true;
     };
 }

@@ -494,7 +494,7 @@ async fn goto_in_lambda_goes_to_a_the_right_thing() {
     init_with_file(
         r#"
         fn test() {
-            fn () {
+            fn || {
                 let x = 0;
                 //  ^[2] goto-target
                 x

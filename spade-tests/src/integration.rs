@@ -394,7 +394,7 @@ code_compiles! {
     simple_lambda_compiles,
     "
         fn test() -> bool {
-            fn (a, b) {a}.call((true, false))
+            fn |a, b| {a}.call((true, false))
         }
     "
 }
@@ -403,7 +403,7 @@ snapshot_mir! {
     lambda_capture_generics_are_correct,
     "
         fn generic<#uint N>() -> uint<8> {
-            fn () {
+            fn || {
                 N
             }.call(())
         }
@@ -418,7 +418,7 @@ snapshot_mir! {
     multiple_lambda_capture_generics_are_correct,
     "
         fn generic<#uint N>() -> uint<8> {
-            fn () {
+            fn || {
                 N
             }.call(())
         }
@@ -436,7 +436,7 @@ snapshot_mir! {
         struct S<#uint N> {}
         impl <#uint N> S<N> {
             fn test(self) {
-                let l = fn () {
+                let l = fn || {
                     let x: uint<8> = N;
                 }.call(());
             }
@@ -530,7 +530,7 @@ code_compiles! {
     clocks_are_usable_inside_lambda_clocked_things,
     "
         entity test(clk: clock) {
-            let _ = pipeline(1) (clk) {
+            let _ = pipeline(1) |clk| {
                 clk
             };
         }
@@ -541,7 +541,7 @@ code_compiles! {
     lambda_pipelines_can_be_defined,
     "
         entity test() {
-            let _ = pipeline(1) (clk) {
+            let _ = pipeline(1) |clk| {
                 reg;
             };
         }
@@ -552,7 +552,7 @@ code_compiles! {
     lambda_pipelines_can_be_used,
     "
         entity test(clk: clock) -> uint<8> {
-            let pl = pipeline(1) (clk, x) {
+            let pl = pipeline(1) |clk, x| {
                 reg;
                 x
             };
@@ -566,7 +566,7 @@ code_compiles! {
     zero_parameter_lambda_function_works,
     "
         entity test() {
-            let _ = fn () {};
+            let _ = fn || {};
         }
     "
 }
@@ -575,7 +575,7 @@ snapshot_error! {
     lambda_pipelines_need_correctly_named_clocks,
     "
         entity test() {
-            pipeline(1) (not_clk) {
+            pipeline(1) |not_clk| {
                 reg;
             };
         }
@@ -586,7 +586,7 @@ snapshot_error! {
     lambda_entities_need_correctly_named_clocks,
     "
         entity test() {
-            entity (not_clk) {};
+            entity |not_clk| {};
         }
     "
 }
@@ -595,7 +595,7 @@ snapshot_error! {
     lambda_entities_need_clock,
     "
         entity test() {
-            entity () {};
+            entity || {};
         }
     "
 }
@@ -604,7 +604,7 @@ snapshot_error! {
     lambda_pipelines_need_clock,
     "
         entity test() {
-            pipeline(1) () {
+            pipeline(1) || {
                 reg;
             };
         }
@@ -654,7 +654,7 @@ snapshot_error! {
     lambda_entity_clock_must_be_clock,
     "
         entity test(clk: clock) {
-            let _ = entity (clk) {
+            let _ = entity |clk| {
                 let clk: uint<8> = clk;
             }.inst call(clk, ());
         }
@@ -666,7 +666,7 @@ code_compiles! {
     "
         entity test<T>(val: Option<T>) -> Option<T> {
           val
-            .map(fn (t) {
+            .map(fn |t| {
               t
             })
         }
@@ -1491,7 +1491,7 @@ mod trait_tests {
             fn add<#uint OutSize>(self, other: Fp<Size, FracBits>) -> Fp<OutSize, FracBits> {
                 Fp(self.inner + other.inner)
             }
-        
+
             fn sub<#uint OutSize>(self, other: Fp<Size, FracBits>) -> Fp<OutSize, FracBits> {
                 Fp(self.inner - other.inner)
             }
@@ -1841,7 +1841,7 @@ mod unsafe_tests {
 
         fn test() {
             unsafe {
-                let lambda = fn() { method(); };
+                let lambda = fn|| { method(); };
                 lambda.call(());
             }
         }
@@ -1852,7 +1852,7 @@ mod unsafe_tests {
         unsafe_expr_works,
         "
         unsafe fn method() -> bool { true }
-        
+
         fn test() -> bool {
             unsafe { method() }
         }

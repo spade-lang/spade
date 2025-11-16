@@ -46,7 +46,7 @@ ast lowering:
     - Replace lambda body placeholders
 
 ```spade
-fn (a, b, c) {/* body */} =>  {LambdaDef<A, B, C, D>(), /* body */}
+fn |a, b, c| {/* body */} =>  {LambdaDef<A, B, C, D>(), /* body */}
 
 // These are added
 struct Lambda<A, B, C, O> {}

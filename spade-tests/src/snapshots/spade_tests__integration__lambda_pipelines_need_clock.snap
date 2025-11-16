@@ -2,7 +2,7 @@
 source: spade-tests/src/integration.rs
 ---
 entity test() {
-    pipeline(1) () {
+    pipeline(1) || {
         reg;
     };
 }
@@ -11,7 +11,7 @@ entity test() {
 error: Non-function lambdas must take a clock.
   ┌─ testinput:2:17
   │
-2 │     pipeline(1) () {
+2 │     pipeline(1) || {
   │     ----------- ^^ Expected a clock
   │     │            
   │     Required because this is not a `fn`

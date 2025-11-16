@@ -2,7 +2,7 @@
 source: spade-tests/src/integration.rs
 ---
 entity test(clk: clock) {
-    let _ = entity (clk) {
+    let _ = entity |clk| {
         let clk: uint<8> = clk;
     }.inst call(clk, ());
 }
@@ -11,7 +11,7 @@ entity test(clk: clock) {
 error: Expected type uint<8>, got clock
   ┌─ testinput:3:28
   │
-2 │     let _ = entity (clk) {
+2 │     let _ = entity |clk| {
   │                     --- Type clock inferred here
 3 │         let clk: uint<8> = clk;
   │                  -------   ^^^ Expected uint<8>

@@ -2,7 +2,7 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 fn test() {
-    let l = fn () {
+    let l = fn || {
         let x = 0u8;
     };
     let y = x;

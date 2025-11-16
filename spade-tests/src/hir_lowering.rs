@@ -3246,7 +3246,7 @@ snapshot_mir! {
     fn test() {
         decl x;
 
-        let x = fn () {};
+        let x = fn || {};
         x.call(());
     }
     ",
@@ -3260,7 +3260,7 @@ snapshot_mir! {
         value: bool,
     }
     fn test() {
-        let x = fn (a) {
+        let x = fn |a| {
             a.value
         }.call((X(true),));
     }
