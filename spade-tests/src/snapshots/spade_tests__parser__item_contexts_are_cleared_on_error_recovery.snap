@@ -11,7 +11,7 @@ entity int32_to_float32(input: int<32>) -> uint<32> {
 }
 
 entity top(input: int<32>) -> uint<32> {}
-    
+
 
 
 error: Unexpected `identifier`, expected `}`

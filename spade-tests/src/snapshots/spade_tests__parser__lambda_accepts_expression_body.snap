@@ -1,0 +1,6 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn test() {
+    let _ = fn || false;
+}

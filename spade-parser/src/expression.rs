@@ -1,5 +1,7 @@
 use num::ToPrimitive;
-use spade_ast::{ArgumentList, BinaryOperator, CallKind, Expression, IntLiteral, UnaryOperator};
+use spade_ast::{
+    ArgumentList, BinaryOperator, Block, CallKind, Expression, IntLiteral, UnaryOperator,
+};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::diag_list::ResultExt;
 use spade_diagnostics::Diagnostic;
@@ -318,11 +320,29 @@ impl<'a> Parser<'a> {
 
         let args = args.at_loc(&args_loc);
 
-        let Some(body) = self.block(unit_kind.is_pipeline())? else {
-            let loc = self.peek()?;
-            return Err(Diagnostic::error(&loc.loc(), "Expected lambda body")
-                .primary_label("Expected body")
-                .span_suggest_replace("Consider adding a body", loc, "{ /*..*/ }"));
+        let body = if self.peek_kind(&TokenKind::OpenBrace)? {
+            // It is safe to unwrap the value, as it can only be `None` if
+            // there is no opening brace but it is guaranteed by the `if`
+            // condition.
+            self.block(unit_kind.is_pipeline())?.unwrap()
+        } else {
+            let expr = self.expression().map_err(|diag| {
+                diag.primary_label("expected lambda body here")
+                    .span_suggest_insert_after(
+                        "you might have meant to place the body there",
+                        args_loc,
+                        "{ /* ... */ }",
+                    )
+            })?;
+
+            let loc = expr.loc();
+
+            let block = Block {
+                statements: vec![],
+                result: Some(expr),
+            };
+
+            block.at_loc(&loc)
         };
 
         let loc = ().between(self.file_id, &start_token, &body);

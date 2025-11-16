@@ -285,8 +285,8 @@ fn square_wave_readme_example() {
 #[test]
 fn unit_type_is_allowed_to_be_created() {
     let code = r#"
-    entity x() -> () { 
-        () 
+    entity x() -> () {
+        ()
     }
     "#;
 
@@ -827,7 +827,7 @@ snapshot_error! {
     }
 
     entity top(input: int<32>) -> uint<32> {}
-        
+
     "
 }
 
@@ -899,6 +899,15 @@ snapshot_error! {
     "
         fn not a valid fn() {
             unsafe abc
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_accepts_expression_body,
+    "
+        fn test() {
+            let _ = fn || false;
         }
     "
 }
