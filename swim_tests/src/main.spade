@@ -2,6 +2,7 @@ mod array_eval;
 mod array_indexing;
 mod array_mut_indexing;
 mod array_pattern;
+mod bidirectional_set;
 mod bool_memory;
 mod cocotb_sample;
 mod cxx;

@@ -1,0 +1,9 @@
+struct port Bidir {
+    fwd: &uint<8>,
+    back: inv &uint<4>,
+}
+
+fn connect(fwd: Bidir, back: inv Bidir) {
+    set back = fwd;
+}
+
