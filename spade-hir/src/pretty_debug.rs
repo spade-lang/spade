@@ -358,16 +358,49 @@ impl PrettyDebug for TypeParam {
 
 impl PrettyDebug for TraitSpec {
     fn pretty_debug(&self) -> String {
-        let Self { name, type_params } = self;
+        let Self {
+            name,
+            type_params,
+            paren_syntax,
+        } = self;
 
-        format!(
-            "{}{}",
-            name.name_loc().pretty_debug(),
-            type_params
-                .as_ref()
-                .map(|tp| { format!("<{}>", tp.iter().map(PrettyDebug::pretty_debug).join(", ")) })
-                .unwrap_or(String::new())
-        )
+        if *paren_syntax {
+            let mut type_params = type_params.clone().unwrap();
+            let return_type = type_params.pop().unwrap();
+            let param_tuple = type_params.pop().unwrap();
+
+            let type_params_string = match type_params.as_slice() {
+                [] => String::new(),
+                params => format!(
+                    "<{}>",
+                    params.iter().map(PrettyDebug::pretty_debug).join(", ")
+                ),
+            };
+
+            let return_type_string = match return_type.inner {
+                TypeExpression::TypeSpec(TypeSpec::Tuple(t)) if t.is_empty() => String::new(),
+                ty => format!(" -> {}", ty.pretty_debug()),
+            };
+
+            format!(
+                "{}{}{}{}",
+                name.name_loc().pretty_debug(),
+                type_params_string,
+                param_tuple.pretty_debug(),
+                return_type_string,
+            )
+        } else {
+            format!(
+                "{}{}",
+                name.name_loc().pretty_debug(),
+                type_params
+                    .as_ref()
+                    .map(|tp| {
+                        format!("<{}>", tp.iter().map(PrettyDebug::pretty_debug).join(", "))
+                    })
+                    .unwrap_or(String::new())
+            )
+        }
     }
 }
 

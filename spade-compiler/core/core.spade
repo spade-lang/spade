@@ -3,14 +3,17 @@ trait Number<#uint N> {}
 impl<#uint N> Number<N> for uint<N> {}
 impl<#uint N> Number<N> for int<N> {}
 
+#[spadec_paren_sugar]
 trait Fn<Args, Output> {
     fn call(self, args: Args) -> Output;
 }
 
+#[spadec_paren_sugar]
 trait Entity<Args, Output> {
     fn call(self, clk: clock, args: Args) -> Output;
 }
 
+#[spadec_paren_sugar]
 trait Pipeline<#int Depth, Args, Output> {
     pipeline(Depth) call(self, clk: clock, args: Args) -> Output;
 }

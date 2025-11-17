@@ -59,6 +59,30 @@ pub enum TypeSpec {
     Wildcard,
 }
 
+impl TypeSpec {
+    pub fn is_tuple(&self) -> bool {
+        match self {
+            TypeSpec::Tuple(_) => true,
+            TypeSpec::Array { .. }
+            | TypeSpec::Named(_, _)
+            | TypeSpec::Inverted(_)
+            | TypeSpec::Wire(_)
+            | TypeSpec::Wildcard => false,
+        }
+    }
+
+    pub fn is_empty_tuple(&self) -> bool {
+        match self {
+            TypeSpec::Tuple(_) => true,
+            TypeSpec::Array { .. }
+            | TypeSpec::Named(_, _)
+            | TypeSpec::Inverted(_)
+            | TypeSpec::Wire(_)
+            | TypeSpec::Wildcard => false,
+        }
+    }
+}
+
 impl std::fmt::Display for TypeSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -68,7 +92,7 @@ impl std::fmt::Display for TypeSpec {
             TypeSpec::Array { inner, size } => write!(f, "[{inner}; {size}]"),
             TypeSpec::Named(name, args) => {
                 let args = match args {
-                    Some(a) => a.iter().map(|a| format!("{a}")).join(", "),
+                    Some(a) => format!("<{}>", a.iter().map(|a| format!("{a}")).join(", ")),
                     None => String::new(),
                 };
                 write!(f, "{name}{args}")
@@ -521,6 +545,7 @@ impl GenericBound {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Attribute {
+    SpadecParenSugar,
     Optimize {
         passes: Vec<Loc<String>>,
     },
@@ -552,6 +577,7 @@ pub enum Attribute {
 impl Attribute {
     pub fn name(&self) -> &str {
         match self {
+            Attribute::SpadecParenSugar => "spadec_paren_sugar",
             Attribute::Optimize { passes: _ } => "optimize",
             Attribute::NoMangle { .. } => "no_mangle",
             Attribute::Fsm { state: _ } => "fsm",
@@ -663,6 +689,7 @@ pub struct TraitDef {
     pub name: Loc<Identifier>,
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
+    pub attributes: AttributeList,
     pub methods: Vec<Loc<UnitHead>>,
 }
 
@@ -671,6 +698,7 @@ pub struct TraitDef {
 pub struct TraitSpec {
     pub path: Loc<Path>,
     pub type_params: Option<Loc<Vec<Loc<TypeExpression>>>>,
+    pub paren_syntax: bool,
 }
 
 #[derive(PartialEq, Debug, Clone)]

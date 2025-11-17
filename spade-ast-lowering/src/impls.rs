@@ -206,6 +206,8 @@ pub fn get_or_create_trait(
                 .iter()
                 .map(|u| u.head.clone().at_loc(u))
                 .collect::<Vec<_>>(),
+            false,
+            String::new(),
             ctx,
         )?;
 
@@ -227,6 +229,7 @@ pub fn get_or_create_trait(
         let spec = hir::TraitSpec {
             name: trait_name.clone(),
             type_params,
+            paren_syntax: false,
         }
         .nowhere();
 
@@ -306,6 +309,8 @@ pub fn create_trait_from_unit_heads(
     type_params: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
     where_clauses: &[ast::WhereClause],
     heads: &[Loc<ast::UnitHead>],
+    paren_sugar: bool,
+    documentation: String,
     ctx: &mut Context,
 ) -> Result<()> {
     ctx.symtab.new_scope();
@@ -374,8 +379,13 @@ pub fn create_trait_from_unit_heads(
         .collect::<Result<Vec<_>>>()?;
 
     // Add the trait to the trait list
-    ctx.item_list
-        .add_trait(name, visited_type_params, trait_members)?;
+    ctx.item_list.add_trait(
+        name,
+        visited_type_params,
+        trait_members,
+        paren_sugar,
+        documentation,
+    )?;
 
     ctx.symtab.close_scope();
     Ok(())
@@ -433,6 +443,7 @@ fn check_generic_params_match_trait_def(
     } else if let hir::TraitSpec {
         name,
         type_params: Some(generic_spec),
+        paren_syntax: _,
     } = &trait_spec.inner
     {
         match name {

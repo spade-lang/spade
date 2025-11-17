@@ -2268,7 +2268,7 @@ code_compiles! {
 
         impl<T> Option<T> {
             fn map<F, O>(self, f: F) -> Option<O>
-                where F: Fn<(T,), O>
+                where F: Fn(T) -> O
             {
                 Option::Some(f.call((0, )))
             }

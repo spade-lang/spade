@@ -32,8 +32,8 @@ ast lowering:
     - Mono needs this type to be as generic as its context generic
         - Function generics
         - Impl block generics
-    - Add an impl block for `Fn<...>`
-        impl Fn<(Args), Output> for LambdaT {
+    - Add an impl block for `Fn(...)`
+        impl Fn(Args) -> Output for LambdaT {
             fn call(self, args: Args) -> Output {
                 ... placeholder
             }
@@ -51,7 +51,7 @@ fn |a, b, c| {/* body */} =>  {LambdaDef<A, B, C, D>(), /* body */}
 // These are added
 struct Lambda<A, B, C, O> {}
 
-impl<A, B, C, O> Fn<(A, B, C), O> for Lambda<A, B, C, O> {
+impl<A, B, C, O> Fn(A, B, C) -> O for Lambda<A, B, C, O> {
     fn call(self, args: (A, B, C)) -> O {
         // placeholder
     }
@@ -286,6 +286,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     .collect::<Vec<_>>()
                     .nowhere(),
                 ),
+                paren_syntax: true,
             }
             .at_loc(&debug_loc),
         ),

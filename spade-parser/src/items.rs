@@ -107,7 +107,6 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<TraitDef>> {
         let start_token = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start_token)?;
 
         let name = parser.identifier()?;
 
@@ -119,6 +118,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
             name,
             type_params,
             where_clauses,
+            attributes: attributes.clone(),
             methods: vec![],
         };
 
@@ -162,6 +162,7 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
             let r#trait = TraitSpec {
                 path: trait_path.clone(),
                 type_params: params,
+                paren_syntax: false,
             }
             .at_loc(&trait_or_target_path);
 

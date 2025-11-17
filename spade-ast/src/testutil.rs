@@ -16,7 +16,11 @@ pub fn ast_type_spec(name: &str) -> Loc<TypeSpec> {
     TypeSpec::Named(ast_path(name), None).nowhere()
 }
 
-pub fn ast_trait_spec(name: &str, type_params: Option<Vec<TypeExpression>>) -> Loc<TraitSpec> {
+pub fn ast_trait_spec(
+    name: &str,
+    type_params: Option<Vec<TypeExpression>>,
+    paren_syntax: bool,
+) -> Loc<TraitSpec> {
     TraitSpec {
         path: ast_path(name),
         type_params: type_params.map(|p| {
@@ -25,6 +29,7 @@ pub fn ast_trait_spec(name: &str, type_params: Option<Vec<TypeExpression>>) -> L
                 .collect::<Vec<Loc<TypeExpression>>>()
                 .nowhere()
         }),
+        paren_syntax,
     }
     .nowhere()
 }

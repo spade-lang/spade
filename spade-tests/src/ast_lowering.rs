@@ -31,6 +31,16 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    fn_like_trait_vs_regular_trait_syntax,
+    "
+    trait Impostor<Args, Output> {}
+    fn one<F>(f: F) where F: Fn<(bool, int<8>), bool> {}
+    pipeline(2) two<P>(p: P) where P: Pipeline<2>(bool) -> int<8> {}
+    fn three<T>(x: T) where T: Impostor(bool, int<8>) -> bool {}
+    "
+}
+
+snapshot_error! {
     impl_method_generic_args_length_of_0_does_not_match_trait_method_generic_args_length,
     "
     trait X {

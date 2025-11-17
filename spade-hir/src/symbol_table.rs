@@ -181,6 +181,12 @@ impl StructCallable {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct TraitMarker {
+    pub name: Loc<Identifier>,
+    pub paren_sugar: bool,
+}
+
 /// Any named thing in the language which is not a type. Structs are here for instantiation
 /// under the same NameID as the type
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -198,7 +204,7 @@ pub enum Thing {
     Module(Loc<Identifier>),
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
-    Trait(Loc<Identifier>),
+    Trait(Loc<TraitMarker>),
 }
 
 impl Thing {
@@ -736,7 +742,7 @@ impl SymbolTable {
         struct_by_id, lookup_struct, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
-        trait_by_id, lookup_trait, Identifier, NotATrait {
+        trait_by_id, lookup_trait, TraitMarker, NotATrait {
             Thing::Trait(t) => t.clone()
         }
     }
@@ -1041,7 +1047,7 @@ impl SymbolTable {
                     println!("{}", format!("alias => {path} in {in_namespace}").green())
                 }
                 Thing::PipelineStage(stage) => println!("'{stage}"),
-                Thing::Trait(name) => println!("trait {}", name),
+                Thing::Trait(t) => println!("trait {}", t.name),
                 Thing::Module(name) => println!("mod {name}"),
             }
         }

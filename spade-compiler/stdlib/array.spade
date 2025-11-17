@@ -28,7 +28,7 @@ impl<T, #uint N> [T; N] {
     }
 
     fn map<F, O>(self, f: F) -> [O; N]
-        where F: Fn<(T), O>
+        where F: Fn(T) -> O
     {
         gen if N == 0 {
             []

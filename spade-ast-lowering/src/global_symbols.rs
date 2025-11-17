@@ -11,8 +11,8 @@ use spade_common::{
     namespace::ModuleNamespace,
 };
 use spade_diagnostics::{diag_anyhow, Diagnostic};
-use spade_hir as hir;
 use spade_hir::WhereClause;
+use spade_hir::{self as hir, symbol_table::TraitMarker};
 use spade_types::meta_types::MetaType;
 
 use crate::{
@@ -173,7 +173,18 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             ast::Item::TraitDef(r#trait) => {
                 ctx.symtab.add_unique_thing(
                     Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
-                    Thing::Trait(r#trait.name.clone()),
+                    Thing::Trait(
+                        TraitMarker {
+                            name: r#trait.name.clone(),
+                            paren_sugar: r#trait
+                                .inner
+                                .attributes
+                                .0
+                                .iter()
+                                .any(|attr| attr.inner == ast::Attribute::SpadecParenSugar),
+                        }
+                        .at_loc(&r#trait.name),
+                    ),
                 )?;
             }
             ast::Item::Use(us) => {
@@ -211,11 +222,29 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         }
         ast::Item::TraitDef(def) => {
             let (name, _) = ctx.symtab.lookup_trait(&Path::ident(def.name.clone()).at_loc(&def.name)).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
+            let mut paren_sugar = false;
+            let documentation = def.attributes.merge_docs();
+            let _ = def.attributes.lower(&mut |attr| match &attr.inner {
+                ast::Attribute::Documentation { .. } => Ok(None),
+                ast::Attribute::SpadecParenSugar => {
+                    paren_sugar = true;
+                    Ok(None)
+                }
+                ast::Attribute::Optimize { .. }
+                | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::WalTraceable { .. }
+                | ast::Attribute::NoMangle { .. }
+                | ast::Attribute::Fsm { .. }
+                | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
+            })?;
             create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.type_params,
                 &def.where_clauses,
                 &def.methods,
+                paren_sugar,
+                documentation,
                 ctx,
             )?;
         }
@@ -457,6 +486,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     ast::Attribute::Documentation { .. } => Ok(None),
                     ast::Attribute::Optimize { .. }
                     | ast::Attribute::SurferTranslator(_)
+                    | ast::Attribute::SpadecParenSugar
                     | ast::Attribute::WalTraceable { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
@@ -503,6 +533,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 ast::Attribute::Documentation { .. } => Ok(None),
                 ast::Attribute::Optimize { .. }
                 | ast::Attribute::WalTraceable { .. }
+                | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
@@ -616,6 +647,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
             })?;

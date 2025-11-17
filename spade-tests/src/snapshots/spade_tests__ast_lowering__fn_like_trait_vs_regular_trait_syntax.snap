@@ -1,0 +1,30 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait Impostor<Args, Output> {}
+fn one<F>(f: F) where F: Fn<(bool, int<8>), bool> {}
+pipeline(2) two<P>(p: P) where P: Pipeline<2>(bool) -> int<8> {}
+fn three<T>(x: T) where T: Impostor(bool, int<8>) -> bool {}
+
+
+error: Trait does not support function-like notation
+  ┌─ testinput:4:28
+  │
+4 │ fn three<T>(x: T) where T: Impostor(bool, int<8>) -> bool {}
+  │                            ^^^^^^^^ Trait does not support function-like notation
+  │
+  = replace it with a regular type parameter list
+  │
+4 │ fn three<T>(x: T) where T: Impostor<(bool, int<8>), bool> {}
+  │                                    ~~~~~~~~~~~~~~~~~~~~~~
+
+warning: Trait supports function-like notation
+  ┌─ testinput:2:26
+  │
+2 │ fn one<F>(f: F) where F: Fn<(bool, int<8>), bool> {}
+  │                          ^^ Trait supports function-like notation
+  │
+  = consider using function-like syntax
+  │
+2 │ fn one<F>(f: F) where F: Fn(bool, int<8>) -> bool {}
+  │                            ~~~~~~~~~~~~~~~~~~~~~~

@@ -12,6 +12,7 @@ pub mod types;
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
 use impls::visit_impl;
+use itertools::Itertools;
 use lambda::visit_lambda;
 use num::{BigInt, Zero};
 use pipelines::PipelineContext;
@@ -1296,6 +1297,71 @@ pub fn visit_trait_spec(
         }
         Err(err) => return Err(err.into()),
     };
+    // This must always succeed because `lookup_trait` succeeded right before
+    let Some(Thing::Trait(marker)) = ctx.symtab.thing_by_id(&name_id) else {
+        unreachable!();
+    };
+    if trait_spec.paren_syntax && !marker.paren_sugar {
+        // Paren syntax enforces at least two type parameters to be present
+        let Some(type_params) = trait_spec.type_params.as_ref() else {
+            unreachable!();
+        };
+
+        return Err(
+            Diagnostic::error(trait_spec, "Trait does not support function-like notation")
+                .primary_label("Trait does not support function-like notation")
+                .span_suggest_replace(
+                    "replace it with a regular type parameter list",
+                    type_params,
+                    format!(
+                        "<{}>",
+                        type_params.inner.iter().map(|tp| tp.to_string()).join(", ")
+                    ),
+                ),
+        );
+    } else if !trait_spec.paren_syntax && marker.paren_sugar {
+        let mut diag = Diagnostic::warning(trait_spec, "Trait supports function-like notation")
+            .primary_label("Trait supports function-like notation");
+
+        let whole_loc = trait_spec.type_params.as_ref().map(Loc::loc);
+        let type_params = trait_spec
+            .type_params
+            .as_ref()
+            .map_or(&[][..], |tp| &tp.inner[..]);
+
+        let (rest_tys, param_ty, return_ty) = match type_params {
+            [] => (&[][..], None, None),
+            [ref arg] => (&[][..], Some(&arg.inner), None),
+            [ref rest @ .., ref arg, ref ret] => (rest, Some(&arg.inner), Some(&ret.inner)),
+        };
+
+        let rest_str = match rest_tys {
+            [] => String::new(),
+            tys => format!("<{}>", tys.iter().map(|tp| tp.to_string()).join(", ")),
+        };
+
+        let param_str = match param_ty {
+            None => String::from("()"),
+            Some(ty @ ast::TypeExpression::TypeSpec(ts)) if ts.is_tuple() => ty.to_string(),
+            Some(ty) => format!("({})", ty.to_string()),
+        };
+
+        let return_str = match return_ty {
+            None => String::new(),
+            Some(ast::TypeExpression::TypeSpec(ts)) if ts.is_empty_tuple() => String::new(),
+            Some(ty) => format!(" -> {ty}"),
+        };
+
+        let message = "consider using function-like syntax";
+        let suggestion = format!("{rest_str}{param_str}{return_str}");
+
+        if let Some(loc) = whole_loc {
+            diag = diag.span_suggest_replace(message, loc, suggestion);
+        } else {
+            diag = diag.span_suggest_insert_after(message, &trait_spec.path, suggestion);
+        }
+        ctx.diags.errors.push(diag);
+    }
     let name = TraitName::Named(name_id.at_loc(&loc));
     let type_params = match &trait_spec.inner.type_params {
         Some(params) => Some(params.try_map_ref(|params| {
@@ -1306,7 +1372,12 @@ pub fn visit_trait_spec(
         })?),
         None => None,
     };
-    Ok(hir::TraitSpec { name, type_params }.at_loc(trait_spec))
+    Ok(hir::TraitSpec {
+        name,
+        type_params,
+        paren_syntax: trait_spec.paren_syntax,
+    }
+    .at_loc(trait_spec))
 }
 
 #[tracing::instrument(skip_all, fields(name=?item.name()))]
@@ -1656,6 +1727,7 @@ fn try_visit_statement(
                 | ast::Attribute::Optimize { .. }
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
             })?;
 

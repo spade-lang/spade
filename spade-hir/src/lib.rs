@@ -406,6 +406,7 @@ impl std::fmt::Display for TypeSpec {
 pub struct TraitSpec {
     pub name: TraitName,
     pub type_params: Option<Loc<Vec<Loc<TypeExpression>>>>,
+    pub paren_syntax: bool,
 }
 
 /// Declaration of an enum
@@ -819,6 +820,8 @@ pub struct ImplBlock {
 pub struct TraitDef {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub fns: HashMap<Identifier, Loc<UnitHead>>,
+    pub paren_sugar: bool,
+    pub documentation: String,
 }
 
 #[derive(PartialEq, Hash, Eq, Debug, Clone, Serialize, Deserialize, PartialOrd, Ord)]
@@ -933,6 +936,8 @@ impl ItemList {
         name: TraitName,
         type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
         members: Vec<(Identifier, Loc<UnitHead>)>,
+        paren_sugar: bool,
+        documentation: String,
     ) -> Result<(), Diagnostic> {
         if let Some((prev, _)) = self.traits.get_key_value(&name) {
             Err(
@@ -951,6 +956,8 @@ impl ItemList {
                 TraitDef {
                     type_params,
                     fns: members.into_iter().collect(),
+                    paren_sugar,
+                    documentation,
                 },
             );
             Ok(())

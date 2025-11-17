@@ -1265,15 +1265,15 @@ impl<'a> Parser<'a> {
             let (id, loc) = self.identifier()?.separate();
             let traits = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
                 self.token_separated(
-                    Self::path_with_generic_spec,
+                    Self::trait_spec,
                     &TokenKind::Plus,
                     vec![TokenKind::Comma, TokenKind::Gt],
                 )
                 .no_context()?
                 .into_iter()
-                .map(|(path, type_params)| {
-                    let loc = ().at_loc(&path);
-                    TraitSpec { path, type_params }.at_loc(&loc)
+                .map(|spec| {
+                    let loc = ().at_loc(&spec.path);
+                    spec.at_loc(&loc)
                 })
                 .collect()
             } else {
@@ -1318,10 +1318,44 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn path_with_generic_spec(
-        &mut self,
-    ) -> Result<(Loc<Path>, Option<Loc<Vec<Loc<TypeExpression>>>>)> {
-        Ok((self.path()?, self.generic_spec_list()?))
+    pub fn trait_spec(&mut self) -> Result<TraitSpec> {
+        let path = self.path()?;
+        let mut type_params = self.generic_spec_list()?;
+        let mut paren_syntax = false;
+
+        if self.peek_cond(|tok| tok == &TokenKind::OpenParen, "(")? {
+            let param_tuple_type = self.tuple_spec()?.unwrap().map(|tuple| {
+                let TypeSpec::Tuple(contents) = tuple else {
+                    unreachable!();
+                };
+
+                TypeExpression::TypeSpec(Box::new(Loc::nowhere(TypeSpec::Tuple(contents))))
+            });
+
+            let start = param_tuple_type.loc();
+            let (return_type, end) = if self.peek_and_eat(&TokenKind::SlimArrow)?.is_some() {
+                let ty = self.type_expression()?;
+                let loc = ty.loc();
+                (ty, loc)
+            } else {
+                let dummy = Loc::nowhere(TypeExpression::TypeSpec(Box::new(Loc::nowhere(
+                    TypeSpec::Tuple(vec![]),
+                ))));
+                (dummy, param_tuple_type.loc())
+            };
+
+            let mut new_type_params = type_params.unwrap_or(vec![].nowhere()).inner;
+            new_type_params.extend_from_slice(&[param_tuple_type, return_type]);
+            type_params = Some(new_type_params.between_locs(&start, &end));
+
+            paren_syntax = true;
+        };
+
+        Ok(TraitSpec {
+            path,
+            type_params,
+            paren_syntax,
+        })
     }
 
     fn disallow_attributes(&self, attributes: &AttributeList, item_start: &Token) -> Result<()> {
@@ -1470,7 +1504,7 @@ impl<'a> Parser<'a> {
                             } else {
                                 let traits = s
                                     .token_separated(
-                                        Self::path_with_generic_spec,
+                                        Self::trait_spec,
                                         &TokenKind::Plus,
                                         vec![
                                             TokenKind::Comma,
@@ -1480,9 +1514,9 @@ impl<'a> Parser<'a> {
                                     )
                                     .extra_expected(vec!["identifier"])?
                                     .into_iter()
-                                    .map(|(path, type_params)| {
-                                        let loc = ().at_loc(&path);
-                                        TraitSpec { path, type_params }.at_loc(&loc)
+                                    .map(|spec| {
+                                        let loc = ().at_loc(&spec.path);
+                                        spec.at_loc(&loc)
                                     })
                                     .collect();
 
@@ -1717,6 +1751,7 @@ impl<'a> Parser<'a> {
         }
 
         match start.inner.0.as_str() {
+            "spadec_paren_sugar" => Ok(Attribute::SpadecParenSugar),
             "no_mangle" => {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (all, _) = self.surrounded(
