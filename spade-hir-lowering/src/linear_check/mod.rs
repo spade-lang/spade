@@ -155,7 +155,7 @@ fn visit_expression(
         spade_hir::ExprKind::IntLiteral(_, _) => true,
         spade_hir::ExprKind::TypeLevelInteger(_) => true,
         spade_hir::ExprKind::BoolLiteral(_) => true,
-        spade_hir::ExprKind::BitLiteral(_) => true,
+        spade_hir::ExprKind::TriLiteral(_) => true,
         spade_hir::ExprKind::TupleLiteral(_) => true,
         spade_hir::ExprKind::ArrayLiteral(_) => true,
         spade_hir::ExprKind::ArrayShorthandLiteral(_, _) => true,
@@ -202,7 +202,7 @@ fn visit_expression(
         spade_hir::ExprKind::IntLiteral(_, _) => {}
         spade_hir::ExprKind::TypeLevelInteger(_) => {}
         spade_hir::ExprKind::BoolLiteral(_) => {}
-        spade_hir::ExprKind::BitLiteral(_) => {}
+        spade_hir::ExprKind::TriLiteral(_) => {}
         spade_hir::ExprKind::StageValid | spade_hir::ExprKind::StageReady => {}
         spade_hir::ExprKind::TupleLiteral(inner) => {
             for (i, expr) in inner.iter().enumerate() {

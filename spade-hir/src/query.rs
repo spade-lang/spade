@@ -98,7 +98,7 @@ impl<'a> QueryCache {
             crate::ExprKind::Identifier(ident) => self.names.insert(ident.clone().at_loc(kind)),
             crate::ExprKind::IntLiteral(_, _) => {}
             crate::ExprKind::BoolLiteral(_) => {}
-            crate::ExprKind::BitLiteral(_) => {}
+            crate::ExprKind::TriLiteral(_) => {}
             // FIXME Visit types
             crate::ExprKind::TypeLevelInteger(_) => {}
             crate::ExprKind::CreatePorts => {}

@@ -748,7 +748,7 @@ impl TypeState {
             }
             ExprKind::IntLiteral(_, _) => self.visit_int_literal(expression, ctx)?,
             ExprKind::BoolLiteral(_) => self.visit_bool_literal(expression, ctx)?,
-            ExprKind::BitLiteral(_) => self.visit_bit_literal(expression, ctx)?,
+            ExprKind::TriLiteral(_) => self.visit_tri_literal(expression, ctx)?,
             ExprKind::TupleLiteral(_) => self.visit_tuple_literal(expression, ctx, generic_list)?,
             ExprKind::TupleIndex(_, _) => self.visit_tuple_index(expression, ctx, generic_list)?,
             ExprKind::ArrayLiteral(_) => self.visit_array_literal(expression, ctx, generic_list)?,

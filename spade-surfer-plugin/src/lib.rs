@@ -847,7 +847,7 @@ fn descriptive_loc(expr: &Loc<Expression>) -> Option<Loc<()>> {
         spade_hir::ExprKind::Identifier(_) => None,
         spade_hir::ExprKind::IntLiteral(_, _) => None,
         spade_hir::ExprKind::BoolLiteral(_) => None,
-        spade_hir::ExprKind::BitLiteral(_) => None,
+        spade_hir::ExprKind::TriLiteral(_) => None,
         spade_hir::ExprKind::TypeLevelInteger(_) => None,
         spade_hir::ExprKind::CreatePorts => None,
         spade_hir::ExprKind::FieldAccess(_, field) => Some(field.loc()),

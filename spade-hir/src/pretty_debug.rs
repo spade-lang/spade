@@ -204,7 +204,7 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::Identifier(name_id) => name_id.pretty_debug(),
             crate::ExprKind::IntLiteral(value, _) => format!("{value}"),
             crate::ExprKind::BoolLiteral(value) => format!("{value}"),
-            crate::ExprKind::BitLiteral(value) => format!("{value:?}"),
+            crate::ExprKind::TriLiteral(value) => format!("{value:?}"),
             crate::ExprKind::TypeLevelInteger(name_id) => name_id.pretty_debug(),
             crate::ExprKind::CreatePorts => "port".to_string(),
             crate::ExprKind::TupleLiteral(inner) => {

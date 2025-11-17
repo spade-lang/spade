@@ -2559,9 +2559,9 @@ mod tests {
     }
 
     #[test]
-    fn bit_literals_work() {
+    fn tri_literals_work() {
         let code = r#"
-            entity main() -> bit {
+            entity main() -> tri {
                 let low = LOW;
                 let high = HIGH;
                 let z = HIGHIMP;

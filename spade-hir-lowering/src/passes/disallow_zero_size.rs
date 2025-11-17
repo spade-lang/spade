@@ -29,7 +29,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
                 Ok(())
             }
             spade_hir::ExprKind::BoolLiteral(_) => Ok(()),
-            spade_hir::ExprKind::BitLiteral(_) => Ok(()),
+            spade_hir::ExprKind::TriLiteral(_) => Ok(()),
             spade_hir::ExprKind::CreatePorts => Ok(()),
             spade_hir::ExprKind::TupleLiteral(_) => Ok(()),
             spade_hir::ExprKind::ArrayLiteral(_) => Ok(()),

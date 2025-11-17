@@ -1846,13 +1846,13 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             val,
             "Strings are not supported inside expressions",
         )),
-        ast::Expression::BitLiteral(lit) => {
+        ast::Expression::TriLiteral(lit) => {
             let result = match lit.inner {
-                ast::BitLiteral::Low => hir::expression::BitLiteral::Low,
-                ast::BitLiteral::High => hir::expression::BitLiteral::High,
-                ast::BitLiteral::HighImp => hir::expression::BitLiteral::HighImp,
+                ast::BitLiteral::Low => hir::expression::TriLiteral::Low,
+                ast::BitLiteral::High => hir::expression::TriLiteral::High,
+                ast::BitLiteral::HighImp => hir::expression::TriLiteral::HighImp,
             };
-            Ok(hir::ExprKind::BitLiteral(result))
+            Ok(hir::ExprKind::TriLiteral(result))
         }
         ast::Expression::CreatePorts => Ok(hir::ExprKind::CreatePorts),
         ast::Expression::BinaryOperator(lhs, tok, rhs) => {

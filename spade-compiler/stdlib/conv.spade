@@ -28,7 +28,7 @@ fn concat_arrays<T, #uint L, #uint R, #uint O>(l: [T; L], r: [T; R]) -> [T; O]
 
 /// Casts a `bit` to a `bool`. low maps to false, high maps to true, but HIGHIMP is undefined.
 /// In practice, in a simulator, it will map to Z
-fn bit_to_bool(b: bit) -> bool {
+fn tri_to_bool(b: tri) -> bool {
     unsafe {
         transmute(b)
     }

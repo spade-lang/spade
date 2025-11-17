@@ -260,7 +260,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
             }
         }
         ConcreteType::Single {
-            base: PrimitiveType::Bool | PrimitiveType::Bit | PrimitiveType::Clock,
+            base: PrimitiveType::Bool | PrimitiveType::Tri | PrimitiveType::Clock,
             params: _,
         } => {
             *result += match value[0] {

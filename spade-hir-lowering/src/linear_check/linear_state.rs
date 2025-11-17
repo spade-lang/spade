@@ -64,7 +64,7 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
             spade_types::PrimitiveType::Uint => false,
             spade_types::PrimitiveType::Clock => false,
             spade_types::PrimitiveType::Bool => false,
-            spade_types::PrimitiveType::Bit => false,
+            spade_types::PrimitiveType::Tri => false,
             spade_types::PrimitiveType::Memory => false,
             // Since the intended use case for this type is only to propagate IO pins
             // we'll make it linear to avoid confusing conflicts
@@ -363,7 +363,7 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
             spade_types::PrimitiveType::Uint => LinearTree::leaf(false),
             spade_types::PrimitiveType::Clock => LinearTree::leaf(false),
             spade_types::PrimitiveType::Bool => LinearTree::leaf(false),
-            spade_types::PrimitiveType::Bit => LinearTree::leaf(false),
+            spade_types::PrimitiveType::Tri => LinearTree::leaf(false),
             spade_types::PrimitiveType::Memory => LinearTree::leaf(false),
             spade_types::PrimitiveType::InOut => LinearTree::leaf(true),
         },

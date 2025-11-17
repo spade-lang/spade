@@ -19,8 +19,8 @@ use const_generic::ConstGenericExt;
 use error::format_witnesses;
 use error::refutable_pattern_diagnostic;
 use error::undefined_variable;
-use hir::expression::BitLiteral;
 use hir::expression::CallKind;
+use hir::expression::TriLiteral;
 use hir::ArgumentList;
 use hir::Attribute;
 use hir::Parameter;
@@ -96,7 +96,7 @@ impl LocExprExt for Loc<hir::Expression> {
             ExprKind::TypeLevelInteger(_) => None,
             ExprKind::IntLiteral(_, _) => None,
             ExprKind::BoolLiteral(_) => None,
-            ExprKind::BitLiteral(_) => Some(self.clone()),
+            ExprKind::TriLiteral(_) => Some(self.clone()),
             ExprKind::TupleLiteral(inner) => inner
                 .iter()
                 .find_map(|e| e.runtime_requirement_witness(ctx)),
@@ -250,7 +250,7 @@ impl MirLowerable for ConcreteType {
                 length: size.to_biguint().expect("Found negative array size"),
             },
             CType::Single {
-                base: PrimitiveType::Bool | PrimitiveType::Clock | PrimitiveType::Bit,
+                base: PrimitiveType::Bool | PrimitiveType::Clock | PrimitiveType::Tri,
                 params: _,
             } => Type::Bool,
             CType::Single {
@@ -1326,7 +1326,7 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::IntLiteral(_, _) => Ok(None),
             ExprKind::TypeLevelInteger(_) => Ok(None),
             ExprKind::BoolLiteral(_) => Ok(None),
-            ExprKind::BitLiteral(_) => Ok(None),
+            ExprKind::TriLiteral(_) => Ok(None),
             ExprKind::TupleLiteral(_) => Ok(None),
             ExprKind::TupleIndex(_, _) => Ok(None),
             ExprKind::FieldAccess(_, _) => Ok(None),
@@ -1484,12 +1484,12 @@ impl ExprLocal for Loc<Expression> {
                     self,
                 );
             }
-            ExprKind::BitLiteral(value) => {
+            ExprKind::TriLiteral(value) => {
                 let ty = self_type;
                 let cv = match value {
-                    BitLiteral::Low => mir::ConstantValue::Bool(false),
-                    BitLiteral::High => mir::ConstantValue::Bool(true),
-                    BitLiteral::HighImp => mir::ConstantValue::HighImp,
+                    TriLiteral::Low => mir::ConstantValue::Bool(false),
+                    TriLiteral::High => mir::ConstantValue::Bool(true),
+                    TriLiteral::HighImp => mir::ConstantValue::HighImp,
                 };
                 result.push_primary(mir::Statement::Constant(self.id, ty, cv), self);
             }

@@ -240,7 +240,7 @@ pub enum Expression {
     IntLiteral(Loc<IntLiteral>),
     BoolLiteral(Loc<bool>),
     StrLiteral(Loc<String>),
-    BitLiteral(Loc<BitLiteral>),
+    TriLiteral(Loc<BitLiteral>),
     /// `[1, 2, 3]`
     ArrayLiteral(Vec<Loc<Expression>>),
     /// `[<expr>; <amount>]`
@@ -351,7 +351,7 @@ impl Expression {
             Expression::IntLiteral(_) => "int literal",
             Expression::BoolLiteral(_) => "bool literal",
             Expression::StrLiteral(_) => "str literal",
-            Expression::BitLiteral(_) => "bit literal",
+            Expression::TriLiteral(_) => "tri-state literal",
             Expression::ArrayLiteral(_) => "array literal",
             Expression::ArrayShorthandLiteral(_, _) => "array shorthand literal",
             Expression::CreatePorts => "port",

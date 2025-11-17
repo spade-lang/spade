@@ -623,7 +623,7 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    fn bit_literal(&mut self) -> Result<Option<Loc<BitLiteral>>> {
+    fn tri_literal(&mut self) -> Result<Option<Loc<BitLiteral>>> {
         if let Some(tok) = self.peek_and_eat(&TokenKind::Low)? {
             Ok(Some(BitLiteral::Low.at(self.file_id, &tok.span)))
         } else if let Some(tok) = self.peek_and_eat(&TokenKind::High)? {

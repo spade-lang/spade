@@ -36,8 +36,8 @@ impl TypeState {
     pub fn t_uint(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
         self.add_type_var(TypeVar::Known(loc, t_uint(symtab), vec![]))
     }
-    pub fn t_bit(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, t_bit(symtab), vec![]))
+    pub fn t_tri(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
+        self.add_type_var(TypeVar::Known(loc, t_tri(symtab), vec![]))
     }
     pub fn t_bool(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
         self.add_type_var(TypeVar::Known(loc, t_bool(symtab), vec![]))
@@ -57,8 +57,8 @@ pub fn t_int(symtab: &SymbolTable) -> KnownType {
 pub fn t_uint(symtab: &SymbolTable) -> KnownType {
     lookup(symtab, &["uint"])
 }
-pub fn t_bit(symtab: &SymbolTable) -> KnownType {
-    lookup(symtab, &["bit"])
+pub fn t_tri(symtab: &SymbolTable) -> KnownType {
+    lookup(symtab, &["tri"])
 }
 pub fn t_bool(symtab: &SymbolTable) -> KnownType {
     lookup(symtab, &["bool"])

@@ -214,10 +214,10 @@ impl TypeState {
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_bit_literal(&mut self, expression: &Loc<Expression>, ctx: &Context) -> Result<()> {
-        assuming_kind!(ExprKind::BitLiteral(_) = &expression => {
+    pub fn visit_tri_literal(&mut self, expression: &Loc<Expression>, ctx: &Context) -> Result<()> {
+        assuming_kind!(ExprKind::TriLiteral(_) = &expression => {
             expression
-                .unify_with(&self.t_bit(expression.loc(), ctx.symtab), self)
+                .unify_with(&self.t_tri(expression.loc(), ctx.symtab), self)
                 .commit(self, ctx)
                 .into_default_diagnostic(expression, self)?
         });

@@ -39,7 +39,7 @@ impl Passable for Loc<Expression> {
             ExprKind::IntLiteral(_, _) => {}
             ExprKind::TypeLevelInteger(_) => {}
             ExprKind::BoolLiteral(_) => {}
-            ExprKind::BitLiteral(_) => {}
+            ExprKind::TriLiteral(_) => {}
             ExprKind::CreatePorts => {}
             ExprKind::StageReady | ExprKind::StageValid => {}
             ExprKind::TupleLiteral(inner) => {

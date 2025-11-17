@@ -239,8 +239,8 @@ impl<'a> Parser<'a> {
             Ok(Expression::BoolLiteral(val).at_loc(&val))
         } else if let Some(val) = self.str_literal()? {
             Ok(Expression::StrLiteral(val.clone()).at_loc(&val))
-        } else if let Some(val) = self.bit_literal()? {
-            Ok(Expression::BitLiteral(val.clone()).at_loc(&val))
+        } else if let Some(val) = self.tri_literal()? {
+            Ok(Expression::TriLiteral(val.clone()).at_loc(&val))
         } else if let Some(val) = self.int_literal()? {
             Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
         } else if let Some(block) = self.block(false)? {

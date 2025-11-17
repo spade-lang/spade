@@ -158,7 +158,7 @@ pub enum CallKind {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub enum BitLiteral {
+pub enum TriLiteral {
     Low,
     High,
     HighImp,
@@ -218,7 +218,7 @@ pub enum ExprKind {
     Identifier(NameID),
     IntLiteral(BigInt, IntLiteralKind),
     BoolLiteral(bool),
-    BitLiteral(BitLiteral),
+    TriLiteral(TriLiteral),
     TypeLevelInteger(NameID),
     CreatePorts,
     TupleLiteral(Vec<Loc<Expression>>),

@@ -11,7 +11,7 @@ use std::conv::zext;
 use std::conv::concat;
 use std::conv::concat_arrays;
 
-use std::conv::bit_to_bool;
+use std::conv::tri_to_bool;
 use std::conv::int_to_uint;
 use std::conv::uint_to_int;
 
