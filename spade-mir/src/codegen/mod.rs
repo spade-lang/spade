@@ -1133,14 +1133,24 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
             }
         }
         Statement::Set { target, value } => {
-            let assignment = format!(
-                "assign {} = {};",
-                target.backward_var_name(),
-                value.var_name()
-            );
+            let mut assignments = Vec::new();
+            if ctx.types[&value.inner].size() != BigUint::ZERO {
+                assignments.push(format!(
+                    "assign {} = {};",
+                    target.backward_var_name(),
+                    value.var_name(),
+                ));
+            }
+            if ctx.types[&value.inner].backward_size() != BigUint::ZERO {
+                assignments.push(format!(
+                    "assign {} = {};",
+                    value.backward_var_name(),
+                    target.var_name(),
+                ))
+            };
 
             code! {
-                [0] assignment
+                [0] assignments;
             }
         }
         Statement::WalTrace { .. } => {
@@ -3337,7 +3347,9 @@ mod expression_tests {
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &TypeList::empty(),
+                &TypeList::empty()
+                    .with(ValueName::Expr(ExprID(0)), Type::backward(Type::Bool))
+                    .with(ValueName::Expr(ExprID(1)), Type::Bool),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
