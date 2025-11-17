@@ -160,7 +160,7 @@ pub enum TokenKind {
     #[token("<<")]
     LeftShift,
     #[token("||")]
-    LogicalOr,
+    DoublePipe,
     #[token("&&")]
     LogicalAnd,
     #[token("^^")]
@@ -168,7 +168,7 @@ pub enum TokenKind {
     #[token("&")]
     Ampersand,
     #[token("|")]
-    BitwiseOr,
+    Pipe,
     #[token("!")]
     Not,
     #[token("^")]
@@ -306,11 +306,11 @@ impl TokenKind {
             TokenKind::LeftShift => "<<",
             TokenKind::RightShift => ">>",
             TokenKind::ArithmeticRightShift => ">>>",
-            TokenKind::LogicalOr => "||",
+            TokenKind::DoublePipe => "||",
             TokenKind::LogicalAnd => "&&",
             TokenKind::LogicalXor => "^^",
             TokenKind::Ampersand => "&",
-            TokenKind::BitwiseOr => "|",
+            TokenKind::Pipe => "|",
             TokenKind::Not => "!",
             TokenKind::Tilde => "~",
             TokenKind::BitwiseXor => "^",

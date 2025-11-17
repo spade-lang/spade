@@ -84,11 +84,11 @@ impl<'a> Parser<'a> {
             TokenKind::RightShift => Some(BinaryOperator::RightShift),
             TokenKind::ArithmeticRightShift => Some(BinaryOperator::ArithmeticRightShift),
             TokenKind::LeftShift => Some(BinaryOperator::LeftShift),
-            TokenKind::LogicalOr => Some(BinaryOperator::LogicalOr),
+            TokenKind::DoublePipe => Some(BinaryOperator::LogicalOr),
             TokenKind::LogicalAnd => Some(BinaryOperator::LogicalAnd),
             TokenKind::LogicalXor => Some(BinaryOperator::LogicalXor),
             TokenKind::Ampersand => Some(BinaryOperator::BitwiseAnd),
-            TokenKind::BitwiseOr => Some(BinaryOperator::BitwiseOr),
+            TokenKind::Pipe => Some(BinaryOperator::BitwiseOr),
             TokenKind::BitwiseXor => Some(BinaryOperator::BitwiseXor),
             _ => None,
         }
@@ -303,18 +303,18 @@ impl<'a> Parser<'a> {
             return Ok(None);
         };
 
-        let (args, args_loc) = match self.peek_and_eat(&TokenKind::LogicalOr)? {
+        let (args, args_loc) = match self.peek_and_eat(&TokenKind::DoublePipe)? {
             Some(thing) => (vec![], thing.loc()),
             None => self.surrounded(
-                &TokenKind::BitwiseOr,
+                &TokenKind::Pipe,
                 |s| {
                     let args = s
-                        .comma_separated(|s| s.pattern(), &TokenKind::BitwiseOr)
+                        .comma_separated(|s| s.pattern(), &TokenKind::Pipe)
                         .no_context()?;
 
                     Ok(args)
                 },
-                &TokenKind::BitwiseOr,
+                &TokenKind::Pipe,
             )?,
         };
 
