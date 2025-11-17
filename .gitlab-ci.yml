@@ -242,6 +242,7 @@ check:cargo-fmt:
         - cargo fmt -- --check
 
 check:typos-and-todos:
+    image: rust:latest
     stage: test
     cache: [] # Disable cache since the spell checker finds typos in other peoples source code
     before_script:
