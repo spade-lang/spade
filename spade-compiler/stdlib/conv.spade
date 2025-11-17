@@ -78,6 +78,7 @@ fn uint_to_bits<#uint N>(input: uint<N>) -> [bool; N] {
         transmute(input)
     }
 }
+
 fn bits_to_uint<#uint N>(input: [bool; N]) -> uint<N> {
     unsafe {
         transmute(input)
@@ -130,6 +131,20 @@ impl<#uint N> [bool; N] {
 
     fn to_int(self) -> int<N> {
         bits_to_int(self)
+    }
+}
+
+impl bool {
+    fn to_uint(self) -> uint<1> {
+        unsafe {
+            transmute(self)
+        }
+    }
+
+    fn to_int(self) -> int<1> {
+        unsafe {
+            transmute(self)
+        }
     }
 }
 
