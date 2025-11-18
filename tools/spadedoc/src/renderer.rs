@@ -380,8 +380,13 @@ impl<'d> Renderer<'d> {
                 .map(|where_clause| {
                     || -> Result<_> {
                         let (target, constraints) = match &**where_clause {
-                            // TODO: Rdner kind and if_unsatisfied
-                            spade_hir::WhereClause::Int { target, constraint, kind: _, if_unsatisfied: _} => (
+                            // FIXME: Support kinds and if_unsatisfied
+                            spade_hir::WhereClause::Int {
+                                target,
+                                constraint,
+                                kind: _,
+                                if_unsatisfied: _,
+                            } => (
                                 target,
                                 vec![Spec::mirror_constgeneric(constraint, true, false)?],
                             ),

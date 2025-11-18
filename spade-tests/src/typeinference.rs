@@ -2457,13 +2457,38 @@ snapshot_error! {
     inequality_constraints_with_else_work,
     r#"
         fn thing<#uint N>()
-        where N > 5 else "This is disallowed"
+        where N > 5 else "If the requirement isn't satisfied, this is the message"
         {
             
         }
 
         fn test() {
             thing::<4>()
+        }
+    "#
+}
+
+snapshot_error! {
+    all_inequalities,
+    r#"
+        fn thing<#uint N1, #uint N2, #uint N3, #uint N4>()
+        where N1 > 5,
+              N2 < 5,
+              N3 <= 5,
+              N4 >= 5,
+        {}
+
+        fn test1() {
+            thing::<5, 4, 5, 5>();
+        }
+        fn test2() {
+            thing::<6, 5, 5, 5>();
+        }
+        fn test3() {
+            thing::<6, 4, 6, 5>();
+        }
+        fn test4() {
+            thing::<6, 4, 5, 4>();
         }
     "#
 }

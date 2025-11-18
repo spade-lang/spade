@@ -1,0 +1,47 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn thing<#uint N1, #uint N2, #uint N3, #uint N4>()
+where N1 > 5,
+      N2 < 5,
+      N3 <= 5,
+      N4 >= 5,
+{}
+
+fn test1() {
+    thing::<5, 4, 5, 5>();
+}
+fn test2() {
+    thing::<6, 5, 5, 5>();
+}
+fn test3() {
+    thing::<6, 4, 6, 5>();
+}
+fn test4() {
+    thing::<6, 4, 5, 4>();
+}
+
+
+error: Expected N1 > 5 but N1 is 5 
+  ┌─ testinput:9:5
+  │
+9 │     thing::<5, 4, 5, 5>();
+  │     ^^^^^^^^^^^^^^^^^^^^^ Expected N1 > 5, but N1 is 5
+
+error: Expected N2 < 5 but N2 is 5 
+   ┌─ testinput:12:5
+   │
+12 │     thing::<6, 5, 5, 5>();
+   │     ^^^^^^^^^^^^^^^^^^^^^ Expected N2 < 5, but N2 is 5
+
+error: Expected N3 <= 5 but N3 is 6 
+   ┌─ testinput:15:5
+   │
+15 │     thing::<6, 4, 6, 5>();
+   │     ^^^^^^^^^^^^^^^^^^^^^ Expected N3 <= 5, but N3 is 6
+
+error: Expected N4 >= 5 but N4 is 4 
+   ┌─ testinput:18:5
+   │
+18 │     thing::<6, 4, 5, 4>();
+   │     ^^^^^^^^^^^^^^^^^^^^^ Expected N4 >= 5, but N4 is 4

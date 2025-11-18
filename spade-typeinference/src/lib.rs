@@ -1477,6 +1477,7 @@ impl TypeState {
                             );
 
                             self.add_requirement(Requirement::WhereInequality {
+                                var: target.inner.clone(),
                                 lhs: tvar.clone().at_loc(target),
                                 rhs: rhsvar.at_loc(&constraint.loc()),
                                 inequality: *kind,

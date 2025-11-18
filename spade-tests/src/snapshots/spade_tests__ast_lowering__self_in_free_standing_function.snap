@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/ast_lowering.rs
-assertion_line: 793
 ---
 fn a(self) -> bool {true}
 
