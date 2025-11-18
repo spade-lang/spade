@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn thing<#uint N>()
+where N > 5 else "If the requirement isn't satisfied, this is the message"
+{
+    
+}
+
+fn test() {
+    thing::<4>()
+}
+
+
+error: Expected N > 5 but N is 4 
+  ┌─ testinput:8:5
+  │
+8 │     thing::<4>()
+  │     ^^^^^^^^^^^^ Expected N > 5, but N is 4
+  │
+  = note: If the requirement isn't satisfied, this is the message

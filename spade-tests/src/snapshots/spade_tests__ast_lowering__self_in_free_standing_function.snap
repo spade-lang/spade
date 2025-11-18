@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn a(self) -> bool {true}
+
+error: 'self' cannot be used in free standing units
+  ┌─ testinput:1:6
+  │
+1 │ fn a(self) -> bool {true}
+  │      ^^^^ not allowed here

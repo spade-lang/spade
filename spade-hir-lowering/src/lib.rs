@@ -1366,6 +1366,7 @@ impl ExprLocal for Loc<Expression> {
                         .primary_label("Unknown pipeline stage offset")
                         .help("This is likely caused by a type variable that is not fully known being used."))
                 };
+
                 match subs.lookup_referenced(depth, name) {
                     Substitution::Undefined => Err(undefined_variable(name)),
                     Substitution::Waiting {

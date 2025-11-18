@@ -3,7 +3,7 @@ use num::traits::Pow;
 use num::{BigInt, ToPrimitive, Zero};
 use spade_common::id_tracker::ExprID;
 use spade_common::location_info::WithLocation;
-use spade_common::name::Path;
+use spade_common::name::{NameID, Path};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::{location_info::Loc, name::Identifier};
 use spade_diagnostics::{diag_anyhow, diag_assert, diag_bail, Diagnostic};
@@ -84,6 +84,7 @@ pub enum Requirement {
         array_size: Loc<TypeVarID>,
     },
     WhereInequality {
+        var: NameID,
         lhs: Loc<TypeVarID>,
         rhs: Loc<TypeVarID>,
         inequality: WhereClauseKind,
@@ -579,6 +580,7 @@ impl Requirement {
                 }
             },
             Requirement::WhereInequality {
+                var,
                 lhs,
                 rhs,
                 inequality,
@@ -606,9 +608,13 @@ impl Requirement {
                         let loc = callsite.unwrap_or(lhs.loc());
                         let mut diag = Diagnostic::error(
                             loc,
-                            format!("Expected {lhs_val} {inequality} {rhs_val}"),
+                            format!(
+                                "Expected {var} {inequality} {rhs_val} but {var} is {lhs_val} "
+                            ),
                         )
-                        .primary_label(format!("Expected {lhs_val} {inequality} {rhs_val}"));
+                        .primary_label(format!(
+                            "Expected {var} {inequality} {rhs_val}, but {var} is {lhs_val}"
+                        ));
                         if let Some(message) = message {
                             diag = diag.note(message.to_string())
                         }
