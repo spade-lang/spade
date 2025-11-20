@@ -1,0 +1,4 @@
+# example, not default
+sections = ["Added", "Fixed", "Changed", "Removed"]
+format = "[{link_short}][{link_short}] {item}"
+short-links = true

@@ -9,6 +9,88 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.15.0] - 2025-11-20
+
+## Added
+- [!469][!469] Expose `zip` as a standalone function
+- [!469][!469] Added `interleave` and `interleave_arrays`
+- [!469][!469] Added `interleave` to `uint`
+- [!469][!469] Added `interleave` to arrays
+- [!471][!471] Add an `#str` meta-type and type-level string literals
+- [!472][!472] Support for impl on the same type with the same trait as long as trait's generics differ
+- [!473][!473] Added `read_write_inout` to interact with `inout` ports
+- [!477][!477] `unsafe { }` blocks
+- [!488][!488] Allow the array shorthand syntax `[expr; N]` for the initial contents of a memory
+- [!492][!492] Parser now keeps track of parentheses for `spadefmt`
+- [!499][!499] Allow methods to be pipelines
+- [!499][!499] Add `.read` on `std::mem::ReadPort` and `.write` on `std::mem::WritePort`
+- [!501][!501] Add support for lambda pipelines and entities
+- [!501][!501] Add `Option::pmap`
+- [!502][!502] Allow lambda units to capture
+- [!519][!519] Added `bool_to_int`, `bool_to_uint`, `bool::to_int` and `bool::to_uint`.
+
+## Fixed
+- [!469][!469] Use `N == 0` as base case for `zip`
+- [!470][!470] `add_changelog` now creates `changelogs` if it does not exist
+- [!473][!473] `inout` is now forbidden inside structs, enums and wires
+- [!474][!474] Fixed handling and codegen of `inv clock`
+- [!483][!483] Fix panic when unsafe is used as a keyword
+- [!490][!490] Fix a regression in typeinference with fully specified integer literals
+- [!491][!491] Fix panic when defining a closure in an entity that takes a bare generic `T`
+- [!495][!495] Fix panic when using generic non-types as tuple elements
+- [!499][!499] Lift restriction on `fn`s on port types
+- [!507][!507] Fix a panic when error types are used in match statements
+- [!510][!510] Actually check the latency of unit arguments and pipelines
+- [!517][!517] Set on ports with both `inv` and non `inv` components now generates correct code
+- [!395][!395] Improve type errors in nested generics
+- [!395][!395] Improve error reporting for constraint errors
+- [!395][!395] Fix a panic when there are non-fatal AST errors that cause codegen problems
+- [!395][!395] Stop emitting errors for missing methods on unknown types
+
+## Changed
+- [!476][!476] **Breaking change** make `set` handle all port types, not only wires, which now need `&`
+- [!477][!477] Every `std::MOD::unsafe::*` method is now `unsafe` and lives in `std::MOD`
+- [!477][!477] `std::conv::unsafe::unsafe_cast` is now called `std::conv::transmute` and also is marked `unsafe`
+- [!477][!477] The safeness of trait definition and implementation must match
+- [!477][!477] Lambdas reset the safeness context
+- [!479][!479] Enum and struct initializers now can be used in `const` scenarios
+- [!482][!482] Save compiler state as bincode instead of RON. This requires updating `swim` to the latest version
+- [!496][!496] Improved the error messages when referring to unavailable pipeline variables
+- [!501][!501] Allow `_` in pipeline `inst(_)`
+- [!501][!501] Improve error messages for incorrect or missing `inst`
+- [!515][!515] *Breaking change* Lambdas now use vertical bars to enclose parameters.
+- [!515][!515] Lambdas now may have a single expression body.
+- [!518][!518] *Breaking change* Renamed `bit` type to `tri` and `bit_to_bool` to `tri_to_bool`.
+
+
+[!469]: https://gitlab.com/spade-lang/spade/-/merge_requests/469
+[!470]: https://gitlab.com/spade-lang/spade/-/merge_requests/470
+[!471]: https://gitlab.com/spade-lang/spade/-/merge_requests/471
+[!472]: https://gitlab.com/spade-lang/spade/-/merge_requests/472
+[!473]: https://gitlab.com/spade-lang/spade/-/merge_requests/473
+[!474]: https://gitlab.com/spade-lang/spade/-/merge_requests/474
+[!476]: https://gitlab.com/spade-lang/spade/-/merge_requests/476
+[!477]: https://gitlab.com/spade-lang/spade/-/merge_requests/477
+[!479]: https://gitlab.com/spade-lang/spade/-/merge_requests/479
+[!482]: https://gitlab.com/spade-lang/spade/-/merge_requests/482
+[!483]: https://gitlab.com/spade-lang/spade/-/merge_requests/483
+[!488]: https://gitlab.com/spade-lang/spade/-/merge_requests/488
+[!490]: https://gitlab.com/spade-lang/spade/-/merge_requests/490
+[!491]: https://gitlab.com/spade-lang/spade/-/merge_requests/491
+[!492]: https://gitlab.com/spade-lang/spade/-/merge_requests/492
+[!495]: https://gitlab.com/spade-lang/spade/-/merge_requests/495
+[!496]: https://gitlab.com/spade-lang/spade/-/merge_requests/496
+[!499]: https://gitlab.com/spade-lang/spade/-/merge_requests/499
+[!501]: https://gitlab.com/spade-lang/spade/-/merge_requests/501
+[!502]: https://gitlab.com/spade-lang/spade/-/merge_requests/502
+[!507]: https://gitlab.com/spade-lang/spade/-/merge_requests/507
+[!510]: https://gitlab.com/spade-lang/spade/-/merge_requests/510
+[!515]: https://gitlab.com/spade-lang/spade/-/merge_requests/515
+[!517]: https://gitlab.com/spade-lang/spade/-/merge_requests/517
+[!518]: https://gitlab.com/spade-lang/spade/-/merge_requests/518
+[!519]: https://gitlab.com/spade-lang/spade/-/merge_requests/519
+[!395]: https://gitlab.com/spade-lang/spade/-/merge_requests/395
+
 ## [0.14.0] - 2025-06-26
 
 ## Added
@@ -518,7 +600,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.14.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.15.0...main
+[0.15.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.15.0...v0.14.0
 [0.14.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.14.0...v0.13.0
 [0.13.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...v0.12.0
 [0.12.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.12.0...v0.11.0
