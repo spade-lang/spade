@@ -21,4 +21,4 @@ error: Expected type uint<8>, got clock
   = note: Expected: uint<8>
                Got: clock
   = The error is in a generic unit instantiated at
-    ╰ testinput:2 impl_13::call<()>
+    ╰ testinput:2 impl_14::call<()>

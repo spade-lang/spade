@@ -11,3 +11,9 @@ extern entity read_mut_wire<T>(p: inv &T) -> T;
 // When the value at the input is `None`, `p` is left in a high-impedance state
 // and the output is the incoming value `Some(T)`
 extern entity read_write_inout<T>(p: inout<T>) -> (&Option<T>, inv &Option<T>);
+
+impl<T> inout<T> {
+    fn read_write(self) -> (&Option<T>, inv &Option<T>) {
+        read_write_inout(self)
+    }
+}
