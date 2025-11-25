@@ -1078,14 +1078,14 @@ impl StatementLocal for Statement {
             }) => {
                 result.append(value.lower(ctx)?);
 
-                let refutability = pattern.is_refutable(ctx);
-                if refutability.is_useful() {
-                    return Err(refutable_pattern_diagnostic(
-                        pattern.loc(),
-                        &refutability,
-                        "let",
-                    ));
-                }
+                // let refutability = pattern.is_refutable(ctx);
+                // if refutability.is_useful() {
+                //     return Err(refutable_pattern_diagnostic(
+                //         pattern.loc(),
+                //         &refutability,
+                //         "let",
+                //     ));
+                // }
 
                 let concrete_ty = ctx.types.concrete_type_of(
                     pattern,
@@ -1156,14 +1156,14 @@ impl StatementLocal for Statement {
 
                 result.append(value.lower(ctx)?);
 
-                let refutability = pattern.is_refutable(ctx);
-                if refutability.is_useful() {
-                    return Err(refutable_pattern_diagnostic(
-                        pattern.loc(),
-                        &refutability,
-                        "reg",
-                    ));
-                }
+                // let refutability = pattern.is_refutable(ctx);
+                // if refutability.is_useful() {
+                //     return Err(refutable_pattern_diagnostic(
+                //         pattern.loc(),
+                //         &refutability,
+                //         "reg",
+                //     ));
+                // }
 
                 let ty = ctx.types.concrete_type_of(
                     pattern,

@@ -1,0 +1,7 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 2799
+---
+fn test() {
+    let [true, x] = [true, true];
+}

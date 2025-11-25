@@ -1,0 +1,8 @@
+---
+source: spade-tests/src/usefulness.rs
+assertion_line: 299
+---
+entity A(clk: clock) -> bool {
+    reg(clk) true = false;
+    false
+}
