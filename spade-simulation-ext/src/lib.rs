@@ -233,8 +233,8 @@ impl Spade {
         // Set the namespace of the module
         let namespace = uut.prelude();
         let mut symtab = state.symtab.unfreeze();
-        for name in namespace.0 {
-            symtab.push_namespace(name)
+        for segment in namespace.0 {
+            symtab.push_namespace(segment)
         }
         let symtab = symtab.freeze();
 

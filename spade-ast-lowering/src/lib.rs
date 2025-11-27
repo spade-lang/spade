@@ -41,7 +41,7 @@ use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
-use spade_common::name::{Identifier, Path};
+use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_hir::{self as hir, ExprKind, ItemList, Module, TraitSpec, TypeExpression, TypeSpec};
 
 use error::Result;
@@ -100,12 +100,12 @@ impl Context {
         result
     }
 
-    pub fn in_namespace<T>(
+    pub fn in_named_namespace<T>(
         &mut self,
         new_ident: Loc<Identifier>,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        self.symtab.push_namespace(new_ident);
+        self.symtab.push_namespace(PathSegment::Named(new_ident));
         let result = f(self);
         self.symtab.pop_namespace();
         result
@@ -165,6 +165,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                     traits: trait_bounds.clone(),
                 }
                 .at_loc(ident),
+                Visibility::Implicit.nowhere(),
             );
 
             Ok(hir::TypeParam {
@@ -179,6 +180,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
             let name_id = ctx.symtab.add_type(
                 name.clone(),
                 TypeSymbol::GenericMeta(meta.clone()).at_loc(name),
+                Visibility::Implicit.nowhere(),
             );
 
             Ok(hir::TypeParam {
@@ -943,8 +945,8 @@ pub fn visit_const_generic(
             callee,
             args,
             turbofish: None,
-        } => match callee.as_strs().as_slice() {
-            ["uint_bits_to_fit"] => match &args.inner {
+        } => match callee.to_named_strs().as_slice() {
+            [Some("uint_bits_to_fit")] => match &args.inner {
                 ast::ArgumentList::Positional(a) => {
                     if a.len() != 1 {
                         return Err(Diagnostic::error(
@@ -1150,6 +1152,7 @@ pub fn visit_unit(
     let ast::Unit {
         head:
             ast::UnitHead {
+                visibility: _,
                 unsafe_token: _,
                 extern_token: _,
                 name,
@@ -1167,7 +1170,7 @@ pub fn visit_unit(
 
     let path = extra_path
         .unwrap_or(Path(vec![]))
-        .join(Path(vec![name.clone()]))
+        .join(Path::ident(name.clone()))
         .at_loc(&name.loc());
 
     let (id, head) = ctx
@@ -1445,7 +1448,8 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
         ast::Item::ImplBlock(block) => visit_impl(block, ctx),
         ast::Item::ExternalMod(_) => Ok(vec![]),
         ast::Item::Module(m) => {
-            ctx.symtab.push_namespace(m.name.clone());
+            ctx.symtab
+                .push_namespace(PathSegment::Named(m.name.clone()));
             let result = visit_module(m, ctx);
             ctx.symtab.pop_namespace();
             result.map(|_| vec![])
@@ -1544,7 +1548,8 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
         ast::Pattern::Path(path) => {
             match (try_lookup_enum_variant(path, ctx), path.inner.0.as_slice()) {
                 (Ok(kind), _) => kind,
-                (_, [ident]) => {
+                (_, [segment]) => {
+                    let ident = segment.unwrap_named();
                     // Check if this is declaring a variable
                     let (name_id, pre_declared) =
                         if let Some(state) = ctx.symtab.get_declaration(ident) {
@@ -1558,6 +1563,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                     ctx.symtab.add_thing_with_name_id(
                                         id.clone(),
                                         Thing::Variable(ident.clone()),
+                                        None,
                                     );
                                     ctx.symtab
                                         .mark_declaration_defined(ident.clone(), ident.loc());
@@ -1579,6 +1585,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                 ctx.symtab.add_thing(
                                     Path::ident(ident.clone()),
                                     Thing::Variable(ident.clone()),
+                                    None,
                                 ),
                                 false,
                             )
@@ -1631,7 +1638,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                         .iter()
                         .map(|(target, pattern)| {
                             let ast_pattern = pattern.as_ref().cloned().unwrap_or_else(|| {
-                                ast::Pattern::Path(Path(vec![target.clone()]).at_loc(target))
+                                ast::Pattern::Path(Path::ident_with_loc(target.clone()))
                                     .at_loc(target)
                             });
                             let new_pattern = visit_pattern(&ast_pattern, ctx)?;
@@ -1878,9 +1885,8 @@ fn visit_argument_list(
                         ))
                     }
                     ast::NamedArgument::Short(name) => {
-                        let expr =
-                            ast::Expression::Identifier(Path(vec![name.clone()]).at_loc(name))
-                                .at_loc(name);
+                        let expr = ast::Expression::Identifier(Path::ident_with_loc(name.clone()))
+                            .at_loc(name);
 
                         Ok(hir::expression::NamedArgument::Short(
                             name.clone(),
@@ -1924,8 +1930,7 @@ pub fn visit_turbofish(
             .map(|fish| match &fish.inner {
                 ast::NamedTurbofish::Short(name) => {
                     let arg = ast::TypeExpression::TypeSpec(Box::new(
-                        ast::TypeSpec::Named(Path(vec![name.clone()]).at_loc(name), None)
-                            .at_loc(name),
+                        ast::TypeSpec::Named(Path::ident_with_loc(name.clone()), None).at_loc(name),
                     ));
 
                     let arg =
@@ -2050,6 +2055,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                         ctx.symtab.add_thing(
                             Path::ident(label.clone()),
                             Thing::ArrayLabel(i.at_loc(label)),
+                            None,
                         );
                     }
                 }
@@ -2309,7 +2315,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 .as_ref()
                 .expect("Expected to have a pipeline context");
 
-            let path = Path(vec![name.clone()]).at_loc(name);
+            let path = Path::ident_with_loc(name.clone());
             let (name_id, declares_name) = match ctx.symtab.try_lookup_variable(&path)? {
                 Some(id) => (id.at_loc(name), false),
                 None => {
@@ -2460,7 +2466,7 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
             ast::Attribute::Fsm { state } => {
                 let name_id = if let Some(state) = state {
                     ctx.symtab
-                        .lookup_variable(&Path(vec![state.clone()]).at_loc(state))?
+                        .lookup_variable(&Path::ident_with_loc(state.clone()))?
                 } else if let PatternKind::Name { name, .. } = &pattern.inner.kind {
                     name.inner.clone()
                 } else {
@@ -2838,7 +2844,12 @@ mod expression_visiting {
         }
         .nowhere();
 
-        symtab.add_thing_with_id(100, ast_path("x").inner, Thing::EnumVariant(enum_variant));
+        symtab.add_thing_with_id(
+            100,
+            ast_path("x").inner,
+            Thing::EnumVariant(enum_variant),
+            Some(Visibility::Implicit.nowhere()),
+        );
         assert_eq!(
             visit_expression(
                 &input,
@@ -2901,7 +2912,12 @@ mod expression_visiting {
         }
         .nowhere();
 
-        symtab.add_thing_with_id(100, ast_path("x").inner, Thing::EnumVariant(enum_variant));
+        symtab.add_thing_with_id(
+            100,
+            ast_path("x").inner,
+            Thing::EnumVariant(enum_variant),
+            Some(Visibility::Implicit.nowhere()),
+        );
 
         assert_eq!(
             visit_expression(
@@ -2965,6 +2981,7 @@ mod expression_visiting {
                 }
                 .nowhere(),
             ),
+            Some(Visibility::Implicit.nowhere()),
         );
 
         assert_eq!(
@@ -3041,6 +3058,7 @@ mod expression_visiting {
                 }
                 .nowhere(),
             ),
+            Some(Visibility::Implicit.nowhere()),
         );
 
         assert_eq!(
@@ -3105,6 +3123,7 @@ mod expression_visiting {
                 }
                 .nowhere(),
             ),
+            Some(Visibility::Implicit.nowhere()),
         );
 
         assert_eq!(
@@ -3170,6 +3189,7 @@ mod pattern_visiting {
         let type_name = symtab.add_type(
             ast_ident("a"),
             TypeSymbol::Declared(vec![], TypeDeclKind::normal_struct()).nowhere(),
+            Visibility::Implicit.nowhere(),
         );
 
         symtab.add_thing_with_name_id(
@@ -3188,6 +3208,7 @@ mod pattern_visiting {
                 }
                 .nowhere(),
             ),
+            Some(Visibility::Implicit.nowhere()),
         );
 
         let result = visit_pattern(
@@ -3289,6 +3310,7 @@ mod item_visiting {
     use spade_ast::testutil::ast_ident;
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
+    use spade_common::name::Visibility;
 
     use crate::testutil::test_context;
     use pretty_assertions::assert_eq;
@@ -3298,6 +3320,7 @@ mod item_visiting {
         let input = ast::Item::Unit(
             ast::Unit {
                 head: ast::UnitHead {
+                    visibility: Visibility::Implicit.nowhere(),
                     unsafe_token: None,
                     extern_token: None,
                     name: ast_ident("test"),
@@ -3363,6 +3386,7 @@ mod module_visiting {
     use spade_ast::testutil::ast_ident;
     use spade_common::location_info::WithLocation;
     use spade_common::name::testutil::name_id;
+    use spade_common::name::Visibility;
     use spade_hir::impl_tab::ImplTab;
 
     use crate::testutil::test_context;
@@ -3375,6 +3399,7 @@ mod module_visiting {
             members: vec![ast::Item::Unit(
                 ast::Unit {
                     head: ast::UnitHead {
+                        visibility: Visibility::Implicit.nowhere(),
                         unsafe_token: None,
                         extern_token: None,
                         name: ast_ident("test"),
@@ -3447,10 +3472,12 @@ mod module_visiting {
         let input = ast::ModuleBody {
             members: vec![ast::Item::Module(
                 ast::Module {
+                    visibility: Visibility::Implicit.nowhere(),
                     name: ast_ident("outer"),
                     body: ast::ModuleBody {
                         members: vec![ast::Item::Module(
                             ast::Module {
+                                visibility: Visibility::Implicit.nowhere(),
                                 name: ast_ident("inner"),
                                 body: ast::ModuleBody {
                                     members: vec![],
@@ -3503,7 +3530,8 @@ mod module_visiting {
         };
         ctx.symtab.add_thing(
             namespace.namespace.clone(),
-            Thing::Module(namespace.namespace.0[0].clone()),
+            Thing::Module(namespace.namespace.0[0].unwrap_named().clone()),
+            Some(Visibility::Implicit.nowhere()),
         );
         global_symbols::gather_types(&input, &mut ctx).expect("failed to collect types");
 

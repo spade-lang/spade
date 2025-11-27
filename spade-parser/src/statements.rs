@@ -1,5 +1,8 @@
 use spade_ast::{AttributeList, Binding, Expression, Register, Statement};
-use spade_common::location_info::{lspan, AsLabel, Loc, WithLocation};
+use spade_common::{
+    location_info::{lspan, AsLabel, Loc, WithLocation},
+    name::Visibility,
+};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
 
@@ -15,8 +18,14 @@ impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
         |kind| kind == &TokenKind::Let
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
-        let _ = parser.eat_unconditional()?;
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
+        let start_token = parser.eat_unconditional()?;
+        parser.disallow_visibility(visibility, &start_token)?;
 
         let (pattern, start_span) = parser.pattern()?.separate();
 
@@ -46,8 +55,14 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
         |kind| kind == &TokenKind::Reg
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
         let start_token = parser.eat_unconditional()?;
+        parser.disallow_visibility(visibility, &start_token)?;
 
         // NOTE: It might be nicer to use () but that complicates the compiler slightly more
         // annoying to write, so I'll use [] initially as a proof of concept
@@ -195,9 +210,15 @@ impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
         |kind| kind == &TokenKind::Decl
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
         let start_token = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &start_token)?;
+        parser.disallow_visibility(visibility, &start_token)?;
 
         let mut identifiers = vec![];
         while parser.peek_cond(|t| t.is_identifier(), "expected identifier")? {
@@ -230,7 +251,12 @@ impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
         |kind| matches!(kind, TokenKind::Label(_))
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
         let tok @ Token {
             kind: TokenKind::Label(l),
             ..
@@ -242,6 +268,7 @@ impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
             )
         };
         parser.disallow_attributes(attributes, &tok)?;
+        parser.disallow_visibility(visibility, &tok)?;
 
         Ok(Statement::Label(l.clone().at(parser.file_id, &tok.span)).at(parser.file_id, &tok.span))
     }
@@ -254,9 +281,15 @@ impl KeywordPeekingParser<Loc<Statement>> for AssertParser {
         |kind| kind == &TokenKind::Assert
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
         let tok = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &tok)?;
+        parser.disallow_visibility(visibility, &tok)?;
 
         let expr = parser.expression()?;
 
@@ -271,9 +304,15 @@ impl KeywordPeekingParser<Loc<Statement>> for SetParser {
         |kind| kind == &TokenKind::Set
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
         let tok = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &tok)?;
+        parser.disallow_visibility(visibility, &tok)?;
 
         let target = parser.expression()?;
 

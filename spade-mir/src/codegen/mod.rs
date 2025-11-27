@@ -943,7 +943,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     code!{
                         [0] source_attribute(loc, ctx.source_code);
                         [0] format!(
-                            "{}{} {}({});",
+                            "{}{} \\{} ({});",
                             &module_name.as_verilog(),
                             if param_string.is_empty() { "".into() } else { format!("{}", param_string)},
                             instance_name,
@@ -1942,7 +1942,7 @@ mod tests {
                 always @(posedge \clk ) begin
                     \x__s1  <= \x_ ;
                 end
-                \A  A_0(.output__(\x_ ));
+                \A  \A_0 (.output__(\x_ ));
                 assign \x  = \x_ ;
                 assign output__ = \x ;
             endmodule"#
@@ -2902,7 +2902,7 @@ mod expression_tests {
         let expected = indoc!(
             r#"
             logic _e_0;
-            \e_test  e_test_0(.a_i(_e_1), .b_i(_e_2), .output__(_e_0));"#
+            \e_test  \e_test_0 (.a_i(_e_1), .b_i(_e_2), .output__(_e_0));"#
         );
 
         assert_same_code!(
@@ -2936,7 +2936,7 @@ mod expression_tests {
             r#"
             logic _e_0;
             logic _e_0_mut;
-            \e_test  e_test_0(.a_i(_e_1), .b_i(_e_2), .output__(_e_0), .input__(_e_0_mut));"#
+            \e_test  \e_test_0 (.a_i(_e_1), .b_i(_e_2), .output__(_e_0), .input__(_e_0_mut));"#
         );
 
         assert_same_code!(
@@ -2968,7 +2968,7 @@ mod expression_tests {
         let expected = indoc!(
             r#"
             logic _e_0_mut;
-            \e_test  e_test_0(.a_i(_e_1), .b_i(_e_2), .input__(_e_0_mut));"#
+            \e_test  \e_test_0 (.a_i(_e_1), .b_i(_e_2), .input__(_e_0_mut));"#
         );
 
         assert_same_code!(
@@ -3000,7 +3000,7 @@ mod expression_tests {
         let expected = indoc!(
             r#"
             logic _e_0;
-            \test  test_0(.a_i(_e_1), .a_o(_e_1_mut), .b_o(_e_2_mut), .output__(_e_0));"#
+            \test  \test_0 (.a_i(_e_1), .a_o(_e_1_mut), .b_o(_e_2_mut), .output__(_e_0));"#
         );
 
         let type_list = TypeList::empty()

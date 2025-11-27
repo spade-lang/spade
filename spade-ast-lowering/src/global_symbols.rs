@@ -7,7 +7,7 @@ use hir::{
 use spade_ast::{self as ast, Module, ModuleBody};
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, Path},
+    name::{Identifier, Path, Visibility},
     namespace::ModuleNamespace,
 };
 use spade_diagnostics::{diag_anyhow, Diagnostic};
@@ -32,7 +32,8 @@ pub fn handle_external_modules(
 ) -> Result<()> {
     for item in &module.members {
         match item {
-            ast::Item::ExternalMod(name) => {
+            ast::Item::ExternalMod(ref em) => {
+                let name = &em.name;
                 if let Some(inner) = inner_module {
                     return Err(Diagnostic::error(
                         name,
@@ -50,6 +51,7 @@ pub fn handle_external_modules(
                     let name_id = ctx.symtab.add_unique_thing(
                         Path::ident(name.clone()).at_loc(&name),
                         Thing::Module(name.clone()),
+                        Some(em.visibility.clone()),
                     )?;
 
                     ctx.item_list.modules.insert(
@@ -82,7 +84,7 @@ pub fn handle_external_modules(
                     }
                 }
             }
-            ast::Item::Module(m) => ctx.in_namespace(m.name.clone(), |ctx| {
+            ast::Item::Module(m) => ctx.in_named_namespace(m.name.clone(), |ctx| {
                 handle_external_modules(this_file, Some(m), &m.body, namespaces, ctx)
             })?,
             ast::Item::Type(_) => {}
@@ -145,20 +147,21 @@ pub fn report_missing_mod_declarations(
 pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
     for item in &module.members {
         match item {
-            ast::Item::Type(t) => {
+            ast::Item::Type(ref t) => {
                 visit_type_declaration(t, ctx)?;
             }
             ast::Item::ExternalMod(_) => {}
-            ast::Item::Module(m) => {
+            ast::Item::Module(ref m) => {
                 ctx.symtab.add_unique_thing(
                     Path::ident(m.name.clone()).at_loc(&m.name),
                     Thing::Module(m.name.clone()),
+                    Some(m.visibility.clone()),
                 )?;
-                ctx.in_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
+                ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
-            ast::Item::TraitDef(r#trait) => {
+            ast::Item::TraitDef(ref r#trait) => {
                 ctx.symtab.add_unique_thing(
                     Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
                     Thing::Trait(
@@ -173,16 +176,18 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                         }
                         .at_loc(&r#trait.name),
                     ),
+                    Some(r#trait.visibility.clone()),
                 )?;
             }
             ast::Item::Use(us) => {
                 for u in &us.inner {
                     let new_name = match &u.alias {
                         Some(name) => name.clone(),
-                        None => u.path.0.last().unwrap().clone(),
+                        None => u.path.0.last().unwrap().unwrap_named().clone(),
                     };
 
-                    ctx.symtab.add_alias(new_name, u.path.clone())?;
+                    ctx.symtab
+                        .add_alias(new_name, u.path.clone(), u.visibility.clone())?;
                 }
             }
         }
@@ -202,10 +207,10 @@ pub fn gather_symbols(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()>
 #[tracing::instrument(skip_all)]
 pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
     match item {
-        ast::Item::Unit(e) => {
+        ast::Item::Unit(ref e) => {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
-        ast::Item::TraitDef(def) => {
+        ast::Item::TraitDef(ref def) => {
             let (name, _) = ctx.symtab.lookup_trait(&Path::ident(def.name.clone()).at_loc(&def.name)).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
             let mut paren_sugar = false;
             let documentation = def.attributes.merge_docs();
@@ -235,12 +240,12 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             )?;
         }
         ast::Item::ImplBlock(_) => {}
-        ast::Item::Type(t) => {
+        ast::Item::Type(ref t) => {
             re_visit_type_declaration(t, ctx)?;
         }
         ast::Item::ExternalMod(_) => {}
         ast::Item::Module(m) => {
-            ctx.in_namespace(m.name.clone(), |ctx| gather_symbols(&m.body, ctx))?
+            ctx.in_named_namespace(m.name.clone(), |ctx| gather_symbols(&m.body, ctx))?
         }
         ast::Item::Use(_) => {}
     }
@@ -269,8 +274,11 @@ pub fn visit_unit(
         .join(Path::ident(unit.head.name.clone()))
         .at_loc(&unit.head.name);
 
-    ctx.symtab
-        .add_unique_thing(new_path, Thing::Unit(head.at_loc(unit)))?;
+    ctx.symtab.add_unique_thing(
+        new_path,
+        Thing::Unit(head.at_loc(unit)),
+        Some(unit.head.visibility.clone()),
+    )?;
 
     Ok(())
 }
@@ -328,8 +336,11 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
     };
 
     let new_thing = t.name.clone();
-    ctx.symtab
-        .add_unique_type(new_thing, TypeSymbol::Declared(args, kind).at_loc(t))?;
+    ctx.symtab.add_unique_type(
+        new_thing,
+        TypeSymbol::Declared(args, kind).at_loc(t),
+        t.visibility.clone(),
+    )?;
 
     Ok(())
 }
@@ -344,7 +355,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     // Look up the ID
     let (declaration_id, _) = ctx
         .symtab
-        .lookup_type_symbol(&Path(vec![t.name.clone()]).at_loc(&t.name))
+        .lookup_type_symbol(&Path::ident_with_loc(t.name.clone()))
         .expect("Expected type symbol to already be in symtab");
     let declaration_id = declaration_id.at_loc(&t.name);
 
@@ -373,7 +384,11 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 (name, TypeSymbol::GenericMeta(visit_meta_type(meta)?))
             }
         };
-        ctx.symtab.add_type(name.clone(), symbol_type.at_loc(param));
+        ctx.symtab.add_type(
+            name.clone(),
+            symbol_type.at_loc(param),
+            t.visibility.clone(),
+        );
     }
 
     // Generate TypeExprs and TypeParam vectors which are needed for building the
@@ -383,7 +398,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     for arg in t.generic_args.as_ref().map(|l| &l.inner).unwrap_or(&vec![]) {
         let (name_id, _) = ctx
             .symtab
-            .lookup_type_symbol(&Path(vec![arg.name().clone()]).at_loc(arg))
+            .lookup_type_symbol(&Path::ident_with_loc(arg.name().clone()))
             .expect("Expected generic param to be in symtab");
         let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(name_id.clone().at_loc(arg)))
             .at_loc(arg);
@@ -416,6 +431,24 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         ast::TypeDeclKind::Enum(e) => {
             let mut member_names = HashSet::<Loc<Identifier>>::default();
             let mut hir_options = vec![];
+
+            // Set variant visibility based on enum visibility
+            let variant_vis = match *t.visibility {
+                // Implicit visibility (no visibility marker attached) is equivalent to `pub(self)`.
+                // This means that an enum with implicit visibility must have enum variants with
+                // `super` visibility.
+                Visibility::Implicit => Visibility::AtSuper,
+                Visibility::Public => Visibility::Public,
+                Visibility::AtLib => Visibility::AtLib,
+                Visibility::AtSelf => Visibility::AtSuper,
+                Visibility::AtSuper => Visibility::AtSuperSuper,
+                Visibility::AtSuperSuper => {
+                    return Err(Diagnostic::bug(
+                        t.loc(),
+                        "Impossible visibility found while setting enum variant visibility",
+                    ))
+                }
+            };
 
             for (i, variant) in e.variants.iter().enumerate() {
                 if let Some(prev) = member_names.get(&variant.name) {
@@ -491,8 +524,9 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 // Add option constructor to symtab at the outer scope
                 let head_id = ctx.symtab.add_thing_at_offset(
                     1,
-                    Path(vec![e.name.clone(), variant.name.clone()]),
+                    Path::from_idents(&[&e.name, &variant.name]),
                     Thing::EnumVariant(variant_thing.at_loc(&variant.name)),
+                    Some(variant_vis.clone().at_loc(&t.visibility)),
                 );
 
                 // Add option constructor to item list
@@ -595,6 +629,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     }
                     .at_loc(s),
                 ),
+                Some(t.visibility.clone()),
             );
 
             ctx.item_list.executables.insert(
@@ -611,7 +646,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     uses_clk,
                 } => {
                     let suffix = if let Some(suffix) = suffix {
-                        Path(vec![suffix.clone()])
+                        Path::ident(suffix.clone())
                     } else {
                         declaration_id.1.clone()
                     };

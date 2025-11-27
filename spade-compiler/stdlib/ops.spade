@@ -11,12 +11,12 @@
 // lifeguard spade#140
 // FIXME: pow and result should probably not be `N` but type inference is not good
 // enough for that yet
-extern fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N>;
+pub extern fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N>;
 
 
 /// Computes the absolute value of x. The result is truncated, meaning that
 /// `abs(-2^(N-1)) == -2^(N-1)`.
-fn abs_trunc<#uint N>(x: int<N>) -> int<N> {
+pub fn abs_trunc<#uint N>(x: int<N>) -> int<N> {
     if x < 0 {
         -x
     }
@@ -26,7 +26,7 @@ fn abs_trunc<#uint N>(x: int<N>) -> int<N> {
 }
 
 /// Returns the max value of two integers
-fn max<#uint N>(x: int<N>, y: int<N>) -> int<N> {
+pub fn max<#uint N>(x: int<N>, y: int<N>) -> int<N> {
     if x < y {
         y
     } else {
@@ -35,7 +35,7 @@ fn max<#uint N>(x: int<N>, y: int<N>) -> int<N> {
 }
 
 /// Returns the min value of two integers
-fn min<#uint N>(x: int<N>, y: int<N>) -> int<N> {
+pub fn min<#uint N>(x: int<N>, y: int<N>) -> int<N> {
     if x < y {
         x
     } else {
@@ -44,7 +44,7 @@ fn min<#uint N>(x: int<N>, y: int<N>) -> int<N> {
 }
 
 /// Returns the two integers in increasing order
-fn order<#uint N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
+pub fn order<#uint N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
     if x < y {
         (x, y)
     } else {
@@ -54,12 +54,12 @@ fn order<#uint N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
 
 
 /// Returns the gray code value of the given binary value
-fn bin_to_gray<#uint N>(x: uint<N>) -> uint<N> {
+pub fn bin_to_gray<#uint N>(x: uint<N>) -> uint<N> {
     (x >> 1) ^ x
 }
 
 /// Returns the binary value of the given gray code value
-fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
+pub fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
     gen if N == 0 {
         gray
     } else if N == 1 {
@@ -74,15 +74,15 @@ fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
 
 /// Equivalent to verilog and reduction operator &(x)
 /// Returns all bits of x joined by an and-operation
-extern fn reduce_and<#uint N>(x: uint<N>) -> bool;
+pub extern fn reduce_and<#uint N>(x: uint<N>) -> bool;
 
 /// Equivalent to verilog or reduction operator |(x)
 /// Returns all bits of x joined by an or-operation
-extern fn reduce_or<#uint N>(x: uint<N>) -> bool;
+pub extern fn reduce_or<#uint N>(x: uint<N>) -> bool;
 
 /// Equivalent to verilog xor reduction operator ^(x)
 /// Returns all bits of x joined by an xor-operation
-extern fn reduce_xor<#uint N>(x: uint<N>) -> bool;
+pub extern fn reduce_xor<#uint N>(x: uint<N>) -> bool;
 
 
 /// Evaluates to x / y in verilog.
@@ -91,7 +91,7 @@ extern fn reduce_xor<#uint N>(x: uint<N>) -> bool;
 /// For division by constant powers of two, use `/`
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be comb_div<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
-extern fn comb_div<N>(x: N, y: N) -> N;
+pub extern fn comb_div<N>(x: N, y: N) -> N;
 
 
 /// Evaluates to x % y in verilog.
@@ -100,10 +100,10 @@ extern fn comb_div<N>(x: N, y: N) -> N;
 /// For modulo operations by constant powers of two, use `%`
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be comb_mod<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
-extern fn comb_mod<N>(x: N, y: N) -> N;
+pub extern fn comb_mod<N>(x: N, y: N) -> N;
 
 /// Interleave the bits of two unsigned integers
-fn interleave<#uint N, #uint ON>(l: uint<N>, r: uint<N>) -> uint<ON>
+pub fn interleave<#uint N, #uint ON>(l: uint<N>, r: uint<N>) -> uint<ON>
     where ON: {2 * N}
 {
     (l.to_bits() `interleave_arrays` r.to_bits()).to_uint()

@@ -32,7 +32,7 @@ use spade_ast_lowering::{
     SelfContext,
 };
 use spade_common::id_tracker::ImplIdTracker;
-use spade_common::name::{NameID, Path as SpadePath};
+use spade_common::name::{NameID, Path as SpadePath, Visibility};
 use spade_diagnostics::{CodeBundle, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::SymbolTable;
 use spade_hir::{ExecutableItem, ItemList};
@@ -179,8 +179,9 @@ pub fn compile(
             let name_id = ctx.symtab.add_thing(
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
-                    namespace.namespace.0.last().unwrap().clone(),
+                    namespace.namespace.0.last().unwrap().unwrap_named().clone(),
                 ),
+                Some(Visibility::Implicit.nowhere()),
             );
             ctx.item_list.modules.insert(
                 name_id.clone(),
@@ -436,11 +437,11 @@ fn do_in_namespace(
     ctx: &mut AstLoweringCtx,
     to_do: &mut dyn FnMut(&mut AstLoweringCtx),
 ) {
-    for ident in &namespace.namespace.0 {
+    for segment in &namespace.namespace.0 {
         // NOTE: These identifiers do not have the correct file_id. However,
         // as far as I know, they will never be part of an error, so we *should*
         // be safe.
-        ctx.symtab.push_namespace(ident.clone());
+        ctx.symtab.push_namespace(segment.clone());
     }
     ctx.symtab
         .set_base_namespace(namespace.base_namespace.clone());
@@ -494,11 +495,11 @@ fn lower_ast(
     for (namespace, module_ast) in module_asts {
         // Cannot be done by do_in_namespace because the symtab has been moved
         // into `ctx`
-        for ident in &namespace.namespace.0 {
+        for segment in &namespace.namespace.0 {
             // NOTE: These identifiers do not have the correct file_id. However,
             // as far as I know, they will never be part of an error, so we *should*
             // be safe.
-            ctx.symtab.push_namespace(ident.clone());
+            ctx.symtab.push_namespace(segment.clone());
         }
         ctx.symtab
             .set_base_namespace(namespace.base_namespace.clone());
@@ -636,7 +637,7 @@ mod tests {
         let included = super::stdlib_and_prelude()
             .into_iter()
             .filter_map(|(ns, file, _)| {
-                if ns.base_namespace.as_strs() == ["std"] {
+                if ns.base_namespace.to_named_strs() == [Some("std")] {
                     Some(
                         PathBuf::from(file)
                             .file_name()

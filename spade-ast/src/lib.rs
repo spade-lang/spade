@@ -2,7 +2,7 @@ use itertools::Itertools;
 use num::{BigInt, BigUint, Signed, Zero};
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, Path},
+    name::{Identifier, Path, Visibility},
     num_ext::InfallibleToBigInt,
 };
 use std::fmt::Display;
@@ -126,7 +126,7 @@ impl Pattern {
         Pattern::Integer(IntLiteral::Unsized(val.to_bigint()))
     }
     pub fn name(name: &str) -> Loc<Self> {
-        Pattern::Path(Path(vec![Identifier::intern(name).nowhere()]).nowhere()).nowhere()
+        Pattern::Path(Path::from_strs(&[name]).nowhere()).nowhere()
     }
 }
 
@@ -643,19 +643,6 @@ impl ParameterList {
     pub fn without_self(args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
         Self { self_: None, args }
     }
-
-    pub fn with_self(
-        self_: Loc<AttributeList>,
-        args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>,
-    ) -> Self {
-        Self {
-            self_: Some(self_),
-            args: args
-                .into_iter()
-                .map(|(n, t)| (AttributeList::empty(), n, t))
-                .collect(),
-        }
-    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -687,6 +674,7 @@ impl std::fmt::Display for UnitKind {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnitHead {
+    pub visibility: Loc<Visibility>,
     pub unsafe_token: Option<Loc<()>>,
     pub extern_token: Option<Loc<()>>,
     pub attributes: AttributeList,
@@ -720,6 +708,7 @@ pub struct Register {
 /// A definition of a trait
 #[derive(PartialEq, Debug, Clone)]
 pub struct TraitDef {
+    pub visibility: Loc<Visibility>,
     pub name: Loc<Identifier>,
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
@@ -782,6 +771,7 @@ pub enum TypeDeclKind {
 /// A declaration of a new type
 #[derive(PartialEq, Debug, Clone)]
 pub struct TypeDeclaration {
+    pub visibility: Loc<Visibility>,
     pub name: Loc<Identifier>,
     pub kind: TypeDeclKind,
     pub generic_args: Option<Loc<Vec<Loc<TypeParam>>>>,
@@ -789,6 +779,7 @@ pub struct TypeDeclaration {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct UseStatement {
+    pub visibility: Loc<Visibility>,
     pub path: Loc<Path>,
     pub alias: Option<Loc<Identifier>>,
 }
@@ -800,7 +791,7 @@ pub enum Item {
     Unit(Loc<Unit>),
     TraitDef(Loc<TraitDef>),
     Type(Loc<TypeDeclaration>),
-    ExternalMod(Loc<Identifier>),
+    ExternalMod(Loc<ExternalMod>),
     Module(Loc<Module>),
     Use(Loc<Vec<UseStatement>>),
     ImplBlock(Loc<ImplBlock>),
@@ -813,7 +804,7 @@ impl Item {
             Item::TraitDef(t) => Some(&t.name.inner),
             Item::Type(t) => Some(&t.name.inner),
             Item::Module(m) => Some(&m.name.inner),
-            Item::ExternalMod(name) => Some(name),
+            Item::ExternalMod(m) => Some(&m.name.inner),
             Item::Use(_) => None,
             Item::ImplBlock(_) => None,
         }
@@ -833,7 +824,14 @@ impl Item {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct ExternalMod {
+    pub visibility: Loc<Visibility>,
+    pub name: Loc<Identifier>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct Module {
+    pub visibility: Loc<Visibility>,
     pub name: Loc<Identifier>,
     pub body: Loc<ModuleBody>,
 }

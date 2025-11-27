@@ -4,7 +4,7 @@ use askama::Template;
 use camino::Utf8PathBuf;
 use color_eyre::eyre::Result;
 use pulldown_cmark::{Options, Parser};
-use spade_common::{location_info::Loc, name::Identifier};
+use spade_common::name::PathSegment;
 use spade_hir::{Attribute, TypeParam, UnitKind};
 use spade_types::meta_types::MetaType;
 use spec::Spec;
@@ -22,7 +22,7 @@ pub struct Item<'r> {
     pub spade_css_path: Utf8PathBuf,
 
     pub name: &'r str,
-    pub namespace: Option<Path<'r>>,
+    pub namespace: Option<Path>,
     pub kind: ItemKind,
 
     pub signature: Option<Signature<'r>>,
@@ -286,27 +286,27 @@ pub struct Implementation<'r> {
 
 #[derive(Template)]
 #[template(path = "path.html")]
-pub struct Path<'r> {
-    segments: Vec<Segment<'r>>,
-    last: Segment<'r>,
+pub struct Path {
+    segments: Vec<Segment>,
+    last: Segment,
 }
 
-pub struct Segment<'r> {
-    value: &'r str,
+pub struct Segment {
+    value: String,
 }
 
-impl<'r> Path<'r> {
-    pub fn new(path: &'r [Loc<Identifier>]) -> Option<Self> {
+impl Path {
+    pub fn new(path: &[PathSegment]) -> Option<Self> {
         let (last, segments) = path.split_last()?;
         Some(Self {
             segments: segments
                 .iter()
                 .map(|value| Segment {
-                    value: &value.inner.as_str(),
+                    value: value.to_string(),
                 })
                 .collect(),
             last: Segment {
-                value: &last.inner.as_str(),
+                value: last.to_string(),
             },
         })
     }

@@ -1,6 +1,6 @@
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, Path},
+    name::Path,
 };
 use spade_hir::symbol_table::SymbolTable;
 use spade_types::KnownType;
@@ -11,11 +11,7 @@ use crate::{
 };
 
 fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
-    let path = Path(
-        name.iter()
-            .map(|s| Identifier::intern(s).nowhere())
-            .collect(),
-    );
+    let path = Path::from_strs(name);
     KnownType::Named(
         symtab
             .lookup_type_symbol(&path.clone().nowhere())

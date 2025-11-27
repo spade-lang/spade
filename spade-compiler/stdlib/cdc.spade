@@ -12,8 +12,8 @@ use std::ops::bin_to_gray;
 /// integrity for / signals of more than one bit as crossing 2 domains with
 /// multi-bit signals can cause issues.
 /// It is primarily intended for other synchronization primitives
-unsafe entity sync2<T>(clk: clock, in: T) -> T {
-    reg(clk) sync1 = in;
+pub unsafe entity sync2<T>(clk: clock, input: T) -> T {
+    reg(clk) sync1 = input;
     reg(clk) sync2 = sync1;
     sync2
 }
@@ -21,17 +21,17 @@ unsafe entity sync2<T>(clk: clock, in: T) -> T {
 /// Synchronizes a uint counter signal between domains. *The counter*
 /// aspect is important, it must be a N bit gray counter for this to do
 /// anything useful.
-unsafe entity sync_uint_counter<#uint N>(source_clk: clock, dest_clk: clock, in: uint<N>) -> uint<N> {
-    reg(source_clk) gray = bin_to_gray(in);
+pub unsafe entity sync_uint_counter<#uint N>(source_clk: clock, dest_clk: clock, input: uint<N>) -> uint<N> {
+    reg(source_clk) gray = bin_to_gray(input);
     gray_to_bin(unsafe { inst sync2(dest_clk, gray) })
 }
 
 /// Synchronize a bool signal into another domain. This guarantees valid values, but does
 /// not guarantee that all values are transferred. If synchronizing a short pulse where
 /// seeing the pulse is important, `handshake` may be better
-entity sync2_bool(clk: clock, in: bool) -> bool {
+pub entity sync2_bool(clk: clock, input: bool) -> bool {
     unsafe {
-        inst sync2(clk, in)
+        inst sync2(clk, input)
     }
 }
 
@@ -79,17 +79,17 @@ mod handshake_impl {
         WaitInvalid,
     }
 
-    entity receiver<T>(clk: clock, rst: bool, in: inv TxOutRxIn<T>) -> Option<T> {
-        let data_valid = inst std::cdc::sync2_bool(clk, *in.data_valid);
+    entity receiver<T>(clk: clock, rst: bool, input: inv TxOutRxIn<T>) -> Option<T> {
+        let data_valid = inst std::cdc::sync2_bool(clk, *input.data_valid);
 
         reg(clk) (state, data_out) reset(rst: (RxState::WaitValid, None)) = match (state, data_valid) {
             (RxState::WaitValid, false) => (state, None),
-            (RxState::WaitValid, true) => (RxState::WaitInvalid, Some(*in.data)),
+            (RxState::WaitValid, true) => (RxState::WaitInvalid, Some(*input.data)),
             (RxState::WaitInvalid, true) => (RxState::WaitInvalid, None),
             (RxState::WaitInvalid, false) => (RxState::WaitValid, None),
         };
 
-        set in.ack = &match state {
+        set input.ack = &match state {
             RxState::WaitValid => false,
             RxState::WaitInvalid => true,
         };
@@ -179,10 +179,10 @@ mod sync_wide_impl {
 /// Synchronizes a wide value from the source domain into the destination domain.
 /// This guarantees that all values sent between the domains are valid, but
 /// some values may be skipped
-entity sync_wide<T>(source_clk: clock, rst: bool, in: T, init: T, dest_clk: clock) -> T {
+pub entity sync_wide<T>(source_clk: clock, rst: bool, input: T, init: T, dest_clk: clock) -> T {
     let (from_tx, to_tx) = port;
 
-    let _ = inst sync_wide_impl::sender$(source_clk, rst, data_in: in, to_tx);
+    let _ = inst sync_wide_impl::sender$(source_clk, rst, data_in: input, to_tx);
 
     inst sync_wide_impl::receiver$(dest_clk, rst, from_tx, init)
 }

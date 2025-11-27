@@ -1,6 +1,6 @@
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::Identifier,
+    name::{Identifier, Visibility},
 };
 use spade_hir::{
     symbol_table::{GenericArg, SymbolTable, TypeDeclKind, TypeSymbol},
@@ -26,6 +26,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                 Identifier::intern(name).nowhere(),
                 TypeSymbol::Declared(args.clone(), TypeDeclKind::Primitive { is_port, is_inout })
                     .nowhere(),
+                Visibility::Public.nowhere(),
             )
             .nowhere();
         id -= 1;
@@ -45,6 +46,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                             id,
                             a.clone().nowhere(),
                             TypeSymbol::GenericArg { traits: vec![] }.nowhere(),
+                            Visibility::Implicit.nowhere(),
                         );
                         TypeParam {
                             ident: a.clone().nowhere(),
@@ -58,6 +60,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                             id,
                             name.clone().nowhere(),
                             TypeSymbol::GenericMeta(meta.clone()).nowhere(),
+                            Visibility::Implicit.nowhere(),
                         );
                         TypeParam {
                             ident: name.clone().nowhere(),

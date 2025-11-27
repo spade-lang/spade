@@ -11,7 +11,7 @@ use std::cdc as cdc;
 /// `write enable`, `address` and `data` field. When WE is enabled, data is written
 /// to address. Otherwise no change takes effect
 /// NOTE: We when possible, we should make compute AddrWidth from NumElements
-extern entity clocked_memory<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
+pub extern entity clocked_memory<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
     clk: clock,
     writes: [(bool, uint<AddrWidth>, D); WritePorts],
 ) -> Memory<D, NumElements>;
@@ -19,26 +19,26 @@ extern entity clocked_memory<#uint NumElements, #uint WritePorts, #uint AddrWidt
 
 /// Same as `clocked_memory` but initializes the memory with the values specified in `initial_values`.
 /// The initial values must be evaluatable at compile time, otherwise an error is thrown
-extern entity clocked_memory_init<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
+pub extern entity clocked_memory_init<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
     clk: clock,
     writes: [(bool, uint<AddrWidth>, D); WritePorts],
     initial_values: [D; NumElements]
 ) -> Memory<D, NumElements>;
 
 /// Get the value out of a memory
-extern entity read_memory<#uint AddrWidth, D, #uint NumElements> (
+pub extern entity read_memory<#uint AddrWidth, D, #uint NumElements> (
     mem: Memory<D, NumElements>,
     addr: uint<AddrWidth>
 ) -> D;
 
 
-struct port WritePort<#uint W, D> {
+pub struct port WritePort<#uint W, D> {
     addr: inv &uint<W>,
     write: inv &Option<D>,
 }
 
 impl<#uint W, D> WritePort<W, D> {
-    fn write(self, addr: uint<W>, write: Option<D>) {
+    pub fn write(self, addr: uint<W>, write: Option<D>) {
         let WritePort$(addr: saddr, write: swrite) = self;
         set saddr = &addr;
         set swrite = &write;
@@ -48,14 +48,14 @@ impl<#uint W, D> WritePort<W, D> {
 
 /// A read port for a memory. It is not recommended to manually read the signals
 /// in this struct, instead use `.read()` to access the port.
-struct port ReadPort<#uint W, D> {
+pub struct port ReadPort<#uint W, D> {
     addr: inv &uint<W>,
     out: &D,
 }
 
 impl<#uint W, D> ReadPort<W, D> {
     /// Read the value stored at `addr`
-    pipeline(1) read(self, read_clk: clock, addr: uint<W>) -> D {
+    pub pipeline(1) read(self, read_clk: clock, addr: uint<W>) -> D {
         let ReadPort(saddr, sout) = self;
         set saddr = &addr;
     reg;
@@ -64,7 +64,7 @@ impl<#uint W, D> ReadPort<W, D> {
 }
 
 /// Read a read port. Deprecated, prefer using the `ReadPort::read()` method instead
-pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, p: ReadPort<W, D>) -> D {
+pub pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, p: ReadPort<W, D>) -> D {
     let result = p.inst(1) read(read_clk, addr);
 reg;
     result
@@ -72,7 +72,7 @@ reg;
 
 /// A dual port block RAM that supports read and write ports being in different domains.
 /// If writes and reads happen to the same address, the behaviour is undefined.
-entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>, ReadPort<W, D>) {
+pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>, ReadPort<W, D>) {
     let w_addr = inst new_mut_wire();
     let w_write = inst new_mut_wire();
     let r_addr = inst new_mut_wire();
@@ -93,7 +93,7 @@ entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (Write
 
 /// A fifo write port. Writes a single element of data data in to the write port unless `full`
 /// is true. If full is true, the write is ignored
-struct port FifoWrite<D> {
+pub struct port FifoWrite<D> {
     write: inv &Option<D>,
     full: &bool,
 }
@@ -102,7 +102,7 @@ struct port FifoWrite<D> {
 /// that element is popped from the fifo this clock cycle. / The num_elements
 /// is approximate but guaranteed to be a conservative estimate, i.e. there are
 /// at least `num_elements` in the fifo.
-struct port FifoRead<#uint W, D> {
+pub struct port FifoRead<#uint W, D> {
     read: &Option<D>,
     ack: inv &bool,
     num_elements: &uint<W>
@@ -140,7 +140,7 @@ mod fifo_impl {
             inst lib::cdc::sync_uint_counter$(
                 source_clk: write_clk,
                 dest_clk: read_clk,
-                in: *to_w.write_ptr,
+                input: *to_w.write_ptr,
             )
         };
         let write_clk = false; // Unbind write_clk so we don't use it on accident later
@@ -191,7 +191,7 @@ mod fifo_impl {
             inst cdc::sync_uint_counter$(
                 source_clk: read_clk,
                 dest_clk: write_clk,
-                in: *from_w.read_ptr,
+                input: *from_w.read_ptr,
             )
         };
         let read_clk = false; // Unbind so we don't use it on accident later
@@ -222,7 +222,7 @@ mod fifo_impl {
 
 /// A cross-domain fifo backed by block RAM.
 /// NOTE: W *must* be 2^C but this is not currently checked
-entity fifo<#uint AddrWidth, Data, #uint NumElements>(
+pub entity fifo<#uint AddrWidth, Data, #uint NumElements>(
     write_clk: clock,
     write_rst: bool,
     read_clk: clock,

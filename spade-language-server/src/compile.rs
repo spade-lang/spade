@@ -8,7 +8,7 @@ use spade::{
 };
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::Identifier;
+use spade_common::name::{Identifier, PathSegment};
 use spade_diagnostics::diagnostic::DiagnosticLevel as SpadeDiagnosticLevel;
 use spade_diagnostics::Diagnostic as SpadeDiagnostic;
 use spade_diagnostics::{CodeBundle, DiagHandler, Emitter};
@@ -90,7 +90,7 @@ fn spade_path(s: &str) -> spade_common::name::Path {
     }
     let parts = s
         .split("::")
-        .map(|ident| Identifier::intern(ident).nowhere())
+        .map(|ident| PathSegment::Named(Identifier::intern(ident).nowhere()))
         .collect();
     spade_common::name::Path(parts)
 }

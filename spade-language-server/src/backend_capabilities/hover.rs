@@ -121,7 +121,7 @@ impl ServerBackend {
             symbol_table::Thing::Trait(_) => {
                 format!("(trait)")
             }
-            symbol_table::Thing::Dummy(_) => {
+            symbol_table::Thing::Dummy => {
                 format!("(dummy)")
             }
         })

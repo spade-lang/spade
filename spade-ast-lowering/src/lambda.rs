@@ -8,6 +8,7 @@ use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::Path;
+use spade_common::name::Visibility;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::Diagnostic;
@@ -106,7 +107,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 }
                 | spade_hir::symbol_table::Thing::ArrayLabel(_)
                 | spade_hir::symbol_table::Thing::Module(_)
-                | spade_hir::symbol_table::Thing::Dummy(_)
+                | spade_hir::symbol_table::Thing::Dummy
                 | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),
             }))
     };
@@ -163,7 +164,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .chain(
             outer_generic_params
                 .iter()
-                .map(|p| p.name_id().1.tail().at_loc(&p)),
+                .map(|p| p.name_id().1.tail().unwrap_named().inner.clone().at_loc(&p)),
         )
         .collect::<Vec<_>>();
 
@@ -192,7 +193,14 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                                 diag_bail!(loc, "Found unexpected meta in captured type args")
                             }
                         },
-                        name: tp.name_id().1.tail().at_loc(tp),
+                        name: tp
+                            .name_id()
+                            .1
+                            .tail()
+                            .unwrap_named()
+                            .inner
+                            .clone()
+                            .at_loc(tp),
                     }
                     .at_loc(tp))
                 })
@@ -221,6 +229,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     .nowhere();
 
     let type_decl = ast::TypeDeclaration {
+        visibility: Visibility::Implicit.nowhere(),
         name: type_name.clone().at_loc(&debug_loc),
         kind: spade_ast::TypeDeclKind::Struct(
             ast::Struct {
@@ -308,6 +317,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .nowhere(),
         units: vec![ast::Unit {
             head: ast::UnitHead {
+                visibility: Visibility::Implicit.nowhere(),
                 unsafe_token: None,
                 extern_token: None,
                 attributes: ast::AttributeList(vec![]),
@@ -445,74 +455,66 @@ fn handle_unit_kind(
 )> {
     let result = match &unit_kind.inner {
         UnitKind::Function => (None, args.inner.clone()),
-        UnitKind::Entity | UnitKind::Pipeline(_) => {
-            match args.as_slice() {
-                [] => {
-                    return Err(
-                        Diagnostic::error(args, "Non-function lambdas must take a clock.")
-                            .primary_label("Expected a clock")
-                            .secondary_label(unit_kind, "Required because this is not a `fn`")
-                            .span_suggest_replace("Consider adding a clock", args, "(clk)"),
-                    )
-                }
-                [clock, rest @ ..] => {
-                    match &clock.inner {
-                        spade_ast::Pattern::Path(p) => {
-                            match p.inner.0.iter().map(|arg| arg.inner.as_str()).collect::<Vec<_>>().as_slice() {
-                            ["clk"] => (
-                                Some((
-                                    ast::AttributeList(vec![]),
-                                    p.0.last().unwrap().clone(),
-                                    ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
-                                        .at_loc(clock),
-                                )),
-                                rest.to_vec(),
-                            ),
-                            [_] => {
-                                return Err(Diagnostic::error(
-                                    clock,
-                                    "The first argument of a non-function lambda must be called `clk`",
-                                )
-                                .primary_label("Expected `clk`")
-                                .span_suggest_replace(
-                                    "Consider renaming the first argument",
-                                    clock,
-                                    "clk",
-                                )
-                                .span_suggest_insert_before(
-                                    "Or adding a adding a clock",
-                                    clock,
-                                    "clk, ",
-                                ))
-                            }
-                            _ => return Err(Diagnostic::error(
-                                clock,
-                                "The first argument of a non-function lambda must be a clock",
-                            )
-                            .primary_label("Expected clock")
-                            .span_suggest_insert_before(
-                                "Consider adding a clock",
-                                clock,
-                                "clk, ",
-                            )),
-                        }
-                        }
-                        _ => {
-                            return Err(Diagnostic::error(
-                                clock,
-                                "The first argument of a non-function lambda must be a clock",
-                            )
-                            .primary_label("Expected clock")
-                            .span_suggest_insert_before(
-                                "Consider adding a clock",
-                                clock,
-                                "clk, ",
-                            ))
-                        }
-                    }
-                }
+        UnitKind::Entity | UnitKind::Pipeline(_) => match args.as_slice() {
+            [] => {
+                return Err(
+                    Diagnostic::error(args, "Non-function lambdas must take a clock.")
+                        .primary_label("Expected a clock")
+                        .secondary_label(unit_kind, "Required because this is not a `fn`")
+                        .span_suggest_replace("Consider adding a clock", args, "(clk)"),
+                )
             }
-        }
+            [clock, rest @ ..] => match &clock.inner {
+                spade_ast::Pattern::Path(p) => match p.inner.to_named_strs().as_slice() {
+                    [Some("clk")] => (
+                        Some((
+                            ast::AttributeList(vec![]),
+                            p.0.last().unwrap().unwrap_named().clone(),
+                            ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
+                                .at_loc(clock),
+                        )),
+                        rest.to_vec(),
+                    ),
+                    [_] => {
+                        return Err(Diagnostic::error(
+                            clock,
+                            "The first argument of a non-function lambda must be called `clk`",
+                        )
+                        .primary_label("Expected `clk`")
+                        .span_suggest_replace("Consider renaming the first argument", clock, "clk")
+                        .span_suggest_insert_before(
+                            "Or adding a adding a clock",
+                            clock,
+                            "clk, ",
+                        ))
+                    }
+                    _ => {
+                        return Err(Diagnostic::error(
+                            clock,
+                            "The first argument of a non-function lambda must be a clock",
+                        )
+                        .primary_label("Expected clock")
+                        .span_suggest_insert_before(
+                            "Consider adding a clock",
+                            clock,
+                            "clk, ",
+                        ))
+                    }
+                },
+                _ => {
+                    return Err(Diagnostic::error(
+                        clock,
+                        "The first argument of a non-function lambda must be a clock",
+                    )
+                    .primary_label("Expected clock")
+                    .span_suggest_insert_before(
+                        "Consider adding a clock",
+                        clock,
+                        "clk, ",
+                    ))
+                }
+            },
+        },
     };
     Ok(result)
 }

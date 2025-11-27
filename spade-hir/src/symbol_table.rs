@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use spade_common::id_tracker::NameIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, NameID, Path, PathPrefix};
+use spade_common::name::{Identifier, NameID, Path, PathPrefix, PathSegment, Visibility};
 use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
@@ -28,7 +28,8 @@ pub enum LookupError {
     NotATrait(Loc<Path>, Thing),
     IsAType(Loc<Path>, Loc<()>),
     BarrierError(Diagnostic),
-    TooManySuperSegments(Loc<Path>, Loc<Identifier>),
+    TooManySuperSegments(Loc<Path>, PathSegment),
+    NotVisible(Loc<Path>, PathSegment),
 }
 
 impl From<LookupError> for Diagnostic {
@@ -71,6 +72,7 @@ impl From<LookupError> for Diagnostic {
                     | LookupError::IsAType(_, _)
                     | LookupError::BarrierError(_)
                     | LookupError::TooManySuperSegments(_, _)
+                    | LookupError::NotVisible(_, _)
                     | LookupError::NotAThing(_) => unreachable!(),
                 };
 
@@ -126,9 +128,18 @@ impl From<LookupError> for Diagnostic {
                 Diagnostic::error(path, "Too many `super` segments")
                     .primary_label("Too many `super` segments")
                     .subdiagnostic(Subdiagnostic::span_note(
-                        segment,
+                        segment.loc(),
                         "parent does not exist for the root namespace",
                     ))
+            }
+            LookupError::NotVisible(path, segment) => {
+                Diagnostic::error(path, "Path cannot be traversed")
+                    .primary_label("Path cannot be traversed")
+                    .secondary_label(
+                        segment.loc(),
+                        format!("this item is not visible from the current namespace"),
+                    )
+                    .note("consider using `pub` to alter its visibility")
             }
         }
     }
@@ -217,7 +228,7 @@ pub enum Thing {
     /// Dummy entry in the symbol table which helps path resolution.
     /// Currently used for trait namespaces, whose symbols are placed in a "ghost namespace"
     /// named `impl#N` to avoid collisions between different `impl` blocks.
-    Dummy(Loc<Identifier>),
+    Dummy,
 }
 
 impl Thing {
@@ -231,7 +242,7 @@ impl Thing {
             Thing::ArrayLabel(_) => "array label",
             Thing::Trait(_) => "trait",
             Thing::Module(_) => "module",
-            Thing::Dummy(_) => "dummy (implementation detail)",
+            Thing::Dummy => "dummy (implementation detail)",
         }
     }
 
@@ -249,7 +260,7 @@ impl Thing {
             Thing::ArrayLabel(v) => v.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
-            Thing::Dummy(loc) => loc.loc(),
+            Thing::Dummy => ().nowhere(),
         }
     }
 
@@ -267,7 +278,7 @@ impl Thing {
             } => path.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
-            Thing::Dummy(loc) => loc.loc(),
+            Thing::Dummy => ().nowhere(),
         }
     }
 }
@@ -392,6 +403,7 @@ pub struct SymbolTable {
     id_tracker: NameIdTracker,
     pub types: HashMap<NameID, Loc<TypeSymbol>>,
     pub things: HashMap<NameID, Thing>,
+    pub visibilities: HashMap<NameID, Loc<Visibility>>,
     /// The namespace which we are currently in. When looking up and adding symbols, this namespace
     /// is added to the start of the path, thus ensuring all paths are absolute. If a path is not
     /// found that path is also looked up in the global namespace
@@ -417,6 +429,7 @@ impl SymbolTable {
             id_tracker: NameIdTracker::new(),
             types: HashMap::default(),
             things: HashMap::default(),
+            visibilities: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),
         }
@@ -451,9 +464,9 @@ impl SymbolTable {
     /// Push an identifier onto the current namespace
     ///
     /// Prefer using `ctx.in_namespace` over calling these methods directly
-    #[tracing::instrument(skip_all, fields(%new_ident))]
-    pub fn push_namespace(&mut self, new_ident: Loc<Identifier>) {
-        self.namespace = self.namespace.push_ident(new_ident.clone());
+    #[tracing::instrument(skip_all, fields(%new_segment))]
+    pub fn push_namespace(&mut self, new_segment: PathSegment) {
+        self.namespace = self.namespace.push_segment(new_segment);
     }
 
     #[tracing::instrument(skip_all)]
@@ -476,6 +489,7 @@ impl SymbolTable {
         id: u64,
         name: Path,
         item: Thing,
+        visibility: Option<Loc<Visibility>>,
     ) -> NameID {
         let full_name = self.namespace.join(name);
         let name_id = NameID(id, full_name.clone());
@@ -489,30 +503,54 @@ impl SymbolTable {
 
         let index = self.symbols.len() - 1 - offset;
         self.symbols[index].vars.insert(full_name, name_id.clone());
-        self.add_thing_with_name_id(name_id.clone(), item);
+        self.add_thing_with_name_id(name_id.clone(), item, visibility);
 
         name_id
     }
 
     /// Add a thing to the symtab with the specified NameID. The NameID must already be in
     /// the symtab when calling this function
-    pub fn add_thing_with_name_id(&mut self, name_id: NameID, item: Thing) {
-        self.things.insert(name_id, item);
+    pub fn add_thing_with_name_id(
+        &mut self,
+        name_id: NameID,
+        item: Thing,
+        visibility: Option<Loc<Visibility>>,
+    ) {
+        self.things.insert(name_id.clone(), item);
+        if let Some(vis) = visibility {
+            self.visibilities.insert(name_id, vis);
+        }
     }
 
-    pub fn add_thing_with_id(&mut self, id: u64, name: Path, item: Thing) -> NameID {
-        self.add_thing_with_id_at_offset(0, id, name, item)
+    pub fn add_thing_with_id(
+        &mut self,
+        id: u64,
+        name: Path,
+        item: Thing,
+        visibility: Option<Loc<Visibility>>,
+    ) -> NameID {
+        self.add_thing_with_id_at_offset(0, id, name, item, visibility)
     }
 
     #[tracing::instrument(skip_all, fields(?name))]
-    pub fn add_unique_thing(&mut self, name: Loc<Path>, item: Thing) -> Result<NameID, Diagnostic> {
+    pub fn add_unique_thing(
+        &mut self,
+        name: Loc<Path>,
+        item: Thing,
+        visibility: Option<Loc<Visibility>>,
+    ) -> Result<NameID, Diagnostic> {
         self.ensure_is_unique(&name)?;
-        Ok(self.add_thing(name.inner, item))
+        Ok(self.add_thing(name.inner, item, visibility))
     }
 
-    pub fn add_thing(&mut self, name: Path, item: Thing) -> NameID {
+    pub fn add_thing(
+        &mut self,
+        name: Path,
+        item: Thing,
+        visibility: Option<Loc<Visibility>>,
+    ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_thing_with_id(id, name, item)
+        self.add_thing_with_id(id, name, item, visibility)
     }
 
     pub fn re_add_type(&mut self, name: Loc<Identifier>, name_id: NameID) {
@@ -529,6 +567,7 @@ impl SymbolTable {
         id: u64,
         name: Loc<Identifier>,
         t: Loc<TypeSymbol>,
+        visibility: Loc<Visibility>,
     ) -> NameID {
         let full_name = self.namespace.push_ident(name);
         let name_id = NameID(id, full_name.clone());
@@ -538,6 +577,7 @@ impl SymbolTable {
         }
 
         self.types.insert(name_id.clone(), t);
+        self.visibilities.insert(name_id.clone(), visibility);
         self.symbols
             .last_mut()
             .unwrap()
@@ -547,9 +587,14 @@ impl SymbolTable {
         name_id
     }
 
-    pub fn add_type(&mut self, name: Loc<Identifier>, t: Loc<TypeSymbol>) -> NameID {
+    pub fn add_type(
+        &mut self,
+        name: Loc<Identifier>,
+        t: Loc<TypeSymbol>,
+        visibility: Loc<Visibility>,
+    ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_type_with_id(id, name, t)
+        self.add_type_with_id(id, name, t, visibility)
     }
 
     pub fn add_traits_to_generic(
@@ -557,7 +602,7 @@ impl SymbolTable {
         name_id: &NameID,
         traits: Vec<Loc<TraitSpec>>,
     ) -> Result<(), Diagnostic> {
-        assert!(self.types.contains_key(&name_id));
+        assert!(self.types.contains_key(name_id));
         match &mut self.types.get_mut(name_id).unwrap().inner {
             TypeSymbol::GenericArg { traits: existing } => {
                 existing.extend(traits);
@@ -574,9 +619,10 @@ impl SymbolTable {
         &mut self,
         name: Loc<Identifier>,
         t: Loc<TypeSymbol>,
+        visibility: Loc<Visibility>,
     ) -> Result<NameID, Diagnostic> {
         self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
-        Ok(self.add_type(name, t))
+        Ok(self.add_type(name, t, visibility))
     }
 
     #[tracing::instrument(skip_all, fields(?name, ?target))]
@@ -584,6 +630,7 @@ impl SymbolTable {
         &mut self,
         name: Loc<Identifier>,
         target: Loc<Path>,
+        visibility: Loc<Visibility>,
     ) -> Result<NameID, Diagnostic> {
         self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
 
@@ -593,13 +640,20 @@ impl SymbolTable {
                 path: target,
                 in_namespace: self.current_namespace().clone(),
             },
+            Some(visibility),
         ))
     }
 
     /// Adds a thing to the scope at `current_scope - offset`. Panics if there is no such scope
-    pub fn add_thing_at_offset(&mut self, offset: usize, name: Path, item: Thing) -> NameID {
+    pub fn add_thing_at_offset(
+        &mut self,
+        offset: usize,
+        name: Path,
+        item: Thing,
+        visibility: Option<Loc<Visibility>>,
+    ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_thing_with_id_at_offset(offset, id, name, item)
+        self.add_thing_with_id_at_offset(offset, id, name, item, visibility)
     }
 
     pub fn freeze(self) -> FrozenSymtab {
@@ -611,14 +665,19 @@ impl SymbolTable {
     }
 
     pub fn add_local_variable(&mut self, name: Loc<Identifier>) -> NameID {
-        self.add_thing(Path::ident(name.clone()), Thing::Variable(name))
+        self.add_local_variable_at_offset(0, name)
     }
     pub fn add_local_variable_at_offset(&mut self, offset: usize, name: Loc<Identifier>) -> NameID {
-        self.add_thing_at_offset(offset, Path::ident(name.clone()), Thing::Variable(name))
+        self.add_thing_at_offset(
+            offset,
+            Path::ident(name.clone()),
+            Thing::Variable(name),
+            None,
+        )
     }
 
-    pub fn add_dummy(&mut self, name: Loc<Identifier>) -> NameID {
-        self.add_thing(Path::ident(name.clone()), Thing::Dummy(name))
+    pub fn add_dummy(&mut self, segment: PathSegment) -> NameID {
+        self.add_thing(Path(vec![segment]), Thing::Dummy, None)
     }
 
     pub fn add_declaration(&mut self, ident: Loc<Identifier>) -> Result<NameID, Diagnostic> {
@@ -628,7 +687,7 @@ impl SymbolTable {
                 .secondary_label(old, "Previously declared here")
         };
         // Check if a variable with this name already exists
-        if let Some(id) = self.try_lookup_id(&Path(vec![ident.clone()]).at_loc(&ident)) {
+        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident.clone())) {
             if let Some(Thing::Variable(prev)) = self.things.get(&id) {
                 return Err(declared_more_than_once(ident, prev));
             }
@@ -647,7 +706,7 @@ impl SymbolTable {
     }
 
     pub fn add_undecleared_at_offset(&mut self, offset: usize, name: Loc<Identifier>) -> NameID {
-        let path = Path(vec![name.clone()]);
+        let path = Path::ident(name.clone());
 
         let name_id = NameID(self.id_tracker.next(), path.clone());
         let full_name = self.namespace.join(path);
@@ -826,6 +885,7 @@ impl SymbolTable {
             Err(LookupError::IsAType(_, _)) => unreachable!(),
             Err(LookupError::NotAThing(_)) => unreachable!(),
             Err(LookupError::TooManySuperSegments(_, _)) => unreachable!(),
+            Err(LookupError::NotVisible(_, _)) => unreachable!(),
         }
     }
 
@@ -975,7 +1035,7 @@ impl SymbolTable {
                 // Try to find it, otherwise fall back to `self` namespace.
                 if self_relative_path.0.is_empty() {
                     let head = path.0[0].clone();
-                    let absolute_head = namespace.push_ident(head);
+                    let absolute_head = namespace.push_segment(head);
 
                     if let Some((new_offset, _)) = self
                         .symbols
@@ -995,7 +1055,7 @@ impl SymbolTable {
             (PathPrefix::None, _) => {
                 let segments = path.0.clone();
                 let head = path.0[0].clone();
-                let absolute_head = namespace.push_ident(head.clone());
+                let absolute_head = namespace.push_segment(head.clone());
 
                 let (off, ns) = self
                     .symbols
@@ -1016,20 +1076,39 @@ impl SymbolTable {
             let mut local_forbidden = forbidden.clone();
             let idx = self.current_scope() - scope_offset;
             let scope = &self.symbols[idx];
-            working_path = working_path.push_ident(segment.clone());
+            working_path = working_path.push_segment(segment.clone());
 
             loop {
                 // If the (partially extended) working path does not exist,
                 // a missing item has been found inside it.
                 let Some(id) = scope.vars.get(&working_path) else {
-                    let segment_path = working_path.at_loc(&segment);
+                    let segment_path = working_path.at_loc(&segment.loc());
                     return Err(LookupError::NoSuchSymbol(segment_path));
                 };
 
                 // Forbid cyclic aliases, declaring them as missing items.
                 if forbidden.contains(id) {
-                    let segment_path = working_path.at_loc(&segment);
+                    let segment_path = working_path.at_loc(&segment.loc());
                     return Err(LookupError::NoSuchSymbol(segment_path));
+                }
+
+                // Visibility information may not apply for the path target (e.g., local variables).
+                // If visibility information does not exist, the check is ignored.
+                if let Some(visibility) = self.visibilities.get(id) {
+                    let vis_path = match visibility.inner {
+                        Visibility::Public => Path(vec![]),
+                        Visibility::Implicit => working_path.prelude(),
+                        Visibility::AtLib => self.base_namespace.clone(),
+                        Visibility::AtSelf => working_path.prelude(),
+                        Visibility::AtSuper => working_path.prelude().prelude(),
+                        Visibility::AtSuperSuper => working_path.prelude().prelude().prelude(),
+                    };
+
+                    let is_visible = vis_path.0.iter().zip(&namespace.0).all(|(l, r)| l == r);
+
+                    if !is_visible {
+                        return Err(LookupError::NotVisible(path.clone(), segment.clone()));
+                    }
                 }
 
                 if self.types.contains_key(id) {
@@ -1091,7 +1170,7 @@ impl SymbolTable {
                 }
                 Thing::Trait(t) => println!("trait {}", t.name),
                 Thing::Module(name) => println!("mod {name}"),
-                Thing::Dummy(name) => println!("{name}"),
+                Thing::Dummy => println!("dummy"),
             }
         }
 

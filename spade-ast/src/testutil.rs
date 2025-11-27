@@ -9,7 +9,7 @@ pub fn ast_ident(name: &str) -> Loc<Identifier> {
 }
 
 pub fn ast_path(name: &str) -> Loc<Path> {
-    Path(vec![ast_ident(name)]).nowhere()
+    Path::ident_with_loc(ast_ident(name))
 }
 
 pub fn ast_type_spec(name: &str) -> Loc<TypeSpec> {

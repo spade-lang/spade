@@ -43,7 +43,7 @@ trait SpadePathExt {
 
 impl SpadePathExt for SpadePath {
     fn as_lib(&self, library: &str) -> Option<Self> {
-        if !self.0.is_empty() && self.0[0].inner.as_str() == library {
+        if !self.0.is_empty() && self.0[0].to_named_str() == Some(library) {
             Some(Self(self.0.iter().skip(1).cloned().collect()))
         } else {
             None
@@ -51,7 +51,7 @@ impl SpadePathExt for SpadePath {
     }
 
     fn as_dep_lib(&self) -> Option<String> {
-        self.0.first().map(|first| first.inner.as_str().to_owned())
+        self.0.first().map(|first| first.to_string())
     }
 }
 
@@ -175,7 +175,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
 
     for (NameID(_, path), executable) in root_item_list.executables {
         let namespace = path.prelude();
-        let name = path.tail();
+        let name = path.tail().unwrap_named().inner.clone();
 
         let is_extern = matches!(executable, ExecutableItem::ExternUnit(_, _));
 
@@ -194,7 +194,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
 
     for (NameID(_, path), ty) in root_item_list.types {
         let namespace = path.prelude();
-        let name = path.tail();
+        let name = path.tail().unwrap_named().inner.clone();
 
         documentables
             .entry(namespace)
@@ -208,7 +208,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
         };
 
         let namespace = id.1.prelude();
-        let name = id.1.tail();
+        let name = id.1.tail().unwrap_named().inner.clone();
 
         documentables
             .entry(namespace)
@@ -239,7 +239,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
         }
 
         let namespace = path.prelude();
-        let name = path.tail();
+        let name = path.tail().unwrap_named().inner.clone();
 
         documentables
             .entry(namespace)

@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/parser.rs
+---
+pipeline(2) test(clk: clock, x: uint<8>) -> uint<8> {
+reg;
+    pub 'foo
+reg;
+    x
+}
+
+
+error: invalid visibility marker location
+  ┌─ testinput:3:5
+  │
+3 │     pub 'foo
+  │     ^^^ ---- label cannot have a visibility marker
+  │     │    
+  │     visibility markers are not allowed here

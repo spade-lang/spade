@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity test(x: inv &bool) {
+    pub set x = &true;
+}
+
+
+error: invalid visibility marker location
+  ┌─ testinput:2:5
+  │
+2 │     pub set x = &true;
+  │     ^^^ --- set cannot have a visibility marker
+  │     │    
+  │     visibility markers are not allowed here
+
+error: x is unused
+  ┌─ testinput:1:13
+  │
+1 │ entity test(x: inv &bool) {
+  │             ^ x is unused
+  │
+  = note: x is an inverted wire (`inv &`) which must be set

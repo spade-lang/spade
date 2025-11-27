@@ -130,7 +130,7 @@ impl IsSelf for ast::TypeSpec {
                 Ok(path.len() == 1
                     && path
                         .first()
-                        .is_some_and(|ident| ident.inner.as_str() == "Self"))
+                        .is_some_and(|segment| segment.to_named_str() == Some("Self")))
             }
             _ => Ok(false),
         }

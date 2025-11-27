@@ -80,7 +80,7 @@ pub fn dummy_file() -> NamespacedFile {
 mod tests {
     use spade_common::{
         location_info::WithLocation as _,
-        name::{Identifier, Path as SpadePath},
+        name::{Identifier, Path as SpadePath, PathSegment},
     };
 
     use crate::namespaced_file::NamespacedFile;
@@ -92,10 +92,12 @@ mod tests {
         assert_eq!(
             namespaced_file("a,a::b,b.spade"),
             Ok(NamespacedFile {
-                base_namespace: SpadePath(vec![Identifier::intern("a").nowhere()]),
+                base_namespace: SpadePath(vec![PathSegment::Named(
+                    Identifier::intern("a").nowhere()
+                )]),
                 namespace: SpadePath(vec![
-                    Identifier::intern("a").nowhere(),
-                    Identifier::intern("b").nowhere()
+                    PathSegment::Named(Identifier::intern("a").nowhere()),
+                    PathSegment::Named(Identifier::intern("b").nowhere())
                 ]),
                 file: "b.spade".into(),
             })

@@ -22,7 +22,7 @@ use spade_ast::{
     TurbofishInner, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
-use spade_common::name::{Identifier, Path};
+use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_common::num_ext::{InfallibleToBigInt, InfallibleToBigUint};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
     pub fn path(&mut self) -> Result<Loc<Path>> {
         let mut result = vec![];
         loop {
-            result.push(self.identifier()?);
+            result.push(PathSegment::Named(self.identifier()?));
 
             if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break;
@@ -161,9 +161,9 @@ impl<'a> Parser<'a> {
         }
         // NOTE: (safe unwrap) The vec will have at least one element because the first thing
         // in the loop must push an identifier.
-        let start = result.first().unwrap().span;
-        let end = result.last().unwrap().span;
-        Ok(Path(result).between(self.file_id, &start, &end))
+        let start = result.first().unwrap().loc();
+        let end = result.last().unwrap().loc();
+        Ok(Path(result).between_locs(&start, &end))
     }
 
     #[trace_parser]
@@ -267,16 +267,16 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            result.push(self.identifier()?);
+            result.push(PathSegment::Named(self.identifier()?));
 
             // NOTE: (safe unwrap) The vec will have at least one element because the first thing
             // in the loop must push an identifier.
-            let path_start = result.first().unwrap().span;
-            let path_end = result.last().unwrap().span;
+            let path_start = result.first().unwrap().loc();
+            let path_end = result.last().unwrap().loc();
 
             if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break Ok(Some((
-                    Path(result).between(self.file_id, &path_start, &path_end),
+                    Path(result).between_locs(&path_start, &path_end),
                     None,
                 )));
             } else if self.peek_kind(&TokenKind::Lt)? {
@@ -1093,7 +1093,7 @@ impl<'a> Parser<'a> {
             // Single type, maybe with generics
             let (path, span) = self.path()?.separate();
 
-            if path.as_strs() == ["_"] {
+            if path.to_named_strs().as_slice() == [Some("_")] {
                 return Ok(TypeSpec::Wildcard.at(self.file_id, &span));
             }
 
@@ -1536,7 +1536,7 @@ impl<'a> Parser<'a> {
             .primary_label("attributes are not allowed here")
             .secondary_label(
                 item_start.loc(),
-                format!("...because this is a {}", item_start.kind.as_str()),
+                format!("{} cannot have attributes", item_start.kind.as_str()),
             )
             .note("attributes are only allowed on structs, enums, their variants, functions and pipelines");
             if matches!(item_start.kind, TokenKind::Mod) {
@@ -1545,6 +1545,24 @@ impl<'a> Parser<'a> {
                 );
             }
             Err(diagnostic)
+        }
+    }
+
+    fn disallow_visibility(&self, visibility: &Loc<Visibility>, item_start: &Token) -> Result<()> {
+        if visibility.inner == Visibility::Implicit {
+            Ok(())
+        } else {
+            Err(
+                Diagnostic::error(visibility, "invalid visibility marker location")
+                    .primary_label("visibility markers are not allowed here")
+                    .secondary_label(
+                        item_start.loc(),
+                        format!(
+                            "{} cannot have a visibility marker",
+                            item_start.kind.as_str()
+                        ),
+                    ),
+            )
         }
     }
 
@@ -1584,7 +1602,50 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     #[tracing::instrument(skip(self))]
-    pub fn unit_head(&mut self, attributes: &AttributeList) -> Result<Option<Loc<UnitHead>>> {
+    fn visibility(&mut self) -> Result<Loc<Visibility>> {
+        if let Some(pub_kw) = self.peek_and_eat(&TokenKind::Pub)? {
+            if self.peek_and_eat(&TokenKind::OpenParen)?.is_some() {
+                let next_token = self.peek()?;
+                let visibility = match next_token.kind {
+                    TokenKind::Identifier(ref name) => match name.as_str() {
+                        "lib" => Some(Visibility::AtLib),
+                        "self" => Some(Visibility::AtSelf),
+                        "super" => Some(Visibility::AtSuper),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+
+                let Some(visibility) = visibility else {
+                    return Err(Diagnostic::error(
+                        next_token,
+                        "Expected `self`, `super` or `lib`",
+                    ));
+                };
+
+                self.eat_unconditional()?;
+
+                let Some(close_parens) = self.peek_and_eat(&TokenKind::CloseParen)? else {
+                    let next_token = self.peek()?;
+                    return Err(Diagnostic::error(next_token, "Expected closing `)`"));
+                };
+
+                Ok(visibility.between_locs(&pub_kw.loc(), &close_parens.loc()))
+            } else {
+                Ok(Visibility::Public.at_loc(&pub_kw.loc()))
+            }
+        } else {
+            Ok(Visibility::Implicit.nowhere())
+        }
+    }
+
+    #[trace_parser]
+    #[tracing::instrument(skip(self))]
+    pub fn unit_head(
+        &mut self,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Option<Loc<UnitHead>>> {
         let unsafe_token = self.peek_and_eat(&TokenKind::Unsafe)?;
         let extern_token = self.peek_and_eat(&TokenKind::Extern)?;
         let start_token = self.peek()?;
@@ -1629,6 +1690,7 @@ impl<'a> Parser<'a> {
 
         Ok(Some(
             UnitHead {
+                visibility: visibility.clone(),
                 unsafe_token: unsafe_token.map(|token| token.loc()),
                 extern_token: extern_token.map(|token| token.loc()),
                 attributes: attributes.clone(),
@@ -2416,11 +2478,13 @@ impl<'a> Parser<'a> {
                     AttributeList::empty()
                 };
 
+                let visibility = s.visibility()?;
+
                 let next = s.peek()?;
                 let mut result = None;
                 for parser in parsers {
                     if parser.is_leading_token()(&next.kind) {
-                        result = Some(parser.parse(s, &attributes)?)
+                        result = Some(parser.parse(s, &attributes, &visibility)?)
                     }
                 }
                 Ok(result)
@@ -2690,7 +2754,12 @@ impl<'a> Parser<'a> {
 
 trait KeywordPeekingParser<T> {
     fn is_leading_token(&self) -> fn(&TokenKind) -> bool;
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T>;
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<T>;
 }
 
 trait SizedKeywordPeekingParser<T>: Sized + KeywordPeekingParser<T> {
@@ -2740,8 +2809,13 @@ where
         self.inner.is_leading_token()
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T> {
-        (self.mapper)(self.inner.parse(parser, attributes)?)
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<T> {
+        (self.mapper)(self.inner.parse(parser, attributes, visibility)?)
     }
 }
 
@@ -2769,8 +2843,13 @@ where
         self.inner.is_leading_token()
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T> {
-        let inner = self.inner.parse(parser, attributes)?;
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<T> {
+        let inner = self.inner.parse(parser, attributes, visibility)?;
         (self.then)(inner, parser)
     }
 }
@@ -2915,7 +2994,7 @@ mod tests {
 
     #[test]
     fn parsing_paths_works() {
-        let expected = Path(vec![ast_ident("path"), ast_ident("to"), ast_ident("thing")]).nowhere();
+        let expected = Path::from_strs(&["path", "to", "thing"]).nowhere();
         check_parse!("path::to::thing", path, Ok(expected));
     }
 
@@ -2967,6 +3046,7 @@ mod tests {
 
         let e1 = Unit {
             head: UnitHead {
+                visibility: Visibility::Implicit.nowhere(),
                 unsafe_token: None,
                 extern_token: None,
                 attributes: AttributeList::empty(),
@@ -2989,6 +3069,7 @@ mod tests {
 
         let e2 = Unit {
             head: UnitHead {
+                visibility: Visibility::Implicit.nowhere(),
                 unsafe_token: None,
                 extern_token: None,
                 attributes: AttributeList::empty(),
@@ -3195,6 +3276,7 @@ mod tests {
         let expected = ModuleBody {
             members: vec![Item::Module(
                 Module {
+                    visibility: Visibility::Implicit.nowhere(),
                     name: ast_ident("X"),
                     body: ModuleBody {
                         members: vec![],
@@ -3217,10 +3299,12 @@ mod tests {
         let expected = ModuleBody {
             members: vec![Item::Module(
                 Module {
+                    visibility: Visibility::Implicit.nowhere(),
                     name: ast_ident("X"),
                     body: ModuleBody {
                         members: vec![Item::Module(
                             Module {
+                                visibility: Visibility::Implicit.nowhere(),
                                 name: ast_ident("Y"),
                                 body: ModuleBody {
                                     members: vec![],

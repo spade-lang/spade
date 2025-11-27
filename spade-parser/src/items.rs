@@ -1,9 +1,9 @@
 use spade_ast::{
-    AttributeList, Enum, Expression, ImplBlock, Struct, TraitDef, TraitSpec, TypeDeclKind,
-    TypeDeclaration, TypeSpec, Unit, UseStatement,
+    AttributeList, Enum, Expression, ExternalMod, ImplBlock, Item, Module, Struct, TraitDef,
+    TraitSpec, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
 };
-use spade_ast::{Item, Module};
 use spade_common::location_info::{AsLabel, Loc, WithLocation};
+use spade_common::name::Visibility;
 use spade_diagnostics::Diagnostic;
 
 use crate::error::UnexpectedToken;
@@ -27,8 +27,13 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
         }
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Unit>> {
-        let head = if let Some(head) = parser.unit_head(attributes)? {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Unit>> {
+        let head = if let Some(head) = parser.unit_head(attributes, visibility)? {
             head
         } else {
             return Err(Diagnostic::bug(
@@ -108,7 +113,12 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
         |kind| kind == &TokenKind::Trait
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<TraitDef>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<TraitDef>> {
         let start_token = parser.eat_unconditional()?;
 
         let name = parser.identifier()?;
@@ -118,6 +128,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
         let where_clauses = parser.where_clauses()?;
 
         let mut result = TraitDef {
+            visibility: visibility.clone(),
             name,
             type_params,
             where_clauses,
@@ -127,7 +138,14 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
 
         parser.eat(&TokenKind::OpenBrace)?;
 
-        while let Some(decl) = parser.unit_head(&AttributeList::empty())? {
+        loop {
+            let vis = Visibility::Implicit.nowhere();
+
+            let Some(mut decl) = parser.unit_head(&AttributeList::empty(), &vis)? else {
+                break;
+            };
+
+            decl.visibility = vis;
             result.methods.push(decl);
             parser.eat(&TokenKind::Semi)?;
         }
@@ -144,9 +162,15 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
         |kind| kind == &TokenKind::Impl
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<ImplBlock>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<ImplBlock>> {
         let start_token = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &start_token)?;
+        parser.disallow_visibility(visibility, &start_token)?;
 
         let type_params = parser.generics_list()?;
 
@@ -207,6 +231,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
         &self,
         parser: &mut Parser,
         attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
 
@@ -226,6 +251,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
         let members = members.at_loc(&members_loc);
 
         let result = TypeDeclaration {
+            visibility: visibility.clone(),
             name: name.clone(),
             kind: TypeDeclKind::Struct(
                 Struct {
@@ -255,6 +281,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
         &self,
         parser: &mut Parser,
         attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
 
@@ -272,6 +299,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
         )?;
 
         let result = TypeDeclaration {
+            visibility: visibility.clone(),
             name: name.clone(),
             kind: TypeDeclKind::Enum(
                 Enum {
@@ -296,7 +324,12 @@ impl KeywordPeekingParser<Item> for ModuleParser {
         |kind| kind == &TokenKind::Mod
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Item> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Item> {
         let start = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &start)?;
 
@@ -311,13 +344,21 @@ impl KeywordPeekingParser<Item> for ModuleParser {
             )?;
             Ok(Item::Module(
                 Module {
+                    visibility: visibility.clone(),
                     name,
                     body: body.between(parser.file_id, &open_brace.span, &end.span),
                 }
                 .between(parser.file_id, &start, &end),
             ))
         } else if parser.peek_and_eat(&TokenKind::Semi)?.is_some() {
-            Ok(Item::ExternalMod(name))
+            let end = name.loc();
+            Ok(Item::ExternalMod(
+                ExternalMod {
+                    visibility: visibility.clone(),
+                    name,
+                }
+                .between(parser.file_id, &start, &end),
+            ))
         } else {
             Err(UnexpectedToken {
                 got: parser.peek()?,
@@ -339,6 +380,7 @@ impl KeywordPeekingParser<Loc<Vec<UseStatement>>> for UseParser {
         &self,
         parser: &mut Parser,
         attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
     ) -> Result<Loc<Vec<UseStatement>>> {
         let start = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &start)?;
@@ -348,7 +390,11 @@ impl KeywordPeekingParser<Loc<Vec<UseStatement>>> for UseParser {
 
         Ok(paths
             .into_iter()
-            .map(|(path, alias)| UseStatement { path, alias })
+            .map(|(path, alias)| UseStatement {
+                visibility: visibility.clone(),
+                path,
+                alias,
+            })
             .collect::<Vec<_>>()
             .between(parser.file_id, &start.span(), &end.span()))
     }

@@ -17,7 +17,7 @@ use color_eyre::{
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, NameID, Path},
+    name::{Identifier, NameID, Path, PathSegment},
 };
 use spade_hir::{expression::CallKind, query::QueryCache, Expression};
 use spade_hir_lowering::{name_map::NameSource, MirLowerable};
@@ -164,7 +164,7 @@ impl SpadeTranslator {
 
         let path = top_name
             .split("::")
-            .map(|s| Identifier::intern(s).nowhere());
+            .map(|s| PathSegment::Named(Identifier::intern(s).nowhere()));
         let (top, _) = state
             .lock()
             .unwrap()
@@ -520,7 +520,7 @@ fn not_present_enum_options(
     options
         .iter()
         .map(|(opt_name, opt_fields)| SubFieldTranslationResult {
-            name: opt_name.1.tail().as_str().to_owned(),
+            name: opt_name.1.tail().to_string(),
             result: TranslationResult {
                 val: ValueRepr::NotPresent,
                 subfields: not_present_enum_fields(opt_fields),
@@ -658,7 +658,7 @@ fn translate_concrete(
                         .iter()
                         .enumerate()
                         .map(|(i, (name, fields))| {
-                            let name = name.1.tail().as_str().to_owned();
+                            let name = name.1.tail().to_string();
                             let mut offset = tag_size;
 
                             let subfields = fields
@@ -717,7 +717,7 @@ fn translate_concrete(
                     TranslationResult {
                         val: ValueRepr::Enum {
                             idx: tag,
-                            name: options[tag].0 .1.tail().as_str().to_owned(),
+                            name: options[tag].0 .1.tail().to_string(),
                         },
                         kind,
                         subfields,
@@ -811,7 +811,7 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
                 .iter()
                 .map(|(name, fields)| {
                     Ok((
-                        name.1.tail().as_str().to_owned(),
+                        name.1.tail().to_string(),
                         VariableInfo::Compound {
                             subfields: fields
                                 .iter()

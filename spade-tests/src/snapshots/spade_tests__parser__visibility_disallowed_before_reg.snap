@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/parser.rs
+---
+entity test(clk: clock) {
+    pub reg(clock) x = 0u8;
+}
+
+
+error: invalid visibility marker location
+  ┌─ testinput:2:5
+  │
+2 │     pub reg(clock) x = 0u8;
+  │     ^^^ --- reg cannot have a visibility marker
+  │     │    
+  │     visibility markers are not allowed here

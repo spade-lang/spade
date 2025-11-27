@@ -83,14 +83,14 @@ impl<'r> Spec<'r> {
                 size: Box::new(Self::mirror_typeexpr(size)?),
             }),
             TypeSpec::Declared(name, args) => Ok(Spec::Declared {
-                name: Cow::Borrowed(name.inner.1.tail().as_str()),
+                name: Cow::Borrowed(name.inner.1.tail().unwrap_named().inner.as_str()),
                 type_args: args
                     .iter()
                     .map(|s| Self::mirror_typeexpr(&s))
                     .collect::<Result<Vec<_>>>()?,
             }),
             TypeSpec::Generic(name) => Ok(Spec::Declared {
-                name: Cow::Borrowed(name.inner.1.tail().as_str()),
+                name: Cow::Borrowed(name.inner.1.tail().unwrap_named().inner.as_str()),
                 type_args: vec![],
             }),
             TypeSpec::Inverted(inner) => {
@@ -127,7 +127,7 @@ impl<'r> Spec<'r> {
     ) -> Result<Self> {
         let mut spec = match expr {
             ConstGeneric::Name(name) => Self::Declared {
-                name: Cow::Borrowed(name.inner.1.tail().as_str()),
+                name: Cow::Borrowed(name.inner.1.tail().unwrap_named().inner.as_str()),
                 type_args: vec![],
             },
             ConstGeneric::Int(const_number) => {

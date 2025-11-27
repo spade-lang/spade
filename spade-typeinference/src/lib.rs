@@ -33,7 +33,7 @@ use trace_stack::TraceStack;
 use tracing::{info, trace};
 
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, NameID, Path};
+use spade_common::name::{Identifier, NameID, Path, PathSegment};
 use spade_hir::param_util::{match_args_with_params, Argument};
 use spade_hir::symbol_table::{Patternable, PatternableKind, SymbolTable, TypeSymbol};
 use spade_hir::{self as hir, ConstGenericWithId, ImplTarget};
@@ -1043,7 +1043,7 @@ impl TypeState {
         macro_rules! handle_special_functions {
             ($([$($path:expr),*] => $handler:expr),*) => {
                 $(
-                    let path = Path(vec![$(Identifier::intern($path).nowhere()),*]).nowhere();
+                    let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
                     if ctx.symtab
                         .try_lookup_id(&path)
                         .map(|n| &FunctionLikeName::Free(n) == name)

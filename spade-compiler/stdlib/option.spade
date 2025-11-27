@@ -1,22 +1,22 @@
-enum Option<T> {
+pub enum Option<T> {
     None,
     Some{value: T},
 }
 
 impl<T> Option<T> {
-    fn is_some(self) -> bool {
+    pub fn is_some(self) -> bool {
         match self {
             Some(_) => true,
             None => false,
         }
     }
 
-    fn is_none(self) -> bool {
+    pub fn is_none(self) -> bool {
         !self.is_some()
     }
 
     /// Returns the inner value if it is present, otherwise None
-    fn unwrap_or(self, default: T) -> T {
+    pub fn unwrap_or(self, default: T) -> T {
         match self {
             Some(val) => val,
             None => default,
@@ -28,7 +28,7 @@ impl<T> Option<T> {
     /// reading an undef value is undefined behaviour so this method should only be used
     /// if you guarantee that the value is never read when the value is `None`, for example
     /// by checking the Option type again
-    fn unwrap_or_undef(self) -> T {
+    pub fn unwrap_or_undef(self) -> T {
         match self {
             Some(t) => t,
             None => std::undef::undef()
@@ -43,7 +43,7 @@ impl<T> Option<T> {
     /// ```
     /// let add_one = option.map(fn(x) {x + 1})
     /// ```
-    fn map<F, O>(self, f: F) -> Option<O>
+    pub fn map<F, O>(self, f: F) -> Option<O>
         where F: Fn(T) -> O
     {
         match self {
@@ -52,7 +52,7 @@ impl<T> Option<T> {
         }
     }
 
-    pipeline(Depth) pmap<#int Depth, F, O>(self, clk: clock, f: F) -> Option<O>
+    pub pipeline(Depth) pmap<#int Depth, F, O>(self, clk: clock, f: F) -> Option<O>
         where F: Pipeline<Depth>(T) -> O
     {
         let pipe_in = match self {
@@ -71,7 +71,7 @@ impl<T> Option<T> {
     /// value. `f` returns another Option
     ///
     /// let filtered = option.and_then(fn |x| {if x < 10 {Some(x)} else {None}
-    fn and_then<F, O>(self, f: F) -> Option<O>
+    pub fn and_then<F, O>(self, f: F) -> Option<O>
         where F: Fn(T) -> Option<O>
     {
         match self {
@@ -91,7 +91,7 @@ impl<T> Option<T> {
     /// input:  | None | Some(1)      | Some(2)      | None | Some(3)
     /// output: | None | Some([1, 0]) | Some([2, 1]) | None | Some(3, 2])
     /// ```
-    entity sliding_window<#uint N>(self, clk: clock, rst: bool, default: T) -> Option<[T; N]> {
+    pub entity sliding_window<#uint N>(self, clk: clock, rst: bool, default: T) -> Option<[T; N]> {
         decl val;
         let next = match self {
             Some(new) => [new] `concat_arrays` val[0..N-1],
@@ -117,7 +117,7 @@ impl<T> Option<T> {
     /// input:  | None | Some(1) | Some(2)       | None         | Some(3) | Some(4) | -
     /// output: | None | None    | Some([1, 2])  | None         | None    | Some([3, 4])
     /// ```
-    entity chunks<#uint N>(self, clk: clock, rst: bool) -> Option<[T; N]> {
+    pub entity chunks<#uint N>(self, clk: clock, rst: bool) -> Option<[T; N]> {
         reg(clk) count: uint<{uint_bits_to_fit(N)}> reset(rst: 0) = match self {
             Some(new) => {
                 if count + 1 == N {0} else {trunc(count + 1)}

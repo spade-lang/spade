@@ -933,6 +933,71 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    visibility_disallowed_before_impl,
+    "
+    pub impl bool {}
+    "
+}
+
+snapshot_error! {
+    visibility_disallowed_before_let,
+    "
+    entity test() {
+        pub let x = 0u8;
+    }
+    "
+}
+
+snapshot_error! {
+    visibility_disallowed_before_reg,
+    "
+    entity test(clk: clock) {
+        pub reg(clock) x = 0u8;
+    }
+    "
+}
+
+snapshot_error! {
+    visibility_disallowed_before_decl,
+    "
+    entity test() {
+        pub decl x;
+        let x = 0u8;
+    }
+    "
+}
+
+snapshot_error! {
+    visibility_disallowed_before_label,
+    "
+    pipeline(2) test(clk: clock, x: uint<8>) -> uint<8> {
+    reg;
+        pub 'foo
+    reg;
+        x
+    }
+    "
+}
+
+snapshot_error! {
+    visibility_disallowed_before_assert,
+    "
+    entity test() {
+        pub assert true;
+    }
+    "
+}
+
+snapshot_error! {
+    visibility_disallowed_before_set,
+    "
+    entity test(x: inv &bool) {
+        pub set x = &true;
+    }
+    "
+}
+
 #[test]
 fn parser_extracts_comments() {
     const FILE_ID: usize = 0;

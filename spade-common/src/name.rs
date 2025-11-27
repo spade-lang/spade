@@ -7,6 +7,20 @@ use crate::{
     location_info::{Loc, WithLocation},
 };
 
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub enum Visibility {
+    Implicit,
+    Public,
+    AtLib,
+    AtSelf,
+    AtSuper,
+    // Super-super visibility is an implementation detail, not accessible through Spade syntax.
+    // It arises when enum variants inherit their parent enum's visibility. Because the enum
+    // introduces a new namespace, relative visibility needs to be shifted (`AtSelf` becomes
+    // `AtSuper` and `AtSuper` becomes `AtSuperSuper`).
+    AtSuperSuper,
+}
+
 #[derive(Debug, Clone, Copy, Eq)]
 #[repr(transparent)]
 pub struct Identifier(&'static str);
@@ -82,40 +96,106 @@ pub enum PathPrefix {
 }
 
 #[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
-pub struct Path(pub Vec<Loc<Identifier>>);
+pub enum PathSegment {
+    Named(Loc<Identifier>),
+    Impl(u64),
+    IfT,
+    IfF,
+}
+
+impl PathSegment {
+    pub fn is_named(&self) -> bool {
+        match self {
+            PathSegment::Named(_) => true,
+            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => false,
+        }
+    }
+
+    pub fn to_named_str(&self) -> Option<&str> {
+        match self {
+            PathSegment::Named(s) => Some(s.0),
+            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => None,
+        }
+    }
+
+    pub fn loc(&self) -> Loc<()> {
+        match self {
+            PathSegment::Named(ident) => ident.loc(),
+            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => ().nowhere(),
+        }
+    }
+
+    pub fn unwrap_named(&self) -> &Loc<Identifier> {
+        match self {
+            PathSegment::Named(ident) => ident,
+            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => {
+                panic!("called `PathSegment::unwrap_named()` on a generated path segment")
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for PathSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PathSegment::Named(ident) => write!(f, "{}", ident),
+            PathSegment::Impl(n) => write!(f, "impl#{n}"),
+            PathSegment::IfT => write!(f, "if#true"),
+            PathSegment::IfF => write!(f, "if#false"),
+        }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
+pub struct Path(pub Vec<PathSegment>);
 
 impl Path {
-    pub fn as_strs(&self) -> Vec<&str> {
-        self.0.iter().map(|id| id.inner.as_str()).collect()
+    pub fn to_strings(&self) -> Vec<String> {
+        self.0.iter().map(PathSegment::to_string).collect()
     }
-    pub fn as_strings(&self) -> Vec<String> {
-        self.0
-            .iter()
-            .map(|id| id.inner.as_str().to_owned())
-            .collect()
+
+    pub fn to_named_strs(&self) -> Vec<Option<&str>> {
+        self.0.iter().map(PathSegment::to_named_str).collect()
     }
+
     /// Generate a path from a list of strings
     pub fn from_strs(elems: &[&str]) -> Self {
         Path(
             elems
                 .iter()
-                .map(|x| Identifier::intern(x).nowhere())
+                .map(|x| PathSegment::Named(Identifier::intern(x).nowhere()))
+                .collect(),
+        )
+    }
+
+    /// Generate a path from a list of Loc<Identifier>
+    pub fn from_idents(elems: &[&Loc<Identifier>]) -> Self {
+        Path(
+            elems
+                .iter()
+                .map(|x| PathSegment::Named((*x).clone()))
                 .collect(),
         )
     }
 
     pub fn ident(ident: Loc<Identifier>) -> Self {
-        Self(vec![ident])
+        Self(vec![PathSegment::Named(ident)])
     }
 
     pub fn ident_with_loc(ident: Loc<Identifier>) -> Loc<Self> {
         let loc = ident.loc();
-        Self(vec![ident]).at_loc(&loc)
+        Self::ident(ident).at_loc(&loc)
+    }
+
+    pub fn push_segment(&self, segment: PathSegment) -> Path {
+        let mut result = self.clone();
+        result.0.push(segment);
+        result
     }
 
     pub fn push_ident(&self, ident: Loc<Identifier>) -> Path {
         let mut result = self.clone();
-        result.0.push(ident);
+        result.0.push(PathSegment::Named(ident));
         result
     }
 
@@ -127,22 +207,26 @@ impl Path {
 
     pub fn join(&self, other: Path) -> Path {
         let mut result = self.clone();
-        for ident in other.0 {
-            result = result.push_ident(ident);
+        for segment in other.0 {
+            result.0.push(segment);
         }
         result
     }
 
     pub fn extract_prefix(&self) -> (PathPrefix, Path) {
-        let Some(ident) = self.0.first() else {
+        let Some(segment) = self.0.first() else {
             return (PathPrefix::None, self.clone());
         };
 
-        let (prefix, count) = match ident.inner.as_str() {
-            "lib" => (PathPrefix::FromLib, 1),
-            "self" => (PathPrefix::FromSelf, 1),
-            "super" => {
-                let levels = self.0.iter().take_while(|s| s.inner.0 == "super").count();
+        let (prefix, count) = match segment.to_named_str() {
+            Some("lib") => (PathPrefix::FromLib, 1),
+            Some("self") => (PathPrefix::FromSelf, 1),
+            Some("super") => {
+                let levels = self
+                    .0
+                    .iter()
+                    .take_while(|s| s.to_named_str() == Some("super"))
+                    .count();
                 (PathPrefix::FromSuper(levels), levels)
             }
             _ => (PathPrefix::None, 0),
@@ -153,11 +237,10 @@ impl Path {
     }
 
     /// The last element of the path. Panics if the path is empty
-    pub fn tail(&self) -> Identifier {
+    pub fn tail(&self) -> PathSegment {
         self.0
             .last()
             .expect("Tried getting tail of empty path")
-            .inner
             .clone()
     }
 
@@ -169,7 +252,7 @@ impl Path {
 
 impl std::fmt::Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_strs().join("::"))
+        write!(f, "{}", self.to_strings().join("::"))
     }
 }
 

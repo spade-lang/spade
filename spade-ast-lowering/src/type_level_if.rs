@@ -1,6 +1,7 @@
 use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
+use spade_common::name::PathSegment;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::Diagnostic;
 use spade_hir::expression::CallKind;
@@ -78,7 +79,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
     };
 
     let expand_body =
-        |new_body: &Loc<Expression>, name_suffix: &str, ctx: &mut Context| -> Result<_> {
+        |new_body: &Loc<Expression>, name_segment: PathSegment, ctx: &mut Context| -> Result<_> {
             let mut new_unit = unit.clone();
             let absorbed = absorb_statements(&new_body, &body.statements, ctx)?;
             new_unit.body = match &absorbed.kind {
@@ -96,15 +97,12 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 _ => diag_bail!(absorbed, "Non tlif or body"),
             };
 
-            let new_name = unit
-                .name
-                .name_id()
-                .1
-                .clone()
-                .push_ident(Identifier::intern(name_suffix).nowhere());
-            let new_nameid = ctx
-                .symtab
-                .add_thing(new_name, Thing::Unit(new_unit.head.clone().at_loc(&unit)));
+            let new_name = unit.name.name_id().1.clone().push_segment(name_segment);
+            let new_nameid = ctx.symtab.add_thing(
+                new_name,
+                Thing::Unit(new_unit.head.clone().at_loc(&unit)),
+                None,
+            );
             new_unit.name = UnitName::WithID(new_nameid.clone().at_loc(&unit.head.name));
 
             let new_unit = expand_type_level_if(new_unit, ctx)?;
@@ -175,8 +173,8 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
 
     match body.result.as_ref().map(|e| &e.kind) {
         Some(ExprKind::TypeLevelIf(cond, on_true, on_false)) => {
-            let on_true = expand_body(&on_true, "T", ctx)?;
-            let on_false = expand_body(&on_false, "F", ctx)?;
+            let on_true = expand_body(&on_true, PathSegment::IfT, ctx)?;
+            let on_false = expand_body(&on_false, PathSegment::IfF, ctx)?;
 
             let new_on_true = call_expanded(on_true, ctx);
             let new_on_false = call_expanded(on_false, ctx);

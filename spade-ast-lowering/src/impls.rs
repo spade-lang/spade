@@ -4,7 +4,7 @@ use itertools::{EitherOrBoth, Itertools};
 use spade_ast as ast;
 use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, Path};
+use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::symbol_table::TypeSymbol;
@@ -47,6 +47,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             hir::TypeExpression::TypeSpec(target_type.inner.clone()).at_loc(&block.target),
         )
         .at_loc(&block.target),
+        Visibility::Implicit.nowhere(),
     );
 
     let (target, target_args) = get_impl_target(block, ctx)?;
@@ -97,14 +98,9 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             ));
         };
 
-        let path_suffix = Some(Path(vec![Identifier::intern(&format!(
-            "impl#{}",
-            impl_block_id.0
-        ))
-        .nowhere()]));
-
-        ctx.symtab
-            .add_dummy(Identifier::intern(&format!("impl#{}", impl_block_id.0)).nowhere());
+        let path_segment = PathSegment::Impl(impl_block_id.0);
+        let path_suffix = Some(Path(vec![path_segment.clone()]));
+        ctx.symtab.add_dummy(path_segment);
 
         global_symbols::visit_unit(
             &path_suffix,
@@ -339,7 +335,11 @@ pub fn create_trait_from_unit_heads(
                                 TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name)
                             }
                         };
-                        let name_id = ctx.symtab.add_type(ident.clone(), type_symbol);
+                        let name_id = ctx.symtab.add_type(
+                            ident.clone(),
+                            type_symbol,
+                            Visibility::Implicit.nowhere(),
+                        );
                         Ok(match tp {
                             ast::TypeParam::TypeName { name: _, traits } => {
                                 let trait_bounds = traits

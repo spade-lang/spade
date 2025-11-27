@@ -11,7 +11,7 @@ error: invalid attribute location
 1 │ /// This is my module :3
   │ ^^^^^^^^^^^^^^^^^^^^^^^^ attributes are not allowed here
 2 │ mod x {}
-  │ --- ...because this is a mod
+  │ --- mod cannot have attributes
   │
   = note: attributes are only allowed on structs, enums, their variants, functions and pipelines
   = help: If you want to document this module, use inside comments (//!) instead.

@@ -1,6 +1,38 @@
 use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error, snapshot_mir};
 
 snapshot_error! {
+    visibility_markers_work,
+    "
+    mod a {
+        pub struct Cat {}
+        pub(self) enum Dog {}
+        pub(super) trait Happy {}
+        pub(lib) use Cat as Pet;
+    }
+
+    mod b {
+        use super::a::Cat as C;
+        use super::a::Dog as D; // this will fail
+        use super::a::Happy as H;
+        use super::a::Pet as P;
+    }
+    "
+}
+
+snapshot_error! {
+    implicit_visibility_works,
+    "
+    mod a {
+        mod secret {}
+    }
+
+    mod b {
+        use super::a::secret; // this will fail
+    }
+    "
+}
+
+snapshot_error! {
     impl_method_generic_args_length_does_not_match_trait_method_generic_args_length,
     "
     trait X {
@@ -381,7 +413,7 @@ fn none_without_parens_works() {
 fn nested_use_compiles_correctly() {
     let code = r#"
         mod A {
-            struct X {x: bool}
+            pub struct X {x: bool}
         }
 
         mod B {
@@ -405,9 +437,9 @@ fn complicated_namespace_use_works() {
             }
 
             mod m2 {
-                use b::a;
+                pub use b::a;
                 mod b {
-                    fn a() {}
+                    pub fn a() {}
                 }
             }
         }
@@ -490,7 +522,7 @@ snapshot_error! {
 fn global_use_statements_work_across_modules() {
     let code = r#"
         mod std {
-            enum Option<T> {
+            pub enum Option<T> {
                 Some{val: T},
                 None
             }
@@ -514,7 +546,7 @@ fn use_statements_are_visible_before_appearing_in_source_code() {
     let code = r#"
         mod std {
             mod option {
-                enum Option<T> {
+                pub enum Option<T> {
                     Some{val: T},
                     None
                 }

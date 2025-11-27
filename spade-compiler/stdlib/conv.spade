@@ -3,23 +3,23 @@
 /// larger than the input, an error is emitted
 // This is special cased by the compiler. The actual type, if Spade was able to express
 // it itself would be trunc<#uint N, #uint M>(x: Number<N>) -> Number<M>.
-extern fn trunc<N, M>(x: N) -> M;
+pub extern fn trunc<N, M>(x: N) -> M;
 
 /// Sign extend the provided integer. Gives a compiler error if the output is smaller
 /// than the input
-extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>;
+pub extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>;
 
 /// Zero extend the provided integer. Gives a compiler error if the output is smaller
 /// than the input
-extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>;
+pub extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>;
 
 /// This is special cased by the compiler. The actual type, if Spade was able to express
 /// it itself would be concat<#uint N, #uint M>(x: Number<N>, y: Number<M>) -> Number<N + M>.
-extern fn concat<N, M, K>(x: N, y: M) -> K;
+pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 
 /// Concatenate the contents of two arrays `[l0, l1, l2...]`
 /// and `[r0, r1, r2...]` to form `[l0, l1, l2..., ln, r0, r1, r2...]`
-fn concat_arrays<T, #uint L, #uint R, #uint O>(l: [T; L], r: [T; R]) -> [T; O]
+pub fn concat_arrays<T, #uint L, #uint R, #uint O>(l: [T; L], r: [T; R]) -> [T; O]
     where O: { L + R }
 {
     unsafe {
@@ -29,7 +29,7 @@ fn concat_arrays<T, #uint L, #uint R, #uint O>(l: [T; L], r: [T; R]) -> [T; O]
 
 /// Casts a `bit` to a `bool`. low maps to false, high maps to true, but HIGHIMP is undefined.
 /// In practice, in a simulator, it will map to Z
-fn tri_to_bool(b: tri) -> bool {
+pub fn tri_to_bool(b: tri) -> bool {
     unsafe {
         transmute(b)
     }
@@ -37,18 +37,18 @@ fn tri_to_bool(b: tri) -> bool {
 
 /// Completely reverses the order of the elements in the `in` array
 /// For example, [1, 2, 3] becomes [3, 2, 1]
-fn flip_array<T, #uint N>(in: [T; N]) -> [T; N] {
+pub fn flip_array<T, #uint N>(input: [T; N]) -> [T; N] {
     gen if N == 0 {
         []
     } else {
-        in[N-1..N] `concat_arrays` flip_array(in[0..N-1])
+        input[N-1..N] `concat_arrays` flip_array(input[0..N-1])
     }
     // $if N {
     //     []
     // } $else $if N-1 {
-    //     [in[N-1:N-1]] `concat_arrays` flip_array(in[0:N-1])
+    //     [input[N-1:N-1]] `concat_arrays` flip_array(input[0:N-1])
     // } $else {
-    //     [in[N-1:N-1]]
+    //     [input[N-1:N-1]]
     // }
 }
 
@@ -57,13 +57,13 @@ fn flip_array<T, #uint N>(in: [T; N]) -> [T; N] {
 ///
 /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
 /// are written LSB first, while integers are written MSB first
-fn int_to_bits<#uint N>(input: int<N>) -> [bool; N] {
+pub fn int_to_bits<#uint N>(input: int<N>) -> [bool; N] {
     unsafe {
         transmute(input)
     }
 }
 
-fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
+pub fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
     unsafe {
         transmute(input)
     }
@@ -74,26 +74,26 @@ fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
 ///
 /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
 /// are written LSB first, while integers are written MSB first
-fn uint_to_bits<#uint N>(input: uint<N>) -> [bool; N] {
+pub fn uint_to_bits<#uint N>(input: uint<N>) -> [bool; N] {
     unsafe {
         transmute(input)
     }
 }
 
-fn bits_to_uint<#uint N>(input: [bool; N]) -> uint<N> {
+pub fn bits_to_uint<#uint N>(input: [bool; N]) -> uint<N> {
     unsafe {
         transmute(input)
     }
 }
 
 /// Cast an unsigned integer to a signed integer by re-interpreting the bits.
-fn uint_to_int <#uint N>(input: uint<N>) -> int<N> {
+pub fn uint_to_int <#uint N>(input: uint<N>) -> int<N> {
     unsafe {
         transmute(input)
     }
 }
 /// Cast a signed integer to an unsigned integer by re-interpreting the bits.
-fn int_to_uint <#uint N>(input: int<N>) -> uint<N> {
+pub fn int_to_uint <#uint N>(input: int<N>) -> uint<N> {
     unsafe {
         transmute(input)
     }
@@ -106,12 +106,12 @@ fn int_to_uint <#uint N>(input: int<N>) -> uint<N> {
 /// not rely on it being fixed between compiler versions.
 /// If you still want to use this function on compound types, the representation of types is
 /// described here: https://docs.spade-lang.org/internal/type_representations.html
-unsafe extern fn transmute<T, O>(in: T) -> O;
+pub unsafe extern fn transmute<T, O>(input: T) -> O;
 
 /// Converts a clock signal to a bool by just reinterpreting the bits. This should rarely
 /// be used but can be helpful in some situations, such as wanting to output a clock on a
 /// pin for debugging
-unsafe entity clock_to_bool(c: clock) -> bool {
+pub unsafe entity clock_to_bool(c: clock) -> bool {
     unsafe {
         transmute(c)
     }
@@ -119,30 +119,30 @@ unsafe entity clock_to_bool(c: clock) -> bool {
 
 /// Converts a bool to a clock by just reinterpreting the bits. It is up to the caller
 /// to ensure that the result is a valid clock.
-unsafe entity bool_to_clock(c: bool) -> clock {
+pub unsafe entity bool_to_clock(c: bool) -> clock {
     unsafe {
         transmute(c)
     }
 }
 
 impl<#uint N> [bool; N] {
-    fn to_uint(self) -> uint<N> {
+    pub fn to_uint(self) -> uint<N> {
         bits_to_uint(self)
     }
 
-    fn to_int(self) -> int<N> {
+    pub fn to_int(self) -> int<N> {
         bits_to_int(self)
     }
 }
 
 impl bool {
-    fn to_uint(self) -> uint<1> {
+    pub fn to_uint(self) -> uint<1> {
         unsafe {
             transmute(self)
         }
     }
 
-    fn to_int(self) -> int<1> {
+    pub fn to_int(self) -> int<1> {
         unsafe {
             transmute(self)
         }
@@ -150,7 +150,7 @@ impl bool {
 }
 
 impl<#uint N> int<N> {
-    fn to_uint(self) -> uint<N> {
+    pub fn to_uint(self) -> uint<N> {
         int_to_uint(self)
     }
     /// Interpret a uint as the raw bit values. output[0] is the LSB of the integer
@@ -158,13 +158,13 @@ impl<#uint N> int<N> {
     ///
     /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
     /// are written LSB first, while integers are written MSB first
-    fn to_bits(self) -> [bool; N] {
+    pub fn to_bits(self) -> [bool; N] {
         int_to_bits(self)
     }
 }
 
 impl<#uint N> uint<N> {
-    fn to_int(self) -> int<N> {
+    pub fn to_int(self) -> int<N> {
         uint_to_int(self)
     }
     /// Interpret a int as the raw bit values. output[0] is the LSB of the integer
@@ -172,7 +172,7 @@ impl<#uint N> uint<N> {
     ///
     /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
     /// are written LSB first, while integers are written MSB first
-    fn to_bits(self) -> [bool; N] {
+    pub fn to_bits(self) -> [bool; N] {
         uint_to_bits(self)
     }
 }
@@ -181,13 +181,13 @@ impl<#uint N> uint<N> {
 impl uint<16> {
     /// Converts `self` into an array of bytes in big-endian order. 0x1234
     /// becomes [0x12, 0x34].
-    fn to_be_bytes(self) -> [uint<8>; 2] {
+    pub fn to_be_bytes(self) -> [uint<8>; 2] {
         [trunc(self >> 8), trunc(self)]
     }
 
     /// Converts `self` into an array of bytes in little-endian order. 0x1234
     /// becomes [0x34, 0x12].
-    fn to_le_bytes(self) -> [uint<8>; 2] {
+    pub fn to_le_bytes(self) -> [uint<8>; 2] {
         std::conv::flip_array(self.to_be_bytes())
     }
 }
@@ -195,13 +195,13 @@ impl uint<16> {
 impl uint<24> {
     /// Converts `self` into an array of bytes in big-endian order. 0x123456
     /// becomes [0x12, 0x34, 0x56].
-    fn to_be_bytes(self) -> [uint<8>; 3] {
+    pub fn to_be_bytes(self) -> [uint<8>; 3] {
         [trunc(self >> 16), trunc(self >> 8), trunc(self)]
     }
 
     /// Converts `self` into an array of bytes in little-endian order. 0x123456
     /// becomes [0x56, 0x34, 0x12].
-    fn to_le_bytes(self) -> [uint<8>; 3] {
+    pub fn to_le_bytes(self) -> [uint<8>; 3] {
         std::conv::flip_array(self.to_be_bytes())
     }
 }
@@ -209,24 +209,24 @@ impl uint<24> {
 impl uint<32> {
     /// Converts `self` into an array of bytes in big-endian order. 0x12345678
     /// becomes [0x12, 0x34, 0x56, 0x78].
-    fn to_be_bytes(self) -> [uint<8>; 4] {
+    pub fn to_be_bytes(self) -> [uint<8>; 4] {
         [trunc(self >> 24), trunc(self >> 16), trunc(self >> 8), trunc(self)]
     }
 
     /// Converts `self` into an array of bytes in little-endian order. 0x12345678
     /// becomes [0x78, 0x56, 0x34, 0x12].
-    fn to_le_bytes(self) -> [uint<8>; 4] {
+    pub fn to_le_bytes(self) -> [uint<8>; 4] {
         std::conv::flip_array(self.to_be_bytes())
     }
 }
 
 
 impl<#uint N> uint<N> {
-    fn trunc<#uint M>(self) -> uint<M> {
+    pub fn trunc<#uint M>(self) -> uint<M> {
         trunc(self)
     }
 
-    fn interleave<#uint ON>(self, other: Self) -> uint<ON>
+    pub fn interleave<#uint ON>(self, other: Self) -> uint<ON>
         where ON: {2 * N}
     {
         self `interleave` other
@@ -234,7 +234,7 @@ impl<#uint N> uint<N> {
 }
 
 impl<#uint N> int<N> {
-    fn trunc<#uint M>(self) -> int<M> {
+    pub fn trunc<#uint M>(self) -> int<M> {
         trunc(self)
     }
 }

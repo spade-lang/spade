@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod a {
+    mod secret {}
+}
+
+mod b {
+    use super::a::secret; // this will fail
+}
+
+
+error: Path cannot be traversed
+  ┌─ testinput:6:9
+  │
+6 │     use super::a::secret; // this will fail
+  │         ^^^^^^^^^^^^^^^^
+  │         │         │
+  │         │         this item is not visible from the current namespace
+  │         Path cannot be traversed
+  │
+  = note: consider using `pub` to alter its visibility

@@ -80,9 +80,13 @@ impl PathState {
             self.path(
                 path.0
                     .iter()
-                    .map(|seg| &seg.inner)
-                    .map(|seg| Utf8Path::new(seg.as_str()))
-                    .chain([Utf8Path::new(&format!("{}.html", ident.as_str()))]),
+                    .map(|seg| seg.to_string())
+                    .chain([format!("{}.html", ident.as_str())])
+                    .map(|seg| {
+                        let mut buf = Utf8PathBuf::new();
+                        buf.push(seg);
+                        buf
+                    }),
             )
         } else {
             self.path([Utf8Path::new("index.html")])
@@ -121,7 +125,7 @@ impl<'d> Renderer<'d> {
 
         for (path, items) in &self.documentation.documentables {
             self.state
-                .enter_from_root(path.0.iter().map(|ident| ident.as_str()))?;
+                .enter_from_root(path.0.iter().map(|ident| ident.to_string()))?;
 
             for (name, item) in items {
                 self.item(Documentable {
@@ -299,7 +303,7 @@ impl<'d> Renderer<'d> {
                             .map(|type_param| GenericTypeParam::mirror_typeparam(type_param))
                             .collect::<Result<_>>()?,
                         impld_trait: if let TraitName::Named(n) = traitname {
-                            Some(n.inner.1.tail().as_str().into())
+                            Some(n.inner.1.tail().to_string().into())
                         } else {
                             None
                         },
@@ -400,7 +404,7 @@ impl<'d> Renderer<'d> {
                         };
                         Ok(WhereClause {
                             target: Spec::Declared {
-                                name: Cow::Borrowed(target.1.tail().as_str()),
+                                name: Cow::Borrowed(target.1.tail().unwrap_named().inner.as_str()),
                                 type_args: vec![],
                             },
                             constraints,

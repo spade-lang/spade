@@ -128,6 +128,8 @@ pub enum TokenKind {
     Mut,
     #[token("inv")]
     Inv,
+    #[token("pub")]
+    Pub,
     #[token("where")]
     Where,
 
@@ -305,6 +307,7 @@ impl TokenKind {
             TokenKind::Set => "set",
             TokenKind::Mut => "mut",
             TokenKind::Inv => "inv",
+            TokenKind::Pub => "pub",
             TokenKind::Where => "where",
 
             TokenKind::Gen => "gen",

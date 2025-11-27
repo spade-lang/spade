@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/parser.rs
+---
+pub impl bool {}
+
+
+error: invalid visibility marker location
+  ┌─ testinput:1:1
+  │
+1 │ pub impl bool {}
+  │ ^^^ ---- impl cannot have a visibility marker
+  │ │    
+  │ visibility markers are not allowed here

@@ -49,7 +49,7 @@ use pipelines::lower_pipeline;
 use pipelines::MaybePipelineContext;
 use spade_common::id_tracker::ExprIdTracker;
 use spade_common::location_info::WithLocation;
-use spade_common::name::{Identifier, Path};
+use spade_common::name::{Identifier, Path, PathSegment};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::num_ext::InfallibleToBigUint;
 use spade_diagnostics::codespan::Span;
@@ -194,7 +194,7 @@ pub trait Manglable {
 }
 impl Manglable for NameID {
     fn mangled(&self) -> String {
-        let str_name = self.1.as_strs().join("_");
+        let str_name = self.1.to_strings().join("_");
         format!("{}_n{}", str_name, self.0)
     }
 }
@@ -207,12 +207,12 @@ impl UnitNameExt for UnitName {
     fn as_mir(&self) -> mir::UnitName {
         let kind = match self {
             UnitName::WithID(name) => mir::unit_name::UnitNameKind::Escaped {
-                name: format!("{}[{}]", name.inner.1.as_strs().join("::"), name.inner.0),
-                path: name.inner.1.as_strings(),
+                name: format!("{}[{}]", name.inner.1.to_strings().join("::"), name.inner.0),
+                path: name.inner.1.to_strings(),
             },
             UnitName::FullPath(name) => mir::unit_name::UnitNameKind::Escaped {
-                name: name.inner.1.as_strs().join("::"),
-                path: name.inner.1.as_strings(),
+                name: name.inner.1.to_strings().join("::"),
+                path: name.inner.1.to_strings(),
             },
             UnitName::Unmangled(name, _) => mir::unit_name::UnitNameKind::Unescaped(name.clone()),
         };
@@ -2343,7 +2343,7 @@ impl ExprLocal for Loc<Expression> {
                 handle_special_function!([$($path),*] => $handler false)
             };
             ([$($path:expr),*] => $handler:ident $allow_port:expr) => {
-                let path = Path(vec![$(Identifier::intern($path).nowhere()),*]).nowhere();
+                let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
                 let final_id = ctx.symtab.symtab().try_lookup_id(&path);
                 if final_id
                     .map(|n| &n == &name.inner)
