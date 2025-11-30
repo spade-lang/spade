@@ -1822,7 +1822,7 @@ mod tests {
             }
         "#;
 
-        let inst_name = spade_mir::UnitName::_test_from_strs(&["impl_6", "a"]);
+        let inst_name = spade_mir::UnitName::_test_from_strs(&["impl#6", "a"]);
 
         let x_type = Type::Struct(vec![]);
         let expected = vec![
@@ -1831,7 +1831,7 @@ mod tests {
             ) -> Type::Bool; {
                 (e(0); Type::Bool; simple_instance((inst_name, vec!["self"])); n(0, "x"))
             } => e(0)},
-            entity! {&["impl_6", "a"]; (
+            entity! {&["impl#6", "a"]; (
                 "self", n(1, "self"), x_type,
             ) -> Type::Bool; {
                 (const 0; Type::Bool; ConstantValue::Bool(true));
@@ -1856,7 +1856,7 @@ mod tests {
             }
         "#;
 
-        let inst_name = spade_mir::UnitName::_test_from_strs(&["impl_0", "a"]);
+        let inst_name = spade_mir::UnitName::_test_from_strs(&["impl#0", "a"]);
 
         let x_type = Type::Struct(vec![]);
         let expected = vec![
@@ -1866,7 +1866,7 @@ mod tests {
                 (const 1; Type::Bool; ConstantValue::Bool(true));
                 (e(0); Type::Bool; simple_instance((inst_name, vec!["self", "arg"])); n(0, "x"), e(1))
             } => e(0)},
-            entity! {&["impl_0", "a"]; (
+            entity! {&["impl#0", "a"]; (
                 "self", n(1, "self"), x_type,
                 "arg", n(2, "arg"), Type::Bool,
             ) -> Type::Bool; {
@@ -2603,7 +2603,7 @@ mod tests {
             }
         "#;
 
-        let name = spade_mir::UnitName::_test_from_strs(&["impl_6", "a"]);
+        let name = spade_mir::UnitName::_test_from_strs(&["impl#6", "a"]);
 
         let x_type = Type::Struct(vec![]);
         let expected = vec![
@@ -2612,7 +2612,7 @@ mod tests {
             ) -> Type::Bool; {
                 (e(0); Type::Bool; simple_instance((name, vec!["self"])); n(0, "x"))
             } => e(0)},
-            entity! {&["impl_6", "a"]; (
+            entity! {&["impl#6", "a"]; (
                 "self", n(1, "self"), x_type,
             ) -> Type::Bool; {
                 (const 0; Type::Bool; ConstantValue::Bool(true));

@@ -16,9 +16,9 @@ error: Argument type mismatch. Expected Number<#uint> got A
  4 │     a `concat` a
    │     ^ expected Number<#uint>
    │
-   ┌─ <compiler dir>/stdlib/conv.spade:17:18
+   ┌─ <compiler dir>/stdlib/conv.spade:18:18
    │
-17 │ extern fn concat<N, M, K>(x: N, y: M) -> K;
+18 │ extern fn concat<N, M, K>(x: N, y: M) -> K;
    │                  - Type Number<_> inferred here
    │
    = note: Expected: Number<_>

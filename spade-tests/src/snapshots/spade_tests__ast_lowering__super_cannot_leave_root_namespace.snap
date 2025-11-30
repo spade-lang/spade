@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod a {
+    mod b {
+        use super::super::super::Meow;
+    }
+}
+
+
+error: Too many `super` segments
+  ┌─ testinput:3:13
+  │
+3 │         use super::super::super::Meow;
+  │             ^^^^^^^^^^^^^^^^^^^^^^^^^ Too many `super` segments
+  │
+note: parent does not exist for the root namespace
+  ┌─ testinput:3:27
+  │
+3 │         use super::super::super::Meow;
+  │                           ^^^^^
+  │

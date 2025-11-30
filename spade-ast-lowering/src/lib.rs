@@ -142,7 +142,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 .collect::<Result<_>>()?;
 
             let name_id = ctx.symtab.add_type(
-                Path::ident(ident.clone()),
+                ident.clone(),
                 TypeSymbol::GenericArg {
                     traits: trait_bounds.clone(),
                 }
@@ -159,7 +159,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
         ast::TypeParam::TypeWithMeta { meta, name } => {
             let meta = visit_meta_type(meta)?;
             let name_id = ctx.symtab.add_type(
-                Path::ident(name.clone()),
+                name.clone(),
                 TypeSymbol::GenericMeta(meta.clone()).at_loc(name),
             );
 
@@ -1223,6 +1223,7 @@ pub fn visit_unit(
 
     // If this is a extern entity
     if body.is_none() {
+        ctx.symtab.close_scope();
         return Ok(hir::Item::ExternUnit(unit_name, head));
     }
 
@@ -1426,12 +1427,9 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             ctx.symtab.pop_namespace();
             result.map(|_| vec![])
         }
-        // We can leave the forbidden slice empty, because even after resolving to itself for the first time, it will add itself as forbidden for the next time
         ast::Item::Use(ss) => {
             for s in &ss.inner {
-                ctx.symtab
-                    .lookup_id(&s.path, &[])
-                    .map_err(Diagnostic::from)?;
+                ctx.symtab.lookup_id(&s.path).map_err(Diagnostic::from)?;
             }
 
             Ok(vec![])
@@ -1448,7 +1446,7 @@ pub fn visit_module(module: &ast::Module, ctx: &mut Context) -> Result<()> {
         .at_loc(&module.name.loc());
     let id = ctx
         .symtab
-        .lookup_id(path, &[])
+        .lookup_id_in_lib(path)
         .map_err(|_| {
             ctx.symtab.print_symbols();
             println!("Failed to find {path} in symtab")
@@ -3109,7 +3107,7 @@ mod pattern_visiting {
         let mut symtab = SymbolTable::new();
 
         let type_name = symtab.add_type(
-            ast_path("a").inner,
+            Identifier("a".to_string()).nowhere(),
             TypeSymbol::Declared(vec![], TypeDeclKind::normal_struct()).nowhere(),
         );
 

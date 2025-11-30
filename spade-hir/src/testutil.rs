@@ -5,7 +5,7 @@
 macro_rules! dtype {
     ($symtab:expr => $base:expr$(; ($($arg:expr),*) )?) => {
         hir::TypeSpec::Declared(
-            $symtab.lookup_id(&ast_path($base)).unwrap().nowhere(),
+            $symtab.lookup_id(&ast_path($base), &[]).unwrap().nowhere(),
             vec![ $( $( $arg ),* )? ]
         ).nowhere()
     }

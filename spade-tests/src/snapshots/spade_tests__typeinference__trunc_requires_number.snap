@@ -16,9 +16,9 @@ error: Argument type mismatch. Expected Number<#uint> got A
 4 │     trunc(a)
   │           ^ expected Number<#uint>
   │
-  ┌─ <compiler dir>/stdlib/conv.spade:5:17
+  ┌─ <compiler dir>/stdlib/conv.spade:6:17
   │
-5 │ extern fn trunc<N, M>(x: N) -> M;
+6 │ extern fn trunc<N, M>(x: N) -> M;
   │                 - Type Number<_> inferred here
   │
   = note: Expected: Number<_>

@@ -234,6 +234,71 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    super_can_be_chained,
+    "
+    struct Meow {}
+    mod a {
+        mod b {
+            use super::super::Meow;
+        }
+    }
+    "
+}
+
+snapshot_error! {
+    super_cannot_leave_root_namespace,
+    "
+    mod a {
+        mod b {
+            use super::super::super::Meow;
+        }
+    }
+    "
+}
+
+code_compiles! {
+    self_parameter_vs_self_module,
+    "
+    struct Meow {}
+
+    impl Meow {
+        fn method(self) {
+            let x = self::Meow();
+            let y = self;
+        }
+    }
+    "
+}
+
+code_compiles! {
+    alias_cycle_avoidance_mechanism_allows_revisiting_aliases,
+    "
+    mod x {
+        use super::a::z as b;
+        mod z {
+            enum Meow {}
+        }
+    }
+
+    use x as a;
+    use a::b::Meow;
+    "
+}
+
+code_compiles! {
+    multiple_aliases_can_be_traversed,
+    "
+    mod x {
+        struct Meow {}
+    }
+
+    use x as a;
+    use a as b;
+    use b::Meow;
+    "
+}
+
 snapshot_error! {
     match_expressions_open_new_scopes,
     "

@@ -1,3 +1,4 @@
+///
 /// Truncate the high order bits of the supplied integer. If the result is
 /// larger than the input, an error is emitted
 // This is special cased by the compiler. The actual type, if Spade was able to express

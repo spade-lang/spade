@@ -11,6 +11,14 @@ impl std::fmt::Display for Identifier {
     }
 }
 
+#[derive(Debug)]
+pub enum PathPrefix {
+    FromLib,
+    FromSelf,
+    FromSuper(usize),
+    None,
+}
+
 #[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Path(pub Vec<Loc<Identifier>>);
 
@@ -35,6 +43,11 @@ impl Path {
         Self(vec![ident])
     }
 
+    pub fn ident_with_loc(ident: Loc<Identifier>) -> Loc<Self> {
+        let loc = ident.loc();
+        Self(vec![ident]).at_loc(&loc)
+    }
+
     pub fn push_ident(&self, ident: Loc<Identifier>) -> Path {
         let mut result = self.clone();
         result.0.push(ident);
@@ -55,13 +68,23 @@ impl Path {
         result
     }
 
-    /// If the path is lib::<rest> return Some(<rest>), else None
-    pub fn lib_relative(&self) -> Option<Path> {
-        if self.0.first() == Some(&Identifier("lib".to_string()).nowhere()) {
-            Some(Path(Vec::from(&self.0[1..])))
-        } else {
-            None
-        }
+    pub fn extract_prefix(&self) -> (PathPrefix, Path) {
+        let Some(ident) = self.0.first() else {
+            return (PathPrefix::None, self.clone());
+        };
+
+        let (prefix, count) = match ident.inner.0.as_str() {
+            "lib" => (PathPrefix::FromLib, 1),
+            "self" => (PathPrefix::FromSelf, 1),
+            "super" => {
+                let levels = self.0.iter().take_while(|s| s.inner.0 == "super").count();
+                (PathPrefix::FromSuper(levels), levels)
+            }
+            _ => (PathPrefix::None, 0),
+        };
+
+        let path_without_prefix = Path(Vec::from(&self.0[count..]));
+        (prefix, path_without_prefix)
     }
 
     /// The last element of the path. Panics if the path is empty

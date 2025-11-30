@@ -41,9 +41,8 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
     let target_type = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
 
-    let self_path = Path::from_strs(&["Self"]);
     ctx.symtab.add_type(
-        self_path,
+        Identifier("Self".to_string()).nowhere(),
         TypeSymbol::Alias(
             hir::TypeExpression::TypeSpec(target_type.inner.clone()).at_loc(&block.target),
         )
@@ -99,8 +98,11 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         };
 
         let path_suffix = Some(Path(vec![
-            Identifier(format!("impl_{}", impl_block_id.0)).nowhere()
+            Identifier(format!("impl#{}", impl_block_id.0)).nowhere()
         ]));
+
+        ctx.symtab
+            .add_dummy(Identifier(format!("impl#{}", impl_block_id.0)).nowhere());
 
         global_symbols::visit_unit(
             &path_suffix,
@@ -335,7 +337,7 @@ pub fn create_trait_from_unit_heads(
                                 TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name)
                             }
                         };
-                        let name_id = ctx.symtab.add_type(Path::ident(ident.clone()), type_symbol);
+                        let name_id = ctx.symtab.add_type(ident.clone(), type_symbol);
                         Ok(match tp {
                             ast::TypeParam::TypeName { name: _, traits } => {
                                 let trait_bounds = traits

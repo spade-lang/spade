@@ -1,14 +1,14 @@
 use colored::Colorize;
 use itertools::Itertools;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use tap::prelude::*;
 use tracing::trace;
 
 use spade_common::id_tracker::NameIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, NameID, Path};
-use spade_diagnostics::diagnostic::Diagnostic;
+use spade_common::name::{Identifier, NameID, Path, PathPrefix};
+use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
 use crate::{
@@ -30,6 +30,7 @@ pub enum LookupError {
     NotATrait(Loc<Path>, Thing),
     IsAType(Loc<Path>),
     BarrierError(Diagnostic),
+    TooManySuperSegments(Loc<Path>, Loc<Identifier>),
 }
 
 impl From<LookupError> for Diagnostic {
@@ -70,6 +71,7 @@ impl From<LookupError> for Diagnostic {
                     LookupError::NoSuchSymbol(_)
                     | LookupError::IsAType(_)
                     | LookupError::BarrierError(_)
+                    | LookupError::TooManySuperSegments(_, _)
                     | LookupError::NotAThing(_) => unreachable!(),
                 };
 
@@ -120,6 +122,14 @@ impl From<LookupError> for Diagnostic {
                         ),
                     _ => diagnostic,
                 }
+            }
+            LookupError::TooManySuperSegments(path, segment) => {
+                Diagnostic::error(path, "Too many `super` segments")
+                    .primary_label("Too many `super` segments")
+                    .subdiagnostic(Subdiagnostic::span_note(
+                        segment,
+                        "parent does not exist for the root namespace",
+                    ))
             }
         }
     }
@@ -205,6 +215,10 @@ pub enum Thing {
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
     Trait(Loc<TraitMarker>),
+    /// Dummy entry in the symbol table which helps path resolution.
+    /// Currently used for trait namespaces, whose symbols are placed in a "ghost namespace"
+    /// named `impl#N` to avoid collisions between different `impl` blocks.
+    Dummy(Loc<Identifier>),
 }
 
 impl Thing {
@@ -218,6 +232,7 @@ impl Thing {
             Thing::PipelineStage(_) => "pipeline stage",
             Thing::Trait(_) => "trait",
             Thing::Module(_) => "module",
+            Thing::Dummy(_) => "dummy (implementation detail)",
         }
     }
 
@@ -235,6 +250,7 @@ impl Thing {
             Thing::PipelineStage(i) => i.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
+            Thing::Dummy(loc) => loc.loc(),
         }
     }
 
@@ -252,6 +268,7 @@ impl Thing {
             Thing::PipelineStage(_) => todo!(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
+            Thing::Dummy(loc) => loc.loc(),
         }
     }
 }
@@ -460,19 +477,18 @@ impl SymbolTable {
         item: Thing,
     ) -> NameID {
         let full_name = self.namespace.join(name);
-
         let name_id = NameID(id, full_name.clone());
+
         if self.things.contains_key(&name_id) {
             panic!("Duplicate nameID inserted, {}", id);
         }
-        self.things.insert(name_id.clone(), item);
-
         if offset > self.symbols.len() {
             panic!("Not enough scopes to add symbol at offset {}", offset);
         }
 
         let index = self.symbols.len() - 1 - offset;
         self.symbols[index].vars.insert(full_name, name_id.clone());
+        self.add_thing_with_name_id(name_id.clone(), item);
 
         name_id
     }
@@ -507,22 +523,30 @@ impl SymbolTable {
             .insert(self.namespace.join(Path::ident(name)), name_id);
     }
 
-    pub fn add_type_with_id(&mut self, id: u64, name: Path, t: Loc<TypeSymbol>) -> NameID {
-        let full_name = self.namespace.join(name);
+    pub fn add_type_with_id(
+        &mut self,
+        id: u64,
+        name: Loc<Identifier>,
+        t: Loc<TypeSymbol>,
+    ) -> NameID {
+        let full_name = self.namespace.push_ident(name);
         let name_id = NameID(id, full_name.clone());
+
         if self.types.contains_key(&name_id) {
             panic!("Duplicate nameID for types, {}", id)
         }
+
         self.types.insert(name_id.clone(), t);
         self.symbols
             .last_mut()
             .unwrap()
             .vars
             .insert(full_name, name_id.clone());
+
         name_id
     }
 
-    pub fn add_type(&mut self, name: Path, t: Loc<TypeSymbol>) -> NameID {
+    pub fn add_type(&mut self, name: Loc<Identifier>, t: Loc<TypeSymbol>) -> NameID {
         let id = self.id_tracker.next();
         self.add_type_with_id(id, name, t)
     }
@@ -547,27 +571,25 @@ impl SymbolTable {
 
     pub fn add_unique_type(
         &mut self,
-        name: Loc<Path>,
+        name: Loc<Identifier>,
         t: Loc<TypeSymbol>,
     ) -> Result<NameID, Diagnostic> {
-        self.ensure_is_unique(&name)?;
-
-        Ok(self.add_type(name.inner, t))
+        self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
+        Ok(self.add_type(name, t))
     }
 
     #[tracing::instrument(skip_all, fields(?name, ?target))]
-    pub fn add_alias(&mut self, name: Loc<Path>, target: Loc<Path>) -> Result<NameID, Diagnostic> {
-        self.ensure_is_unique(&name)?;
-        let absolute_path = if let Some(lib_relative) = target.inner.lib_relative() {
-            self.base_namespace.join(lib_relative)
-        } else {
-            target.inner.clone()
-        };
-        let path = absolute_path.between(name.file_id, &name, &target);
+    pub fn add_alias(
+        &mut self,
+        name: Loc<Identifier>,
+        target: Loc<Path>,
+    ) -> Result<NameID, Diagnostic> {
+        self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
+
         Ok(self.add_thing(
-            name.inner,
+            Path::ident(name),
             Thing::Alias {
-                path,
+                path: target,
                 in_namespace: self.current_namespace().clone(),
             },
         ))
@@ -588,12 +610,14 @@ impl SymbolTable {
     }
 
     pub fn add_local_variable(&mut self, name: Loc<Identifier>) -> NameID {
-        let path = Path(vec![name.clone()]);
-        self.add_thing(path, Thing::Variable(name))
+        self.add_thing(Path::ident(name.clone()), Thing::Variable(name))
     }
     pub fn add_local_variable_at_offset(&mut self, offset: usize, name: Loc<Identifier>) -> NameID {
-        let path = Path(vec![name.clone()]);
-        self.add_thing_at_offset(offset, path, Thing::Variable(name))
+        self.add_thing_at_offset(offset, Path::ident(name.clone()), Thing::Variable(name))
+    }
+
+    pub fn add_dummy(&mut self, name: Loc<Identifier>) -> NameID {
+        self.add_thing(Path::ident(name.clone()), Thing::Dummy(name))
     }
 
     pub fn add_declaration(&mut self, ident: Loc<Identifier>) -> Result<NameID, Diagnostic> {
@@ -603,7 +627,7 @@ impl SymbolTable {
                 .secondary_label(old, "Previously declared here")
         };
         // Check if a variable with this name already exists
-        if let Some(id) = self.try_lookup_id(&Path(vec![ident.clone()]).at_loc(&ident), &[]) {
+        if let Some(id) = self.try_lookup_id(&Path(vec![ident.clone()]).at_loc(&ident)) {
             if let Some(Thing::Variable(prev)) = self.things.get(&id) {
                 return Err(declared_more_than_once(ident, prev));
             }
@@ -694,7 +718,7 @@ macro_rules! thing_accessors {
             /// convertible to the return type.
             #[tracing::instrument(level = "trace", skip_all, fields(%name.inner, %name.span, %name.file_id))]
             pub fn $lookup_name(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
-                let id = self.lookup_final_id(name, &[]).tap(|id| trace!(?id))?;
+                let id = self.lookup_id(name).tap(|id| trace!(?id))?;
 
                 match self.things.get(&id).tap(|thing| trace!(?thing)) {
                     $(
@@ -766,7 +790,7 @@ impl SymbolTable {
         &self,
         name: &Loc<Path>,
     ) -> Result<(NameID, Loc<TypeSymbol>), LookupError> {
-        let id = self.lookup_final_id(name, &[])?;
+        let id = self.lookup_id(name)?;
 
         match self.types.get(&id) {
             Some(tsym) => Ok((id, tsym.clone())),
@@ -778,7 +802,7 @@ impl SymbolTable {
     }
 
     pub fn has_symbol(&self, name: Path) -> bool {
-        match self.lookup_id(&name.nowhere(), &[]) {
+        match self.lookup_id(&name.nowhere()) {
             Ok(_) => true,
             Err(LookupError::NoSuchSymbol(_)) => false,
             Err(LookupError::BarrierError(_)) => unreachable!(),
@@ -793,6 +817,7 @@ impl SymbolTable {
             Err(LookupError::NotATrait(_, _)) => unreachable!(),
             Err(LookupError::IsAType(_)) => unreachable!(),
             Err(LookupError::NotAThing(_)) => unreachable!(),
+            Err(LookupError::TooManySuperSegments(_, _)) => unreachable!(),
         }
     }
 
@@ -824,7 +849,7 @@ impl SymbolTable {
     }
 
     pub fn lookup_variable(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {
-        let id = self.lookup_final_id(name, &[])?;
+        let id = self.lookup_id(name)?;
 
         match self.things.get(&id) {
             Some(Thing::Variable(_)) => Ok(id),
@@ -841,7 +866,7 @@ impl SymbolTable {
     ///
     /// Intended for use if undefined variables should be declared
     pub fn try_lookup_variable(&self, name: &Loc<Path>) -> Result<Option<NameID>, LookupError> {
-        let id = self.try_lookup_final_id(name, &[]);
+        let id = self.try_lookup_id(name);
         match id {
             Some(id) => match self.things.get(&id) {
                 Some(Thing::Variable(_)) => Ok(Some(id)),
@@ -855,8 +880,8 @@ impl SymbolTable {
         }
     }
 
-    pub fn try_lookup_final_id(&self, name: &Loc<Path>, forbidden: &[NameID]) -> Option<NameID> {
-        match self.lookup_final_id(name, forbidden) {
+    pub fn try_lookup_id(&self, name: &Loc<Path>) -> Option<NameID> {
+        match self.lookup_id(name) {
             Ok(id) => Some(id),
             Err(LookupError::NoSuchSymbol(_)) => None,
             Err(err) => unreachable!("Got {err:?} when looking up final ID"),
@@ -865,155 +890,164 @@ impl SymbolTable {
 
     /// Returns the name ID of the provided path if that path exists and resolving
     /// all aliases along the way.
-    pub fn lookup_final_id(
+    pub fn lookup_id(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {
+        self.lookup_id_in_namespace(name, &self.namespace)
+    }
+
+    /// Returns the name ID of the provided path if that path exists and resolving
+    /// all aliases along the way.
+    pub fn lookup_id_in_namespace(
         &self,
         name: &Loc<Path>,
-        forbidden: &[NameID],
-    ) -> Result<NameID, LookupError> {
-        let mut forbidden = forbidden.to_vec();
-        let mut namespace = &self.namespace;
-        let mut name = name.clone();
-
-        loop {
-            let id = self.lookup_id_in_namespace(&name, &forbidden, namespace)?;
-            match self.things.get(&id) {
-                Some(Thing::Alias {
-                    path: alias,
-                    in_namespace,
-                }) => {
-                    forbidden.push(id);
-                    name = alias.clone();
-                    namespace = in_namespace;
-                }
-                _ => return Ok(id),
-            }
-        }
-    }
-
-    pub fn try_lookup_id(&self, name: &Loc<Path>, forbidden: &[NameID]) -> Option<NameID> {
-        match self.lookup_id(name, forbidden) {
-            Ok(id) => Some(id),
-            Err(LookupError::NoSuchSymbol(_)) => None,
-            Err(_) => unreachable!(),
-        }
-    }
-
-    /// Resolves a given relative path to the next thing.
-    ///
-    /// That thing might also be an alias.
-    /// When you want to also resolve aliases, look at [`Self::try_lookup_final_id`] instead.
-    ///
-    /// ## Warning
-    /// For `use A;` where the path is only one segment wide, it will return itself.
-    /// This might end in an infinite lookup. Forbid already looked up nameids or use [`Self::try_lookup_final_id`] instead.
-    #[tracing::instrument(level = "trace", skip(self))]
-    #[inline]
-    pub fn lookup_id(&self, name: &Loc<Path>, forbidden: &[NameID]) -> Result<NameID, LookupError> {
-        self.lookup_id_in_namespace(name, forbidden, &self.namespace)
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    fn lookup_id_in_namespace(
-        &self,
-        name: &Loc<Path>,
-        forbidden: &[NameID],
         namespace: &Path,
     ) -> Result<NameID, LookupError> {
-        // The behaviour depends on whether or not the path is a library relative path (starting
-        // with `lib`) or not. If it is, an absolute lookup of the path obtained by
-        // substituting `lib` for the current `base_path` should be performed.
-        //
-        // If not, three lookups should be performed
-        //  - The path in the root namespace
-        //  - The path in the current namespace
-        //  - The path in other use statements. For example, with
-        //      ```
-        //      use a::b;
-        //
-        //      b::c();
-        //      ```
-        //      A lookup for `b` is performed which returns an alias (a::b). From that, another
-        //      lookup for a::b::c is performed.
-        let absolute_path = if let Some(lib_relative) = name.lib_relative() {
-            self.base_namespace.join(lib_relative).at_loc(name)
-        } else {
-            let local_path = namespace.join(name.inner.clone());
-            let mut barriers: Vec<&Box<ScopeBarrier>> = vec![];
-            for tab in self.symbols.iter().rev() {
-                if let Some(id) = tab.vars.get(&local_path) {
-                    if forbidden.iter().contains(id) {
-                        continue;
-                    }
-                    for barrier in barriers {
-                        self.things
-                            .get(id)
-                            .map(|thing| {
-                                (barrier)(name, &id.clone().at_loc(&thing.name_loc()), thing)
-                                    .map_err(LookupError::BarrierError)
-                            })
-                            .unwrap_or(Ok(()))?;
-                    }
-                    return Ok(id.clone());
-                }
-                if let Some(barrier) = &tab.lookup_barrier {
-                    barriers.push(barrier);
-                }
+        let (offset, path) =
+            self.canonicalize_in_namespace(name, namespace, &Default::default(), 0)?;
+
+        let id = self.symbols[self.current_scope() - offset]
+            .vars
+            .get(&path)
+            .expect("Canonical path not present in symbol table (that is impossible)")
+            .clone();
+
+        if let Some(thing) = self.things.get(&id) {
+            self.symbols
+                .iter()
+                .rev()
+                .take(offset)
+                .flat_map(|s| &s.lookup_barrier)
+                .try_for_each(|b| (b)(name, &id.clone().at_loc(&thing.name_loc()), thing))
+                .map_err(LookupError::BarrierError)?;
+        }
+
+        Ok(id)
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    #[inline]
+    pub fn lookup_id_in_lib(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {
+        self.lookup_id_in_namespace(name, &self.base_namespace)
+    }
+
+    fn canonicalize_in_namespace(
+        &self,
+        path: &Loc<Path>,
+        namespace: &Path,
+        forbidden: &HashSet<NameID>,
+        offset: usize,
+    ) -> Result<(usize, Path), LookupError> {
+        // Find which namespace this path belongs (lib-relative, local or dep-relative)
+        let (mut scope_offset, mut working_path, segments) = match path.extract_prefix() {
+            (PathPrefix::FromLib, lib_relative_path) => {
+                let segments = lib_relative_path.0.clone();
+                let off = self.current_scope();
+                let ns = self.base_namespace.clone();
+
+                (off, ns, segments)
             }
+            (PathPrefix::FromSuper(levels), super_relative_path) => {
+                let segments = super_relative_path.0.clone();
+                let off = self.current_scope();
 
-            if name.inner.0.len() > 1 {
-                let base_name = name.inner.0.first().unwrap();
+                let ns = if namespace.0.len() >= levels {
+                    Path(Vec::from(&namespace.0[0..namespace.0.len() - levels]))
+                } else {
+                    let segment = path.0[levels - 1].clone();
+                    return Err(LookupError::TooManySuperSegments(path.clone(), segment));
+                };
 
-                let alias_id =
-                    self.lookup_id(&Path(vec![base_name.clone()]).at_loc(base_name), forbidden)?;
+                (off, ns, segments)
+            }
+            (PathPrefix::FromSelf, self_relative_path) => {
+                let mut segments = self_relative_path.0.clone();
+                let mut off = self.current_scope();
+                let ns = namespace.clone();
 
-                // Extend forbidden slice with newly used alias
-                let mut forbidden = forbidden.to_vec();
-                forbidden.push(alias_id.clone());
+                // If `path` is just `self` it may be a method `self` parameter.
+                // Try to find it, otherwise fall back to `self` namespace.
+                if self_relative_path.0.is_empty() {
+                    let head = path.0[0].clone();
+                    let absolute_head = namespace.push_ident(head);
 
-                match self.things.get(&alias_id) {
-                    Some(Thing::Alias {
-                        path: alias_path,
-                        in_namespace,
-                    }) => {
-                        let alias_result =
-                            self.lookup_id_in_namespace(alias_path, &forbidden, in_namespace)?;
-
-                        // Pop the aliased bit of the path
-                        let rest_path = Path(name.inner.0[1..].into());
-
-                        alias_result.1.join(rest_path).at_loc(name)
+                    if let Some((new_offset, _)) = self
+                        .symbols
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .skip(offset)
+                        .find(|(_, s)| s.vars.contains_key(&absolute_head))
+                    {
+                        segments = path.0.clone();
+                        off = new_offset;
                     }
-                    _ => name.clone(),
                 }
-            } else {
-                name.clone()
+
+                (off, ns, segments)
+            }
+            (PathPrefix::None, _) => {
+                let segments = path.0.clone();
+                let head = path.0[0].clone();
+                let absolute_head = namespace.push_ident(head.clone());
+
+                let (off, ns) = self
+                    .symbols
+                    .iter()
+                    .rev()
+                    .enumerate()
+                    .skip(offset)
+                    .find_map(|(o, s)| s.vars.get(&absolute_head).map(|_| (o, namespace.clone())))
+                    .unwrap_or((self.current_scope(), Path(vec![])));
+
+                (off, ns, segments)
             }
         };
 
-        // Then look up things in the absolute namespace. This is only needed at the
-        // top scope as that's where all top level will be defined
-        if let Some(id) = self.symbols.first().unwrap().vars.get(&absolute_path) {
-            if !forbidden.contains(id) {
-                return Ok(id.clone());
+        // Walk through all segments, resolving any aliases found along the way,
+        // until the final thing is found or hitting a roadblock.
+        for segment in segments {
+            let mut local_forbidden = forbidden.clone();
+            let idx = self.current_scope() - scope_offset;
+            let scope = &self.symbols[idx];
+            working_path = working_path.push_ident(segment.clone());
+
+            loop {
+                // If the (partially extended) working path does not exist,
+                // a missing item has been found inside it.
+                let Some(id) = scope.vars.get(&working_path) else {
+                    let segment_path = working_path.at_loc(&segment);
+                    return Err(LookupError::NoSuchSymbol(segment_path));
+                };
+
+                // Forbid cyclic aliases, declaring them as missing items.
+                if forbidden.contains(id) {
+                    let segment_path = working_path.at_loc(&segment);
+                    return Err(LookupError::NoSuchSymbol(segment_path));
+                }
+
+                if self.types.contains_key(id) {
+                    break;
+                }
+
+                match self.things.get(id) {
+                    Some(Thing::Alias { path, in_namespace }) => {
+                        local_forbidden.insert(id.clone());
+
+                        // Alias target is itself a non-canonical path, it must be resolved first.
+                        (scope_offset, working_path) = self.canonicalize_in_namespace(
+                            path,
+                            in_namespace,
+                            &local_forbidden,
+                            offset,
+                        )?;
+                    }
+                    _ => break,
+                }
             }
         }
 
-        // ERROR: Symbol couldn't be found
-        // Look recursively which path segment can not be found
-        // This is a check that there are at least 2 path segments and we also grab one.
-        if let [_first, .., tail] = absolute_path.0.as_slice() {
-            let prelude = &absolute_path.0[..absolute_path.0.len() - 1];
-            let _ = self.lookup_id_in_namespace(
-                &Path(prelude.to_vec()).nowhere(),
-                forbidden,
-                namespace,
-            )?;
-            Err(LookupError::NoSuchSymbol(
-                absolute_path.inner.clone().at_loc(tail),
-            ))
-        } else {
-            Err(LookupError::NoSuchSymbol(name.clone()))
-        }
+        // The working path has been walked and all aliases have been resolved.
+        // It now definitely points to the thing (that is not an alias).
+        Ok((scope_offset, working_path))
     }
 
     pub fn print_symbols(&self) {
@@ -1049,6 +1083,7 @@ impl SymbolTable {
                 Thing::PipelineStage(stage) => println!("'{stage}"),
                 Thing::Trait(t) => println!("trait {}", t.name),
                 Thing::Module(name) => println!("mod {name}"),
+                Thing::Dummy(name) => println!("{name}"),
             }
         }
 

@@ -1,7 +1,7 @@
 use hir::symbol_table::TypeSymbol;
 use spade_ast as ast;
+use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
-use spade_common::{location_info::Loc, name::Path};
 use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 use spade_types::meta_types::MetaType;
@@ -18,7 +18,7 @@ fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Re
     match &statement {
         ast::Statement::Label(name) => {
             ctx.symtab.add_unique_type(
-                Path::ident(name.clone()).at_loc(name),
+                name.clone(),
                 TypeSymbol::GenericMeta(MetaType::Int).at_loc(name),
             )?;
         }

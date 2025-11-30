@@ -14,7 +14,7 @@ mod wrap {
 }
 
 
-error: Use of undeclared name mod1::yes
+error: Use of undeclared name wrap::mod1::yes
   ┌─ testinput:9:15
   │
 9 │         mod1::yes()

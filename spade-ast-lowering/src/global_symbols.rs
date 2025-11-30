@@ -194,10 +194,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                         None => u.path.0.last().unwrap().clone(),
                     };
 
-                    ctx.symtab.add_alias(
-                        Path::ident(new_name.clone()).at_loc(&new_name.loc()),
-                        u.path.clone(),
-                    )?;
+                    ctx.symtab.add_alias(new_name, u.path.clone())?;
                 }
             }
         }
@@ -347,7 +344,7 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         },
     };
 
-    let new_thing = Path::ident(t.name.clone()).at_loc(&t.name.loc());
+    let new_thing = t.name.clone();
     ctx.symtab
         .add_unique_type(new_thing, TypeSymbol::Declared(args, kind).at_loc(t))?;
 
@@ -393,8 +390,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 (name, TypeSymbol::GenericMeta(visit_meta_type(meta)?))
             }
         };
-        ctx.symtab
-            .add_type(Path::ident(name.clone()), symbol_type.at_loc(param));
+        ctx.symtab.add_type(name.clone(), symbol_type.at_loc(param));
     }
 
     // Generate TypeExprs and TypeParam vectors which are needed for building the
@@ -515,6 +511,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     Path(vec![e.name.clone(), variant.name.clone()]),
                     Thing::EnumVariant(variant_thing.at_loc(&variant.name)),
                 );
+
                 // Add option constructor to item list
                 ctx.item_list.executables.insert(
                     head_id.clone(),

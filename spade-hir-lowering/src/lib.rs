@@ -2327,7 +2327,7 @@ impl ExprLocal for Loc<Expression> {
             };
             ([$($path:expr),*] => $handler:ident $allow_port:expr) => {
                 let path = Path(vec![$(Identifier($path.to_string()).nowhere()),*]).nowhere();
-                let final_id = ctx.symtab.symtab().try_lookup_final_id(&path, &[]);
+                let final_id = ctx.symtab.symtab().try_lookup_id(&path);
                 if final_id
                     .map(|n| &n == &name.inner)
                     .unwrap_or(false)

@@ -1045,7 +1045,7 @@ impl TypeState {
                 $(
                     let path = Path(vec![$(Identifier($path.to_string()).nowhere()),*]).nowhere();
                     if ctx.symtab
-                        .try_lookup_final_id(&path, &[])
+                        .try_lookup_id(&path)
                         .map(|n| &FunctionLikeName::Free(n) == name)
                         .unwrap_or(false)
                     {

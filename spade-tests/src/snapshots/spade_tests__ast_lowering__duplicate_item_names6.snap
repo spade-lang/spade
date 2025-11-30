@@ -15,6 +15,4 @@ error: Multiple items with the same name
   │    ^ a is defined multiple times
   ·
 5 │ use x::b as a;
-  │     --------- Previous definition here
-
-
+  │     ---- Previous definition here

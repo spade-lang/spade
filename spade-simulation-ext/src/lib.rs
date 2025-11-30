@@ -217,7 +217,7 @@ impl Spade {
         let uut_name = state
             .symtab
             .symtab()
-            .lookup_final_id(&uut, &[])
+            .lookup_id(&uut)
             .map_err(|_| anyhow!("Did not find a NameID for {uut}"))?;
 
         let uut_head = Self::lookup_function_like(&uut, state.symtab.symtab())

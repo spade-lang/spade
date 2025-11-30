@@ -6,7 +6,7 @@ entity \test () -> () {
 	let e2: {} = ConstructTuple()
 	let x_n13: {} = Alias(e2)
 	let e9: () = ConstructTuple()
-	let e7: () = Instance(\impl_0::call[25] )(x_n13, e9)
+	let e7: () = Instance(\impl#0::call[26] )(x_n13, e9)
 } => e1
-entity \impl_0::call[25] ((self, self_n19, {}), (args, args_n20, ())) -> () {
+entity \impl#0::call[26] ((self, self_n20, {}), (args, args_n21, ())) -> () {
 } => e3

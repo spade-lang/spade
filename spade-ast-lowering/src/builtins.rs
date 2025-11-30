@@ -1,6 +1,6 @@
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, Path},
+    name::Identifier,
 };
 use spade_hir::{
     symbol_table::{GenericArg, SymbolTable, TypeDeclKind, TypeSymbol},
@@ -15,7 +15,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     // Add primitive data types
     let mut id = std::u64::MAX;
 
-    let mut add_type = |path: &[&str],
+    let mut add_type = |name: &str,
                         args: Vec<Loc<GenericArg>>,
                         primitive: PrimitiveType,
                         is_port: bool,
@@ -23,7 +23,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         let name = symtab
             .add_type_with_id(
                 id,
-                Path::from_strs(path),
+                Identifier(name.to_string()).nowhere(),
                 TypeSymbol::Declared(args.clone(), TypeDeclKind::Primitive { is_port, is_inout })
                     .nowhere(),
             )
@@ -43,7 +43,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
 
                         let id = symtab.add_type_with_id(
                             id,
-                            Path(vec![a.clone().nowhere()]),
+                            a.clone().nowhere(),
                             TypeSymbol::GenericArg { traits: vec![] }.nowhere(),
                         );
                         TypeParam {
@@ -56,7 +56,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                     GenericArg::TypeWithMeta { name, meta } => {
                         let id = symtab.add_type_with_id(
                             id,
-                            Path(vec![name.clone().nowhere()]),
+                            name.clone().nowhere(),
                             TypeSymbol::GenericMeta(meta.clone()).nowhere(),
                         );
                         TypeParam {
@@ -85,21 +85,21 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         );
     };
     add_type(
-        &["uint"],
+        "uint",
         vec![GenericArg::uint(Identifier("size".into())).nowhere()],
         PrimitiveType::Uint,
         false,
         false,
     );
     add_type(
-        &["int"],
+        "int",
         vec![GenericArg::uint(Identifier("size".into())).nowhere()],
         PrimitiveType::Int,
         false,
         false,
     );
     add_type(
-        &["Memory"],
+        "Memory",
         vec![
             GenericArg::TypeName {
                 name: Identifier("D".into()),
@@ -112,11 +112,11 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         true,
         false,
     );
-    add_type(&["clock"], vec![], PrimitiveType::Clock, true, false);
-    add_type(&["bool"], vec![], PrimitiveType::Bool, false, false);
-    add_type(&["tri"], vec![], PrimitiveType::Bool, false, false);
+    add_type("clock", vec![], PrimitiveType::Clock, true, false);
+    add_type("bool", vec![], PrimitiveType::Bool, false, false);
+    add_type("tri", vec![], PrimitiveType::Bool, false, false);
     add_type(
-        &["inout"],
+        "inout",
         vec![GenericArg::uint(Identifier("T".into())).nowhere()],
         PrimitiveType::InOut,
         false,
