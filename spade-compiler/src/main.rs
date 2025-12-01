@@ -34,6 +34,10 @@ pub struct Opt {
     #[structopt(long)]
     pub verilator_wrapper_output: Option<PathBuf>,
 
+    /// Do not include the standard library nor the prelude before compilation
+    #[structopt(long)]
+    pub omit_stdlib_and_prelude: bool,
+
     /// Do not include color in the error report
     #[structopt(long = "no-color")]
     pub no_color: bool,
@@ -151,7 +155,12 @@ fn main() -> Result<()> {
     };
 
     let diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
-    match spade::compile(sources?, true, spade_opts, diag_handler) {
+    match spade::compile(
+        sources?,
+        !opts.omit_stdlib_and_prelude,
+        spade_opts,
+        diag_handler,
+    ) {
         Ok(_) => Ok(()),
         Err(_) => {
             std::io::stderr().write_all(buffer.as_slice())?;
