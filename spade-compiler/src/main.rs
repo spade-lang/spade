@@ -36,6 +36,7 @@ pub struct Opt {
 
     /// Do not include the standard library nor the prelude before compilation
     #[structopt(long)]
+    #[serde(default)]
     pub omit_stdlib_and_prelude: bool,
 
     /// Do not include color in the error report
