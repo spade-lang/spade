@@ -1,0 +1,40 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn test() {
+    let x = 'a';
+    let y = b'\a';
+    let z = b'abc';
+    let w = b'ö';
+}
+
+
+error: Unicode char literals are unsupported.
+  ┌─ testinput:2:13
+  │
+2 │     let x = 'a';
+  │             ^^^ Unicode char literal
+  │
+  = help: The `b` prefix is used to denote ASCII literals as opposed to full Unicode
+  = Consider making this an ASCII literal
+  │
+2 │     let x = b'a';
+  │             +
+
+error: a is not a valid byte escape character
+  ┌─ testinput:3:13
+  │
+3 │     let y = b'\a';
+  │             ^^^^^
+
+error: Only a single character is supported in ASCII char literals.
+  ┌─ testinput:4:13
+  │
+4 │     let z = b'abc';
+  │             ^^^^^^
+
+error: ASCII literals can only be ASCII values, not Unicode
+  ┌─ testinput:5:13
+  │
+5 │     let w = b'ö';
+  │             ^^^^

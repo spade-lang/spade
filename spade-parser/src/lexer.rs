@@ -222,6 +222,12 @@ pub enum TokenKind {
     #[token("$")]
     Dollar,
 
+    #[regex(r#"b'[^']*'"#, |lex| lex.slice().replace("'", "")[1..].to_string())]
+    AsciiCharLiteral(String),
+    // Not actually used in the language at the moment, hence the lack of inner
+    // content. It is just used to hint to the user to use b'...'
+    #[regex("'[^']*'")]
+    Utf8CharLiteral,
     #[regex(r#""[^"]*""#, |lex| lex.slice().replace("\"", ""))]
     String(String),
 
@@ -339,6 +345,8 @@ impl TokenKind {
 
             TokenKind::Eof => "end of file",
 
+            TokenKind::AsciiCharLiteral(_) => "ASCII char literal",
+            TokenKind::Utf8CharLiteral => "Unicode char literal",
             TokenKind::String(_) => "string",
 
             TokenKind::OutsideDocumentation(_) => "///",

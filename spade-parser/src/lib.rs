@@ -23,7 +23,7 @@ use spade_ast::{
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
-use spade_common::num_ext::InfallibleToBigInt;
+use spade_common::num_ext::{InfallibleToBigInt, InfallibleToBigUint};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
 
@@ -339,6 +339,63 @@ impl<'a> Parser<'a> {
         let end = self.eat(&TokenKind::CloseBracket)?;
 
         Ok(Some(expr.between(self.file_id, &start, &end)))
+    }
+
+    #[trace_parser]
+    fn ascii_char_literal(&mut self) -> Result<Option<Loc<IntLiteral>>> {
+        let next = self.peek()?;
+        if let TokenKind::Utf8CharLiteral = &next.kind {
+            return Err(
+                Diagnostic::error(&next.loc(), "Unicode char literals are unsupported.")
+                    .primary_label("Unicode char literal")
+                    .span_suggest_insert_before("Consider making this an ASCII literal", next.loc(), "b")
+                    .help("The `b` prefix is used to denote ASCII literals as opposed to full Unicode"),
+            );
+        }
+        let TokenKind::AsciiCharLiteral(val) = &next.kind else {
+            return Ok(None);
+        };
+        self.eat_unconditional()?;
+
+        if !val.is_ascii() {
+            return Err(Diagnostic::error(
+                next.loc(),
+                "ASCII literals can only be ASCII values, not Unicode",
+            ));
+        }
+
+        let u8_val = match val.as_str() {
+            "\\0" => b'\0',
+            "\\t" => b'\t',
+            "\\n" => b'\n',
+            "\\r" => b'\r',
+
+            other => {
+                if other.len() == 2 && other.starts_with('\\') {
+                    return Err(Diagnostic::error(
+                        next.loc(),
+                        format!(
+                            "{} is not a valid byte escape character",
+                            other.chars().skip(1).next().unwrap()
+                        ),
+                    ));
+                } else if other.len() != 1 {
+                    return Err(Diagnostic::error(
+                        next,
+                        "Only a single character is supported in ASCII char literals.",
+                    ));
+                } else {
+                    other.as_bytes()[0]
+                }
+            }
+        };
+        Ok(Some(
+            IntLiteral::Unsigned {
+                val: u8_val.to_biguint(),
+                size: 8u32.to_biguint(),
+            }
+            .at(self.file_id, &next),
+        ))
     }
 
     #[trace_parser]
@@ -1052,6 +1109,7 @@ impl<'a> Parser<'a> {
                     // Map option, then map Loc
                     .map(|val| val.map(Pattern::Bool)))
             },
+            &|s| Ok(s.ascii_char_literal()?.map(|val| val.map(Pattern::Integer))),
             &|s| {
                 let path = s.path()?;
                 let path_span = path.span;
