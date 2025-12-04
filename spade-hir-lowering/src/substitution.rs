@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use num::{BigUint, Zero};
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID},
@@ -57,7 +56,7 @@ impl Default for Substitutions {
 impl Substitutions {
     pub fn new() -> Self {
         Self {
-            inner: vec![HashMap::new()],
+            inner: vec![HashMap::default()],
             live_vars: vec![],
             current_stage: 0,
         }
@@ -68,7 +67,7 @@ impl Substitutions {
     pub fn next_stage(&mut self, symtab: &mut FrozenSymtab) -> Vec<SubRegister> {
         let stage_num = self.inner.len();
         let mut result = vec![];
-        let mut new_subs = HashMap::new();
+        let mut new_subs = HashMap::default();
         for original in &self.live_vars {
             let sub = &self.inner.last().unwrap()[original];
             let new_sub = match sub {

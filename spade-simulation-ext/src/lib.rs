@@ -2,7 +2,6 @@ pub mod error;
 pub mod field_ref;
 pub mod range;
 
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::RwLock;
 
@@ -12,6 +11,7 @@ use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
+use rustc_hash::FxHashMap as HashMap;
 use spade_codespan_reporting::term::termcolor::Buffer;
 
 use ::spade::compiler_state::CompilerState;
@@ -258,8 +258,8 @@ impl Spade {
                 impl_idtracker: state.impl_idtracker,
             }),
             uut_head,
-            compilation_cache: HashMap::new(),
-            field_cache: HashMap::new(),
+            compilation_cache: HashMap::default(),
+            field_cache: HashMap::default(),
         })
     }
 }

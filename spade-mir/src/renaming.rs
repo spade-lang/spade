@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, name::NameID};
 
@@ -20,7 +19,7 @@ impl Default for VerilogNameMap {
 impl VerilogNameMap {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: HashMap::default(),
         }
     }
 
@@ -65,8 +64,8 @@ impl Default for NameState {
 impl NameState {
     pub fn new() -> NameState {
         Self {
-            names: HashMap::new(),
-            name_map: HashMap::new(),
+            names: HashMap::default(),
+            name_map: HashMap::default(),
         }
     }
 

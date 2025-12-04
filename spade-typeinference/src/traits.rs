@@ -3,10 +3,11 @@ use crate::{
     TypeState,
 };
 use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::Loc;
 use spade_hir::{ImplBlock, ImplTarget, TraitName};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TraitImpl {
@@ -24,7 +25,7 @@ pub struct TraitImplList {
 impl TraitImplList {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: HashMap::default(),
         }
     }
 }

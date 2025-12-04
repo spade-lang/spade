@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use hir::{
     symbol_table::{EnumVariant, StructCallable},
@@ -405,7 +405,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
 
     let hir_kind = match &t.inner.kind {
         ast::TypeDeclKind::Enum(e) => {
-            let mut member_names = HashSet::<Loc<Identifier>>::new();
+            let mut member_names = HashSet::<Loc<Identifier>>::default();
             let mut hir_options = vec![];
 
             for (i, variant) in e.variants.iter().enumerate() {

@@ -24,6 +24,7 @@ tokio = { version = "1.44.1", features = ["full"] }
 tower-lsp = "0.17.0"
 itertools.workspace = true
 indoc.workspace = true
+rustc-hash.workspace = true
 
 [dev-dependencies]
 assert_fs = "1.1.1"

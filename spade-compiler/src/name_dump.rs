@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_hir::{ExecutableItem, ItemList, UnitName};
 use spade_hir_lowering::UnitNameExt;
@@ -17,7 +16,7 @@ pub enum ItemKind {
 }
 
 pub fn list_names(item_list: &ItemList) -> HashMap<Vec<String>, ItemKind> {
-    let mut result = HashMap::new();
+    let mut result = HashMap::default();
     for (name, item) in &item_list.executables {
         let unit_name = match item {
             ExecutableItem::EnumInstance { .. } => None,

@@ -8,7 +8,7 @@
 
 use std::cell::RefCell;
 use std::cmp::PartialEq;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use colored::Colorize;
 use fixed_types::{t_int, t_uint};
@@ -21,6 +21,7 @@ use itertools::{Either, Itertools};
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, BigUint, Zero};
 use replacement::ReplacementStack;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -195,13 +196,13 @@ impl TypeState {
             type_vars: vec![],
             key,
             keys: [key].into_iter().collect(),
-            equations: HashMap::new(),
+            equations: HashMap::default(),
             next_typeid: RefCell::new(0),
             trace_stack: TraceStack::new(),
             constraints: TypeConstraints::new(),
             requirements: vec![],
             replacements: ReplacementStack::new(),
-            generic_lists: HashMap::new(),
+            generic_lists: HashMap::default(),
             trait_impls: TraitImplList::new(),
             checkpoints: vec![],
             error_type: None,

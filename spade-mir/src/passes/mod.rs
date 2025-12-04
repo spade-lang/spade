@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::id_tracker::ExprIdTracker;
 
 use crate::Statement;

@@ -1,8 +1,9 @@
-use std::{collections::HashMap, ops::Range};
+use std::ops::Range;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use ecolor::Color32;
 use extism_pdk::{plugin_fn, FnResult, Json, WithReturnCode};
+use rustc_hash::FxHashMap as HashMap;
 
 use itertools::Itertools;
 use log::{error, info, warn};

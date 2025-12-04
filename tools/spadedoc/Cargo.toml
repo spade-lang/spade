@@ -15,6 +15,7 @@ spade-codespan-reporting.workspace = true
 color-eyre = "0.6.1"
 pathdiff = { version = "0.2.1", features = ["camino"] }
 pulldown-cmark = "0.13.0"
+rustc-hash.workspace = true
 spade-lang = { path = "../../spade-compiler/" }
 spade-common.workspace = true
 spade-diagnostics.workspace = true

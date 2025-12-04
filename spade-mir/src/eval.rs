@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use itertools::Itertools;
 use num::range;
 use num::BigInt;
 use num::BigUint;
 use num::ToPrimitive;
 use num::Zero;
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::num_ext::InfallibleToBigUint;
 
 use crate::{enum_util, types::Type, Binding, Operator, Statement, ValueName};
@@ -208,8 +207,8 @@ impl Value {
 /// Evaluates a list of statements, returning the value of the final statement in the
 /// list. Panics if the list of statements is empty
 pub fn eval_statements(statements: &[Statement]) -> Value {
-    let mut name_vals: HashMap<ValueName, Value> = HashMap::new();
-    let mut name_types: HashMap<ValueName, Type> = HashMap::new();
+    let mut name_vals: HashMap<ValueName, Value> = HashMap::default();
+    let mut name_types: HashMap<ValueName, Type> = HashMap::default();
 
     let mut last_value = None;
     for stmt in statements {

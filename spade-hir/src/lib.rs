@@ -7,12 +7,13 @@ pub mod query;
 pub mod symbol_table;
 pub mod testutil;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fmt::Formatter;
 
 pub use expression::{Argument, ArgumentKind, ArgumentList, ExprKind, Expression};
 use itertools::Itertools;
 use num::BigInt;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::{
@@ -904,9 +905,9 @@ impl ItemList {
     pub fn new() -> Self {
         Self {
             executables: BTreeMap::new(),
-            types: TypeList::new(),
+            types: TypeList::default(),
             modules: BTreeMap::new(),
-            traits: HashMap::new(),
+            traits: HashMap::default(),
             impls: ImplTab::new(),
         }
     }

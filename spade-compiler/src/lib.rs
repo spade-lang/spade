@@ -6,6 +6,7 @@ pub mod namespaced_file;
 use compiler_state::{CompilerState, MirContext};
 use error_handling::{ErrorHandler, Reportable};
 use logos::Logos;
+use rustc_hash::FxHashMap as HashMap;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
@@ -17,7 +18,7 @@ use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
 use spade_typeinference::traits::TraitImplList;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -521,7 +522,7 @@ fn codegen(
     let mut module_code = vec![];
     let mut mir_code = vec![];
     let mut instance_map = InstanceMap::new();
-    let mut mir_context = HashMap::new();
+    let mut mir_context = HashMap::default();
 
     // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
     // defined, for example if a zero-sized wire is used.

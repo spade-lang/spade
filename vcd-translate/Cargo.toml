@@ -12,6 +12,7 @@ vcd = "0.6.1"
 color-eyre.workspace = true
 clap.workspace = true
 ron.workspace = true
+rustc-hash.workspace = true
 num.workspace = true
 itertools.workspace = true
 

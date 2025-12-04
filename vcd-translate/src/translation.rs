@@ -334,7 +334,7 @@ pub fn value_from_str(s: &str) -> Vec<Value> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap as HashMap;
 
     use spade_common::{name::testutil::name_id, num_ext::InfallibleToBigInt};
 
@@ -420,7 +420,7 @@ mod tests {
         let ty = ConcreteType::Struct {
             name: name_id(0, "X").inner,
             is_port: false,
-            field_translators: HashMap::new(),
+            field_translators: HashMap::default(),
             members: vec![
                 (
                     ast_ident("a").inner,

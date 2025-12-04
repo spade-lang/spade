@@ -19,6 +19,7 @@ colored.workspace = true
 itertools.workspace = true
 nesty = "0.2"
 num.workspace = true
+rustc-hash.workspace = true
 serde.workspace = true
 tap.workspace = true
 tracing.workspace = true

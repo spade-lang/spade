@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use camino::Utf8Path;
 use color_eyre::eyre::{bail, Context};
+use rustc_hash::FxHashMap as HashMap;
 use spade::{
     stdlib_and_prelude, Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts,
 };
@@ -98,7 +98,7 @@ macro_rules! try_or_warn {
     ($expr:expr, $prefix:expr $(,)?) => {
         if let Err(e) = $expr {
             println!("{}{:#}", $prefix, e);
-            return HashMap::new();
+            return HashMap::default();
         } else {
             $expr.unwrap()
         }

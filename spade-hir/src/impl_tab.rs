@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::Loc;
 use spade_diagnostics::{diag_bail, Diagnostic};
@@ -20,7 +19,7 @@ pub struct ImplTab {
 impl ImplTab {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: HashMap::default(),
         }
     }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use hir::symbol_table::SymbolTable;
 use hir::{Parameter, TypeExpression, TypeSpec};

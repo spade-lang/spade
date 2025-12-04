@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use crate::{types::Type, Entity, MirInput, Statement, ValueName};
+use rustc_hash::FxHashMap as HashMap;
 
 pub struct TypeList {
     inner: HashMap<ValueName, Type>,
@@ -9,7 +8,7 @@ pub struct TypeList {
 impl TypeList {
     pub fn empty() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: HashMap::default(),
         }
     }
 

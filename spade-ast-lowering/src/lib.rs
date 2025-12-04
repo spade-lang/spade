@@ -35,13 +35,13 @@ use hir::param_util::ArgumentError;
 use hir::symbol_table::DeclarationState;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
 use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
+use rustc_hash::FxHashSet as HashSet;
 use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path};
 use spade_hir::{self as hir, ExprKind, ItemList, Module, TraitSpec, TypeExpression, TypeSpec};
-use std::collections::HashSet;
 
 use error::Result;
 
@@ -559,7 +559,7 @@ fn visit_parameter_list(
     ctx: &mut Context,
     no_mangle_all: Option<Loc<()>>,
 ) -> Result<Loc<hir::ParameterList>> {
-    let mut arg_names: HashSet<Loc<Identifier>> = HashSet::new();
+    let mut arg_names: HashSet<Loc<Identifier>> = HashSet::default();
     let mut result = vec![];
 
     if let SelfContext::ImplBlock(_) = ctx.self_ctx {
@@ -1495,7 +1495,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
             let (name_id, p) = ctx.symtab.lookup_patternable_type(path)?;
             match &args.inner {
                 ast::ArgumentPattern::Named(patterns) => {
-                    let mut bound = HashSet::<Loc<Identifier>>::new();
+                    let mut bound = HashSet::<Loc<Identifier>>::default();
                     let mut unbound = p
                         .params
                         .0
@@ -3184,7 +3184,7 @@ mod item_visiting {
 
 #[cfg(test)]
 mod module_visiting {
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap as HashMap;
 
     use super::*;
 
@@ -3261,7 +3261,7 @@ mod module_visiting {
             .collect(),
             types: vec![].into_iter().collect(),
             modules: vec![].into_iter().collect(),
-            traits: HashMap::new(),
+            traits: HashMap::default(),
             impls: ImplTab::new(),
         };
 
@@ -3319,7 +3319,7 @@ mod module_visiting {
             ]
             .into_iter()
             .collect(),
-            traits: HashMap::new(),
+            traits: HashMap::default(),
             impls: ImplTab::new(),
         };
 

@@ -57,3 +57,4 @@ thiserror = "2.0.11"
 tracing = "0.1.34"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 tracing-tree = "0.4"
+rustc-hash = "2.1"

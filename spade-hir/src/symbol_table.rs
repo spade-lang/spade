@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use colored::Colorize;
 use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use tap::prelude::*;
 use tracing::trace;
@@ -389,13 +388,13 @@ impl SymbolTable {
     pub fn new() -> Self {
         Self {
             symbols: vec![Scope {
-                vars: HashMap::new(),
+                vars: HashMap::default(),
                 lookup_barrier: None,
             }],
-            declarations: vec![HashMap::new()],
+            declarations: vec![HashMap::default()],
             id_tracker: NameIdTracker::new(),
-            types: HashMap::new(),
-            things: HashMap::new(),
+            types: HashMap::default(),
+            things: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),
         }
@@ -403,18 +402,18 @@ impl SymbolTable {
     #[tracing::instrument(skip_all)]
     pub fn new_scope(&mut self) {
         self.symbols.push(Scope {
-            vars: HashMap::new(),
+            vars: HashMap::default(),
             lookup_barrier: None,
         });
-        self.declarations.push(HashMap::new());
+        self.declarations.push(HashMap::default());
     }
 
     pub fn new_scope_with_barrier(&mut self, barrier: Box<ScopeBarrier>) {
         self.symbols.push(Scope {
-            vars: HashMap::new(),
+            vars: HashMap::default(),
             lookup_barrier: Some(barrier),
         });
-        self.declarations.push(HashMap::new());
+        self.declarations.push(HashMap::default());
     }
 
     #[tracing::instrument(skip_all)]

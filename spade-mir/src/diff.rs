@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::id_tracker::ExprID;
 
 use crate::{Entity, MirInput, Register, Statement, ValueName};
@@ -30,10 +29,10 @@ impl Default for VarMap {
 impl VarMap {
     pub fn new() -> Self {
         Self {
-            expr_map: HashMap::new(),
-            expr_map_rev: HashMap::new(),
-            name_map: HashMap::new(),
-            name_map_rev: HashMap::new(),
+            expr_map: HashMap::default(),
+            expr_map_rev: HashMap::default(),
+            name_map: HashMap::default(),
+            name_map_rev: HashMap::default(),
         }
     }
 

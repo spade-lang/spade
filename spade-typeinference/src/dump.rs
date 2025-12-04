@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use spade_hir::{symbol_table::SymbolTable, TypeList};
 use spade_types::ConcreteType;

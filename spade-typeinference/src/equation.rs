@@ -1,5 +1,6 @@
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeMap;
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};

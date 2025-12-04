@@ -1,7 +1,8 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::cell::RefCell;
 
 use colored::*;
 use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::name::NameID;
 use spade_types::KnownType;
 

@@ -19,6 +19,7 @@ spade-codespan-reporting.workspace = true
 derive-where = "1.2.7"
 indoc.workspace = true
 itertools.workspace = true
+rustc-hash.workspace = true
 nesty = "0.2"
 num.workspace = true
 serde.workspace = true

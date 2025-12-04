@@ -27,6 +27,7 @@ num.workspace = true
 serde.workspace = true
 color-eyre.workspace = true
 ron.workspace = true
+rustc-hash.workspace = true
 serde_stacker = "0.1.12"
 itertools.workspace = true
 spade-hir.workspace = true

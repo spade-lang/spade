@@ -1,6 +1,7 @@
-use std::{cell::RefCell, cmp::Ordering, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 use num::ToPrimitive;
+use rustc_hash::FxHashMap as HashMap;
 use spade_diagnostics::Diagnostic;
 use tracing::trace;
 
@@ -408,7 +409,7 @@ pub struct LinearState {
 impl LinearState {
     pub fn new() -> Self {
         Self {
-            trees: HashMap::new(),
+            trees: HashMap::default(),
         }
     }
 

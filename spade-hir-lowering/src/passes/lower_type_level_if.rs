@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-
+use rustc_hash::FxHashSet as HashSet;
 use spade_common::{id_tracker::ExprID, location_info::Loc};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{symbol_table::FrozenSymtab, ExprKind, Expression, ItemList};

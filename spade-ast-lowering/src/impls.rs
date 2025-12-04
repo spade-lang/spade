@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use itertools::{EitherOrBoth, Itertools};
 use spade_ast as ast;
@@ -73,7 +73,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     let trait_methods = &trait_def.fns;
 
     let mut trait_members = vec![];
-    let mut trait_impl = HashMap::new();
+    let mut trait_impl = HashMap::default();
 
     ctx.self_ctx = SelfContext::ImplBlock(target_type.clone());
 
@@ -984,7 +984,7 @@ fn map_type_spec_to_trait(
 pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diagnostic> {
     let mut diags = vec![];
     for (_impl_target, impls) in item_list.impls.inner.iter_mut() {
-        let mut set: HashMap<Identifier, Vec<(Loc<()>, hir::TypeSpec)>> = HashMap::new();
+        let mut set: HashMap<Identifier, Vec<(Loc<()>, hir::TypeSpec)>> = HashMap::default();
 
         for block in impls
             .iter_mut()

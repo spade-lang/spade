@@ -15,6 +15,7 @@ logos.workspace = true
 num.workspace = true
 pyo3 = { workspace = true, optional = true }
 ron.workspace = true
+rustc-hash.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 tracing.workspace = true

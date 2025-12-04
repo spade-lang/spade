@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Display;
 use std::iter::repeat;
 use std::sync::atomic::{AtomicI32, Ordering};
@@ -7,6 +6,7 @@ use std::sync::Arc;
 use assert_fs::TempDir;
 use color_eyre::owo_colors::OwoColorize as _;
 use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use smart_default::SmartDefault;
 use spade_codespan_reporting::files::SimpleFile;
 use tokio::sync::Mutex;
@@ -41,7 +41,7 @@ impl TestClient {
     fn new() -> TestClient {
         Self {
             logs: Arc::new(Mutex::new(Vec::new())),
-            diagnostics: Arc::new(Mutex::new(HashMap::new())),
+            diagnostics: Arc::new(Mutex::new(HashMap::default())),
         }
     }
 }

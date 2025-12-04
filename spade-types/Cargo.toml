@@ -17,5 +17,6 @@ doctest = false
 [dependencies]
 serde.workspace = true
 num.workspace = true
+rustc-hash.workspace = true
 
 spade-common.workspace = true

@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::fmt::Display;
 
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use spade_codespan_reporting::files::{Files, Location, SimpleFile};
 use tap::Pipe;
 use tower_lsp::lsp_types::Range;

@@ -1,8 +1,7 @@
 pub mod meta_types;
 
-use std::collections::HashMap;
-
 use num::BigInt;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::{
     name::{Identifier, NameID},

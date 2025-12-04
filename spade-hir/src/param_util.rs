@@ -2,9 +2,8 @@
 // because this is required twice in the compilation process: first during type inference,
 // and then again during hir lowering
 
-use std::collections::HashSet;
-
 use itertools::Itertools;
+use rustc_hash::FxHashSet as HashSet;
 use spade_diagnostics::Diagnostic;
 
 use spade_common::{location_info::Loc, name::Identifier};
@@ -226,7 +225,7 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                 .collect())
         }
         ArgumentList::Named(inner) => {
-            let mut bound: HashSet<Loc<Identifier>> = HashSet::new();
+            let mut bound: HashSet<Loc<Identifier>> = HashSet::default();
             let params = params.as_listlike();
             let mut unbound = params
                 .0

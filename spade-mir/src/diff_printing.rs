@@ -1,12 +1,11 @@
+use itertools::Itertools;
 /// Utilities for printing the difference between two mir blocks with their var mappings.
 ///
 /// Names are formatted as e(<left hand side> | <right hand side>) and the corresponding name is
 /// looked up from the specified hash map depending on which side we're printing. This allows some
 /// nice text-based diffs, but does require the use of quite a few generic parameters since we need
 /// to either look up names in a hash map, or just use the given name.
-use std::collections::HashMap;
-
-use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::id_tracker::ExprID;
 
 use crate::{diff::VarMap, Entity};

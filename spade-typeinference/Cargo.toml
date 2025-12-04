@@ -18,6 +18,7 @@ doctest = false
 colored.workspace = true
 itertools.workspace = true
 num.workspace = true
+rustc-hash.workspace = true
 serde.workspace = true
 tracing.workspace = true
 fastrand.workspace = true

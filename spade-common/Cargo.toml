@@ -18,5 +18,6 @@ doctest = false
 spade-codespan = {version = "0.12.0", features = ["serialization"]}
 spade-codespan-reporting = {version = "0.12.0", features = ["serde"]}
 logos.workspace = true
+rustc-hash.workspace = true
 serde.workspace = true
 num.workspace = true

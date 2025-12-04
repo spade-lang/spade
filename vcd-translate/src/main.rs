@@ -1,12 +1,13 @@
 mod translation;
 
-use std::{collections::HashMap, fs::File, path::PathBuf};
+use std::{fs::File, path::PathBuf};
 
 use clap::Parser;
 use color_eyre::{
     eyre::{anyhow, Context},
     Result,
 };
+use rustc_hash::FxHashMap as HashMap;
 use spade::compiler_state::CompilerState;
 use spade_common::{
     location_info::WithLocation,
@@ -136,7 +137,7 @@ fn main() -> Result<()> {
 
     let var_map = add_new_vars(
         &top,
-        HashMap::new(),
+        HashMap::default(),
         &header.items,
         &mut writer,
         &[],

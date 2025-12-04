@@ -1,7 +1,8 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 use itertools::Itertools;
 use mir::passes::MirPass;
+use rustc_hash::FxHashMap as HashMap;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
@@ -58,7 +59,7 @@ impl MonoState {
         MonoState {
             to_compile: VecDeque::new(),
             translation: BTreeMap::new(),
-            request_points: HashMap::new(),
+            request_points: HashMap::default(),
         }
     }
 
@@ -170,7 +171,7 @@ pub fn compile_items(
     }
 
     let mut body_replacements: HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement> =
-        HashMap::new();
+        HashMap::default();
 
     let mut result = vec![];
     'item_loop: while let Some(item) = state.next_target() {

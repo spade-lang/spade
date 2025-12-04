@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use num::BigUint;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{Binding, Operator, Statement, ValueName};
 
@@ -103,8 +102,8 @@ fn op_needs_deduplication(op: &Operator) -> bool {
 
 fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
     let mut seen_statements: HashMap<(&Operator, &Vec<ValueName>, &crate::types::Type), ValueName> =
-        HashMap::new();
-    let mut replaced_names = HashMap::new();
+        HashMap::default();
+    let mut replaced_names = HashMap::default();
 
     for stmt in stmts {
         match stmt {
