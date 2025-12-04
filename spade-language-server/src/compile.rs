@@ -15,7 +15,8 @@ use spade_diagnostics::{CodeBundle, DiagHandler, Emitter};
 use spade_hir::query::QueryCache;
 use spade_hir::ItemList;
 use spade_typeinference::traits::TraitImplList;
-use swim::libraries::{LockFile, RestoreAction};
+use swim::libraries::RestoreAction;
+use swim::lockfile::LockFile;
 use swim::spade::{Namespace, SpadeFile};
 use swim::{libs_dir, lock_file, src_dir};
 use tower_lsp::jsonrpc::Result;
@@ -160,7 +161,7 @@ impl ServerBackend {
         swim::spade::get_spade_repository(root_dir, &config, RestoreAction::Deny)?;
 
         let mut lock_file = LockFile::open_or_default(lock_file(root_dir));
-        let library_dirs = swim::libraries::load_libraries(
+        let library_dirs = swim::libraries::collect_libraries(
             &libs_dir(root_dir),
             &config,
             &mut lock_file,
