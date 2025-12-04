@@ -1,5 +1,4 @@
-use std::collections::{HashMap, HashSet};
-
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::{Entity, MirInput, Operator, Statement, ValueName};
 
 fn try_rename(name: &mut ValueName, replacements: &HashMap<ValueName, ValueName>) {
@@ -13,10 +12,10 @@ fn try_rename(name: &mut ValueName, replacements: &HashMap<ValueName, ValueName>
 /// That is if a -> b, then all occurrences of a will be replaced by b
 /// unless a is also aliased for something else
 pub fn flatten_aliases(entity: &mut Entity) {
-    let mut aliased_by = HashMap::new();
+    let mut aliased_by = HashMap::default();
     // Some things are unaliasable, like input names and constants. Keep
     // track of those here to avoid problems
-    let mut unaliasable = HashSet::new();
+    let mut unaliasable = HashSet::default();
 
     for MirInput { val_name: val, .. } in &entity.inputs {
         unaliasable.insert(val.clone());
