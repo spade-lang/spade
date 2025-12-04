@@ -166,6 +166,51 @@ impl<'a> Parser<'a> {
         Ok(Path(result).between(self.file_id, &start, &end))
     }
 
+    #[trace_parser]
+    pub fn path_tree_with_as_alias(&mut self) -> Result<Vec<(Loc<Path>, Option<Loc<Identifier>>)>> {
+        let mut prefix = Path(vec![]);
+        let mut alias = None;
+
+        loop {
+            if self.peek_cond(TokenKind::is_identifier, "Identifier")? {
+                let ident = self.identifier()?;
+                prefix = prefix.push_ident(ident);
+            } else if self.peek_and_eat(&TokenKind::OpenBrace)?.is_some() {
+                let result = self
+                    .comma_separated(Self::path_tree_with_as_alias, &TokenKind::CloseBrace)
+                    .no_context()?
+                    .into_iter()
+                    .flatten()
+                    .map(|(p, a)| {
+                        let loc = p.loc();
+                        let path = prefix.join(p.inner);
+                        (path.at_loc(&loc), a)
+                    })
+                    .collect::<Vec<_>>();
+                self.eat(&TokenKind::CloseBrace)?;
+                return Ok(result);
+            } else {
+                let next = self.peek()?;
+                return Err(UnexpectedToken {
+                    got: next,
+                    expected: vec!["identifier", "{", "::"],
+                }
+                .into());
+            }
+
+            if self.peek_and_eat(&TokenKind::As)?.is_some() {
+                alias = Some(self.identifier()?);
+                break;
+            } else if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
+                break;
+            }
+        }
+
+        let start = prefix.0.first().unwrap().loc();
+        let end = prefix.0.last().unwrap().loc();
+        return Ok(vec![(prefix.between_locs(&start, &end), alias)]);
+    }
+
     pub fn named_turbofish(&mut self) -> Result<Loc<NamedTurbofish>> {
         // This is a named arg
         let name = self.identifier()?;

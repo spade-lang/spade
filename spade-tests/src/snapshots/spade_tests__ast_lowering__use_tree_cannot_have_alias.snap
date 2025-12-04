@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod a {
+    mod aa {}
+    mod ab {}
+}
+use a::{aa, ab} as nope;
+
+
+error: Unexpected `as`, expected `;`
+  ┌─ testinput:5:17
+  │
+5 │ use a::{aa, ab} as nope;
+  │                 ^^ expected `;`

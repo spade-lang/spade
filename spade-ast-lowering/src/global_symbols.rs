@@ -176,16 +176,18 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     Thing::Trait(r#trait.name.clone()),
                 )?;
             }
-            ast::Item::Use(u) => {
-                let new_name = match &u.alias {
-                    Some(name) => name.clone(),
-                    None => u.path.0.last().unwrap().clone(),
-                };
+            ast::Item::Use(us) => {
+                for u in &us.inner {
+                    let new_name = match &u.alias {
+                        Some(name) => name.clone(),
+                        None => u.path.0.last().unwrap().clone(),
+                    };
 
-                ctx.symtab.add_alias(
-                    Path::ident(new_name.clone()).at_loc(&new_name.loc()),
-                    u.path.clone(),
-                )?;
+                    ctx.symtab.add_alias(
+                        Path::ident(new_name.clone()).at_loc(&new_name.loc()),
+                        u.path.clone(),
+                    )?;
+                }
             }
         }
     }

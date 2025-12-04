@@ -740,7 +740,7 @@ pub enum Item {
     Type(Loc<TypeDeclaration>),
     ExternalMod(Loc<Identifier>),
     Module(Loc<Module>),
-    Use(Loc<UseStatement>),
+    Use(Loc<Vec<UseStatement>>),
     ImplBlock(Loc<ImplBlock>),
 }
 
@@ -752,7 +752,7 @@ impl Item {
             Item::Type(t) => Some(&t.name.inner),
             Item::Module(m) => Some(&m.name.inner),
             Item::ExternalMod(name) => Some(name),
-            Item::Use(u) => u.alias.as_ref().map(|name| &name.inner),
+            Item::Use(_) => None,
             Item::ImplBlock(_) => None,
         }
     }

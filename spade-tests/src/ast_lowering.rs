@@ -183,6 +183,39 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    use_tree_compiles,
+    "
+    mod a {
+        mod aa {
+            mod aaa {}
+            mod aab {}
+        }
+        mod ab {
+            mod aba {}
+        }
+    }
+    use a::{
+        aa::{
+            aaa,
+            aab,
+        },
+        ab::aba as alias,
+    };
+    "
+}
+
+snapshot_error! {
+    use_tree_cannot_have_alias,
+    "
+    mod a {
+        mod aa {}
+        mod ab {}
+    }
+    use a::{aa, ab} as nope;
+    "
+}
+
 snapshot_error! {
     extended_self_referential_use_lookup_breaks,
     "

@@ -326,25 +326,26 @@ impl KeywordPeekingParser<Item> for ModuleParser {
 
 pub(crate) struct UseParser {}
 
-impl KeywordPeekingParser<Loc<UseStatement>> for UseParser {
+impl KeywordPeekingParser<Loc<Vec<UseStatement>>> for UseParser {
     fn leading_tokens(&self) -> Vec<TokenKind> {
         vec![TokenKind::Use]
     }
 
-    fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<UseStatement>> {
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+    ) -> Result<Loc<Vec<UseStatement>>> {
         let start = parser.eat_unconditional()?;
         parser.disallow_attributes(attributes, &start)?;
 
-        let path = parser.path()?;
-
-        let alias = if (parser.peek_and_eat(&TokenKind::As)?).is_some() {
-            Some(parser.identifier()?)
-        } else {
-            None
-        };
-
+        let paths = parser.path_tree_with_as_alias()?;
         let end = parser.eat(&TokenKind::Semi)?;
 
-        Ok(UseStatement { path, alias }.between(parser.file_id, &start.span(), &end.span()))
+        Ok(paths
+            .into_iter()
+            .map(|(path, alias)| UseStatement { path, alias })
+            .collect::<Vec<_>>()
+            .between(parser.file_id, &start.span(), &end.span()))
     }
 }
