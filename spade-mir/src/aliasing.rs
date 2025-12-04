@@ -1,5 +1,5 @@
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::{Entity, MirInput, Operator, Statement, ValueName};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 fn try_rename(name: &mut ValueName, replacements: &HashMap<ValueName, ValueName>) {
     if let Some(replacement) = replacements.get(name) {
