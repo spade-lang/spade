@@ -245,6 +245,8 @@ impl<'a> Parser<'a> {
             Ok(Expression::TriLiteral(val.clone()).at_loc(&val))
         } else if let Some(val) = self.int_literal()? {
             Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
+        } else if let Some(val) = self.ascii_char_literal()? {
+            Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
         } else if let Some(block) = self.block(false)? {
             Ok(block.map(Box::new).map(Expression::Block))
         } else if let Some(if_expr) = self.if_expression(false)? {

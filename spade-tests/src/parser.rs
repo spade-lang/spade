@@ -976,3 +976,27 @@ fn test() {
 
     insta::assert_debug_snapshot!(parser.comments());
 }
+
+snapshot_error! {
+    ascii_char_literal_errors,
+    "
+        fn test() {
+            let x = 'a';
+            let y = b'\\a';
+            let z = b'abc';
+            let w = b'ö';
+        }
+    "
+}
+
+code_compiles! {
+    ascii_char_literals_in_patterns,
+    "
+        fn test(x: uint<8>) -> uint<5> {
+            match x {
+                b'a' => {0},
+                _ => {0}
+            }
+        }
+    "
+}
