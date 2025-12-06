@@ -14,20 +14,15 @@ pipeline(6) main(clk: clock, x: bool) -> bool {
 }
 
 
-error: Lexer error, unexpected symbol
-   ┌─ testinput:6:9
-   │  
- 6 │ ╭         'here
- 7 │ │     reg;
- 8 │ │         let res = stage(here).x;
- 9 │ │     reg;
-10 │ │         res
-11 │ │ }
-12 │ │ 
-   │ ╰^
-
-error: Unexpected `end of file`, expected expression
-  ┌─ testinput:5:11
+error: Use of x before it is ready
+  ┌─ testinput:8:31
   │
-5 │     reg*4;
-  │           ^ expected expression here
+4 │         let x = inst(5) X(clk);
+  │             - x is originally defined here at stage 0
+  ·
+8 │         let res = stage(here).x;
+  │                   ----------- ^ x is unavailable at stage 4
+  │                   │            
+  │                   This refers to stage 4
+  │
+  = note: Since x is defined at stage 0 with latency 5, it cannot be accessed before stage 5

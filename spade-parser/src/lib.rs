@@ -98,7 +98,7 @@ pub struct Parser<'a> {
     file_id: usize,
     unit_context: Option<Loc<UnitKind>>,
     pub diags: DiagList,
-    recovering_tokens: Vec<Vec<TokenKind>>,
+    recovering_tokens: Vec<fn(&TokenKind) -> bool >,
     comments: Vec<Comment>,
 }
 
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
             file_id,
             unit_context: None,
             diags: DiagList::new(),
-            recovering_tokens: vec![vec![TokenKind::Eof]],
+            recovering_tokens: vec![|tok| tok == &TokenKind::Eof],
             comments: vec![],
         }
     }
@@ -1237,7 +1237,7 @@ impl<'a> Parser<'a> {
                 Box::new(SetParser {}.then(semi_continuation)),
             ],
             true,
-            vec![TokenKind::CloseBrace],
+            vec![|tok| tok == &TokenKind::CloseBrace],
             |parser| {
                 if parser.peek_kind(&TokenKind::CloseBrace)? {
                     return Ok(None);
@@ -1607,7 +1607,7 @@ impl<'a> Parser<'a> {
         let result = self.keyword_peeking_parser_seq(
             vec![Box::new(items::UnitParser {}.map(|u| Ok(u)))],
             true,
-            vec![TokenKind::CloseBrace],
+            vec![|tok| tok == &TokenKind::CloseBrace],
         )?;
 
         Ok(result)
@@ -2141,13 +2141,12 @@ impl<'a> Parser<'a> {
         &mut self,
         parsers: Vec<Box<dyn KeywordPeekingParser<T>>>,
         support_attributes: bool,
-        additional_continuations: Vec<TokenKind>,
+        additional_continuations: Vec<fn(&TokenKind) -> bool>,
     ) -> Result<Vec<T>> {
         let mut result = vec![];
         let continuations = parsers
             .iter()
-            .map(|p| p.leading_tokens())
-            .flatten()
+            .map(|p| p.is_leading_token())
             .chain(additional_continuations.iter().cloned())
             .collect::<Vec<_>>();
         loop {
@@ -2174,7 +2173,7 @@ impl<'a> Parser<'a> {
         &mut self,
         parsers: Vec<Box<dyn KeywordPeekingParser<T>>>,
         support_attributes: bool,
-        additional_continuations: Vec<TokenKind>,
+        additional_continuations: Vec<fn(&TokenKind) -> bool>,
         mut other: F,
     ) -> Result<Vec<T>>
     where
@@ -2183,9 +2182,8 @@ impl<'a> Parser<'a> {
         let mut result = vec![];
         let continuations = parsers
             .iter()
-            .map(|p| p.leading_tokens())
-            .flatten()
-            .chain(additional_continuations.iter().cloned())
+            .map(|p| p.is_leading_token())
+            .chain(additional_continuations)
             .collect::<Vec<_>>();
         loop {
             let inner = self._keyword_peeking_parser_inner(
@@ -2213,7 +2211,7 @@ impl<'a> Parser<'a> {
         &mut self,
         parsers: &[Box<dyn KeywordPeekingParser<T>>],
         support_attributes: bool,
-        continuations: &[TokenKind],
+        continuations: &[fn(&TokenKind) -> bool],
     ) -> RecoveryResult<Option<T>> {
         self.with_recovery(
             |s| {
@@ -2226,7 +2224,7 @@ impl<'a> Parser<'a> {
                 let next = s.peek()?;
                 let mut result = None;
                 for parser in parsers {
-                    if parser.leading_tokens().contains(&next.kind) {
+                    if parser.is_leading_token()(&next.kind) {
                         result = Some(parser.parse(s, &attributes)?)
                     }
                 }
@@ -2239,9 +2237,10 @@ impl<'a> Parser<'a> {
     pub fn with_recovery<T>(
         &mut self,
         inner: impl Fn(&mut Self) -> Result<T>,
-        continuations: Vec<TokenKind>,
+        continuations: Vec<fn(&TokenKind) -> bool>,
     ) -> RecoveryResult<T> {
-        self.recovering_tokens.push(continuations);
+        let new_continuations = continuations.len();
+        self.recovering_tokens.extend(continuations);
         let result = match inner(self) {
             Ok(result) => RecoveryResult::Ok(result),
             Err(e) => {
@@ -2254,7 +2253,7 @@ impl<'a> Parser<'a> {
                         .recovering_tokens
                         .iter()
                         .rev()
-                        .any(|list| list.iter().any(|t| t == &tok.kind))
+                        .any(|peeker| peeker(&tok.kind))
                     {
                         break;
                     }
@@ -2265,7 +2264,8 @@ impl<'a> Parser<'a> {
                 RecoveryResult::Recovered
             }
         };
-        self.recovering_tokens.pop();
+        // Pop the newly added continuations
+        let _ = self.recovering_tokens.split_off(self.recovering_tokens.len() - new_continuations);
         result
     }
 }
@@ -2487,7 +2487,7 @@ impl<'a> Parser<'a> {
 }
 
 trait KeywordPeekingParser<T> {
-    fn leading_tokens(&self) -> Vec<TokenKind>;
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool;
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T>;
 }
 
@@ -2534,8 +2534,8 @@ where
     Inner: SizedKeywordPeekingParser<I> + ?Sized,
     Mapper: Fn(I) -> Result<T>,
 {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        self.inner.leading_tokens()
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        self.inner.is_leading_token()
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T> {
@@ -2563,8 +2563,8 @@ where
     Inner: SizedKeywordPeekingParser<T> + ?Sized,
     After: Fn(T, &mut Parser) -> Result<T>,
 {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        self.inner.leading_tokens()
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        self.inner.is_leading_token()
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<T> {

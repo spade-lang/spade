@@ -10,19 +10,8 @@ pipeline(3) main(clk: clock) -> int<8> {
         stage(b).x
 }
 
-error: Lexer error, unexpected symbol
-  ┌─ testinput:3:9
-  │  
-3 │ ╭         'a
-4 │ │         let x = 0u8;
-5 │ │     reg;
-6 │ │     reg;
-7 │ │         stage(b).x
-8 │ │ }
-  │ ╰─^
-
-error: Unexpected `end of file`, expected expression
-  ┌─ testinput:2:9
+error: Use of undeclared name b
+  ┌─ testinput:7:15
   │
-2 │     reg;
-  │         ^ expected expression here
+7 │         stage(b).x
+  │               ^ Undeclared name
