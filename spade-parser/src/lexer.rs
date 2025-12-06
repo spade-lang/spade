@@ -185,8 +185,6 @@ pub enum TokenKind {
     Tilde,
     #[token("`")]
     InfixOperatorSeparator,
-    #[token("'")]
-    SingleQuote,
 
     // Other operators
     #[token("=")]
@@ -230,11 +228,14 @@ pub enum TokenKind {
     #[token("$")]
     Dollar,
 
+    #[regex(r#"'[\p{XID_Start}_]\p{XID_Continue}*"#, |lex| lex.slice()[1..].to_string())]
+    Label(String),
+
     #[regex(r#"b'[^']*'"#, |lex| lex.slice().replace("'", "")[1..].to_string())]
     AsciiCharLiteral(String),
     // Not actually used in the language at the moment, hence the lack of inner
     // content. It is just used to hint to the user to use b'...'
-    #[regex("'[^']*'")]
+    #[regex(r#"'\w'"#)]
     Utf8CharLiteral,
     #[regex(r#""[^"]*""#, |lex| lex.slice().replace("\"", ""))]
     String(String),
@@ -346,13 +347,14 @@ impl TokenKind {
             TokenKind::Dot => ".",
             TokenKind::DotDot => "..",
             TokenKind::PathSeparator => "::",
-            TokenKind::SingleQuote => "'",
 
             TokenKind::Hash => "#",
             TokenKind::Dollar => "$",
 
             TokenKind::Eof => "end of file",
 
+            TokenKind::Label(_) => "label",
+            
             TokenKind::AsciiCharLiteral(_) => "ASCII char literal",
             TokenKind::Utf8CharLiteral => "Unicode char literal",
             TokenKind::String(_) => "string",

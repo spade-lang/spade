@@ -1,18 +1,21 @@
 use spade_ast::{AttributeList, Binding, Expression, Register, Statement};
-use spade_common::location_info::{lspan, AsLabel, Loc, WithLocation};
-use spade_diagnostics::Diagnostic;
+use spade_common::{
+    location_info::{lspan, AsLabel, Loc, WithLocation},
+    name::Identifier,
+};
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
 
 use crate::{
     error::Result, item_type::UnitKindLocal, lexer::TokenKind, peek_for, KeywordPeekingParser,
-    ParseStackEntry, Parser,
+    ParseStackEntry, Parser, Token,
 };
 
 pub(crate) struct BindingParser {}
 
 impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Let]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Let
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
@@ -42,8 +45,8 @@ impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
 pub(crate) struct RegisterParser {}
 
 impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Reg]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Reg
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
@@ -191,8 +194,8 @@ impl<'a> Parser<'a> {
 pub(crate) struct DeclParser {}
 
 impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Decl]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Decl
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
@@ -226,24 +229,35 @@ impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
 pub(crate) struct LabelParser {}
 
 impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::SingleQuote]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| matches!(kind, TokenKind::Label(_))
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
-        let tok = parser.eat_unconditional()?;
+        let tok @ Token {
+            kind: TokenKind::Label(l),
+            ..
+        } = &parser.eat_unconditional()?
+        else {
+            diag_bail!(
+                parser.peek()?,
+                "Label parser was called but it did not get a label"
+            )
+        };
         parser.disallow_attributes(attributes, &tok)?;
 
-        let name = parser.identifier()?;
-        Ok(Statement::Label(name.clone()).between(parser.file_id, &tok.span, &name))
+        Ok(
+            Statement::Label(Identifier(l.clone()).at(parser.file_id, &tok.span))
+                .at(parser.file_id, &tok.span),
+        )
     }
 }
 
 pub(crate) struct AssertParser {}
 
 impl KeywordPeekingParser<Loc<Statement>> for AssertParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Assert]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Assert
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {
@@ -259,8 +273,8 @@ impl KeywordPeekingParser<Loc<Statement>> for AssertParser {
 pub(crate) struct SetParser {}
 
 impl KeywordPeekingParser<Loc<Statement>> for SetParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Set]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Set
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Statement>> {

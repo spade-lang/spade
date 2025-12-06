@@ -14,14 +14,17 @@ use crate::{
 pub(crate) struct UnitParser {}
 
 impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![
-            TokenKind::Function,
-            TokenKind::Entity,
-            TokenKind::Pipeline,
-            TokenKind::Extern,
-            TokenKind::Unsafe,
-        ]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| {
+            vec![
+                TokenKind::Function,
+                TokenKind::Entity,
+                TokenKind::Pipeline,
+                TokenKind::Extern,
+                TokenKind::Unsafe,
+            ]
+            .contains(kind)
+        }
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<Unit>> {
@@ -101,8 +104,8 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
 pub(crate) struct TraitDefParser {}
 
 impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Trait]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Trait
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<TraitDef>> {
@@ -137,8 +140,8 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
 pub(crate) struct ImplBlockParser {}
 
 impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Impl]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Impl
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Loc<ImplBlock>> {
@@ -196,8 +199,8 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
 pub(crate) struct StructParser {}
 
 impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Struct]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Struct
     }
 
     fn parse(
@@ -244,8 +247,8 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
 pub(crate) struct EnumParser {}
 
 impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Enum]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Enum
     }
 
     fn parse(
@@ -289,8 +292,8 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
 pub(crate) struct ModuleParser {}
 
 impl KeywordPeekingParser<Item> for ModuleParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Mod]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Mod
     }
 
     fn parse(&self, parser: &mut Parser, attributes: &AttributeList) -> Result<Item> {
@@ -328,8 +331,8 @@ impl KeywordPeekingParser<Item> for ModuleParser {
 pub(crate) struct UseParser {}
 
 impl KeywordPeekingParser<Loc<Vec<UseStatement>>> for UseParser {
-    fn leading_tokens(&self) -> Vec<TokenKind> {
-        vec![TokenKind::Use]
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Use
     }
 
     fn parse(
