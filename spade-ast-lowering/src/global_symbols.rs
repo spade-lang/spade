@@ -458,7 +458,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .args
                     .clone()
                     .map(|l| {
-                        if let Some(self_) = l.self_ {
+                        if let Some(ref self_) = l.self_ {
                             Err(Diagnostic::bug(self_, "enum member contains self"))
                         } else {
                             Ok(l.args.clone())
@@ -550,7 +550,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             )
         }
         ast::TypeDeclKind::Struct(s) => {
-            if let Some(self_) = s.members.self_ {
+            if let Some(ref self_) = s.members.self_ {
                 return Err(Diagnostic::bug(
                     self_,
                     "struct contains self member which was let through parser",

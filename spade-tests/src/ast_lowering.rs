@@ -1070,6 +1070,14 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    unused_attribute_on_self_is_an_error,
+    "struct Foo {}
+    impl Foo {
+        fn test(#[fsm] self) -> bool {true}
+    }"
+}
+
+snapshot_error! {
     registers_can_not_be_no_mangle,
     "entity x(clk: clock) -> bool {
         #[no_mangle]
@@ -1082,6 +1090,14 @@ snapshot_error! {
     structs_can_not_be_no_mangle,
     "#[no_mangle]
     struct X {
+    }"
+}
+
+code_compiles! {
+    self_can_be_no_mangle,
+    "struct Foo {}
+    impl Foo {
+        fn test(#[no_mangle] self) -> bool {true}
     }"
 }
 

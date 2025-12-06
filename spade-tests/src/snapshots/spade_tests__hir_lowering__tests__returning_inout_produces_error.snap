@@ -15,5 +15,3 @@ error: Values of inout type cannot be returned
   │ ╰─^ returning inout value
   │  
   = help: inout values can only be passed along to other modules as inputs
-
-

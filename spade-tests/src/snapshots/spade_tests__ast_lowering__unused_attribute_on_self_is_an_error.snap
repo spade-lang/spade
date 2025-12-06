@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct Foo {}
+impl Foo {
+    fn test(#[fsm] self) -> bool {true}
+}
+
+error: fsm is not a valid attribute for `self` parameter
+  ┌─ testinput:3:13
+  │
+3 │     fn test(#[fsm] self) -> bool {true}
+  │             ^^^^^^ Unsupported attribute for `self` parameter

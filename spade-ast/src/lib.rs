@@ -597,6 +597,10 @@ impl AttributeList {
         Self(vec![])
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn from_vec(attrs: Vec<Loc<Attribute>>) -> Self {
         Self(attrs)
     }
@@ -604,7 +608,7 @@ impl AttributeList {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ParameterList {
-    pub self_: Option<Loc<()>>,
+    pub self_: Option<Loc<AttributeList>>,
     pub args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>,
 }
 
@@ -613,7 +617,10 @@ impl ParameterList {
         Self { self_: None, args }
     }
 
-    pub fn with_self(self_: Loc<()>, args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
+    pub fn with_self(
+        self_: Loc<AttributeList>,
+        args: Vec<(Loc<Identifier>, Loc<TypeSpec>)>,
+    ) -> Self {
         Self {
             self_: Some(self_),
             args: args

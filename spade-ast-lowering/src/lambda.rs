@@ -317,7 +317,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 unit_kind: unit_kind.clone(),
                 name: Identifier("call".to_string()).nowhere(),
                 inputs: ast::ParameterList {
-                    self_: Some(().nowhere()),
+                    self_: Some(ast::AttributeList::empty().nowhere()),
                     args: clock_arg
                         .clone()
                         .into_iter()

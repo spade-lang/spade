@@ -579,18 +579,25 @@ fn visit_parameter_list(
         }
     }
 
-    if let Some(self_loc) = l.self_ {
+    if let Some(ref self_) = l.self_ {
+        let mut attrs = self_.inner.clone();
+        let no_mangle = attrs
+            .consume_no_mangle()
+            .map(|ident| ident.loc())
+            .or(no_mangle_all);
+        attrs.report_unused("`self` parameter")?;
+
         match &ctx.self_ctx {
             SelfContext::FreeStanding => {
                 return Err(Diagnostic::error(
-                    self_loc,
+                    self_,
                     "'self' cannot be used in free standing units",
                 )
                 .primary_label("not allowed here"))
             }
             SelfContext::ImplBlock(spec) => result.push(hir::Parameter {
-                no_mangle: None,
-                name: Identifier(String::from("self")).at_loc(&self_loc),
+                no_mangle,
+                name: Identifier(String::from("self")).at_loc(self_),
                 ty: spec.clone(),
                 field_translator: None,
             }),
@@ -598,9 +605,9 @@ fn visit_parameter_list(
             // symtab at all since we won't be visiting unit bodies here.
             // NOTE: This will be incorrect if we add default impls for traits
             SelfContext::TraitDefinition(_) => result.push(hir::Parameter {
-                no_mangle: None,
-                name: Identifier(String::from("self")).at_loc(&self_loc),
-                ty: hir::TypeSpec::TraitSelf(self_loc).at_loc(&self_loc),
+                no_mangle,
+                name: Identifier(String::from("self")).at_loc(self_),
+                ty: hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
                 field_translator: None,
             }),
         }

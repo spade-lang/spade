@@ -1200,19 +1200,6 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn self_arg(&mut self) -> Result<Option<Loc<()>>> {
-        if self.peek_cond(
-            |t| t == &TokenKind::Identifier("self".to_string()),
-            "looking for self",
-        )? {
-            let tok = self.eat_unconditional()?;
-            Ok(Some(().at(self.file_id, &tok.span)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[trace_parser]
     pub fn parameter(&mut self) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
         let attrs = self.attributes()?;
         let (name, ty) = self.name_and_type()?;
@@ -1221,23 +1208,37 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn parameter_list(&mut self) -> Result<ParameterList> {
+        let mut first_attrs = self.attributes()?;
+
         let self_ = if self.peek_cond(
             |tok| tok == &TokenKind::Identifier(String::from("self")),
             "Expected argument",
         )? {
             let self_tok = self.eat_unconditional()?;
             self.peek_and_eat(&TokenKind::Comma)?;
-            Some(().at(self.file_id, &self_tok))
+            let attrs;
+            (first_attrs, attrs) = (AttributeList::empty(), first_attrs);
+            Some(attrs.at(self.file_id, &self_tok))
         } else {
             None
         };
 
-        Ok(ParameterList {
-            self_,
-            args: self
-                .comma_separated(Self::parameter, &TokenKind::CloseParen)
-                .no_context()?,
-        })
+        let mut args = self
+            .comma_separated(Self::parameter, &TokenKind::CloseParen)
+            .no_context()?;
+
+        if !first_attrs.is_empty() {
+            let Some(first_arg) = args.first_mut() else {
+                // At this point this parser will definitely fail, we run it just for its diagnostic
+                self.eat_cond(TokenKind::is_identifier, "Identifier")?;
+                unreachable!();
+            };
+
+            // Patch attributes into the first parameter
+            first_arg.0 = first_attrs;
+        }
+
+        Ok(ParameterList { self_, args })
     }
 
     #[tracing::instrument(skip(self))]

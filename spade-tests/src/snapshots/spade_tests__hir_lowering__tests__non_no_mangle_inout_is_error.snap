@@ -14,5 +14,3 @@ error: inout parameters must be marked #[no_mangle]
   │
 1 │ entity test(#[no_mangle] t: inout<int<8>>) {}
   │             +++++++++++++
-
-
