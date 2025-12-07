@@ -20,4 +20,9 @@ impl CompilationError for AssertedExpression {
 
         term::emit(buffer, &codespan_config(), &code.files, &diag).unwrap();
     }
+
+    fn severity(&self) -> spade_diagnostics::diagnostic::DiagnosticLevel {
+        eprintln!("Called .severity() on an AssertedExpression");
+        spade_diagnostics::diagnostic::DiagnosticLevel::Error
+    }
 }

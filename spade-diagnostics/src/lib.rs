@@ -286,6 +286,8 @@ pub use diagnostic::Diagnostic;
 pub use emitter::Emitter;
 pub use spade_codespan as codespan;
 
+use crate::diagnostic::DiagnosticLevel;
+
 pub mod diag_list;
 pub mod diagnostic;
 pub mod emitter;
@@ -348,6 +350,8 @@ impl CodeBundle {
 
 pub trait CompilationError {
     fn report(&self, buffer: &mut Buffer, code: &CodeBundle, diag_handler: &mut DiagHandler);
+
+    fn severity(&self) -> DiagnosticLevel;
 }
 
 impl CompilationError for std::io::Error {
@@ -359,11 +363,19 @@ impl CompilationError for std::io::Error {
             );
         }
     }
+
+    fn severity(&self) -> DiagnosticLevel {
+        DiagnosticLevel::Error
+    }
 }
 
 impl CompilationError for Diagnostic {
     fn report(&self, buffer: &mut Buffer, code: &CodeBundle, diag_handler: &mut DiagHandler) {
         diag_handler.emit(self, buffer, code)
+    }
+
+    fn severity(&self) -> DiagnosticLevel {
+        self.level.clone()
     }
 }
 

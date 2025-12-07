@@ -48,8 +48,15 @@ impl<'a> ErrorHandler<'a> {
     }
 
     pub fn report(&mut self, err: &impl CompilationError) {
-        self.failed = true;
-        self.failed_now = true;
+        let is_fatal = match err.severity() {
+            spade_diagnostics::diagnostic::DiagnosticLevel::Bug => true,
+            spade_diagnostics::diagnostic::DiagnosticLevel::Error => true,
+            spade_diagnostics::diagnostic::DiagnosticLevel::Warning => false,
+        };
+        if is_fatal {
+            self.failed = true;
+            self.failed_now = true;
+        }
         err.report(
             self.error_buffer,
             &self.code.read().unwrap(),
