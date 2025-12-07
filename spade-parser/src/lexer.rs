@@ -30,14 +30,22 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
     )
 }
 
+fn process_ident(ident: &str) -> String {
+    if ident.starts_with("r#") {
+        ident[2..].to_string()
+    } else {
+        ident.to_string()
+    }
+}
+
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum TokenKind {
     // Unholy regex for unicode identifiers. Stolen from Repnop who stole it from Evrey
-    #[regex(r#"(?x:
+    #[regex(r#"(r#)?(?x:
         [\p{XID_Start}_]
         \p{XID_Continue}*
         (\u{3F} | \u{21} | (\u{3F}\u{21}) | \u{2048})? # ? ! ?! ⁈
-    )"#, |lex| lex.slice().to_string())]
+    )"#, |lex| process_ident(lex.slice()))]
     Identifier(String),
 
     #[regex(r"[0-9][0-9_]*([uUiI][0-9]+)?", |lex| {
