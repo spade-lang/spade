@@ -2295,6 +2295,9 @@ impl ExprLocal for Loc<Expression> {
         }
 
         let generic_port_check = || {
+            if !unit_head.unit_kind.is_pipeline() {
+                return Ok(())
+            }
             // Check if this is a call to something generic. If so we need to ensure that the
             // generic arguments were not mapped to ports
             for (name, ty) in instance_list {
@@ -2303,7 +2306,7 @@ impl ExprLocal for Loc<Expression> {
                         .ungenerify_type(ty, ctx.symtab.symtab(), &ctx.item_list.types);
                 if actual.as_ref().map(|t| t.is_port()).unwrap_or(false) {
                     return Err(
-                        Diagnostic::error(self.loc(), "Generic types cannot be ports")
+                        Diagnostic::error(self.loc(), "Generic types to pipelines cannot be ports")
                             .primary_label(format!(
                                 "Parameter {name} is {actual} which is a port type",
                                 actual = actual.unwrap()
