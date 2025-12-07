@@ -2026,10 +2026,25 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 end: visit_const_generic(end, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
             })
         }
-        ast::Expression::TupleIndex(tuple, index) => Ok(hir::ExprKind::TupleIndex(
-            Box::new(tuple.visit(visit_expression, ctx)),
-            *index,
-        )),
+        ast::Expression::TupleIndex {
+            target,
+            index,
+            deprecated_syntax,
+        } => {
+            if *deprecated_syntax {
+                let loc = ().between_locs(&target, &index);
+                ctx.diags.errors.push(
+                    Diagnostic::warning(loc, "Deprecated tuple syntax indexing")
+                        .primary_label("`#` syntax for tuple indexing is deprecated")
+                        .note("replace `#` with `.`"),
+                );
+            }
+
+            Ok(hir::ExprKind::TupleIndex(
+                Box::new(target.visit(visit_expression, ctx)),
+                *index,
+            ))
+        }
         ast::Expression::FieldAccess(target, field) => Ok(hir::ExprKind::FieldAccess(
             Box::new(target.visit(visit_expression, ctx)),
             field.clone(),

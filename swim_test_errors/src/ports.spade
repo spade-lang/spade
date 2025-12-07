@@ -15,10 +15,10 @@ entity dut(fwd: uint<8>, back: inv &uint<4>, nested: Nested) -> Nested {
 
     Nested$(
         fwd: &0,
-        back: port#1,
+        back: port.1,
         inner: Inner$(
             fwd: &0,
-            back: port#1
+            back: port.1
         )
     )
 }

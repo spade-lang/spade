@@ -1,15 +1,15 @@
 ---
 source: spade-tests/src/parser.rs
 ---
-fn a(b: int<2>, c: int<2> ) -> int<3> {
+fn a(b: int<2>, c: int<2>) -> int<3> {
     let tup = (b, c);
-    tup#2
+    tup.2
 }
 
 error: Tuple index out of bounds
   ┌─ testinput:3:9
   │
-3 │     tup#2
+3 │     tup.2
   │         ^ Tuple only has 2 elements
   │
   = note:      Index: 2

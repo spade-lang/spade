@@ -228,7 +228,7 @@ impl PrettyDebug for ExprKind {
                 )
             }
             crate::ExprKind::TupleIndex(base, idx) => {
-                format!("{}#{}", base.pretty_debug(), idx)
+                format!("{}.{}", base.pretty_debug(), idx)
             }
             crate::ExprKind::FieldAccess(base, field) => {
                 format!("{}.{}", base.pretty_debug(), field)

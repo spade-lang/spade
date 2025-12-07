@@ -2035,7 +2035,7 @@ mod tests {
         bidirectional_ports_cannot_be_no_mangle,
         "
             entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
-                set t#1 = &false;
+                set t.1 = &false;
                 true
             }
         "

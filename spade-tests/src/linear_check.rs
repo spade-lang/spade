@@ -90,7 +90,7 @@ snapshot_error! {
     extern entity consumer(x: inv &bool) -> bool;
 
     entity x() -> bool {
-        inst consumer(inst producer()#0)
+        inst consumer(inst producer().0)
     }
     "
 }
@@ -99,7 +99,7 @@ snapshot_error! {
     double_tuple_consumption_causes_error,
     "
     entity x(resource: (inv &bool, &bool)) -> (inv &bool, inv &bool) {
-        (resource#0, resource#0)
+        (resource.0, resource.0)
     }
     "
 }

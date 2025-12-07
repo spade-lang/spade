@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+entity name(x: (bool, bool)) -> bool {
+    x#0
+}
+
+warning: Deprecated tuple syntax indexing
+  ┌─ testinput:2:5
+  │
+2 │     x#0
+  │     ^^^ `#` syntax for tuple indexing is deprecated
+  │
+  = note: replace `#` with `.`

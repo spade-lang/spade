@@ -5,14 +5,14 @@ extern entity producer() -> (inv &bool, inv &bool);
 extern entity consumer(x: inv &bool) -> bool;
 
 entity x() -> bool {
-    inst consumer(inst producer()#0)
+    inst consumer(inst producer().0)
 }
 
 
 error: This has a field #1 that is unused
   ┌─ testinput:5:19
   │
-5 │     inst consumer(inst producer()#0)
+5 │     inst consumer(inst producer().0)
   │                   ^^^^^^^^^^^^^^^ This has a field #1 that is unused
   │
   = note: This has a field #1 that is an inverted wire (`inv &`) which must be set

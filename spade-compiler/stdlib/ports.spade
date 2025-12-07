@@ -1,5 +1,5 @@
 entity new_mut_wire<T>() -> inv &T {
-    port#1
+    port.1
 }
 
 /// Reads the current value of a `inv &T`

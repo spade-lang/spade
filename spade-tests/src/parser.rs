@@ -96,9 +96,9 @@ snapshot_error! {
 
 snapshot_error! {
     tuple_index_out_of_bounds_error,
-    "fn a(b: int<2>, c: int<2> ) -> int<3> {
+    "fn a(b: int<2>, c: int<2>) -> int<3> {
         let tup = (b, c);
-        tup#2
+        tup.2
     }"
 }
 
@@ -325,7 +325,7 @@ fn neq_operator_works() {
 snapshot_error! {
     tuple_index_points_to_the_right_thing,
     "fn test(a: (bool,)) -> bool {
-        a#0#0
+        a.0.0
     }"
 }
 

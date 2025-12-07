@@ -279,7 +279,11 @@ pub enum Expression {
     },
     Parenthesized(Box<Loc<Expression>>),
     TupleLiteral(Vec<Loc<Expression>>),
-    TupleIndex(Box<Loc<Expression>>, Loc<u128>),
+    TupleIndex {
+        target: Box<Loc<Expression>>,
+        index: Loc<u128>,
+        deprecated_syntax: bool,
+    },
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
     CreatePorts,
     Lambda {
@@ -383,7 +387,7 @@ impl Expression {
             Expression::RangeIndex { .. } => "range index",
             Expression::Parenthesized(_) => "parenthesized",
             Expression::TupleLiteral(_) => "tuple literal",
-            Expression::TupleIndex(_, _) => "tuple index",
+            Expression::TupleIndex { .. } => "tuple index",
             Expression::FieldAccess(_, _) => "field access",
             Expression::If(_, _, _) => "if",
             Expression::TypeLevelIf(_, _, _) => "type level if",

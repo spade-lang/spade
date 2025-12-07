@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 entity name(x: inv &(bool, bool)) -> int<32> {
-    x#0
+    x.0
 }
 
 error: Attempt to use tuple indexing on non-tuple
@@ -10,7 +10,7 @@ error: Attempt to use tuple indexing on non-tuple
   │
 1 │ entity name(x: inv &(bool, bool)) -> int<32> {
   │                ----------------- Type inv &(bool, bool) inferred here
-2 │     x#0
+2 │     x.0
   │     ^ - Because this is a tuple index
   │     │  
   │     expected tuple, got inv &(bool, bool)

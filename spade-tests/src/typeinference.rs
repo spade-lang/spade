@@ -163,6 +163,13 @@ snapshot_error!(
 snapshot_error!(
     backward_tuple_indexing_with_type_error_errors_nicely,
     "entity name(x: inv &(bool, bool)) -> int<32> {
+        x.0
+    }"
+);
+
+snapshot_error!(
+    deprecated_tuple_indexing_syntax_warning,
+    "entity name(x: (bool, bool)) -> bool {
         x#0
     }"
 );
@@ -562,8 +569,8 @@ snapshot_error! {
     extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
     entity uut(val: inv &(bool, int<3>)) -> bool {
-        let x = inst read_mut_wire(val#0);
-        let y = inst read_mut_wire(val#1);
+        let x = inst read_mut_wire(val.0);
+        let y = inst read_mut_wire(val.1);
         takes_normal(x, y)
     }
     "

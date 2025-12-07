@@ -2,14 +2,14 @@
 source: spade-tests/src/linear_check.rs
 ---
 entity x(resource: (inv &bool, &bool)) -> (inv &bool, inv &bool) {
-    (resource#0, resource#0)
+    (resource.0, resource.0)
 }
 
 
 error: Use of consumed resource
   ┌─ testinput:2:18
   │
-2 │     (resource#0, resource#0)
+2 │     (resource.0, resource.0)
   │      ----------  ^^^^^^^^^^ Use of consumed resource
   │      │            
   │      Previously used here

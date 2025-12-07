@@ -380,87 +380,117 @@ impl<'a> Parser<'a> {
                         Ok(as_u128)
                     })?
                     .between(self.file_id, &hash, &index);
-                Ok(
-                    Expression::TupleIndex(Box::new(expr.clone()), *index).between(
-                        self.file_id,
-                        &expr,
-                        &index,
-                    ),
-                )
+                Ok(Expression::TupleIndex {
+                    target: Box::new(expr.clone()),
+                    index: *index,
+                    deprecated_syntax: true,
+                }
+                .between(self.file_id, &expr, &index))
             } else {
                 Err(
                     Diagnostic::error(self.peek()?.loc(), "expected an index after #")
                         .primary_label("expected index here"),
                 )
             }
-        } else if self.peek_and_eat(&TokenKind::Dot)?.is_some() {
-            let inst = self.peek_and_eat(&TokenKind::Instance)?;
+        } else if let Some(dot) = self.peek_and_eat(&TokenKind::Dot)? {
+            if let Some(index) = self.int_literal()? {
+                let index = index
+                    .try_map_ref(|idx| -> Result<u128> {
+                        let as_u128 = idx
+                            .clone()
+                            .as_unsigned()
+                            .ok_or_else(|| {
+                                Diagnostic::error(&index, "Tuple indices must be non-negative")
+                                    .primary_label("Negative tuple index")
+                            })?
+                            .to_u128()
+                            .ok_or_else(|| {
+                                Diagnostic::bug(&index, "Tuple index too large")
+                                    .primary_label("Tuple index too large")
+                                    .note(format!("Tuple index can be at most {}", u128::MAX))
+                            })?;
 
-            if let Some(inst) = &inst {
-                self.unit_context
-                    .allows_inst(().at(self.file_id, inst))
-                    .handle_in(&mut self.diags);
-            }
+                        Ok(as_u128)
+                    })?
+                    .between(self.file_id, &dot, &index);
+                Ok(Expression::TupleIndex {
+                    target: Box::new(expr.clone()),
+                    index: *index,
+                    deprecated_syntax: false,
+                }
+                .between(self.file_id, &expr, &index))
+            } else {
+                let inst = self.peek_and_eat(&TokenKind::Instance)?;
 
-            // Check if this is a pipeline or not
-            let pipeline_depth = if inst.is_some() {
-                if self.peek_kind(&TokenKind::OpenParen)? {
-                    Some(self.surrounded(
-                        &TokenKind::OpenParen,
-                        |s| s.type_expression(),
-                        &TokenKind::CloseParen,
-                    )?)
+                if let Some(inst) = &inst {
+                    self.unit_context
+                        .allows_inst(().at(self.file_id, inst))
+                        .handle_in(&mut self.diags);
+                }
+
+                // Check if this is a pipeline or not
+                let pipeline_depth = if inst.is_some() {
+                    if self.peek_kind(&TokenKind::OpenParen)? {
+                        Some(self.surrounded(
+                            &TokenKind::OpenParen,
+                            |s| s.type_expression(),
+                            &TokenKind::CloseParen,
+                        )?)
+                    } else {
+                        None
+                    }
                 } else {
                     None
-                }
-            } else {
-                None
-            };
-
-            let field = self.identifier()?;
-
-            let turbofish = self.turbofish()?;
-
-            if let Some(args) = self.argument_list()? {
-                Ok(Expression::MethodCall {
-                    target: Box::new(expr.clone()),
-                    name: field.clone(),
-                    args: args.clone(),
-                    kind: pipeline_depth
-                        .map(|(depth, _)| {
-                            CallKind::Pipeline(().at(self.file_id, &inst.clone().unwrap()), depth)
-                        })
-                        .or_else(|| inst.map(|i| CallKind::Entity(().at(self.file_id, &i))))
-                        .unwrap_or(CallKind::Function),
-                    turbofish,
-                }
-                .between(self.file_id, &expr, &args))
-            } else if let Some(inst_keyword) = inst {
-                let base_loc = ().between(self.file_id, &inst_keyword, &field);
-                let base_expr = if let Some(turbofish) = turbofish {
-                    ().between_locs(&base_loc, &turbofish)
-                } else {
-                    base_loc
                 };
-                Err(ExpectedArgumentList {
-                    next_token: self.peek()?,
-                    base_expr,
+
+                let field = self.identifier()?;
+
+                let turbofish = self.turbofish()?;
+
+                if let Some(args) = self.argument_list()? {
+                    Ok(Expression::MethodCall {
+                        target: Box::new(expr.clone()),
+                        name: field.clone(),
+                        args: args.clone(),
+                        kind: pipeline_depth
+                            .map(|(depth, _)| {
+                                CallKind::Pipeline(
+                                    ().at(self.file_id, &inst.clone().unwrap()),
+                                    depth,
+                                )
+                            })
+                            .or_else(|| inst.map(|i| CallKind::Entity(().at(self.file_id, &i))))
+                            .unwrap_or(CallKind::Function),
+                        turbofish,
+                    }
+                    .between(self.file_id, &expr, &args))
+                } else if let Some(inst_keyword) = inst {
+                    let base_loc = ().between(self.file_id, &inst_keyword, &field);
+                    let base_expr = if let Some(turbofish) = turbofish {
+                        ().between_locs(&base_loc, &turbofish)
+                    } else {
+                        base_loc
+                    };
+                    Err(ExpectedArgumentList {
+                        next_token: self.peek()?,
+                        base_expr,
+                    }
+                    .with_suggestions())
+                } else if let Some(turbofish) = turbofish {
+                    Err(ExpectedArgumentList {
+                        next_token: self.peek()?,
+                        base_expr: ().between(self.file_id, &turbofish, &field),
+                    }
+                    .with_suggestions())
+                } else {
+                    Ok(
+                        Expression::FieldAccess(Box::new(expr.clone()), field.clone()).between(
+                            self.file_id,
+                            &expr,
+                            &field,
+                        ),
+                    )
                 }
-                .with_suggestions())
-            } else if let Some(turbofish) = turbofish {
-                Err(ExpectedArgumentList {
-                    next_token: self.peek()?,
-                    base_expr: ().between(self.file_id, &turbofish, &field),
-                }
-                .with_suggestions())
-            } else {
-                Ok(
-                    Expression::FieldAccess(Box::new(expr.clone()), field.clone()).between(
-                        self.file_id,
-                        &expr,
-                        &field,
-                    ),
-                )
             }
         } else if self.peek_kind(&TokenKind::OpenBracket)? {
             let (inner_expr, loc) = self.surrounded(
@@ -783,12 +813,13 @@ mod test {
 
     #[test]
     fn tuple_indexing_parsese() {
-        let code = "a#0";
+        let code = "a.0";
 
-        let expected = Expression::TupleIndex(
-            Box::new(Expression::Identifier(ast_path("a")).nowhere()),
-            Loc::new(0, ().nowhere().span, 0),
-        )
+        let expected = Expression::TupleIndex {
+            target: Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+            index: Loc::new(0, ().nowhere().span, 0),
+            deprecated_syntax: false,
+        }
         .nowhere();
 
         check_parse!(code, expression, Ok(expected));
@@ -1064,18 +1095,20 @@ mod test {
 
     #[test]
     fn tuple_index_operator_precedence_is_correct() {
-        let code = r#"y#1#2"#;
+        let code = r#"y.1.2"#;
 
-        let expected = Expression::TupleIndex(
-            Box::new(
-                Expression::TupleIndex(
-                    Box::new(Expression::Identifier(ast_path("y")).nowhere()),
-                    1u128.nowhere(),
-                )
+        let expected = Expression::TupleIndex {
+            target: Box::new(
+                Expression::TupleIndex {
+                    target: Box::new(Expression::Identifier(ast_path("y")).nowhere()),
+                    index: 1u128.nowhere(),
+                    deprecated_syntax: false,
+                }
                 .nowhere(),
             ),
-            2.nowhere(),
-        )
+            index: 2.nowhere(),
+            deprecated_syntax: false,
+        }
         .nowhere();
 
         check_parse!(code, expression, Ok(expected));
