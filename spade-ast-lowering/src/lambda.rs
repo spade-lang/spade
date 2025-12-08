@@ -88,7 +88,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     {
         let captures = shared_captures.clone();
         ctx.symtab
-            .new_scope_with_barrier(Box::new(move |name: _, previous, thing| match thing {
+            .new_scope_with_barrier(Box::new(move |_name: _, previous, thing| match thing {
                 spade_hir::symbol_table::Thing::Variable(name) => {
                     captures
                         .lock()
@@ -96,12 +96,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                         .push((name.clone(), previous.clone()));
                     Ok(())
                 }
-                spade_hir::symbol_table::Thing::PipelineStage(_) => Err(Diagnostic::error(
-                    name,
-                    "Pipeline stages cannot cross lambda functions",
-                )
-                .primary_label("Capturing a pipeline stage...")
-                .secondary_label(previous, "That is defined outside the lambda")),
                 spade_hir::symbol_table::Thing::Struct(_)
                 | spade_hir::symbol_table::Thing::EnumVariant(_)
                 | spade_hir::symbol_table::Thing::Unit(_)
@@ -109,6 +103,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     path: _,
                     in_namespace: _,
                 }
+                | spade_hir::symbol_table::Thing::ArrayLabel(_)
                 | spade_hir::symbol_table::Thing::Module(_)
                 | spade_hir::symbol_table::Thing::Dummy(_)
                 | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),

@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+pipeline(0) test(clk: clock) {
+    'label
+    let x = {@label.thing};
+}
+
+
+error: Unexpected type label
+  ┌─ testinput:3:14
+  │
+2 │     'label
+  │     ------ label is defined as a type here
+3 │     let x = {@label.thing};
+  │              ^^^^^^ Unexpected type

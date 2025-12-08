@@ -279,8 +279,8 @@ pub enum Expression {
     BoolLiteral(Loc<bool>),
     StrLiteral(Loc<String>),
     TriLiteral(Loc<BitLiteral>),
-    /// `[1, 2, 3]`
-    ArrayLiteral(Vec<Loc<Expression>>),
+    /// `[1, 2, 3]`. The Option contains a label, if present
+    ArrayLiteral(Vec<(Option<Loc<Identifier>>, Loc<Expression>)>),
     /// `[<expr>; <amount>]`
     /// amount is a const generic
     ArrayShorthandLiteral(Box<Loc<Expression>>, Box<Loc<Expression>>),
@@ -358,6 +358,10 @@ pub enum Expression {
         /// ```
         name: Loc<Identifier>,
     },
+    LabelAccess {
+        label: Loc<Path>,
+        field: Loc<Identifier>,
+    },
     StageValid,
     StageReady,
     StaticUnreachable(Loc<String>),
@@ -414,6 +418,7 @@ impl Expression {
             Expression::Block(_) => "block",
             Expression::Unsafe(_) => "unsafe",
             Expression::PipelineReference { .. } => "pipeline reference",
+            Expression::LabelAccess { .. } => "label access",
             Expression::StageValid => "stage.valid",
             Expression::StageReady => "stage.ready",
             Expression::StaticUnreachable(_) => "static_unreachable",

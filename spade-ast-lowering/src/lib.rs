@@ -14,7 +14,7 @@ use global_symbols::visit_meta_type;
 use impls::visit_impl;
 use itertools::Itertools;
 use lambda::visit_lambda;
-use num::{BigInt, Zero};
+use num::{BigInt, FromPrimitive, Zero};
 use pipelines::PipelineContext;
 use recursive::recursive;
 use spade_diagnostics::codespan::Span;
@@ -108,6 +108,13 @@ impl Context {
         self.symtab.push_namespace(new_ident);
         let result = f(self);
         self.symtab.pop_namespace();
+        result
+    }
+
+    pub fn in_new_scope<T>(&mut self, f: impl Fn(&mut Self) -> T) -> T {
+        self.symtab.new_scope();
+        let result = f(self);
+        self.symtab.close_scope();
         result
     }
 }
@@ -1322,8 +1329,7 @@ pub fn visit_trait_spec(
 ) -> Result<Loc<hir::TraitSpec>> {
     let (name_id, loc) = match ctx.symtab.lookup_trait(&trait_spec.inner.path) {
         Ok(res) => res,
-        Err(LookupError::IsAType(path)) => {
-            let (_, loc) = ctx.symtab.lookup_type_symbol(&path)?;
+        Err(LookupError::IsAType(path, loc)) => {
             return Err(Diagnostic::error(
                 path.clone(),
                 format!("Unexpected type {}, expected a trait", path.inner),
@@ -2029,11 +2035,25 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             Ok(hir::ExprKind::TupleLiteral(exprs))
         }
         ast::Expression::ArrayLiteral(exprs) => {
-            let exprs = exprs
-                .iter()
-                .map(|e| e.visit(visit_expression, ctx))
-                .collect::<Vec<_>>();
-            Ok(hir::ExprKind::ArrayLiteral(exprs))
+            ctx.in_new_scope(|ctx| {
+                // First, resolve any labels we find
+                for (i, (label, _expr)) in exprs.iter().enumerate() {
+                    if let Some(label) = label {
+                        ctx.symtab.add_thing(
+                            Path::ident(label.clone()),
+                            Thing::ArrayLabel(i.at_loc(label)),
+                        );
+                    }
+                }
+
+                // Then generate the result
+                let exprs = exprs
+                    .iter()
+                    .map(|(_label, e)| e.visit(visit_expression, ctx))
+                    .collect::<Vec<_>>();
+
+                Ok(hir::ExprKind::ArrayLiteral(exprs))
+            })
         }
         ast::Expression::ArrayShorthandLiteral(expr, amount) => {
             Ok(hir::ExprKind::ArrayShorthandLiteral(
@@ -2189,7 +2209,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             // If the identifier isn't a valid variable, report as "expected value".
             match ctx.symtab.lookup_variable(path) {
                 Ok(id) => Ok(hir::ExprKind::Identifier(id)),
-                Err(LookupError::IsAType(_)) => {
+                Err(LookupError::IsAType(_, _)) => {
                     let ty = ctx.symtab.lookup_type_symbol(path)?;
                     let (name, ty) = &ty;
                     match ty.inner {
@@ -2305,6 +2325,27 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 declares_name,
                 depth_typeexpr_id: ctx.idtracker.next(),
             })
+        }
+        ast::Expression::LabelAccess { label, field } => {
+            let (_, label_target) = ctx.symtab.lookup_thing(label)?;
+
+            match label_target {
+                Thing::ArrayLabel(val) => match field.0.as_str() {
+                    "index" => Ok(hir::ExprKind::IntLiteral(
+                        BigInt::from_usize(val.inner).unwrap(),
+                        IntLiteralKind::Unsized,
+                    )),
+                    _ => Err(Diagnostic::error(field, "Array labels only support .index")
+                        .primary_label("Unknown field on array label")
+                        .secondary_label(val, "Array label defined here")),
+                },
+                other => Err(Diagnostic::error(
+                    label,
+                    format!("Expected a label, found {}", other.kind_string()),
+                )
+                .primary_label("Expected label")
+                .secondary_label(other.name_loc(), format!("{} is defined here", label))),
+            }
         }
         ast::Expression::StageReady => Ok(hir::ExprKind::StageReady),
         ast::Expression::StageValid => Ok(hir::ExprKind::StageValid),

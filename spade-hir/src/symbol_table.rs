@@ -2,8 +2,6 @@ use colored::Colorize;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
-use tap::prelude::*;
-use tracing::trace;
 
 use spade_common::id_tracker::NameIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
@@ -28,7 +26,7 @@ pub enum LookupError {
     NotAValue(Loc<Path>, Thing),
     NotAComptimeValue(Loc<Path>, Thing),
     NotATrait(Loc<Path>, Thing),
-    IsAType(Loc<Path>),
+    IsAType(Loc<Path>, Loc<()>),
     BarrierError(Diagnostic),
     TooManySuperSegments(Loc<Path>, Loc<Identifier>),
 }
@@ -44,9 +42,10 @@ impl From<LookupError> for Diagnostic {
                 Diagnostic::error(path, format!("Use of {path} before it was decleared"))
                     .primary_label("Undeclared name")
             }
-            LookupError::IsAType(path) => {
+            LookupError::IsAType(path, loc) => {
                 Diagnostic::error(path, format!("Unexpected type {path}"))
                     .primary_label("Unexpected type")
+                    .secondary_label(loc, format!("{path} is defined as a type here"))
             }
             LookupError::BarrierError(diag) => diag.clone(),
             LookupError::NotATypeSymbol(path, got)
@@ -69,7 +68,7 @@ impl From<LookupError> for Diagnostic {
                     LookupError::NotAComptimeValue(_, _) => "a compile time value",
                     LookupError::NotATrait(_, _) => "a trait",
                     LookupError::NoSuchSymbol(_)
-                    | LookupError::IsAType(_)
+                    | LookupError::IsAType(_, _)
                     | LookupError::BarrierError(_)
                     | LookupError::TooManySuperSegments(_, _)
                     | LookupError::NotAThing(_) => unreachable!(),
@@ -210,7 +209,7 @@ pub enum Thing {
         path: Loc<Path>,
         in_namespace: Path,
     },
-    PipelineStage(Loc<Identifier>),
+    ArrayLabel(Loc<usize>),
     Module(Loc<Identifier>),
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
@@ -229,7 +228,7 @@ impl Thing {
             Thing::Variable(_) => "variable",
             Thing::EnumVariant(_) => "enum variant",
             Thing::Alias { .. } => "alias",
-            Thing::PipelineStage(_) => "pipeline stage",
+            Thing::ArrayLabel(_) => "array label",
             Thing::Trait(_) => "trait",
             Thing::Module(_) => "module",
             Thing::Dummy(_) => "dummy (implementation detail)",
@@ -247,7 +246,7 @@ impl Thing {
                 path,
                 in_namespace: _,
             } => path.loc(),
-            Thing::PipelineStage(i) => i.loc(),
+            Thing::ArrayLabel(v) => v.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
             Thing::Dummy(loc) => loc.loc(),
@@ -261,11 +260,11 @@ impl Thing {
             Thing::EnumVariant(v) => v.name.loc(),
             Thing::Unit(f) => f.name.loc(),
             Thing::Variable(v) => v.loc(),
+            Thing::ArrayLabel(l) => l.loc(),
             Thing::Alias {
                 path,
                 in_namespace: _,
             } => path.loc(),
-            Thing::PipelineStage(_) => todo!(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc) => loc.loc(),
             Thing::Dummy(loc) => loc.loc(),
@@ -692,7 +691,20 @@ impl SymbolTable {
             })
             .collect()
     }
+
+    pub fn lookup_thing(&self, path: &Loc<Path>) -> Result<(NameID, &Thing), LookupError> {
+        let id = self.lookup_id(path)?;
+
+        match self.things.get(&id) {
+            Some(thing) => Ok((id, thing)),
+            None => match self.types.get(&id) {
+                Some(ty) => Err(LookupError::IsAType(path.clone(), ty.loc())),
+                None => Err(LookupError::NotAThing(path.clone())),
+            },
+        }
+    }
 }
+
 macro_rules! thing_accessors {
     (
         $(
@@ -720,19 +732,13 @@ macro_rules! thing_accessors {
             /// convertible to the return type.
             #[tracing::instrument(level = "trace", skip_all, fields(%name.inner, %name.span, %name.file_id))]
             pub fn $lookup_name(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
-                let id = self.lookup_id(name).tap(|id| trace!(?id))?;
+                let (id, thing) = self.lookup_thing(name)?;
 
-                match self.things.get(&id).tap(|thing| trace!(?thing)) {
+                match thing {
                     $(
-                        Some($thing) => {Ok((id, $conversion))}
+                        $thing => {Ok((id, $conversion))}
                     )*,
-                    Some(other) => Err(LookupError::$err(name.clone(), other.clone())),
-                    None => {
-                        match self.types.get(&id) {
-                            Some(_) => Err(LookupError::IsAType(name.clone())),
-                            None => Err(LookupError::NotAThing(name.clone()))
-                        }
-                    }
+                    other => Err(LookupError::$err(name.clone(), other.clone())),
                 }
             }
         )*
@@ -817,7 +823,7 @@ impl SymbolTable {
             Err(LookupError::NotAValue(_, _)) => unreachable!(),
             Err(LookupError::NotAComptimeValue(_, _)) => unreachable!(),
             Err(LookupError::NotATrait(_, _)) => unreachable!(),
-            Err(LookupError::IsAType(_)) => unreachable!(),
+            Err(LookupError::IsAType(_, _)) => unreachable!(),
             Err(LookupError::NotAThing(_)) => unreachable!(),
             Err(LookupError::TooManySuperSegments(_, _)) => unreachable!(),
         }
@@ -857,7 +863,7 @@ impl SymbolTable {
             Some(Thing::Variable(_)) => Ok(id),
             Some(other) => Err(LookupError::NotAVariable(name.clone(), other.clone())),
             None => match self.types.get(&id) {
-                Some(_) => Err(LookupError::IsAType(name.clone())),
+                Some(ty) => Err(LookupError::IsAType(name.clone(), ty.loc())),
                 None => Err(LookupError::NotAThing(name.clone())),
             },
         }
@@ -874,7 +880,7 @@ impl SymbolTable {
                 Some(Thing::Variable(_)) => Ok(Some(id)),
                 Some(other) => Err(LookupError::NotAVariable(name.clone(), other.clone())),
                 None => match self.types.get(&id) {
-                    Some(_) => Err(LookupError::IsAType(name.clone())),
+                    Some(ty) => Err(LookupError::IsAType(name.clone(), ty.loc())),
                     None => Ok(None),
                 },
             },
@@ -1079,10 +1085,10 @@ impl SymbolTable {
                 Thing::EnumVariant(_) => println!("enum variant"),
                 Thing::Unit(_) => println!("unit"),
                 Thing::Variable(_) => println!("variable"),
+                Thing::ArrayLabel(_) => println!("array label"),
                 Thing::Alias { path, in_namespace } => {
                     println!("{}", format!("alias => {path} in {in_namespace}").green())
                 }
-                Thing::PipelineStage(stage) => println!("'{stage}"),
                 Thing::Trait(t) => println!("trait {}", t.name),
                 Thing::Module(name) => println!("mod {name}"),
                 Thing::Dummy(name) => println!("{name}"),

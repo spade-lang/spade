@@ -307,6 +307,20 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
+    fn array_label(&mut self) -> Result<Option<Loc<Identifier>>> {
+        if let ref tok @ Token {
+            kind: TokenKind::Label(ref l),
+            ..
+        } = self.peek()?
+        {
+            self.eat_unconditional()?;
+            Ok(Some(Identifier(l.to_string()).at(self.file_id, tok)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[trace_parser]
     fn array_literal(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::OpenBracket);
 
@@ -320,6 +334,7 @@ impl<'a> Parser<'a> {
         }
 
         // non-empty array => must be an expression
+        let first_label = self.array_label()?;
         let first = self.expression()?;
 
         let expr = if self.peek_and_eat(&TokenKind::Semi).unwrap().is_some() {
@@ -328,11 +343,15 @@ impl<'a> Parser<'a> {
         } else {
             // eat comma, if any
             let _ = self.peek_and_eat(&TokenKind::Comma)?;
+
             // now we can continue with the rest of the elements
             let mut inner = self
-                .comma_separated(Self::expression, &TokenKind::CloseBracket)
+                .comma_separated(
+                    |s| Ok((s.array_label()?, s.expression()?)),
+                    &TokenKind::CloseBracket,
+                )
                 .no_context()?;
-            inner.insert(0, first);
+            inner.insert(0, (first_label, first));
             Expression::ArrayLiteral(inner)
         };
 
@@ -752,6 +771,31 @@ impl<'a> Parser<'a> {
             &start.span,
             &end.span,
         )))
+    }
+
+    pub fn label_access(&mut self) -> Result<Option<Loc<Expression>>> {
+        if let ref tok @ Token {
+            kind: TokenKind::LabelRef(ref l),
+            ..
+        } = self.peek()?
+        {
+            self.eat_unconditional()?;
+            self.eat(&TokenKind::Dot)?;
+
+            let field = self.identifier()?;
+
+            let loc = ().between(self.file_id, tok, &field);
+            Ok(Some(
+                Expression::LabelAccess {
+                    label: Path::ident(Identifier(l.clone()).at(self.file_id, tok))
+                        .at(self.file_id, tok),
+                    field,
+                }
+                .at_loc(&loc),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     #[trace_parser]
