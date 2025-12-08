@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/ast_lowering.rs
+expression: "format! (\"{}\", items [0])"
+---
+entity \test () -> [uint<8>; 4] {
+	const e3: uint<8> = 0
+	const e4: uint<8> = 0
+	const e5: uint<8> = 3
+	const e6: uint<8> = 10
+	let e2: [uint<8>; 4] = ConstructArray(e3, e4, e5, e6)
+} => e2

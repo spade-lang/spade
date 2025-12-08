@@ -112,8 +112,8 @@ impl ServerBackend {
             } => {
                 format!("alias for {path}")
             }
-            symbol_table::Thing::PipelineStage(_) => {
-                format!("(pipeline stage)")
+            symbol_table::Thing::ArrayLabel(value) => {
+                format!("Array label: {value}")
             }
             symbol_table::Thing::Module(_) => {
                 format!("(module)")

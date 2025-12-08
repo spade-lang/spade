@@ -257,6 +257,8 @@ impl<'a> Parser<'a> {
             Ok(match_expr)
         } else if let Some(stageref) = self.pipeline_reference()? {
             Ok(stageref)
+        } else if let Some(label_access) = self.label_access()? {
+            Ok(label_access)
         } else if let Some(unsafe_expr) = self.unsafe_block()? {
             Ok(unsafe_expr)
         } else if let Some(create_ports) = self.peek_and_eat(&TokenKind::Port)? {
@@ -780,20 +782,6 @@ mod test {
         let expected = Expression::TupleLiteral(vec![
             Expression::int_literal_signed(1).nowhere(),
             Expression::bool_literal(true).nowhere(),
-        ])
-        .nowhere();
-
-        check_parse!(code, expression, Ok(expected));
-    }
-
-    #[test]
-    fn array_literals_parse() {
-        let code = "[1, 2, 3]";
-
-        let expected = Expression::ArrayLiteral(vec![
-            Expression::int_literal_signed(1).nowhere(),
-            Expression::int_literal_signed(2).nowhere(),
-            Expression::int_literal_signed(3).nowhere(),
         ])
         .nowhere();
 

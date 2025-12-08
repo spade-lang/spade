@@ -1516,3 +1516,44 @@ snapshot_mir! {
     ",
     all
 }
+
+snapshot_mir! {
+    array_labels_work,
+    "
+        fn test() -> [uint<8>; 4]{
+            [
+                'a 0,
+                @a.index,
+                @b.index,
+                'b 10
+            ]
+        }
+    "
+}
+
+snapshot_mir! {
+    array_labels_work2,
+    "
+        mod test {
+            fn test() {
+                let _: [uint<8>; _] = [
+                    'first
+                    @first.index,
+                ];
+            }
+        }
+    "
+}
+
+// NOTE: This error is awful, but i'm keeping it here for completion and to make sure
+// things at least error. We should fix it, but at the moment pipeline stage references
+// are just generic types with no label to indicate what they are
+snapshot_error! {
+    pipeline_label_field_access_gives_good_error,
+    "
+        pipeline(0) test(clk: clock) {
+            'label
+            let x = {@label.thing};
+        }
+    "
+}
