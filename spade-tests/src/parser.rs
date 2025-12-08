@@ -985,6 +985,7 @@ snapshot_error! {
             let y = b'\\a';
             let z = b'abc';
             let w = b'ö';
+            let z = b'\\'';
         }
     "
 }

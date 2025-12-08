@@ -231,7 +231,7 @@ pub enum TokenKind {
     #[regex(r#"'[\p{XID_Start}_]\p{XID_Continue}*"#, |lex| lex.slice()[1..].to_string())]
     Label(String),
 
-    #[regex(r#"b'[^']*'"#, |lex| lex.slice().replace("'", "")[1..].to_string())]
+    #[regex(r#"b'(\\.|[^\\'])*'"#, |lex| lex.slice()[2..(lex.slice().len() - 1)].to_string())]
     AsciiCharLiteral(String),
     // Not actually used in the language at the moment, hence the lack of inner
     // content. It is just used to hint to the user to use b'...'
@@ -354,7 +354,7 @@ impl TokenKind {
             TokenKind::Eof => "end of file",
 
             TokenKind::Label(_) => "label",
-            
+
             TokenKind::AsciiCharLiteral(_) => "ASCII char literal",
             TokenKind::Utf8CharLiteral => "Unicode char literal",
             TokenKind::String(_) => "string",

@@ -98,7 +98,7 @@ pub struct Parser<'a> {
     file_id: usize,
     unit_context: Option<Loc<UnitKind>>,
     pub diags: DiagList,
-    recovering_tokens: Vec<fn(&TokenKind) -> bool >,
+    recovering_tokens: Vec<fn(&TokenKind) -> bool>,
     comments: Vec<Comment>,
 }
 
@@ -369,6 +369,7 @@ impl<'a> Parser<'a> {
             "\\t" => b'\t',
             "\\n" => b'\n',
             "\\r" => b'\r',
+            "\\'" => b'\'',
 
             other => {
                 if other.len() == 2 && other.starts_with('\\') {
@@ -379,7 +380,7 @@ impl<'a> Parser<'a> {
                             other.chars().skip(1).next().unwrap()
                         ),
                     ));
-                } else if other.len() != 1 {
+                } else if other.len() > 1 {
                     return Err(Diagnostic::error(
                         next,
                         "Only a single character is supported in ASCII char literals.",
@@ -2265,7 +2266,9 @@ impl<'a> Parser<'a> {
             }
         };
         // Pop the newly added continuations
-        let _ = self.recovering_tokens.split_off(self.recovering_tokens.len() - new_continuations);
+        let _ = self
+            .recovering_tokens
+            .split_off(self.recovering_tokens.len() - new_continuations);
         result
     }
 }
