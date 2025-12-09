@@ -224,7 +224,7 @@ test:coverage:
         - apt-get install -y pkg-config
         # spade-python currently does not build with tarpaulin, but we also don't
         # have many tests there so we'll ignore it
-        - cargo tarpaulin --locked --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --target-dir target/tarpaulin
+        - cargo tarpaulin --locked --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --target-dir target/tarpaulin --engine llvm
     coverage: '/^\d+.\d+% coverage/'
     artifacts:
         reports:
