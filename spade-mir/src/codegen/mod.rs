@@ -1174,11 +1174,15 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     // https://electronics.stackexchange.com/questions/99223/relation-between-delta-cycle-and-event-scheduling-in-verilog-simulation
                     [1] "#0";
                     [1] format!("assert ({val_var})");
+                    [1] "`ifndef NO_PRETTY_ASSERT";
                     [1] "else begin";
                         [2] msg;
                         [2] r#"$error("Assertion failed");"#;
                         [2] r#"$fatal(1);"#;
                     [1] "end";
+                    [1] "`else";
+                        [2] ";";
+                    [1] "`endif";
                 [0] "end";
                 [0] format!("`endif")
             }
@@ -3371,6 +3375,7 @@ mod expression_tests {
             always @(_e_0) begin
                 #0
                 assert (_e_0)
+                `ifndef NO_PRETTY_ASSERT
                 else begin
                     $display(\"\x1b[0m\x1b[1m\x1b[38;5;9merror\x1b[0m\x1b[1m: Assertion failed\x1b[0m\");
                     $display(\"  \x1b[0m\x1b[34m┌─\x1b[0m <str>:1:2\");
@@ -3381,6 +3386,9 @@ mod expression_tests {
                     $error(\"Assertion failed\");
                     $fatal(1);
                 end
+                `else
+                    ;
+                `endif
             end
             `endif"
         };
