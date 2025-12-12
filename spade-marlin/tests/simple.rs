@@ -15,8 +15,8 @@ fn raw_verilator_interface() -> Result<(), Whatever> {
 
     let mut main = Main::new_simple(&runtime)?;
 
-    main.verilator.x_i = 5;
-    main.verilator.y_i = 6;
+    main.i.x = 5u32.into();
+    main.i.y = 6u32.into();
 
     main.eval();
 

@@ -202,7 +202,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let mut ports = vec![];
     let mut input_fields = vec![];
     let mut extra_init = vec![];
-    // let mut pre_hooks = vec![];
+    let mut pre_hooks = vec![];
     let mut post_hooks = vec![];
     for ((name, hir_type), param) in
         top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone())
@@ -230,8 +230,8 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
         if size != 0 {
             ports.push(
                 (
-                    verilog_name.clone(),
-                    size,
+                    verilog_name.clone(), // Inclusive, like Verilog
+                    size - 1,
                     0,
                     PortDirection::Input,
                 ),
@@ -248,7 +248,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             ports.push(
                 (
                     back_name.clone(),
-                    back_size,
+                    back_size - 1, // Inclusive, like Verilog
                     0,
                     PortDirection::Output,
                 )
@@ -263,6 +263,16 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
         extra_init.push(quote! {
             #field_name: Default::default()
         });
+
+        if size != 0 {
+            let verilog_name = format_ident!("{verilog_name}");
+            let num_u32_chunks = back_size / 32 + 1;
+            pre_hooks.push(quote!{
+                let mut buffer = [0; #num_u32_chunks];
+                crate::spade::type_translation::SpadeType::to_verilator_value(&mut self.i.#field_name, 0, &mut buffer);
+                spade_marlin::type_ext::IntoU32s::update_from_u32(&mut self.verilator.#verilog_name, &buffer);
+            });
+        }
 
         if back_size != 0 {
             let verilog_name = format_ident!("{back_name}");
@@ -323,7 +333,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             }
 
             pub fn eval(&mut self) {
-                // #(#pre_hooks);*
+                #(#pre_hooks);*
                 self.verilator.eval();
                 #(#post_hooks);*
             }
