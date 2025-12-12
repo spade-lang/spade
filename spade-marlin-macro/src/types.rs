@@ -297,6 +297,10 @@ impl TypeDeclarationExt for TypeDeclaration {
                             let mut local_offset = 0;
                             #(#field_updaters);*
                         }
+
+                        fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]) {
+                            unimplemented!("to_verilator_value is not implemented for structs yet")
+                        }
                     }
                 };
                 Some(def)

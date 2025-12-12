@@ -1,16 +1,19 @@
-pub trait SpadeType : Default {
+use crate::type_ext::IntoU32s;
+
+pub trait SpadeType: Default {
     fn size() -> usize;
     fn backward_size() -> usize;
 
-    /// Update the value of this type based on the `bits`. The `start_bit` and `end_bit` parameters
-    /// are the bit offsets at which this value starts in `bits`. `start_bit` must be respected, but
-    /// `end_bit` can be ignored _if_ the type knows its own size. It is there for types like `uN` which
-    /// do not know the size of their underlying Spade value
-    fn from_verilator_value(
-        &mut self,
-        bit_offset: usize,
-        bits: &[u32],
-    );
+    /// Update the value of this type from the bits stored at `bit_offset`
+    /// until `bit_offset + Self::size()` /// in `bits`. The caller must ensure
+    /// that the total number of bits is at least `bit_offset + Self::size()`
+    fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]);
+
+    /// Write the value of this type into `target` starting at `bit_offset`. The
+    /// caller must ensure that the `target` has enough bits, and the implementor
+    /// must ensure that only bits between `bit_offset` and `bit_offset` + `Self::size()`
+    /// are affected.
+    fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]);
 }
 
 /// Shifts value of the little endian vector `bits` `shift_amount` bits towards the little end
@@ -29,7 +32,50 @@ fn u32_shift_to_le(bits: &[u32], shift_amount: usize, out: &mut [u32]) {
                 0
             };
             out[i] = subslice[i] >> sub_shift_amount | extra;
-        } 
+        }
+    }
+}
+
+fn u32_shift_to_be(bits: &[u32], shift_amount: usize, out: &mut [u32]) {
+    let word_shift_amount = shift_amount / 32;
+    for word in out.iter_mut() {
+        *word = 0;
+    }
+    let sub_shift_amount = shift_amount % 32;
+    let subslice = &mut out[word_shift_amount..];
+    if sub_shift_amount != 0 {
+        let mut remainder = 0;
+        for word in 0..subslice.len() {
+            subslice[word] |= remainder | (bits[word] << sub_shift_amount);
+            remainder = bits[word] >> (32 - sub_shift_amount);
+        }
+    } else {
+        // TODO: Something is off about the word order here
+        println!("amount {word_shift_amount}");
+        for i in 0..(bits.len()) {
+            println!("i: {i}");
+            if i + word_shift_amount >= out.len() {
+                break;
+            }
+            println!("Setting at out[{}] to {}", i + word_shift_amount, bits[i]);
+            out[i + word_shift_amount] = bits[i];
+        }
+    }
+}
+
+fn replace_in_u32s(source: &[u32], bit_offset: usize, width: usize, dest: &mut [u32]) {
+    let masks = (0..(width / 32)).map(|_| !0u32).chain([((1u64 << width % 32) - 1) as u32]).collect::<Vec<_>>();
+    let mut shift_buffer = vec![0; dest.len()];
+    let mut mask_buffer = vec![0; dest.len()];
+    println!("{source:?}, {shift_buffer:?} {bit_offset}");
+    u32_shift_to_be(source, bit_offset, &mut shift_buffer);
+    u32_shift_to_be(&masks, bit_offset, &mut mask_buffer);
+
+    for (i, (value, mask)) in shift_buffer.iter().zip(mask_buffer).enumerate() {
+        dest[i] &= !mask;
+        dest[i] |= value;
+
+        println!("{value:b} {mask:b}")
     }
 }
 
@@ -52,7 +98,6 @@ impl<const N: u64> std::fmt::Display for SpadeUint<N> {
     }
 }
 
-
 impl<const N: u64> SpadeType for SpadeUint<N> {
     fn size() -> usize {
         N as usize
@@ -62,23 +107,24 @@ impl<const N: u64> SpadeType for SpadeUint<N> {
         0
     }
 
-    fn from_verilator_value(
-        &mut self,
-        bit_offset: usize,
-        bits: &[u32],
-    ) {
+    fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
         // FIXME: I wonder if we could avoid this allocation somehow
         let mut buff = vec![0; N as usize];
         u32_shift_to_le(bits, bit_offset, &mut buff);
 
+        // TODO: Test the extremes of this
         let mask = (1u64 << N % 32) - 1;
         if N > 32 {
             self.inner = (((buff[1]) as u64) & mask) << 32 | buff[0] as u64;
-            
         } else {
             self.inner = buff[0] as u64 & mask;
         }
+    }
 
+    fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]) {
+        let mut buffer = [0; 2];
+        self.inner.populate_u32(&mut buffer);
+        replace_in_u32s(&buffer, bit_offset, Self::size(), target);
     }
 }
 
@@ -87,7 +133,9 @@ macro_rules! uint_methods {
         impl<const N: u64> From<$ty> for SpadeUint<N> {
             fn from(value: $ty) -> Self {
                 // TODO: Panic if the value does not fit
-                SpadeUint::<N>{inner: value as u64}
+                SpadeUint::<N> {
+                    inner: value as u64,
+                }
             }
         }
 
@@ -96,13 +144,12 @@ macro_rules! uint_methods {
                 self.inner == *other as u64
             }
         }
-    }
+    };
 }
 uint_methods!(u8);
 uint_methods!(u16);
 uint_methods!(u32);
 uint_methods!(u64);
-
 
 impl SpadeType for bool {
     fn size() -> usize {
@@ -113,14 +160,19 @@ impl SpadeType for bool {
         0
     }
 
-    fn from_verilator_value(
-        &mut self,
-        bit_offset: usize,
-        bits: &[u32],
-    ) {
+    fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
         let mut buff = [0; 1];
         u32_shift_to_le(bits, bit_offset, &mut buff);
         *self = buff[0] & 1 == 1
+    }
+
+    fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]) {
+        let mask = 1 << bit_offset % 32;
+        if *self {
+            target[bit_offset / 32] |= mask
+        } else {
+            target[bit_offset / 32] &= !mask;
+        }
     }
 }
 
@@ -157,11 +209,23 @@ macro_rules! tuple_methods {
                 )*
                 let _ = bit_offset;
             }
+
+            fn to_verilator_value(&self, mut bit_offset: usize, target: &mut [u32]) {
+                // Tuple packing has left hand element on the msb side
+                bit_offset = bit_offset + Self::size();
+
+                #[allow(non_snake_case)]
+                let ($($param),*) = self;
+                $(
+                    bit_offset -= $param::size();
+                    $param.to_verilator_value(bit_offset, target);
+                )*
+                let _ = bit_offset;
+            }
         }
     };
 }
 tuple_methods!((T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11));
-
 
 impl<T: SpadeType> SpadeType for Option<T> {
     fn size() -> usize {
@@ -172,11 +236,7 @@ impl<T: SpadeType> SpadeType for Option<T> {
         0
     }
 
-    fn from_verilator_value(
-        &mut self,
-        bit_offset: usize,
-        bits: &[u32],
-    ) {
+    fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
         let mut buff = vec![0; Self::size()];
         u32_shift_to_le(bits, bit_offset + T::size(), &mut buff);
         *self = if buff[0] & 1 == 1 {
@@ -187,9 +247,11 @@ impl<T: SpadeType> SpadeType for Option<T> {
             None
         }
     }
+
+    fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]) {
+        unimplemented!("To verilator value is not implemented for option yet")
+    }
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -212,5 +274,26 @@ mod test {
         //  0x0000_0000 0000 0007 C000 0000
         u32_shift_to_le(&input, 33, &mut buff);
         assert_eq!(buff, [0xC000_0000, 0x0000_007, 0].as_slice());
+    }
+
+    #[test]
+    fn u32_shift_left_test() {
+        //  0x0000_000f 8000_0001 f000_0000
+        let input = [0xf000_0000, 0x8000_0001, 0x0000_000f];
+
+        let mut buff = [0; 3];
+
+        //  0x000f_8000 0001_f000 0000_0000
+        u32_shift_to_be(&input, 16, &mut buff);
+        assert_eq!(buff, [0, 0x001_f000, 0x000f_8000].as_slice());
+
+        //  0x8000_0001 f000_0000 0000_0000
+        u32_shift_to_be(&input, 32, &mut buff);
+        assert_eq!(buff, [0, 0xf000_0000, 0x8000_0001].as_slice());
+
+        //  0x0000_0003 e000_0000 0000_0000
+        u32_shift_to_be(&input, 33, &mut buff);
+        assert_eq!(buff, [0, 0xe000_0000, 0x0000_0003].as_slice());
+       
     }
 }
