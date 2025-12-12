@@ -7,6 +7,7 @@
 //! Spade integration for Marlin.
 
 pub mod type_translation;
+pub mod type_ext;
 
 use std::{env::current_dir, ffi::OsString, fs, process::Command};
 

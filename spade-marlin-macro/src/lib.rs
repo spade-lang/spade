@@ -248,7 +248,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             ports.push(
                 (
                     back_name.clone(),
-                    size,
+                    back_size,
                     0,
                     PortDirection::Output,
                 )
@@ -269,7 +269,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             let num_u32_chunks = back_size / 32 + 1;
             post_hooks.push(quote!{
                 let mut buffer = [0; #num_u32_chunks];
-                marlin::verilator::types::IntoU32s::populate_u32(&self.#verilog_name, &mut buffer);
+                spade_marlin::type_ext::IntoU32s::populate_u32(&self.verilator.#verilog_name, &mut buffer);
                 crate::spade::type_translation::SpadeType::update_value(&mut self.#field_name, 0, &mut buffer)
             });
         }
@@ -305,22 +305,22 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             // NOTE: This relies on Marlin internals for now
             /// Provides access to the underlying marlin Verilator wrapper
             pub verilator: #mod_name :: #struct_name<'a>,
-            // #(#extra_fields),*
+            #(#extra_fields),*
         }
 
         impl<'a> #struct_name<'a> {
             pub fn new_simple(runtime: &'a SpadeRuntime) -> Result<Self, snafu::Whatever> {
                 let model = runtime.create_model_simple()?;
                 Ok(Self {
-                    // #(#extra_init),*
-                    verilator: model
+                    verilator: model,
+                    #(#extra_init),*
                 })
             }
 
             pub fn eval(&mut self) {
                 // #(#pre_hooks);*
                 self.verilator.eval();
-                // #(#post_hooks);*
+                #(#post_hooks);*
             }
         }
     };
