@@ -273,7 +273,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                     let name = &param.name.mirror();
                     let ty = param.ty.mirror_with_turbofish(primitive_map);
                     quote! {
-                        self.#name.update_value(bit_offset + local_offset, bits);
+                        self.#name.from_verilator_value(bit_offset + local_offset, bits);
                         local_offset += #ty :: size();
                     }
                 });
@@ -293,7 +293,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                             #(#backward_sizes)+*
                         }
 
-                        fn update_value(&mut self, bit_offset: usize, bits: &[u32]) {
+                        fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
                             let mut local_offset = 0;
                             #(#field_updaters);*
                         }

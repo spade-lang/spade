@@ -6,7 +6,7 @@ pub trait SpadeType : Default {
     /// are the bit offsets at which this value starts in `bits`. `start_bit` must be respected, but
     /// `end_bit` can be ignored _if_ the type knows its own size. It is there for types like `uN` which
     /// do not know the size of their underlying Spade value
-    fn update_value(
+    fn from_verilator_value(
         &mut self,
         bit_offset: usize,
         bits: &[u32],
@@ -62,7 +62,7 @@ impl<const N: u64> SpadeType for SpadeUint<N> {
         0
     }
 
-    fn update_value(
+    fn from_verilator_value(
         &mut self,
         bit_offset: usize,
         bits: &[u32],
@@ -113,7 +113,7 @@ impl SpadeType for bool {
         0
     }
 
-    fn update_value(
+    fn from_verilator_value(
         &mut self,
         bit_offset: usize,
         bits: &[u32],
@@ -145,13 +145,15 @@ macro_rules! tuple_methods {
                 $($param::backward_size() +)* 0
             }
 
-            fn update_value(&mut self, mut bit_offset: usize, bits: &[u32]) {
+            fn from_verilator_value(&mut self, mut bit_offset: usize, bits: &[u32]) {
+                // Tuple packing has left hand element on the msb side
                 bit_offset = bit_offset + Self::size();
+
                 #[allow(non_snake_case)]
                 let ($($param),*) = self;
                 $(
                     bit_offset -= $param::size();
-                    $param.update_value(bit_offset, bits);
+                    $param.from_verilator_value(bit_offset, bits);
                 )*
                 let _ = bit_offset;
             }
@@ -170,7 +172,7 @@ impl<T: SpadeType> SpadeType for Option<T> {
         0
     }
 
-    fn update_value(
+    fn from_verilator_value(
         &mut self,
         bit_offset: usize,
         bits: &[u32],
@@ -179,7 +181,7 @@ impl<T: SpadeType> SpadeType for Option<T> {
         u32_shift_to_le(bits, bit_offset + T::size(), &mut buff);
         *self = if buff[0] & 1 == 1 {
             let mut inner = T::default();
-            inner.update_value(bit_offset, bits);
+            inner.from_verilator_value(bit_offset, bits);
             Some(inner)
         } else {
             None

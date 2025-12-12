@@ -41,13 +41,13 @@ fn option_out_works() -> Result<(), Whatever> {
 
     main.eval();
 
-    assert_eq!(main.result, Some(10u8.into()));
+    assert_eq!(main.i.result, Some(10u8.into()));
 
     main.verilator.valid_i = 0;
 
     main.eval();
 
-    assert_eq!(main.result, None);
+    assert_eq!(main.i.result, None);
 
     Ok(())
 }
@@ -69,7 +69,7 @@ fn tuple_out_works() -> Result<(), Whatever> {
 
     println!("Raw value from verilator: {:x}", main.verilator.result_o);
 
-    assert_eq!(main.result, (10u8.into(), 1u8.into()));
+    assert_eq!(main.i.result, (10u8.into(), 1u8.into()));
 
     Ok(())
 }

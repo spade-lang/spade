@@ -200,7 +200,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let mut ports = vec![];
-    let mut extra_fields = vec![];
+    let mut input_fields = vec![];
     let mut extra_init = vec![];
     // let mut pre_hooks = vec![];
     let mut post_hooks = vec![];
@@ -257,7 +257,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
         let field_name = format_ident!("{}", param.name.inner.0);
         let field_ty = hir_type.mirror(&primitive_map);
-        extra_fields.push(quote! {
+        input_fields.push(quote! {
             pub #field_name: #field_ty
         });
         extra_init.push(quote! {
@@ -270,7 +270,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             post_hooks.push(quote!{
                 let mut buffer = [0; #num_u32_chunks];
                 spade_marlin::type_ext::IntoU32s::populate_u32(&self.verilator.#verilog_name, &mut buffer);
-                crate::spade::type_translation::SpadeType::update_value(&mut self.#field_name, 0, &mut buffer)
+                crate::spade::type_translation::SpadeType::from_verilator_value(&mut self.i.#field_name, 0, &mut buffer)
             });
         }
     }
@@ -301,11 +301,14 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let mod_name = format_ident!("{}_impl", struct_name);
 
     let spade_wrapper = quote! {
+        struct Inputs {
+            #(#input_fields),*
+        }
         struct #struct_name<'a> {
             // NOTE: This relies on Marlin internals for now
             /// Provides access to the underlying marlin Verilator wrapper
             pub verilator: #mod_name :: #struct_name<'a>,
-            #(#extra_fields),*
+            pub i: Inputs,
         }
 
         impl<'a> #struct_name<'a> {
@@ -313,7 +316,9 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 let model = runtime.create_model_simple()?;
                 Ok(Self {
                     verilator: model,
-                    #(#extra_init),*
+                    i: Inputs {
+                        #(#extra_init),*
+                    }
                 })
             }
 
