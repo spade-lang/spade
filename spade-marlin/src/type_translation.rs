@@ -13,13 +13,23 @@ pub trait SpadeType : Default {
     );
 }
 
-fn get_unaligned_u32(bit_offset: usize, bits: &[u32]) -> u32 {
-    let start_idx = bit_offset / 32;
-    let shift_amount = bit_offset % 32;
-    if shift_amount == 0 {
-        bits[start_idx]
+/// Shifts value of the little endian vector `bits` `shift_amount` bits towards the little end
+fn u32_shift_to_le(bits: &[u32], shift_amount: usize, out: &mut [u32]) {
+    let word_shift_amount = shift_amount / 32;
+    let subslice = &bits[word_shift_amount..];
+    let sub_shift_amount = shift_amount % 32;
+
+    if sub_shift_amount == 0 {
+        out[0..subslice.len()].clone_from_slice(subslice);
     } else {
-        bits[start_idx] >> shift_amount | bits[start_idx + 1] << (32 - shift_amount)
+        for i in 0..subslice.len() {
+            let extra = if i < subslice.len() - 1 {
+                subslice[i + 1] << (32 - sub_shift_amount)
+            } else {
+                0
+            };
+            out[i] = subslice[i] >> sub_shift_amount | extra;
+        } 
     }
 }
 
@@ -57,15 +67,18 @@ impl<const N: u64> SpadeType for SpadeUint<N> {
         bit_offset: usize,
         bits: &[u32],
     ) {
-        let raw_inner = if N <= 32 {
-            get_unaligned_u32(bit_offset, bits) as u64
+        // FIXME: I wonder if we could avoid this allocation somehow
+        let mut buff = vec![0; N as usize];
+        u32_shift_to_le(bits, bit_offset, &mut buff);
+
+        let mask = (1u64 << N % 32) - 1;
+        if N > 32 {
+            self.inner = (((buff[1]) as u64) & mask) << 32 | buff[0] as u64;
+            
         } else {
-            get_unaligned_u32(bit_offset, bits) as u64 | (get_unaligned_u32(bit_offset + 32, bits) as u64) << 32
-        };
+            self.inner = buff[0] as u64 & mask;
+        }
 
-        let mask = (1 << Self::size()) - 1;
-
-        self.inner = raw_inner & mask
     }
 }
 
@@ -105,9 +118,48 @@ impl SpadeType for bool {
         bit_offset: usize,
         bits: &[u32],
     ) {
-        *self = get_unaligned_u32(bit_offset, bits) | 1 == 1
+        let mut buff = [0; 1];
+        u32_shift_to_le(bits, bit_offset, &mut buff);
+        *self = buff[0] & 1 == 1
     }
 }
+
+macro_rules! tuple_methods {
+    // Recursion base case, we don't impl it for the unit type here
+    (($first:ident)) => {};
+
+    ( ( $first:ident, $($rest:ident),* ) ) => {
+        tuple_methods!(# ($first, $($rest),*));
+        tuple_methods!(( $($rest),* ));
+    };
+
+    (# ($($param:ident),*)) => {
+        impl<$($param),*> SpadeType for ($($param),*)
+        where $($param: SpadeType + Default),*
+        {
+            fn size() -> usize {
+                $($param::size() +)* 0
+            }
+
+            fn backward_size() -> usize {
+                $($param::backward_size() +)* 0
+            }
+
+            fn update_value(&mut self, mut bit_offset: usize, bits: &[u32]) {
+                bit_offset = bit_offset + Self::size();
+                #[allow(non_snake_case)]
+                let ($($param),*) = self;
+                $(
+                    bit_offset -= $param::size();
+                    $param.update_value(bit_offset, bits);
+                )*
+                let _ = bit_offset;
+            }
+        }
+    };
+}
+tuple_methods!((T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11));
+
 
 impl<T: SpadeType> SpadeType for Option<T> {
     fn size() -> usize {
@@ -123,15 +175,12 @@ impl<T: SpadeType> SpadeType for Option<T> {
         bit_offset: usize,
         bits: &[u32],
     ) {
-        if bit_offset > 32 {
-            unimplemented!("Option with > 32 size is not supported")
-        }
-        let tag_offset = bit_offset + T::size();
-        let tag = (bits[0] >> tag_offset) & 1 == 1;
-        *self = if tag {
-            let mut result = T::default();
-            result.update_value(bit_offset, bits);
-            Some(result)
+        let mut buff = vec![0; Self::size()];
+        u32_shift_to_le(bits, bit_offset + T::size(), &mut buff);
+        *self = if buff[0] & 1 == 1 {
+            let mut inner = T::default();
+            inner.update_value(bit_offset, bits);
+            Some(inner)
         } else {
             None
         }
@@ -139,3 +188,27 @@ impl<T: SpadeType> SpadeType for Option<T> {
 }
 
 
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn u32_shift_right_test() {
+        //  0x0000_000f 8000_0001 0000_0000
+        let input = [0, 0x8000_0001, 0x0000_000f];
+
+        let mut buff = [0; 3];
+
+        //  0x0000_0000 000f_8000 0001_0000
+        u32_shift_to_le(&input, 16, &mut buff);
+        assert_eq!(buff, [0x0001_0000, 0x00f_8000, 0].as_slice());
+
+        //  0x0000_0000 0000 000f 8000 0001
+        u32_shift_to_le(&input, 32, &mut buff);
+        assert_eq!(buff, [0x8000_0001, 0x0000_000f, 0].as_slice());
+
+        //  0x0000_0000 0000 0007 C000 0000
+        u32_shift_to_le(&input, 33, &mut buff);
+        assert_eq!(buff, [0xC000_0000, 0x0000_007, 0].as_slice());
+    }
+}
