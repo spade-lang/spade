@@ -21,7 +21,7 @@ spade-hir-lowering.path = "../spade-hir-lowering"
 spade-types.path = "../spade-types"
 spade-query.workspace = true
 spade-codespan.workspace = true
-camino = { version = "1.1.10", features = ["serde1"] }
+camino.workspace = true
 ecolor = { version = "0.31.1", features = ["serde"] }
 log = "0.4.27"
 num.workspace = true
