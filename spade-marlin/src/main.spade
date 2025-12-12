@@ -1,0 +1,3 @@
+entity add(x: uint<8>, y: uint<8>, result: inv &uint<9>) {
+    set result = &(x + y);
+}

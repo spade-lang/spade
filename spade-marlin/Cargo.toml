@@ -1,0 +1,21 @@
+[package]
+name = "spade-marlin"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+spade-marlin-macro.workspace = true
+
+camino = "1.2.1"
+glob = "0.3.3"
+libloading = "0.8.9"
+log = "0.4.29"
+marlin-verilator.workspace = true
+toml = "0.9.8"
+snafu = "0.8.9"
+marlin = "0.10.0"
