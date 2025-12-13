@@ -1962,8 +1962,10 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         ast::Expression::BoolLiteral(val) => Ok(hir::ExprKind::BoolLiteral(val.inner)),
         ast::Expression::StrLiteral(val) => Err(Diagnostic::error(
             val,
-            "Strings are not supported inside expressions",
-        )),
+            "Unicode strings are not supported inside expressions",
+        )
+        .primary_label("Unicode strings are not supported in expressions")
+        .span_suggest_insert_before("Consider using an ASCII string", val, "b")),
         ast::Expression::TriLiteral(lit) => {
             let result = match lit.inner {
                 ast::BitLiteral::Low => hir::expression::TriLiteral::Low,

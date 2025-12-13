@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/parser.rs
+expression: "format! (\"{}\", items [0])"
+---
+entity \test () -> () {
+	const e3: uint<8> = 97
+	const e4: uint<8> = 98
+	const e5: uint<8> = 99
+	const e6: uint<8> = 34
+	let e2: [uint<8>; 4] = ConstructArray(e3, e4, e5, e6)
+	let x_n13: [uint<8>; 4] = Alias(e2)
+	const e8: uint<8> = 39
+	let y_n14: uint<8> = Alias(e8)
+} => e1

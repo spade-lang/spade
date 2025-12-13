@@ -360,6 +360,78 @@ impl<'a> Parser<'a> {
         Ok(Some(expr.between(self.file_id, &start, &end)))
     }
 
+    fn map_escape_char(c: Loc<char>, string_delimiter: char) -> Result<char> {
+        match c.inner {
+            '0' => Ok('\0'),
+            't' => Ok('\t'),
+            'n' => Ok('\n'),
+            'r' => Ok('\r'),
+            other if other == string_delimiter => Ok(string_delimiter),
+            other => Err(Diagnostic::error(
+                c.loc(),
+                format!("{} is not a valid byte escape character", other),
+            )),
+        }
+    }
+
+    fn ascii_string_literal(&mut self) -> Result<Option<Loc<Expression>>> {
+        let next = self.peek()?;
+        let TokenKind::AsciiStringLiteral(val) = &next.kind else {
+            return Ok(None);
+        };
+
+        self.eat_unconditional()?;
+
+        let mut escape_next = false;
+        let array_elements = val
+            .char_indices()
+            .map(|(i, c)| {
+                // +1 because the token starts with b"
+                let span = (next.span.start + i + 2)..(next.span.start + i + 2 + c.len_utf8());
+                let loc = ().at(self.file_id, &span);
+                if !c.is_ascii() {
+                    return Err(Diagnostic::error(
+                        loc,
+                        "ASCII literals can only contain ASCII value, not unicode",
+                    )
+                    .primary_label("Unicode character in ASCII literal"));
+                }
+
+                let result;
+                (escape_next, result) = match (escape_next, c) {
+                    (false, '\\') => (true, None),
+                    (true, esc) => (false, Some(Self::map_escape_char(esc.at_loc(&loc), '"')?)),
+                    (_, other) => (false, Some(other)),
+                };
+                Ok(result.map(|c| c.at_loc(&loc)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let elems = array_elements
+            .iter()
+            .filter_map(|maybe_loc_c| {
+                maybe_loc_c.map(|loc_c| {
+                    let mut byte = [0; 1];
+                    loc_c.inner.encode_utf8(&mut byte);
+                    (
+                        None,
+                        Expression::IntLiteral(
+                            IntLiteral::Unsigned {
+                                val: byte[0].to_biguint(),
+                                size: 8u32.to_biguint(),
+                            }
+                            .at_loc(&loc_c),
+                        )
+                        .at_loc(&loc_c),
+                    )
+                })
+            })
+            .collect();
+        Ok(Some(
+            Expression::ArrayLiteral(elems).at(self.file_id, &next),
+        ))
+    }
+
     #[trace_parser]
     fn ascii_char_literal(&mut self) -> Result<Option<Loc<IntLiteral>>> {
         let next = self.peek()?;
@@ -383,35 +455,27 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        let u8_val = match val.as_str() {
-            "\\0" => b'\0',
-            "\\t" => b'\t',
-            "\\n" => b'\n',
-            "\\r" => b'\r',
-            "\\'" => b'\'',
-
-            other => {
-                if other.len() == 2 && other.starts_with('\\') {
-                    return Err(Diagnostic::error(
-                        next.loc(),
-                        format!(
-                            "{} is not a valid byte escape character",
-                            other.chars().skip(1).next().unwrap()
-                        ),
-                    ));
-                } else if other.len() > 1 {
-                    return Err(Diagnostic::error(
-                        next,
-                        "Only a single character is supported in ASCII char literals.",
-                    ));
-                } else {
-                    other.as_bytes()[0]
-                }
-            }
+        let actual_char = if val.len() == 2 && val.starts_with('\\') {
+            Self::map_escape_char(
+                val.chars().skip(1).next().unwrap().at_loc(&next.loc()),
+                '\'',
+            )?
+        } else if val.len() > 1 {
+            return Err(Diagnostic::error(
+                next,
+                "Only a single character is supported in ASCII char literals.",
+            ));
+        } else if val.len() == 1 {
+            val.chars().next().unwrap()
+        } else {
+            return Err(Diagnostic::bug(next.loc(), "Found an empty char literal"));
         };
+
+        let mut byte = [0; 1];
+        actual_char.encode_utf8(&mut byte);
         Ok(Some(
             IntLiteral::Unsigned {
-                val: u8_val.to_biguint(),
+                val: byte[0].to_biguint(),
                 size: 8u32.to_biguint(),
             }
             .at(self.file_id, &next),
