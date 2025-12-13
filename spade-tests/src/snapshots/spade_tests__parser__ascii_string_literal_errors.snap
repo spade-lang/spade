@@ -1,0 +1,47 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn test() {
+    let x = "a";
+    let y = b"\a";
+    let z = b"\'";
+    let w = b"ö";
+    let z = b"\"";
+    let z = b"this has uni🅱️ode"
+}
+
+
+error: a is not a valid byte escape character
+  ┌─ testinput:3:15
+  │
+3 │     let y = b"\a";
+  │               ^
+
+error: ' is not a valid byte escape character
+  ┌─ testinput:4:15
+  │
+4 │     let z = b"\'";
+  │               ^
+
+error: ASCII literals can only contain ASCII value, not unicode
+  ┌─ testinput:5:14
+  │
+5 │     let w = b"ö";
+  │              ^^ Unicode character in ASCII literal
+
+error: ASCII literals can only contain ASCII value, not unicode
+  ┌─ testinput:7:26
+  │
+7 │     let z = b"this has uni🅱️ode"
+  │                          ^^ Unicode character in ASCII literal
+
+error: Unicode strings are not supported inside expressions
+  ┌─ testinput:2:13
+  │
+2 │     let x = "a";
+  │             ^^^ Unicode strings are not supported in expressions
+  │
+  = Consider using an ASCII string
+  │
+2 │     let x = b"a";
+  │             +

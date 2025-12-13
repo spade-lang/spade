@@ -236,6 +236,8 @@ pub enum TokenKind {
 
     #[regex(r#"b'(\\.|[^\\'])*'"#, |lex| lex.slice()[2..(lex.slice().len() - 1)].to_string())]
     AsciiCharLiteral(String),
+    #[regex(r#"b"(\\.|[^\\"])*""#, |lex| lex.slice()[2..(lex.slice().len() - 1)].to_string())]
+    AsciiStringLiteral(String),
     // Not actually used in the language at the moment, hence the lack of inner
     // content. It is just used to hint to the user to use b'...'
     #[regex(r#"'\w'"#)]
@@ -360,6 +362,7 @@ impl TokenKind {
             TokenKind::LabelRef(_) => "label ref",
 
             TokenKind::AsciiCharLiteral(_) => "ASCII char literal",
+            TokenKind::AsciiStringLiteral(_) => "ASCII string literal",
             TokenKind::Utf8CharLiteral => "Unicode char literal",
             TokenKind::String(_) => "string",
 

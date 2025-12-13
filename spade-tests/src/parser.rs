@@ -4,7 +4,7 @@ use logos::Logos;
 use spade_codespan_reporting::{files::SimpleFiles, term::termcolor::Buffer};
 use spade_diagnostics::{emitter::CodespanEmitter, CodeBundle, DiagHandler};
 
-use crate::{build_items, code_compiles, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 
 snapshot_error! {
     stage_outside_pipeline,
@@ -999,6 +999,20 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    ascii_string_literal_errors,
+    r#"
+        fn test() {
+            let x = "a";
+            let y = b"\a";
+            let z = b"\'";
+            let w = b"ö";
+            let z = b"\"";
+            let z = b"this has uni🅱️ode"
+        }
+    "#
+}
+
 code_compiles! {
     ascii_char_literals_in_patterns,
     "
@@ -1016,4 +1030,14 @@ code_compiles! {
     "
         /* 🧪 */
     "
+}
+
+snapshot_mir! {
+    ascii_strings_and_chars_work,
+    r#"
+        fn test() {
+            let x = b"abc\"";
+            let y = b'\'';
+        }
+    "#
 }
