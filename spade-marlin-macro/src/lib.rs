@@ -9,7 +9,6 @@ mod types;
 use std::env;
 
 use camino::Utf8PathBuf;
-use itertools::Itertools;
 use marlin_verilator::{PortDirection, mangle};
 use marlin_verilog_macro_builder::{
      build_verilated_struct,
@@ -18,7 +17,7 @@ use num::ToPrimitive;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
-use proc_macro_error::{abort, abort_call_site, proc_macro_error};
+use proc_macro_error::{abort_call_site, proc_macro_error};
 use spade as spade_compiler;
 use spade_compiler::compiler_state::CompilerState;
 use spade_hir_lowering::{MirLowerable, UnitNameExt};
@@ -266,7 +265,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
         if size != 0 {
             let verilog_name = format_ident!("{verilog_name}");
-            let num_u32_chunks = back_size / 32 + 1;
+            let num_u32_chunks = size / 32 + 1;
             pre_hooks.push(quote!{
                 let mut buffer = [0; #num_u32_chunks];
                 crate::spade::type_translation::SpadeType::to_verilator_value(&mut self.i.#field_name, 0, &mut buffer);
