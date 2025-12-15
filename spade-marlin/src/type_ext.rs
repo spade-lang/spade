@@ -54,11 +54,11 @@ small_into!(IData);
 
 impl IntoU32s for QData {
     fn populate_u32(&self, buffer: &mut [u32]) {
-        buffer[0] = (*self << 32) as u32;
-        buffer[1] = (*self) as u32;
+        buffer[1] = (*self >> 32) as u32;
+        buffer[0] = (*self) as u32;
     }
     fn update_from_u32(&mut self, buffer: &[u32]) {
-        *self = (buffer[0] as u64) << 32 | buffer[1] as u64
+        *self = (buffer[1] as u64) << 32 | buffer[0] as u64
     }
 }
 

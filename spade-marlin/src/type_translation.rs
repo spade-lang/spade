@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::type_ext::IntoU32s;
 
 pub trait SpadeType: Default {
@@ -50,14 +52,10 @@ fn u32_shift_to_be(bits: &[u32], shift_amount: usize, out: &mut [u32]) {
             remainder = bits[word] >> (32 - sub_shift_amount);
         }
     } else {
-        // TODO: Something is off about the word order here
-        println!("amount {word_shift_amount}");
         for i in 0..(bits.len()) {
-            println!("i: {i}");
             if i + word_shift_amount >= out.len() {
                 break;
             }
-            println!("Setting at out[{}] to {}", i + word_shift_amount, bits[i]);
             out[i + word_shift_amount] = bits[i];
         }
     }
@@ -67,15 +65,12 @@ fn replace_in_u32s(source: &[u32], bit_offset: usize, width: usize, dest: &mut [
     let masks = (0..(width / 32)).map(|_| !0u32).chain([((1u64 << width % 32) - 1) as u32]).collect::<Vec<_>>();
     let mut shift_buffer = vec![0; dest.len()];
     let mut mask_buffer = vec![0; dest.len()];
-    println!("{source:?}, {shift_buffer:?} {bit_offset}");
     u32_shift_to_be(source, bit_offset, &mut shift_buffer);
     u32_shift_to_be(&masks, bit_offset, &mut mask_buffer);
 
     for (i, (value, mask)) in shift_buffer.iter().zip(mask_buffer).enumerate() {
         dest[i] &= !mask;
         dest[i] |= value;
-
-        println!("{value:b} {mask:b}")
     }
 }
 

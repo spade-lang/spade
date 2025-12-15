@@ -6,25 +6,28 @@ mod types;
 use spade_marlin::prelude::*;
 
 
-#[test]
-fn raw_verilator_interface() -> Result<(), Whatever> {
-    #[spade_marlin(top = "spade_marlin::add")]
-    struct Main;
+mod u48_passthrough {
+    use super::*;
+    #[spade_marlin(top = "spade_marlin::u48_passthrough")]
+    struct Uut;
 
-    let runtime = SpadeRuntime::new(Default::default())?;
+    #[test]
+    fn u48_passhtrough() -> Result<(), Whatever> {
 
-    let mut main = Main::new_simple(&runtime)?;
+        let runtime = SpadeRuntime::new(Default::default())?;
 
-    main.i.x = 5u32.into();
-    main.i.y = 6u32.into();
+        let mut main = Uut::new_simple(&runtime)?;
 
-    main.eval();
+        main.i.x = 0x1234_5678_9abc_u64.into();
 
-    assert_eq!(main.verilator.result_o, 11);
+        main.eval();
 
-    Ok(())
+        assert_eq!(main.i.result, 0x1234_5678_9abc_u64);
+
+        Ok(())
+    }
+
 }
-
 
 
 #[test]
@@ -36,14 +39,14 @@ fn option_out_works() -> Result<(), Whatever> {
 
     let mut main = OptionOut::new_simple(&runtime)?;
 
-    main.verilator.x_i = 10;
-    main.verilator.valid_i = 1;
+    main.i.x = 10u32.into();
+    main.i.valid = true;
 
     main.eval();
 
     assert_eq!(main.i.result, Some(10u8.into()));
 
-    main.verilator.valid_i = 0;
+    main.i.valid = false;
 
     main.eval();
 
@@ -62,8 +65,8 @@ fn tuple_out_works() -> Result<(), Whatever> {
 
     let mut main = TupleOut::new_simple(&runtime)?;
 
-    main.verilator.x_i = 10;
-    main.verilator.y_i = 1;
+    main.i.x = 10u32.into();
+    main.i.y = 1u32.into();
 
     main.eval();
 

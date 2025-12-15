@@ -19,3 +19,4 @@ marlin-verilator.workspace = true
 toml = "0.9.8"
 snafu = "0.8.9"
 marlin = "0.10.0"
+itertools.workspace = true

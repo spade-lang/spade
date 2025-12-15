@@ -1,4 +1,8 @@
-entity add(x: uint<8>, y: uint<8>, result: inv &uint<9>) {
+entity u48_passthrough(x: uint<48>, result: inv &uint<48>) {
+    set result = &x;
+}
+
+entity add(x: uint<48>, y: uint<48>, result: inv &uint<49>) {
     set result = &(x + y);
 }
 
