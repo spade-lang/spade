@@ -1,1 +1,4 @@
 name = "spade_marlin"
+
+[compiler]
+path = ".."
