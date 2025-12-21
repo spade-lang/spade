@@ -314,9 +314,11 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             #(#input_fields),*
         }
         struct #struct_name<'a> {
-            // NOTE: This relies on Marlin internals for now
-            /// Provides access to the underlying marlin Verilator wrapper
-            pub verilator: #mod_name :: #struct_name<'a>,
+            // NOTE: This name relies on Marlin internals for now
+            // The underlying Verilog struct, to which we set inputs and outputs,
+            // and run eval. Since our hooks overwrite the values set on inputs,
+            // we cannot grant mutable access to it externally
+            verilator: #mod_name :: #struct_name<'a>,
             pub i: Inputs,
         }
 
@@ -336,11 +338,15 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 self.verilator.eval();
                 #(#post_hooks);*
             }
+
+            pub fn verilator(&self) -> &#mod_name :: #struct_name {
+                &self.verilator
+            }
         }
     };
 
     quote::quote! {
-        #[allow(non_snake_case_name)]
+        #[allow(non_snake_case)]
         #[doc(hidden)]
         mod #mod_name {
             use super::*;

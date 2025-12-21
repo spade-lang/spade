@@ -55,6 +55,23 @@ fn option_out_works() -> Result<(), Whatever> {
     Ok(())
 }
 
+#[test]
+fn option_in_works() -> Result<(), Whatever> {
+    #[spade_marlin(top = "spade_marlin::option_passthrough")]
+    struct Uut;
+    let runtime = SpadeRuntime::new(Default::default())?;
+    let mut main = Uut::new_simple(&runtime)?;
+
+    main.i.input = Some(10u8.into());
+    main.eval();
+    assert_eq!(main.i.result, Some(10u8.into()));
+    main.i.input = None;
+    main.eval();
+    assert_eq!(main.i.result, None);
+
+    Ok(())
+}
+
 
 #[test]
 fn tuple_out_works() -> Result<(), Whatever> {
