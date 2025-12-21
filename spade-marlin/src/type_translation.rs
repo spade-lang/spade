@@ -232,7 +232,7 @@ impl<T: SpadeType> SpadeType for Option<T> {
     }
 
     fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
-        let mut buff = vec![0; Self::size()];
+        let mut buff = vec![0; Self::size() / 32 + 1];
         u32_shift_to_le(bits, bit_offset + T::size(), &mut buff);
         *self = if buff[0] & 1 == 1 {
             let mut inner = T::default();
@@ -244,7 +244,18 @@ impl<T: SpadeType> SpadeType for Option<T> {
     }
 
     fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]) {
-        unimplemented!("To verilator value is not implemented for option yet")
+        let valid_bit = bit_offset + T::size();
+        let valid_word = valid_bit / 32;
+        let valid_in_word = valid_bit % 32;
+        match self {
+            Some(val) => {
+                val.to_verilator_value(bit_offset, target);
+                target[valid_word] |= 1 << valid_in_word;
+            },
+            None => {
+                target[valid_word] &= !(1 << valid_in_word);
+            }
+        }
     }
 }
 

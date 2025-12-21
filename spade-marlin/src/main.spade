@@ -10,6 +10,10 @@ entity option_out(valid: bool, x: uint<6>, result: inv &Option<uint<6>>) {
     set result = &if valid {Some(x)} else {None};
 }
 
+entity option_passthrough(input: Option<uint<6>>, result: inv &Option<uint<6>>) {
+    set result = &input;
+}
+
 entity tuple_out(x: uint<8>, y: uint<16>, result: inv &(uint<8>, uint<16>)) {
     set result = &(x, y);
 }
