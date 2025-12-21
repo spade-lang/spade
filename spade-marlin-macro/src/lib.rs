@@ -9,7 +9,6 @@ mod types;
 use std::env;
 
 use camino::Utf8PathBuf;
-use itertools::Itertools;
 use marlin_verilator::{PortDirection, mangle};
 use marlin_verilog_macro_builder::{
      build_verilated_struct,
@@ -18,7 +17,7 @@ use num::ToPrimitive;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
-use proc_macro_error::{abort, abort_call_site, proc_macro_error};
+use proc_macro_error::{abort_call_site, proc_macro_error};
 use spade as spade_compiler;
 use spade_compiler::compiler_state::CompilerState;
 use spade_hir_lowering::{MirLowerable, UnitNameExt};
@@ -266,7 +265,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
         if size != 0 {
             let verilog_name = format_ident!("{verilog_name}");
-            let num_u32_chunks = back_size / 32 + 1;
+            let num_u32_chunks = size / 32 + 1;
             pre_hooks.push(quote!{
                 let mut buffer = [0; #num_u32_chunks];
                 crate::spade::type_translation::SpadeType::to_verilator_value(&mut self.i.#field_name, 0, &mut buffer);
@@ -315,9 +314,11 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             #(#input_fields),*
         }
         struct #struct_name<'a> {
-            // NOTE: This relies on Marlin internals for now
-            /// Provides access to the underlying marlin Verilator wrapper
-            pub verilator: #mod_name :: #struct_name<'a>,
+            // NOTE: This name relies on Marlin internals for now
+            // The underlying Verilog struct, to which we set inputs and outputs,
+            // and run eval. Since our hooks overwrite the values set on inputs,
+            // we cannot grant mutable access to it externally
+            verilator: #mod_name :: #struct_name<'a>,
             pub i: Inputs,
         }
 
@@ -337,11 +338,15 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 self.verilator.eval();
                 #(#post_hooks);*
             }
+
+            pub fn verilator(&self) -> &#mod_name :: #struct_name {
+                &self.verilator
+            }
         }
     };
 
     quote::quote! {
-        #[allow(non_snake_case_name)]
+        #[allow(non_snake_case)]
         #[doc(hidden)]
         mod #mod_name {
             use super::*;

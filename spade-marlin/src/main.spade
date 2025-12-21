@@ -1,9 +1,17 @@
-entity add(x: uint<8>, y: uint<8>, result: inv &uint<9>) {
+entity u48_passthrough(x: uint<48>, result: inv &uint<48>) {
+    set result = &x;
+}
+
+entity add(x: uint<48>, y: uint<48>, result: inv &uint<49>) {
     set result = &(x + y);
 }
 
 entity option_out(valid: bool, x: uint<6>, result: inv &Option<uint<6>>) {
     set result = &if valid {Some(x)} else {None};
+}
+
+entity option_passthrough(input: Option<uint<6>>, result: inv &Option<uint<6>>) {
+    set result = &input;
 }
 
 entity tuple_out(x: uint<8>, y: uint<16>, result: inv &(uint<8>, uint<16>)) {
