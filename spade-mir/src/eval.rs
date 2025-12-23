@@ -37,7 +37,7 @@ impl Value {
     pub fn assume_uint(&self) -> BigUint {
         match self {
             Value::UInt { val, .. } => val.clone(),
-            other => panic!("Assumed value to be int, was {other:?}"),
+            other => panic!("Assumed value to be uint, was {other:?}"),
         }
     }
 
