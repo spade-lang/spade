@@ -2514,7 +2514,12 @@ impl<'a> Parser<'a> {
 
         match out.kind {
             TokenKind::BlockCommentStart => loop {
-                let next = self.next_token_helper(block_comment_depth + 1)?;
+                let next = match self.next_token_helper(block_comment_depth + 1) {
+                    Ok(next) => next,
+                    // We don't actually care about lexer errors inside block comments,
+                    // so let's just continue.
+                    Err(_) => continue,
+                };
                 match next.kind {
                     TokenKind::BlockCommentEnd => {
                         if block_comment_depth == 0 {

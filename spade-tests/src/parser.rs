@@ -1010,3 +1010,10 @@ code_compiles! {
         }
     "
 }
+
+code_compiles! {
+    block_comments_can_contain_non_tokens,
+    "
+        /* 🧪 */
+    "
+}
