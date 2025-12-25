@@ -156,7 +156,7 @@ impl SpadeTranslator {
             .unwrap()
             .symtab
             .symtab()
-            .lookup_unit_ignore_visibility(&Path(path.collect()).nowhere())
+            .lookup_unit_ignore_metadata(&Path(path.collect()).nowhere())
             .map_err(|e| anyhow!("Did not find a unit {top_name} in Spade state. {e:?}"))?;
 
         let query_cache = state.lock().unwrap().build_query_cache();

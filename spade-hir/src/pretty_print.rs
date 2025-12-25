@@ -239,6 +239,7 @@ impl PrettyPrint for UnitHead {
             where_clauses: _,
             unsafe_marker,
             documentation: _,
+            deprecation_note: _,
         } = self;
         let output_type = match output_type {
             Some(output_type) => format!(" -> {}", output_type.pretty_print()),

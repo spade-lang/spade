@@ -1576,7 +1576,7 @@ impl<'a> Parser<'a> {
         if attributes.0.is_empty() {
             Ok(())
         } else {
-            let mut diagnostic = Diagnostic::error(
+            Err(Diagnostic::error(
                 ().between_locs(attributes.0.first().unwrap(), attributes.0.last().unwrap()),
                 "invalid attribute location",
             )
@@ -1585,13 +1585,7 @@ impl<'a> Parser<'a> {
                 item_start.loc(),
                 format!("{} cannot have attributes", item_start.kind.as_str()),
             )
-            .note("attributes are only allowed on structs, enums, their variants, functions and pipelines");
-            if matches!(item_start.kind, TokenKind::Mod) {
-                diagnostic.add_help(
-                    "If you want to document this module, use inside comments (//!) instead.",
-                );
-            }
-            Err(diagnostic)
+            .note("attributes are allowed on modules, `use` aliases, traits, structs, enums, their variants functions, entities and pipelines"))
         }
     }
 
@@ -2131,6 +2125,27 @@ impl<'a> Parser<'a> {
                         .collect(),
                 })
             }
+            "deprecated" => {
+                if self.peek_kind(&TokenKind::OpenParen)? {
+                    Ok(attribute_arg_parser!(
+                        start,
+                        self,
+                        s,
+                        Attribute::Deprecated {
+                            since: { s.str_literal().map(Option::unwrap) },
+                            note: { s.str_literal().map(Option::unwrap) }
+                        }
+                    ))
+                } else if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
+                    let note = self.str_literal()?;
+                    Ok(Attribute::Deprecated { since: None, note })
+                } else {
+                    Ok(Attribute::Deprecated {
+                        since: None,
+                        note: None,
+                    })
+                }
+            }
             "surfer_translator" => {
                 let (result, _) = self.surrounded(
                     &TokenKind::OpenParen,
@@ -2258,7 +2273,7 @@ impl<'a> Parser<'a> {
                 Box::new(items::StructParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::ModuleParser {}),
-                Box::new(items::UseParser {}.map(|inner| Ok(Item::Use(inner)))),
+                Box::new(items::UseParser {}.map(|inner| Ok(Item::Use(inner.0, inner.1)))),
             ],
             true,
             vec![],
@@ -3303,6 +3318,7 @@ mod tests {
                         documentation: vec![],
                     }
                     .nowhere(),
+                    attributes: AttributeList::empty(),
                 }
                 .nowhere(),
             )],
@@ -3331,12 +3347,14 @@ mod tests {
                                     documentation: vec![],
                                 }
                                 .nowhere(),
+                                attributes: AttributeList::empty(),
                             }
                             .nowhere(),
                         )],
                         documentation: vec![],
                     }
                     .nowhere(),
+                    attributes: AttributeList::empty(),
                 }
                 .nowhere(),
             )],

@@ -10,7 +10,7 @@ mod type_alias;
 mod type_level_if;
 pub mod types;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
@@ -61,7 +61,7 @@ pub struct Context {
     pub pipeline_ctx: Option<PipelineContext>,
     pub self_ctx: SelfContext,
     pub current_unit: Option<hir::UnitHead>,
-    pub diags: DiagList,
+    pub diags: Arc<Mutex<DiagList>>,
     pub safety: Safety,
 }
 
@@ -174,6 +174,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 }
                 .at_loc(ident),
                 Visibility::Implicit.nowhere(),
+                None,
             );
 
             Ok(hir::TypeParam {
@@ -188,6 +189,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 name.clone(),
                 TypeSymbol::GenericMeta(meta.clone()).at_loc(name),
                 Visibility::Implicit.nowhere(),
+                None,
             );
 
             Ok(hir::TypeParam {
@@ -210,7 +212,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir:
             traits: _,
         } => {
             let path = Path::ident(ident.clone()).at_loc(ident);
-            let (name_id, tsym) = ctx.symtab.lookup_type_symbol(&path)?;
+            let (name_id, tsym) = ctx.symtab.lookup_type_symbol(&path, true)?;
 
             let trait_bounds = match &tsym.inner {
                 TypeSymbol::GenericArg { traits } => traits.clone(),
@@ -230,7 +232,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir:
         }
         ast::TypeParam::TypeWithMeta { meta, name } => {
             let path = Path::ident(name.clone()).at_loc(name);
-            let name_id = ctx.symtab.lookup_type_symbol(&path)?.0;
+            let name_id = ctx.symtab.lookup_type_symbol(&path, false)?.0;
             Ok(hir::TypeParam {
                 name: Generic::Named(name_id.at_loc(&name)),
                 trait_bounds: vec![],
@@ -321,7 +323,7 @@ pub fn visit_type_spec(
     let result = match &t.inner {
         ast::TypeSpec::Named(path, params) => {
             // Lookup the referenced type
-            let (base_id, base_t) = ctx.symtab.lookup_type_symbol(path)?;
+            let (base_id, base_t) = ctx.symtab.lookup_type_symbol(path, true)?;
 
             // Check if the type is a declared type or a generic argument.
             match &base_t.inner {
@@ -817,6 +819,16 @@ pub fn unit_head(
         .find(|attribute| matches!(attribute.inner, Attribute::NoMangle { all: true }))
         .map(|attribute| ().at_loc(attribute));
 
+    let deprecation_note = head
+        .attributes
+        .0
+        .iter()
+        .flat_map(|attribute| match &attribute.inner {
+            Attribute::Deprecated { note, .. } => Some(note.clone()),
+            _ => None,
+        })
+        .last();
+
     // we only care if we're trying to no_mangle_all a type with a non-unit output type
     if no_mangle_all.is_some()
         && output_type
@@ -876,6 +888,7 @@ pub fn unit_head(
         where_clauses,
         unsafe_marker: head.unsafe_token,
         documentation: head.attributes.merge_docs(),
+        deprecation_note,
     })
 }
 
@@ -885,7 +898,7 @@ pub fn visit_const_generic(
 ) -> Result<Loc<ConstGeneric>> {
     let kind = match &t.inner {
         ast::Expression::Identifier(name) => {
-            let (name, sym) = ctx.symtab.lookup_type_symbol(name)?;
+            let (name, sym) = ctx.symtab.lookup_type_symbol(name, true)?;
             match &sym.inner {
                 TypeSymbol::Declared(_, _) => {
                     return Err(Diagnostic::error(t, format!(
@@ -1033,7 +1046,7 @@ pub fn visit_where_clauses(
                     .primary_label(primary)
                     .secondary_label(expression, "This is an integer constraint")
                 };
-                let (name_id, sym) = match ctx.symtab.lookup_type_symbol(target) {
+                let (name_id, sym) = match ctx.symtab.lookup_type_symbol(target, true) {
                     Ok(res) => res,
                     Err(LookupError::NotATypeSymbol(_, thing)) => {
                         return Err(make_diag(format!("`{target}` is not a type level integer"))
@@ -1109,7 +1122,10 @@ pub fn visit_where_clauses(
                     )
                     .primary_label(primary)
                 };
-                let (name_id, sym) = match ctx.symtab.lookup_type_symbol(where_clause.target()) {
+                let (name_id, sym) = match ctx
+                    .symtab
+                    .lookup_type_symbol(where_clause.target(), true)
+                {
                     Ok(res) => res,
                     Err(LookupError::NotATypeSymbol(path, thing)) => {
                         return Err(make_diag(format!("`{target}` is not a type symbol"))
@@ -1196,15 +1212,12 @@ pub fn visit_unit(
         .join(Path::ident(name.clone()))
         .at_loc(&name.loc());
 
-    let (id, head) = ctx
-        .symtab
-        .lookup_unit_ignore_visibility(&path)
-        .map_err(|_| {
-            diag_anyhow!(
-                path,
-                "Attempting to lower an entity that has not been added to the symtab previously"
-            )
-        })?;
+    let (id, head) = ctx.symtab.lookup_unit_ignore_metadata(&path).map_err(|_| {
+        diag_anyhow!(
+            path,
+            "Attempting to lower an entity that has not been added to the symtab previously"
+        )
+    })?;
 
     ctx.current_unit = Some(head.inner.clone());
 
@@ -1270,6 +1283,7 @@ pub fn visit_unit(
         ast::Attribute::VerilogAttrs { entries } => Ok(Some(hir::Attribute::VerilogAttrs {
             entries: entries.clone(),
         })),
+        ast::Attribute::Deprecated { .. } => Ok(None),
         ast::Attribute::Documentation { .. } => Ok(None),
         _ => Err(attr.report_unused("a unit")),
     })?;
@@ -1439,7 +1453,7 @@ pub fn visit_trait_spec(
         } else {
             diag = diag.span_suggest_insert_after(message, &trait_spec.path, suggestion);
         }
-        ctx.diags.errors.push(diag);
+        ctx.diags.lock().unwrap().errors.push(diag);
     }
     let name = TraitName::Named(name_id.at_loc(&loc));
     let type_params = match &trait_spec.inner.type_params {
@@ -1476,7 +1490,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
         ast::Item::ImplBlock(block) => visit_impl(block, ctx),
         ast::Item::ExternalMod(_) => Ok(vec![]),
         ast::Item::Module(m) => visit_module(m, ctx).map(|_| vec![]),
-        ast::Item::Use(ss) => {
+        ast::Item::Use(_, ss) => {
             for s in &ss.inner {
                 ctx.symtab
                     .lookup_id(&s.path, true)
@@ -1593,6 +1607,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                         id.clone(),
                                         Thing::Variable(ident.clone()),
                                         None,
+                                        None,
                                     );
                                     ctx.symtab
                                         .mark_declaration_defined(ident.clone(), ident.loc());
@@ -1614,6 +1629,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                 ctx.symtab.add_thing(
                                     Path::ident(ident.clone()),
                                     Thing::Variable(ident.clone()),
+                                    None,
                                     None,
                                 ),
                                 false,
@@ -1756,7 +1772,7 @@ fn try_visit_statement(
                         .add_declaration(name.clone())
                         .map(|decl| decl.at_loc(name))
                 })
-                .filter_map(|name| name.handle_in(&mut ctx.diags))
+                .filter_map(|name| name.handle_in(&mut ctx.diags.lock().unwrap()))
                 .collect::<Vec<_>>();
 
             Ok(vec![hir::Statement::Declaration(names).at_loc(s)])
@@ -1813,6 +1829,7 @@ fn try_visit_statement(
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
+                | ast::Attribute::Deprecated { .. }
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::SpadecParenSugar
@@ -1844,6 +1861,7 @@ fn try_visit_statement(
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
+                | ast::Attribute::Deprecated { .. }
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::SpadecParenSugar
@@ -1886,7 +1904,7 @@ fn try_visit_statement(
             // NOTE: pipeline labels are lowered in visit_pipeline
             let (name, sym) = ctx
                 .symtab
-                .lookup_type_symbol(&Path::ident(name.clone()).at_loc(name))?;
+                .lookup_type_symbol(&Path::ident(name.clone()).at_loc(name), false)?;
             Ok(vec![hir::Statement::Label(name.at_loc(&sym)).at_loc(s)])
         }
         ast::Statement::Assert(expr) => {
@@ -1907,7 +1925,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Vec<Loc<hir::S
     match try_visit_statement(s, ctx) {
         Ok(result) => result,
         Err(e) => {
-            ctx.diags.errors.push(e);
+            ctx.diags.lock().unwrap().errors.push(e);
             vec![hir::Statement::Error.at_loc(s)]
         }
     }
@@ -2109,6 +2127,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                             Path::ident(label.clone()),
                             Thing::ArrayLabel(i.at_loc(label)),
                             None,
+                            None,
                         );
                     }
                 }
@@ -2148,7 +2167,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         } => {
             if *deprecated_syntax {
                 let loc = ().between_locs(&target, &index);
-                ctx.diags.errors.push(
+                ctx.diags.lock().unwrap().errors.push(
                     Diagnostic::warning(loc, "Deprecated tuple syntax indexing")
                         .primary_label("`#` syntax for tuple indexing is deprecated")
                         .note("replace `#` with `.`"),
@@ -2236,7 +2255,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         ast::Expression::Unsafe(block) => {
             let outside = ::core::mem::replace(&mut ctx.safety, Safety::Unsafe);
             if outside == Safety::Unsafe {
-                ctx.diags.errors.push(
+                ctx.diags.lock().unwrap().errors.push(
                     Diagnostic::warning(block.loc(), "Unnecessary unsafe block")
                         .note("This block is already in unsafe context"),
                 );
@@ -2281,7 +2300,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             match ctx.symtab.lookup_variable(path) {
                 Ok(id) => Ok(hir::ExprKind::Identifier(id)),
                 Err(LookupError::IsAType(_, _)) => {
-                    let ty = ctx.symtab.lookup_type_symbol(path)?;
+                    let ty = ctx.symtab.lookup_type_symbol(path, false)?;
                     let (name, ty) = &ty;
                     match ty.inner {
                         TypeSymbol::GenericMeta(
@@ -2361,7 +2380,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::PipelineStageReference::Absolute(name) => {
                     hir::expression::PipelineRefKind::Absolute(
                         ctx.symtab
-                            .lookup_type_symbol(&Path::ident(name.clone()).at_loc(name))?
+                            .lookup_type_symbol(&Path::ident(name.clone()).at_loc(name), false)?
                             .0
                             .at_loc(name),
                     )
@@ -2447,7 +2466,7 @@ fn check_for_undefined(ctx: &mut Context) {
             .primary_label("This variable could not be found")),
             (_, _) => Ok(()),
         }
-        .handle_in(&mut ctx.diags);
+        .handle_in(&mut ctx.diags.lock().unwrap());
     }
 }
 
@@ -2459,7 +2478,7 @@ pub fn visit_expression(e: &ast::Expression, ctx: &mut Context) -> hir::Expressi
     let kind = match visit_expression_result(e, ctx) {
         Ok(kind) => kind,
         Err(e) => {
-            ctx.diags.errors.push(e);
+            ctx.diags.lock().unwrap().errors.push(e);
             ExprKind::Error
         }
     };
@@ -2558,7 +2577,7 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
             }
             _ => Err(attr.report_unused("a register")),
         })
-        .handle_in(&mut ctx.diags)
+        .handle_in(&mut ctx.diags.lock().unwrap())
         .unwrap_or_else(|| hir::AttributeList::empty());
 
     stmts.push(

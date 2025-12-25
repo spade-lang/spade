@@ -3,7 +3,7 @@ pub mod field_ref;
 pub mod range;
 
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use color_eyre::eyre::{anyhow, Context};
 use field_ref::{FieldRef, FieldSource};
@@ -480,12 +480,12 @@ impl Spade {
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
-            diags: DiagList::new(),
+            diags: Arc::new(Mutex::new(DiagList::new())),
             safety: Safety::Default,
         };
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
 
-        self.handle_diags(&mut ast_ctx.diags)?;
+        self.handle_diags(&mut ast_ctx.diags.lock().unwrap())?;
 
         let type_ctx = spade_typeinference::Context {
             symtab: &ast_ctx.symtab,
@@ -579,11 +579,11 @@ impl Spade {
             pipeline_ctx: _,
             self_ctx: _,
             current_unit: _,
-            mut diags,
+            diags,
             safety: _,
         } = ast_ctx;
 
-        self.handle_diags(&mut diags)?;
+        self.handle_diags(&mut diags.lock().unwrap())?;
 
         self.return_owned(OwnedState {
             symtab: symtab.freeze(),
@@ -737,7 +737,7 @@ impl Spade {
         symtab: &SymbolTable,
     ) -> std::result::Result<UnitHead, LookupError> {
         symtab
-            .lookup_unit_ignore_visibility(name)
+            .lookup_unit_ignore_metadata(name)
             .map(|(_, head)| head.inner)
     }
 
@@ -836,7 +836,7 @@ impl Spade {
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
-            diags: DiagList::new(),
+            diags: Arc::new(Mutex::new(DiagList::new())),
             safety: Safety::Default,
         };
 
@@ -851,10 +851,10 @@ impl Spade {
             pipeline_ctx: _,
             self_ctx: _,
             current_unit: _,
-            mut diags,
+            diags,
             safety: _,
         } = ast_ctx;
-        self.handle_diags(&mut diags)?;
+        self.handle_diags(&mut diags.lock().unwrap())?;
 
         let mut symtab = symtab.freeze();
 

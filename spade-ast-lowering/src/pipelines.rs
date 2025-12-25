@@ -22,6 +22,7 @@ fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Re
                 name.clone(),
                 TypeSymbol::GenericMeta(MetaType::Int).at_loc(name),
                 Visibility::Implicit.nowhere(),
+                None,
             )?;
         }
         ast::Statement::Declaration(_) => {}

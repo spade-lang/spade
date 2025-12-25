@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+enum E {
+    #[deprecated = "variant A"]
+    A,
+    B,
+}
+
+fn test() {
+    let _ = E::A$();
+}
+
+
+warning: Use of deprecated enum variant
+  ┌─ testinput:8:13
+  │
+8 │     let _ = E::A$();
+  │             ^^^^
+  │
+  = note: variant A

@@ -1,0 +1,28 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod m {
+    #[deprecated = "module n"]
+    pub mod mm {
+        #[deprecated = "enum E"]
+        pub enum E {
+            #[deprecated = "variant A"]
+            A,
+            B,
+        }
+    }
+}
+
+#[deprecated = "use m as n"]
+use m as n;
+
+use n::mm::E::A as X;
+
+
+warning: Use of deprecated enum variant
+   ┌─ testinput:16:5
+   │
+16 │ use n::mm::E::A as X;
+   │     ^^^^^^^^^^^
+   │
+   = note: variant A

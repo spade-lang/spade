@@ -844,6 +844,7 @@ pub struct UnitHead {
     pub where_clauses: Vec<Loc<WhereClause>>,
     pub unsafe_marker: Option<Loc<()>>,
     pub documentation: String,
+    pub deprecation_note: Option<Option<Loc<String>>>,
 }
 
 impl UnitHead {

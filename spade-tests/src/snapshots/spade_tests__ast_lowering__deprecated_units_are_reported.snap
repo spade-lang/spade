@@ -1,0 +1,39 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[deprecated = "fn a"]
+fn a() {}
+
+#[deprecated]
+entity b(clk: clock) {}
+
+#[deprecated(since = "0.1")]
+pipeline(1) c(clk: clock, i: bool) -> bool {
+reg;
+    i
+}
+
+use a as x;
+use b as y;
+use c as z;
+
+
+warning: Use of deprecated unit
+   ┌─ testinput:13:5
+   │
+13 │ use a as x;
+   │     ^
+   │
+   = note: fn a
+
+warning: Use of deprecated unit
+   ┌─ testinput:14:5
+   │
+14 │ use b as y;
+   │     ^
+
+warning: Use of deprecated unit
+   ┌─ testinput:15:5
+   │
+15 │ use c as z;
+   │     ^

@@ -5,13 +5,10 @@ source: spade-tests/src/parser.rs
 mod x {}
 
 
-error: invalid attribute location
+error: doc is not a valid attribute for module
   ┌─ testinput:1:1
   │
 1 │ /// This is my module :3
-  │ ^^^^^^^^^^^^^^^^^^^^^^^^ attributes are not allowed here
-2 │ mod x {}
-  │ --- mod cannot have attributes
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^ Unsupported attribute for module
   │
-  = note: attributes are only allowed on structs, enums, their variants, functions and pipelines
   = help: If you want to document this module, use inside comments (//!) instead.

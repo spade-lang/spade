@@ -49,6 +49,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         &impl_type_params,
         &target_type,
         Visibility::Implicit.nowhere(),
+        None,
         ctx,
     )?;
 
@@ -190,7 +191,9 @@ pub fn get_or_create_trait(
     ctx: &mut Context,
 ) -> Result<(TraitName, Loc<hir::TraitSpec>)> {
     if let Some(trait_spec) = &block.r#trait {
-        let (name, loc) = ctx.symtab.lookup_trait(&trait_spec.inner.path)?;
+        let (name, loc) = ctx
+            .symtab
+            .lookup_trait_ignore_metadata(&trait_spec.inner.path)?;
         Ok((
             TraitName::Named(name.at_loc(&loc)),
             visit_trait_spec(trait_spec, &TypeSpecKind::ImplTrait, ctx)?,
@@ -219,6 +222,7 @@ pub fn get_or_create_trait(
                 for param in &params.inner {
                     let (name, _) = ctx.symtab.lookup_type_symbol(
                         &param.map_ref(|_| Path::ident(param.inner.name().clone())),
+                        false,
                     )?;
                     let spec = hir::TypeSpec::Generic(hir::Generic::Named(name.at_loc(param)));
                     type_expressions.push(hir::TypeExpression::TypeSpec(spec).at_loc(param));
@@ -252,7 +256,7 @@ pub fn get_impl_target(
             ],
         )),
         spade_ast::TypeSpec::Named(name, args) => {
-            let (target_name, sym) = ctx.symtab.lookup_type_symbol(&name)?;
+            let (target_name, sym) = ctx.symtab.lookup_type_symbol(&name, true)?;
 
             if let TypeSymbol::GenericArg { traits: _ } | TypeSymbol::GenericMeta { .. } =
                 &sym.inner
@@ -347,6 +351,7 @@ pub fn create_trait_from_unit_heads(
                             ident.clone(),
                             type_symbol,
                             Visibility::Implicit.nowhere(),
+                            None,
                         );
                         Ok(match tp {
                             ast::TypeParam::TypeName { name: _, traits } => {

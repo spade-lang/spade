@@ -37,6 +37,7 @@ impl ServerBackend {
                         self_type: _,
                         params,
                         type_params,
+                        deprecation_note: _,
                     } = &s.inner;
                     formatdoc!(
                         r#"

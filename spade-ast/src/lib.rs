@@ -583,6 +583,10 @@ pub enum Attribute {
     Optimize {
         passes: Vec<Loc<String>>,
     },
+    Deprecated {
+        since: Option<Loc<String>>,
+        note: Option<Loc<String>>,
+    },
     NoMangle {
         all: bool,
     },
@@ -614,6 +618,7 @@ impl Attribute {
             Attribute::SpadecParenSugar => "spadec_paren_sugar",
             Attribute::VerilogAttrs { .. } => "verilog_attrs",
             Attribute::Optimize { passes: _ } => "optimize",
+            Attribute::Deprecated { .. } => "deprecated",
             Attribute::NoMangle { .. } => "no_mangle",
             Attribute::Fsm { .. } => "fsm",
             Attribute::WalTraceable { .. } => "wal_traceable",
@@ -841,7 +846,7 @@ pub enum Item {
     Type(Loc<TypeDeclaration>),
     ExternalMod(Loc<ExternalMod>),
     Module(Loc<Module>),
-    Use(Loc<Vec<UseStatement>>),
+    Use(AttributeList, Loc<Vec<UseStatement>>),
     ImplBlock(Loc<ImplBlock>),
 }
 
@@ -853,7 +858,7 @@ impl Item {
             Item::Type(t) => Some(&t.name.inner),
             Item::Module(m) => Some(&m.name.inner),
             Item::ExternalMod(m) => Some(&m.name.inner),
-            Item::Use(_) => None,
+            Item::Use(_, _) => None,
             Item::ImplBlock(_) => None,
         }
     }
@@ -865,7 +870,7 @@ impl Item {
             Item::Type(_) => "type",
             Item::Module(_) => "module",
             Item::ExternalMod(_) => "module",
-            Item::Use(_) => "use",
+            Item::Use(_, _) => "use",
             Item::ImplBlock(_) => "impl",
         }
     }
@@ -875,6 +880,7 @@ impl Item {
 pub struct ExternalMod {
     pub visibility: Loc<Visibility>,
     pub name: Loc<Identifier>,
+    pub attributes: AttributeList,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -882,6 +888,7 @@ pub struct Module {
     pub visibility: Loc<Visibility>,
     pub name: Loc<Identifier>,
     pub body: Loc<ModuleBody>,
+    pub attributes: AttributeList,
 }
 
 #[derive(PartialEq, Debug, Clone)]

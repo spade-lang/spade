@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[deprecated = "enum E"]
+enum E {
+    A,
+    B,
+}
+
+use E as X;
+
+
+warning: Use of deprecated enum
+  ┌─ testinput:7:5
+  │
+7 │ use E as X;
+  │     ^
+  │
+  = note: enum E

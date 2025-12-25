@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[deprecated(note = "trait T")]
+trait T {}
+
+use T as U;
+
+
+warning: Use of deprecated trait
+  ┌─ testinput:4:5
+  │
+4 │ use T as U;
+  │     ^
+  │
+  = note: trait T

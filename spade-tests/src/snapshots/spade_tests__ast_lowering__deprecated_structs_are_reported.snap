@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[deprecated = "struct S"]
+struct S {}
+
+fn test() {
+    let _: S = S$();
+}
+
+
+warning: Use of deprecated struct
+  ┌─ testinput:5:12
+  │
+5 │     let _: S = S$();
+  │            ^
+  │
+  = note: struct S
+
+warning: Use of deprecated struct
+  ┌─ testinput:5:16
+  │
+5 │     let _: S = S$();
+  │                ^
+  │
+  = note: struct S

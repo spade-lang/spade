@@ -47,11 +47,32 @@ pub fn handle_external_modules(
                     // 2. Replace the loc of that module with the source code
                     let path = ctx.symtab.current_namespace().push_ident(name.clone());
 
+                    let mut deprecation_note = None;
+                    em.attributes.lower(&mut |attr| match &attr.inner {
+                        ast::Attribute::Deprecated { note, .. } => {
+                            deprecation_note = Some(note.clone());
+                            Ok(None)
+                        }
+                        ast::Attribute::SpadecParenSugar
+                        | ast::Attribute::VerilogAttrs { .. }
+                        | ast::Attribute::Optimize { .. }
+                        | ast::Attribute::NoMangle { .. }
+                        | ast::Attribute::Fsm { .. }
+                        | ast::Attribute::WalTraceable { .. }
+                        | ast::Attribute::WalTrace { .. }
+                        | ast::Attribute::WalSuffix { .. }
+                        | ast::Attribute::Documentation { .. }
+                        | ast::Attribute::SurferTranslator(_) => {
+                            Err(attr.report_unused("external module"))
+                        }
+                    })?;
+
                     // We're going to eagerly add the `mod` first in order to detect duplicates.
                     let name_id = ctx.symtab.add_unique_thing(
                         Path::ident(name.clone()).at_loc(&name),
                         Thing::Module(em.loc(), name.clone()),
                         Some(em.visibility.clone()),
+                        deprecation_note,
                     )?;
 
                     ctx.item_list.modules.insert(
@@ -91,7 +112,7 @@ pub fn handle_external_modules(
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
             ast::Item::TraitDef(_) => {}
-            ast::Item::Use(_) => {}
+            ast::Item::Use(_, _) => {}
         }
     }
     Ok(())
@@ -152,16 +173,52 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             }
             ast::Item::ExternalMod(_) => {}
             ast::Item::Module(ref m) => {
+                let mut deprecation_note = None;
+                m.attributes.lower(&mut |attr| match &attr.inner {
+                    ast::Attribute::Deprecated { note, .. } => {
+                        deprecation_note = Some(note.clone());
+                        Ok(None)
+                    }
+                    ast::Attribute::SpadecParenSugar
+                    | ast::Attribute::VerilogAttrs { .. }
+                    | ast::Attribute::Optimize { .. }
+                    | ast::Attribute::NoMangle { .. }
+                    | ast::Attribute::Fsm { .. }
+                    | ast::Attribute::WalTraceable { .. }
+                    | ast::Attribute::WalTrace { .. }
+                    | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::Documentation { .. }
+                    | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("module")),
+                })?;
+
                 ctx.symtab.add_unique_thing(
                     Path::ident(m.name.clone()).at_loc(&m.name),
                     Thing::Module(m.loc(), m.name.clone()),
                     Some(m.visibility.clone()),
+                    deprecation_note,
                 )?;
                 ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
             ast::Item::TraitDef(ref r#trait) => {
+                let mut deprecation_note = None;
+                let _ = r#trait.attributes.lower(&mut |attr| match &attr.inner {
+                    ast::Attribute::Documentation { .. } => Ok(None),
+                    ast::Attribute::Deprecated { note, .. } => {
+                        deprecation_note = Some(note.clone());
+                        Ok(None)
+                    }
+                    ast::Attribute::SpadecParenSugar => Ok(None),
+                    ast::Attribute::VerilogAttrs { .. }
+                    | ast::Attribute::Optimize { .. }
+                    | ast::Attribute::SurferTranslator(_)
+                    | ast::Attribute::WalTraceable { .. }
+                    | ast::Attribute::NoMangle { .. }
+                    | ast::Attribute::Fsm { .. }
+                    | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
+                })?;
                 ctx.symtab.add_unique_thing(
                     Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
                     Thing::Trait(
@@ -177,9 +234,28 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                         .at_loc(&r#trait.name),
                     ),
                     Some(r#trait.visibility.clone()),
+                    deprecation_note,
                 )?;
             }
-            ast::Item::Use(us) => {
+            ast::Item::Use(attributes, us) => {
+                let mut deprecation_note = None;
+                attributes.lower(&mut |attr| match &attr.inner {
+                    ast::Attribute::Deprecated { note, .. } => {
+                        deprecation_note = Some(note.clone());
+                        Ok(None)
+                    }
+                    ast::Attribute::SpadecParenSugar
+                    | ast::Attribute::VerilogAttrs { .. }
+                    | ast::Attribute::Optimize { .. }
+                    | ast::Attribute::NoMangle { .. }
+                    | ast::Attribute::Fsm { .. }
+                    | ast::Attribute::WalTraceable { .. }
+                    | ast::Attribute::WalTrace { .. }
+                    | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::Documentation { .. }
+                    | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("use")),
+                })?;
+
                 for u in &us.inner {
                     let new_name = match &u.alias {
                         Some(name) => name.clone(),
@@ -191,6 +267,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                         new_name,
                         u.path.clone(),
                         u.visibility.clone(),
+                        deprecation_note.clone(),
                     )?;
                 }
             }
@@ -215,24 +292,16 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
         ast::Item::TraitDef(ref def) => {
-            let (name, _) = ctx.symtab.lookup_trait(&Path::ident(def.name.clone()).at_loc(&def.name)).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
-            let mut paren_sugar = false;
+            let (name, _) = ctx.symtab.lookup_trait_ignore_metadata(&Path::ident_with_loc(def.name.clone())).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
+
+            let paren_sugar = def
+                .attributes
+                .0
+                .iter()
+                .any(|attr| matches!(attr.inner, ast::Attribute::SpadecParenSugar));
+
             let documentation = def.attributes.merge_docs();
-            let _ = def.attributes.lower(&mut |attr| match &attr.inner {
-                ast::Attribute::Documentation { .. } => Ok(None),
-                ast::Attribute::SpadecParenSugar => {
-                    paren_sugar = true;
-                    Ok(None)
-                }
-                ast::Attribute::VerilogAttrs { .. }
-                | ast::Attribute::Optimize { .. }
-                | ast::Attribute::SurferTranslator(_)
-                | ast::Attribute::WalTraceable { .. }
-                | ast::Attribute::NoMangle { .. }
-                | ast::Attribute::Fsm { .. }
-                | ast::Attribute::WalSuffix { .. }
-                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
-            })?;
+
             create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.type_params,
@@ -251,7 +320,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::Module(m) => {
             ctx.in_named_namespace(m.name.clone(), |ctx| gather_symbols(&m.body, ctx))?
         }
-        ast::Item::Use(_) => {}
+        ast::Item::Use(_, _) => {}
     }
     Ok(())
 }
@@ -272,6 +341,8 @@ pub fn visit_unit(
         unit.inner.body.as_ref(),
     )?;
 
+    let deprecation_note = head.deprecation_note.clone();
+
     let new_path = extra_path
         .as_ref()
         .unwrap_or(&Path(vec![]))
@@ -282,6 +353,7 @@ pub fn visit_unit(
         new_path,
         Thing::Unit(head.at_loc(unit)),
         Some(unit.head.visibility.clone()),
+        deprecation_note,
     )?;
 
     Ok(())
@@ -332,18 +404,31 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         })
         .collect::<Result<_>>()?;
 
-    let kind = match &t.kind {
-        ast::TypeDeclKind::Enum(_) => hir::symbol_table::TypeDeclKind::Enum,
-        ast::TypeDeclKind::Struct(s) => hir::symbol_table::TypeDeclKind::Struct {
-            is_port: s.is_port(),
-        },
+    let (kind, attrs) = match &t.kind {
+        ast::TypeDeclKind::Enum(e) => (hir::symbol_table::TypeDeclKind::Enum, &e.attributes),
+        ast::TypeDeclKind::Struct(s) => (
+            hir::symbol_table::TypeDeclKind::Struct {
+                is_port: s.is_port(),
+            },
+            &s.attributes,
+        ),
     };
+
+    let deprecation_note = attrs
+        .0
+        .iter()
+        .flat_map(|a| match &a.inner {
+            ast::Attribute::Deprecated { note, .. } => Some(note.clone()),
+            _ => None,
+        })
+        .last();
 
     let new_thing = t.name.clone();
     ctx.symtab.add_unique_type(
         new_thing,
         TypeSymbol::Declared(args, kind).at_loc(t),
         t.visibility.clone(),
+        deprecation_note,
     )?;
 
     Ok(())
@@ -359,7 +444,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     // Look up the ID
     let (declaration_id, _) = ctx
         .symtab
-        .lookup_type_symbol(&Path::ident_with_loc(t.name.clone()))
+        .lookup_type_symbol(&Path::ident_with_loc(t.name.clone()), false)
         .expect("Expected type symbol to already be in symtab");
     let declaration_id = declaration_id.at_loc(&t.name);
 
@@ -392,6 +477,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             name.clone(),
             symbol_type.at_loc(param),
             t.visibility.clone(),
+            None,
         );
     }
 
@@ -402,7 +488,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     for arg in t.generic_args.as_ref().map(|l| &l.inner).unwrap_or(&vec![]) {
         let (name_id, _) = ctx
             .symtab
-            .lookup_type_symbol(&Path::ident_with_loc(arg.name().clone()))
+            .lookup_type_symbol(&Path::ident_with_loc(arg.name().clone()), false)
             .expect("Expected generic param to be in symtab");
         let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(hir::Generic::Named(
             name_id.clone().at_loc(arg),
@@ -499,8 +585,13 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 }
 
                 let documentation = variant.attributes.merge_docs();
+                let mut deprecation_note = None;
                 let _ = variant.attributes.lower(&mut |attr| match &attr.inner {
                     ast::Attribute::Documentation { .. } => Ok(None),
+                    ast::Attribute::Deprecated { note, .. } => {
+                        deprecation_note = Some(note.clone());
+                        Ok(None)
+                    }
                     ast::Attribute::Optimize { .. }
                     | ast::Attribute::VerilogAttrs { .. }
                     | ast::Attribute::SurferTranslator(_)
@@ -523,6 +614,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     option: i,
                     params: parameter_list.clone(),
                     documentation,
+                    deprecation_note: deprecation_note.clone(),
                 };
 
                 // Add option constructor to symtab at the outer scope
@@ -531,6 +623,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     Path::from_idents(&[&e.name, &variant.name]),
                     Thing::EnumVariant(variant_thing.at_loc(&variant.name)),
                     Some(variant_vis.clone().at_loc(&t.visibility)),
+                    deprecation_note,
                 );
 
                 // Add option constructor to item list
@@ -551,6 +644,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             let documentation = e.attributes.merge_docs();
             let _ = e.attributes.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::Documentation { .. } => Ok(None),
+                ast::Attribute::Deprecated { .. } => Ok(None),
                 ast::Attribute::Optimize { .. }
                 | ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::WalTraceable { .. }
@@ -622,27 +716,9 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 hir::TypeSpec::Declared(declaration_id.clone(), output_type_exprs.clone())
                     .at_loc(s);
 
-            ctx.symtab.add_thing_with_name_id(
-                declaration_id.inner.clone(),
-                Thing::Struct(
-                    StructCallable {
-                        name: t.name.clone(),
-                        self_type,
-                        params: members.clone(),
-                        type_params: type_params.clone(),
-                    }
-                    .at_loc(s),
-                ),
-                Some(t.visibility.clone()),
-            );
-
-            ctx.item_list.executables.insert(
-                declaration_id.inner.clone(),
-                hir::ExecutableItem::StructInstance,
-            );
-
             let mut wal_traceable = None;
             let documentation = s.attributes.merge_docs();
+            let mut deprecation_note = None;
             let attributes = s.attributes.lower(&mut |attr| match &attr.inner {
                 ast::Attribute::WalTraceable {
                     suffix,
@@ -665,6 +741,10 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     Ok(None)
                 }
                 ast::Attribute::Documentation { .. } => Ok(None),
+                ast::Attribute::Deprecated { note, .. } => {
+                    deprecation_note = Some(note.clone());
+                    Ok(None)
+                }
                 ast::Attribute::Optimize { .. }
                 | ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::NoMangle { .. }
@@ -674,6 +754,27 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
             })?;
+
+            ctx.symtab.add_thing_with_name_id(
+                declaration_id.inner.clone(),
+                Thing::Struct(
+                    StructCallable {
+                        name: t.name.clone(),
+                        self_type,
+                        params: members.clone(),
+                        type_params: type_params.clone(),
+                        deprecation_note: deprecation_note.clone(),
+                    }
+                    .at_loc(s),
+                ),
+                Some(t.visibility.clone()),
+                deprecation_note,
+            );
+
+            ctx.item_list.executables.insert(
+                declaration_id.inner.clone(),
+                hir::ExecutableItem::StructInstance,
+            );
 
             // We don't do any special processing of structs here
             hir::TypeDeclKind::Struct(

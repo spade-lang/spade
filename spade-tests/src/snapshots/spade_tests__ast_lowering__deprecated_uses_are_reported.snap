@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+mod m {}
+
+#[deprecated = "use m as n"]
+use m as n;
+
+use n as o;
+
+
+warning: Use of deprecated module
+  ┌─ testinput:6:5
+  │
+6 │ use n as o;
+  │     ^
+  │
+  = note: use m as n

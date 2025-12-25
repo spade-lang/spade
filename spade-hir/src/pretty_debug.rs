@@ -45,6 +45,7 @@ impl PrettyDebug for Unit {
                     where_clauses,
                     unsafe_marker,
                     documentation,
+                    deprecation_note: _,
                 },
             attributes,
             inputs,

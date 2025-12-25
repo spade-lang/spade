@@ -14,7 +14,7 @@ fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
     let path = Path::from_strs(name);
     KnownType::Named(
         symtab
-            .lookup_type_symbol(&path.clone().nowhere())
+            .lookup_type_symbol(&path.clone().nowhere(), false)
             .unwrap_or_else(|_| {
                 panic!(
                     "{} not found. Was the symtab not populated with externs?",

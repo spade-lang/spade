@@ -16,12 +16,14 @@ pub fn add_type_alias(
     alias_params: &Vec<Loc<hir::TypeParam>>,
     target_type: &Loc<hir::TypeSpec>,
     visibility: Loc<Visibility>,
+    deprecation_note: Option<Option<Loc<String>>>,
     ctx: &mut Context,
 ) -> Result<()> {
     let alias_id = ctx.symtab.add_type(
         alias_name.clone(),
         TypeSymbol::Alias(target_type.clone()).at_loc(&target_type),
-        visibility,
+        visibility.clone(),
+        deprecation_note.clone(),
     );
 
     // When aliasing a struct or enum, their `Callables` must also be added to the symbol table
@@ -66,10 +68,12 @@ pub fn add_type_alias(
                                 self_type: target_type.clone(),
                                 params: new_members.at_loc(&s.members),
                                 type_params: alias_params.clone(),
+                                deprecation_note: deprecation_note.clone(),
                             }
                             .at_loc(&target_type),
                         ),
-                        Some(Visibility::Implicit.nowhere()),
+                        Some(visibility),
+                        deprecation_note.clone(),
                     );
 
                     ctx.item_list
@@ -109,6 +113,9 @@ pub fn add_type_alias(
                                 .collect::<Result<_>>()?,
                         );
 
+                        let variant_deprecation_note =
+                            ctx.symtab.deprecation_notes.get(&variant_path_id).cloned();
+
                         let new_variant_id = ctx.symtab.add_thing(
                             Path::from_idents(&[&alias_name, &variant_name]),
                             Thing::EnumVariant(
@@ -119,10 +126,12 @@ pub fn add_type_alias(
                                     params: new_members.at_loc(&members),
                                     type_params: alias_params.clone(),
                                     documentation: e.documentation.clone(),
+                                    deprecation_note: variant_deprecation_note.clone(),
                                 }
                                 .at_loc(&variant_path_id),
                             ),
                             Some(Visibility::AtSuper.nowhere()),
+                            variant_deprecation_note,
                         );
 
                         ctx.item_list.executables.insert(

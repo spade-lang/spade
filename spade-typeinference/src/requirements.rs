@@ -319,12 +319,12 @@ impl Requirement {
             Requirement::FitsIntLiteral { value, target_type } => {
                 let int_type = ctx
                     .symtab
-                    .lookup_type_symbol(&Path::from_strs(&["int"]).nowhere())
+                    .lookup_type_symbol(&Path::from_strs(&["int"]).nowhere(), false)
                     .map_err(|_| diag_anyhow!(target_type, "The type int was not in the symtab"))?
                     .0;
                 let uint_type = ctx
                     .symtab
-                    .lookup_type_symbol(&Path::from_strs(&["uint"]).nowhere())
+                    .lookup_type_symbol(&Path::from_strs(&["uint"]).nowhere(), false)
                     .map_err(|_| diag_anyhow!(target_type, "The type int was not in the symtab"))?
                     .0;
 

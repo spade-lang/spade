@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use colored::Colorize;
 use itertools::{EitherOrBoth, Itertools};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -6,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::NameIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path, PathPrefix, PathSegment, Visibility};
+use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
@@ -40,6 +43,7 @@ pub enum LookupError {
         visibility_marker: Option<Loc<()>>,
         suggest_modifications: bool,
     },
+    Bug(Loc<()>, String),
 }
 
 impl From<LookupError> for Diagnostic {
@@ -83,7 +87,8 @@ impl From<LookupError> for Diagnostic {
                     | LookupError::BarrierError(_)
                     | LookupError::TooManySuperSegments(_, _)
                     | LookupError::NotVisible { .. }
-                    | LookupError::NotAThing(_) => unreachable!(),
+                    | LookupError::NotAThing(_)
+                    | LookupError::Bug(_, _) => unreachable!(),
                 };
 
                 // an entity can be instantiated, ...
@@ -209,6 +214,7 @@ impl From<LookupError> for Diagnostic {
                     diag
                 }
             }
+            LookupError::Bug(loc, msg) => Diagnostic::bug(loc, msg.as_str()),
         }
     }
 }
@@ -226,6 +232,7 @@ pub struct EnumVariant {
     pub params: Loc<ParameterList>,
     pub type_params: Vec<Loc<TypeParam>>,
     pub documentation: String,
+    pub deprecation_note: Option<Option<Loc<String>>>,
 }
 
 impl EnumVariant {
@@ -242,6 +249,7 @@ impl EnumVariant {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
+            deprecation_note: self.deprecation_note.clone(),
         }
     }
 }
@@ -252,6 +260,7 @@ pub struct StructCallable {
     pub self_type: Loc<TypeSpec>,
     pub params: Loc<ParameterList>,
     pub type_params: Vec<Loc<TypeParam>>,
+    pub deprecation_note: Option<Option<Loc<String>>>,
 }
 impl StructCallable {
     pub fn as_unit_head(&self) -> UnitHead {
@@ -267,6 +276,7 @@ impl StructCallable {
             where_clauses: vec![],
             unsafe_marker: None,
             documentation: String::new(),
+            deprecation_note: self.deprecation_note.clone(),
         }
     }
 }
@@ -477,22 +487,19 @@ pub struct SymbolTable {
     pub types: HashMap<NameID, Loc<TypeSymbol>>,
     pub things: HashMap<NameID, Thing>,
     pub visibilities: HashMap<NameID, Loc<Visibility>>,
+    pub deprecation_notes: HashMap<NameID, Option<Loc<String>>>,
     /// The namespace which we are currently in. When looking up and adding symbols, this namespace
     /// is added to the start of the path, thus ensuring all paths are absolute. If a path is not
     /// found that path is also looked up in the global namespace
     namespace: Path,
     /// The namespace which `lib` refers to currently.
     base_namespace: Path,
-}
-
-impl Default for SymbolTable {
-    fn default() -> Self {
-        Self::new()
-    }
+    #[serde(skip)]
+    diags: Arc<Mutex<DiagList>>,
 }
 
 impl SymbolTable {
-    pub fn new() -> Self {
+    pub fn new(diags: Arc<Mutex<DiagList>>) -> Self {
         let mut result = Self {
             symbols: vec![Scope {
                 vars: HashMap::default(),
@@ -503,13 +510,16 @@ impl SymbolTable {
             types: HashMap::default(),
             things: HashMap::default(),
             visibilities: HashMap::default(),
+            deprecation_notes: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),
+            diags,
         };
 
         result.add_thing(
             Path(vec![]),
             Thing::Module(().nowhere(), Identifier::intern("<root>").nowhere()),
+            None,
             None,
         );
 
@@ -571,6 +581,7 @@ impl SymbolTable {
         name: Path,
         item: Thing,
         visibility: Option<Loc<Visibility>>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
         let full_name = self.namespace.join(name);
         let name_id = NameID(id, full_name.clone());
@@ -584,7 +595,7 @@ impl SymbolTable {
 
         let index = self.symbols.len() - 1 - offset;
         self.symbols[index].vars.insert(full_name, name_id.clone());
-        self.add_thing_with_name_id(name_id.clone(), item, visibility);
+        self.add_thing_with_name_id(name_id.clone(), item, visibility, deprecation_note);
 
         name_id
     }
@@ -596,10 +607,14 @@ impl SymbolTable {
         name_id: NameID,
         item: Thing,
         visibility: Option<Loc<Visibility>>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) {
         self.things.insert(name_id.clone(), item);
         if let Some(vis) = visibility {
-            self.visibilities.insert(name_id, vis);
+            self.visibilities.insert(name_id.clone(), vis);
+        }
+        if let Some(note) = deprecation_note {
+            self.deprecation_notes.insert(name_id, note);
         }
     }
 
@@ -609,8 +624,9 @@ impl SymbolTable {
         name: Path,
         item: Thing,
         visibility: Option<Loc<Visibility>>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
-        self.add_thing_with_id_at_offset(0, id, name, item, visibility)
+        self.add_thing_with_id_at_offset(0, id, name, item, visibility, deprecation_note)
     }
 
     #[tracing::instrument(skip_all, fields(?name))]
@@ -619,9 +635,10 @@ impl SymbolTable {
         name: Loc<Path>,
         item: Thing,
         visibility: Option<Loc<Visibility>>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> Result<NameID, Diagnostic> {
         self.ensure_is_unique(&name)?;
-        Ok(self.add_thing(name.inner, item, visibility))
+        Ok(self.add_thing(name.inner, item, visibility, deprecation_note))
     }
 
     pub fn add_thing(
@@ -629,9 +646,10 @@ impl SymbolTable {
         name: Path,
         item: Thing,
         visibility: Option<Loc<Visibility>>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_thing_with_id(id, name, item, visibility)
+        self.add_thing_with_id(id, name, item, visibility, deprecation_note)
     }
 
     pub fn re_add_type(&mut self, name: Loc<Identifier>, name_id: NameID) {
@@ -649,6 +667,7 @@ impl SymbolTable {
         name: Loc<Identifier>,
         t: Loc<TypeSymbol>,
         visibility: Loc<Visibility>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
         let full_name = self.namespace.push_ident(name);
         let name_id = NameID(id, full_name.clone());
@@ -659,6 +678,9 @@ impl SymbolTable {
 
         self.types.insert(name_id.clone(), t);
         self.visibilities.insert(name_id.clone(), visibility);
+        if let Some(note) = deprecation_note {
+            self.deprecation_notes.insert(name_id.clone(), note);
+        }
         self.symbols
             .last_mut()
             .unwrap()
@@ -673,9 +695,10 @@ impl SymbolTable {
         name: Loc<Identifier>,
         t: Loc<TypeSymbol>,
         visibility: Loc<Visibility>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_type_with_id(id, name, t, visibility)
+        self.add_type_with_id(id, name, t, visibility, deprecation_note)
     }
 
     pub fn add_traits_to_generic(
@@ -701,9 +724,10 @@ impl SymbolTable {
         name: Loc<Identifier>,
         t: Loc<TypeSymbol>,
         visibility: Loc<Visibility>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> Result<NameID, Diagnostic> {
         self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
-        Ok(self.add_type(name, t, visibility))
+        Ok(self.add_type(name, t, visibility, deprecation_note))
     }
 
     #[tracing::instrument(skip_all, fields(?name, ?target))]
@@ -713,6 +737,7 @@ impl SymbolTable {
         name: Loc<Identifier>,
         target: Loc<Path>,
         visibility: Loc<Visibility>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> Result<NameID, Diagnostic> {
         self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
 
@@ -724,6 +749,7 @@ impl SymbolTable {
                 in_namespace: self.current_namespace().clone(),
             },
             Some(visibility),
+            deprecation_note,
         ))
     }
 
@@ -734,9 +760,10 @@ impl SymbolTable {
         name: Path,
         item: Thing,
         visibility: Option<Loc<Visibility>>,
+        deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_thing_with_id_at_offset(offset, id, name, item, visibility)
+        self.add_thing_with_id_at_offset(offset, id, name, item, visibility, deprecation_note)
     }
 
     pub fn freeze(self) -> FrozenSymtab {
@@ -756,11 +783,12 @@ impl SymbolTable {
             Path::ident(name.clone()),
             Thing::Variable(name),
             None,
+            None,
         )
     }
 
     pub fn add_dummy(&mut self, segment: PathSegment) -> NameID {
-        self.add_thing(Path(vec![segment]), Thing::Dummy, None)
+        self.add_thing(Path(vec![segment]), Thing::Dummy, None, None)
     }
 
     pub fn add_declaration(&mut self, ident: Loc<Identifier>) -> Result<NameID, Diagnostic> {
@@ -837,9 +865,9 @@ impl SymbolTable {
     pub fn lookup_thing_impl(
         &self,
         path: &Loc<Path>,
-        check_visibility: bool,
+        check_metadata: bool,
     ) -> Result<(NameID, &Thing), LookupError> {
-        let id = self.lookup_id(path, check_visibility)?;
+        let id = self.lookup_id(path, check_metadata)?;
 
         match self.things.get(&id) {
             Some(thing) => Ok((id, thing)),
@@ -850,7 +878,7 @@ impl SymbolTable {
         }
     }
 
-    pub fn lookup_thing_ignore_visibility(
+    pub fn lookup_thing_ignore_metadata(
         &self,
         path: &Loc<Path>,
     ) -> Result<(NameID, &Thing), LookupError> {
@@ -867,7 +895,7 @@ macro_rules! thing_accessors {
         $(
             $by_id_name:ident,
             $lookup_name:ident,
-            $lookup_ignore_visibility:ident,
+            $lookup_ignore_metadata:ident,
             $result:path,
             $err:ident $(,)?
             {$($thing:pat => $conversion:expr),*$(,)?}
@@ -903,8 +931,8 @@ macro_rules! thing_accessors {
             /// Look up an item without performing visibility checks, with errors if the item is not currently in scope, or is not
             /// convertible to the return type.
             #[tracing::instrument(level = "trace", skip_all, fields(%name.inner, %name.span, %name.file_id))]
-            pub fn $lookup_ignore_visibility(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
-                let (id, thing) = self.lookup_thing_ignore_visibility(name)?;
+            pub fn $lookup_ignore_metadata(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
+                let (id, thing) = self.lookup_thing_ignore_metadata(name)?;
 
                 match thing {
                     $(
@@ -925,15 +953,15 @@ impl SymbolTable {
     // lookup_* looks up items by path, and returns the NameID and item if successful.
     // If the path is not in scope, or the item is not the right kind, returns an error.
     thing_accessors! {
-        unit_by_id, lookup_unit, lookup_unit_ignore_visibility, UnitHead, NotAUnit {
+        unit_by_id, lookup_unit, lookup_unit_ignore_metadata, UnitHead, NotAUnit {
             Thing::Unit(head) => head.clone(),
             Thing::EnumVariant(variant) => variant.as_unit_head().at_loc(variant),
             Thing::Struct(s) => s.as_unit_head().at_loc(s),
         },
-        enum_variant_by_id, lookup_enum_variant, lookup_enum_variant_ignore_visibility, EnumVariant, NotAnEnumVariant {
+        enum_variant_by_id, lookup_enum_variant, lookup_enum_variant_ignore_metadata, EnumVariant, NotAnEnumVariant {
             Thing::EnumVariant(variant) => variant.clone()
         },
-        patternable_type_by_id, lookup_patternable_type, lookup_patternable_type_ignore_visibility, Patternable, NotAPatternableType {
+        patternable_type_by_id, lookup_patternable_type, lookup_patternable_type_ignore_metadata, Patternable, NotAPatternableType {
             Thing::EnumVariant(variant) => Patternable{
                 kind: PatternableKind::Enum,
                 params: variant.params.clone()
@@ -943,10 +971,10 @@ impl SymbolTable {
                 params: variant.params.clone()
             }.at_loc(variant),
         },
-        struct_by_id, lookup_struct, lookup_struct_ignore_visibility, StructCallable, NotAStruct {
+        struct_by_id, lookup_struct, lookup_struct_ignore_metadata, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
-        trait_by_id, lookup_trait, lookup_trait_ignore_visibility, TraitMarker, NotATrait {
+        trait_by_id, lookup_trait, lookup_trait_ignore_metadata, TraitMarker, NotATrait {
             Thing::Trait(t) => t.clone()
         }
     }
@@ -969,8 +997,9 @@ impl SymbolTable {
     pub fn lookup_type_symbol(
         &self,
         name: &Loc<Path>,
+        check_metadata: bool,
     ) -> Result<(NameID, Loc<TypeSymbol>), LookupError> {
-        let id = self.lookup_id(name, true)?;
+        let id = self.lookup_id(name, check_metadata)?;
 
         match self.types.get(&id) {
             Some(tsym) => Ok((id, tsym.clone())),
@@ -999,6 +1028,7 @@ impl SymbolTable {
             Err(LookupError::NotAThing(_)) => unreachable!(),
             Err(LookupError::TooManySuperSegments(_, _)) => unreachable!(),
             Err(LookupError::NotVisible { .. }) => unreachable!(),
+            Err(LookupError::Bug(_, _)) => unreachable!(),
         }
     }
 
@@ -1071,12 +1101,8 @@ impl SymbolTable {
 
     /// Returns the name ID of the provided path if that path exists and resolving
     /// all aliases along the way.
-    pub fn lookup_id(
-        &self,
-        name: &Loc<Path>,
-        check_visibility: bool,
-    ) -> Result<NameID, LookupError> {
-        self.lookup_id_in_namespace(name, &self.namespace, check_visibility)
+    pub fn lookup_id(&self, name: &Loc<Path>, check_metadata: bool) -> Result<NameID, LookupError> {
+        self.lookup_id_in_namespace(name, &self.namespace, check_metadata)
     }
 
     /// Returns the name ID of the provided path if that path exists and resolving
@@ -1085,14 +1111,14 @@ impl SymbolTable {
         &self,
         name: &Loc<Path>,
         namespace: &Path,
-        check_visibility: bool,
+        check_metadata: bool,
     ) -> Result<NameID, LookupError> {
-        let (offset, path) = self.canonicalize_in_namespace(
+        let (offset, path, deprecation_note) = self.canonicalize_in_namespace(
             name,
             namespace,
             &Default::default(),
             0,
-            check_visibility,
+            check_metadata,
         )?;
 
         let id = self.symbols[self.current_scope() - offset]
@@ -1100,6 +1126,32 @@ impl SymbolTable {
             .get(&path)
             .expect("Canonical path not present in symbol table (that is impossible)")
             .clone();
+
+        if let Some(note) = deprecation_note {
+            let kind_name = if let Some(ty) = self.types.get(&id) {
+                match &ty.inner {
+                    TypeSymbol::Declared(_, kind) => kind.name(),
+                    TypeSymbol::Alias(_) => "type alias".to_string(),
+                    TypeSymbol::GenericArg { .. } => unreachable!(),
+                    TypeSymbol::GenericMeta(_) => unreachable!(),
+                }
+            } else if let Some(thing) = self.things.get(&id) {
+                thing.kind_string().to_string()
+            } else {
+                return Err(LookupError::Bug(
+                    name.loc(),
+                    "Deprecation note has no accompanying symtab entry".to_string(),
+                ));
+            };
+
+            let mut diag = Diagnostic::warning(name, format!("Use of deprecated {kind_name}"));
+
+            if let Some(message) = note {
+                diag.add_note(message.inner);
+            }
+
+            self.diags.lock().unwrap().errors.push(diag);
+        }
 
         if let Some(thing) = self.things.get(&id) {
             self.symbols
@@ -1120,8 +1172,10 @@ impl SymbolTable {
         namespace: &Path,
         forbidden: &HashSet<NameID>,
         offset: usize,
-        check_visibility: bool,
-    ) -> Result<(usize, Path), LookupError> {
+        check_metadata: bool,
+    ) -> Result<(usize, Path, Option<Option<Loc<String>>>), LookupError> {
+        let mut deprecation_note = None;
+
         // Find which namespace this path belongs (lib-relative, local or dep-relative)
         let (mut scope_offset, mut working_path, segments) = match path.extract_prefix() {
             (PathPrefix::FromLib, lib_relative_path) => {
@@ -1216,7 +1270,11 @@ impl SymbolTable {
                     return Err(LookupError::NoSuchSymbol(segment_path));
                 }
 
-                if check_visibility {
+                if check_metadata {
+                    if let Some(note) = self.deprecation_notes.get(id) {
+                        deprecation_note = Some(note.clone());
+                    }
+
                     // Visibility information may not apply for the path target (e.g., local variables).
                     // If visibility information does not exist, the check is ignored.
                     if let Some(visibility) = self.visibilities.get(id) {
@@ -1292,13 +1350,19 @@ impl SymbolTable {
                         local_forbidden.insert(id.clone());
 
                         // Alias target is itself a non-canonical path, it must be resolved first.
-                        (scope_offset, working_path) = self.canonicalize_in_namespace(
-                            path,
-                            in_namespace,
-                            &local_forbidden,
-                            offset,
-                            check_visibility,
-                        )?;
+                        let new_deprecation_info;
+                        (scope_offset, working_path, new_deprecation_info) = self
+                            .canonicalize_in_namespace(
+                                path,
+                                in_namespace,
+                                &local_forbidden,
+                                offset,
+                                check_metadata,
+                            )?;
+
+                        if let Some(info) = new_deprecation_info {
+                            deprecation_note = Some(info);
+                        }
                     }
                     _ => break,
                 }
@@ -1307,7 +1371,7 @@ impl SymbolTable {
 
         // The working path has been walked and all aliases have been resolved.
         // It now definitely points to the thing (that is not an alias).
-        Ok((scope_offset, working_path))
+        Ok((scope_offset, working_path, deprecation_note))
     }
 
     pub fn print_symbols(&self) {

@@ -83,10 +83,16 @@ impl LocAttributeExt for Loc<ast::Attribute> {
     /// on should be written not fit in the sentence {} is not a valid attribute for {on},
     /// i.e. `a thing` or `an item` should probably be used
     fn report_unused(&self, on: &str) -> Diagnostic {
-        Diagnostic::error(
+        let diagnostic = Diagnostic::error(
             self,
             format!("{} is not a valid attribute for {on}", self.name()),
         )
-        .primary_label(format!("Unsupported attribute for {on}"))
+        .primary_label(format!("Unsupported attribute for {on}"));
+
+        match self.inner {
+            ast::Attribute::Documentation { .. } if on.ends_with("module") => diagnostic
+                .help("If you want to document this module, use inside comments (//!) instead."),
+            _ => diagnostic,
+        }
     }
 }

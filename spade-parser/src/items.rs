@@ -331,8 +331,6 @@ impl KeywordPeekingParser<Item> for ModuleParser {
         visibility: &Loc<Visibility>,
     ) -> Result<Item> {
         let start = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start)?;
-
         let name = parser.identifier()?;
 
         if parser.peek_kind(&TokenKind::OpenBrace)? {
@@ -347,6 +345,7 @@ impl KeywordPeekingParser<Item> for ModuleParser {
                     visibility: visibility.clone(),
                     name,
                     body: body.between(parser.file_id, &open_brace.span, &end.span),
+                    attributes: attributes.clone(),
                 }
                 .between(parser.file_id, &start, &end),
             ))
@@ -356,6 +355,7 @@ impl KeywordPeekingParser<Item> for ModuleParser {
                 ExternalMod {
                     visibility: visibility.clone(),
                     name,
+                    attributes: attributes.clone(),
                 }
                 .between(parser.file_id, &start, &end),
             ))
@@ -371,7 +371,7 @@ impl KeywordPeekingParser<Item> for ModuleParser {
 
 pub(crate) struct UseParser {}
 
-impl KeywordPeekingParser<Loc<Vec<UseStatement>>> for UseParser {
+impl KeywordPeekingParser<(AttributeList, Loc<Vec<UseStatement>>)> for UseParser {
     fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
         |kind| kind == &TokenKind::Use
     }
@@ -381,21 +381,22 @@ impl KeywordPeekingParser<Loc<Vec<UseStatement>>> for UseParser {
         parser: &mut Parser,
         attributes: &AttributeList,
         visibility: &Loc<Visibility>,
-    ) -> Result<Loc<Vec<UseStatement>>> {
+    ) -> Result<(AttributeList, Loc<Vec<UseStatement>>)> {
         let start = parser.eat_unconditional()?;
-        parser.disallow_attributes(attributes, &start)?;
-
         let paths = parser.path_tree_with_as_alias()?;
         let end = parser.eat(&TokenKind::Semi)?;
 
-        Ok(paths
-            .into_iter()
-            .map(|(path, alias)| UseStatement {
-                visibility: visibility.clone(),
-                path,
-                alias,
-            })
-            .collect::<Vec<_>>()
-            .between(parser.file_id, &start.span(), &end.span()))
+        Ok((
+            attributes.clone(),
+            paths
+                .into_iter()
+                .map(|(path, alias)| UseStatement {
+                    visibility: visibility.clone(),
+                    path,
+                    alias,
+                })
+                .collect::<Vec<_>>()
+                .between(parser.file_id, &start.span(), &end.span()),
+        ))
     }
 }

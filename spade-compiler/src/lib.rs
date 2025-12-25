@@ -23,7 +23,7 @@ use spade_typeinference::traits::TraitImplList;
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::Level;
 use typeinference::TypeState;
 
@@ -98,7 +98,8 @@ pub fn compile(
     opts: Opt,
     diag_handler: DiagHandler,
 ) -> Result<Artefacts, CompilationResult> {
-    let mut symtab = SymbolTable::new();
+    let diags = Arc::new(Mutex::new(DiagList::new()));
+    let mut symtab = SymbolTable::new(diags.clone());
     let mut item_list = ItemList::new();
 
     let mut sources = if include_stdlib_and_prelude {
@@ -167,7 +168,7 @@ pub fn compile(
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
         current_unit: None,
-        diags: DiagList::new(),
+        diags: diags.clone(),
         safety: Safety::Default,
     };
 
@@ -185,6 +186,7 @@ pub fn compile(
                     namespace.namespace.0.last().unwrap().unwrap_named().clone(),
                 ),
                 Some(Visibility::Implicit.nowhere()),
+                None,
             );
             ctx.item_list.modules.insert(
                 name_id.clone(),
@@ -232,7 +234,7 @@ pub fn compile(
         })
     }
 
-    errors.drain_diag_list(&mut ctx.diags);
+    errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
 
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
@@ -246,7 +248,7 @@ pub fn compile(
     }
 
     unfinished_artefacts.item_list = Some(ctx.item_list.clone());
-    errors.drain_diag_list(&mut ctx.diags);
+    errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
 
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
@@ -266,11 +268,11 @@ pub fn compile(
         pipeline_ctx: _,
         self_ctx: _,
         current_unit: _,
-        mut diags,
+        diags,
         safety: _,
     } = ctx;
 
-    errors.drain_diag_list(&mut diags);
+    errors.drain_diag_list(&mut diags.lock().unwrap());
 
     for e in ensure_unique_anonymous_traits(&mut item_list) {
         errors.report(&e)

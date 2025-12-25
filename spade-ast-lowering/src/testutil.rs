@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::{Context, SelfContext};
 use spade_common::id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker};
@@ -8,8 +8,9 @@ use spade_hir::symbol_table::SymbolTable;
 use spade_hir::ItemList;
 
 pub fn test_context() -> Context {
+    let diags = Arc::new(Mutex::new(DiagList::new()));
     Context {
-        symtab: SymbolTable::new(),
+        symtab: SymbolTable::new(diags.clone()),
         item_list: ItemList::new(),
         idtracker: Arc::new(ExprIdTracker::new()),
         impl_idtracker: ImplIdTracker::new(),
@@ -17,7 +18,7 @@ pub fn test_context() -> Context {
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
         current_unit: None,
-        diags: DiagList::new(),
+        diags,
         safety: Safety::Default,
     }
 }

@@ -102,6 +102,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 new_name,
                 Thing::Unit(new_unit.head.clone().at_loc(&unit)),
                 None,
+                None,
             );
             new_unit.name = UnitName::WithID(new_nameid.clone().at_loc(&unit.head.name));
 

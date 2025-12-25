@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+#[deprecated = "module m"]
+mod m {
+    pub enum E {
+        A,
+        B,
+    }
+}
+
+use m::E::A as X;
+
+
+warning: Use of deprecated enum variant
+  ┌─ testinput:9:5
+  │
+9 │ use m::E::A as X;
+  │     ^^^^^^^
+  │
+  = note: module m
