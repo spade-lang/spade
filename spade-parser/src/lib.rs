@@ -11,7 +11,7 @@ use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
 use logos::Lexer;
-use spade_diagnostics::diag_list::DiagList;
+use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterParser, SetParser};
 use tracing::{debug, event, Level};
 
@@ -2059,18 +2059,34 @@ impl<'a> Parser<'a> {
     #[tracing::instrument(skip(self))]
     pub fn top_level_module_body(&mut self) -> Result<Loc<ModuleBody>> {
         let start_token = self.peek()?;
-        let result = self.module_body()?;
-        let end_token = self.peek()?;
+        let result = (|| {
+            let result = self.module_body()?;
+            let end_token = self.peek()?;
 
-        if self.peek_kind(&TokenKind::Eof)? {
             Ok(result.between(self.file_id, &start_token, &end_token))
-        } else {
+        })();
+
+        if !self.peek_kind(&TokenKind::Eof)? {
             let got = self.peek()?;
-            Err(Diagnostic::error(
+            Diagnostic::error(
                 got.loc(),
                 format!("expected item, got `{}`", got.kind.as_str()),
             )
-            .primary_label("expected item"))
+            .primary_label("expected item")
+            .handle_in(&mut self.diags);
+        }
+
+        match result {
+            Ok(result) => Ok(result),
+            e @ Err(_) => {
+                e.handle_in(&mut self.diags);
+
+                Ok(ModuleBody {
+                    members: vec![],
+                    documentation: vec![],
+                }
+                .between(self.file_id, &start_token, &self.peek()?))
+            }
         }
     }
 }

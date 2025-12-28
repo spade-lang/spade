@@ -450,6 +450,8 @@ impl SymbolTable {
     }
 
     /// Push an identifier onto the current namespace
+    ///
+    /// Prefer using `ctx.in_namespace` over calling these methods directly
     #[tracing::instrument(skip_all, fields(%new_ident))]
     pub fn push_namespace(&mut self, new_ident: Loc<Identifier>) {
         self.namespace = self.namespace.push_ident(new_ident.clone());

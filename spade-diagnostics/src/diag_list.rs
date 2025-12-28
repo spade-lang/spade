@@ -54,3 +54,9 @@ impl<T> ResultExt<T> for Result<T, Diagnostic> {
         }
     }
 }
+
+impl Diagnostic {
+    pub fn handle_in(self, diag: &mut DiagList) {
+        diag.errors.push(self);
+    }
+}

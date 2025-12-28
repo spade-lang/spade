@@ -82,16 +82,9 @@ pub fn handle_external_modules(
                     }
                 }
             }
-            ast::Item::Module(m) => {
-                ctx.symtab.push_namespace(m.name.clone());
-                if let Err(e) =
-                    handle_external_modules(this_file, Some(m), &m.body, namespaces, ctx)
-                {
-                    ctx.symtab.pop_namespace();
-                    return Err(e);
-                };
-                ctx.symtab.pop_namespace();
-            }
+            ast::Item::Module(m) => ctx.in_namespace(m.name.clone(), |ctx| {
+                handle_external_modules(this_file, Some(m), &m.body, namespaces, ctx)
+            })?,
             ast::Item::Type(_) => {}
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
@@ -161,12 +154,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     Path::ident(m.name.clone()).at_loc(&m.name),
                     Thing::Module(m.name.clone()),
                 )?;
-                ctx.symtab.push_namespace(m.name.clone());
-                if let Err(e) = gather_types(&m.body, ctx) {
-                    ctx.symtab.pop_namespace();
-                    return Err(e);
-                };
-                ctx.symtab.pop_namespace();
+                ctx.in_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
@@ -252,12 +240,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         }
         ast::Item::ExternalMod(_) => {}
         ast::Item::Module(m) => {
-            ctx.symtab.push_namespace(m.name.clone());
-            if let Err(e) = gather_symbols(&m.body, ctx) {
-                ctx.symtab.pop_namespace();
-                return Err(e);
-            }
-            ctx.symtab.pop_namespace();
+            ctx.in_namespace(m.name.clone(), |ctx| gather_symbols(&m.body, ctx))?
         }
         ast::Item::Use(_) => {}
     }

@@ -99,6 +99,17 @@ impl Context {
         }
         result
     }
+
+    pub fn in_namespace<T>(
+        &mut self,
+        new_ident: Loc<Identifier>,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        self.symtab.push_namespace(new_ident);
+        let result = f(self);
+        self.symtab.pop_namespace();
+        result
+    }
 }
 
 trait LocExt<T> {
@@ -1427,6 +1438,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
             ctx.symtab.pop_namespace();
             result.map(|_| vec![])
         }
+        // We can leave the forbidden slice empty, because even after resolving to itself for the first time, it will add itself as forbidden for the next time
         ast::Item::Use(ss) => {
             for s in &ss.inner {
                 ctx.symtab.lookup_id(&s.path).map_err(Diagnostic::from)?;
