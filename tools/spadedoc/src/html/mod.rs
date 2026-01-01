@@ -1,9 +1,9 @@
 use std::{borrow::Cow, fmt::Display};
 
+use askama::Template;
 use camino::Utf8PathBuf;
 use color_eyre::eyre::Result;
 use pulldown_cmark::{Options, Parser};
-use rinja::Template;
 use spade_common::{location_info::Loc, name::Identifier};
 use spade_hir::{Attribute, TypeParam, UnitKind};
 use spade_types::meta_types::MetaType;
@@ -58,7 +58,7 @@ impl ItemKind {
     }
 }
 
-/// ```rinja
+/// ```askama
 /// {{ self.target.render()?|safe }} {%if !constraints.is_empty() %} {{ ": " }} {% endif %} {{ self.constraints|join(" + ") }}
 /// ```
 #[derive(Debug, Template)]
@@ -68,7 +68,7 @@ pub struct WhereClause<'r> {
     pub constraints: Vec<Spec<'r>>,
 }
 
-/// ```rinja
+/// ```askama
 /// {% if let Some(meta) = &meta %} {{ meta }} {{" "}} {% endif %} {{ self.inner.render()?|safe }}
 /// ```
 #[derive(Debug, Template)]
@@ -104,7 +104,7 @@ impl<'r> GenericTypeParam<'r> {
 }
 
 // FIXME: params.len() > 2 is a dumb heuristic, should actually compute length
-/// ```rinja
+/// ```askama
 /// {% if is_external %}
 ///     {{"extern "}}
 /// {% endif %}
@@ -158,7 +158,7 @@ pub struct UnitSignature<'r> {
     pub where_clauses: Vec<WhereClause<'r>>,
 }
 
-/// ```rinja
+/// ```askama
 /// {{ "struct " }} {{ name }}
 /// {% if !type_params.is_empty() %}
 /// <
@@ -184,19 +184,19 @@ pub struct StructSignature<'r> {
 
 #[derive(Debug, Template)]
 pub enum Signature<'r> {
-    /// ```rinja
+    /// ```askama
     /// {{ self.0|safe }}
     /// ```
     #[template(in_doc = true, ext = "html")]
     UnitSignature(UnitSignature<'r>),
-    /// ```rinja
+    /// ```askama
     /// {{ self.0|safe }}
     /// ```
     #[template(in_doc = true, ext = "html")]
     StructSignature(StructSignature<'r>),
 }
 
-/// ```rinja
+/// ```askama
 /// {{ self.0 }}: {{+ self.1|safe }}
 /// ```
 #[derive(Debug, Template)]
@@ -264,7 +264,7 @@ pub enum Variant<'r> {
     Valued(Cow<'r, str>, Vec<Param<'r>>, RenderedMarkdown),
 }
 
-/// ```rinja
+/// ```askama
 /// <pre class="member"><code class="language-spade hljs">{{ signature }}</code></pre>
 /// {{ doc|safe }}
 /// ````

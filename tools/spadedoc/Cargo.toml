@@ -5,11 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-ammonia = "4.0.0"
-#askama = "0.12.1"
-rinja = { features = [
-  "code-in-doc",
-], git = "https://github.com/rinja-rs/rinja", rev = "c3fac0ca99579dd2ad73f53c231e56a7dd1c0074" }
+ammonia = "4.1.2"
+askama = { version = "0.15.1", features = ["code-in-doc"] }
 camino = "1.1.2"
 spade-codespan-reporting.workspace = true
 color-eyre = "0.6.1"
@@ -21,8 +18,8 @@ spade-common.workspace = true
 spade-diagnostics.workspace = true
 spade-hir.workspace = true
 spade-types.workspace = true
-tracing = "0.1.34"
-tracing-subscriber = { version = "0.3.11", features = ["env-filter"] }
-tracing-tree = "0.4"
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-tree.workspace = true
 local-impl = "0.1.2"
 argh = "0.1.13"

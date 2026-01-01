@@ -246,16 +246,16 @@ pub enum TokenKind {
     #[regex(r#""[^"]*""#, |lex| lex.slice().replace("\"", ""))]
     String(String),
 
-    #[regex("///[^\n]*", |lex| lex.slice()[3..].to_string())]
+    #[regex("///[^\n]*", |lex| lex.slice()[3..].to_string(), allow_greedy = true)]
     OutsideDocumentation(String),
-    #[regex("//![^\n]*", |lex| lex.slice()[3..].to_string())]
+    #[regex("//![^\n]*", |lex| lex.slice()[3..].to_string(), allow_greedy = true)]
     InsideDocumentation(String),
 
     /// Ignoring whitespace
     #[regex("[ \t\n\r]", logos::skip)]
     Whitespace,
 
-    #[regex("//[^\n]*")]
+    #[regex("//[^\n]*", allow_greedy = true)]
     Comment,
 
     #[token("/*")]

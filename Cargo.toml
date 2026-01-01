@@ -14,7 +14,7 @@ resolver = "2"
 version = "0.15.0"
 license = "EUPL-1.2"
 edition = "2021"
-rust-version = "1.70" # is_terminal is stable from 1.70
+rust-version = "1.88"
 readme = "README.md"
 homepage = "https://spade-lang.org"
 repository = "https://gitlab.com/spade-lang/spade"
@@ -43,13 +43,13 @@ indoc = "2.0"
 insta = "1.14.0"
 itertools = "0.14"
 local-impl = "0.1.2"
-logos = "0.15.0"
+logos = "0.16.0"
 num = {version = "0.4.0", features = ["serde"]}
 pretty_assertions = "1.4.1"
-prettydiff = { version = "0.8", default-features = false }
+prettydiff = { version = "0.9", default-features = false }
 pyo3 = { version = "0.21.2", features = ["extension-module", "eyre", "abi3-py38"] }
 recursive = {version = "0.1.1"}
-ron = {version = "0.10.0", features=["integer128"]}
+ron = {version = "0.12.0", features=["integer128"]}
 fastrand = {version = "2.3.0"}
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.117"

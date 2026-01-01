@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
+use askama::Template;
 use color_eyre::eyre::Result;
-use rinja::Template;
 use spade_hir::{ConstGeneric, TraitSpec, TypeExpression, TypeSpec};
 
 #[derive(Debug, Template)]
 pub enum Spec<'r> {
-    /// ```rinja
+    /// ```askama
     /// {{ name }}
     /// {% if !type_args.is_empty() %}
     /// <{{ type_args|join(", ") }}>
@@ -17,12 +17,12 @@ pub enum Spec<'r> {
         name: Cow<'r, str>,
         type_args: Vec<Spec<'r>>,
     },
-    /// ```rinja
+    /// ```askama
     /// {{ self.0 }}
     /// ```
     #[template(ext = "html", in_doc = true)]
     Number(i64),
-    /// ```rinja
+    /// ```askama
     /// [{{ ty.render()?|safe }}; {{+ size.render()?|safe }}]
     /// ```
     #[template(ext = "html", in_doc = true)]
@@ -30,35 +30,35 @@ pub enum Spec<'r> {
         ty: Box<Spec<'r>>,
         size: Box<Spec<'r>>,
     },
-    /// ```rinja
+    /// ```askama
     /// ({{ self.0|join(", ") }})
     /// ```
     #[template(ext = "html", in_doc = true)]
     Tuple(Vec<Spec<'r>>),
-    /// ```rinja
+    /// ```askama
     /// {{"inv "}}{{ self.0.render()?|safe }}
     /// ```
     #[template(ext = "html", in_doc = true)]
     Inverted(Box<Spec<'r>>),
-    /// ```rinja
+    /// ```askama
     /// &{{ self.0.render()?|safe }}
     /// ```
     #[template(ext = "html", in_doc = true)]
     Wire(Box<Spec<'r>>),
 
-    /// ```rinja
+    /// ```askama
     /// {{ "{" }}{{ self.0.render()?|safe }}{{ "}" }}
     /// ```
     #[template(ext = "html", in_doc = true)]
     ConstGenericRoot(Box<Spec<'r>>),
 
-    /// ```rinja
+    /// ```askama
     /// ({{ self.0.render()?|safe }})
     /// ```
     #[template(ext = "html", in_doc = true)]
     Parenthesized(Box<Spec<'r>>),
 
-    /// ```rinja
+    /// ```askama
     /// {{ self.lhs.render()?|safe }} {{" "}}{{ self.op }}{{" "}} {{ self.rhs.render()?|safe }}
     /// ```
     #[template(ext = "html", in_doc = true)]
@@ -68,7 +68,7 @@ pub enum Spec<'r> {
         rhs: Box<Spec<'r>>,
     },
 
-    /// ```rinja
+    /// ```askama
     /// {{ self.name }}({{ self.args|join(", ") }})
     /// ```
     #[template(ext = "html", in_doc = true)]
