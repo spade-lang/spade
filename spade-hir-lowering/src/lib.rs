@@ -726,6 +726,20 @@ impl PatternLocal for Loc<Pattern> {
         }
     }
 
+    fn is_trivially_irrefutable(&self) -> bool {
+        match &self.kind {
+            spade_hir::PatternKind::Integer(_) => false,
+            spade_hir::PatternKind::Bool(_) => false,
+            spade_hir::PatternKind::Name { .. } => true,
+            spade_hir::PatternKind::Tuple(inner) | spade_hir::PatternKind::Array(inner) => {
+                inner.iter().all(Self::is_trivially_irrefutable)
+            }
+            spade_hir::PatternKind::Type(_, inner) => {
+                inner.iter().all(|arg| arg.value.is_trivially_irrefutable())
+            }
+        }
+    }
+
     /// Returns an error if the pattern is refutable, i.e. it does not match all possible
     /// values it binds to
     #[tracing::instrument(level = "trace", skip(self, ctx))]
@@ -746,6 +760,23 @@ impl PatternLocal for Loc<Pattern> {
             &PatStack::new(vec![DeconstructedPattern::wildcard(&operand_ty)]),
             &usefulness::Matrix::new(&pat_stacks),
         )
+    }
+
+    fn check_irrefutable(&self, binding_kind: &str, ctx: &Context) -> Result<()> {
+        if self.is_trivially_irrefutable() {
+            return Ok(());
+        }
+
+        let refutability = self.is_refutable(ctx);
+        if refutability.is_useful() {
+            Err(refutable_pattern_diagnostic(
+                self.loc(),
+                &refutability,
+                binding_kind,
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -1078,14 +1109,7 @@ impl StatementLocal for Statement {
             }) => {
                 result.append(value.lower(ctx)?);
 
-                let refutability = pattern.is_refutable(ctx);
-                if refutability.is_useful() {
-                    return Err(refutable_pattern_diagnostic(
-                        pattern.loc(),
-                        &refutability,
-                        "let",
-                    ));
-                }
+                pattern.check_irrefutable("let", ctx)?;
 
                 let concrete_ty = ctx.types.concrete_type_of(
                     pattern,
@@ -1156,14 +1180,7 @@ impl StatementLocal for Statement {
 
                 result.append(value.lower(ctx)?);
 
-                let refutability = pattern.is_refutable(ctx);
-                if refutability.is_useful() {
-                    return Err(refutable_pattern_diagnostic(
-                        pattern.loc(),
-                        &refutability,
-                        "reg",
-                    ));
-                }
+                pattern.check_irrefutable("reg", ctx)?;
 
                 let ty = ctx.types.concrete_type_of(
                     pattern,
