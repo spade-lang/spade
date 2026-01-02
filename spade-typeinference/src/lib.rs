@@ -581,7 +581,7 @@ impl TypeState {
             )));
             self.unify(&TypedExpression::Id(entity.body.inner.id), &tvar, ctx)
                 .into_diagnostic_no_expected_source(
-                    &entity.body,
+                    &*entity.body,
                     |diag,
                      Tm {
                          g: got,

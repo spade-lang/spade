@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use spade_common::location_info::Loc;
 use spade_hir::{Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement, Unit};
 
@@ -201,7 +203,9 @@ impl Passable for Loc<Expression> {
 impl Passable for Unit {
     fn apply(&mut self, pass: &mut dyn Pass) -> Result<()> {
         pass.visit_unit(self)?;
-        self.body.apply(pass)?;
+        let mut new_body = (*self.body).clone();
+        new_body.apply(pass)?;
+        self.body = Arc::new(new_body);
         Ok(())
     }
 }

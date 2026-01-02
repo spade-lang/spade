@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
@@ -73,7 +75,7 @@ pub fn absorb_statements(
 
 pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Unit>> {
     let Ok(body) = unit.body.assume_block() else {
-        unit.body.kind = ExprKind::Error;
+        unit.body = Arc::new(ExprKind::Error.with_id(unit.body.id).at_loc(&*unit.body));
         return Ok(unit);
     };
 
@@ -81,7 +83,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
         |new_body: &Loc<Expression>, name_suffix: &str, ctx: &mut Context| -> Result<_> {
             let mut new_unit = unit.clone();
             let absorbed = absorb_statements(&new_body, &body.statements, ctx)?;
-            new_unit.body = match &absorbed.kind {
+            let body = match &absorbed.kind {
                 ExprKind::TypeLevelIf(_, _, _) => {
                     let loc = absorbed.loc();
                     ExprKind::Block(Box::new(Block {
@@ -95,6 +97,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 ExprKind::Error => absorbed,
                 _ => diag_bail!(absorbed, "Non tlif or body"),
             };
+            new_unit.body = Arc::new(body);
 
             let new_name = unit
                 .name
@@ -223,7 +226,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 })
                 .unwrap_or_default();
 
-            unit.body = ExprKind::Block(Box::new(Block {
+            unit.body = Arc::new(ExprKind::Block(Box::new(Block {
                 statements: vec![result_binding]
                     .into_iter()
                     .chain(pipeline_reg)
@@ -235,7 +238,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 ),
             }))
             .with_id(ctx.idtracker.next())
-            .at_loc(&unit.body);
+            .at_loc(&unit.body));
 
             Ok(expand_type_level_if(unit, ctx)?)
         }

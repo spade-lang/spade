@@ -9,6 +9,8 @@ pub mod testutil;
 mod type_level_if;
 pub mod types;
 
+use std::sync::Arc;
+
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
 use impls::visit_impl;
@@ -1314,7 +1316,7 @@ pub fn visit_unit(
             head: head.clone().inner,
             attributes,
             inputs,
-            body,
+            body: Arc::new(body),
         }
         .at_loc(unit),
         ctx,
@@ -3330,12 +3332,12 @@ mod item_visiting {
                 },
                 attributes: hir::AttributeList::empty(),
                 inputs: vec![],
-                body: hir::ExprKind::Block(Box::new(hir::Block {
+                body: Arc::new(hir::ExprKind::Block(Box::new(hir::Block {
                     statements: vec![],
                     result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
                 }))
                 .idless()
-                .nowhere(),
+                .nowhere()),
             }
             .nowhere(),
         );
@@ -3412,12 +3414,12 @@ mod module_visiting {
                         },
                         inputs: vec![],
                         attributes: hir::AttributeList::empty(),
-                        body: hir::ExprKind::Block(Box::new(hir::Block {
+                        body: Arc::new(hir::ExprKind::Block(Box::new(hir::Block {
                             statements: vec![],
                             result: Some(hir::ExprKind::int_literal(0).idless().nowhere()),
                         }))
                         .idless()
-                        .nowhere(),
+                        .nowhere()),
                     }
                     .nowhere(),
                 ),

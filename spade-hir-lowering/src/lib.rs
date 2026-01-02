@@ -3376,7 +3376,7 @@ pub fn generate_unit<'a>(
 
     let output_t = ctx
         .types
-        .concrete_type_of(&unit.body, ctx.symtab.symtab(), &item_list.types)?
+        .concrete_type_of(&*unit.body, ctx.symtab.symtab(), &item_list.types)?
         .to_mir_type();
 
     linear_check::check_linear_types(

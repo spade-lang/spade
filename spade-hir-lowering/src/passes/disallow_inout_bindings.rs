@@ -21,14 +21,14 @@ impl<'a> Pass for InOutChecks<'a> {
         // for incomplete types, in the monomorphization stage
         let ty =
             self.type_state
-                .concrete_type_of(&unit.body, self.symtab.symtab(), &self.items.types);
+                .concrete_type_of(&*unit.body, self.symtab.symtab(), &self.items.types);
         match ty {
             Ok(spade_types::ConcreteType::Single {
                 base: PrimitiveType::InOut,
                 params: _,
             }) => {
                 return Err(Diagnostic::error(
-                    &unit.body,
+                    &*unit.body,
                     "Values of inout type cannot be returned",
                 )
                 .primary_label("returning inout value")

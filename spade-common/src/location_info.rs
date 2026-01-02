@@ -179,7 +179,7 @@ impl<T> Loc<T> {
         })
     }
 
-    pub fn map_ref<Y>(&self, mut op: impl FnMut(&T) -> Y) -> Loc<Y> {
+    pub fn map_ref<Y>(&self, op: impl FnOnce(&T) -> Y) -> Loc<Y> {
         Loc {
             inner: op(&self.inner),
             span: self.span,

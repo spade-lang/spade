@@ -9,6 +9,7 @@ pub mod testutil;
 
 use std::collections::BTreeMap;
 use std::fmt::Formatter;
+use std::sync::Arc;
 
 pub use expression::{Argument, ArgumentKind, ArgumentList, ExprKind, Expression};
 use itertools::Itertools;
@@ -600,7 +601,7 @@ pub struct Unit {
     pub attributes: AttributeList,
     // This is needed here because the head does not have NameIDs
     pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
-    pub body: Loc<Expression>,
+    pub body: Arc<Loc<Expression>>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]

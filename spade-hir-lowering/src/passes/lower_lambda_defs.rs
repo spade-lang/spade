@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
     id_tracker::ExprIdTracker,
@@ -186,7 +188,7 @@ impl LambdaReplacement {
         });
 
         let result = old.map_ref(move |unit| spade_hir::Unit {
-            body: body.clone(),
+            body: Arc::new(body),
             inputs: unit
                 .inputs
                 .iter()
