@@ -178,13 +178,17 @@ pub fn compile_items(
         let original_item = items.get(&item.source_name.inner);
 
         let mut reg_name_map = BTreeMap::new();
+        let unit;
         match original_item {
             Some((ExecutableItem::Unit(u), old_type_state)) => {
                 let (u, preprocessor) = if let Some(replacement) =
                     body_replacements.get(&(u.name.name_id().inner.clone(), item.params.clone()))
                 {
                     let new_unit = match replacement.replace_in(u.clone(), idtracker) {
-                        Ok(u) => u,
+                        Ok(u) => {
+                            unit = u;
+                            &unit
+                        }
                         Err(e) => {
                             result.push(Err(state.add_mono_traceback(e, &item)));
                             break 'item_loop;
@@ -227,7 +231,7 @@ pub fn compile_items(
                         ),
                     )
                 } else {
-                    (u.clone(), None)
+                    (u, None)
                 };
 
                 let type_ctx = &spade_typeinference::Context {

@@ -17,6 +17,7 @@ doctest = false
 [dependencies]
 colored.workspace = true
 itertools.workspace = true
+imbl.workspace = true
 num.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true
