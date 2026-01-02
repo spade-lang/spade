@@ -39,9 +39,9 @@ pub fn trace_typechecker(attrs: TokenStream, input: TokenStream) -> TokenStream 
     let function_name = format!("{}", input.sig.ident);
 
     *block = parse_quote!({
-        self.trace_stack.push(TraceStackEntry::Enter(#function_name.to_string()));
+        self.trace_stack.push(|| TraceStackEntry::Enter(#function_name.to_string()));
         let ret: Result<_> = (|| #block)();
-        self.trace_stack.push(TraceStackEntry::Exit);
+        self.trace_stack.push(|| TraceStackEntry::Exit);
         ret
     });
     input.into_token_stream().into()

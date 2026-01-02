@@ -575,10 +575,12 @@ impl TypeState {
         if let Some(output_type) = &entity.head.output_type {
             let tvar = self.type_var_from_hir(output_type.loc(), output_type, &generic_list)?;
 
-            self.trace_stack.push(TraceStackEntry::Message(format!(
-                "Unifying with output type {}",
-                tvar.debug_resolve(self)
-            )));
+            self.trace_stack.push(|| {
+                TraceStackEntry::Message(format!(
+                    "Unifying with output type {}",
+                    tvar.debug_resolve(self)
+                ))
+            });
             self.unify(&TypedExpression::Id(entity.body.inner.id), &tvar, ctx)
                 .into_diagnostic_no_expected_source(
                     &entity.body,
@@ -1428,12 +1430,14 @@ impl TypeState {
             .map(|(name, t)| (name, t.clone()))
             .collect::<HashMap<_, _>>();
 
-        self.trace_stack.push(TraceStackEntry::NewGenericList(
-            new_list
-                .iter()
-                .map(|(name, var)| (name.clone(), var.debug_resolve(self)))
-                .collect(),
-        ));
+        self.trace_stack.push(|| {
+            TraceStackEntry::NewGenericList(
+                new_list
+                    .iter()
+                    .map(|(name, var)| (name.clone(), var.debug_resolve(self)))
+                    .collect(),
+            )
+        });
 
         let token = self.add_mapped_generic_list(source.clone(), new_list.clone());
 
@@ -1966,19 +1970,22 @@ impl TypeState {
                 let key = TypedExpression::Name(name.inner.clone());
                 let var = if !self.equations.contains_key(&key) {
                     let var = self.new_generic_tlint(name.loc());
-                    self.trace_stack.push(TraceStackEntry::AddingPipelineLabel(
-                        name.inner.clone(),
-                        var.debug_resolve(self),
-                    ));
+                    self.trace_stack.push(|| {
+                        TraceStackEntry::AddingPipelineLabel(
+                            name.inner.clone(),
+                            var.debug_resolve(self),
+                        )
+                    });
                     self.add_equation(key.clone(), var.clone());
                     var
                 } else {
                     let var = self.equations.get(&key).unwrap().clone();
-                    self.trace_stack
-                        .push(TraceStackEntry::RecoveringPipelineLabel(
+                    self.trace_stack.push(|| {
+                        TraceStackEntry::RecoveringPipelineLabel(
                             name.inner.clone(),
                             var.debug_resolve(self),
-                        ));
+                        )
+                    });
                     var
                 };
                 // Safe unwrap, unifying with a fresh var
@@ -2199,10 +2206,9 @@ impl TypeState {
                 )));
             };
 
-            self.trace_stack.push(TraceStackEntry::AddingTraitBounds(
-                tvar.debug_resolve(self),
-                trait_list.clone(),
-            ));
+            self.trace_stack.push(|| {
+                TraceStackEntry::AddingTraitBounds(tvar.debug_resolve(self), trait_list.clone())
+            });
 
             match tvar.resolve(self) {
                 TypeVar::Known(_, _, _) => {
@@ -2357,10 +2363,8 @@ impl TypeState {
     }
 
     pub fn add_equation(&mut self, expression: TypedExpression, var: TypeVarID) {
-        self.trace_stack.push(TraceStackEntry::AddingEquation(
-            expression.clone(),
-            var.debug_resolve(self),
-        ));
+        self.trace_stack
+            .push(|| TraceStackEntry::AddingEquation(expression.clone(), var.debug_resolve(self)));
         if let Some(prev) = self.equations.insert(expression.clone(), var.clone()) {
             let var = var.clone();
             let expr = expression.clone();
@@ -2380,17 +2384,15 @@ impl TypeState {
         let replaces = lhs.clone();
         let rhs = rhs.with_context(&replaces, &inside, source).at_loc(&loc);
 
-        self.trace_stack.push(TraceStackEntry::AddingConstraint(
-            lhs.debug_resolve(self),
-            rhs.inner.clone(),
-        ));
+        self.trace_stack
+            .push(|| TraceStackEntry::AddingConstraint(lhs.debug_resolve(self), rhs.inner.clone()));
 
         self.constraints.add_int_constraint(lhs, rhs);
     }
 
     fn add_requirement(&mut self, requirement: Requirement) {
         self.trace_stack
-            .push(TraceStackEntry::AddRequirement(requirement.clone()));
+            .push(|| TraceStackEntry::AddRequirement(requirement.clone()));
         self.requirements.push(requirement)
     }
 
@@ -2413,15 +2415,13 @@ impl TypeState {
             v2.debug_resolve(self)
         );
 
-        self.trace_stack.push(TraceStackEntry::TryingUnify(
-            v1.debug_resolve(self),
-            v2.debug_resolve(self),
-        ));
+        self.trace_stack
+            .push(|| TraceStackEntry::TryingUnify(v1.debug_resolve(self), v2.debug_resolve(self)));
 
         macro_rules! err_producer {
             () => {{
                 self.trace_stack
-                    .push(TraceStackEntry::Message("Produced error".to_string()));
+                    .push(|| TraceStackEntry::Message("Produced error".to_string()));
                 UnificationError::Normal(Tm {
                     g: UnificationTrace::new(v1),
                     e: UnificationTrace::new(v2),
@@ -2431,7 +2431,7 @@ impl TypeState {
         macro_rules! meta_err_producer {
             () => {{
                 self.trace_stack
-                    .push(TraceStackEntry::Message("Produced error".to_string()));
+                    .push(|| TraceStackEntry::Message("Produced error".to_string()));
                 UnificationError::MetaMismatch(Tm {
                     g: UnificationTrace::new(v1),
                     e: UnificationTrace::new(v2),
@@ -2456,7 +2456,7 @@ impl TypeState {
             if p1.len() != p2.len() {
                 return Err({
                     s.trace_stack
-                        .push(TraceStackEntry::Message("Produced error".to_string()));
+                        .push(|| TraceStackEntry::Message("Produced error".to_string()));
                     UnificationError::Normal(Tm {
                         g: UnificationTrace::new(v1),
                         e: UnificationTrace::new(v2),
@@ -2469,7 +2469,7 @@ impl TypeState {
                     Ok(result) => result,
                     Err(e) => {
                         s.trace_stack
-                            .push(TraceStackEntry::Message("Adding context".to_string()));
+                            .push(|| TraceStackEntry::Message("Adding context".to_string()));
                         return Err(e).add_context(v1.clone(), v2.clone());
                     }
                 };
@@ -2646,9 +2646,8 @@ impl TypeState {
 
                 let impls = self.ensure_impls(otherid, traits, trait_is_expected, ukloc, ctx)?;
 
-                self.trace_stack.push(TraceStackEntry::Message(
-                    "Unifying trait_parameters".to_string(),
-                ));
+                self.trace_stack
+                    .push(|| TraceStackEntry::Message("Unifying trait_parameters".to_string()));
                 let mut new_params = params.clone();
                 for (trait_impl, trait_req) in impls {
                     let mut param_map = BTreeMap::new();
@@ -2731,15 +2730,17 @@ impl TypeState {
 
         let (new_type, replaced_types) = result?;
 
-        self.trace_stack.push(TraceStackEntry::Unified(
-            v1.debug_resolve(self),
-            v2.debug_resolve(self),
-            new_type.debug_resolve(self),
-            replaced_types
-                .iter()
-                .map(|v| v.debug_resolve(self))
-                .collect(),
-        ));
+        self.trace_stack.push(|| {
+            TraceStackEntry::Unified(
+                v1.debug_resolve(self),
+                v2.debug_resolve(self),
+                new_type.debug_resolve(self),
+                replaced_types
+                    .iter()
+                    .map(|v| v.debug_resolve(self))
+                    .collect(),
+            )
+        });
 
         for replaced_type in &replaced_types {
             if v1.inner != v2.inner {
@@ -2758,9 +2759,9 @@ impl TypeState {
 
     pub fn can_unify(&mut self, e1: &impl HasType, e2: &impl HasType, ctx: &Context) -> bool {
         self.trace_stack
-            .push(TraceStackEntry::Enter("Running can_unify".to_string()));
+            .push(|| TraceStackEntry::Enter("Running can_unify".to_string()));
         let result = self.do_and_restore(|s| s.unify(e1, e2, ctx)).is_ok();
-        self.trace_stack.push(TraceStackEntry::Exit);
+        self.trace_stack.push(|| TraceStackEntry::Exit);
         result
     }
 
@@ -2797,11 +2798,12 @@ impl TypeState {
 
                 let ((var, replacement), loc) = constraint.split_loc();
 
-                self.trace_stack
-                    .push(TraceStackEntry::InferringFromConstraints(
+                self.trace_stack.push(|| {
+                    TraceStackEntry::InferringFromConstraints(
                         var.debug_resolve(self),
                         replacement.val.clone(),
-                    ));
+                    )
+                });
 
                 // NOTE: safe unwrap. We already checked the constraint above
                 let expected_type = self.add_type_var(TypeVar::Known(loc, replacement.val, vec![]));
@@ -2910,11 +2912,13 @@ impl TypeState {
         trait_list_loc: &Loc<()>,
         ctx: &Context,
     ) -> std::result::Result<Vec<(TraitImpl, TraitReq)>, UnificationError> {
-        self.trace_stack.push(TraceStackEntry::EnsuringImpls(
-            var.debug_resolve(self),
-            traits.clone(),
-            trait_is_expected,
-        ));
+        self.trace_stack.push(|| {
+            TraceStackEntry::EnsuringImpls(
+                var.debug_resolve(self),
+                traits.clone(),
+                trait_is_expected,
+            )
+        });
 
         let number = ctx
             .symtab
@@ -3022,9 +3026,8 @@ impl TypeState {
                     .partition_map(|x| x);
 
                 if unsatisfied.is_empty() {
-                    self.trace_stack.push(TraceStackEntry::Message(
-                        "Ensuring impl successful".to_string(),
-                    ));
+                    self.trace_stack
+                        .push(|| TraceStackEntry::Message("Ensuring impl successful".to_string()));
                     Ok(impls)
                 } else {
                     error_producer!(TraitList::from_vec(unsatisfied.clone()))
@@ -3074,7 +3077,7 @@ impl TypeState {
                     }
                     requirements::RequirementResult::Satisfied(replacement) => {
                         self.trace_stack
-                            .push(TraceStackEntry::ResolvedRequirement(req.clone()));
+                            .push(|| TraceStackEntry::ResolvedRequirement(req.clone()));
                         Ok((false, Some(replacement)))
                     }
                 })
@@ -3130,7 +3133,7 @@ impl TypeState {
     /// like a stack, nested checkpoints are possible
     fn checkpoint(&mut self) {
         self.trace_stack
-            .push(TraceStackEntry::Enter("Creating checkpoint".to_string()));
+            .push(|| TraceStackEntry::Enter("Creating checkpoint".to_string()));
         self.replacements.push();
 
         // This is relatively expensive if these lists are large, however, for now
@@ -3142,7 +3145,7 @@ impl TypeState {
 
     fn restore(&mut self) {
         self.replacements.discard_top();
-        self.trace_stack.push(TraceStackEntry::Exit);
+        self.trace_stack.push(|| TraceStackEntry::Exit);
 
         let (requirements, constraints) = self
             .checkpoints

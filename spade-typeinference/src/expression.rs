@@ -99,11 +99,11 @@ impl TypeState {
                     let var = if !self.equations.contains_key(&key) {
                         let var = self.new_generic_tlint(stage.loc());
                         self.add_equation(key.clone(), var.clone());
-                        self.trace_stack.push(TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
+                        self.trace_stack.push(|| TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     } else {
                         let var = self.equations.get(&key).unwrap().clone();
-                        self.trace_stack.push(TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
+                        self.trace_stack.push(|| TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     };
                     // NOTE: Safe unwrap, depth is fresh
