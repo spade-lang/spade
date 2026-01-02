@@ -9,6 +9,7 @@
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use colored::Colorize;
 use fixed_types::{t_int, t_uint};
@@ -76,7 +77,7 @@ pub mod traits;
 pub struct Context<'a> {
     pub symtab: &'a SymbolTable,
     pub items: &'a ItemList,
-    pub trait_impls: &'a TraitImplList,
+    pub trait_impls: Arc<TraitImplList>,
 }
 impl<'a> std::fmt::Debug for Context<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -179,7 +180,7 @@ pub struct TypeState {
     /// to facilitate safe initialization, in practice it can never be None
     error_type: Option<TypeVarID>,
 
-    pub trait_impls: TraitImplList,
+    pub trait_impls: Arc<TraitImplList>,
 
     #[serde(skip)]
     pub trace_stack: TraceStack,
@@ -204,7 +205,7 @@ impl TypeState {
             requirements: vec![],
             replacements: ReplacementStack::new(),
             generic_lists: HashMap::default(),
-            trait_impls: TraitImplList::new(),
+            trait_impls: Arc::new(TraitImplList::new()),
             checkpoints: vec![],
             error_type: None,
             pipeline_state: None,
