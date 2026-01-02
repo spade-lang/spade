@@ -132,6 +132,10 @@ pub struct PipelineState {
     pipeline_loc: Loc<()>,
 }
 
+fn default_trait_impls() -> Arc<TraitImplList> {
+    Arc::new(TraitImplList::new())
+}
+
 /// State of the type inference algorithm
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TypeState {
@@ -180,6 +184,9 @@ pub struct TypeState {
     /// to facilitate safe initialization, in practice it can never be None
     error_type: Option<TypeVarID>,
 
+    // TODO: I'm not sure skiping serialization of this thing is safe. It probably is
+    // for now since we don't allow methods in tests
+    #[serde(skip, default="default_trait_impls")]
     pub trait_impls: Arc<TraitImplList>,
 
     #[serde(skip)]
