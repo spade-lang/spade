@@ -1,5 +1,8 @@
-use itertools::Itertools;
 use std::collections::BTreeMap;
+
+use itertools::Itertools;
+type HashMap<K, V> =
+    imbl::GenericHashMap<K, V, rustc_hash::FxBuildHasher, imbl::shared_ptr::DefaultSharedPtr>;
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};

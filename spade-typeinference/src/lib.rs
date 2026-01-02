@@ -17,11 +17,12 @@ use hir::{
     param_util, Binding, ConstGeneric, Parameter, PipelineRegMarkerExtra, TypeExpression, TypeSpec,
     UnitHead, UnitKind, WalTrace, WhereClause,
 };
+type HashMap<K, V> = imbl::GenericHashMap<K, V, rustc_hash::FxBuildHasher, DefaultSharedPtr>;
+use imbl::shared_ptr::DefaultSharedPtr;
 use itertools::{Either, Itertools};
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, BigUint, Zero};
 use replacement::ReplacementStack;
-use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
