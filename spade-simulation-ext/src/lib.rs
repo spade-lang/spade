@@ -3,7 +3,7 @@ pub mod field_ref;
 pub mod range;
 
 use std::rc::Rc;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use color_eyre::eyre::{anyhow, Context};
 use field_ref::{FieldRef, FieldSource};
@@ -131,7 +131,7 @@ pub struct SpadeType(pub ConcreteType);
 pub struct OwnedState {
     symtab: FrozenSymtab,
     item_list: ItemList,
-    trait_impls: TraitImplList,
+    trait_impls: Arc<TraitImplList>,
     idtracker: ExprIdTracker,
     impl_idtracker: ImplIdTracker,
 }
@@ -260,7 +260,7 @@ impl Spade {
             owned: Some(OwnedState {
                 symtab,
                 item_list: state.item_list,
-                trait_impls: TraitImplList::new(),
+                trait_impls: Arc::new(TraitImplList::new()),
                 idtracker: state.idtracker,
                 impl_idtracker: state.impl_idtracker,
             }),
@@ -451,7 +451,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: &symtab,
                     items: &owned_state.item_list,
-                    trait_impls: &owned_state.trait_impls,
+                    trait_impls: owned_state.trait_impls.clone(),
                 },
             )
             .into_default_diagnostic(().nowhere(), &self.type_state)
@@ -488,7 +488,7 @@ impl Spade {
         let type_ctx = spade_typeinference::Context {
             symtab: &ast_ctx.symtab,
             items: &ast_ctx.item_list,
-            trait_impls: &owned_state.trait_impls,
+            trait_impls: owned_state.trait_impls.clone(),
         };
 
         let generic_list = self
@@ -511,7 +511,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: &ast_ctx.symtab,
                     items: &ast_ctx.item_list,
-                    trait_impls: &owned_state.trait_impls,
+                    trait_impls: owned_state.trait_impls.clone(),
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -854,7 +854,7 @@ impl Spade {
         let type_ctx = spade_typeinference::Context {
             symtab: symtab.symtab(),
             items: &item_list,
-            trait_impls: &trait_impls,
+            trait_impls: trait_impls.clone(),
         };
         let generic_list = self
             .type_state
@@ -875,7 +875,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: &item_list,
-                    trait_impls: &trait_impls,
+                    trait_impls: trait_impls.clone(),
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -885,7 +885,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     items: &item_list,
                     symtab: symtab.symtab(),
-                    trait_impls: &trait_impls,
+                    trait_impls: trait_impls.clone(),
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;

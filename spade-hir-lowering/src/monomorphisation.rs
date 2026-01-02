@@ -237,7 +237,7 @@ pub fn compile_items(
                 let type_ctx = &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: item_list,
-                    trait_impls: &old_type_state.trait_impls,
+                    trait_impls: old_type_state.trait_impls.clone(),
                 };
 
                 // If the unit is generic, we're going to re-do type inference from scratch

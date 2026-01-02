@@ -989,7 +989,7 @@ pub fn do_wal_trace_lowering(
             let type_ctx = spade_typeinference::Context {
                 symtab: ctx.symtab.symtab(),
                 items: ctx.item_list,
-                trait_impls: &trait_impls,
+                trait_impls: trait_impls.clone(),
             };
             let generic_list = &ctx.types.create_generic_list(
                 spade_typeinference::GenericListSource::Anonymous,
@@ -1008,7 +1008,7 @@ pub fn do_wal_trace_lowering(
                     &spade_typeinference::Context {
                         symtab: ctx.symtab.symtab(),
                         items: ctx.item_list,
-                        trait_impls: &trait_impls,
+                        trait_impls: trait_impls.clone(),
                     },
                 )
                 .unwrap(); // Unification with a completely generic expr
