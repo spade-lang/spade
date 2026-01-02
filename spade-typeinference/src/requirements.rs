@@ -685,7 +685,7 @@ impl Requirement {
             RequirementResult::Satisfied(replacements) => {
                 type_state
                     .trace_stack
-                    .push(TraceStackEntry::ResolvedRequirement(self.clone()));
+                    .push(|| TraceStackEntry::ResolvedRequirement(self.clone()));
                 for Replacement { from, to, context } in replacements {
                     type_state
                         .unify(&from.inner, &to, ctx)

@@ -35,9 +35,9 @@ impl TraceStack {
     // Inline because we don't want the compiler to construct the entries if they are
     // not going to be used
     #[inline]
-    pub fn push(&self, entry: TraceStackEntry) {
+    pub fn push(&self, entry_gen: impl Fn() -> TraceStackEntry) {
         if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-            self.entries.borrow_mut().push(entry)
+            self.entries.borrow_mut().push((entry_gen)())
         }
     }
 }
