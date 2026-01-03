@@ -1189,7 +1189,7 @@ fn statement_code_and_declaration(
 #[derive(Clone)]
 pub struct Codegenable(pub Entity);
 
-pub fn prepare_codegen(mut entity: Entity, expr_idtracker: &mut ExprIdTracker) -> Codegenable {
+pub fn prepare_codegen(mut entity: Entity, expr_idtracker: &ExprIdTracker) -> Codegenable {
     flatten_aliases(&mut entity);
     make_names_predictable(&mut entity);
     insert_wal_signals(&mut entity, expr_idtracker, &mut None);

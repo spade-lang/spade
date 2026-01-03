@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, RwLock},
+};
 
 use color_eyre::eyre::anyhow;
 use itertools::Itertools;
@@ -37,10 +40,10 @@ pub struct CompilerState {
     // (filename, file content) of all the compiled files
     pub code: Vec<(String, String)>,
     pub symtab: FrozenSymtab,
-    pub idtracker: ExprIdTracker,
+    pub idtracker: Arc<ExprIdTracker>,
     pub impl_idtracker: ImplIdTracker,
     pub item_list: ItemList,
-    pub name_source_map: NameSourceMap,
+    pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, MirContext>,
 }
@@ -57,6 +60,8 @@ impl CompilerState {
         // for demangling
         let string_map = self
             .name_source_map
+            .read()
+            .unwrap()
             .inner
             .iter()
             .flat_map(|(k, v)| {

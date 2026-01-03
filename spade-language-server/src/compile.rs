@@ -282,7 +282,7 @@ impl ServerBackend {
                 *self.query_cache.lock().unwrap() = QueryCache::from_item_list(&item_list);
                 *self.item_list.lock().unwrap() = item_list;
                 *self.type_states.lock().unwrap() = type_states;
-                *self.symtab.lock().unwrap() = Some(state.symtab.unfreeze());
+                *self.symtab.lock().unwrap() = Some(state.symtab);
                 *self.trait_impls.lock().unwrap() = impl_list;
             }
             Err(CompilationResult::EarlyFailure(UnfinishedArtefacts {
@@ -298,7 +298,7 @@ impl ServerBackend {
                     .unwrap_or_else(|| QueryCache::empty());
                 *self.item_list.lock().unwrap() = item_list.unwrap_or_else(|| ItemList::new());
                 *self.type_states.lock().unwrap() = type_states.unwrap_or_default();
-                *self.symtab.lock().unwrap() = symtab;
+                *self.symtab.lock().unwrap() = symtab.map(|st| st.freeze());
                 *self.trait_impls.lock().unwrap() = Arc::new(TraitImplList::new());
             }
         }

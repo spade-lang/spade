@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 
 use itertools::Itertools;
 use mir::passes::MirPass;
@@ -6,7 +7,7 @@ use rustc_hash::FxHashMap as HashMap;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
-use spade_diagnostics::{diag_anyhow, DiagHandler, Diagnostic};
+use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::Unit;
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
@@ -38,7 +39,7 @@ pub struct MonoItem {
     pub params: Vec<KnownTypeVar>,
 }
 
-pub struct MonoState {
+pub struct MonoStateInner {
     /// List of mono items left to compile
     to_compile: VecDeque<MonoItem>,
     /// Mapping between items with types specified and names
@@ -46,6 +47,15 @@ pub struct MonoState {
     /// Locations in the code where compilation of the Mono item was requested. None
     /// if this is non-generic
     request_points: HashMap<MonoItem, Option<(MonoItem, Loc<()>)>>,
+
+    /// Number of items which we we have requested compilation of but which have not
+    /// been completed yet.
+    works_in_progress: u64,
+}
+
+pub struct MonoState {
+    inner: Mutex<MonoStateInner>,
+    cond: Condvar,
 }
 
 impl Default for MonoState {
@@ -56,10 +66,16 @@ impl Default for MonoState {
 
 impl MonoState {
     pub fn new() -> MonoState {
-        MonoState {
+        let inner = MonoStateInner {
             to_compile: VecDeque::new(),
             translation: BTreeMap::new(),
             request_points: HashMap::default(),
+            works_in_progress: 0,
+        };
+
+        MonoState {
+            inner: Mutex::new(inner),
+            cond: Condvar::new(),
         }
     }
 
@@ -67,14 +83,16 @@ impl MonoState {
     /// unit which will be compiled with these parameters. It is up to the caller of this
     /// function to ensure that the type params are valid for this item.
     pub fn request_compilation(
-        &mut self,
+        &self,
         source_name: UnitName,
         reuse_nameid: bool,
         params: Vec<KnownTypeVar>,
-        symtab: &mut FrozenSymtab,
+        symtab: &FrozenSymtab,
         request_point: Option<(MonoItem, Loc<()>)>,
     ) -> NameID {
-        match self
+        let mut inner = self.inner.lock().unwrap();
+
+        match inner
             .translation
             .get(&(source_name.name_id().inner.clone(), params.clone()))
         {
@@ -101,24 +119,49 @@ impl MonoState {
                     new_name: new_unit_name,
                     params: params.clone(),
                 };
-                self.request_points.insert(item.clone(), request_point);
+                inner.request_points.insert(item.clone(), request_point);
 
-                self.translation.insert(
+                inner.translation.insert(
                     (source_name.name_id().inner.clone(), params.clone()),
                     new_name.clone(),
                 );
-                self.to_compile.push_back(item);
+                inner.to_compile.push_back(item);
+
+                self.cond.notify_all();
+
                 new_name
             }
         }
     }
 
-    fn next_target(&mut self) -> Option<MonoItem> {
-        self.to_compile.pop_front()
+    fn report_done(&self) {
+        self.inner.lock().unwrap().works_in_progress -= 1;
+        self.cond.notify_all();
+    }
+
+    fn next_target(&self) -> Option<MonoItem> {
+        let mut inner = self.inner.lock().unwrap();
+
+        loop {
+            if let Some(result) = inner.to_compile.pop_front() {
+                inner.works_in_progress += 1;
+                return Some(result);
+            }
+            if inner.works_in_progress == 0 {
+                return None;
+            }
+            inner = self.cond.wait(inner).unwrap();
+        }
     }
 
     fn add_mono_traceback(&self, diagnostic: Diagnostic, item: &MonoItem) -> Diagnostic {
-        let parent = self.request_points.get(item).and_then(|x| x.clone());
+        let parent = self
+            .inner
+            .lock()
+            .unwrap()
+            .request_points
+            .get(item)
+            .and_then(|x| x.clone());
         if let Some((next_parent, loc)) = parent {
             let generic_params = item.params.iter().map(|p| format!("{p}")).join(", ");
 
@@ -142,20 +185,21 @@ pub struct MirOutput {
     pub reg_name_map: BTreeMap<NameID, NameID>,
 }
 
+type BodyReplacements = HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement>;
+
 pub fn compile_items(
     items: &BTreeMap<&NameID, (&ExecutableItem, TypeState)>,
-    symtab: &mut FrozenSymtab,
-    idtracker: &mut ExprIdTracker,
-    name_source_map: &mut NameSourceMap,
+    symtab: &FrozenSymtab,
+    idtracker: &Arc<ExprIdTracker>,
+    name_source_map: &Arc<RwLock<NameSourceMap>>,
     item_list: &ItemList,
-    diag_handler: &mut DiagHandler,
-    opt_passes: &[&dyn MirPass],
+    opt_passes: &[&(dyn MirPass + Send + Sync)],
     impl_type_state: &TypeState,
 ) -> Vec<Result<MirOutput>> {
     // Build a map of items to use for compilation later. Also push all non
     // generic items to the compilation queue
 
-    let mut state = MonoState::new();
+    let state = Arc::new(MonoState::new());
 
     for (item, _) in items.values() {
         match item {
@@ -170,231 +214,283 @@ pub fn compile_items(
         }
     }
 
-    let mut body_replacements: HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement> =
-        HashMap::default();
+    let body_replacements: Arc<RwLock<BodyReplacements>> =
+        Arc::new(RwLock::new(HashMap::default()));
 
-    let mut result = vec![];
-    'item_loop: while let Some(item) = state.next_target() {
-        let original_item = items.get(&item.source_name.inner);
+    let result = Arc::new(RwLock::new(vec![]));
+    {
+        let result = Arc::clone(&result);
+        let state = Arc::clone(&state);
+        rayon::scope(move |s| {
+            while let Some(item) = state.next_target() {
+                let state = Arc::clone(&state);
+                let name_source_map = Arc::clone(&name_source_map);
+                let result = Arc::clone(&result);
+                let idtracker = Arc::clone(&idtracker);
+                let body_replacements = Arc::clone(&body_replacements);
 
-        let mut reg_name_map = BTreeMap::new();
-        let unit;
-        match original_item {
-            Some((ExecutableItem::Unit(u), old_type_state)) => {
-                let (u, preprocessor) = if let Some(replacement) =
-                    body_replacements.get(&(u.name.name_id().inner.clone(), item.params.clone()))
-                {
-                    let new_unit = match replacement.replace_in(u.clone(), idtracker) {
-                        Ok(u) => {
-                            unit = u;
-                            &unit
-                        }
-                        Err(e) => {
-                            result.push(Err(state.add_mono_traceback(e, &item)));
-                            break 'item_loop;
-                        }
-                    };
+                s.spawn(move |_s| {
+                    monoprhipze_item(
+                        item,
+                        items,
+                        body_replacements,
+                        &idtracker,
+                        &state,
+                        symtab,
+                        item_list,
+                        impl_type_state,
+                        &name_source_map,
+                        opt_passes,
+                        &result,
+                    );
+                    state.report_done();
+                });
+            }
+        });
+    }
+    let mut result = result.write().unwrap();
+    let result = std::mem::replace(&mut *result, vec![]);
+    result
+}
 
-                    (
-                        new_unit,
-                        Some(
-                            |type_state: &mut TypeState,
-                             unit: &Loc<Unit>,
-                             generic_list: &GenericListToken,
-                             ctx: &spade_typeinference::Context|
-                             -> Result<_> {
-                                let gl = type_state
-                                    .get_generic_list(generic_list)
-                                    .ok_or_else(|| {
-                                        diag_anyhow!(unit, "Did not have a generic list")
-                                    })?
-                                    .clone();
-                                for (i, (_, ty)) in replacement.arguments.iter().enumerate() {
-                                    let old_ty = gl
-                                        .get(&unit.head.get_type_params()[i].name_id)
-                                        .ok_or_else(|| {
-                                            diag_anyhow!(
-                                                unit,
-                                                "Did not have an entry for argument {i}"
-                                            )
-                                        })?
-                                        .clone();
+fn monoprhipze_item(
+    item: MonoItem,
+    items: &BTreeMap<&NameID, (&ExecutableItem, TypeState)>,
+    body_replacements: Arc<RwLock<BodyReplacements>>,
+    idtracker: &Arc<ExprIdTracker>,
+    state: &Arc<MonoState>,
+    symtab: &FrozenSymtab,
+    item_list: &ItemList,
+    impl_type_state: &TypeState,
+    name_source_map: &Arc<RwLock<NameSourceMap>>,
+    opt_passes: &[&(dyn MirPass + Send + Sync)],
 
-                                    ty.insert(type_state)
-                                        .unify_with(&old_ty, type_state)
-                                        .commit(type_state, ctx)
-                                        .into_default_diagnostic(unit, type_state)?;
-                                }
+    result: &RwLock<Vec<Result<MirOutput>>>,
+) {
+    let original_item = items.get(&item.source_name.inner);
 
-                                Ok(())
-                            },
-                        ),
-                    )
-                } else {
-                    (u, None)
+    let mut reg_name_map = BTreeMap::new();
+    let unit;
+    match original_item {
+        Some((ExecutableItem::Unit(u), old_type_state)) => {
+            let (u, mut preprocessor) = if let Some(replacement) = body_replacements
+                .write()
+                .unwrap()
+                .remove(&(u.name.name_id().inner.clone(), item.params.clone()))
+            {
+                let new_unit = match replacement.replace_in(u.clone(), &idtracker) {
+                    Ok(u) => {
+                        unit = u;
+                        &unit
+                    }
+                    Err(e) => {
+                        result
+                            .write()
+                            .unwrap()
+                            .push(Err(state.add_mono_traceback(e, &item)));
+                        return;
+                    }
                 };
 
-                let type_ctx = &spade_typeinference::Context {
-                    symtab: symtab.symtab(),
-                    items: item_list,
-                    trait_impls: old_type_state.trait_impls.clone(),
-                };
-
-                // If the unit is generic, we're going to re-do type inference from scratch
-                // with the known types from the outer context
-                let (mut type_state, generic_list_token) = if !u.head.get_type_params().is_empty() {
-                    let mut type_state = impl_type_state.create_child();
-
-                    let revisit_result = type_state.visit_unit_with_preprocessing(
-                        &u,
-                        |type_state, unit, generic_list, ctx| {
+                (
+                    new_unit,
+                    Some(
+                        move |type_state: &mut TypeState,
+                              unit: &Loc<Unit>,
+                              generic_list: &GenericListToken,
+                              ctx: &spade_typeinference::Context|
+                              -> Result<_> {
                             let gl = type_state
                                 .get_generic_list(generic_list)
                                 .ok_or_else(|| diag_anyhow!(unit, "Did not have a generic list"))?
                                 .clone();
+                            for (i, (_, ty)) in replacement.arguments.into_iter().enumerate() {
+                                let old_ty = gl
+                                    .get(&unit.head.get_type_params()[i].name_id)
+                                    .ok_or_else(|| {
+                                        diag_anyhow!(unit, "Did not have an entry for argument {i}")
+                                    })?
+                                    .clone();
 
-                            let generic_map = u
-                                .head
-                                .get_type_params()
-                                .iter()
-                                .zip(item.params.iter())
-                                .map(|(param, outer_var)| {
-                                    (param.name_id().at_loc(param), outer_var.clone())
-                                })
-                                .collect::<Vec<_>>();
-
-                            for (name, outer_var) in generic_map {
-                                let inner_var = gl.get(&name).ok_or_else(|| {
-                                    diag_anyhow!(
-                                        name.clone(),
-                                        "Did not find a generic type for {name}"
-                                    )
-                                })?;
-
-                                let outer_var = outer_var.insert(type_state);
-                                type_state
-                                    .unify(&inner_var.clone(), &outer_var, ctx)
-                                    .into_default_diagnostic(name, type_state)?;
-                            }
-
-                            if let Some(preprocessor) = preprocessor {
-                                preprocessor(type_state, unit, generic_list, ctx)?;
+                                ty.insert(type_state)
+                                    .unify_with(&old_ty, type_state)
+                                    .commit(type_state, ctx)
+                                    .into_default_diagnostic(unit, type_state)?;
                             }
 
                             Ok(())
                         },
-                        type_ctx,
-                    );
+                    ),
+                )
+            } else {
+                (u, None)
+            };
 
-                    if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-                        println!("After mono of {} with {:?}", u.inner.name, item.params);
-                        type_state.print_equations();
-                        println!("{}", format_trace_stack(&type_state));
-                    }
+            let type_ctx = &spade_typeinference::Context {
+                symtab: symtab.symtab(),
+                items: item_list,
+                trait_impls: old_type_state.trait_impls.clone(),
+            };
 
-                    let mut failed = false;
-                    for diag in type_state.diags.drain() {
-                        result.push(Err(state.add_mono_traceback(diag, &item)));
+            // If the unit is generic, we're going to re-do type inference from scratch
+            // with the known types from the outer context
+            let (mut type_state, generic_list_token) = if !u.head.get_type_params().is_empty() {
+                let mut type_state = impl_type_state.create_child();
+
+                let preprocessor = preprocessor.take();
+                let u = &u;
+                let item = &item;
+                let revisit_result = type_state.visit_unit_with_preprocessing(
+                    u,
+                    move |type_state, unit, generic_list, ctx| {
+                        let gl = type_state
+                            .get_generic_list(generic_list)
+                            .ok_or_else(|| diag_anyhow!(unit, "Did not have a generic list"))?
+                            .clone();
+
+                        let generic_map = u
+                            .head
+                            .get_type_params()
+                            .iter()
+                            .zip(item.params.iter())
+                            .map(|(param, outer_var)| {
+                                (param.name_id().at_loc(param), outer_var.clone())
+                            })
+                            .collect::<Vec<_>>();
+
+                        for (name, outer_var) in generic_map {
+                            let inner_var = gl.get(&name).ok_or_else(|| {
+                                diag_anyhow!(name.clone(), "Did not find a generic type for {name}")
+                            })?;
+
+                            let outer_var = outer_var.insert(type_state);
+                            type_state
+                                .unify(&inner_var.clone(), &outer_var, ctx)
+                                .into_default_diagnostic(name, type_state)?;
+                        }
+
+                        if let Some(preprocessor) = preprocessor {
+                            preprocessor(type_state, unit, generic_list, ctx)?;
+                        }
+
+                        Ok(())
+                    },
+                    type_ctx,
+                );
+
+                if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
+                    println!("After mono of {} with {:?}", u.inner.name, item.params);
+                    type_state.print_equations();
+                    println!("{}", format_trace_stack(&type_state));
+                }
+
+                let mut failed = false;
+                for diag in type_state.diags.drain() {
+                    result
+                        .write()
+                        .unwrap()
+                        .push(Err(state.add_mono_traceback(diag, &item)));
+                    failed = true
+                }
+
+                match revisit_result {
+                    Ok(_) => {}
+                    Err(e) => {
+                        result
+                            .write()
+                            .unwrap()
+                            .push(Err(state.add_mono_traceback(e, &item)));
                         failed = true
                     }
+                }
+                if failed {
+                    return;
+                }
 
-                    match revisit_result {
-                        Ok(_) => {}
-                        Err(e) => {
-                            result.push(Err(state.add_mono_traceback(e, &item)));
-                            failed = true
-                        }
-                    }
-                    if failed {
-                        continue 'item_loop;
-                    }
+                let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
 
-                    let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
+                (type_state, tok)
+            } else {
+                (old_type_state.clone(), None)
+            };
 
-                    (type_state, tok)
-                } else {
-                    (old_type_state.clone(), None)
-                };
+            // Apply passes to the type checked module
+            let mut u = u.clone();
 
-                // Apply passes to the type checked module
-                let mut u = u.clone();
+            macro_rules! run_pass (
+            ($pass:expr) => {
+                let pass_result = u.apply(&mut $pass);
+                if let Err(e) = pass_result {
+                    result.write().unwrap().push(Err(e));
+                    return;
+                }
+            };
+        );
 
-                macro_rules! run_pass (
-                    ($pass:expr) => {
-                        let pass_result = u.apply(&mut $pass);
-                        if let Err(e) = pass_result {
-                            result.push(Err(e));
-                            continue 'item_loop;
-                        }
-                    };
-                );
-                run_pass!(LowerLambdaDefs {
-                    type_state: &mut type_state,
-                    idtracker: idtracker,
-                    replacements: &mut body_replacements,
-                });
-                run_pass!(FlattenRegs {
-                    type_state: &type_state,
-                    items: item_list,
-                    symtab,
-                });
-                run_pass!(LowerMethods {
-                    type_state: &type_state,
-                    items: item_list,
-                    symtab,
-                });
-                run_pass!(LowerTypeLevelIf {
-                    type_state: &type_state,
-                    items: item_list,
-                    symtab,
-                    allowed_ids: Default::default(),
-                });
-                run_pass!(InOutChecks {
-                    type_state: &type_state,
-                    items: item_list,
-                    symtab,
-                });
-                run_pass!(DisallowZeroSize {
-                    type_state: &type_state,
-                    items: item_list,
-                    symtab,
-                });
+            run_pass!(LowerLambdaDefs {
+                type_state: &mut type_state,
+                idtracker: &idtracker,
+                replacements: body_replacements,
+            });
+            run_pass!(FlattenRegs {
+                type_state: &type_state,
+                items: item_list,
+                symtab,
+            });
+            run_pass!(LowerMethods {
+                type_state: &type_state,
+                items: item_list,
+                symtab,
+            });
+            run_pass!(LowerTypeLevelIf {
+                type_state: &type_state,
+                items: item_list,
+                symtab,
+                allowed_ids: Default::default(),
+            });
+            run_pass!(InOutChecks {
+                type_state: &type_state,
+                items: item_list,
+                symtab,
+            });
+            run_pass!(DisallowZeroSize {
+                type_state: &type_state,
+                items: item_list,
+                symtab,
+            });
 
-                let self_mono_item = Some(item.clone());
-                let out = generate_unit(
-                    &u.inner,
-                    item.new_name.clone(),
-                    &mut type_state,
-                    symtab,
-                    idtracker,
-                    item_list,
-                    &generic_list_token,
-                    &mut reg_name_map,
-                    &mut state,
-                    diag_handler,
-                    name_source_map,
-                    self_mono_item,
-                    opt_passes,
-                )
-                .map_err(|e| state.add_mono_traceback(e, &item))
-                .map(|mir| MirOutput {
-                    mir,
-                    type_state: type_state.clone(),
-                    reg_name_map,
-                });
-                result.push(out);
-            }
-            Some((ExecutableItem::StructInstance, _)) => {
-                panic!("Requesting compilation of struct instance as module")
-            }
-            Some((ExecutableItem::EnumInstance { .. }, _)) => {
-                panic!("Requesting compilation of enum instance as module")
-            }
-            Some((ExecutableItem::ExternUnit(_, _), _)) => {
-                panic!("Requesting compilation of extern unit")
-            }
-            None => {}
+            let self_mono_item = Some(item.clone());
+            let out = generate_unit(
+                &u.inner,
+                item.new_name.clone(),
+                &mut type_state,
+                symtab,
+                &idtracker,
+                item_list,
+                &generic_list_token,
+                &mut reg_name_map,
+                &state,
+                name_source_map,
+                self_mono_item,
+                opt_passes,
+            )
+            .map_err(|e| state.add_mono_traceback(e, &item))
+            .map(|mir| MirOutput {
+                mir,
+                type_state: type_state.clone(),
+                reg_name_map,
+            });
+            result.write().unwrap().push(out);
         }
+        Some((ExecutableItem::StructInstance, _)) => {
+            panic!("Requesting compilation of struct instance as module")
+        }
+        Some((ExecutableItem::EnumInstance { .. }, _)) => {
+            panic!("Requesting compilation of enum instance as module")
+        }
+        Some((ExecutableItem::ExternUnit(_, _), _)) => {
+            panic!("Requesting compilation of extern unit")
+        }
+        None => {}
     }
-    result
 }

@@ -20,6 +20,7 @@ local-impl.workspace = true
 num.workspace = true
 serde.workspace = true
 tracing.workspace = true
+rayon.workspace = true
 rustc-hash.workspace = true
 
 spade-common.workspace = true

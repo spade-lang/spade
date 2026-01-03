@@ -194,7 +194,7 @@ impl ServerBackend {
                                 return None;
                             };
 
-                            let s = symtab.struct_by_id(name);
+                            let s = symtab.symtab().struct_by_id(name);
 
                             let Some(param) = s.params.0.iter().find(|p| &p.name == field) else {
                                 return None;
@@ -238,7 +238,7 @@ impl ServerBackend {
                                 let Some(symtab) = symtab.as_ref() else {
                                     return None;
                                 };
-                                let target_unit = symtab.unit_by_id(&callee.inner);
+                                let target_unit = symtab.symtab().unit_by_id(&callee.inner);
                                 Some(FieldInfo::Method {
                                     target_unit,
                                     target_ty,

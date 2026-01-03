@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 511
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \impl#0::a ((self, self_n17, {x: uint<8>}), (clk, clk_n18, bool), (val, val_n19, uint<16>)) -> () {
+	reg(clk_n18) s1_self_n25: {x: uint<8>} = self_n17
+	reg(clk_n18) s1_val_n26: uint<16> = val_n19
+	reg(clk_n18) s2_self_n27: {x: uint<8>} = s1_self_n25
+	reg(clk_n18) s2_val_n28: uint<16> = s1_val_n26
+	reg(clk_n18) s3_self_n29: {x: uint<8>} = s2_self_n27
+	reg(clk_n18) s3_val_n30: uint<16> = s2_val_n28
+} => e3
+entity \test ((clk, clk_n20, bool)) -> () {
+	const e8: uint<8> = 2
+	let e7: {x: uint<8>} = ConstructTuple(e8)
+	const e10: uint<16> = 3
+	let e6: () = Instance(\impl#0::a )(e7, clk_n20, e10)
+} => e6

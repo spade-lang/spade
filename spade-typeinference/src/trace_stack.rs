@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-
 use colored::*;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
-use spade_common::name::NameID;
+use spade_common::{cloning_rwlock::CloningRWLock, name::NameID};
 use spade_types::KnownType;
 
 use crate::{
@@ -16,7 +14,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct TraceStack {
-    entries: RefCell<Vec<TraceStackEntry>>,
+    entries: CloningRWLock<Vec<TraceStackEntry>>,
 }
 
 impl Default for TraceStack {
@@ -28,7 +26,7 @@ impl Default for TraceStack {
 impl TraceStack {
     pub fn new() -> Self {
         Self {
-            entries: RefCell::new(vec![]),
+            entries: CloningRWLock::new(vec![]),
         }
     }
 
@@ -37,7 +35,7 @@ impl TraceStack {
     #[inline]
     pub fn push(&self, entry_gen: impl Fn() -> TraceStackEntry) {
         if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-            self.entries.borrow_mut().push((entry_gen)())
+            self.entries.write().unwrap().push((entry_gen)())
         }
     }
 }
@@ -77,7 +75,7 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
     let mut result = String::new();
     let mut indent_amount = 0;
 
-    for entry in stack.entries.borrow().iter() {
+    for entry in stack.entries.read().unwrap().iter() {
         let mut next_indent_amount = indent_amount;
         let message = match entry {
             TraceStackEntry::Enter(function) => {

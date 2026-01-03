@@ -12,7 +12,7 @@ struct CompilerState(pub spade::compiler_state::CompilerState);
 
 impl CompilerState {
     fn list_names(&self) {
-        for (from, to) in &self.name_source_map.inner {
+        for (from, to) in &self.name_source_map.read().unwrap().inner {
             println!("{from} -> {to}")
         }
     }

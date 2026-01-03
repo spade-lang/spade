@@ -15,7 +15,7 @@ impl MirPass for DeduplicateMutWires {
     fn transform_statements(
         &self,
         stmts: &[Statement],
-        _expr_idtracker: &mut spade_common::id_tracker::ExprIdTracker,
+        _expr_idtracker: &spade_common::id_tracker::ExprIdTracker,
     ) -> Vec<Statement> {
         replace_duplicate_mut_wires(stmts)
     }

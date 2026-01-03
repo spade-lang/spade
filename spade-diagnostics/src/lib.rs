@@ -380,13 +380,13 @@ impl CompilationError for Diagnostic {
 }
 
 pub struct DiagHandler {
-    emitter: Box<dyn Emitter + Send>,
+    emitter: Box<dyn Emitter + Send + Sync>,
     // Here we can add more shared state for diagnostics. For example, rustc can
     // stash diagnostics that can be retrieved in later stages, indexed by (Span, StashKey).
 }
 
 impl DiagHandler {
-    pub fn new(emitter: Box<dyn Emitter + Send>) -> Self {
+    pub fn new(emitter: Box<dyn Emitter + Send + Sync>) -> Self {
         Self { emitter }
     }
 

@@ -16,7 +16,7 @@ impl MirPass for SplitCompoundRegs {
     fn transform_statements(
         &self,
         stmts: &[Statement],
-        expr_idtracker: &mut ExprIdTracker,
+        expr_idtracker: &ExprIdTracker,
     ) -> Vec<Statement> {
         stmts
             .iter()
@@ -31,7 +31,7 @@ impl MirPass for SplitCompoundRegs {
 fn generate_split_code(
     reg: &Register,
     members: &Vec<Type>,
-    expr_idtracker: &mut ExprIdTracker,
+    expr_idtracker: &ExprIdTracker,
 ) -> Vec<Statement> {
     let (reg_names, split_stmts): (Vec<_>, Vec<_>) = members
         .iter()
@@ -85,7 +85,7 @@ fn generate_split_code(
         .collect()
 }
 
-fn split_compound_reg(reg: &Register, expr_idtracker: &mut ExprIdTracker) -> Vec<Statement> {
+fn split_compound_reg(reg: &Register, expr_idtracker: &ExprIdTracker) -> Vec<Statement> {
     if reg.initial.is_some() {
         return vec![Statement::Register(reg.clone())];
     }

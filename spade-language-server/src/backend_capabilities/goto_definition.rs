@@ -40,12 +40,12 @@ impl GotoDefinition for ServerBackend {
 
         let from_thing = name
             .as_ref()
-            .and_then(|name| symtab.thing_by_id(name))
+            .and_then(|name| symtab.symtab().thing_by_id(name))
             .map(|thing| thing.loc());
 
         let from_type = name
             .as_ref()
-            .and_then(|name| symtab.try_type_symbol_by_id(&name))
+            .and_then(|name| symtab.symtab().try_type_symbol_by_id(&name))
             .map(|thing| thing.loc());
 
         field
