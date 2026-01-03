@@ -186,7 +186,7 @@ pub struct TypeState {
 
     // TODO: I'm not sure skiping serialization of this thing is safe. It probably is
     // for now since we don't allow methods in tests
-    #[serde(skip, default="default_trait_impls")]
+    #[serde(skip, default = "default_trait_impls")]
     pub trait_impls: Arc<TraitImplList>,
 
     #[serde(skip)]
