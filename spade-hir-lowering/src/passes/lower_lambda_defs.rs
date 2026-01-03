@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
     id_tracker::ExprIdTracker,
@@ -64,7 +66,7 @@ impl LambdaReplacement {
         new_ts
     }
 
-    pub fn replace_in(&self, old: Loc<Unit>, idtracker: &mut ExprIdTracker) -> Result<Loc<Unit>> {
+    pub fn replace_in(&self, old: Loc<Unit>, idtracker: &ExprIdTracker) -> Result<Loc<Unit>> {
         let arg_bindings = self
             .arguments
             .iter()
@@ -220,9 +222,9 @@ impl LambdaReplacement {
 
 pub(crate) struct LowerLambdaDefs<'a> {
     pub type_state: &'a mut TypeState,
-    pub idtracker: &'a mut ExprIdTracker,
+    pub idtracker: &'a ExprIdTracker,
 
-    pub replacements: &'a mut HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement>,
+    pub replacements: Arc<RwLock<HashMap<(NameID, Vec<KnownTypeVar>), LambdaReplacement>>>,
 }
 
 impl<'a> Pass for LowerLambdaDefs<'a> {
@@ -280,7 +282,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 })
                 .collect::<Result<_>>()?;
 
-            self.replacements.insert(
+            self.replacements.write().unwrap().insert(
                 (lambda_unit.clone(), concrete_type_params),
                 LambdaReplacement {
                     new_body: body.as_ref().clone(),

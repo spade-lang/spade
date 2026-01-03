@@ -5,7 +5,7 @@ use camino::Utf8PathBuf;
 use spade_common::name::NameID;
 use spade_diagnostics::CodeBundle;
 use spade_hir::query::QueryCache;
-use spade_hir::symbol_table::SymbolTable;
+use spade_hir::symbol_table::FrozenSymtab;
 use spade_hir::ItemList;
 use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::TypeState;
@@ -17,7 +17,7 @@ pub struct ServerBackend {
     pub root_dir: Arc<Mutex<Option<Utf8PathBuf>>>,
 
     /// Syntax tree and assorted datastructures used to find information regarding the program.
-    pub symtab: Arc<Mutex<Option<SymbolTable>>>,
+    pub symtab: Arc<Mutex<Option<FrozenSymtab>>>,
     pub item_list: Arc<Mutex<ItemList>>,
     pub type_states: Arc<Mutex<BTreeMap<NameID, TypeState>>>,
     pub trait_impls: Arc<Mutex<Arc<TraitImplList>>>,

@@ -33,7 +33,7 @@ pub fn wal_alias(
 // to an ID tracker for testing purposes, for mir diffing to work
 pub fn insert_wal_signals(
     entity: &mut Entity,
-    expr_idtracker: &mut ExprIdTracker,
+    expr_idtracker: &ExprIdTracker,
     name_idtracker: &mut Option<&mut NameIdTracker>,
 ) {
     let new_statements = entity

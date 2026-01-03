@@ -743,7 +743,7 @@ impl SymbolTable {
         let id_tracker = self.id_tracker.make_clone();
         FrozenSymtab {
             inner: self,
-            id_tracker,
+            id_tracker: id_tracker,
         }
     }
 
@@ -1375,7 +1375,7 @@ impl FrozenSymtab {
         &self.inner
     }
 
-    pub fn new_name(&mut self, description: Path) -> NameID {
+    pub fn new_name(&self, description: Path) -> NameID {
         NameID(self.id_tracker.next(), description)
     }
 

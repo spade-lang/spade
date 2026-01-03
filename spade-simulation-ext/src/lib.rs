@@ -132,7 +132,7 @@ pub struct OwnedState {
     symtab: FrozenSymtab,
     item_list: ItemList,
     trait_impls: Arc<TraitImplList>,
-    idtracker: ExprIdTracker,
+    idtracker: Arc<ExprIdTracker>,
     impl_idtracker: ImplIdTracker,
 }
 
@@ -898,9 +898,8 @@ impl Spade {
             unit_generic_list: &None,
             // NOTE: This requires changes if we end up wanting to write tests
             // for generic units
-            mono_state: &mut MonoState::new(),
+            mono_state: &MonoState::new(),
             subs: &mut Substitutions::new(),
-            diag_handler: &mut self.diag_handler,
             pipeline_context: &mut MaybePipelineContext::NotPipeline,
             self_mono_item: None,
         };

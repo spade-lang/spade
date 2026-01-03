@@ -64,7 +64,7 @@ impl Substitutions {
 
     /// Advance to tracking the next pipeline stage. Adds aliases for all variables in
     /// the current stage and returns a list of pipeline registers to insert
-    pub fn next_stage(&mut self, symtab: &mut FrozenSymtab) -> Vec<SubRegister> {
+    pub fn next_stage(&mut self, symtab: &FrozenSymtab) -> Vec<SubRegister> {
         let stage_num = self.inner.len();
         let mut result = vec![];
         let mut new_subs = HashMap::default();

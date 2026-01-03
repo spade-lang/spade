@@ -9,6 +9,8 @@ pub mod testutil;
 mod type_level_if;
 pub mod types;
 
+use std::sync::Arc;
+
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
 use impls::visit_impl;
@@ -50,7 +52,7 @@ use error::Result;
 pub struct Context {
     pub symtab: SymbolTable,
     pub item_list: ItemList,
-    pub idtracker: ExprIdTracker,
+    pub idtracker: Arc<ExprIdTracker>,
     pub impl_idtracker: ImplIdTracker,
     pub pipeline_ctx: Option<PipelineContext>,
     pub self_ctx: SelfContext,

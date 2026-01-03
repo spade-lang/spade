@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{Context, SelfContext};
 use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_diagnostics::diag_list::DiagList;
@@ -9,7 +11,7 @@ pub fn test_context() -> Context {
     Context {
         symtab: SymbolTable::new(),
         item_list: ItemList::new(),
-        idtracker: ExprIdTracker::new(),
+        idtracker: Arc::new(ExprIdTracker::new()),
         impl_idtracker: ImplIdTracker::new(),
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,

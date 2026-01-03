@@ -1,36 +1,42 @@
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering::Relaxed;
 
 macro_rules! def_id_tracker {
     ($name:ident) => {
         #[derive(Debug, Serialize, Deserialize)]
         pub struct $name {
-            id: u64,
+            id: AtomicU64,
         }
 
         impl $name {
             pub fn new() -> Self {
-                Self { id: 0 }
+                Self {
+                    id: AtomicU64::new(0),
+                }
             }
 
             pub fn new_at(id: u64) -> Self {
-                Self { id }
+                Self {
+                    id: AtomicU64::new(id),
+                }
             }
 
-            pub fn next(&mut self) -> u64 {
-                let result = self.id;
-                self.id += 1;
-                result
+            pub fn next(&self) -> u64 {
+                self.id.fetch_add(1, Relaxed)
             }
 
             pub fn peek(&self) -> u64 {
-                self.id
+                self.id.load(Relaxed)
             }
 
             /// Clone this ID tracker. After this is done, only one of the ID trackers may
             /// be used otherwise duplicate IDs will be generated. It is up to the caller of this
             /// method to make sure that no mutable references are handed out to one of the clonse
             pub fn make_clone(&self) -> Self {
-                Self { id: self.id }
+                Self {
+                    id: AtomicU64::new(self.id.load(Relaxed)),
+                }
             }
         }
         impl Default for $name {
@@ -45,33 +51,38 @@ macro_rules! def_typed_id_tracker {
     ($name:ident, $type_name:ident) => {
         #[derive(Debug, Serialize, Deserialize)]
         pub struct $name {
-            id: u64,
+            id: AtomicU64,
         }
 
         impl $name {
             pub fn new() -> Self {
-                Self { id: 0 }
+                Self {
+                    id: AtomicU64::new(0),
+                }
             }
 
             pub fn new_at(id: u64) -> Self {
-                Self { id }
+                Self {
+                    id: AtomicU64::new(id),
+                }
             }
 
-            pub fn next(&mut self) -> $type_name {
-                let result = self.id;
-                self.id += 1;
+            pub fn next(&self) -> $type_name {
+                let result = self.id.fetch_add(1, Relaxed);
                 $type_name(result)
             }
 
             pub fn peek(&self) -> u64 {
-                self.id
+                self.id.load(Relaxed)
             }
 
             /// Clone this ID tracker. After this is done, only one of the ID trackers may
             /// be used otherwise duplicate IDs will be generated. It is up to the caller of this
             /// method to make sure that no mutable references are handed out to one of the clonse
             pub fn make_clone(&self) -> Self {
-                Self { id: self.id }
+                Self {
+                    id: AtomicU64::new(self.id.load(Relaxed)),
+                }
             }
         }
         impl Default for $name {

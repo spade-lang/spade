@@ -11,7 +11,7 @@ fn split_trivial_tag_value(
     value: &ValueName,
     variants: &Vec<Vec<Type>>,
     statements: &mut Vec<Statement>,
-    expr_idtracker: &mut ExprIdTracker,
+    expr_idtracker: &ExprIdTracker,
     loc: &Option<Loc<()>>,
 ) -> (ValueName, ValueName) {
     let tag_name = ValueName::Expr(expr_idtracker.next());
@@ -43,7 +43,7 @@ fn split_trivial_tag_value(
 }
 
 impl Register {
-    fn perform_trivial_gating(&self, expr_idtracker: &mut ExprIdTracker) -> Option<Vec<Statement>> {
+    fn perform_trivial_gating(&self, expr_idtracker: &ExprIdTracker) -> Option<Vec<Statement>> {
         // FIXME: For now, we'll not split registers initial values because those would need
         // special treatment since their values are comptime-evaluated
         if self.initial.is_some() {
@@ -141,7 +141,7 @@ impl MirPass for AutoGating {
     fn transform_statements(
         &self,
         stmts: &[Statement],
-        expr_idtracker: &mut ExprIdTracker,
+        expr_idtracker: &ExprIdTracker,
     ) -> Vec<Statement> {
         stmts
             .iter()

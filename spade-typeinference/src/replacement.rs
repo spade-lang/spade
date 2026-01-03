@@ -1,18 +1,19 @@
-use std::{cell::RefCell, collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use spade_common::cloning_rwlock::CloningRWLock;
 
 use crate::equation::TypeVarID;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Replacements {
-    replacements: RefCell<BTreeMap<TypeVarID, TypeVarID>>,
+    replacements: CloningRWLock<BTreeMap<TypeVarID, TypeVarID>>,
 }
 
 impl Replacements {
     fn new() -> Self {
         Replacements {
-            replacements: RefCell::new(BTreeMap::new()),
+            replacements: CloningRWLock::new(BTreeMap::new()),
         }
     }
 }
@@ -21,14 +22,14 @@ impl Replacements {
 pub struct ReplacementStack {
     inner: Vec<Replacements>,
 
-    lookup_steps: RefCell<BTreeMap<usize, usize>>,
+    lookup_steps: CloningRWLock<BTreeMap<usize, usize>>,
 }
 
 impl ReplacementStack {
     pub fn new() -> Self {
         Self {
             inner: vec![Replacements::new()],
-            lookup_steps: RefCell::new(BTreeMap::new()),
+            lookup_steps: CloningRWLock::new(BTreeMap::new()),
         }
     }
 
@@ -45,7 +46,8 @@ impl ReplacementStack {
             .last_mut()
             .expect("there was no map in the replacement stack")
             .replacements
-            .borrow_mut()
+            .write()
+            .unwrap()
             .insert(from, to);
     }
 
@@ -57,17 +59,16 @@ impl ReplacementStack {
 
         // store all nodes in the chain we're walking on
         let mut seen = Vec::new();
-        while let Some(target) = self
-            .inner
-            .iter()
-            .rev()
-            .find_map(|replacements| replacements.replacements.borrow().get(&key).copied())
+        while let Some(target) =
+            self.inner.iter().rev().find_map(|replacements| {
+                replacements.replacements.read().unwrap().get(&key).copied()
+            })
         {
             seen.push(key);
             key = target;
         }
         let target = key;
-        let mut replacements = top.replacements.borrow_mut();
+        let mut replacements = top.replacements.write().unwrap();
         // update all of them to the end of the chain
         for key in seen {
             replacements.insert(key, target);
@@ -75,7 +76,7 @@ impl ReplacementStack {
         target
     }
 
-    pub fn all(&self) -> Vec<&RefCell<BTreeMap<TypeVarID, TypeVarID>>> {
+    pub fn all(&self) -> Vec<&CloningRWLock<BTreeMap<TypeVarID, TypeVarID>>> {
         self.inner.iter().map(|var| &var.replacements).collect()
     }
 }

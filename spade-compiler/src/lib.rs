@@ -160,7 +160,7 @@ pub fn compile(
     let mut ctx = AstLoweringCtx {
         symtab,
         item_list,
-        idtracker: ExprIdTracker::new(),
+        idtracker: Arc::new(ExprIdTracker::new()),
         impl_idtracker: ImplIdTracker::new(),
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
@@ -257,7 +257,7 @@ pub fn compile(
     let AstLoweringCtx {
         symtab,
         mut item_list,
-        mut idtracker,
+        idtracker,
         impl_idtracker,
         pipeline_ctx: _,
         self_ctx: _,
@@ -272,7 +272,7 @@ pub fn compile(
         errors.report(&e)
     }
 
-    let mut frozen_symtab = symtab.freeze();
+    let frozen_symtab = symtab.freeze();
 
     let mut impl_type_state = TypeState::fresh();
     let mapped_trait_impls = Arc::new(impl_type_state.visit_impl_blocks(&item_list));
@@ -330,14 +330,13 @@ pub fn compile(
         })
         .collect::<BTreeMap<_, _>>();
 
-    let mut name_source_map = NameSourceMap::new();
+    let name_source_map = Arc::new(RwLock::new(NameSourceMap::new()));
     let mir_entities = spade_hir_lowering::monomorphisation::compile_items(
         &executables_and_types,
-        &mut frozen_symtab,
-        &mut idtracker,
-        &mut name_source_map,
+        &frozen_symtab,
+        &idtracker,
+        &name_source_map,
         &item_list,
-        &mut errors.diag_handler,
         &opt_passes,
         &impl_type_state,
     );
@@ -349,7 +348,7 @@ pub fn compile(
         mir_code,
         instance_map,
         mir_context,
-    } = codegen(mir_entities, Rc::clone(&code), &mut errors, &mut idtracker);
+    } = codegen(mir_entities, Rc::clone(&code), &mut errors, &idtracker);
 
     let state = CompilerState {
         code: code
@@ -517,7 +516,7 @@ fn codegen(
     mir_entities: Vec<Result<MirOutput, Diagnostic>>,
     code: Rc<RwLock<CodeBundle>>,
     errors: &mut ErrorHandler,
-    idtracker: &mut ExprIdTracker,
+    idtracker: &Arc<ExprIdTracker>,
 ) -> CodegenArtefacts {
     let mut bumpy_mir_entities = vec![];
     let mut flat_mir_entities = vec![];

@@ -92,7 +92,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
 
     for stmt in &mut entity.statements {
         match stmt {
-            Statement::Binding(ref mut binding) => {
+            Statement::Binding(binding) => {
                 try_rename(&mut binding.name, &aliases);
                 for op in &mut binding.operands {
                     try_rename(op, &aliases);

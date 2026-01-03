@@ -27,105 +27,108 @@ impl ServerBackend {
         let Some(symtab) = symtab.as_ref() else {
             return None;
         };
-        symtab.thing_by_id(&name.inner).map(|thing| match thing {
-            symbol_table::Thing::Struct(s) => {
-                let StructCallable {
-                    name,
-                    self_type: _,
-                    params,
-                    type_params,
-                } = &s.inner;
-                formatdoc!(
-                    r#"
+        symtab
+            .symtab()
+            .thing_by_id(&name.inner)
+            .map(|thing| match thing {
+                symbol_table::Thing::Struct(s) => {
+                    let StructCallable {
+                        name,
+                        self_type: _,
+                        params,
+                        type_params,
+                    } = &s.inner;
+                    formatdoc!(
+                        r#"
                         struct {}{}{{
                             {}
                         }}"#,
-                    name,
-                    if type_params.is_empty() {
-                        "".to_string()
-                    } else {
-                        format!(
-                            "<{}>",
-                            type_params.iter().map(|tp| tp.pretty_print()).join(", ")
-                        )
-                    },
-                    params
-                        .0
-                        .iter()
-                        .map(PrettyPrint::pretty_print)
-                        .join("\n    ")
-                )
-            }
-            symbol_table::Thing::EnumVariant(variant) => formatdoc!(
-                r#"enum variant
+                        name,
+                        if type_params.is_empty() {
+                            "".to_string()
+                        } else {
+                            format!(
+                                "<{}>",
+                                type_params.iter().map(|tp| tp.pretty_print()).join(", ")
+                            )
+                        },
+                        params
+                            .0
+                            .iter()
+                            .map(PrettyPrint::pretty_print)
+                            .join("\n    ")
+                    )
+                }
+                symbol_table::Thing::EnumVariant(variant) => formatdoc!(
+                    r#"enum variant
                     ```spade
                     {}
                     ```{}"#,
-                if variant.params.0.is_empty() {
-                    name.to_string()
-                } else {
-                    formatdoc!(
-                        r#"{}{{
+                    if variant.params.0.is_empty() {
+                        name.to_string()
+                    } else {
+                        formatdoc!(
+                            r#"{}{{
                                 {}
                             }}"#,
-                        name,
-                        variant.params.pretty_print()
-                    )
-                },
-                if variant.documentation != "" {
-                    format!("\n---\n{}", variant.documentation)
-                } else {
-                    "".to_string()
-                }
-            ),
-            symbol_table::Thing::Unit(u) => {
-                formatdoc!(
-                    r#"
-                            ```spade
-                            {}
-                            ```{}"#,
-                    u.pretty_print(),
-                    if !u.documentation.is_empty() {
-                        format!("\n---\n{}", u.documentation.trim())
+                            name,
+                            variant.params.pretty_print()
+                        )
+                    },
+                    if variant.documentation != "" {
+                        format!("\n---\n{}", variant.documentation)
                     } else {
                         "".to_string()
                     }
-                )
-            }
-            symbol_table::Thing::Variable(var) => {
-                let ty = unit_type_state
-                    .as_ref()
-                    .and_then(|ts| name.try_get_type(ts).map(|ty| ty.resolve(&ts).display(ts)))
-                    .map(|ty| format!(": {ty}"))
-                    .unwrap_or_else(|| ": ?".to_string());
+                ),
+                symbol_table::Thing::Unit(u) => {
+                    formatdoc!(
+                        r#"
+                            ```spade
+                            {}
+                            ```{}"#,
+                        u.pretty_print(),
+                        if !u.documentation.is_empty() {
+                            format!("\n---\n{}", u.documentation.trim())
+                        } else {
+                            "".to_string()
+                        }
+                    )
+                }
+                symbol_table::Thing::Variable(var) => {
+                    let ty = unit_type_state
+                        .as_ref()
+                        .and_then(|ts| name.try_get_type(ts).map(|ty| ty.resolve(&ts).display(ts)))
+                        .map(|ty| format!(": {ty}"))
+                        .unwrap_or_else(|| ": ?".to_string());
 
-                formatdoc!(
-                    r#"
+                    formatdoc!(
+                        r#"
                         ```spade
                         let {var}{ty}
                         ```"#
-                )
-            }
-            symbol_table::Thing::Alias {
-                loc: _,
-                path,
-                in_namespace: _,
-            } => {
-                format!("alias for {path}")
-            }
-            symbol_table::Thing::ArrayLabel(value) => {
-                format!("Array label: {value}")
-            }
-            symbol_table::Thing::Module(_, _) => {
-                format!("(module)")
-            }
-            symbol_table::Thing::Trait(_) => {
-                format!("(trait)")
-            }
-            symbol_table::Thing::Dummy => {
-                format!("(dummy)")
-            }
-        })
+                    )
+                }
+                symbol_table::Thing::Alias {
+                    loc: _,
+                    path,
+                    in_namespace: _,
+                } => {
+                    format!("alias for {path}")
+                }
+                symbol_table::Thing::ArrayLabel(value) => {
+                    format!("Array label: {value}")
+                }
+                symbol_table::Thing::Module(_, _) => {
+                    format!("(module)")
+                }
+                symbol_table::Thing::Trait(_) => {
+                    format!("(trait)")
+                }
+                symbol_table::Thing::Dummy => {
+                    format!("(dummy)")
+                }
+            })
     }
 
     fn symtab_type_info(
@@ -142,6 +145,7 @@ impl ServerBackend {
             return None;
         };
         symtab
+            .symtab()
             .try_type_symbol_by_id(&name.inner)
             .map(|ts| match &ts.inner {
                 symbol_table::TypeSymbol::Declared(generics, type_decl_kind) => {

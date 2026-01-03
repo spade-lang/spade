@@ -6,9 +6,9 @@
 // and should be done by the visitor for that node. The visitor should then unify
 // types according to the rules of the node.
 
-use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use colored::Colorize;
@@ -155,7 +155,7 @@ pub struct TypeState {
     equations: TypeEquations,
     // NOTE: This is kind of redundant, we could use TypeVarIDs instead of having dedicated
     // numbers for unknown types.
-    next_typeid: RefCell<u64>,
+    next_typeid: Arc<AtomicU64>,
     // List of the mapping between generic parameters and type vars.
     // The key is the index of the expression for which this generic list is associated. (if this
     // is a generic list for a call whose expression id is x to f<A, B>, then generic_lists[x] will
@@ -186,7 +186,6 @@ pub struct TypeState {
 
     // TODO: I'm not sure skiping serialization of this thing is safe. It probably is
     // for now since we don't allow methods in tests
-    #[serde(skip, default = "default_trait_impls")]
     pub trait_impls: Arc<TraitImplList>,
 
     #[serde(skip)]
@@ -206,7 +205,7 @@ impl TypeState {
             key,
             keys: [key].into_iter().collect(),
             equations: HashMap::default(),
-            next_typeid: RefCell::new(0),
+            next_typeid: Arc::new(AtomicU64::new(0)),
             trace_stack: TraceStack::new(),
             constraints: TypeConstraints::new(),
             requirements: vec![],
@@ -513,7 +512,7 @@ impl TypeState {
     pub fn visit_unit_with_preprocessing(
         &mut self,
         entity: &Loc<Unit>,
-        pp: impl Fn(&mut TypeState, &Loc<Unit>, &GenericListToken, &Context) -> Result<()>,
+        pp: impl FnOnce(&mut TypeState, &Loc<Unit>, &GenericListToken, &Context) -> Result<()>,
         ctx: &Context,
     ) -> Result<()> {
         self.trait_impls = ctx.trait_impls.clone();
@@ -2365,10 +2364,8 @@ impl TypeState {
 // Private helper functions
 impl TypeState {
     fn new_typeid(&self) -> u64 {
-        let mut next = self.next_typeid.borrow_mut();
-        let result = *next;
-        *next += 1;
-        result
+        self.next_typeid
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn add_equation(&mut self, expression: TypedExpression, var: TypeVarID) {
@@ -3177,7 +3174,7 @@ impl TypeState {
         println!("\nReplacments:");
 
         for repl_stack in &self.replacements.all() {
-            let replacements = { repl_stack.borrow().clone() };
+            let replacements = { repl_stack.read().unwrap().clone() };
             for (lhs, rhs) in replacements.iter().sorted() {
                 println!(
                     "{} -> {} ({} -> {})",

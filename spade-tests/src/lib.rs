@@ -296,50 +296,60 @@ fn build_items_inner(code: &str, with_stdlib: bool) -> Vec<spade_mir::Entity> {
 }
 
 pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
-    let source = unindent::unindent(code);
-    let mut buffer = spade_codespan_reporting::term::termcolor::BufferWriter::stdout(
-        spade_codespan_reporting::term::termcolor::ColorChoice::Never,
-    )
-    .buffer();
-    let opts = spade::Opt {
-        error_buffer: &mut buffer,
-        outfile: None,
-        mir_output: None,
-        verilator_wrapper_output: None,
-        state_dump_file: None,
-        item_list_file: None,
-        print_type_traceback: std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok(),
-        print_parse_traceback: false,
-        opt_passes: vec![],
-    };
+    // Tests run in parallel, Ok because we don't care if we fail to set this in other
+    // threads
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .unwrap()
+        .install(|| {
+            let source = unindent::unindent(code);
+            let mut buffer = spade_codespan_reporting::term::termcolor::BufferWriter::stdout(
+                spade_codespan_reporting::term::termcolor::ColorChoice::Never,
+            )
+            .buffer();
+            let opts = spade::Opt {
+                error_buffer: &mut buffer,
+                outfile: None,
+                mir_output: None,
+                verilator_wrapper_output: None,
+                state_dump_file: None,
+                item_list_file: None,
+                print_type_traceback: std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok(),
+                print_parse_traceback: false,
+                opt_passes: vec![],
+            };
 
-    let files = vec![(
-        spade::ModuleNamespace {
-            namespace: spade_common::name::Path(vec![]),
-            base_namespace: spade_common::name::Path(vec![]),
-            file: "testinput".to_string(),
-        },
-        "testinput".to_string(),
-        source,
-    )];
+            let files = vec![(
+                spade::ModuleNamespace {
+                    namespace: spade_common::name::Path(vec![]),
+                    base_namespace: spade_common::name::Path(vec![]),
+                    file: "testinput".to_string(),
+                },
+                "testinput".to_string(),
+                source,
+            )];
 
-    match spade::compile(
-        files,
-        with_stdlib,
-        opts,
-        spade_diagnostics::DiagHandler::new(Box::new(spade_diagnostics::emitter::CodespanEmitter)),
-    ) {
-        Ok(artefacts) => artefacts,
-        Err(_) => {
-            // I'm not 100% sure why this is needed. The bufferwriter should output
-            // to stdout and buffer.flush() should be enough. Unfortunately, that does
-            // not seem to be the case
-            if !buffer.is_empty() {
-                println!("{}", String::from_utf8_lossy(&buffer.into_inner()));
+            match spade::compile(
+                files,
+                with_stdlib,
+                opts,
+                spade_diagnostics::DiagHandler::new(Box::new(
+                    spade_diagnostics::emitter::CodespanEmitter,
+                )),
+            ) {
+                Ok(artefacts) => artefacts,
+                Err(_) => {
+                    // I'm not 100% sure why this is needed. The bufferwriter should output
+                    // to stdout and buffer.flush() should be enough. Unfortunately, that does
+                    // not seem to be the case
+                    if !buffer.is_empty() {
+                        println!("{}", String::from_utf8_lossy(&buffer.into_inner()));
+                    }
+                    panic!("Compilation error")
+                }
             }
-            panic!("Compilation error")
-        }
-    }
+        })
 }
 
 /// Builds multiple entities and types from a source string, then compares the resulting
