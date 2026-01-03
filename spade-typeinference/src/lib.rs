@@ -3030,9 +3030,7 @@ impl TypeState {
                             Ok(Either::Right(trait_req.clone()))
                         }
                     })
-                    .collect::<std::result::Result<Vec<_>, _>>()?
-                    .into_iter()
-                    .partition_map(|x| x);
+                    .process_results(|it| it.partition_map(|x| x))?;
 
                 if unsatisfied.is_empty() {
                     self.trace_stack
