@@ -33,6 +33,7 @@ spade-typeinference = {path = "spade-typeinference", version = "0.15.0"}
 spade-types = {path = "spade-types", version = "0.15.0"}
 
 bincode = { version = "2.0.0", features = ["serde"] }
+bumpalo = { version = "3.14.0" }
 clap = { version = "4.4", features = ["derive"] }
 color-eyre = "0.6.1"
 spade-codespan = {version = "0.12.0", features = ["serde"]}

@@ -312,7 +312,7 @@ impl MirLowerable for ConcreteType {
             } => {
                 let members = members
                     .iter()
-                    .map(|(n, t)| (n.0.clone(), t.to_mir_type()))
+                    .map(|(n, t)| (n.as_str().to_owned(), t.to_mir_type()))
                     .collect();
                 Type::Struct(members)
             }
@@ -859,7 +859,7 @@ pub fn do_wal_trace_lowering(
             members
                 .iter()
                 .filter_map(|(n, ty)| match ty.to_mir_type() {
-                    MirType::Backward(i) => Some((n.clone().0, i.as_ref().clone())),
+                    MirType::Backward(i) => Some((n.as_str().to_owned(), i.as_ref().clone())),
                     _ => None,
                 })
                 .collect(),
@@ -1268,7 +1268,7 @@ impl StatementLocal for Statement {
                 result.push_anonymous(mir::Statement::WalTrace {
                     name: target.value_name(),
                     val: target.value_name(),
-                    suffix: suffix.0.clone(),
+                    suffix: suffix.as_str().to_owned(),
                     ty,
                 })
             }
@@ -2343,7 +2343,7 @@ impl ExprLocal for Loc<Expression> {
                 handle_special_function!([$($path),*] => $handler false)
             };
             ([$($path:expr),*] => $handler:ident $allow_port:expr) => {
-                let path = Path(vec![$(Identifier($path.to_string()).nowhere()),*]).nowhere();
+                let path = Path(vec![$(Identifier::intern($path).nowhere()),*]).nowhere();
                 let final_id = ctx.symtab.symtab().try_lookup_id(&path);
                 if final_id
                     .map(|n| &n == &name.inner)
@@ -2464,7 +2464,7 @@ impl ExprLocal for Loc<Expression> {
                     .iter()
                     .zip(&u.head.inputs.0)
                     .map(|(_, input)| mir::ParamName {
-                        name: input.name.0.to_string(),
+                        name: input.name.inner.as_str().to_owned(),
                         no_mangle: input.no_mangle,
                     })
                     .collect();
@@ -2511,7 +2511,7 @@ impl ExprLocal for Loc<Expression> {
                                     .ok()
                                     .map(|value| {
                                         (
-                                            type_param.ident.inner.0.clone(),
+                                            type_param.ident.inner.as_str().to_owned(),
                                             ConstantValue::Int(value.to_bigint()),
                                         )
                                     })
@@ -2531,7 +2531,7 @@ impl ExprLocal for Loc<Expression> {
                                     .ok()
                                     .map(|value| {
                                         (
-                                            type_param.ident.inner.0.clone(),
+                                            type_param.ident.inner.as_str().to_owned(),
                                             ConstantValue::String(value),
                                         )
                                     })
@@ -2569,7 +2569,7 @@ impl ExprLocal for Loc<Expression> {
                     .iter()
                     .zip(&head.inputs.0)
                     .map(|(_, input)| mir::ParamName {
-                        name: input.name.0.to_string(),
+                        name: input.name.inner.as_str().to_string(),
                         no_mangle: input.no_mangle,
                     })
                     .collect();

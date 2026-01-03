@@ -90,7 +90,7 @@ fn spade_path(s: &str) -> spade_common::name::Path {
     }
     let parts = s
         .split("::")
-        .map(|ident| Identifier(ident.to_string()).nowhere())
+        .map(|ident| Identifier::intern(ident).nowhere())
         .collect();
     spade_common::name::Path(parts)
 }

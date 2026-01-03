@@ -1,8 +1,5 @@
 use spade_ast::{AttributeList, Binding, Expression, Register, Statement};
-use spade_common::{
-    location_info::{lspan, AsLabel, Loc, WithLocation},
-    name::Identifier,
-};
+use spade_common::location_info::{lspan, AsLabel, Loc, WithLocation};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_macros::trace_parser;
 
@@ -246,10 +243,7 @@ impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
         };
         parser.disallow_attributes(attributes, &tok)?;
 
-        Ok(
-            Statement::Label(Identifier(l.clone()).at(parser.file_id, &tok.span))
-                .at(parser.file_id, &tok.span),
-        )
+        Ok(Statement::Label(l.clone().at(parser.file_id, &tok.span)).at(parser.file_id, &tok.span))
     }
 }
 

@@ -1,13 +1,75 @@
-use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 
-use crate::location_info::{Loc, WithLocation};
+use serde::{de::Visitor, Deserialize, Serialize};
 
-#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
-pub struct Identifier(pub String);
+use crate::{
+    interning::INTERNER,
+    location_info::{Loc, WithLocation},
+};
+
+#[derive(Debug, Clone, Copy, Eq)]
+#[repr(transparent)]
+pub struct Identifier(&'static str);
+
+impl Identifier {
+    pub fn intern(ident: &str) -> Self {
+        Self(INTERNER.intern(ident))
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        self.0
+    }
+}
 
 impl std::fmt::Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl PartialEq for Identifier {
+    fn eq(&self, other: &Self) -> bool {
+        ::core::ptr::eq(self.0, other.0)
+    }
+}
+
+impl std::hash::Hash for Identifier {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.as_ptr().hash(state);
+    }
+}
+
+impl Serialize for Identifier {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Identifier {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct IdentVisitor;
+        impl<'de> Visitor<'de> for IdentVisitor {
+            type Value = Identifier;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Identifier")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Identifier::intern(v))
+            }
+        }
+
+        deserializer.deserialize_str(IdentVisitor)
     }
 }
 
@@ -24,17 +86,20 @@ pub struct Path(pub Vec<Loc<Identifier>>);
 
 impl Path {
     pub fn as_strs(&self) -> Vec<&str> {
-        self.0.iter().map(|id| id.inner.0.as_ref()).collect()
+        self.0.iter().map(|id| id.inner.as_str()).collect()
     }
     pub fn as_strings(&self) -> Vec<String> {
-        self.0.iter().map(|id| id.inner.0.clone()).collect()
+        self.0
+            .iter()
+            .map(|id| id.inner.as_str().to_owned())
+            .collect()
     }
     /// Generate a path from a list of strings
     pub fn from_strs(elems: &[&str]) -> Self {
         Path(
             elems
                 .iter()
-                .map(|x| Identifier(x.to_string()).nowhere())
+                .map(|x| Identifier::intern(x).nowhere())
                 .collect(),
         )
     }
@@ -73,7 +138,7 @@ impl Path {
             return (PathPrefix::None, self.clone());
         };
 
-        let (prefix, count) = match ident.inner.0.as_str() {
+        let (prefix, count) = match ident.inner.as_str() {
             "lib" => (PathPrefix::FromLib, 1),
             "self" => (PathPrefix::FromSelf, 1),
             "super" => {

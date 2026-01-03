@@ -21,3 +21,4 @@ logos.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true
 num.workspace = true
+bumpalo.workspace = true

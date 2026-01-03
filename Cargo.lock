@@ -3141,6 +3141,7 @@ dependencies = [
 name = "spade-common"
 version = "0.15.0"
 dependencies = [
+ "bumpalo",
  "logos",
  "num",
  "rustc-hash",

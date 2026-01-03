@@ -92,10 +92,10 @@ mod tests {
         assert_eq!(
             namespaced_file("a,a::b,b.spade"),
             Ok(NamespacedFile {
-                base_namespace: SpadePath(vec![Identifier("a".to_string()).nowhere()]),
+                base_namespace: SpadePath(vec![Identifier::intern("a").nowhere()]),
                 namespace: SpadePath(vec![
-                    Identifier("a".to_string()).nowhere(),
-                    Identifier("b".to_string()).nowhere()
+                    Identifier::intern("a").nowhere(),
+                    Identifier::intern("b").nowhere()
                 ]),
                 file: "b.spade".into(),
             })

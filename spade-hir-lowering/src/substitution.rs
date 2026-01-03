@@ -102,7 +102,8 @@ impl Substitutions {
                     // is present
                     // spade#128
                     let old_name = original.1.tail();
-                    let new_name = Identifier(format!("s{}_{}", stage_num, old_name)).nowhere();
+                    let new_name =
+                        Identifier::intern(&format!("s{}_{}", stage_num, old_name)).nowhere();
                     let new_path = original.1.pop().push_ident(new_name);
 
                     let new_name = symtab.new_name(new_path);

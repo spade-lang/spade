@@ -1,6 +1,7 @@
 use logos::Logos;
 
 use num::BigUint;
+use spade_common::name::Identifier;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum LiteralKind {
@@ -30,11 +31,11 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
     )
 }
 
-fn process_ident(ident: &str) -> String {
+fn process_ident(ident: &str) -> Identifier {
     if ident.starts_with("r#") {
-        ident[2..].to_string()
+        Identifier::intern(&ident[2..])
     } else {
-        ident.to_string()
+        Identifier::intern(ident)
     }
 }
 
@@ -46,7 +47,7 @@ pub enum TokenKind {
         \p{XID_Continue}*
         (\u{3F} | \u{21} | (\u{3F}\u{21}) | \u{2048})? # ? ! ?! ⁈
     )"#, |lex| process_ident(lex.slice()))]
-    Identifier(String),
+    Identifier(Identifier),
 
     #[regex(r"[0-9][0-9_]*([uUiI][0-9]+)?", |lex| {
         parse_int(lex.slice(), 10)
@@ -228,11 +229,11 @@ pub enum TokenKind {
     #[token("$")]
     Dollar,
 
-    #[regex(r#"'[\p{XID_Start}_]\p{XID_Continue}*"#, |lex| lex.slice()[1..].to_string())]
-    Label(String),
+    #[regex(r#"'[\p{XID_Start}_]\p{XID_Continue}*"#, |lex| Identifier::intern(&lex.slice()[1..]))]
+    Label(Identifier),
 
-    #[regex(r#"@[\p{XID_Start}_]\p{XID_Continue}*"#, |lex| lex.slice()[1..].to_string())]
-    LabelRef(String),
+    #[regex(r#"@[\p{XID_Start}_]\p{XID_Continue}*"#, |lex| Identifier::intern(&lex.slice()[1..]))]
+    LabelRef(Identifier),
 
     #[regex(r#"b'(\\.|[^\\'])*'"#, |lex| lex.slice()[2..(lex.slice().len() - 1)].to_string())]
     AsciiCharLiteral(String),
@@ -414,7 +415,7 @@ mod tests {
 
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::Identifier("abc123_".to_string())))
+            Some(Ok(TokenKind::Identifier(Identifier::intern("abc123_"))))
         );
     }
 
@@ -487,7 +488,7 @@ mod tests {
         );
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::Identifier("xg".to_string())))
+            Some(Ok(TokenKind::Identifier(Identifier::intern("xg"))))
         );
         assert_eq!(lex.next(), None);
     }

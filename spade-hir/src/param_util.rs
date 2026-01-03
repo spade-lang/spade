@@ -94,13 +94,9 @@ impl From<ArgumentError> for Diagnostic {
             ArgumentError::MissingArguments { mut missing, at } => {
                 let plural = if missing.len() == 1 { "" } else { "s" };
 
-                missing.sort_by_key(|arg| arg.0.clone());
+                missing.sort_by_key(|arg| arg.as_str());
 
-                let arg_list = missing
-                    .iter()
-                    .map(|i| format!("{i}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let arg_list = missing.iter().map(|i| i.as_str()).join(", ");
 
                 Diagnostic::error(at, format!("Missing argument{plural}: {arg_list}"))
                     .primary_label(format!("Missing argument{plural}: {arg_list}"))

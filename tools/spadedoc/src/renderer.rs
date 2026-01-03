@@ -81,8 +81,8 @@ impl PathState {
                 path.0
                     .iter()
                     .map(|seg| &seg.inner)
-                    .map(|seg| Utf8Path::new(&seg.0))
-                    .chain([Utf8Path::new(&format!("{}.html", ident.0))]),
+                    .map(|seg| Utf8Path::new(seg.as_str()))
+                    .chain([Utf8Path::new(&format!("{}.html", ident.as_str()))]),
             )
         } else {
             self.path([Utf8Path::new("index.html")])
@@ -121,7 +121,7 @@ impl<'d> Renderer<'d> {
 
         for (path, items) in &self.documentation.documentables {
             self.state
-                .enter_from_root(path.0.iter().map(|ident| &ident.0))?;
+                .enter_from_root(path.0.iter().map(|ident| ident.as_str()))?;
 
             for (name, item) in items {
                 self.item(Documentable {
@@ -160,7 +160,7 @@ impl<'d> Renderer<'d> {
         let name = item
             .name
             .as_ref()
-            .map(|ident| &ident.0)
+            .map(|ident| ident.as_str())
             .unwrap_or(&self.documentation.root.0);
 
         write_template(
@@ -212,7 +212,7 @@ impl<'d> Renderer<'d> {
                     .entry(item.kind())
                     .or_default()
                     .push(html::ListedEntry {
-                        name: &ident.0,
+                        name: ident.as_str(),
                         link: self
                             .state
                             .relative_from_path(&namespace, Some(&ident))
@@ -252,12 +252,12 @@ impl<'d> Renderer<'d> {
                     .inner;
                 variants.push(if option.1.inner.0.is_empty() {
                     html::Variant::Unit(
-                        Cow::from(variant.name.inner.0),
+                        Cow::Borrowed(variant.name.inner.as_str()),
                         RenderedMarkdown::render(&variant.documentation),
                     )
                 } else {
                     html::Variant::Valued(
-                        Cow::from(variant.name.inner.0),
+                        Cow::Borrowed(variant.name.inner.as_str()),
                         option
                             .1
                             .inner
@@ -266,7 +266,7 @@ impl<'d> Renderer<'d> {
                             .map(|param| {
                                 || -> Result<_> {
                                     Ok(html::Param(
-                                        &param.name.0,
+                                        param.name.as_str(),
                                         Spec::mirror_typespec(&param.ty)?,
                                     ))
                                 }()
@@ -299,14 +299,14 @@ impl<'d> Renderer<'d> {
                             .map(|type_param| GenericTypeParam::mirror_typeparam(type_param))
                             .collect::<Result<_>>()?,
                         impld_trait: if let TraitName::Named(n) = traitname {
-                            Some(n.inner.1.tail().0.into())
+                            Some(n.inner.1.tail().as_str().into())
                         } else {
                             None
                         },
                         target,
                         members: {
                             let mut keys = implblock.fns.keys().collect::<Vec<_>>();
-                            keys.sort_by_key(|identifier| &identifier.0);
+                            keys.sort_by_key(|identifier| identifier.as_str());
                             keys.into_iter()
                                 .map(|key| {
                                     self.documentation
@@ -353,7 +353,7 @@ impl<'d> Renderer<'d> {
             is_external,
             attributes: vec![],
             kind: &head.unit_kind,
-            name: head.name.0.as_str(),
+            name: head.name.inner.as_str(),
             type_params: head
                 .unit_type_params
                 .iter()
@@ -365,7 +365,7 @@ impl<'d> Renderer<'d> {
                 .iter()
                 .map(|param| {
                     Ok(html::Param(
-                        &param.name.0,
+                        param.name.inner.as_str(),
                         Spec::mirror_typespec(&param.ty)?,
                     ))
                 })
@@ -400,7 +400,7 @@ impl<'d> Renderer<'d> {
                         };
                         Ok(WhereClause {
                             target: Spec::Declared {
-                                name: Cow::Owned(target.1.tail()),
+                                name: Cow::Borrowed(target.1.tail().as_str()),
                                 type_args: vec![],
                             },
                             constraints,
@@ -430,7 +430,7 @@ impl<'d> Renderer<'d> {
                             .iter()
                             .map(|param| {
                                 Ok(html::Param(
-                                    &param.name.0,
+                                    param.name.inner.as_str(),
                                     Spec::mirror_typespec(&param.ty)?,
                                 ))
                             })

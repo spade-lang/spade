@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use spade_ast as ast;
+use spade_ast::testutil::ast_ident;
 use spade_ast::UnitKind;
 use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
@@ -75,8 +76,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let debug_loc = unit_kind.loc();
     let loc = ().between_locs(unit_kind, body);
 
-    let type_name = Identifier(format!("Lambda"));
-    let output_type_name = Identifier("Output".to_string());
+    let type_name = Identifier::intern("Lambda");
+    let output_type_name = Identifier::intern("Output");
 
     let current_unit = ctx.current_unit.clone().ok_or_else(|| {
         diag_anyhow!(loc, "Did not have a current_unit when visiting this lambda")
@@ -130,7 +131,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let arg_generic_param_names = actual_args
         .iter()
         .enumerate()
-        .map(|(i, arg)| Identifier(format!("A{i}")).at_loc(arg))
+        .map(|(i, arg)| Identifier::intern(&format!("A{i}")).at_loc(arg))
         .collect::<Vec<_>>();
 
     let output_generic_param_name = output_type_name.clone().at_loc(body);
@@ -147,7 +148,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let captured_value_generic_param_names = captures
         .iter()
         .enumerate()
-        .map(|(i, cap)| Identifier(format!("C{i}")).at_loc(&cap.1));
+        .map(|(i, cap)| Identifier::intern(&format!("C{i}")).at_loc(&cap.1));
 
     let manufactured_generic_params = arg_generic_param_names
         .clone()
@@ -182,11 +183,11 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     Ok(ast::TypeParam::TypeWithMeta {
                         // NOTE: Recreating the meta-type like this is kind of strange, but works for now. If we add more meta-types in the future, recondsider this decision
                         meta: match tp.meta {
-                            MetaType::Int => Identifier("int".to_string()).at_loc(tp),
-                            MetaType::Uint => Identifier("uint".to_string()).at_loc(tp),
-                            MetaType::Bool => Identifier("bool".to_string()).at_loc(tp),
-                            MetaType::Str => Identifier("str".to_string()).at_loc(tp),
-                            MetaType::Type => Identifier("type".to_string()).at_loc(tp),
+                            MetaType::Int => Identifier::intern("int").at_loc(tp),
+                            MetaType::Uint => Identifier::intern("uint").at_loc(tp),
+                            MetaType::Bool => Identifier::intern("bool").at_loc(tp),
+                            MetaType::Str => Identifier::intern("str").at_loc(tp),
+                            MetaType::Type => Identifier::intern("type").at_loc(tp),
                             MetaType::Any | MetaType::Number => {
                                 diag_bail!(loc, "Found unexpected meta in captured type args")
                             }
@@ -208,7 +209,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             .map(|(i, arg)| {
                 ast::TypeExpression::TypeSpec(Box::new(
                     ast::TypeSpec::Named(
-                        Path::ident(Identifier(format!("A{i}")).at_loc(arg)).at_loc(arg),
+                        Path::ident(Identifier::intern(&format!("A{i}")).at_loc(arg)).at_loc(arg),
                         None,
                     )
                     .nowhere(),
@@ -231,7 +232,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                         .enumerate()
                         .map(|(i, (name_ident, name_id))| {
                             let ty = ast::TypeSpec::Named(
-                                Path::ident(Identifier(format!("C{i}")).at_loc(name_id))
+                                Path::ident(Identifier::intern(&format!("C{i}")).at_loc(name_id))
                                     .at_loc(name_ident),
                                 None,
                             )
@@ -311,17 +312,13 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 extern_token: None,
                 attributes: ast::AttributeList(vec![]),
                 unit_kind: unit_kind.clone(),
-                name: Identifier("call".to_string()).nowhere(),
+                name: ast_ident("call"),
                 inputs: ast::ParameterList {
                     self_: Some(ast::AttributeList::empty().nowhere()),
                     args: clock_arg
                         .clone()
                         .into_iter()
-                        .chain([(
-                            ast::AttributeList(vec![]),
-                            Identifier("args".to_string()).nowhere(),
-                            args_spec,
-                        )])
+                        .chain([(ast::AttributeList(vec![]), ast_ident("args"), args_spec)])
                         .collect::<Vec<_>>(),
                 }
                 .nowhere(),
@@ -461,7 +458,7 @@ fn handle_unit_kind(
                 [clock, rest @ ..] => {
                     match &clock.inner {
                         spade_ast::Pattern::Path(p) => {
-                            match p.inner.0.iter().map(|arg| arg.0.as_str()).collect::<Vec<_>>().as_slice() {
+                            match p.inner.0.iter().map(|arg| arg.inner.as_str()).collect::<Vec<_>>().as_slice() {
                             ["clk"] => (
                                 Some((
                                     ast::AttributeList(vec![]),

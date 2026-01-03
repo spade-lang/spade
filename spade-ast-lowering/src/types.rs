@@ -127,7 +127,10 @@ impl IsSelf for ast::TypeSpec {
         match self {
             ast::TypeSpec::Named(path, _) => {
                 let path = &path.inner.0;
-                Ok(path.len() == 1 && path.first().is_some_and(|ident| ident.inner.0 == "Self"))
+                Ok(path.len() == 1
+                    && path
+                        .first()
+                        .is_some_and(|ident| ident.inner.as_str() == "Self"))
             }
             _ => Ok(false),
         }

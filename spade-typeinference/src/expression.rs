@@ -352,7 +352,7 @@ impl TypeState {
                 match &mut args {
                     spade_hir::ArgumentList::Named(inner) => {
                         inner.push(NamedArgument::Full(
-                            Identifier("self".to_string()).at_loc(target),
+                            Identifier::intern("self").at_loc(target),
                             target.as_ref().clone()
                         ))
                     },

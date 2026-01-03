@@ -126,7 +126,7 @@ impl Pattern {
         Pattern::Integer(IntLiteral::Unsized(val.to_bigint()))
     }
     pub fn name(name: &str) -> Loc<Self> {
-        Pattern::Path(Path(vec![Identifier(name.to_string()).nowhere()]).nowhere()).nowhere()
+        Pattern::Path(Path(vec![Identifier::intern(name).nowhere()]).nowhere()).nowhere()
     }
 }
 

@@ -13,7 +13,7 @@ use crate::{
 fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
     let path = Path(
         name.iter()
-            .map(|s| Identifier(s.to_string()).nowhere())
+            .map(|s| Identifier::intern(s).nowhere())
             .collect(),
     );
     KnownType::Named(

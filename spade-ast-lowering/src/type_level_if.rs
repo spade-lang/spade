@@ -101,7 +101,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 .name_id()
                 .1
                 .clone()
-                .push_ident(Identifier(name_suffix.to_string()).nowhere());
+                .push_ident(Identifier::intern(name_suffix).nowhere());
             let new_nameid = ctx
                 .symtab
                 .add_thing(new_name, Thing::Unit(new_unit.head.clone().at_loc(&unit)));
@@ -188,7 +188,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
 
             let result_name = ctx
                 .symtab
-                .add_local_variable(Identifier("result".to_string()).at_loc(&unit));
+                .add_local_variable(Identifier::intern("result").at_loc(&unit));
 
             let result_binding = Statement::Binding(Binding {
                 pattern: PatternKind::Name {

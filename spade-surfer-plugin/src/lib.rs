@@ -164,7 +164,7 @@ impl SpadeTranslator {
 
         let path = top_name
             .split("::")
-            .map(|s| Identifier(s.to_string()).nowhere());
+            .map(|s| Identifier::intern(s).nowhere());
         let (top, _) = state
             .lock()
             .unwrap()
@@ -510,7 +510,7 @@ fn not_present_enum_fields(
 ) -> Vec<SubFieldTranslationResult> {
     fields
         .iter()
-        .map(|(name, ty)| SubFieldTranslationResult::new(name.0.clone(), not_present_value(ty)))
+        .map(|(name, ty)| SubFieldTranslationResult::new(name.as_str(), not_present_value(ty)))
         .collect()
 }
 
@@ -520,7 +520,7 @@ fn not_present_enum_options(
     options
         .iter()
         .map(|(opt_name, opt_fields)| SubFieldTranslationResult {
-            name: opt_name.1.tail().0.clone(),
+            name: opt_name.1.tail().as_str().to_owned(),
             result: TranslationResult {
                 val: ValueRepr::NotPresent,
                 subfields: not_present_enum_fields(opt_fields),
@@ -589,7 +589,7 @@ fn translate_concrete(
                 let new = translate_concrete(&val[offset..end], t, &mut local_problematic)?;
                 *problematic |= local_problematic;
                 offset = end;
-                subfields.push(SubFieldTranslationResult::new(n.0.clone(), new));
+                subfields.push(SubFieldTranslationResult::new(n.as_str(), new));
             }
 
             TranslationResult {
@@ -658,7 +658,7 @@ fn translate_concrete(
                         .iter()
                         .enumerate()
                         .map(|(i, (name, fields))| {
-                            let name = name.1.tail().0;
+                            let name = name.1.tail().as_str().to_owned();
                             let mut offset = tag_size;
 
                             let subfields = fields
@@ -679,7 +679,7 @@ fn translate_concrete(
 
                                     *problematic |= local_problematic;
 
-                                    Ok(SubFieldTranslationResult::new(f_name.0.clone(), new))
+                                    Ok(SubFieldTranslationResult::new(f_name.as_str(), new))
                                 })
                                 .collect::<Result<_>>()?;
 
@@ -717,7 +717,7 @@ fn translate_concrete(
                     TranslationResult {
                         val: ValueRepr::Enum {
                             idx: tag,
-                            name: options[tag].0 .1.tail().0.clone(),
+                            name: options[tag].0 .1.tail().as_str().to_owned(),
                         },
                         kind,
                         subfields,
@@ -797,7 +797,7 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
                         inner
                     };
 
-                    Ok((f.0.clone(), inner))
+                    Ok((f.as_str().to_owned(), inner))
                 })
                 .collect::<Result<_>>()?,
         },
@@ -811,12 +811,12 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
                 .iter()
                 .map(|(name, fields)| {
                     Ok((
-                        name.1.tail().0.clone(),
+                        name.1.tail().as_str().to_owned(),
                         VariableInfo::Compound {
                             subfields: fields
                                 .iter()
                                 .map(|(f_name, f_ty)| {
-                                    Ok((f_name.0.clone(), info_from_concrete(f_ty)?))
+                                    Ok((f_name.as_str().to_owned(), info_from_concrete(f_ty)?))
                                 })
                                 .collect::<Result<_>>()?,
                         },

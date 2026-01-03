@@ -410,7 +410,7 @@ impl Spade {
         let mut symtab = owned_state.symtab.unfreeze();
 
         symtab.new_scope();
-        let o_name = symtab.add_local_variable(Identifier("o".to_string()).nowhere());
+        let o_name = symtab.add_local_variable(Identifier::intern("o").nowhere());
 
         let ty = &field.ty;
         let ty_id = ty.insert(&mut self.type_state);
@@ -529,7 +529,7 @@ impl Spade {
                 let mut self_size = BigUint::zero();
 
                 for (f, ty) in struct_ty.assume_struct().1.iter() {
-                    if f.0 == *next {
+                    if f.as_str() == next {
                         self_size = size_fn(ty);
                         break;
                     }
@@ -745,7 +745,7 @@ impl Spade {
             field_translator: _,
         } in &head.inputs.0
         {
-            if arg == name.0 {
+            if arg == name.as_str() {
                 let source = FieldSource::Input {
                     mangled_fwd: mangle_input(no_mangle, &arg),
                     mangled_back: mangle_output(no_mangle, &arg),
@@ -957,7 +957,7 @@ fn concrete_ty_has_field(ty: &ConcreteType, field: &str) -> bool {
             is_port: _,
             members,
             field_translators: _,
-        } => members.iter().find(|(n, _)| n.0 == field).is_some(),
+        } => members.iter().find(|(n, _)| n.as_str() == field).is_some(),
         ConcreteType::Backward(inner) | ConcreteType::Wire(inner) => {
             concrete_ty_has_field(inner, field)
         }

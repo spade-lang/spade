@@ -1,4 +1,5 @@
 pub mod id_tracker;
+pub mod interning;
 pub mod loc_map;
 pub mod location_info;
 pub mod name;

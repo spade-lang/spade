@@ -56,7 +56,7 @@ impl<'a> Pass for LowerMethods<'a> {
                     let mut new = args.clone();
                     match &mut new {
                         ArgumentList::Named(list) => list.push(NamedArgument::Full(
-                            Identifier(String::from("self")).nowhere(),
+                            Identifier::intern("self").nowhere(),
                             self_.as_ref().clone(),
                         )),
                         ArgumentList::Positional(list) => list.insert(0, self_.as_ref().clone()),

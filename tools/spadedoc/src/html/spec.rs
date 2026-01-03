@@ -2,20 +2,19 @@ use std::borrow::Cow;
 
 use color_eyre::eyre::Result;
 use rinja::Template;
-use spade_common::name::Identifier;
 use spade_hir::{ConstGeneric, TraitSpec, TypeExpression, TypeSpec};
 
 #[derive(Debug, Template)]
 pub enum Spec<'r> {
     /// ```rinja
-    /// {{ name.0 }}
+    /// {{ name }}
     /// {% if !type_args.is_empty() %}
     /// <{{ type_args|join(", ") }}>
     /// {% endif %}
     /// ```
     #[template(ext = "html", in_doc = true)]
     Declared {
-        name: Cow<'r, Identifier>,
+        name: Cow<'r, str>,
         type_args: Vec<Spec<'r>>,
     },
     /// ```rinja
@@ -84,14 +83,14 @@ impl<'r> Spec<'r> {
                 size: Box::new(Self::mirror_typeexpr(size)?),
             }),
             TypeSpec::Declared(name, args) => Ok(Spec::Declared {
-                name: Cow::Owned(name.inner.1.tail()),
+                name: Cow::Borrowed(name.inner.1.tail().as_str()),
                 type_args: args
                     .iter()
                     .map(|s| Self::mirror_typeexpr(&s))
                     .collect::<Result<Vec<_>>>()?,
             }),
             TypeSpec::Generic(name) => Ok(Spec::Declared {
-                name: Cow::Owned(name.inner.1.tail()),
+                name: Cow::Borrowed(name.inner.1.tail().as_str()),
                 type_args: vec![],
             }),
             TypeSpec::Inverted(inner) => {
@@ -128,7 +127,7 @@ impl<'r> Spec<'r> {
     ) -> Result<Self> {
         let mut spec = match expr {
             ConstGeneric::Name(name) => Self::Declared {
-                name: Cow::Owned(name.inner.1.tail()),
+                name: Cow::Borrowed(name.inner.1.tail().as_str()),
                 type_args: vec![],
             },
             ConstGeneric::Int(const_number) => {
@@ -192,7 +191,7 @@ impl<'r> Spec<'r> {
 
     pub fn mirror_traitspec(spec: &'r TraitSpec) -> Result<Spec<'r>> {
         Ok(Spec::Declared {
-            name: Cow::Owned(Identifier(spec.name.to_string())),
+            name: Cow::Owned(spec.name.to_string()),
             type_args: spec
                 .type_params
                 .as_ref()

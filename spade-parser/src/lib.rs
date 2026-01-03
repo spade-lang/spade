@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
         let token = self.eat_cond(TokenKind::is_identifier, "Identifier")?;
 
         if let TokenKind::Identifier(name) = token.kind {
-            Ok(Identifier(name).at(self.file_id, &token.span))
+            Ok(name.at(self.file_id, &token.span))
         } else {
             unreachable!("eat_cond should have checked this");
         }
@@ -309,12 +309,12 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn array_label(&mut self) -> Result<Option<Loc<Identifier>>> {
         if let ref tok @ Token {
-            kind: TokenKind::Label(ref l),
+            kind: TokenKind::Label(l),
             ..
         } = self.peek()?
         {
             self.eat_unconditional()?;
-            Ok(Some(Identifier(l.to_string()).at(self.file_id, tok)))
+            Ok(Some(l.at(self.file_id, tok)))
         } else {
             Ok(None)
         }
@@ -839,7 +839,7 @@ impl<'a> Parser<'a> {
 
     pub fn label_access(&mut self) -> Result<Option<Loc<Expression>>> {
         if let ref tok @ Token {
-            kind: TokenKind::LabelRef(ref l),
+            kind: TokenKind::LabelRef(l),
             ..
         } = self.peek()?
         {
@@ -851,8 +851,7 @@ impl<'a> Parser<'a> {
             let loc = ().between(self.file_id, tok, &field);
             Ok(Some(
                 Expression::LabelAccess {
-                    label: Path::ident(Identifier(l.clone()).at(self.file_id, tok))
-                        .at(self.file_id, tok),
+                    label: Path::ident(l.at(self.file_id, tok)).at(self.file_id, tok),
                     field,
                 }
                 .at_loc(&loc),
@@ -955,7 +954,7 @@ impl<'a> Parser<'a> {
 
         let ident = self.identifier()?;
 
-        match ident.inner.0.as_str() {
+        match ident.inner.as_str() {
             "valid" => Ok(Some(Expression::StageValid.between(
                 self.file_id,
                 stage_keyword,
@@ -1378,7 +1377,7 @@ impl<'a> Parser<'a> {
         let mut first_attrs = self.attributes()?;
 
         let self_ = if self.peek_cond(
-            |tok| tok == &TokenKind::Identifier(String::from("self")),
+            |tok| matches!(tok, TokenKind::Identifier(i) if i.as_str() == "self"),
             "Expected argument",
         )? {
             let self_tok = self.eat_unconditional()?;
@@ -1828,7 +1827,7 @@ impl<'a> Parser<'a> {
         value: impl Fn(&mut Self) -> Result<T>,
     ) -> Result<Option<(Loc<String>, T)>> {
         let next = self.peek()?;
-        if next.kind == TokenKind::Identifier(key.to_string()) {
+        if matches!(next.kind, TokenKind::Identifier(k) if k.as_str() == key) {
             self.eat_unconditional()?;
 
             self.eat(&TokenKind::Assignment)?;
@@ -1904,7 +1903,7 @@ impl<'a> Parser<'a> {
                             let next = $s.peek()?;
                             match &next.kind {
                                 $(
-                                    TokenKind::Identifier(ident) if ident == stringify!($name) => {
+                                    TokenKind::Identifier(ident) if ident.as_str() == stringify!($name) => {
                                         $s.eat_unconditional()?;
                                         rhs_or_present!($name, next, $s, $assignment);
                                     }
@@ -1963,7 +1962,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        match start.inner.0.as_str() {
+        match start.inner.as_str() {
             "spadec_paren_sugar" => Ok(Attribute::SpadecParenSugar),
             "verilog_attrs" => {
                 let (entries, _) = self.surrounded(
@@ -1983,7 +1982,7 @@ impl<'a> Parser<'a> {
                         Self::identifier,
                         &TokenKind::CloseParen,
                     )?;
-                    if all.inner.0.as_str() != "all" {
+                    if all.inner.as_str() != "all" {
                         Err(Diagnostic::error(&all, "Invalid attribute syntax")
                             .primary_label("Unexpected parameter to `#[no_mangle])")
                             .span_suggest_replace("Did you mean `#[no_mangle(all)]`?", all, "all"))
@@ -2019,7 +2018,7 @@ impl<'a> Parser<'a> {
                 Ok(Attribute::Optimize {
                     passes: passes
                         .into_iter()
-                        .map(|loc| loc.map(|ident| ident.0))
+                        .map(|loc| loc.map(|ident| ident.as_str().to_owned()))
                         .collect(),
                 })
             }
@@ -2972,7 +2971,7 @@ mod tests {
                 extern_token: None,
                 attributes: AttributeList::empty(),
                 unit_kind: UnitKind::Entity.nowhere(),
-                name: Identifier("e1".to_string()).nowhere(),
+                name: ast_ident("e1"),
                 inputs: aparams![],
                 output_type: None,
                 type_params: None,
@@ -2994,7 +2993,7 @@ mod tests {
                 extern_token: None,
                 attributes: AttributeList::empty(),
                 unit_kind: UnitKind::Entity.nowhere(),
-                name: Identifier("e2".to_string()).nowhere(),
+                name: ast_ident("e2"),
                 inputs: aparams![],
                 output_type: None,
                 type_params: None,

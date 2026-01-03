@@ -5,7 +5,7 @@ use spade_common::{
 };
 
 pub fn ast_ident(name: &str) -> Loc<Identifier> {
-    Identifier(name.to_string()).nowhere()
+    Identifier::intern(name).nowhere()
 }
 
 pub fn ast_path(name: &str) -> Loc<Path> {

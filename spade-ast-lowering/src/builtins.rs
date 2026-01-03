@@ -23,7 +23,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         let name = symtab
             .add_type_with_id(
                 id,
-                Identifier(name.to_string()).nowhere(),
+                Identifier::intern(name).nowhere(),
                 TypeSymbol::Declared(args.clone(), TypeDeclKind::Primitive { is_port, is_inout })
                     .nowhere(),
             )
@@ -86,14 +86,14 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     };
     add_type(
         "uint",
-        vec![GenericArg::uint(Identifier("size".into())).nowhere()],
+        vec![GenericArg::uint(Identifier::intern("size")).nowhere()],
         PrimitiveType::Uint,
         false,
         false,
     );
     add_type(
         "int",
-        vec![GenericArg::uint(Identifier("size".into())).nowhere()],
+        vec![GenericArg::uint(Identifier::intern("size")).nowhere()],
         PrimitiveType::Int,
         false,
         false,
@@ -102,11 +102,11 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         "Memory",
         vec![
             GenericArg::TypeName {
-                name: Identifier("D".into()),
+                name: Identifier::intern("D"),
                 traits: vec![],
             }
             .nowhere(),
-            GenericArg::uint(Identifier("AddrWidth".into())).nowhere(),
+            GenericArg::uint(Identifier::intern("AddrWidth")).nowhere(),
         ],
         PrimitiveType::Memory,
         true,
@@ -117,7 +117,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     add_type("tri", vec![], PrimitiveType::Bool, false, false);
     add_type(
         "inout",
-        vec![GenericArg::uint(Identifier("T".into())).nowhere()],
+        vec![GenericArg::uint(Identifier::intern("T")).nowhere()],
         PrimitiveType::InOut,
         false,
         true,

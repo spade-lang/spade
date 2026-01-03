@@ -82,7 +82,7 @@ impl<'r> GenericTypeParam<'r> {
     pub fn mirror_typeparam(type_param: &'r TypeParam) -> Result<Self> {
         let where_clause = WhereClause {
             target: Spec::Declared {
-                name: Cow::Owned(type_param.ident.inner.clone()),
+                name: Cow::Borrowed(type_param.ident.inner.as_str()),
                 type_args: vec![],
             },
             constraints: type_param
@@ -301,9 +301,13 @@ impl<'r> Path<'r> {
         Some(Self {
             segments: segments
                 .iter()
-                .map(|value| Segment { value: &value.0 })
+                .map(|value| Segment {
+                    value: &value.inner.as_str(),
+                })
                 .collect(),
-            last: Segment { value: &last.0 },
+            last: Segment {
+                value: &last.inner.as_str(),
+            },
         })
     }
 }

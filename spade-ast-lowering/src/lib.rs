@@ -615,7 +615,7 @@ fn visit_parameter_list(
             }
             SelfContext::ImplBlock(spec) => result.push(hir::Parameter {
                 no_mangle,
-                name: Identifier(String::from("self")).at_loc(self_),
+                name: Identifier::intern("self").at_loc(self_),
                 ty: spec.clone(),
                 field_translator: None,
             }),
@@ -624,7 +624,7 @@ fn visit_parameter_list(
             // NOTE: This will be incorrect if we add default impls for traits
             SelfContext::TraitDefinition(_) => result.push(hir::Parameter {
                 no_mangle,
-                name: Identifier(String::from("self")).at_loc(self_),
+                name: Identifier::intern("self").at_loc(self_),
                 ty: hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
                 field_translator: None,
             }),
@@ -671,8 +671,8 @@ fn build_no_mangle_all_output_diagnostic(
         .args
         .iter()
         .filter_map(|(_, name, _)| {
-            if name.0.contains("out") {
-                Some(name.0.len())
+            if name.inner.as_str().contains("out") {
+                Some(name.inner.as_str().len())
             } else {
                 None
             }
@@ -1205,7 +1205,10 @@ pub fn visit_unit(
                     )
                 } else {
                     // yucky code duplication
-                    unit_name = hir::UnitName::Unmangled(name.0.clone(), id.clone().at_loc(name));
+                    unit_name = hir::UnitName::Unmangled(
+                        name.inner.as_str().to_owned(),
+                        id.clone().at_loc(name),
+                    );
                     Ok(None)
                 }
             } else if let Some(generic_list) = scope_type_params {
@@ -1216,7 +1219,10 @@ pub fn visit_unit(
                 .primary_label("no_mangle not allowed here")
                 .secondary_label(generic_list, "Because this impl is generic"))
             } else {
-                unit_name = hir::UnitName::Unmangled(name.0.clone(), id.clone().at_loc(name));
+                unit_name = hir::UnitName::Unmangled(
+                    name.inner.as_str().to_owned(),
+                    id.clone().at_loc(name),
+                );
                 Ok(None)
             }
         }
@@ -2332,7 +2338,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let (_, label_target) = ctx.symtab.lookup_thing(label)?;
 
             match label_target {
-                Thing::ArrayLabel(val) => match field.0.as_str() {
+                Thing::ArrayLabel(val) => match field.inner.as_str() {
                     "index" => Ok(hir::ExprKind::IntLiteral(
                         BigInt::from_usize(val.inner).unwrap(),
                         IntLiteralKind::Unsized,
@@ -2823,7 +2829,7 @@ mod expression_visiting {
         let mut symtab = SymbolTable::new();
 
         let enum_variant = EnumVariant {
-            name: Identifier("".to_string()).nowhere(),
+            name: ast_ident(""),
             output_type: hir::TypeSpec::unit().nowhere(),
             option: 0,
             params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
@@ -2886,7 +2892,7 @@ mod expression_visiting {
         let mut symtab = SymbolTable::new();
 
         let enum_variant = EnumVariant {
-            name: Identifier("".to_string()).nowhere(),
+            name: ast_ident(""),
             output_type: hir::TypeSpec::unit().nowhere(),
             option: 0,
             params: hparams![("x", hir::TypeSpec::unit().nowhere())].nowhere(),
@@ -2942,7 +2948,7 @@ mod expression_visiting {
             ast_path("test").inner,
             Thing::Unit(
                 hir::UnitHead {
-                    name: Identifier("".to_string()).nowhere(),
+                    name: ast_ident(""),
                     is_nonstatic_method: false,
                     inputs: hparams![
                         ("a", hir::TypeSpec::unit().nowhere()),
@@ -3018,7 +3024,7 @@ mod expression_visiting {
             ast_path("test").inner,
             Thing::Unit(
                 hir::UnitHead {
-                    name: Identifier("".to_string()).nowhere(),
+                    name: ast_ident(""),
                     is_nonstatic_method: false,
                     inputs: hparams![
                         ("a", hir::TypeSpec::unit().nowhere()),
@@ -3082,7 +3088,7 @@ mod expression_visiting {
             ast_path("test").inner,
             Thing::Unit(
                 hir::UnitHead {
-                    name: Identifier("".to_string()).nowhere(),
+                    name: ast_ident(""),
                     is_nonstatic_method: false,
                     inputs: hparams![
                         ("a", hir::TypeSpec::unit().nowhere()),
@@ -3162,7 +3168,7 @@ mod pattern_visiting {
         let mut symtab = SymbolTable::new();
 
         let type_name = symtab.add_type(
-            Identifier("a".to_string()).nowhere(),
+            ast_ident("a"),
             TypeSymbol::Declared(vec![], TypeDeclKind::normal_struct()).nowhere(),
         );
 
@@ -3170,7 +3176,7 @@ mod pattern_visiting {
             type_name.clone(),
             Thing::Struct(
                 StructCallable {
-                    name: Identifier("".to_string()).nowhere(),
+                    name: ast_ident(""),
                     self_type: hir::TypeSpec::Declared(type_name.clone().nowhere(), vec![])
                         .nowhere(),
                     params: hparams![
@@ -3317,7 +3323,7 @@ mod item_visiting {
             hir::Unit {
                 name: hir::UnitName::FullPath(name_id(0, "test")),
                 head: hir::UnitHead {
-                    name: Identifier("test".to_string()).nowhere(),
+                    name: ast_ident("test"),
                     is_nonstatic_method: false,
                     output_type: None,
                     inputs: hir::ParameterList(vec![]).nowhere(),
@@ -3399,7 +3405,7 @@ mod module_visiting {
                     hir::Unit {
                         name: hir::UnitName::FullPath(name_id(0, "test")),
                         head: hir::UnitHead {
-                            name: Identifier("test".to_string()).nowhere(),
+                            name: ast_ident("test"),
                             is_nonstatic_method: false,
                             output_type: None,
                             inputs: hparams!().nowhere(),

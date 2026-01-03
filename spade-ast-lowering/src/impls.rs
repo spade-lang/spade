@@ -42,7 +42,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     let target_type = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
 
     ctx.symtab.add_type(
-        Identifier("Self".to_string()).nowhere(),
+        Identifier::intern("Self").nowhere(),
         TypeSymbol::Alias(
             hir::TypeExpression::TypeSpec(target_type.inner.clone()).at_loc(&block.target),
         )
@@ -97,12 +97,14 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             ));
         };
 
-        let path_suffix = Some(Path(vec![
-            Identifier(format!("impl#{}", impl_block_id.0)).nowhere()
-        ]));
+        let path_suffix = Some(Path(vec![Identifier::intern(&format!(
+            "impl#{}",
+            impl_block_id.0
+        ))
+        .nowhere()]));
 
         ctx.symtab
-            .add_dummy(Identifier(format!("impl#{}", impl_block_id.0)).nowhere());
+            .add_dummy(Identifier::intern(&format!("impl#{}", impl_block_id.0)).nowhere());
 
         global_symbols::visit_unit(
             &path_suffix,
@@ -479,7 +481,7 @@ fn check_no_missing_methods(
     if !missing_methods.is_empty() {
         // Sort for deterministic errors
         let mut missing_list = missing_methods.into_iter().collect::<Vec<_>>();
-        missing_list.sort_by_key(|ident| &ident.0);
+        missing_list.sort_by_key(|ident| ident.as_str());
 
         let as_str = match missing_list.as_slice() {
             [] => unreachable!(),
@@ -488,13 +490,16 @@ fn check_no_missing_methods(
                 if other.len() <= 3 {
                     format!(
                         "{} and {}",
-                        other[0..other.len() - 1].iter().map(|id| &id.0).join(", "),
-                        other[other.len() - 1].0
+                        other[0..other.len() - 1]
+                            .iter()
+                            .map(|id| id.as_str())
+                            .join(", "),
+                        other[other.len() - 1].as_str()
                     )
                 } else {
                     format!(
                         "{} and {} more",
-                        other[0..3].iter().map(|id| &id.0).join(", "),
+                        other[0..3].iter().map(|id| id.as_str()).join(", "),
                         other.len() - 3
                     )
                 }
