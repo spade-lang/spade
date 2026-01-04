@@ -64,7 +64,7 @@ pub struct Artefacts {
     // MIR entities after flattening
     pub flat_mir_entities: Vec<Codegenable>,
     pub state: CompilerState,
-    pub impl_list: Arc<TraitImplList>,
+    pub impl_list: TraitImplList,
     pub type_states: BTreeMap<NameID, TypeState>,
 }
 
@@ -275,14 +275,14 @@ pub fn compile(
     let frozen_symtab = symtab.freeze();
 
     let mut impl_type_state = TypeState::fresh();
-    let mapped_trait_impls = Arc::new(impl_type_state.visit_impl_blocks(&item_list));
+    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list);
 
     errors.drain_diag_list(&mut impl_type_state.diags);
 
     let type_inference_ctx = typeinference::Context {
         symtab: frozen_symtab.symtab(),
         items: &item_list,
-        trait_impls: mapped_trait_impls.clone(),
+        trait_impls: &mapped_trait_impls,
     };
 
     let mut type_states = BTreeMap::new();
@@ -339,6 +339,7 @@ pub fn compile(
         &item_list,
         &opt_passes,
         &impl_type_state,
+        &mapped_trait_impls,
     );
 
     let CodegenArtefacts {

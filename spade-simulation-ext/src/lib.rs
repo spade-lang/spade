@@ -131,7 +131,7 @@ pub struct SpadeType(pub ConcreteType);
 pub struct OwnedState {
     symtab: FrozenSymtab,
     item_list: ItemList,
-    trait_impls: Arc<TraitImplList>,
+    trait_impls: TraitImplList,
     idtracker: Arc<ExprIdTracker>,
     impl_idtracker: ImplIdTracker,
 }
@@ -260,7 +260,7 @@ impl Spade {
             owned: Some(OwnedState {
                 symtab,
                 item_list: state.item_list,
-                trait_impls: Arc::new(TraitImplList::new()),
+                trait_impls: TraitImplList::new(),
                 idtracker: state.idtracker,
                 impl_idtracker: state.impl_idtracker,
             }),
@@ -451,7 +451,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: &symtab,
                     items: &owned_state.item_list,
-                    trait_impls: owned_state.trait_impls.clone(),
+                    trait_impls: &owned_state.trait_impls,
                 },
             )
             .into_default_diagnostic(().nowhere(), &self.type_state)
@@ -488,7 +488,7 @@ impl Spade {
         let type_ctx = spade_typeinference::Context {
             symtab: &ast_ctx.symtab,
             items: &ast_ctx.item_list,
-            trait_impls: owned_state.trait_impls.clone(),
+            trait_impls: &owned_state.trait_impls,
         };
 
         let generic_list = self
@@ -511,7 +511,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: &ast_ctx.symtab,
                     items: &ast_ctx.item_list,
-                    trait_impls: owned_state.trait_impls.clone(),
+                    trait_impls: &owned_state.trait_impls,
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -585,7 +585,7 @@ impl Spade {
         self.return_owned(OwnedState {
             symtab: symtab.freeze(),
             item_list,
-            trait_impls: self.type_state.trait_impls.clone(),
+            trait_impls: owned_state.trait_impls,
             idtracker,
             impl_idtracker,
         });
@@ -854,7 +854,7 @@ impl Spade {
         let type_ctx = spade_typeinference::Context {
             symtab: symtab.symtab(),
             items: &item_list,
-            trait_impls: trait_impls.clone(),
+            trait_impls: &trait_impls,
         };
         let generic_list = self
             .type_state
@@ -875,7 +875,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     symtab: symtab.symtab(),
                     items: &item_list,
-                    trait_impls: trait_impls.clone(),
+                    trait_impls: &trait_impls,
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -885,7 +885,7 @@ impl Spade {
                 &spade_typeinference::Context {
                     items: &item_list,
                     symtab: symtab.symtab(),
-                    trait_impls: trait_impls.clone(),
+                    trait_impls: &trait_impls,
                 },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
@@ -902,6 +902,7 @@ impl Spade {
             subs: &mut Substitutions::new(),
             pipeline_context: &mut MaybePipelineContext::NotPipeline,
             self_mono_item: None,
+            trait_impls: &trait_impls,
         };
 
         let mir = expr_to_mir(hir, &mut hir_ctx).report_and_convert(

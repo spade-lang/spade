@@ -77,7 +77,7 @@ pub mod traits;
 pub struct Context<'a> {
     pub symtab: &'a SymbolTable,
     pub items: &'a ItemList,
-    pub trait_impls: Arc<TraitImplList>,
+    pub trait_impls: &'a TraitImplList,
 }
 impl<'a> std::fmt::Debug for Context<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -132,10 +132,6 @@ pub struct PipelineState {
     pipeline_loc: Loc<()>,
 }
 
-fn default_trait_impls() -> Arc<TraitImplList> {
-    Arc::new(TraitImplList::new())
-}
-
 /// State of the type inference algorithm
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TypeState {
@@ -163,6 +159,7 @@ pub struct TypeState {
     // Managed here because unification must update *all* TypeVars in existence.
     generic_lists: HashMap<GenericListToken, HashMap<NameID, TypeVarID>>,
 
+    // `#[serde(skip)] is set internally
     constraints: TypeConstraints,
 
     /// Requirements which must be fulfilled but which do not guide further type inference.
@@ -183,10 +180,6 @@ pub struct TypeState {
     /// An error type that can be accessed anywhere without mut access. This is an option
     /// to facilitate safe initialization, in practice it can never be None
     error_type: Option<TypeVarID>,
-
-    // TODO: I'm not sure skiping serialization of this thing is safe. It probably is
-    // for now since we don't allow methods in tests
-    pub trait_impls: Arc<TraitImplList>,
 
     #[serde(skip)]
     pub trace_stack: TraceStack,
@@ -211,7 +204,6 @@ impl TypeState {
             requirements: vec![],
             replacements: ReplacementStack::new(),
             generic_lists: HashMap::default(),
-            trait_impls: Arc::new(TraitImplList::new()),
             checkpoints: vec![],
             error_type: None,
             pipeline_state: None,
@@ -515,8 +507,6 @@ impl TypeState {
         pp: impl FnOnce(&mut TypeState, &Loc<Unit>, &GenericListToken, &Context) -> Result<()>,
         ctx: &Context,
     ) -> Result<()> {
-        self.trait_impls = ctx.trait_impls.clone();
-
         let generic_list = self.create_generic_list(
             GenericListSource::Definition(&entity.name.name_id().inner),
             &entity.head.unit_type_params,
@@ -2974,7 +2964,7 @@ impl TypeState {
                     .inner
                     .iter()
                     .map(|trait_req| {
-                        if let Some(impld) = self.trait_impls.inner.get(&target).cloned() {
+                        if let Some(impld) = ctx.trait_impls.inner.get(&target).cloned() {
                             // Get a list of implementations of this trait where the type
                             // parameters can match
                             let target_impls = impld

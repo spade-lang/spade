@@ -20,7 +20,7 @@ pub struct ServerBackend {
     pub symtab: Arc<Mutex<Option<FrozenSymtab>>>,
     pub item_list: Arc<Mutex<ItemList>>,
     pub type_states: Arc<Mutex<BTreeMap<NameID, TypeState>>>,
-    pub trait_impls: Arc<Mutex<Arc<TraitImplList>>>,
+    pub trait_impls: Arc<Mutex<TraitImplList>>,
     pub code: Arc<Mutex<CodeBundle>>,
     pub query_cache: Arc<Mutex<QueryCache>>,
     // Note: Try using two copies of code again to make functionality work(better) even when the parser bails early.
@@ -36,7 +36,7 @@ impl ServerBackend {
             root_dir: Arc::new(Mutex::new(None)),
             symtab: Arc::new(Mutex::new(None)),
             item_list: Arc::new(Mutex::new(ItemList::new())),
-            trait_impls: Arc::new(Mutex::new(Arc::new(TraitImplList::new()))),
+            trait_impls: Arc::new(Mutex::new(TraitImplList::new())),
             code: Arc::new(Mutex::new(CodeBundle::new(String::new()))),
             query_cache: Arc::new(Mutex::new(QueryCache::empty())),
             _old_code: Arc::new(Mutex::new(CodeBundle::new(String::new()))),

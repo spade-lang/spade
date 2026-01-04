@@ -7,12 +7,15 @@ use spade_diagnostics::Diagnostic;
 use spade_hir::{
     expression::NamedArgument, symbol_table::FrozenSymtab, ArgumentList, Expression, ItemList,
 };
-use spade_typeinference::{method_resolution::select_method, HasType, TypeState};
+use spade_typeinference::{
+    method_resolution::select_method, traits::TraitImplList, HasType, TypeState,
+};
 
 pub struct LowerMethods<'a> {
     pub type_state: &'a TypeState,
     pub items: &'a ItemList,
     pub symtab: &'a FrozenSymtab,
+    pub impls: &'a TraitImplList,
 }
 
 impl<'a> Pass for LowerMethods<'a> {
@@ -37,13 +40,8 @@ impl<'a> Pass for LowerMethods<'a> {
                     &self.items.types,
                 )?;
 
-                let Some(method) = select_method(
-                    self_.loc(),
-                    &self_type,
-                    name,
-                    &self.type_state.trait_impls,
-                    &self.type_state,
-                )?
+                let Some(method) =
+                    select_method(self_.loc(), &self_type, name, &self.impls, &self.type_state)?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
