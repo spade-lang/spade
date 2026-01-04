@@ -23,14 +23,16 @@ pub struct TypeVarID {
 }
 
 impl TypeVarID {
-    pub fn resolve(self, state: &TypeState) -> &TypeVar {
+    pub fn resolve(self, state: &TypeState) -> TypeVar {
         assert!(
-            state.keys.contains(&self.type_state_key),
-            "Type var key mismatch. Type states are being mixed incorrectly. Type state has {:?}, var has {}", state.keys, self.type_state_key
+            state.owned.keys.contains(&self.type_state_key),
+            "Type var key mismatch. Type states are being mixed incorrectly. Type state has {:?}, var has {}", state.owned.keys, self.type_state_key
         );
         // In case our ID is stale, we'll need to look up the final ID
         let final_id = self.get_type(state);
-        state.type_vars.get(final_id.inner).unwrap()
+        state
+            .shared
+            .read_type_vars(|type_vars| type_vars.get(final_id.inner).unwrap().clone())
     }
 
     pub fn replace_inside(

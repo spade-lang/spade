@@ -3,7 +3,6 @@ use postcard::experimental::serialized_size;
 use rustc_hash::FxHashMap as HashMap;
 use serde::Serialize;
 
-
 pub trait SerializedSize: Serialize {
     fn accumulate_size(&self, field: &[&'static str], into: &mut HashMap<Vec<&'static str>, usize>);
 
@@ -32,4 +31,3 @@ pub fn add_field<T: Serialize>(
     path.push(field_name);
     *into.entry(path).or_default() += postcard::experimental::serialized_size(t).unwrap();
 }
-

@@ -194,7 +194,7 @@ impl ServerBackend {
                                 return None;
                             };
 
-                            let s = symtab.symtab().struct_by_id(name);
+                            let s = symtab.symtab().struct_by_id(&name);
 
                             let Some(param) = s.params.0.iter().find(|p| &p.name == field) else {
                                 return None;

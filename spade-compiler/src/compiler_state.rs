@@ -23,25 +23,44 @@ use spade_mir::{
     renaming::{VerilogNameMap, VerilogNameSource},
     unit_name::InstanceMap,
 };
-use spade_typeinference::{equation::TypedExpression, HasType, TypeState};
+use spade_typeinference::{
+    equation::TypedExpression, HasType, OwnedTypeState, SharedTypeState, TypeState,
+};
 use spade_types::ConcreteType;
 
-use spade_common::sizes::{SerializedSize, add_field};
+use spade_common::sizes::{add_field, SerializedSize};
 
 #[derive(Serialize, Deserialize)]
-pub struct MirContext {
+pub struct StoredMirContext {
     /// Mapping to concrete types for this instantiation of the entity
-    pub type_state: TypeState,
+    pub type_state: OwnedTypeState,
     pub reg_name_map: BTreeMap<NameID, NameID>,
     pub verilog_name_map: VerilogNameMap,
 }
 
-impl SerializedSize for MirContext {
-    fn accumulate_size(&self, field: &[&'static str], into: &mut HashMap<Vec<&'static str>, usize>) {
+impl StoredMirContext {
+    fn with_shared(self, shared: Arc<SharedTypeState>) -> MirContext {
+        MirContext {
+            type_state: TypeState {
+                owned: self.type_state,
+                shared,
+            },
+            reg_name_map: self.reg_name_map,
+            verilog_name_map: self.verilog_name_map,
+        }
+    }
+}
+
+impl SerializedSize for StoredMirContext {
+    fn accumulate_size(
+        &self,
+        field: &[&'static str],
+        into: &mut HashMap<Vec<&'static str>, usize>,
+    ) {
         let Self {
             type_state,
             reg_name_map,
-            verilog_name_map
+            verilog_name_map,
         } = self;
 
         let mut ts_path = field.to_vec();
@@ -54,10 +73,69 @@ impl SerializedSize for MirContext {
     }
 }
 
+pub struct MirContext {
+    /// Mapping to concrete types for this instantiation of the entity
+    pub type_state: TypeState,
+    pub reg_name_map: BTreeMap<NameID, NameID>,
+    pub verilog_name_map: VerilogNameMap,
+}
 
+impl MirContext {
+    fn to_stored(self) -> StoredMirContext {
+        StoredMirContext {
+            type_state: self.type_state.owned,
+            reg_name_map: self.reg_name_map,
+            verilog_name_map: self.verilog_name_map,
+        }
+    }
+}
 
 /// All the state required in order to add more things to the compilation process
 #[derive(Serialize, Deserialize)]
+pub struct StoredCompilerState {
+    // (filename, file content) of all the compiled files
+    pub code: Vec<(String, String)>,
+    pub symtab: FrozenSymtab,
+    pub idtracker: Arc<ExprIdTracker>,
+    pub impl_idtracker: ImplIdTracker,
+    pub item_list: ItemList,
+    pub name_source_map: Arc<RwLock<NameSourceMap>>,
+    pub instance_map: InstanceMap,
+    pub mir_context: HashMap<NameID, StoredMirContext>,
+    pub shared_type_state: Arc<SharedTypeState>,
+}
+
+impl StoredCompilerState {
+    pub fn into_compiler_state(self) -> CompilerState {
+        let Self {
+            code,
+            symtab,
+            idtracker,
+            impl_idtracker,
+            item_list,
+            name_source_map,
+            instance_map,
+            mir_context,
+            shared_type_state,
+        } = self;
+
+        CompilerState {
+            code,
+            symtab,
+            idtracker,
+            impl_idtracker,
+            item_list,
+            name_source_map,
+            instance_map,
+            mir_context: mir_context
+                .into_iter()
+                .map(|(k, v)| (k, v.with_shared(Arc::clone(&shared_type_state))))
+                .collect(),
+            shared_type_state,
+        }
+    }
+}
+
 pub struct CompilerState {
     // (filename, file content) of all the compiled files
     pub code: Vec<(String, String)>,
@@ -68,10 +146,28 @@ pub struct CompilerState {
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, MirContext>,
+    pub shared_type_state: Arc<SharedTypeState>,
 }
 
-
 impl CompilerState {
+    pub fn into_stored(self) -> StoredCompilerState {
+        StoredCompilerState {
+            code: self.code,
+            symtab: self.symtab,
+            idtracker: self.idtracker,
+            impl_idtracker: self.impl_idtracker,
+            item_list: self.item_list,
+            name_source_map: self.name_source_map,
+            instance_map: self.instance_map,
+            mir_context: self
+                .mir_context
+                .into_iter()
+                .map(|(k, v)| (k, v.to_stored()))
+                .collect(),
+            shared_type_state: self.shared_type_state,
+        }
+    }
+
     pub fn build_query_cache<'a>(&'a self) -> QueryCache {
         QueryCache::from_item_list(&self.item_list)
     }
@@ -156,8 +252,12 @@ impl CompilerState {
     }
 }
 
-impl SerializedSize for CompilerState {
-    fn accumulate_size(&self, field: &[&'static str], into: &mut HashMap<Vec<&'static str>, usize>) {
+impl SerializedSize for StoredCompilerState {
+    fn accumulate_size(
+        &self,
+        field: &[&'static str],
+        into: &mut HashMap<Vec<&'static str>, usize>,
+    ) {
         let Self {
             code,
             symtab,
@@ -167,6 +267,7 @@ impl SerializedSize for CompilerState {
             name_source_map,
             instance_map,
             mir_context,
+            shared_type_state,
         } = self;
 
         for (_, mc) in mir_context {
@@ -183,11 +284,9 @@ impl SerializedSize for CompilerState {
         add_field(field, "name_source_map", name_source_map, into);
         add_field(field, "instance_map", instance_map, into);
         add_field(field, "mir_context", mir_context, into);
+        add_field(field, "shared_type_state", shared_type_state, into);
     }
-
 }
-
-
 
 pub fn source_of_hierarchical_value<'a>(
     top_module: &'a NameID,

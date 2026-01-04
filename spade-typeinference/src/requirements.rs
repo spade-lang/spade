@@ -684,6 +684,7 @@ impl Requirement {
             }
             RequirementResult::Satisfied(replacements) => {
                 type_state
+                    .owned
                     .trace_stack
                     .push(|| TraceStackEntry::ResolvedRequirement(self.clone()));
                 for Replacement { from, to, context } in replacements {

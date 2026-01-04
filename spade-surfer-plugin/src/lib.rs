@@ -9,7 +9,7 @@ use itertools::Itertools;
 use log::{error, info, warn};
 use num::ToPrimitive;
 use serde::{Deserialize, Serialize};
-use spade::compiler_state::CompilerState;
+use spade::compiler_state::{CompilerState, StoredCompilerState};
 
 use color_eyre::{
     eyre::{anyhow, bail, Context, ContextCompat},
@@ -105,7 +105,6 @@ pub struct SpadeTestInfo {
     pub top_names: HashMap<Utf8PathBuf, String>,
 }
 
-#[derive(Deserialize, Serialize)]
 pub struct SpadeTranslator {
     // The compiler state is not thread safe so we have to throw it in a
     // mutex. A tokio mutex would be nice but causes blocking unwraps so since
@@ -154,12 +153,14 @@ impl SpadeTranslator {
         state_file: Option<Utf8PathBuf>,
     ) -> Result<Self> {
         let state = Mutex::new(
-            bincode::serde::decode_from_slice::<CompilerState, _>(
+            // TODO: Switch to postcard
+            bincode::serde::decode_from_slice::<StoredCompilerState, _>(
                 state_content,
                 bincode::config::standard(),
             )
             .with_context(|| "Failed to decode Spade state")?
-            .0,
+            .0
+            .into_compiler_state(),
         );
 
         let path = top_name

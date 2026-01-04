@@ -204,14 +204,14 @@ fn specs_are_overlapping(
 fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVarID, type_state: &TypeState) -> Overlap {
     match (&expr, var.resolve(type_state)) {
         (TypeExpression::Integer(eval), TypeVar::Known(_, KnownType::Integer(vval), _)) => {
-            if eval == vval {
+            if eval == &vval {
                 Overlap::Yes
             } else {
                 Overlap::No
             }
         }
         (TypeExpression::String(eval), TypeVar::Known(_, KnownType::String(vval), _)) => {
-            if eval == vval {
+            if eval == &vval {
                 Overlap::Yes
             } else {
                 Overlap::No
@@ -259,8 +259,8 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVarID, type_state: &TypeState)
             TypeSpec::Declared(specname, specparams),
             TypeVar::Known(_, KnownType::Named(varname), varparams),
         ) => {
-            if &specname.inner == varname {
-                exprs_are_overlapping(specparams, varparams, type_state)
+            if specname.inner == varname {
+                exprs_are_overlapping(specparams, &varparams, type_state)
             } else {
                 Overlap::No
             }
@@ -270,7 +270,7 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVarID, type_state: &TypeState)
         // NOTE: This block currently cannot be tested because we can't add methods to
         // anything other than declared types
         (TypeSpec::Tuple(sspecs), TypeVar::Known(_, KnownType::Tuple, vvars)) => {
-            specs_are_overlapping(sspecs, vvars, type_state)
+            specs_are_overlapping(sspecs, &vvars, type_state)
         }
         (TypeSpec::Tuple(_), _) => Overlap::No,
         (TypeSpec::Array { inner, size }, TypeVar::Known(_, KnownType::Array, vvars)) => [

@@ -71,7 +71,7 @@ pub enum TraceStackEntry {
 }
 
 pub fn format_trace_stack(type_state: &TypeState) -> String {
-    let stack = &type_state.trace_stack;
+    let stack = &type_state.owned.trace_stack;
     let mut result = String::new();
     let mut indent_amount = 0;
 

@@ -25,15 +25,17 @@ impl CompilerState {
 }
 
 fn read_state(path: &str) -> Result<Box<CompilerState>> {
-    let file = std::fs::read_to_string(path)
-        .with_context(|| "Failed to read compiler state from {path}")?;
+    // TODO
+    unimplemented!()
+    // let file = std::fs::read_to_string(path)
+    //     .with_context(|| "Failed to read compiler state from {path}")?;
 
-    let ron = ron::Options::default().without_recursion_limit();
+    // let ron = ron::Options::default().without_recursion_limit();
 
-    Ok(Box::new(CompilerState(
-        ron.from_str(&file)
-            .context("Failed to decode compiler state in {path}")?,
-    )))
+    // Ok(Box::new(CompilerState(
+    //     ron.from_str(&file)
+    //         .context("Failed to decode compiler state in {path}")?,
+    // )))
 }
 
 impl Deref for CompilerState {
