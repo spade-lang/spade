@@ -15,7 +15,6 @@ use rustc_hash::FxHashMap as HashMap;
 use spade::compiler_state::StoredCompilerState;
 use spade_codespan_reporting::term::termcolor::Buffer;
 
-use ::spade::compiler_state::CompilerState;
 use range::UptoRange;
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_ast_lowering::SelfContext;
@@ -259,7 +258,7 @@ impl Spade {
             owned: Some(OwnedState {
                 symtab,
                 item_list: state.item_list,
-                trait_impls: TraitImplList::new(),
+                trait_impls: state.trait_impl_list,
                 idtracker: state.idtracker,
                 impl_idtracker: state.impl_idtracker,
             }),

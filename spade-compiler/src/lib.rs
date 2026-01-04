@@ -369,6 +369,7 @@ pub fn compile(
         instance_map,
         mir_context,
         shared_type_state,
+        trait_impl_list: mapped_trait_impls.clone(),
     };
 
     let code = code.read().unwrap();

@@ -1,11 +1,8 @@
-use std::sync::{atomic::AtomicU64, Arc, RwLock};
+use std::sync::{atomic::AtomicU64, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    equation::TypeVar,
-    GenericLists, HashMap,
-};
+use crate::{equation::TypeVar, GenericLists, HashMap};
 
 #[derive(Serialize, Deserialize)]
 pub struct SharedTypeStateInner {
@@ -29,8 +26,7 @@ pub struct SharedTypeState {
 
     // NOTE: This is kind of redundant, we could use TypeVarIDs instead of having dedicated
     // numbers for unknown types.
-    // TODO: Check if we  need this Arc
-    pub next_typeid: Arc<AtomicU64>,
+    pub next_typeid: AtomicU64,
 
     pub next_annon_generic_list: AtomicU64,
 }
@@ -42,7 +38,7 @@ impl SharedTypeState {
                 generic_lists: HashMap::new(),
                 type_vars: vec![],
             }),
-            next_typeid: Arc::new(AtomicU64::new(0)),
+            next_typeid: AtomicU64::new(0),
             next_annon_generic_list: AtomicU64::new(0),
         }
     }

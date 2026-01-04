@@ -2,10 +2,12 @@ use std::ops::Deref;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
+use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
 use color_eyre::owo_colors::OwoColorize;
 use cxx::CxxString;
 use num::ToPrimitive;
+use spade::compiler_state::StoredCompilerState;
 
 struct CompilerState(pub spade::compiler_state::CompilerState);
 
@@ -23,18 +25,14 @@ impl CompilerState {
     }
 }
 
-fn read_state(_path: &str) -> Result<Box<CompilerState>> {
-    // TODO
-    unimplemented!()
-    // let file = std::fs::read_to_string(path)
-    //     .with_context(|| "Failed to read compiler state from {path}")?;
+fn read_state(path: &str) -> Result<Box<CompilerState>> {
+    let file = std::fs::read(path).with_context(|| "Failed to read compiler state from {path}")?;
 
-    // let ron = ron::Options::default().without_recursion_limit();
-
-    // Ok(Box::new(CompilerState(
-    //     ron.from_str(&file)
-    //         .context("Failed to decode compiler state in {path}")?,
-    // )))
+    Ok(Box::new(CompilerState(
+        postcard::from_bytes::<StoredCompilerState>(&file)
+            .context("Failed to decode compiler state in {path}")?
+            .into_compiler_state(),
+    )))
 }
 
 impl Deref for CompilerState {
