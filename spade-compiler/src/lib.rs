@@ -396,6 +396,10 @@ pub fn compile(
             }
         }
         if let Some(state_dump_file) = opts.state_dump_file {
+            if std::env::var("SPADE_REPORT_SERIALIZED_SIZE").is_ok() {
+                spade_common::sizes::SerializedSize::report_size(&state);
+            }
+
             match postcard::to_stdvec(&state) {
                 Ok(encoded) => {
                     std::fs::write(state_dump_file, encoded).or_report(&mut errors);

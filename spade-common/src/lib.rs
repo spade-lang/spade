@@ -6,3 +6,4 @@ pub mod location_info;
 pub mod name;
 pub mod namespace;
 pub mod num_ext;
+pub mod sizes;

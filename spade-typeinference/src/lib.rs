@@ -24,6 +24,7 @@ use itertools::{Either, Itertools};
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, BigUint, Zero};
 use replacement::ReplacementStack;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -2348,6 +2349,51 @@ impl TypeState {
             )),
         };
         Ok(constraint)
+    }
+}
+
+impl spade_common::sizes::SerializedSize for TypeState {
+    fn accumulate_size(
+        &self,
+        field: &[&'static str],
+        into: &mut FxHashMap<Vec<&'static str>, usize>,
+    ) {
+        let Self {
+            type_vars,
+            key,
+            keys,
+            equations,
+            next_typeid,
+            generic_lists,
+            constraints,
+            requirements: _,
+            replacements,
+            checkpoints: _,
+            pipeline_state,
+            error_type,
+            trace_stack: _,
+            diags: _,
+        } = self;
+
+        spade_common::sizes::add_field(field, "type_vars", type_vars, into);
+        spade_common::sizes::add_field(field, "key", key, into);
+        spade_common::sizes::add_field(field, "keys", keys, into);
+        spade_common::sizes::add_field(field, "equations", equations, into);
+        spade_common::sizes::add_field(field, "next_typeid", next_typeid, into);
+        spade_common::sizes::add_field(field, "generic_lists", generic_lists, into);
+        spade_common::sizes::add_field(
+            field,
+            "generic_lists(only annon)",
+            &generic_lists
+                .iter()
+                .filter(|(k, _)| matches!(k, GenericListToken::ImplBlock(_, _)))
+                .collect::<HashMap<_, _>>(),
+            into,
+        );
+        spade_common::sizes::add_field(field, "constraints", constraints, into);
+        spade_common::sizes::add_field(field, "replacements", replacements, into);
+        spade_common::sizes::add_field(field, "pipeline_state", pipeline_state, into);
+        spade_common::sizes::add_field(field, "error_type", error_type, into);
     }
 }
 

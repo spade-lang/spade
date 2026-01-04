@@ -26,6 +26,8 @@ use spade_mir::{
 use spade_typeinference::{equation::TypedExpression, HasType, TypeState};
 use spade_types::ConcreteType;
 
+use spade_common::sizes::{SerializedSize, add_field};
+
 #[derive(Serialize, Deserialize)]
 pub struct MirContext {
     /// Mapping to concrete types for this instantiation of the entity
@@ -33,6 +35,26 @@ pub struct MirContext {
     pub reg_name_map: BTreeMap<NameID, NameID>,
     pub verilog_name_map: VerilogNameMap,
 }
+
+impl SerializedSize for MirContext {
+    fn accumulate_size(&self, field: &[&'static str], into: &mut HashMap<Vec<&'static str>, usize>) {
+        let Self {
+            type_state,
+            reg_name_map,
+            verilog_name_map
+        } = self;
+
+        let mut ts_path = field.to_vec();
+        ts_path.push("type_state");
+        type_state.accumulate_size(&ts_path, into);
+
+        add_field(field, "type_state", type_state, into);
+        add_field(field, "reg_name_map", reg_name_map, into);
+        add_field(field, "verilog_name_map", verilog_name_map, into);
+    }
+}
+
+
 
 /// All the state required in order to add more things to the compilation process
 #[derive(Serialize, Deserialize)]
@@ -47,6 +69,7 @@ pub struct CompilerState {
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, MirContext>,
 }
+
 
 impl CompilerState {
     pub fn build_query_cache<'a>(&'a self) -> QueryCache {
@@ -132,6 +155,39 @@ impl CompilerState {
         )
     }
 }
+
+impl SerializedSize for CompilerState {
+    fn accumulate_size(&self, field: &[&'static str], into: &mut HashMap<Vec<&'static str>, usize>) {
+        let Self {
+            code,
+            symtab,
+            idtracker,
+            impl_idtracker,
+            item_list,
+            name_source_map,
+            instance_map,
+            mir_context,
+        } = self;
+
+        for (_, mc) in mir_context {
+            let mut path = field.to_vec();
+            path.push("mir_context");
+            mc.accumulate_size(&path, into);
+        }
+
+        add_field(field, "code", code, into);
+        add_field(field, "symtab", symtab, into);
+        add_field(field, "idtracker", idtracker, into);
+        add_field(field, "impl_idtracker", impl_idtracker, into);
+        add_field(field, "item_list", item_list, into);
+        add_field(field, "name_source_map", name_source_map, into);
+        add_field(field, "instance_map", instance_map, into);
+        add_field(field, "mir_context", mir_context, into);
+    }
+
+}
+
+
 
 pub fn source_of_hierarchical_value<'a>(
     top_module: &'a NameID,
