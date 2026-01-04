@@ -299,7 +299,7 @@ impl ServerBackend {
                 *self.item_list.lock().unwrap() = item_list.unwrap_or_else(|| ItemList::new());
                 *self.type_states.lock().unwrap() = type_states.unwrap_or_default();
                 *self.symtab.lock().unwrap() = symtab.map(|st| st.freeze());
-                *self.trait_impls.lock().unwrap() = Arc::new(TraitImplList::new());
+                *self.trait_impls.lock().unwrap() = TraitImplList::new();
             }
         }
 

@@ -239,7 +239,7 @@ impl Requirement {
                         expr.loc(),
                         target_type,
                         method,
-                        &type_state.trait_impls,
+                        &ctx.trait_impls,
                         type_state,
                     )?
                     else {

@@ -16,6 +16,7 @@ use spade_mir as mir;
 use spade_typeinference::equation::KnownTypeVar;
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::trace_stack::format_trace_stack;
+use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::{GenericListToken, HasType, TypeState};
 
 use crate::error::Result;
@@ -221,6 +222,7 @@ pub fn compile_items(
     item_list: &ItemList,
     opt_passes: &[&(dyn MirPass + Send + Sync)],
     impl_type_state: &TypeState,
+    trait_impls: &TraitImplList,
 ) -> Vec<Result<MirOutput>> {
     // Build a map of items to use for compilation later. Also push all non
     // generic items to the compilation queue
@@ -268,6 +270,7 @@ pub fn compile_items(
                         impl_type_state,
                         &name_source_map,
                         opt_passes,
+                        trait_impls,
                     );
 
                     state
@@ -306,6 +309,7 @@ fn monoprhipze_item(
     impl_type_state: &TypeState,
     name_source_map: &Arc<RwLock<NameSourceMap>>,
     opt_passes: &[&(dyn MirPass + Send + Sync)],
+    trait_impls: &TraitImplList,
 ) -> std::result::Result<Option<MirOutput>, Vec<Diagnostic>> {
     let original_item = items.get(&item.source_name.inner);
 
@@ -363,7 +367,7 @@ fn monoprhipze_item(
             let type_ctx = &spade_typeinference::Context {
                 symtab: symtab.symtab(),
                 items: item_list,
-                trait_impls: old_type_state.trait_impls.clone(),
+                trait_impls,
             };
 
             // If the unit is generic, we're going to re-do type inference from scratch
@@ -467,6 +471,7 @@ fn monoprhipze_item(
                 type_state: &type_state,
                 items: item_list,
                 symtab,
+                impls: trait_impls,
             });
             run_pass!(LowerTypeLevelIf {
                 type_state: &type_state,
@@ -499,6 +504,7 @@ fn monoprhipze_item(
                 name_source_map,
                 self_mono_item,
                 opt_passes,
+                trait_impls,
             )
             .map_err(|e| vec![state.add_mono_traceback(e, &item)])
             .map(|mir| MirOutput {

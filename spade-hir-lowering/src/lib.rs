@@ -61,6 +61,7 @@ use spade_hir::expression::Safety;
 use spade_hir::UnitHead;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
+use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::GenericListToken;
 use spade_typeinference::HasType;
 use spade_types::meta_types::MetaType;
@@ -986,11 +987,10 @@ pub fn do_wal_trace_lowering(
                 .nowhere()
             };
 
-            let trait_impls = ctx.types.trait_impls.clone();
             let type_ctx = spade_typeinference::Context {
                 symtab: ctx.symtab.symtab(),
                 items: ctx.item_list,
-                trait_impls: trait_impls.clone(),
+                trait_impls: &ctx.trait_impls,
             };
             let generic_list = &ctx.types.create_generic_list(
                 spade_typeinference::GenericListSource::Anonymous,
@@ -1009,7 +1009,7 @@ pub fn do_wal_trace_lowering(
                     &spade_typeinference::Context {
                         symtab: ctx.symtab.symtab(),
                         items: ctx.item_list,
-                        trait_impls: trait_impls.clone(),
+                        trait_impls: ctx.trait_impls,
                     },
                 )
                 .unwrap(); // Unification with a completely generic expr
@@ -3277,6 +3277,7 @@ pub struct Context<'a> {
     pub subs: &'a mut Substitutions,
     pub pipeline_context: &'a mut MaybePipelineContext,
     pub self_mono_item: Option<MonoItem>,
+    pub trait_impls: &'a TraitImplList,
 }
 
 pub fn generate_unit<'a>(
@@ -3293,6 +3294,7 @@ pub fn generate_unit<'a>(
     name_source_map: &RwLock<NameSourceMap>,
     self_mono_item: Option<MonoItem>,
     opt_passes: &[&(dyn MirPass + Send + Sync)],
+    trait_impls: &TraitImplList,
 ) -> Result<mir::Entity> {
     let mir_inputs = unit
         .head
@@ -3356,6 +3358,7 @@ pub fn generate_unit<'a>(
         mono_state,
         pipeline_context,
         self_mono_item,
+        trait_impls,
     };
 
     if let UnitKind::Pipeline {
