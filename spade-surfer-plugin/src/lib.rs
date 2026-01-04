@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap as HashMap;
 use itertools::Itertools;
 use log::{error, info, warn};
 use num::ToPrimitive;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use spade::compiler_state::{CompilerState, StoredCompilerState};
 
 use color_eyre::{
@@ -112,8 +112,6 @@ pub struct SpadeTranslator {
     state: Mutex<CompilerState>,
     query_cache: QueryCache,
     top: NameID,
-    top_name: String,
-    state_file: Option<Utf8PathBuf>,
 }
 
 impl SpadeTranslator {
@@ -139,28 +137,15 @@ impl SpadeTranslator {
             })
             .ok_or_else(|| anyhow!("Failed to initialize Spade translator"))?;
 
-        Self::new_from_state_bytes(
-            &top_name,
-            &read_file(&state_file)?,
-            Some(state_file.to_path_buf()),
-        )
-        .context(format!("When loading Spade state from {state_file}"))
+        Self::new_from_state_bytes(&top_name, &read_file(&state_file)?)
+            .context(format!("When loading Spade state from {state_file}"))
     }
 
-    pub fn new_from_state_bytes(
-        top_name: &str,
-        state_content: &[u8],
-        state_file: Option<Utf8PathBuf>,
-    ) -> Result<Self> {
+    pub fn new_from_state_bytes(top_name: &str, state_content: &[u8]) -> Result<Self> {
         let state = Mutex::new(
-            // TODO: Switch to postcard
-            bincode::serde::decode_from_slice::<StoredCompilerState, _>(
-                state_content,
-                bincode::config::standard(),
-            )
-            .with_context(|| "Failed to decode Spade state")?
-            .0
-            .into_compiler_state(),
+            postcard::from_bytes::<StoredCompilerState>(state_content)
+                .with_context(|| "Failed to decode Spade state")?
+                .into_compiler_state(),
         );
 
         let path = top_name
@@ -180,8 +165,6 @@ impl SpadeTranslator {
             state,
             query_cache,
             top,
-            top_name: top_name.to_string(),
-            state_file,
         })
     }
 }

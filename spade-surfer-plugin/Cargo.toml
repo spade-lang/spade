@@ -31,6 +31,6 @@ rustc-hash.workspace = true
 serde_stacker = "0.1.12"
 itertools.workspace = true
 spade-hir.workspace = true
-bincode = {version = "2.0.1", features = ["serde"]}
+postcard.workspace = true
 
 

@@ -24,7 +24,8 @@ use spade_mir::{
     unit_name::InstanceMap,
 };
 use spade_typeinference::{
-    equation::TypedExpression, HasType, OwnedTypeState, SharedTypeState, TypeState,
+    equation::TypedExpression, traits::TraitImplList, HasType, OwnedTypeState, SharedTypeState,
+    TypeState,
 };
 use spade_types::ConcreteType;
 
@@ -103,6 +104,7 @@ pub struct StoredCompilerState {
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, StoredMirContext>,
     pub shared_type_state: Arc<SharedTypeState>,
+    pub trait_impl_list: TraitImplList,
 }
 
 impl StoredCompilerState {
@@ -117,6 +119,7 @@ impl StoredCompilerState {
             instance_map,
             mir_context,
             shared_type_state,
+            trait_impl_list,
         } = self;
 
         CompilerState {
@@ -132,6 +135,7 @@ impl StoredCompilerState {
                 .map(|(k, v)| (k, v.with_shared(Arc::clone(&shared_type_state))))
                 .collect(),
             shared_type_state,
+            trait_impl_list,
         }
     }
 }
@@ -147,6 +151,7 @@ pub struct CompilerState {
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, MirContext>,
     pub shared_type_state: Arc<SharedTypeState>,
+    pub trait_impl_list: TraitImplList,
 }
 
 impl CompilerState {
@@ -165,6 +170,7 @@ impl CompilerState {
                 .map(|(k, v)| (k, v.to_stored()))
                 .collect(),
             shared_type_state: self.shared_type_state,
+            trait_impl_list: self.trait_impl_list,
         }
     }
 
@@ -268,6 +274,7 @@ impl SerializedSize for StoredCompilerState {
             instance_map,
             mir_context,
             shared_type_state,
+            trait_impl_list,
         } = self;
 
         for (_, mc) in mir_context {
@@ -285,6 +292,7 @@ impl SerializedSize for StoredCompilerState {
         add_field(field, "instance_map", instance_map, into);
         add_field(field, "mir_context", mir_context, into);
         add_field(field, "shared_type_state", shared_type_state, into);
+        add_field(field, "trait_impl_list", trait_impl_list, into);
     }
 }
 
