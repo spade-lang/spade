@@ -36,6 +36,7 @@ serde.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 tracing.workspace = true
+rayon.workspace = true
 
 serde_json = "1.0.117"
 

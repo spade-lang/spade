@@ -41,6 +41,12 @@ pub struct InstanceMap {
     pub inner: HashMap<NameID, BTreeMap<String, NameID>>,
 }
 
+impl InstanceMap {
+    pub fn extend(&mut self, other: Self) {
+        self.inner.extend(other.inner);
+    }
+}
+
 impl Default for InstanceMap {
     fn default() -> Self {
         Self::new()

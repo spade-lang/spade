@@ -3372,6 +3372,7 @@ dependencies = [
  "postcard",
  "pretty_assertions",
  "prettydiff",
+ "rayon",
  "ron",
  "rustc-hash",
  "serde",

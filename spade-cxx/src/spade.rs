@@ -2,7 +2,6 @@ use std::ops::Deref;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
-use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
 use color_eyre::owo_colors::OwoColorize;
 use cxx::CxxString;
@@ -24,7 +23,7 @@ impl CompilerState {
     }
 }
 
-fn read_state(path: &str) -> Result<Box<CompilerState>> {
+fn read_state(_path: &str) -> Result<Box<CompilerState>> {
     // TODO
     unimplemented!()
     // let file = std::fs::read_to_string(path)
