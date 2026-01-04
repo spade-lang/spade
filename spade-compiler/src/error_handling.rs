@@ -1,7 +1,9 @@
-use std::{rc::Rc, sync::RwLock};
+use std::sync::{Arc, RwLock};
 
 use spade_codespan_reporting::term::termcolor::Buffer;
-use spade_diagnostics::{diag_list::DiagList, CodeBundle, CompilationError, DiagHandler};
+use spade_diagnostics::{
+    diag_list::DiagList, CodeBundle, CompilationError, DiagHandler, Diagnostic,
+};
 
 pub struct ErrorHandler<'a> {
     failed: bool,
@@ -10,21 +12,21 @@ pub struct ErrorHandler<'a> {
     pub diag_handler: DiagHandler,
     /// Using a RW lock here is just a lazy way of managing the ownership of code to
     /// be able to report errors even while modifying CodeBundle
-    pub code: Rc<RwLock<CodeBundle>>,
+    pub code: Arc<RwLock<CodeBundle>>,
 }
 
 impl<'a> ErrorHandler<'a> {
     pub fn new(
         error_buffer: &'a mut Buffer,
         diag_handler: DiagHandler,
-        code: Rc<RwLock<CodeBundle>>,
+        code: Arc<RwLock<CodeBundle>>,
     ) -> Self {
         ErrorHandler {
             failed: false,
             failed_now: false,
             error_buffer,
             diag_handler,
-            code: Rc::clone(&code),
+            code: Arc::clone(&code),
         }
     }
 
@@ -77,6 +79,8 @@ pub trait Reportable<T> {
 
     // Report the error and continue without modifying the result
     fn report(self, errors: &mut ErrorHandler) -> Self;
+
+    fn or_do_report<'a>(self, errors: impl FnOnce() -> &'a mut ErrorHandler<'a>) -> Option<T>;
 }
 
 impl<T, E> Reportable<T> for Result<T, E>
@@ -92,5 +96,32 @@ where
 
     fn or_report(self, errors: &mut ErrorHandler) -> Option<T> {
         self.report(errors).ok()
+    }
+
+    fn or_do_report<'a>(self, errors: impl FnOnce() -> &'a mut ErrorHandler<'a>) -> Option<T> {
+        if self.is_err() {
+            let errors = (errors)();
+            self.or_report(errors)
+        } else {
+            self.ok()
+        }
+    }
+}
+
+impl Reportable<()> for Diagnostic {
+    fn or_report(self, errors: &mut ErrorHandler) -> Option<()> {
+        errors.report(&self);
+        None
+    }
+
+    fn report(self, errors: &mut ErrorHandler) -> Self {
+        errors.report(&self);
+        self
+    }
+
+    fn or_do_report<'a>(self, errors: impl FnOnce() -> &'a mut ErrorHandler<'a>) -> Option<()> {
+        let errors = (errors)();
+        self.or_report(errors);
+        None
     }
 }

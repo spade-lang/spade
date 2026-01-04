@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::RwLock};
+use std::sync::{Arc, RwLock};
 
 use logos::Logos;
 use spade_codespan_reporting::{files::SimpleFiles, term::termcolor::Buffer};
@@ -1024,7 +1024,7 @@ fn test() {
 
     let diagnostic_handler = DiagHandler::new(Box::new(CodespanEmitter));
 
-    let code_bundle = Rc::new(RwLock::new(CodeBundle { files }));
+    let code_bundle = Arc::new(RwLock::new(CodeBundle { files }));
 
     let mut buffer = Buffer::no_color();
 

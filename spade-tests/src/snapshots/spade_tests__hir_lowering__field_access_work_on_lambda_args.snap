@@ -2,6 +2,11 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
+entity \impl#0::call[31] ((self, self_n24, {}), (args, args_n25, ({value: bool}))) -> bool {
+	let e15: {value: bool} = IndexTuple(0)(args_n25)
+	let a_n15: {value: bool} = Alias(e15)
+	let e5: bool = IndexTuple(0)(a_n15)
+} => e5
 entity \test () -> () {
 	let e3: {} = ConstructTuple()
 	const e12: bool = true
@@ -10,8 +15,3 @@ entity \test () -> () {
 	let e2: bool = Instance(\impl#0::call[31] )(e3, e10)
 	let x_n26: bool = Alias(e2)
 } => e1
-entity \impl#0::call[31] ((self, self_n24, {}), (args, args_n25, ({value: bool}))) -> bool {
-	let e15: {value: bool} = IndexTuple(0)(args_n25)
-	let a_n15: {value: bool} = Alias(e15)
-	let e5: bool = IndexTuple(0)(a_n15)
-} => e5

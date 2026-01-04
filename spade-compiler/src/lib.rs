@@ -21,7 +21,6 @@ use spade_typeinference::traits::TraitImplList;
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use tracing::Level;
 use typeinference::TypeState;
@@ -114,13 +113,13 @@ pub fn compile(
 
     spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
 
-    let code = Rc::new(RwLock::new(CodeBundle::new("".to_string())));
+    let code = Arc::new(RwLock::new(CodeBundle::new("".to_string())));
 
-    let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Rc::clone(&code));
+    let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Arc::clone(&code));
 
     let module_asts = parse(
         sources,
-        Rc::clone(&code),
+        Arc::clone(&code),
         opts.print_parse_traceback,
         &mut errors,
     );
@@ -350,7 +349,7 @@ pub fn compile(
         mir_code,
         instance_map,
         mir_context,
-    } = codegen(mir_entities, Rc::clone(&code), &mut errors, &idtracker);
+    } = codegen(mir_entities, Arc::clone(&code), &mut errors, &idtracker);
 
     let state = CompilerState {
         code: code
@@ -464,7 +463,7 @@ fn do_in_namespace(
 #[tracing::instrument(skip_all)]
 fn parse(
     sources: Vec<(ModuleNamespace, String, String)>,
-    code: Rc<RwLock<CodeBundle>>,
+    code: Arc<RwLock<CodeBundle>>,
     print_parse_traceback: bool,
     errors: &mut ErrorHandler,
 ) -> Vec<(ModuleNamespace, Loc<ModuleBody>)> {
@@ -523,63 +522,91 @@ fn lower_ast(
 #[tracing::instrument(skip_all)]
 fn codegen(
     mir_entities: Vec<Result<MirOutput, Diagnostic>>,
-    code: Rc<RwLock<CodeBundle>>,
-    errors: &mut ErrorHandler,
+    code: Arc<RwLock<CodeBundle>>,
+    error_handler: &mut ErrorHandler,
     idtracker: &Arc<ExprIdTracker>,
 ) -> CodegenArtefacts {
-    let mut bumpy_mir_entities = vec![];
-    let mut flat_mir_entities = vec![];
-    let mut module_code = vec![];
-    let mut mir_code = vec![];
-    let mut instance_map = InstanceMap::new();
-    let mut mir_context = HashMap::default();
+    let bumpy_mir_entities = Arc::new(RwLock::new(vec![]));
+    let flat_mir_entities = Arc::new(RwLock::new(vec![]));
+    let module_code = Arc::new(RwLock::new(vec![]));
+    let mir_code = Arc::new(RwLock::new(vec![]));
+    let instance_map = Arc::new(RwLock::new(InstanceMap::new()));
+    let mir_context = Arc::new(RwLock::new(HashMap::default()));
+    let errors = Arc::new(RwLock::new(vec![]));
 
     // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
     // defined, for example if a zero-sized wire is used.
-    module_code.push("`default_nettype none".into());
+    module_code
+        .write()
+        .unwrap()
+        .push("`default_nettype none".into());
 
-    for mir in mir_entities {
-        if let Some(MirOutput {
-            mir,
-            type_state,
-            reg_name_map,
-        }) = mir.or_report(errors)
-        {
-            // Codegen breaks if not all statements are valid, and since we don't need
-            // codegen if there are errors, we can safely bail from codegen of units with errors
-            if mir
-                .statements
-                .iter()
-                .any(|stmt| matches!(stmt, spade_mir::Statement::Error))
-            {
-                continue;
-            }
-            bumpy_mir_entities.push(mir.clone());
-
-            let codegenable = prepare_codegen(mir, idtracker);
-
-            let code = spade_mir::codegen::entity_code(
-                &codegenable,
-                &mut instance_map,
-                &Some(code.read().unwrap().clone()),
-            );
-
-            mir_code.push(format!("{}", codegenable.0));
-
-            flat_mir_entities.push(codegenable.clone());
-
-            let (code, name_map) = code;
-            module_code.push(code.to_string());
-
-            mir_context.insert(
-                codegenable.0.name.source,
-                MirContext {
-                    reg_name_map: reg_name_map.clone(),
+    rayon::scope(|s| {
+        for mir in mir_entities {
+            let code = Arc::clone(&code);
+            let bumpy_mir_entities = Arc::clone(&bumpy_mir_entities);
+            let flat_mir_entities = Arc::clone(&flat_mir_entities);
+            let module_code = Arc::clone(&module_code);
+            let mir_code = Arc::clone(&mir_code);
+            let instance_map = Arc::clone(&instance_map);
+            let mir_context = Arc::clone(&mir_context);
+            let errors = Arc::clone(&errors);
+            s.spawn(move |_s| {
+                if let Some(MirOutput {
+                    mir,
                     type_state,
-                    verilog_name_map: name_map,
-                },
-            );
+                    reg_name_map,
+                }) = mir.map_err(|e| errors.write().unwrap().push(e)).ok()
+                {
+                    // Codegen breaks if not all statements are valid, and since we don't need
+                    // codegen if there are errors, we can safely bail from codegen of units with errors
+                    if mir
+                        .statements
+                        .iter()
+                        .any(|stmt| matches!(stmt, spade_mir::Statement::Error))
+                    {
+                        return;
+                    }
+                    bumpy_mir_entities.write().unwrap().push(mir.clone());
+
+                    let codegenable = prepare_codegen(mir, idtracker);
+
+                    let mut local_instance_map = InstanceMap::new();
+                    let code = spade_mir::codegen::entity_code(
+                        &codegenable,
+                        &mut local_instance_map,
+                        &Some(code.read().unwrap().clone()),
+                    );
+                    instance_map.write().unwrap().extend(local_instance_map);
+
+                    mir_code.write().unwrap().push(format!("{}", codegenable.0));
+
+                    flat_mir_entities.write().unwrap().push(codegenable.clone());
+
+                    let (code, name_map) = code;
+                    module_code.write().unwrap().push(code.to_string());
+
+                    mir_context.write().unwrap().insert(
+                        codegenable.0.name.source,
+                        MirContext {
+                            reg_name_map: reg_name_map.clone(),
+                            type_state,
+                            verilog_name_map: name_map,
+                        },
+                    );
+                }
+            });
         }
+    });
+    let bumpy_mir_entities = std::mem::replace(&mut *bumpy_mir_entities.write().unwrap(), vec![]);
+    let flat_mir_entities = std::mem::replace(&mut *flat_mir_entities.write().unwrap(), vec![]);
+    let module_code = std::mem::replace(&mut *module_code.write().unwrap(), vec![]);
+    let mir_code = std::mem::replace(&mut *mir_code.write().unwrap(), Default::default());
+    let instance_map = std::mem::replace(&mut *instance_map.write().unwrap(), Default::default());
+    let mir_context = std::mem::replace(&mut *mir_context.write().unwrap(), Default::default());
+
+    for error in errors.write().unwrap().drain(..) {
+        error.or_report(error_handler);
     }
 
     CodegenArtefacts {

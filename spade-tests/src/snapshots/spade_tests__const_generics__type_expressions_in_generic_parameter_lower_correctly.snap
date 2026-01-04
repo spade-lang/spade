@@ -6,80 +6,6 @@ expression: build_items(code)
     Entity {
         name: UnitName {
             kind: Escaped {
-                name: "foo[23]",
-                path: [
-                    "foo",
-                ],
-            },
-            source: foo#23,
-        },
-        inputs: [
-            MirInput {
-                name: "value",
-                val_name: Named(
-                    16,
-                    "value",
-                    Name(
-                        value#16,
-                    ),
-                ),
-                ty: UInt(
-                    3,
-                ),
-                no_mangle: None,
-            },
-        ],
-        output: Expr(
-            ExprID(
-                1,
-            ),
-        ),
-        output_type: Tuple(
-            [],
-        ),
-        verilog_attr_groups: [],
-        statements: [],
-    },
-    Entity {
-        name: UnitName {
-            kind: Escaped {
-                name: "foo[24]",
-                path: [
-                    "foo",
-                ],
-            },
-            source: foo#24,
-        },
-        inputs: [
-            MirInput {
-                name: "value",
-                val_name: Named(
-                    16,
-                    "value",
-                    Name(
-                        value#16,
-                    ),
-                ),
-                ty: UInt(
-                    4,
-                ),
-                no_mangle: None,
-            },
-        ],
-        output: Expr(
-            ExprID(
-                1,
-            ),
-        ),
-        output_type: Tuple(
-            [],
-        ),
-        verilog_attr_groups: [],
-        statements: [],
-    },
-    Entity {
-        name: UnitName {
-            kind: Escaped {
                 name: "bar",
                 path: [
                     "bar",
@@ -257,5 +183,79 @@ expression: build_items(code)
                 },
             ),
         ],
+    },
+    Entity {
+        name: UnitName {
+            kind: Escaped {
+                name: "foo[24]",
+                path: [
+                    "foo",
+                ],
+            },
+            source: foo#24,
+        },
+        inputs: [
+            MirInput {
+                name: "value",
+                val_name: Named(
+                    16,
+                    "value",
+                    Name(
+                        value#16,
+                    ),
+                ),
+                ty: UInt(
+                    4,
+                ),
+                no_mangle: None,
+            },
+        ],
+        output: Expr(
+            ExprID(
+                1,
+            ),
+        ),
+        output_type: Tuple(
+            [],
+        ),
+        verilog_attr_groups: [],
+        statements: [],
+    },
+    Entity {
+        name: UnitName {
+            kind: Escaped {
+                name: "foo[23]",
+                path: [
+                    "foo",
+                ],
+            },
+            source: foo#23,
+        },
+        inputs: [
+            MirInput {
+                name: "value",
+                val_name: Named(
+                    16,
+                    "value",
+                    Name(
+                        value#16,
+                    ),
+                ),
+                ty: UInt(
+                    3,
+                ),
+                no_mangle: None,
+            },
+        ],
+        output: Expr(
+            ExprID(
+                1,
+            ),
+        ),
+        output_type: Tuple(
+            [],
+        ),
+        verilog_attr_groups: [],
+        statements: [],
     },
 ]
