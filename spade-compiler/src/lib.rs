@@ -396,8 +396,7 @@ pub fn compile(
             }
         }
         if let Some(state_dump_file) = opts.state_dump_file {
-            // let ron = ron::Options::default().without_recursion_limit();
-            match bincode::serde::encode_to_vec(&state, bincode::config::standard()) {
+            match postcard::to_stdvec(&state) {
                 Ok(encoded) => {
                     std::fs::write(state_dump_file, encoded).or_report(&mut errors);
                 }
