@@ -21,15 +21,12 @@ impl Replacements {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ReplacementStack {
     inner: Vec<Replacements>,
-
-    lookup_steps: CloningRWLock<BTreeMap<usize, usize>>,
 }
 
 impl ReplacementStack {
     pub fn new() -> Self {
         Self {
             inner: vec![Replacements::new()],
-            lookup_steps: CloningRWLock::new(BTreeMap::new()),
         }
     }
 
