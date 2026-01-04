@@ -3285,8 +3285,10 @@ name = "spade-common"
 version = "0.15.0"
 dependencies = [
  "bumpalo",
+ "itertools",
  "logos",
  "num",
+ "postcard",
  "rustc-hash",
  "serde",
  "spade-codespan",
