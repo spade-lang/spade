@@ -1727,13 +1727,13 @@ impl ExprLocal for Loc<Expression> {
                     // For good diagnostics, we also need to look up the TypeVars
                     let self_tvar = ctx.types.type_of(&TypedExpression::Id(self.id));
 
-                    let inner_tvar = match &self_tvar.resolve(ctx.types) {
+                    let inner_tvar = match self_tvar.resolve(ctx.types) {
                         TypeVar::Known(_, KnownType::Tuple, inner) => {
                             if inner.len() != 2 {
                                 diag_bail!(self, "port type was not 2-tuple. Got {hir_type}")
                             }
 
-                            &inner[0]
+                            inner[0]
                         }
                         _ => {
                             diag_bail!(self, "port type was not tuple. Got {hir_type}")
@@ -2284,7 +2284,7 @@ impl ExprLocal for Loc<Expression> {
         }
 
         let tok = GenericListToken::Expression(self.id);
-        let instance_list = ctx
+        let instance_list = &ctx
             .types
             .get_generic_list(&tok)
             .ok_or_else(|| diag_anyhow!(name, "Found no generic list for call"))?;
@@ -2320,7 +2320,7 @@ impl ExprLocal for Loc<Expression> {
             for (name, ty) in instance_list {
                 let actual =
                     ctx.types
-                        .ungenerify_type(ty, ctx.symtab.symtab(), &ctx.item_list.types);
+                        .ungenerify_type(&ty, ctx.symtab.symtab(), &ctx.item_list.types);
                 if actual.as_ref().map(|t| t.is_port()).unwrap_or(false) {
                     return Err(
                         Diagnostic::error(self.loc(), "Generic types cannot be ports")

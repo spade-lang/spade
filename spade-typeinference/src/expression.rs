@@ -96,14 +96,14 @@ impl TypeState {
             let depth = match &stage.inner {
                 spade_hir::expression::PipelineRefKind::Absolute(name) => {
                     let key = TypedExpression::Name(name.inner.clone());
-                    let var = if !self.equations.contains_key(&key) {
+                    let var = if !self.owned.equations.contains_key(&key) {
                         let var = self.new_generic_tlint(stage.loc());
                         self.add_equation(key.clone(), var.clone());
-                        self.trace_stack.push(|| TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
+                        self.owned.trace_stack.push(|| TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     } else {
-                        let var = self.equations.get(&key).unwrap().clone();
-                        self.trace_stack.push(|| TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
+                        let var = self.owned.equations.get(&key).unwrap().clone();
+                        self.owned.trace_stack.push(|| TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     };
                     // NOTE: Safe unwrap, depth is fresh
@@ -128,7 +128,7 @@ impl TypeState {
                 },
             };
 
-            let pipeline_state = self.pipeline_state
+            let pipeline_state = self.owned.pipeline_state
                 .as_ref()
                 .ok_or_else(|| diag_anyhow!(
                     expression,
@@ -270,7 +270,7 @@ impl TypeState {
 
             let inner_types = match t_id.resolve(self) {
                 TypeVar::Known(_, KnownType::Tuple, inner) => inner,
-                t @ TypeVar::Known(ref other_source, _, _) => {
+                t @ TypeVar::Known(other_source, _, _) => {
                     return Err(Diagnostic::error(tup.loc(), "Attempt to use tuple indexing on non-tuple")
                         .primary_label(format!("expected tuple, got {t}", t = t.display(self)))
                         .secondary_label(index, "Because this is a tuple index")

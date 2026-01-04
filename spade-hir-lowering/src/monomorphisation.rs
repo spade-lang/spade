@@ -423,7 +423,7 @@ fn monoprhipze_item(
                 }
 
                 let mut errors = vec![];
-                for diag in type_state.diags.drain() {
+                for diag in type_state.owned.diags.drain() {
                     errors.push(state.add_mono_traceback(diag, &item));
                 }
 
@@ -509,7 +509,7 @@ fn monoprhipze_item(
             .map_err(|e| vec![state.add_mono_traceback(e, &item)])
             .map(|mir| MirOutput {
                 mir,
-                type_state: type_state.clone(),
+                type_state: type_state,
                 reg_name_map,
             });
             out.map(Some)

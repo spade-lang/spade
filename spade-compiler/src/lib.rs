@@ -40,8 +40,8 @@ use spade_hir_lowering::monomorphisation::MirOutput;
 use spade_hir_lowering::NameSourceMap;
 pub use spade_parser::lexer;
 use spade_parser::Parser;
-use spade_typeinference as typeinference;
 use spade_typeinference::trace_stack::format_trace_stack;
+use spade_typeinference::{self as typeinference, SharedTypeState};
 
 pub struct Opt<'b> {
     pub error_buffer: &'b mut Buffer,
@@ -274,10 +274,11 @@ pub fn compile(
 
     let frozen_symtab = symtab.freeze();
 
-    let mut impl_type_state = TypeState::fresh();
+    let shared_type_state = Arc::new(SharedTypeState::new());
+    let mut impl_type_state = TypeState::fresh(Arc::clone(&shared_type_state));
     let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list);
 
-    errors.drain_diag_list(&mut impl_type_state.diags);
+    errors.drain_diag_list(&mut impl_type_state.owned.diags);
 
     let type_inference_ctx = typeinference::Context {
         symtab: frozen_symtab.symtab(),
@@ -298,8 +299,8 @@ pub fn compile(
                     .visit_unit(u, &type_inference_ctx)
                     .report(&mut errors);
 
-                let failures = type_state.diags.errors.len() != 0;
-                errors.drain_diag_list(&mut type_state.diags);
+                let failures = type_state.owned.diags.errors.len() != 0;
+                errors.drain_diag_list(&mut type_state.owned.diags);
 
                 // Later stages will fail if we don't have a a complete type state,
                 // so we'll need to filter out modules that failed. However, for the LSP
@@ -366,6 +367,7 @@ pub fn compile(
         name_source_map,
         instance_map,
         mir_context,
+        shared_type_state,
     };
 
     let code = code.read().unwrap();
@@ -395,12 +397,15 @@ pub fn compile(
                 }
             }
         }
+
+        let stored_state = state.into_stored();
+
         if let Some(state_dump_file) = opts.state_dump_file {
             if std::env::var("SPADE_REPORT_SERIALIZED_SIZE").is_ok() {
-                spade_common::sizes::SerializedSize::report_size(&state);
+                spade_common::sizes::SerializedSize::report_size(&stored_state);
             }
 
-            match postcard::to_stdvec(&state) {
+            match postcard::to_stdvec(&stored_state) {
                 Ok(encoded) => {
                     std::fs::write(state_dump_file, encoded).or_report(&mut errors);
                 }
@@ -416,7 +421,7 @@ pub fn compile(
             code: code.clone(),
             item_list,
             impl_list: mapped_trait_impls,
-            state,
+            state: stored_state.into_compiler_state(),
             type_states,
         };
 

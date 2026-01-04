@@ -12,6 +12,7 @@ use num::{BigUint, ToPrimitive, Zero};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
+use spade::compiler_state::StoredCompilerState;
 use spade_codespan_reporting::term::termcolor::Buffer;
 
 use ::spade::compiler_state::CompilerState;
@@ -194,8 +195,9 @@ impl Spade {
         let state_bytes = std::fs::read(&state_path)
             .with_context(|| format!("Failed to read state file at {state_path}"))?;
 
-        let state = postcard::from_bytes::<CompilerState>(&state_bytes)
-            .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?;
+        let state = postcard::from_bytes::<StoredCompilerState>(&state_bytes)
+            .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?
+            .into_compiler_state();
 
         let code = Rc::new(RwLock::new(CodeBundle::from_files(&state.code)));
         let mut error_buffer = Buffer::ansi();
@@ -497,7 +499,7 @@ impl Spade {
         self.type_state
             .visit_expression(&hir, &type_ctx, &generic_list);
 
-        let mut diags = self.type_state.diags.drain_to_new();
+        let mut diags = self.type_state.owned.diags.drain_to_new();
         self.handle_diags(&mut diags)?;
 
         let g = self.type_state.new_generic_any();
@@ -861,7 +863,7 @@ impl Spade {
         self.type_state
             .visit_expression(&hir, &type_ctx, &generic_list);
 
-        let mut diags = self.type_state.diags.drain_to_new();
+        let mut diags = self.type_state.owned.diags.drain_to_new();
         self.handle_diags(&mut diags)?;
 
         let ty_id = ty.insert(&mut self.type_state);

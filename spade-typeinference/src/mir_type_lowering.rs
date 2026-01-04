@@ -313,7 +313,7 @@ impl TypeState {
                     .collect::<Option<Vec<_>>>()?;
 
                 type_list
-                    .get(t)
+                    .get(&t)
                     .map(|t| Self::type_decl_to_concrete(&t.inner, type_list, params, invert))
             }
             TypeVar::Known(_, KnownType::Integer(val), params) => {
@@ -327,7 +327,7 @@ impl TypeState {
                     "type level bools cannot have type parameters"
                 );
 
-                Some(ConcreteType::Bool(*val))
+                Some(ConcreteType::Bool(val))
             }
             TypeVar::Known(_, KnownType::String(val), params) => {
                 assert!(

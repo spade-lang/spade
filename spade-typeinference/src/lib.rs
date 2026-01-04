@@ -8,7 +8,6 @@
 
 use std::cmp::PartialEq;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use colored::Colorize;
@@ -59,6 +58,7 @@ use traits::{TraitList, TraitReq};
 
 use crate::error::TypeMismatch as Tm;
 use crate::requirements::ConstantInt;
+pub use crate::shared::SharedTypeState;
 use crate::traits::{TraitImpl, TraitImplList};
 
 mod constraints;
@@ -71,9 +71,13 @@ pub mod method_resolution;
 pub mod mir_type_lowering;
 mod replacement;
 mod requirements;
+mod shared;
 pub mod testutil;
 pub mod trace_stack;
 pub mod traits;
+
+type GenericList = HashMap<NameID, TypeVarID>;
+type GenericLists = HashMap<GenericListToken, GenericList>;
 
 pub struct Context<'a> {
     pub symtab: &'a SymbolTable,
@@ -85,15 +89,6 @@ impl<'a> std::fmt::Debug for Context<'a> {
         write!(f, "{{context omitted}}")
     }
 }
-
-// NOTE(allow) This is a debug macro which is not normally used but can come in handy
-#[allow(unused_macros)]
-macro_rules! add_trace {
-    ($self:expr, $($arg : tt) *) => {
-        $self.trace_stack.push(TraceStack::Message(format!($($arg)*)))
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum GenericListSource<'a> {
     /// For when you just need a new generic list but have no need to refer back
@@ -113,7 +108,7 @@ pub enum GenericListSource<'a> {
 /// Stored version of GenericListSource
 #[derive(Clone, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum GenericListToken {
-    Anonymous(usize),
+    Anonymous(u64),
     Definition(NameID),
     ImplBlock(ImplTarget, ImplID),
     Expression(ExprID),
@@ -135,12 +130,7 @@ pub struct PipelineState {
 
 /// State of the type inference algorithm
 #[derive(Clone, Serialize, Deserialize)]
-pub struct TypeState {
-    /// All types are referred to by their index to allow type vars changing inside
-    /// the type state while the types are "out in the wild". The TypeVarID is an index
-    /// into this type_vars list which is used to look up the actual type as currently
-    /// seen by the type state
-    type_vars: Vec<TypeVar>,
+pub struct OwnedTypeState {
     /// This key is used to prevent bugs when multiple type states are mixed. Each TypeVarID
     /// holds the value of the key of the type state which created it, and this is checked
     /// to ensure that type vars are not mixed. The key is initialized randomly on type
@@ -150,18 +140,13 @@ pub struct TypeState {
     keys: BTreeSet<u64>,
 
     equations: TypeEquations,
-    // NOTE: This is kind of redundant, we could use TypeVarIDs instead of having dedicated
-    // numbers for unknown types.
-    next_typeid: Arc<AtomicU64>,
-    // List of the mapping between generic parameters and type vars.
-    // The key is the index of the expression for which this generic list is associated. (if this
-    // is a generic list for a call whose expression id is x to f<A, B>, then generic_lists[x] will
-    // be {A: <type var>, b: <type var>}
-    // Managed here because unification must update *all* TypeVars in existence.
-    generic_lists: HashMap<GenericListToken, HashMap<NameID, TypeVarID>>,
 
     // `#[serde(skip)] is set internally
     constraints: TypeConstraints,
+
+    /// Contains generic lists containing Expression and Definition lists. Impl and annonymous lists
+    /// are stored in the shared state
+    generic_lists: GenericLists,
 
     /// Requirements which must be fulfilled but which do not guide further type inference.
     /// For example, if seeing `let y = x.a` before knowing the type of `x`, a requirement is
@@ -189,29 +174,25 @@ pub struct TypeState {
     pub diags: DiagList,
 }
 
-impl TypeState {
+impl OwnedTypeState {
     /// Create a fresh type state, in most cases, this should be .create_child of an
     /// existing type state
     pub fn fresh() -> Self {
         let key = fastrand::u64(..);
-        let mut result = Self {
-            type_vars: vec![],
+        let result = Self {
             key,
             keys: [key].into_iter().collect(),
             equations: HashMap::default(),
-            next_typeid: Arc::new(AtomicU64::new(0)),
+            generic_lists: Default::default(),
             trace_stack: TraceStack::new(),
             constraints: TypeConstraints::new(),
             requirements: vec![],
             replacements: ReplacementStack::new(),
-            generic_lists: HashMap::default(),
             checkpoints: vec![],
             error_type: None,
             pipeline_state: None,
             diags: DiagList::new(),
         };
-        result.error_type =
-            Some(result.add_type_var(TypeVar::Known(().nowhere(), KnownType::Error, vec![])));
         result
     }
 
@@ -221,30 +202,84 @@ impl TypeState {
         result.keys.insert(result.key);
         result
     }
+}
 
-    pub fn add_type_var(&mut self, var: TypeVar) -> TypeVarID {
-        let idx = self.type_vars.len();
-        self.type_vars.push(var);
-        TypeVarID {
-            inner: idx,
-            type_state_key: self.key,
+#[derive(Clone)]
+pub struct TypeState {
+    pub owned: OwnedTypeState,
+    pub shared: Arc<SharedTypeState>,
+}
+
+impl TypeState {
+    pub fn fresh(shared: Arc<SharedTypeState>) -> Self {
+        let owned = OwnedTypeState::fresh();
+        let mut result = Self { shared, owned };
+        result.owned.error_type =
+            Some(result.add_type_var(TypeVar::Known(().nowhere(), KnownType::Error, vec![])));
+        result
+    }
+
+    pub fn create_child(&self) -> Self {
+        Self {
+            shared: Arc::clone(&self.shared),
+            owned: self.owned.create_child(),
         }
     }
 
+    pub fn add_type_var(&mut self, var: TypeVar) -> TypeVarID {
+        self.shared.modify_type_vars(|type_vars| {
+            let idx = type_vars.len();
+            type_vars.push(var);
+            TypeVarID {
+                inner: idx,
+                type_state_key: self.owned.key,
+            }
+        })
+    }
+
     pub fn get_equations(&self) -> &TypeEquations {
-        &self.equations
+        &self.owned.equations
     }
 
     pub fn get_constraints(&self) -> &TypeConstraints {
-        &self.constraints
+        &self.owned.constraints
     }
 
     // Get a generic list with a safe unwrap since a token is acquired
-    pub fn get_generic_list<'a>(
-        &'a self,
-        generic_list_token: &'a GenericListToken,
-    ) -> Option<&'a HashMap<NameID, TypeVarID>> {
-        self.generic_lists.get(generic_list_token)
+    pub fn get_generic_list(
+        &self,
+        generic_list_token: &GenericListToken,
+    ) -> Option<HashMap<NameID, TypeVarID>> {
+        match generic_list_token {
+            GenericListToken::Anonymous(_) | GenericListToken::ImplBlock(_, _) => self
+                .shared
+                .read_generic_lists(|lists| lists.get(generic_list_token).cloned()),
+
+            GenericListToken::Definition(_) | GenericListToken::Expression(_) => {
+                self.owned.generic_lists.get(generic_list_token).cloned()
+            }
+        }
+    }
+
+    fn modify_generic_list<T>(
+        &mut self,
+        token: &GenericListToken,
+        f: impl FnOnce(&mut GenericList) -> T,
+    ) -> T {
+        match token {
+            GenericListToken::Anonymous(_) | GenericListToken::ImplBlock(_, _) => {
+                self.shared.modify_generic_lists(|gl| {
+                    (f)(gl
+                        .get_mut(token)
+                        .expect(&format!("Did not find a generic list for {token:?}")))
+                })
+            }
+            GenericListToken::Definition(_) | GenericListToken::Expression(_) => (f)(self
+                .owned
+                .generic_lists
+                .get_mut(token)
+                .expect(&format!("Did not find a generic list for {token:?}"))),
+        }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -312,9 +347,6 @@ impl TypeState {
             {
                 Some(t) => t.clone(),
                 None => {
-                    for list_source in self.generic_lists.keys() {
-                        info!("Generic lists exist for {list_source:?}");
-                    }
                     info!("Current source is {generic_list_token:?}");
                     panic!("No entry in generic list for {name:?}");
                 }
@@ -355,7 +387,7 @@ impl TypeState {
     /// Returns the type of the expression with the specified id. Error if no equation
     /// for the specified expression exists
     pub fn type_of(&self, expr: &TypedExpression) -> TypeVarID {
-        if let Some(t) = self.equations.get(expr) {
+        if let Some(t) = self.owned.equations.get(expr) {
             *t
         } else {
             panic!("Tried looking up the type of {expr:?} but it was not found")
@@ -363,7 +395,7 @@ impl TypeState {
     }
 
     pub fn maybe_type_of(&self, expr: &TypedExpression) -> Option<&TypeVarID> {
-        self.equations.get(expr)
+        self.owned.equations.get(expr)
     }
 
     pub fn new_generic_int(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVar {
@@ -496,7 +528,8 @@ impl TypeState {
     /// state from, it is only used for the Diagnostic::bug that gets emitted if there is no
     /// pipeline state
     pub fn get_pipeline_state<T>(&self, access_loc: &Loc<T>) -> Result<&PipelineState> {
-        self.pipeline_state
+        self.owned
+            .pipeline_state
             .as_ref()
             .ok_or_else(|| diag_anyhow!(access_loc, "Expected to have a pipeline state"))
     }
@@ -574,7 +607,7 @@ impl TypeState {
         if let Some(output_type) = &entity.head.output_type {
             let tvar = self.type_var_from_hir(output_type.loc(), output_type, &generic_list)?;
 
-            self.trace_stack.push(|| {
+            self.owned.trace_stack.push(|| {
                 TraceStackEntry::Message(format!(
                     "Unifying with output type {}",
                     tvar.debug_resolve(self)
@@ -619,7 +652,7 @@ impl TypeState {
             current_stage_depth,
             pipeline_loc,
             total_depth,
-        }) = self.pipeline_state.clone()
+        }) = self.owned.pipeline_state.clone()
         {
             self.unify(&total_depth.inner, &current_stage_depth, ctx)
                 .into_diagnostic_no_expected_source(
@@ -639,7 +672,7 @@ impl TypeState {
         // since we only use stage depths in pipelines where we re-set it when we enter,
         // accidentally leaving a depth in place should not trigger any *new* compiler bugs, but
         // may help track something down
-        self.pipeline_state = None;
+        self.owned.pipeline_state = None;
 
         Ok(())
     }
@@ -654,7 +687,7 @@ impl TypeState {
     ) -> Result<()> {
         let depth_var = self.hir_type_expr_to_var(depth, generic_list)?;
         self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth_var.clone());
-        self.pipeline_state = Some(PipelineState {
+        self.owned.pipeline_state = Some(PipelineState {
             current_stage_depth: self.add_type_var(TypeVar::Known(
                 unit_kind.loc(),
                 KnownType::Integer(BigInt::zero()),
@@ -855,7 +888,7 @@ impl TypeState {
                         .into_default_diagnostic(clock, self)?;
                 }
 
-                let outer_pipeline_state = self.pipeline_state.take();
+                let outer_pipeline_state = self.owned.pipeline_state.take();
                 if let UnitKind::Pipeline {
                     depth,
                     depth_typeexpr_id,
@@ -870,7 +903,7 @@ impl TypeState {
                     )?;
                 }
                 self.visit_expression(body, ctx, generic_list);
-                self.pipeline_state = outer_pipeline_state;
+                self.owned.pipeline_state = outer_pipeline_state;
 
                 let lambda_params = arguments
                     .iter()
@@ -881,22 +914,19 @@ impl TypeState {
                         outer_generic_params
                             .iter()
                             .map(|cap| {
-                                let t = self
-                                    .get_generic_list(generic_list)
-                                    .ok_or_else(|| {
-                                        diag_anyhow!(
-                                            expression,
-                                            "Found a captured generic but no generic list"
-                                        )
-                                    })?
-                                    .get(&cap.name_in_body)
-                                    .ok_or_else(|| {
-                                        diag_anyhow!(
-                                            &cap.name_in_body,
-                                            "Did not find an entry for {} in lambda generic list",
-                                            cap.name_in_body
-                                        )
-                                    });
+                                let gl = self.get_generic_list(generic_list).ok_or_else(|| {
+                                    diag_anyhow!(
+                                        expression,
+                                        "Found a captured generic but no generic list"
+                                    )
+                                })?;
+                                let t = gl.get(&cap.name_in_body).ok_or_else(|| {
+                                    diag_anyhow!(
+                                        &cap.name_in_body,
+                                        "Did not find an entry for {} in lambda generic list",
+                                        cap.name_in_body
+                                    )
+                                });
                                 Ok(t?.clone())
                             })
                             .collect::<Result<Vec<_>>>()?
@@ -963,7 +993,7 @@ impl TypeState {
                     .commit(self, ctx)
                     .unwrap();
 
-                self.diags.errors.push(e);
+                self.owned.diags.errors.push(e);
             }
         }
     }
@@ -1429,7 +1459,7 @@ impl TypeState {
             .map(|(name, t)| (name, t.clone()))
             .collect::<HashMap<_, _>>();
 
-        self.trace_stack.push(|| {
+        self.owned.trace_stack.push(|| {
             TraceStackEntry::NewGenericList(
                 new_list
                     .iter()
@@ -1507,8 +1537,12 @@ impl TypeState {
         source: GenericListSource,
         mapping: HashMap<NameID, TypeVarID>,
     ) -> GenericListToken {
-        let reference = match source {
-            GenericListSource::Anonymous => GenericListToken::Anonymous(self.generic_lists.len()),
+        let token = match source {
+            GenericListSource::Anonymous => GenericListToken::Anonymous(
+                self.shared
+                    .next_annon_generic_list
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+            ),
             GenericListSource::Definition(name) => GenericListToken::Definition(name.clone()),
             GenericListSource::ImplBlock { target, id } => {
                 GenericListToken::ImplBlock(target.clone(), id)
@@ -1516,27 +1550,21 @@ impl TypeState {
             GenericListSource::Expression(id) => GenericListToken::Expression(id.inner),
         };
 
-        if self
-            .generic_lists
-            .insert(reference.clone(), mapping)
-            .is_some()
-        {
-            panic!("A generic list already existed for {reference:?}");
+        // TODO: There is some code duplication in here
+        let prev = match source {
+            GenericListSource::Anonymous | GenericListSource::ImplBlock { .. } => self
+                .shared
+                .modify_generic_lists(|lists| lists.insert(token.clone(), mapping)),
+            GenericListSource::Definition(_) | GenericListSource::Expression(_) => {
+                self.owned.generic_lists.insert(token.clone(), mapping)
+            }
+        };
+
+        if prev.is_some() {
+            panic!("A generic list already existed for {token:?}");
         }
-        reference
-    }
 
-    pub fn remove_generic_list(&mut self, source: GenericListSource) {
-        let reference = match source {
-            GenericListSource::Anonymous => GenericListToken::Anonymous(self.generic_lists.len()),
-            GenericListSource::Definition(name) => GenericListToken::Definition(name.clone()),
-            GenericListSource::ImplBlock { target, id } => {
-                GenericListToken::ImplBlock(target.clone(), id)
-            }
-            GenericListSource::Expression(id) => GenericListToken::Expression(id.inner),
-        };
-
-        self.generic_lists.remove(&reference.clone());
+        token
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1616,7 +1644,7 @@ impl TypeState {
 
                         match result {
                             Ok(()) => {}
-                            Err(e) => self.diags.errors.push(e),
+                            Err(e) => self.owned.diags.errors.push(e),
                         }
                     }
                 }
@@ -1845,8 +1873,11 @@ impl TypeState {
     ) -> Result<()> {
         match &stmt.inner {
             Statement::Error => {
-                if let Some(current_stage_depth) =
-                    self.pipeline_state.as_ref().map(|s| s.current_stage_depth)
+                if let Some(current_stage_depth) = self
+                    .owned
+                    .pipeline_state
+                    .as_ref()
+                    .map(|s| s.current_stage_depth)
                 {
                     current_stage_depth
                         .unify_with(&self.t_err(stmt.loc()), self)
@@ -1865,7 +1896,7 @@ impl TypeState {
                 self.visit_expression(value, ctx, generic_list);
 
                 self.visit_pattern(pattern, ctx, generic_list)
-                    .handle_in(&mut self.diags);
+                    .handle_in(&mut self.owned.diags);
 
                 self.unify(&TypedExpression::Id(pattern.id), value, ctx)
                     .into_diagnostic(
@@ -1876,20 +1907,20 @@ impl TypeState {
                         ),
                         self,
                     )
-                    .handle_in(&mut self.diags);
+                    .handle_in(&mut self.owned.diags);
 
                 if let Some(t) = ty {
                     let tvar = self.type_var_from_hir(t.loc(), t, generic_list)?;
                     self.unify(&TypedExpression::Id(pattern.id), &tvar, ctx)
                         .into_default_diagnostic(value.loc(), self)
-                        .handle_in(&mut self.diags);
+                        .handle_in(&mut self.owned.diags);
                 }
 
                 wal_trace
                     .as_ref()
                     .map(|wt| self.visit_wal_trace(wt, ctx, generic_list))
                     .transpose()
-                    .handle_in(&mut self.diags);
+                    .handle_in(&mut self.owned.diags);
 
                 Ok(())
             }
@@ -1921,6 +1952,7 @@ impl TypeState {
                 }
 
                 let current_stage_depth = self
+                    .owned
                     .pipeline_state
                     .clone()
                     .ok_or_else(|| {
@@ -1947,7 +1979,8 @@ impl TypeState {
                     Box::new(ConstraintExpr::Var(offset)),
                     Box::new(ConstraintExpr::Var(current_stage_depth)),
                 );
-                self.pipeline_state
+                self.owned
+                    .pipeline_state
                     .as_mut()
                     .expect("Expected to have a pipeline state")
                     .current_stage_depth = new_depth.clone();
@@ -1967,9 +2000,9 @@ impl TypeState {
             }
             Statement::Label(name) => {
                 let key = TypedExpression::Name(name.inner.clone());
-                let var = if !self.equations.contains_key(&key) {
+                let var = if !self.owned.equations.contains_key(&key) {
                     let var = self.new_generic_tlint(name.loc());
-                    self.trace_stack.push(|| {
+                    self.owned.trace_stack.push(|| {
                         TraceStackEntry::AddingPipelineLabel(
                             name.inner.clone(),
                             var.debug_resolve(self),
@@ -1978,8 +2011,8 @@ impl TypeState {
                     self.add_equation(key.clone(), var.clone());
                     var
                 } else {
-                    let var = self.equations.get(&key).unwrap().clone();
-                    self.trace_stack.push(|| {
+                    let var = self.owned.equations.get(&key).unwrap().clone();
+                    self.owned.trace_stack.push(|| {
                         TraceStackEntry::RecoveringPipelineLabel(
                             name.inner.clone(),
                             var.debug_resolve(self),
@@ -2003,7 +2036,7 @@ impl TypeState {
                 expr.unify_with(&self.t_bool(stmt.loc(), ctx.symtab), self)
                     .commit(self, ctx)
                     .into_default_diagnostic(expr, self)
-                    .handle_in(&mut self.diags);
+                    .handle_in(&mut self.owned.diags);
                 Ok(())
             }
             Statement::Set { target, value } => {
@@ -2013,9 +2046,9 @@ impl TypeState {
                 let inner_type = self.new_generic_type(value.loc());
                 let outer_type = TypeVar::inverted(stmt.loc(), inner_type.clone()).insert(self);
                 self.unify_expression_generic_error(target, &outer_type, ctx)
-                    .handle_in(&mut self.diags);
+                    .handle_in(&mut self.owned.diags);
                 self.unify_expression_generic_error(value, &inner_type, ctx)
-                    .handle_in(&mut self.diags);
+                    .handle_in(&mut self.owned.diags);
 
                 Ok(())
             }
@@ -2029,7 +2062,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) {
         if let Err(e) = self.visit_statement_error(stmt, ctx, generic_list) {
-            self.diags.errors.push(e);
+            self.owned.diags.errors.push(e);
         }
     }
 
@@ -2192,7 +2225,12 @@ impl TypeState {
         if !trait_reqs.is_empty() {
             let trait_list = TraitList::from_vec(trait_reqs);
 
-            let generic_list = self.generic_lists.get(generic_list_tok).unwrap();
+            let generic_list = self.get_generic_list(generic_list_tok).ok_or_else(|| {
+                diag_anyhow!(
+                    target,
+                    "Did not have a generic list when visiting trait bounds"
+                )
+            })?;
 
             let Some(tvar) = generic_list.get(&target.inner) else {
                 return Err(Diagnostic::bug(
@@ -2205,7 +2243,7 @@ impl TypeState {
                 )));
             };
 
-            self.trace_stack.push(|| {
+            self.owned.trace_stack.push(|| {
                 TraceStackEntry::AddingTraitBounds(tvar.debug_resolve(self), trait_list.clone())
             });
 
@@ -2219,8 +2257,8 @@ impl TypeState {
                 }
                 TypeVar::Unknown(loc, id, old_trait_list, _meta_type) => {
                     let new_tvar = self.add_type_var(TypeVar::Unknown(
-                        *loc,
-                        *id,
+                        loc,
+                        id,
                         old_trait_list.clone().extend(trait_list),
                         MetaType::Type,
                     ));
@@ -2231,8 +2269,9 @@ impl TypeState {
                         target.inner
                     );
 
-                    let generic_list = self.generic_lists.get_mut(generic_list_tok).unwrap();
-                    generic_list.insert(target.inner.clone(), new_tvar);
+                    self.modify_generic_list(generic_list_tok, |generic_list| {
+                        generic_list.insert(target.inner.clone(), new_tvar);
+                    });
                 }
             }
         }
@@ -2326,13 +2365,12 @@ impl TypeState {
         };
         let constraint = match constraint {
             ConstGeneric::Name(n) => {
-                let var = self
+                let gl = self
                     .get_generic_list(generic_list)
-                    .ok_or_else(|| diag_anyhow!(n, "Found no generic list"))?
-                    .get(n)
-                    .ok_or_else(|| {
-                        Diagnostic::bug(n, "Found non-generic argument in where clause")
-                    })?;
+                    .ok_or_else(|| diag_anyhow!(n, "Found no generic list"))?;
+                let var = gl.get(n).ok_or_else(|| {
+                    Diagnostic::bug(n, "Found non-generic argument in where clause")
+                })?;
                 ConstraintExpr::Var(*var)
             }
             ConstGeneric::Int(val) => ConstraintExpr::Integer(val.clone()),
@@ -2352,19 +2390,16 @@ impl TypeState {
     }
 }
 
-impl spade_common::sizes::SerializedSize for TypeState {
+impl spade_common::sizes::SerializedSize for OwnedTypeState {
     fn accumulate_size(
         &self,
         field: &[&'static str],
         into: &mut FxHashMap<Vec<&'static str>, usize>,
     ) {
         let Self {
-            type_vars,
             key,
             keys,
             equations,
-            next_typeid,
-            generic_lists,
             constraints,
             requirements: _,
             replacements,
@@ -2373,41 +2408,33 @@ impl spade_common::sizes::SerializedSize for TypeState {
             error_type,
             trace_stack: _,
             diags: _,
+            generic_lists,
         } = self;
 
-        spade_common::sizes::add_field(field, "type_vars", type_vars, into);
         spade_common::sizes::add_field(field, "key", key, into);
         spade_common::sizes::add_field(field, "keys", keys, into);
         spade_common::sizes::add_field(field, "equations", equations, into);
-        spade_common::sizes::add_field(field, "next_typeid", next_typeid, into);
-        spade_common::sizes::add_field(field, "generic_lists", generic_lists, into);
-        spade_common::sizes::add_field(
-            field,
-            "generic_lists(only annon)",
-            &generic_lists
-                .iter()
-                .filter(|(k, _)| matches!(k, GenericListToken::ImplBlock(_, _)))
-                .collect::<HashMap<_, _>>(),
-            into,
-        );
         spade_common::sizes::add_field(field, "constraints", constraints, into);
         spade_common::sizes::add_field(field, "replacements", replacements, into);
         spade_common::sizes::add_field(field, "pipeline_state", pipeline_state, into);
         spade_common::sizes::add_field(field, "error_type", error_type, into);
+        spade_common::sizes::add_field(field, "generic_lists", generic_lists, into);
     }
 }
 
 // Private helper functions
 impl TypeState {
     fn new_typeid(&self) -> u64 {
-        self.next_typeid
+        self.shared
+            .next_typeid
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn add_equation(&mut self, expression: TypedExpression, var: TypeVarID) {
-        self.trace_stack
+        self.owned
+            .trace_stack
             .push(|| TraceStackEntry::AddingEquation(expression.clone(), var.debug_resolve(self)));
-        if let Some(prev) = self.equations.insert(expression.clone(), var.clone()) {
+        if let Some(prev) = self.owned.equations.insert(expression.clone(), var.clone()) {
             let var = var.clone();
             let expr = expression.clone();
             println!("{}", format_trace_stack(self));
@@ -2426,16 +2453,18 @@ impl TypeState {
         let replaces = lhs.clone();
         let rhs = rhs.with_context(&replaces, &inside, source).at_loc(&loc);
 
-        self.trace_stack
+        self.owned
+            .trace_stack
             .push(|| TraceStackEntry::AddingConstraint(lhs.debug_resolve(self), rhs.inner.clone()));
 
-        self.constraints.add_int_constraint(lhs, rhs);
+        self.owned.constraints.add_int_constraint(lhs, rhs);
     }
 
     fn add_requirement(&mut self, requirement: Requirement) {
-        self.trace_stack
+        self.owned
+            .trace_stack
             .push(|| TraceStackEntry::AddRequirement(requirement.clone()));
-        self.requirements.push(requirement)
+        self.owned.requirements.push(requirement)
     }
 
     /// Performs unification but does not update constraints. This is done to avoid
@@ -2457,12 +2486,14 @@ impl TypeState {
             v2.debug_resolve(self)
         );
 
-        self.trace_stack
+        self.owned
+            .trace_stack
             .push(|| TraceStackEntry::TryingUnify(v1.debug_resolve(self), v2.debug_resolve(self)));
 
         macro_rules! err_producer {
             () => {{
-                self.trace_stack
+                self.owned
+                    .trace_stack
                     .push(|| TraceStackEntry::Message("Produced error".to_string()));
                 UnificationError::Normal(Tm {
                     g: UnificationTrace::new(v1),
@@ -2472,7 +2503,8 @@ impl TypeState {
         }
         macro_rules! meta_err_producer {
             () => {{
-                self.trace_stack
+                self.owned
+                    .trace_stack
                     .push(|| TraceStackEntry::Message("Produced error".to_string()));
                 UnificationError::MetaMismatch(Tm {
                     g: UnificationTrace::new(v1),
@@ -2497,7 +2529,8 @@ impl TypeState {
          -> std::result::Result<(), UnificationError> {
             if p1.len() != p2.len() {
                 return Err({
-                    s.trace_stack
+                    s.owned
+                        .trace_stack
                         .push(|| TraceStackEntry::Message("Produced error".to_string()));
                     UnificationError::Normal(Tm {
                         g: UnificationTrace::new(v1),
@@ -2510,7 +2543,8 @@ impl TypeState {
                 match s.unify_inner(t1, t2, ctx) {
                     Ok(result) => result,
                     Err(e) => {
-                        s.trace_stack
+                        s.owned
+                            .trace_stack
                             .push(|| TraceStackEntry::Message("Adding context".to_string()));
                         return Err(e).add_context(v1.clone(), v2.clone());
                     }
@@ -2688,7 +2722,8 @@ impl TypeState {
 
                 let impls = self.ensure_impls(otherid, traits, trait_is_expected, ukloc, ctx)?;
 
-                self.trace_stack
+                self.owned
+                    .trace_stack
                     .push(|| TraceStackEntry::Message("Unifying trait_parameters".to_string()));
                 let mut new_params = params.clone();
                 for (trait_impl, trait_req) in impls {
@@ -2772,7 +2807,7 @@ impl TypeState {
 
         let (new_type, replaced_types) = result?;
 
-        self.trace_stack.push(|| {
+        self.owned.trace_stack.push(|| {
             TraceStackEntry::Unified(
                 v1.debug_resolve(self),
                 v2.debug_resolve(self),
@@ -2787,10 +2822,10 @@ impl TypeState {
         for replaced_type in &replaced_types {
             if v1.inner != v2.inner {
                 let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
-                self.replacements.insert(from, to);
+                self.owned.replacements.insert(from, to);
                 if let Err(rec) = self.check_type_for_recursion(to, &mut vec![]) {
                     let err_t = self.t_err(().nowhere());
-                    self.replacements.insert(to, err_t);
+                    self.owned.replacements.insert(to, err_t);
                     return Err(UnificationError::RecursiveType(rec));
                 }
             }
@@ -2800,10 +2835,11 @@ impl TypeState {
     }
 
     pub fn can_unify(&mut self, e1: &impl HasType, e2: &impl HasType, ctx: &Context) -> bool {
-        self.trace_stack
+        self.owned
+            .trace_stack
             .push(|| TraceStackEntry::Enter("Running can_unify".to_string()));
         let result = self.do_and_restore(|s| s.unify(e1, e2, ctx)).is_ok();
-        self.trace_stack.push(|| TraceStackEntry::Exit);
+        self.owned.trace_stack.push(|| TraceStackEntry::Exit);
         result
     }
 
@@ -2822,7 +2858,8 @@ impl TypeState {
             trace!("Updating constraints");
             // NOTE: Cloning here is kind of ugly
             let new_info;
-            (self.constraints, new_info) = self
+            (self.owned.constraints, new_info) = self
+                .owned
                 .constraints
                 .clone()
                 .update_type_level_value_constraints(self);
@@ -2840,7 +2877,7 @@ impl TypeState {
 
                 let ((var, replacement), loc) = constraint.split_loc();
 
-                self.trace_stack.push(|| {
+                self.owned.trace_stack.push(|| {
                     TraceStackEntry::InferringFromConstraints(
                         var.debug_resolve(self),
                         replacement.val.clone(),
@@ -2954,7 +2991,7 @@ impl TypeState {
         trait_list_loc: &Loc<()>,
         ctx: &Context,
     ) -> std::result::Result<Vec<(TraitImpl, TraitReq)>, UnificationError> {
-        self.trace_stack.push(|| {
+        self.owned.trace_stack.push(|| {
             TraceStackEntry::EnsuringImpls(
                 var.debug_resolve(self),
                 traits.clone(),
@@ -3066,7 +3103,8 @@ impl TypeState {
                     .process_results(|it| it.partition_map(|x| x))?;
 
                 if unsatisfied.is_empty() {
-                    self.trace_stack
+                    self.owned
+                        .trace_stack
                         .push(|| TraceStackEntry::Message("Ensuring impl successful".to_string()));
                     Ok(impls)
                 } else {
@@ -3103,6 +3141,7 @@ impl TypeState {
             // is still undetermined, take note to retain that id, otherwise store the
             // replacement to be performed
             let (retain, replacements_option): (Vec<_>, Vec<_>) = self
+                .owned
                 .requirements
                 .clone()
                 .iter()
@@ -3116,7 +3155,8 @@ impl TypeState {
                         }
                     }
                     requirements::RequirementResult::Satisfied(replacement) => {
-                        self.trace_stack
+                        self.owned
+                            .trace_stack
                             .push(|| TraceStackEntry::ResolvedRequirement(req.clone()));
                         Ok((false, Some(replacement)))
                     }
@@ -3132,7 +3172,8 @@ impl TypeState {
                 .collect::<Vec<_>>();
 
             // Drop all replacements that have now been applied
-            self.requirements = self
+            self.owned.requirements = self
+                .owned
                 .requirements
                 .drain(0..)
                 .zip(retain)
@@ -3156,7 +3197,7 @@ impl TypeState {
     }
 
     pub fn get_replacement(&self, var: &TypeVarID) -> TypeVarID {
-        self.replacements.get(*var)
+        self.owned.replacements.get(*var)
     }
 
     pub fn do_and_restore<T, E>(
@@ -3172,34 +3213,38 @@ impl TypeState {
     /// Create a "checkpoint" to which we can restore later using `restore`. This acts
     /// like a stack, nested checkpoints are possible
     fn checkpoint(&mut self) {
-        self.trace_stack
+        self.owned
+            .trace_stack
             .push(|| TraceStackEntry::Enter("Creating checkpoint".to_string()));
-        self.replacements.push();
+        self.owned.replacements.push();
 
         // This is relatively expensive if these lists are large, however, for now
         // this is a much simpler solution than attempting to roll-back replaced requirements
         // later
-        self.checkpoints
-            .push((self.requirements.clone(), self.constraints.clone()));
+        self.owned.checkpoints.push((
+            self.owned.requirements.clone(),
+            self.owned.constraints.clone(),
+        ));
     }
 
     fn restore(&mut self) {
-        self.replacements.discard_top();
-        self.trace_stack.push(|| TraceStackEntry::Exit);
+        self.owned.replacements.discard_top();
+        self.owned.trace_stack.push(|| TraceStackEntry::Exit);
 
         let (requirements, constraints) = self
+            .owned
             .checkpoints
             .pop()
             .expect("Popped a checkpoint without any existing checkpoints.");
 
-        self.requirements = requirements;
-        self.constraints = constraints;
+        self.owned.requirements = requirements;
+        self.owned.constraints = constraints;
     }
 }
 
 impl TypeState {
     pub fn print_equations(&self) {
-        for (lhs, rhs) in &self.equations {
+        for (lhs, rhs) in &self.owned.equations {
             println!(
                 "{} -> {}",
                 format!("{lhs}").blue(),
@@ -3209,7 +3254,7 @@ impl TypeState {
 
         println!("\nReplacments:");
 
-        for repl_stack in &self.replacements.all() {
+        for repl_stack in &self.owned.replacements.all() {
             let replacements = { repl_stack.read().unwrap().clone() };
             for (lhs, rhs) in replacements.iter().sorted() {
                 println!(
@@ -3225,7 +3270,7 @@ impl TypeState {
 
         println!("\n Requirements:");
 
-        for requirement in &self.requirements {
+        for requirement in &self.owned.requirements {
             println!("{:?}", requirement)
         }
 
@@ -3251,7 +3296,7 @@ impl UnificationBuilder {
 pub trait HasType: std::fmt::Debug {
     fn get_type(&self, state: &TypeState) -> TypeVarID {
         self.try_get_type(state)
-            .unwrap_or(state.error_type.unwrap())
+            .unwrap_or(state.owned.error_type.unwrap())
     }
 
     fn try_get_type(&self, state: &TypeState) -> Option<TypeVarID> {
