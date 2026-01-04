@@ -21,7 +21,6 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bincode.workspace = true
 clap.workspace = true
 spade-codespan-reporting.workspace = true
 spade-codespan.workspace = true
@@ -30,6 +29,7 @@ colored.workspace = true
 indoc.workspace = true
 itertools.workspace = true
 logos.workspace = true
+postcard.workspace = true
 ron.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true

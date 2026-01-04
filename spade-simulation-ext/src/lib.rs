@@ -194,11 +194,8 @@ impl Spade {
         let state_bytes = std::fs::read(&state_path)
             .with_context(|| format!("Failed to read state file at {state_path}"))?;
 
-        let (state, _) = bincode::serde::borrow_decode_from_slice::<CompilerState, _>(
-            &state_bytes,
-            bincode::config::standard(),
-        )
-        .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?;
+        let state = postcard::from_bytes::<CompilerState>(&state_bytes)
+            .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?;
 
         let code = Rc::new(RwLock::new(CodeBundle::from_files(&state.code)));
         let mut error_buffer = Buffer::ansi();

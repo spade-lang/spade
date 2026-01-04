@@ -51,7 +51,6 @@ pub struct Opt {
     pub no_color: bool,
 
     /// Write the compiler state required to continue adding modules to the project
-    /// formatted in ron https://github.com/ron-rs/ron
     #[structopt(long)]
     pub state_dump: Option<PathBuf>,
 
