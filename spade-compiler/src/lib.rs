@@ -5,7 +5,9 @@ pub mod namespaced_file;
 
 use compiler_state::{CompilerState, MirContext};
 use error_handling::{ErrorHandler, Reportable};
+use itertools::Itertools;
 use logos::Logos;
+use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
@@ -519,6 +521,15 @@ fn lower_ast(
     }
 }
 
+struct CodegenArtefact {
+    bumpy_mir_entity: spade_mir::Entity,
+    flat_mir_entity: Codegenable,
+    local_module_code: String,
+    local_mir_code: String,
+    local_instance_map: InstanceMap,
+    local_mir_context: (NameID, MirContext),
+}
+
 #[tracing::instrument(skip_all)]
 fn codegen(
     mir_entities: Vec<Result<MirOutput, Diagnostic>>,
@@ -526,88 +537,106 @@ fn codegen(
     error_handler: &mut ErrorHandler,
     idtracker: &Arc<ExprIdTracker>,
 ) -> CodegenArtefacts {
-    let bumpy_mir_entities = Arc::new(RwLock::new(vec![]));
-    let flat_mir_entities = Arc::new(RwLock::new(vec![]));
-    let module_code = Arc::new(RwLock::new(vec![]));
-    let mir_code = Arc::new(RwLock::new(vec![]));
-    let instance_map = Arc::new(RwLock::new(InstanceMap::new()));
-    let mir_context = Arc::new(RwLock::new(HashMap::default()));
-    let errors = Arc::new(RwLock::new(vec![]));
-
-    // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
-    // defined, for example if a zero-sized wire is used.
-    module_code
-        .write()
-        .unwrap()
-        .push("`default_nettype none".into());
-
-    rayon::scope(|s| {
-        for mir in mir_entities {
-            let code = Arc::clone(&code);
-            let bumpy_mir_entities = Arc::clone(&bumpy_mir_entities);
-            let flat_mir_entities = Arc::clone(&flat_mir_entities);
-            let module_code = Arc::clone(&module_code);
-            let mir_code = Arc::clone(&mir_code);
-            let instance_map = Arc::clone(&instance_map);
-            let mir_context = Arc::clone(&mir_context);
-            let errors = Arc::clone(&errors);
-            s.spawn(move |_s| {
-                if let Some(MirOutput {
+    let codegen_results = mir_entities
+        .into_iter()
+        .filter_map(|m| match m {
+            Ok(mir) => Some(mir),
+            Err(e) => {
+                e.or_report(error_handler);
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .enumerate()
+        .filter_map(
+            |(
+                i,
+                MirOutput {
                     mir,
                     type_state,
                     reg_name_map,
-                }) = mir.map_err(|e| errors.write().unwrap().push(e)).ok()
+                },
+            )| {
+                // Codegen breaks if not all statements are valid, and since we don't need
+                // codegen if there are errors, we can safely bail from codegen of units with errors
+                if mir
+                    .statements
+                    .iter()
+                    .any(|stmt| matches!(stmt, spade_mir::Statement::Error))
                 {
-                    // Codegen breaks if not all statements are valid, and since we don't need
-                    // codegen if there are errors, we can safely bail from codegen of units with errors
-                    if mir
-                        .statements
-                        .iter()
-                        .any(|stmt| matches!(stmt, spade_mir::Statement::Error))
-                    {
-                        return;
-                    }
-                    bumpy_mir_entities.write().unwrap().push(mir.clone());
-
-                    let codegenable = prepare_codegen(mir, idtracker);
-
-                    let mut local_instance_map = InstanceMap::new();
-                    let code = spade_mir::codegen::entity_code(
-                        &codegenable,
-                        &mut local_instance_map,
-                        &Some(code.read().unwrap().clone()),
-                    );
-                    instance_map.write().unwrap().extend(local_instance_map);
-
-                    mir_code.write().unwrap().push(format!("{}", codegenable.0));
-
-                    flat_mir_entities.write().unwrap().push(codegenable.clone());
-
-                    let (code, name_map) = code;
-                    module_code.write().unwrap().push(code.to_string());
-
-                    mir_context.write().unwrap().insert(
-                        codegenable.0.name.source,
-                        MirContext {
-                            reg_name_map: reg_name_map.clone(),
-                            type_state,
-                            verilog_name_map: name_map,
-                        },
-                    );
+                    return None;
                 }
-            });
-        }
-    });
-    let bumpy_mir_entities = std::mem::replace(&mut *bumpy_mir_entities.write().unwrap(), vec![]);
-    let flat_mir_entities = std::mem::replace(&mut *flat_mir_entities.write().unwrap(), vec![]);
-    let module_code = std::mem::replace(&mut *module_code.write().unwrap(), vec![]);
-    let mir_code = std::mem::replace(&mut *mir_code.write().unwrap(), Default::default());
-    let instance_map = std::mem::replace(&mut *instance_map.write().unwrap(), Default::default());
-    let mir_context = std::mem::replace(&mut *mir_context.write().unwrap(), Default::default());
+                let bumpy_mir_entity = mir.clone();
 
-    for error in errors.write().unwrap().drain(..) {
-        error.or_report(error_handler);
+                let codegenable = prepare_codegen(mir, idtracker);
+
+                let mut local_instance_map = InstanceMap::new();
+                let code = spade_mir::codegen::entity_code(
+                    &codegenable,
+                    &mut local_instance_map,
+                    &Some(code.read().unwrap().clone()),
+                );
+
+                let flat_mir_entity = codegenable.clone();
+
+                let (code, name_map) = code;
+
+                let mir_context = (
+                    codegenable.0.name.source.clone(),
+                    MirContext {
+                        reg_name_map: reg_name_map.clone(),
+                        type_state,
+                        verilog_name_map: name_map,
+                    },
+                );
+                Some((
+                    i,
+                    CodegenArtefact {
+                        bumpy_mir_entity,
+                        flat_mir_entity,
+                        local_module_code: code.to_string(),
+                        local_mir_code: codegenable.0.to_string(),
+                        local_instance_map,
+                        local_mir_context: mir_context,
+                    },
+                ))
+            },
+        )
+        .collect::<Vec<_>>();
+
+    let mut bumpy_mir_entities = Vec::with_capacity(codegen_results.len());
+    let mut flat_mir_entities = Vec::with_capacity(codegen_results.len());
+    let mut module_code = Vec::with_capacity(codegen_results.len());
+    let mut mir_code = Vec::with_capacity(codegen_results.len());
+    let mut instance_map = InstanceMap::new();
+    let mut mir_context = HashMap::default();
+
+    for CodegenArtefact {
+        bumpy_mir_entity,
+        flat_mir_entity,
+        local_module_code,
+        local_mir_code,
+        local_instance_map,
+        local_mir_context,
+    } in codegen_results
+        .into_iter()
+        .sorted_by_key(|(k, _)| *k)
+        .map(|(_, v)| v)
+    {
+        bumpy_mir_entities.push(bumpy_mir_entity);
+        flat_mir_entities.push(flat_mir_entity);
+        module_code.push(local_module_code);
+        mir_code.push(local_mir_code);
+        instance_map
+            .inner
+            .extend(&mut local_instance_map.inner.into_iter());
+        mir_context.insert(local_mir_context.0, local_mir_context.1);
     }
+
+    // Acts as a sanity check to catch if we ever attempt to use a wire that isn't
+    // defined, for example if a zero-sized wire is used.
+    module_code.push("`default_nettype none".into());
 
     CodegenArtefacts {
         bumpy_mir_entities,

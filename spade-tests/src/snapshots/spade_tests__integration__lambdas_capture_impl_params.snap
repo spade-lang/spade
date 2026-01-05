@@ -2,17 +2,17 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \impl#1::call[39] ((self, self_n31, {}), (args, args_n32, ())) -> () {
-	const e4: uint<8> = 5
-	let x_n22: uint<8> = Alias(e4)
-} => e6
+entity \test () -> () {
+	let e13: {} = ConstructTuple()
+	let e12: () = Instance(\impl#0::test[38] )(e13)
+} => e12
 entity \impl#0::test[38] ((self, self_n21, {})) -> () {
 	let e3: {} = ConstructTuple()
 	let e9: () = ConstructTuple()
 	let e2: () = Instance(\impl#1::call[39] )(e3, e9)
 	let l_n33: () = Alias(e2)
 } => e1
-entity \test () -> () {
-	let e13: {} = ConstructTuple()
-	let e12: () = Instance(\impl#0::test[38] )(e13)
-} => e12
+entity \impl#1::call[39] ((self, self_n31, {}), (args, args_n32, ())) -> () {
+	const e4: uint<8> = 5
+	let x_n22: uint<8> = Alias(e4)
+} => e6

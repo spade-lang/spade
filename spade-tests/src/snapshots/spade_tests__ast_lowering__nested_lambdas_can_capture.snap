@@ -2,6 +2,22 @@
 source: spade-tests/src/ast_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
+entity \test () -> () {
+	const e2: uint<8> = 0
+	let x_n14: uint<8> = Alias(e2)
+	let e5: {x: uint<8>} = ConstructTuple(x_n14)
+	let e22: () = ConstructTuple()
+	let e4: () = Instance(\impl#1::call[45] )(e5, e22)
+	let l2_n40: () = Alias(e4)
+} => e1
+entity \impl#0::call[46] ((self, self_n27, {x: uint<8>, z: uint<8>}), (args, args_n28, ())) -> () {
+	let e32: uint<8> = IndexTuple(0)(self_n27)
+	let x_n14: uint<8> = Alias(e32)
+	let e35: uint<8> = IndexTuple(1)(self_n27)
+	let z_n15: uint<8> = Alias(e35)
+	let e10: (uint<8>, uint<8>) = ConstructTuple(x_n14, z_n15)
+	let y_n16: (uint<8>, uint<8>) = Alias(e10)
+} => e14
 entity \impl#1::call[45] ((self, self_n38, {x: uint<8>}), (args, args_n39, ())) -> () {
 	let e29: uint<8> = IndexTuple(0)(self_n38)
 	let x_n14: uint<8> = Alias(e29)
@@ -12,19 +28,3 @@ entity \impl#1::call[45] ((self, self_n38, {x: uint<8>}), (args, args_n39, ())) 
 	let e8: () = Instance(\impl#0::call[46] )(e9, e17)
 	let l_n29: () = Alias(e8)
 } => e19
-entity \impl#0::call[46] ((self, self_n27, {x: uint<8>, z: uint<8>}), (args, args_n28, ())) -> () {
-	let e32: uint<8> = IndexTuple(0)(self_n27)
-	let x_n14: uint<8> = Alias(e32)
-	let e35: uint<8> = IndexTuple(1)(self_n27)
-	let z_n15: uint<8> = Alias(e35)
-	let e10: (uint<8>, uint<8>) = ConstructTuple(x_n14, z_n15)
-	let y_n16: (uint<8>, uint<8>) = Alias(e10)
-} => e14
-entity \test () -> () {
-	const e2: uint<8> = 0
-	let x_n14: uint<8> = Alias(e2)
-	let e5: {x: uint<8>} = ConstructTuple(x_n14)
-	let e22: () = ConstructTuple()
-	let e4: () = Instance(\impl#1::call[45] )(e5, e22)
-	let l2_n40: () = Alias(e4)
-} => e1

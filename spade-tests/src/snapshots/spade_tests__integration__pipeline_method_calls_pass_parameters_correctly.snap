@@ -2,6 +2,12 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
+entity \test ((clk, clk_n21, bool)) -> () {
+	const e8: uint<8> = 2
+	let e7: {x: uint<8>} = ConstructTuple(e8)
+	const e10: uint<16> = 3
+	let e6: () = Instance(\impl#0::a )(e7, clk_n21, e10)
+} => e6
 entity \impl#0::a ((self, self_n18, {x: uint<8>}), (clk, clk_n19, bool), (val, val_n20, uint<16>)) -> () {
 	reg(clk_n19) s1_self_n26: {x: uint<8>} = self_n18
 	reg(clk_n19) s1_val_n27: uint<16> = val_n20
@@ -10,9 +16,3 @@ entity \impl#0::a ((self, self_n18, {x: uint<8>}), (clk, clk_n19, bool), (val, v
 	reg(clk_n19) s3_self_n30: {x: uint<8>} = s2_self_n28
 	reg(clk_n19) s3_val_n31: uint<16> = s2_val_n29
 } => e3
-entity \test ((clk, clk_n21, bool)) -> () {
-	const e8: uint<8> = 2
-	let e7: {x: uint<8>} = ConstructTuple(e8)
-	const e10: uint<16> = 3
-	let e6: () = Instance(\impl#0::a )(e7, clk_n21, e10)
-} => e6

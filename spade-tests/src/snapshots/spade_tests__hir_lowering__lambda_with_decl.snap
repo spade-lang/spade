@@ -2,11 +2,11 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \impl#0::call[27] ((self, self_n21, {}), (args, args_n22, ())) -> () {
-} => e3
 entity \test () -> () {
 	let e2: {} = ConstructTuple()
 	let x_n14: {} = Alias(e2)
 	let e9: () = ConstructTuple()
 	let e7: () = Instance(\impl#0::call[27] )(x_n14, e9)
 } => e1
+entity \impl#0::call[27] ((self, self_n21, {}), (args, args_n22, ())) -> () {
+} => e3
