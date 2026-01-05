@@ -2,12 +2,6 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \test () -> () {
-	let e10: uint<8> = Instance(\generic[32] )()
-	let a_n26: uint<8> = Alias(e10)
-	let e12: uint<8> = Instance(\generic[33] )()
-	let b_n27: uint<8> = Alias(e12)
-} => e9
 entity \generic[32] () -> uint<8> {
 	let e3: {} = ConstructTuple()
 	let e8: () = ConstructTuple()
@@ -18,6 +12,12 @@ entity \generic[33] () -> uint<8> {
 	let e8: () = ConstructTuple()
 	let e2: uint<8> = Instance(\impl#0::call[35] )(e3, e8)
 } => e2
+entity \test () -> () {
+	let e10: uint<8> = Instance(\generic[32] )()
+	let a_n26: uint<8> = Alias(e10)
+	let e12: uint<8> = Instance(\generic[33] )()
+	let b_n27: uint<8> = Alias(e12)
+} => e9
 entity \impl#0::call[34] ((self, self_n24, {}), (args, args_n25, ())) -> uint<8> {
 	const e4: uint<8> = 10
 } => e4

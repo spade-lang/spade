@@ -1,11 +1,13 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::{Arc, Condvar, Mutex, RwLock};
+use std::sync::atomic::AtomicU64;
+use std::sync::{Arc, Mutex, RwLock};
 
 use itertools::Itertools;
 use mir::passes::MirPass;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::location_info::Loc;
 use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name::NameID};
+use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::Unit;
@@ -39,6 +41,25 @@ pub struct MonoItem {
     pub params: Vec<KnownTypeVar>,
 }
 
+impl MonoItem {
+    fn key(&self) -> MonoKey {
+        MonoKey {
+            span: self.source_name.span,
+            source_name: self.source_name.clone(),
+            params: self.params.clone(),
+        }
+    }
+}
+
+/// Used to get determinisitic ordering of units in the output, primarily to simplify
+/// MIR testing
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MonoKey {
+    source_name: Loc<NameID>,
+    params: Vec<KnownTypeVar>,
+    span: Span,
+}
+
 pub struct MonoStateInner {
     /// List of mono items left to compile
     to_compile: VecDeque<MonoItem>,
@@ -47,15 +68,14 @@ pub struct MonoStateInner {
     /// Locations in the code where compilation of the Mono item was requested. None
     /// if this is non-generic
     request_points: HashMap<MonoItem, Option<(MonoItem, Loc<()>)>>,
-
-    /// Number of items which we we have requested compilation of but which have not
-    /// been completed yet.
-    works_in_progress: u64,
 }
 
 pub struct MonoState {
     inner: Mutex<MonoStateInner>,
-    cond: Condvar,
+
+    /// The number of units we have asked to compile but not finished compiling. Used
+    /// to ensure that we compile everything and don't exit the queue thread early
+    remaining_units: AtomicU64,
 }
 
 impl Default for MonoState {
@@ -70,12 +90,11 @@ impl MonoState {
             to_compile: VecDeque::new(),
             translation: BTreeMap::new(),
             request_points: HashMap::default(),
-            works_in_progress: 0,
         };
 
         MonoState {
             inner: Mutex::new(inner),
-            cond: Condvar::new(),
+            remaining_units: AtomicU64::new(0),
         }
     }
 
@@ -127,30 +146,37 @@ impl MonoState {
                 );
                 inner.to_compile.push_back(item);
 
-                self.cond.notify_all();
+                self.remaining_units
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
                 new_name
             }
         }
     }
 
-    fn report_done(&self) {
-        self.inner.lock().unwrap().works_in_progress -= 1;
-        self.cond.notify_all();
-    }
-
     fn next_target(&self) -> Option<MonoItem> {
-        let mut inner = self.inner.lock().unwrap();
-
         loop {
-            if let Some(result) = inner.to_compile.pop_front() {
-                inner.works_in_progress += 1;
+            let next = self.inner.lock().unwrap().to_compile.pop_front();
+            if let Some(result) = next {
                 return Some(result);
+            } else {
+                match rayon::yield_now() {
+                    Some(rayon::Yield::Idle) => {
+                        if self
+                            .remaining_units
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                            == 0
+                        {
+                            break None;
+                        }
+                    }
+                    Some(rayon::Yield::Executed) => {}
+                    None => {
+                        println!("next_target was called without a thread pool");
+                        break None;
+                    }
+                }
             }
-            if inner.works_in_progress == 0 {
-                return None;
-            }
-            inner = self.cond.wait(inner).unwrap();
         }
     }
 
@@ -221,7 +247,7 @@ pub fn compile_items(
     {
         let result = Arc::clone(&result);
         let state = Arc::clone(&state);
-        rayon::scope(move |s| {
+        rayon::scope_fifo(move |s| {
             while let Some(item) = state.next_target() {
                 let state = Arc::clone(&state);
                 let name_source_map = Arc::clone(&name_source_map);
@@ -229,8 +255,9 @@ pub fn compile_items(
                 let idtracker = Arc::clone(&idtracker);
                 let body_replacements = Arc::clone(&body_replacements);
 
-                s.spawn(move |_s| {
-                    monoprhipze_item(
+                s.spawn_fifo(move |_s| {
+                    let key = item.key();
+                    let local = monoprhipze_item(
                         item,
                         items,
                         body_replacements,
@@ -241,16 +268,31 @@ pub fn compile_items(
                         impl_type_state,
                         &name_source_map,
                         opt_passes,
-                        &result,
                     );
-                    state.report_done();
+
+                    state
+                        .remaining_units
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+
+                    match local {
+                        Ok(Some(u)) => result.write().unwrap().push((key, Ok(u))),
+                        Ok(None) => {}
+                        Err(errs) => result
+                            .write()
+                            .unwrap()
+                            .extend(errs.into_iter().map(|e| (key.clone(), Err(e)))),
+                    }
                 });
             }
         });
     }
     let mut result = result.write().unwrap();
-    let result = std::mem::replace(&mut *result, vec![]);
+    let result = std::mem::take(&mut *result);
     result
+        .into_iter()
+        .sorted_by_key(|(k, _)| k.clone())
+        .map(|(_, v)| v)
+        .collect::<Vec<_>>()
 }
 
 fn monoprhipze_item(
@@ -264,9 +306,7 @@ fn monoprhipze_item(
     impl_type_state: &TypeState,
     name_source_map: &Arc<RwLock<NameSourceMap>>,
     opt_passes: &[&(dyn MirPass + Send + Sync)],
-
-    result: &RwLock<Vec<Result<MirOutput>>>,
-) {
+) -> std::result::Result<Option<MirOutput>, Vec<Diagnostic>> {
     let original_item = items.get(&item.source_name.inner);
 
     let mut reg_name_map = BTreeMap::new();
@@ -283,13 +323,7 @@ fn monoprhipze_item(
                         unit = u;
                         &unit
                     }
-                    Err(e) => {
-                        result
-                            .write()
-                            .unwrap()
-                            .push(Err(state.add_mono_traceback(e, &item)));
-                        return;
-                    }
+                    Err(e) => return Err(vec![state.add_mono_traceback(e, &item)]),
                 };
 
                 (
@@ -384,27 +418,20 @@ fn monoprhipze_item(
                     println!("{}", format_trace_stack(&type_state));
                 }
 
-                let mut failed = false;
+                let mut errors = vec![];
                 for diag in type_state.diags.drain() {
-                    result
-                        .write()
-                        .unwrap()
-                        .push(Err(state.add_mono_traceback(diag, &item)));
-                    failed = true
+                    errors.push(state.add_mono_traceback(diag, &item));
                 }
 
                 match revisit_result {
                     Ok(_) => {}
                     Err(e) => {
-                        result
-                            .write()
-                            .unwrap()
-                            .push(Err(state.add_mono_traceback(e, &item)));
-                        failed = true
+                        errors.push(state.add_mono_traceback(e, &item));
                     }
                 }
-                if failed {
-                    return;
+
+                if !errors.is_empty() {
+                    return Err(errors);
                 }
 
                 let tok = Some(GenericListToken::Definition(u.name.name_id().inner.clone()));
@@ -418,14 +445,13 @@ fn monoprhipze_item(
             let mut u = u.clone();
 
             macro_rules! run_pass (
-            ($pass:expr) => {
-                let pass_result = u.apply(&mut $pass);
-                if let Err(e) = pass_result {
-                    result.write().unwrap().push(Err(e));
-                    return;
-                }
-            };
-        );
+                ($pass:expr) => {
+                    let pass_result = u.apply(&mut $pass);
+                    if let Err(e) = pass_result {
+                        return Err(vec![e]);
+                    }
+                };
+            );
 
             run_pass!(LowerLambdaDefs {
                 type_state: &mut type_state,
@@ -474,13 +500,13 @@ fn monoprhipze_item(
                 self_mono_item,
                 opt_passes,
             )
-            .map_err(|e| state.add_mono_traceback(e, &item))
+            .map_err(|e| vec![state.add_mono_traceback(e, &item)])
             .map(|mir| MirOutput {
                 mir,
                 type_state: type_state.clone(),
                 reg_name_map,
             });
-            result.write().unwrap().push(out);
+            out.map(Some)
         }
         Some((ExecutableItem::StructInstance, _)) => {
             panic!("Requesting compilation of struct instance as module")
@@ -491,6 +517,6 @@ fn monoprhipze_item(
         Some((ExecutableItem::ExternUnit(_, _), _)) => {
             panic!("Requesting compilation of extern unit")
         }
-        None => {}
+        None => Ok(None),
     }
 }
