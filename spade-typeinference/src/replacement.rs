@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use serde::{Deserialize, Serialize};
 use spade_common::cloning_rwlock::CloningRWLock;
@@ -7,13 +7,13 @@ use crate::equation::TypeVarID;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Replacements {
-    replacements: CloningRWLock<BTreeMap<TypeVarID, TypeVarID>>,
+    replacements: CloningRWLock<HashMap<TypeVarID, TypeVarID>>,
 }
 
 impl Replacements {
     fn new() -> Self {
         Replacements {
-            replacements: CloningRWLock::new(BTreeMap::new()),
+            replacements: CloningRWLock::new(HashMap::default()),
         }
     }
 }
@@ -73,7 +73,7 @@ impl ReplacementStack {
         target
     }
 
-    pub fn all(&self) -> Vec<&CloningRWLock<BTreeMap<TypeVarID, TypeVarID>>> {
+    pub fn all(&self) -> Vec<&CloningRWLock<HashMap<TypeVarID, TypeVarID>>> {
         self.inner.iter().map(|var| &var.replacements).collect()
     }
 }
