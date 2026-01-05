@@ -14,6 +14,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct TraceStack {
+    run: bool,
     entries: CloningRWLock<Vec<TraceStackEntry>>,
 }
 
@@ -26,6 +27,7 @@ impl Default for TraceStack {
 impl TraceStack {
     pub fn new() -> Self {
         Self {
+            run: std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok(),
             entries: CloningRWLock::new(vec![]),
         }
     }
@@ -34,7 +36,7 @@ impl TraceStack {
     // not going to be used
     #[inline]
     pub fn push(&self, entry_gen: impl Fn() -> TraceStackEntry) {
-        if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
+        if self.run {
             self.entries.write().unwrap().push((entry_gen)())
         }
     }
