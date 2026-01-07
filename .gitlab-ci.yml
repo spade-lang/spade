@@ -156,7 +156,7 @@ test:swim-test-errors:
         - export PATH=$PATH:$CARGO_HOME/bin/
         - python3 snapshot.py
 
-# Build static binaries of spade and vcd-translate
+# Build static binaries of spade 
 build:static:
   image: "rust:$RUST_VERSION-alpine"
   stage: test
@@ -165,11 +165,9 @@ build:static:
   script:
     - cargo build --locked --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
     - strip target/x86_64-unknown-linux-musl/release/spade
-    - strip target/x86_64-unknown-linux-musl/release/vcd-translate
   artifacts:
     paths:
       - target/x86_64-unknown-linux-musl/release/spade
-      - target/x86_64-unknown-linux-musl/release/vcd-translate
       - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/cxxbridge/include/spade-cxx/src/spade.rs.*
       - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
 
