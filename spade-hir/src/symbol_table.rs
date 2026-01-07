@@ -9,9 +9,7 @@ use spade_common::name::{Identifier, NameID, Path, PathPrefix, PathSegment, Visi
 use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
-use crate::{
-    FunctionKind, ParameterList, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
-};
+use crate::{FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec, UnitHead, UnitKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LookupError {
@@ -427,7 +425,7 @@ pub enum TypeSymbol {
     GenericMeta(MetaType),
     /// A type alias. This is lowered during initial AST lowering, so subsequent compilation
     /// stages can bail on finding this
-    Alias(Loc<TypeExpression>),
+    Alias(Loc<TypeSpec>),
 }
 
 /// The declaration/definition status of a variable

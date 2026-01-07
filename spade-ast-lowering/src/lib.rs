@@ -6,6 +6,7 @@ mod impls;
 mod lambda;
 pub mod pipelines;
 pub mod testutil;
+mod type_alias;
 mod type_level_if;
 pub mod types;
 
@@ -385,17 +386,7 @@ pub fn visit_type_spec(
                         Ok(hir::TypeSpec::Generic(base_id.at_loc(path)))
                     }
                 }
-                TypeSymbol::Alias(expr) => match &expr.inner {
-                    TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
-                    TypeExpression::Integer(_) | TypeExpression::ConstGeneric(_) | TypeExpression::String(_) => {
-                        Err(Diagnostic::error(
-                            t,
-                            "Type aliases to integers, strings and const generics are currently unsupported",
-                        )
-                        .primary_label("Alias to non-type")
-                        .secondary_label(expr, "Type alias points here"))
-                    }
-                },
+                TypeSymbol::Alias(expr) => Ok(expr.inner.clone()),
             }
         }
         ast::TypeSpec::Array { inner, size } => {

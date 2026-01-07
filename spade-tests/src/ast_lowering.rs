@@ -536,6 +536,144 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    struct_self_pattern_works,
+    "
+        struct Foo<T, U, #uint N> {
+            t: T,
+            u: [U; N],
+        }
+
+        impl<T> Foo<T, bool, 2> {
+            fn foo(self) -> (T, [bool; 2]) {
+                match self {
+                    Self$(t, u) => (t, u),
+                }
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    struct_self_pattern_replaced_types_work,
+    "
+        struct Foo<T, U, #uint N> {
+            t: T,
+            u: [U; N],
+        }
+
+        impl<T> Foo<T, bool, 2> {
+            fn foo(self) -> (T, [bool; 2]) {
+                match self {
+                    Self$(t, u: [(), ()]) => (t, false),
+                }
+            }
+        }
+    "
+}
+
+code_compiles! {
+    struct_self_constructor_works,
+    "
+        struct Foo<T, U, #uint N> {
+            t: T,
+            u: [U; N],
+        }
+
+        impl<T> Foo<T, bool, 2> {
+            fn foo(self, t: T) -> Self {
+                Self$(t, u: [true, false])
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    struct_self_constructor_replaced_types_work,
+    "
+        struct Foo<T, U, #uint N> {
+            t: T,
+            u: [U; N],
+        }
+
+        impl<T> Foo<T, bool, 2> {
+            fn foo(self, t: T) -> Self {
+                Self$(t, u: [(), ()])
+            }
+        }
+    "
+}
+
+code_compiles! {
+    enum_self_pattern_works,
+    "
+        enum Maybe<L, R, #uint N> {
+            Left { val: [L; N] },
+            Right { val : [R; N] },
+        }
+
+        impl<T> Maybe<T, bool, 2> {
+            fn foo(self, t: T) -> ([T; 2], [bool; 2]) {
+                match self {
+                    Self::Left$(val) => (val, [true, false]),
+                    Self::Right$(val) => ([t, t], val),
+                }
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    enum_self_pattern_replaced_types_work,
+    "
+        enum Maybe<L, R, #uint N> {
+            Left { val: [L; N] },
+            Right { val : [R; N] },
+        }
+
+        impl<T> Maybe<T, bool, 2> {
+            fn foo(self, t: T) -> ([T; 2], [(); 2]) {
+                match self {
+                    Self::Left$(val) => (val, [(), ()]),
+                    Self::Right$(val) => ([t, t], val),
+                }
+            }
+        }
+    "
+}
+
+code_compiles! {
+    enum_self_constructor_works,
+    "
+        enum Maybe<L, R, #uint N> {
+            Left { val: [L; N] },
+            Right { val : [R; N] },
+        }
+
+        impl<T> Maybe<T, bool, 2> {
+            fn foo(self, t: T, u: bool) -> [Self; 2] {
+                [Self::Left([t, t]), Self::Right([u, u])]
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    enum_self_constructor_replaced_types_work,
+    "
+        enum Maybe<L, R, #uint N> {
+            Left { val: [L; N] },
+            Right { val : [R; N] },
+        }
+
+        impl<T> Maybe<T, bool, 2> {
+            fn foo(self, t: T, u: ()) -> [Self; 2] {
+                [Self::Left([t, t]), Self::Right([u, u])]
+            }
+        }
+    "
+}
+
 #[test]
 fn global_use_statements_work_across_modules() {
     let code = r#"

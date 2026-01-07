@@ -1,0 +1,28 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct Foo<T, U, #uint N> {
+    t: T,
+    u: [U; N],
+}
+
+impl<T> Foo<T, bool, 2> {
+    fn foo(self, t: T) -> Self {
+        Self$(t, u: [(), ()])
+    }
+}
+
+
+error: Argument type mismatch. Expected [bool; 2] got [(); 2]
+  ┌─ testinput:8:21
+  │
+8 │         Self$(t, u: [(), ()])
+  │                     ^^^^^^^^
+  │                     ││
+  │                     │Type () inferred here
+  │                     expected [bool; 2]
+  │
+  = note: Expected: bool
+                in: [bool; 2]
+               Got: ()
+                in: [(); 2]

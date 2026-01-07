@@ -1,0 +1,36 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+enum Maybe<L, R, #uint N> {
+    Left { val: [L; N] },
+    Right { val : [R; N] },
+}
+
+impl<T> Maybe<T, bool, 2> {
+    fn foo(self, t: T) -> ([T; 2], [(); 2]) {
+        match self {
+            Self::Left$(val) => (val, [(), ()]),
+            Self::Right$(val) => ([t, t], val),
+        }
+    }
+}
+
+
+error: Match branches have incompatible type
+   ┌─ testinput:10:34
+   │
+ 3 │     Right { val : [R; N] },
+   │                   ------ Type bool inferred here
+   ·
+ 9 │             Self::Left$(val) => (val, [(), ()]),
+   │                                 ---------------
+   │                                 │      │
+   │                                 │      Type () inferred here
+   │                                 But this one has type ([_; 2], [bool; 2])
+10 │             Self::Right$(val) => ([t, t], val),
+   │                                  ^^^^^^^^^^^^^ This branch has type ([_; 2], [(); 2])
+   │
+   = note: Expected: bool
+                 in: ([_; 2], [bool; 2])
+                Got: ()
+                 in: ([_; 2], [(); 2])
