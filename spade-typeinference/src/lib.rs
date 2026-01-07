@@ -144,7 +144,7 @@ pub struct OwnedTypeState {
     // `#[serde(skip)] is set internally
     constraints: TypeConstraints,
 
-    /// Contains generic lists containing Expression and Definition lists. Impl and annonymous lists
+    /// Contains generic lists containing Expression and Definition lists. Impl and anonymous lists
     /// are stored in the shared state
     generic_lists: GenericLists,
 
@@ -1550,7 +1550,6 @@ impl TypeState {
             GenericListSource::Expression(id) => GenericListToken::Expression(id.inner),
         };
 
-        // TODO: There is some code duplication in here
         let prev = match source {
             GenericListSource::Anonymous | GenericListSource::ImplBlock { .. } => self
                 .shared

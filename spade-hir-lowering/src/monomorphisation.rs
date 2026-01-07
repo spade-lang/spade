@@ -52,7 +52,7 @@ impl MonoItem {
     }
 }
 
-/// Used to get determinisitic ordering of units in the output, primarily to simplify
+/// Used to get deterministic ordering of units in the output, primarily to simplify
 /// MIR testing
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MonoKey {
