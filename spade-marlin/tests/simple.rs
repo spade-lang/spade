@@ -12,6 +12,7 @@ mod u48_passthrough {
     struct Uut;
 
     #[test]
+    #[snafu::report]
     fn u48_passhtrough() -> Result<(), Whatever> {
 
         let runtime = SpadeRuntime::new(Default::default())?;
@@ -31,6 +32,7 @@ mod u48_passthrough {
 
 
 #[test]
+#[snafu::report]
 fn option_out_works() -> Result<(), Whatever> {
     #[spade_marlin(top = "spade_marlin::option_out")]
     struct OptionOut;
@@ -56,6 +58,7 @@ fn option_out_works() -> Result<(), Whatever> {
 }
 
 #[test]
+#[snafu::report]
 fn option_in_works() -> Result<(), Whatever> {
     #[spade_marlin(top = "spade_marlin::option_passthrough")]
     struct Uut;
@@ -74,6 +77,7 @@ fn option_in_works() -> Result<(), Whatever> {
 
 
 #[test]
+#[snafu::report]
 fn tuple_out_works() -> Result<(), Whatever> {
     #[spade_marlin(top = "spade_marlin::tuple_out")]
     struct TupleOut;
@@ -94,3 +98,21 @@ fn tuple_out_works() -> Result<(), Whatever> {
     Ok(())
 }
 
+#[test]
+#[snafu::report]
+fn enum_out_works() -> Result<(), Whatever> {
+    #[spade_marlin(top = "spade_marlin::enum_out")]
+    struct Uut;
+
+    let runtime = SpadeRuntime::new(Default::default())?;
+
+    let mut main = Uut::new_simple(&runtime)?;
+
+    main.i.variant = 0u32.into();
+    main.i.x = 1u32.into();
+    main.i.y = 2u32.into();
+
+    // TODO: Finish these tests
+
+    Ok(())
+}

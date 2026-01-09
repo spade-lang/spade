@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::type_ext::IntoU32s;
 
 pub trait SpadeType: Default {

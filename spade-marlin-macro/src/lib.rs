@@ -156,7 +156,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             .into_compile_error()
             .into();
         }
-        spade_hir::ExecutableItem::EnumInstance { base_enum, variant } => {
+        spade_hir::ExecutableItem::EnumInstance { .. } => {
             return syn::Error::new_spanned(
                 args.top,
                 format!("Top unit is an enum variant, which cannot be tested"),
