@@ -17,3 +17,18 @@ entity option_passthrough(input: Option<uint<6>>, result: inv &Option<uint<6>>) 
 entity tuple_out(x: uint<8>, y: uint<16>, result: inv &(uint<8>, uint<16>)) {
     set result = &(x, y);
 }
+
+enum EnumOut {
+    Zero,
+    One{x: uint<8>},
+    Two{y: uint<16>},
+    Three{x: uint<8>, y: uint<16>}
+}
+entity enum_out(variant: uint<2>, x: uint<8>, y: uint<16>, result: inv &EnumOut) {
+    set result = &match variant {
+        0 => EnumOut::Zero,
+        1 => EnumOut::One(x),
+        2 => EnumOut::Two(y),
+        3 => EnumOut::Three(x, y),
+    };
+}
