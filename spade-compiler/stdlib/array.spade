@@ -19,6 +19,7 @@ pub fn interleave_arrays<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
 }
 
 impl<T, #uint N> [T; N] {
+    #[inline]
     pub fn concat<#uint M>(self, other: [T; M]) -> [T; {M + N}] {
         self `concat_arrays` other
     }

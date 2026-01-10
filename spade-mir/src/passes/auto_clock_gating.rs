@@ -1,7 +1,7 @@
 use num::BigUint;
 use spade_common::{id_tracker::ExprIdTracker, location_info::Loc, num_ext::InfallibleToBigUint};
 
-use crate::{types::Type, Binding, Operator, Register, Statement, ValueName};
+use crate::{types::Type, Binding, Entity, Operator, Register, Statement, ValueName};
 
 use super::MirPass;
 
@@ -142,6 +142,7 @@ impl MirPass for AutoGating {
         &self,
         stmts: &[Statement],
         expr_idtracker: &ExprIdTracker,
+        _entity: &Entity,
     ) -> Vec<Statement> {
         stmts
             .iter()

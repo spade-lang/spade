@@ -1,7 +1,7 @@
 use num::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::{Binding, Operator, Statement, ValueName};
+use crate::{Binding, Entity, Operator, Statement, ValueName};
 
 use super::MirPass;
 
@@ -16,6 +16,7 @@ impl MirPass for DeduplicateMutWires {
         &self,
         stmts: &[Statement],
         _expr_idtracker: &spade_common::id_tracker::ExprIdTracker,
+        _entity: &Entity,
     ) -> Vec<Statement> {
         replace_duplicate_mut_wires(stmts)
     }
@@ -273,8 +274,11 @@ mod tests {
         };
 
         let mut deduplicated = input.clone();
-        deduplicated.statements = DeduplicateMutWires {}
-            .transform_statements(&input.statements, &mut ExprIdTracker::new());
+        deduplicated.statements = DeduplicateMutWires {}.transform_statements(
+            &input.statements,
+            &mut ExprIdTracker::new(),
+            &input,
+        );
 
         assert_same_mir!(&expected, &deduplicated);
     }

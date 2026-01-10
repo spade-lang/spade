@@ -3612,19 +3612,22 @@ pub fn generate_unit<'a>(
         Attribute::Fsm { .. } | Attribute::WalTraceable { .. } => Err(attr.report_unused("unit")),
     })?;
 
-    let mut statements = statements.to_vec(&mut *name_source_map.write().unwrap());
-
-    for pass in local_passes.iter().chain(opt_passes) {
-        statements = pass.transform_statements(&statements, ctx.idtracker);
-    }
-
-    Ok(mir::Entity {
+    let mut entity = mir::Entity {
         name: name.as_mir(),
         inputs: mir_inputs,
         output: unit.body.variable(&ctx)?,
         output_type: output_t,
         verilog_attr_groups,
-        statements,
+        statements: vec![],
         inline,
-    })
+    };
+    let mut statements = statements.to_vec(&mut *name_source_map.write().unwrap());
+
+    for pass in local_passes.iter().chain(opt_passes) {
+        statements = pass.transform_statements(&statements, ctx.idtracker, &entity);
+    }
+
+    entity.statements = statements;
+
+    Ok(entity)
 }

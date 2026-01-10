@@ -19,6 +19,7 @@ pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 
 /// Concatenate the contents of two arrays `[l0, l1, l2...]`
 /// and `[r0, r1, r2...]` to form `[l0, l1, l2..., ln, r0, r1, r2...]`
+#[inline]
 pub fn concat_arrays<T, #uint L, #uint R>(l: [T; L], r: [T; R]) -> [T; {L + R}] {
     unsafe {
         std::conv::transmute((r, l))

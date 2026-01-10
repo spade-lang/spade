@@ -510,6 +510,57 @@ pub enum Statement {
     Error,
 }
 
+impl Statement {
+    pub fn for_each_input(&self, mut f: impl FnMut(&ValueName)) {
+        match self {
+            Statement::Binding(Binding {
+                name: _,
+                operator: _,
+                operands,
+                ty: _,
+                loc: _,
+            }) => {
+                for op in operands {
+                    f(op)
+                }
+            }
+            Statement::Register(Register {
+                name: _,
+                ty: _,
+                clock,
+                reset,
+                initial: _,
+                value,
+                loc: _,
+                traced: _,
+            }) => {
+                f(clock);
+                if let Some((trigger, value)) = reset {
+                    f(trigger);
+                    f(value);
+                }
+                f(value)
+            }
+            Statement::Constant(_, _, _) => {}
+            Statement::Assert(value) => f(value),
+            Statement::Set { target, value } => {
+                f(target);
+                f(value);
+            }
+            Statement::WalTrace {
+                name,
+                val,
+                suffix: _,
+                ty: _,
+            } => {
+                f(name);
+                f(val);
+            }
+            Statement::Error => {}
+        }
+    }
+}
+
 impl std::fmt::Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

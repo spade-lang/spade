@@ -2,7 +2,7 @@ use num::ToPrimitive;
 
 use spade_common::id_tracker::ExprIdTracker;
 
-use crate::{types::Type, Binding, Operator, Register, Statement, ValueName};
+use crate::{types::Type, Binding, Entity, Operator, Register, Statement, ValueName};
 
 use super::MirPass;
 
@@ -17,6 +17,7 @@ impl MirPass for SplitCompoundRegs {
         &self,
         stmts: &[Statement],
         expr_idtracker: &ExprIdTracker,
+        _entity: &Entity,
     ) -> Vec<Statement> {
         stmts
             .iter()
@@ -143,7 +144,7 @@ mod test {
         let pass = SplitCompoundRegs {};
         let mut after = before.clone();
         after.statements =
-            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
+            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100), &before);
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
             (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
@@ -171,7 +172,7 @@ mod test {
         let pass = SplitCompoundRegs {};
         let mut after = before.clone();
         after.statements =
-            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
+            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100), &before);
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
             (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
@@ -199,7 +200,7 @@ mod test {
         let pass = SplitCompoundRegs {};
         let mut after = before.clone();
         after.statements =
-            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
+            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100), &before);
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
             (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
