@@ -2,17 +2,17 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \test ((clk, clk_n20, bool)) -> () {
+entity \test ((clk, clk_n21, bool)) -> () {
 	const e8: uint<8> = 2
 	let e7: {x: uint<8>} = ConstructTuple(e8)
 	const e10: uint<16> = 3
-	let e6: () = Instance(\impl#0::a )(e7, clk_n20, e10)
+	let e6: () = Instance(\impl#0::a )(e7, clk_n21, e10)
 } => e6
-entity \impl#0::a ((self, self_n17, {x: uint<8>}), (clk, clk_n18, bool), (val, val_n19, uint<16>)) -> () {
-	reg(clk_n18) s1_self_n25: {x: uint<8>} = self_n17
-	reg(clk_n18) s1_val_n26: uint<16> = val_n19
-	reg(clk_n18) s2_self_n27: {x: uint<8>} = s1_self_n25
-	reg(clk_n18) s2_val_n28: uint<16> = s1_val_n26
-	reg(clk_n18) s3_self_n29: {x: uint<8>} = s2_self_n27
-	reg(clk_n18) s3_val_n30: uint<16> = s2_val_n28
+entity \impl#0::a ((self, self_n18, {x: uint<8>}), (clk, clk_n19, bool), (val, val_n20, uint<16>)) -> () {
+	reg(clk_n19) s1_self_n26: {x: uint<8>} = self_n18
+	reg(clk_n19) s1_val_n27: uint<16> = val_n20
+	reg(clk_n19) s2_self_n28: {x: uint<8>} = s1_self_n26
+	reg(clk_n19) s2_val_n29: uint<16> = s1_val_n27
+	reg(clk_n19) s3_self_n30: {x: uint<8>} = s2_self_n28
+	reg(clk_n19) s3_val_n31: uint<16> = s2_val_n29
 } => e3

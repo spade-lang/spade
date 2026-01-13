@@ -11,7 +11,7 @@ expression: build_items(code)
                     "bar",
                 ],
             },
-            source: bar#6,
+            source: bar#7,
         },
         inputs: [],
         output: Expr(
@@ -45,12 +45,12 @@ expression: build_items(code)
                     operator: Instance {
                         name: UnitName {
                             kind: Escaped {
-                                name: "foo[22]",
+                                name: "foo[23]",
                                 path: [
                                     "foo",
                                 ],
                             },
-                            source: foo#22,
+                            source: foo#23,
                         },
                         params: [],
                         argument_names: [
@@ -81,10 +81,10 @@ expression: build_items(code)
             Binding(
                 Binding {
                     name: Named(
-                        16,
+                        17,
                         "_",
                         Name(
-                            _#16,
+                            _#17,
                         ),
                     ),
                     operator: Alias,
@@ -124,12 +124,12 @@ expression: build_items(code)
                     operator: Instance {
                         name: UnitName {
                             kind: Escaped {
-                                name: "foo[23]",
+                                name: "foo[24]",
                                 path: [
                                     "foo",
                                 ],
                             },
-                            source: foo#23,
+                            source: foo#24,
                         },
                         params: [],
                         argument_names: [
@@ -160,10 +160,10 @@ expression: build_items(code)
             Binding(
                 Binding {
                     name: Named(
-                        17,
+                        18,
                         "_",
                         Name(
-                            _#17,
+                            _#18,
                         ),
                     ),
                     operator: Alias,
@@ -187,21 +187,21 @@ expression: build_items(code)
     Entity {
         name: UnitName {
             kind: Escaped {
-                name: "foo[22]",
+                name: "foo[23]",
                 path: [
                     "foo",
                 ],
             },
-            source: foo#22,
+            source: foo#23,
         },
         inputs: [
             MirInput {
                 name: "value",
                 val_name: Named(
-                    15,
+                    16,
                     "value",
                     Name(
-                        value#15,
+                        value#16,
                     ),
                 ),
                 ty: UInt(
@@ -224,21 +224,21 @@ expression: build_items(code)
     Entity {
         name: UnitName {
             kind: Escaped {
-                name: "foo[23]",
+                name: "foo[24]",
                 path: [
                     "foo",
                 ],
             },
-            source: foo#23,
+            source: foo#24,
         },
         inputs: [
             MirInput {
                 name: "value",
                 val_name: Named(
-                    15,
+                    16,
                     "value",
                     Name(
-                        value#15,
+                        value#16,
                     ),
                 ),
                 ty: UInt(

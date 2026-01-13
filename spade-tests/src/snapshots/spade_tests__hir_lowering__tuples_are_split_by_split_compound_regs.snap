@@ -2,10 +2,10 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "format! (\"{}\", items [0])"
 ---
-entity \test ((clk, clk_n13, bool), (x, x_n14, (uint<8>, uint<8>))) -> (uint<8>, uint<8>) {
-	let e4: uint<8> = IndexTuple(0)(x_n14)
-	reg(clk_n13) e5: uint<8> = e4
-	let e6: uint<8> = IndexTuple(1)(x_n14)
-	reg(clk_n13) e7: uint<8> = e6
-	let s1_x_n19: (uint<8>, uint<8>) = ConstructTuple(e5, e7)
-} => s1_x_n19
+entity \test ((clk, clk_n14, bool), (x, x_n15, (uint<8>, uint<8>))) -> (uint<8>, uint<8>) {
+	let e4: uint<8> = IndexTuple(0)(x_n15)
+	reg(clk_n14) e5: uint<8> = e4
+	let e6: uint<8> = IndexTuple(1)(x_n15)
+	reg(clk_n14) e7: uint<8> = e6
+	let s1_x_n20: (uint<8>, uint<8>) = ConstructTuple(e5, e7)
+} => s1_x_n20

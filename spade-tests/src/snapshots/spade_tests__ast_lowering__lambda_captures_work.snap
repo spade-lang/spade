@@ -4,14 +4,14 @@ expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \test () -> () {
 	const e2: uint<8> = 0
-	let x_n13: uint<8> = Alias(e2)
-	let e5: {x: uint<8>} = ConstructTuple(x_n13)
+	let x_n14: uint<8> = Alias(e2)
+	let e5: {x: uint<8>} = ConstructTuple(x_n14)
 	let e11: () = ConstructTuple()
-	let e4: () = Instance(\impl#0::call[30] )(e5, e11)
-	let l_n25: () = Alias(e4)
+	let e4: () = Instance(\impl#0::call[31] )(e5, e11)
+	let l_n26: () = Alias(e4)
 } => e1
-entity \impl#0::call[30] ((self, self_n23, {x: uint<8>}), (args, args_n24, ())) -> () {
-	let e16: uint<8> = IndexTuple(0)(self_n23)
-	let x_n13: uint<8> = Alias(e16)
-	let y_n14: uint<8> = Alias(x_n13)
+entity \impl#0::call[31] ((self, self_n24, {x: uint<8>}), (args, args_n25, ())) -> () {
+	let e16: uint<8> = IndexTuple(0)(self_n24)
+	let x_n14: uint<8> = Alias(e16)
+	let y_n15: uint<8> = Alias(x_n14)
 } => e8
