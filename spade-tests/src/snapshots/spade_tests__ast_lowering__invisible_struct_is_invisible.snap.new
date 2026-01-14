@@ -9,3 +9,18 @@ mod a {
 fn test() -> a::Secret {
     a::Secret()
 }
+
+
+error: Path cannot be traversed
+  ┌─ testinput:5:14
+  │
+1 │ mod a {
+  │     - The invisible item is defined here
+  ·
+5 │ fn test() -> a::Secret {
+  │              ^^^^^^^^^
+  │              │  │
+  │              │  this item is not visible from the current namespace
+  │              Path cannot be traversed
+  │
+  = note: consider using `pub` to alter its visibility

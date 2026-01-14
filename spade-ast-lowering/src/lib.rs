@@ -1177,10 +1177,8 @@ pub fn visit_unit(
         .symtab
         .lookup_unit(&path)
         .map_err(|_| {
-            ctx.symtab.print_symbols();
-            println!("Failed to find {path} in symtab")
-        })
-        .expect("Attempting to lower an entity that has not been added to the symtab previously");
+            diag_anyhow!(path, "Attempting to lower an entity that has not been added to the symtab previously")
+        })?;
 
     ctx.current_unit = Some(head.inner.clone());
 

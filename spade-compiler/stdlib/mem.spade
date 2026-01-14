@@ -128,7 +128,7 @@ mod fifo_impl {
         write_ptr: inv &uint<W>,
     }
 
-    entity fifo_read<#uint W, D, #uint C>(
+    pub(super) entity fifo_read<#uint W, D, #uint C>(
         read_clk: clock,
         read_rst: bool,
         mem: ReadPort<W, D>,
@@ -180,7 +180,7 @@ mod fifo_impl {
         )
     }
 
-    entity fifo_write<#uint W, D>(
+    pub(super) entity fifo_write<#uint W, D>(
         write_clk: clock,
         write_rst: bool,
         mem: WritePort<W, D>,

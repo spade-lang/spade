@@ -1,5 +1,5 @@
 use colored::Colorize;
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 
@@ -437,7 +437,7 @@ impl Default for SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        let mut result = Self {
+        Self {
             symbols: vec![Scope {
                 vars: HashMap::default(),
                 lookup_barrier: None,
@@ -449,14 +449,7 @@ impl SymbolTable {
             visibilities: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),
-        };
-
-        result.add_thing(
-            Path::from_strs(&[]),
-            Thing::Module(Identifier::intern("<empty>").nowhere()),
-            None,
-        );
-        result
+        }
     }
     #[tracing::instrument(skip_all)]
     pub fn new_scope(&mut self) {
@@ -999,7 +992,7 @@ impl SymbolTable {
         let id = self.symbols[self.current_scope() - offset]
             .vars
             .get(&path)
-            .ok_or(LookupError::NoSuchSymbol(name.clone()))?
+            .expect("Canonical path not present in symbol table (that is impossible)")
             .clone();
 
         if let Some(thing) = self.things.get(&id) {
@@ -1077,26 +1070,20 @@ impl SymbolTable {
                 (off, ns, segments)
             }
             (PathPrefix::None, _) => {
-                if path.inner.0.is_empty() {
-                    (0, self.current_namespace().clone(), vec![])
-                } else {
-                    let segments = path.0.clone();
-                    let head = path.0[0].clone();
-                    let absolute_head = namespace.push_segment(head.clone());
+                let segments = path.0.clone();
+                let head = path.0[0].clone();
+                let absolute_head = namespace.push_segment(head.clone());
 
-                    let (off, ns) = self
-                        .symbols
-                        .iter()
-                        .rev()
-                        .enumerate()
-                        .skip(offset)
-                        .find_map(|(o, s)| {
-                            s.vars.get(&absolute_head).map(|_| (o, namespace.clone()))
-                        })
-                        .unwrap_or((self.current_scope(), Path(vec![])));
+                let (off, ns) = self
+                    .symbols
+                    .iter()
+                    .rev()
+                    .enumerate()
+                    .skip(offset)
+                    .find_map(|(o, s)| s.vars.get(&absolute_head).map(|_| (o, namespace.clone())))
+                    .unwrap_or((self.current_scope(), Path(vec![])));
 
-                    (off, ns, segments)
-                }
+                (off, ns, segments)
             }
         };
 
@@ -1134,17 +1121,22 @@ impl SymbolTable {
                         Visibility::AtSuperSuper => working_path.prelude().prelude().prelude(),
                     };
 
-                    let is_visible = vis_path.0.iter().zip(&namespace.0).all(|(l, r)| l == r);
+                    let is_visible =
+                        vis_path
+                            .0
+                            .iter()
+                            .zip_longest(&namespace.0)
+                            .all(|entry| match entry {
+                                EitherOrBoth::Both(l, r) => l == r,
+                                EitherOrBoth::Left(_) => false,
+                                EitherOrBoth::Right(_) => true,
+                            });
 
                     if !is_visible {
-                        let invis_path = Path(segments[0..i].to_vec()).nowhere();
                         let invisible_loc = self
-                            .lookup_thing(&invis_path)
-                            .map(|(_, thing)| thing.loc())
-                            .or_else(|_| {
-                                self.lookup_type_symbol(&invis_path).map(|(_, ty)| ty.loc())
-                            })
-                            .ok();
+                            .thing_by_id(&id)
+                            .map(|thing| thing.loc());
+
                         return Err(LookupError::NotVisible {
                             full_path: path.clone(),
                             invisible_segment: segment.clone(),

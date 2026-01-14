@@ -37,20 +37,20 @@ pub entity sync2_bool(clk: clock, input: bool) -> bool {
 
 
 mod handshake_impl {
-    struct port TxOutRxIn<T> {
+    pub(super) struct port TxOutRxIn<T> {
         data_valid: inv &bool,
         data: inv &T,
         ack: &bool,
     }
 
-    enum TxState {
+    pub(super) enum TxState {
         WaitData,
         HoldData,
         WaitAck,
     }
 
 
-    entity transmitter<T>(clk: clock, rst: bool, data: Option<T>, out: TxOutRxIn<T>) {
+    pub(super) entity transmitter<T>(clk: clock, rst: bool, data: Option<T>, out: TxOutRxIn<T>) {
         let ack = inst std::cdc::sync2_bool(clk, *out.ack);
 
         reg(clk) state reset(rst: TxState::WaitData) = match (state, data, ack) {
@@ -74,12 +74,12 @@ mod handshake_impl {
         };
     }
 
-    enum RxState {
+    pub(super) enum RxState {
         WaitValid,
         WaitInvalid,
     }
 
-    entity receiver<T>(clk: clock, rst: bool, input: inv TxOutRxIn<T>) -> Option<T> {
+    pub(super) entity receiver<T>(clk: clock, rst: bool, input: inv TxOutRxIn<T>) -> Option<T> {
         let data_valid = inst std::cdc::sync2_bool(clk, *input.data_valid);
 
         reg(clk) (state, data_out) reset(rst: (RxState::WaitValid, None)) = match (state, data_valid) {
@@ -125,7 +125,7 @@ mod sync_wide_impl {
         ack: inv &bool,
     }
 
-    entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: inv FromSender<T>) {
+    pub(super) entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: inv FromSender<T>) {
         let ack = inst sync2_bool(source_clk, *to_tx.ack);
 
         reg(source_clk) state reset(rst: TxState::Init) = match state {
@@ -150,7 +150,7 @@ mod sync_wide_impl {
         WaitReceive,
         SendAck,
     }
-    entity receiver<T>(dest_clk: clock, rst: bool, init: T, from_tx: FromSender<T>) -> T {
+    pub(super) entity receiver<T>(dest_clk: clock, rst: bool, init: T, from_tx: FromSender<T>) -> T {
         let valid = inst sync2_bool(dest_clk, *from_tx.valid);
         // We don't have synchronization primitives here because we ensure that
         // by the time valid is set, this is stable. However, we're only allowed to read

@@ -1,0 +1,21 @@
+---
+source: spade-tests/src/ast_lowering.rs
+assertion_line: 908
+---
+struct X {}
+impl X {
+    extern fn x(self, x: bool) -> bool;
+}
+
+
+bug: Attempting to lower an entity that has not been added to the symtab previously
+  ┌─ testinput:3:15
+  │
+3 │     extern fn x(self, x: bool) -> bool;
+  │               ^
+  │
+  = note: This is an internal bug in the compiler.
+          We would appreciate if you opened an issue in the repository:
+          https://gitlab.com/spade-lang/spade/-/issues/new?issuable_template=Internal%20bug
+  = note: Triggered at spade-ast-lowering/src/lib.rs:1180
+          Rerun with RUST_BACKTRACE=1 to capture a backtrace
