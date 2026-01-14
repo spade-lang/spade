@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/ast_lowering.rs
+assertion_line: 35
+---
+mod a {
+    struct Secret {}
+}
+
+fn test() -> a::Secret {
+    a::Secret()
+}

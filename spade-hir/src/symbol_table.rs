@@ -29,7 +29,14 @@ pub enum LookupError {
     IsAType(Loc<Path>, Loc<()>),
     BarrierError(Diagnostic),
     TooManySuperSegments(Loc<Path>, PathSegment),
-    NotVisible(Loc<Path>, PathSegment),
+    NotVisible {
+        full_path: Loc<Path>,
+        invisible_segment: PathSegment,
+        // Normally this loc will always be present but in some panicing condition
+        // we may end up not finding a loc. Since this is only a helper diagnostic anyway,
+        // this will be empty in those situations
+        invisible_loc: Option<Loc<()>>,
+    },
 }
 
 impl From<LookupError> for Diagnostic {
@@ -72,7 +79,7 @@ impl From<LookupError> for Diagnostic {
                     | LookupError::IsAType(_, _)
                     | LookupError::BarrierError(_)
                     | LookupError::TooManySuperSegments(_, _)
-                    | LookupError::NotVisible(_, _)
+                    | LookupError::NotVisible { .. }
                     | LookupError::NotAThing(_) => unreachable!(),
                 };
 
@@ -132,14 +139,24 @@ impl From<LookupError> for Diagnostic {
                         "parent does not exist for the root namespace",
                     ))
             }
-            LookupError::NotVisible(path, segment) => {
-                Diagnostic::error(path, "Path cannot be traversed")
+            LookupError::NotVisible {
+                full_path,
+                invisible_segment,
+                invisible_loc,
+            } => {
+                let diag = Diagnostic::error(full_path, "Path cannot be traversed")
                     .primary_label("Path cannot be traversed")
                     .secondary_label(
-                        segment.loc(),
+                        invisible_segment.loc(),
                         format!("this item is not visible from the current namespace"),
                     )
-                    .note("consider using `pub` to alter its visibility")
+                    .note("consider using `pub` to alter its visibility");
+
+                if let Some(loc) = invisible_loc {
+                    diag.secondary_label(loc, "The invisible item is defined here")
+                } else {
+                    diag
+                }
             }
         }
     }
@@ -892,7 +909,7 @@ impl SymbolTable {
             Err(LookupError::IsAType(_, _)) => unreachable!(),
             Err(LookupError::NotAThing(_)) => unreachable!(),
             Err(LookupError::TooManySuperSegments(_, _)) => unreachable!(),
-            Err(LookupError::NotVisible(_, _)) => unreachable!(),
+            Err(LookupError::NotVisible { .. }) => unreachable!(),
         }
     }
 
@@ -1085,7 +1102,7 @@ impl SymbolTable {
 
         // Walk through all segments, resolving any aliases found along the way,
         // until the final thing is found or hitting a roadblock.
-        for segment in segments {
+        for (i, segment) in segments.iter().enumerate() {
             let mut local_forbidden = forbidden.clone();
             let idx = self.current_scope() - scope_offset;
             let scope = &self.symbols[idx];
@@ -1120,7 +1137,19 @@ impl SymbolTable {
                     let is_visible = vis_path.0.iter().zip(&namespace.0).all(|(l, r)| l == r);
 
                     if !is_visible {
-                        return Err(LookupError::NotVisible(path.clone(), segment.clone()));
+                        let invis_path = Path(segments[0..i].to_vec()).nowhere();
+                        let invisible_loc = self
+                            .lookup_thing(&invis_path)
+                            .map(|(_, thing)| thing.loc())
+                            .or_else(|_| {
+                                self.lookup_type_symbol(&invis_path).map(|(_, ty)| ty.loc())
+                            })
+                            .ok();
+                        return Err(LookupError::NotVisible {
+                            full_path: path.clone(),
+                            invisible_segment: segment.clone(),
+                            invisible_loc,
+                        });
                     }
                 }
 

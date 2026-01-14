@@ -33,6 +33,19 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    invisible_struct_is_invisible,
+    "
+    mod a {
+        struct Secret {}
+    }
+
+    fn test() -> a::Secret {
+        a::Secret()
+    }
+    "
+}
+
+snapshot_error! {
     impl_method_generic_args_length_does_not_match_trait_method_generic_args_length,
     "
     trait X {

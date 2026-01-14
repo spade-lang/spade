@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/ast_lowering.rs
+assertion_line: 3
+---
+mod a {
+    pub struct Cat {}
+    pub(self) enum Dog {}
+    pub(super) trait Happy {}
+    pub(lib) use Cat as Pet;
+}
+
+mod b {
+    use super::a::Cat as C;
+    use super::a::Dog as D; // this will fail
+    use super::a::Happy as H;
+    use super::a::Pet as P;
+}
+
+
+error: Path cannot be traversed
+   ┌─ testinput:10:9
+   │
+ 1 │ mod a {
+   │     - The invisible item is defined here
+   ·
+10 │     use super::a::Dog as D; // this will fail
+   │         ^^^^^^^^^^^^^
+   │         │         │
+   │         │         this item is not visible from the current namespace
+   │         Path cannot be traversed
+   │
+   = note: consider using `pub` to alter its visibility
