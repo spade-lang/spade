@@ -1175,9 +1175,12 @@ pub fn visit_unit(
 
     let (id, head) = ctx
         .symtab
-        .lookup_unit(&path)
+        .lookup_unit_ignore_visibility(&path)
         .map_err(|_| {
-            diag_anyhow!(path, "Attempting to lower an entity that has not been added to the symtab previously")
+            diag_anyhow!(
+                path,
+                "Attempting to lower an entity that has not been added to the symtab previously"
+            )
         })?;
 
     ctx.current_unit = Some(head.inner.clone());
@@ -1446,10 +1449,11 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>>
         ast::Item::ImplBlock(block) => visit_impl(block, ctx),
         ast::Item::ExternalMod(_) => Ok(vec![]),
         ast::Item::Module(m) => visit_module(m, ctx).map(|_| vec![]),
-        // We can leave the forbidden slice empty, because even after resolving to itself for the first time, it will add itself as forbidden for the next time
         ast::Item::Use(ss) => {
             for s in &ss.inner {
-                ctx.symtab.lookup_id(&s.path).map_err(Diagnostic::from)?;
+                ctx.symtab
+                    .lookup_id(&s.path, true)
+                    .map_err(Diagnostic::from)?;
             }
 
             Ok(vec![])

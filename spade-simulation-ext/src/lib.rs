@@ -217,7 +217,7 @@ impl Spade {
         let uut_name = state
             .symtab
             .symtab()
-            .lookup_id(&uut)
+            .lookup_id(&uut, false)
             .map_err(|_| anyhow!("Did not find a NameID for {uut}"))?;
 
         let uut_head = Self::lookup_function_like(&uut, state.symtab.symtab())
@@ -725,7 +725,9 @@ impl Spade {
         name: &Loc<SpadePath>,
         symtab: &SymbolTable,
     ) -> std::result::Result<UnitHead, LookupError> {
-        symtab.lookup_unit(name).map(|(_, head)| head.inner)
+        symtab
+            .lookup_unit_ignore_visibility(name)
+            .map(|(_, head)| head.inner)
     }
 
     /// Tries to get the type and the name of the port in the generated verilog of the specified

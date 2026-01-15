@@ -242,12 +242,12 @@ code_compiles! {
     use_tree_compiles,
     "
     mod a {
-        mod aa {
-            mod aaa {}
-            mod aab {}
+        pub mod aa {
+            pub mod aaa {}
+            pub mod aab {}
         }
-        mod ab {
-            mod aba {}
+        pub mod ab {
+            pub mod aba {}
         }
     }
     use a::{
@@ -320,9 +320,9 @@ code_compiles! {
     alias_cycle_avoidance_mechanism_allows_revisiting_aliases,
     "
     mod x {
-        use super::a::z as b;
-        mod z {
-            enum Meow {}
+        pub use super::a::z as b;
+        pub mod z {
+            pub enum Meow {}
         }
     }
 
@@ -335,7 +335,7 @@ code_compiles! {
     multiple_aliases_can_be_traversed,
     "
     mod x {
-        struct Meow {}
+        pub struct Meow {}
     }
 
     use x as a;
@@ -509,8 +509,8 @@ fn type_inference_works_for_declared_variables() {
 fn use_of_namespace_works() {
     let code = r#"
         mod a {
-            mod b {
-                struct X {x: bool}
+            pub mod b {
+                pub struct X {x: bool}
             }
         }
 
@@ -558,7 +558,7 @@ fn global_use_statements_work_across_modules() {
 fn use_statements_are_visible_before_appearing_in_source_code() {
     let code = r#"
         mod std {
-            mod option {
+            pub mod option {
                 pub enum Option<T> {
                     Some{val: T},
                     None
@@ -651,7 +651,7 @@ snapshot_error! {
     "
         // See https://gitlab.com/spade-lang/spade/-/issues/160
         mod a {
-            fn foo() -> bool { true }
+            pub fn foo() -> bool { true }
         }
 
         use a::foo;

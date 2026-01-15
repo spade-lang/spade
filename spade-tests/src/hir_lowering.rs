@@ -1791,9 +1791,9 @@ mod tests {
     #[test]
     fn assigning_ports_to_variables_works() {
         let code = r#"
-            mod std {mod ports{
-                entity new_mut_wire<T>() -> inv &T {
-                    port#1
+            mod std {pub mod ports{
+                pub entity new_mut_wire<T>() -> inv &T {
+                    port.1
                 }
             }}
 
@@ -2233,7 +2233,7 @@ mod tests {
         let code = r#"
             mod m {
                 #[wal_traceable()]
-                struct Test {
+                pub struct Test {
                     a: int<8>,
                     b: int<4>
                 }

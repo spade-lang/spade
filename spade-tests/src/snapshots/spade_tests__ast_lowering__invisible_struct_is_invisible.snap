@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/ast_lowering.rs
-assertion_line: 35
 ---
 mod a {
     struct Secret {}
@@ -14,13 +13,13 @@ fn test() -> a::Secret {
 error: Path cannot be traversed
   ┌─ testinput:5:14
   │
-1 │ mod a {
-  │     - The invisible item is defined here
+2 │     struct Secret {}
+  │     ---------------- The inaccessible item is defined here
   ·
 5 │ fn test() -> a::Secret {
   │              ^^^^^^^^^
   │              │  │
-  │              │  this item is not visible from the current namespace
+  │              │  this item is not inaccessible from the current namespace
   │              Path cannot be traversed
   │
   = note: consider using `pub` to alter its visibility

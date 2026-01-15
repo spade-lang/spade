@@ -46,7 +46,7 @@ fn trait_self_return_type_works() {
 fn namespacing_works() {
     let code = r#"
         mod X {
-            entity x() -> int<2> {
+            pub entity x() -> int<2> {
                 1
             }
         }
@@ -78,7 +78,7 @@ snapshot_error!(
 fn use_statements_work() {
     let code = r#"
         mod X {
-            entity x() -> int<2> {
+            pub entity x() -> int<2> {
                 1
             }
         }
@@ -97,7 +97,7 @@ fn use_statements_work() {
 fn renaming_use_statements_work() {
     let code = r#"
         mod X {
-            entity x() -> int<2> {
+            pub entity x() -> int<2> {
                 1
             }
         }
@@ -117,12 +117,12 @@ fn renaming_use_statements_work() {
 fn recursive_use_statements_work() {
     let code = r#"
         mod X {
-            mod Y {
-                entity x() -> int<2> {
+            pub mod Y {
+                pub entity x() -> int<2> {
                     1
                 }
             }
-            use Y::x;
+            pub use Y::x;
         }
 
         use X::x as a;

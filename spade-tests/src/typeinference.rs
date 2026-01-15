@@ -2263,8 +2263,8 @@ code_compiles! {
     lambda_option_map_does_not_panic,
     "
         mod std {
-            mod conv {
-                extern fn trunc<N, M>(x: N) -> M;
+            pub mod conv {
+                pub extern fn trunc<N, M>(x: N) -> M;
             }
         }
         use std::conv::trunc;

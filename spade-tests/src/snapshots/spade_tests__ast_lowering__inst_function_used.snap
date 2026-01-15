@@ -3,7 +3,7 @@ source: spade-tests/src/ast_lowering.rs
 ---
 // See https://gitlab.com/spade-lang/spade/-/issues/160
 mod a {
-    fn foo() -> bool { true }
+    pub fn foo() -> bool { true }
 }
 
 use a::foo;
@@ -16,8 +16,8 @@ entity test() -> bool {
 error: Unexpected `inst` for function call
   ┌─ testinput:9:5
   │
-3 │     fn foo() -> bool { true }
-  │     -- foo is defined as a function here
+3 │     pub fn foo() -> bool { true }
+  │         -- foo is defined as a function here
   ·
 9 │     inst foo()
   │     ^^^^ --- Because foo is a function

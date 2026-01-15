@@ -2,7 +2,7 @@ use std::ports;
 
 mod verilog {
     #[no_mangle(all)]
-    extern entity add_constant<#uint N, #uint M>(
+    pub extern entity add_constant<#uint N, #uint M>(
         in: int<8>,
         out: inv &int<8>
     );

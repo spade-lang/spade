@@ -32,10 +32,13 @@ pub enum LookupError {
     NotVisible {
         full_path: Loc<Path>,
         invisible_segment: PathSegment,
-        // Normally this loc will always be present but in some panicing condition
-        // we may end up not finding a loc. Since this is only a helper diagnostic anyway,
-        // this will be empty in those situations
-        invisible_loc: Option<Loc<()>>,
+        /// This is present if the reason the target item is invisible is because of a module
+        /// further up the stack.
+        invisible_item: Option<Loc<()>>,
+        /// Normally this loc will always be present but in some panicking condition
+        /// we may end up not finding a loc. Since this is only a helper diagnostic anyway,
+        /// this will be empty in those situations
+        target_item: Option<Loc<()>>,
     },
 }
 
@@ -142,18 +145,28 @@ impl From<LookupError> for Diagnostic {
             LookupError::NotVisible {
                 full_path,
                 invisible_segment,
-                invisible_loc,
+                target_item,
+                invisible_item,
             } => {
                 let diag = Diagnostic::error(full_path, "Path cannot be traversed")
                     .primary_label("Path cannot be traversed")
                     .secondary_label(
                         invisible_segment.loc(),
-                        format!("this item is not visible from the current namespace"),
+                        format!("this item is not inaccessible from the current namespace"),
                     )
                     .note("consider using `pub` to alter its visibility");
 
-                if let Some(loc) = invisible_loc {
-                    diag.secondary_label(loc, "The invisible item is defined here")
+                let diag = if let Some(loc) = target_item {
+                    diag.secondary_label(loc, "The inaccessible item is defined here")
+                } else {
+                    diag
+                };
+
+                if let Some(loc) = invisible_item {
+                    diag.secondary_label(
+                        loc,
+                        "The item is inaccessible because this module is inaccessible",
+                    )
                 } else {
                     diag
                 }
@@ -437,7 +450,7 @@ impl Default for SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        Self {
+        let mut result = Self {
             symbols: vec![Scope {
                 vars: HashMap::default(),
                 lookup_barrier: None,
@@ -449,7 +462,15 @@ impl SymbolTable {
             visibilities: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),
-        }
+        };
+
+        result.add_thing(
+            Path(vec![]),
+            Thing::Module(Identifier::intern("<root>").nowhere()),
+            None,
+        );
+
+        result
     }
     #[tracing::instrument(skip_all)]
     pub fn new_scope(&mut self) {
@@ -768,8 +789,12 @@ impl SymbolTable {
             .collect()
     }
 
-    pub fn lookup_thing(&self, path: &Loc<Path>) -> Result<(NameID, &Thing), LookupError> {
-        let id = self.lookup_id(path)?;
+    pub fn lookup_thing_impl(
+        &self,
+        path: &Loc<Path>,
+        check_visibility: bool,
+    ) -> Result<(NameID, &Thing), LookupError> {
+        let id = self.lookup_id(path, check_visibility)?;
 
         match self.things.get(&id) {
             Some(thing) => Ok((id, thing)),
@@ -779,6 +804,17 @@ impl SymbolTable {
             },
         }
     }
+
+    pub fn lookup_thing_ignore_visibility(
+        &self,
+        path: &Loc<Path>,
+    ) -> Result<(NameID, &Thing), LookupError> {
+        self.lookup_thing_impl(path, false)
+    }
+
+    pub fn lookup_thing(&self, path: &Loc<Path>) -> Result<(NameID, &Thing), LookupError> {
+        self.lookup_thing_impl(path, true)
+    }
 }
 
 macro_rules! thing_accessors {
@@ -786,6 +822,7 @@ macro_rules! thing_accessors {
         $(
             $by_id_name:ident,
             $lookup_name:ident,
+            $lookup_ignore_visibility:ident,
             $result:path,
             $err:ident $(,)?
             {$($thing:pat => $conversion:expr),*$(,)?}
@@ -817,6 +854,20 @@ macro_rules! thing_accessors {
                     other => Err(LookupError::$err(name.clone(), other.clone())),
                 }
             }
+
+            /// Look up an item without performing visibility checks, with errors if the item is not currently in scope, or is not
+            /// convertible to the return type.
+            #[tracing::instrument(level = "trace", skip_all, fields(%name.inner, %name.span, %name.file_id))]
+            pub fn $lookup_ignore_visibility(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
+                let (id, thing) = self.lookup_thing_ignore_visibility(name)?;
+
+                match thing {
+                    $(
+                        $thing => {Ok((id, $conversion))}
+                    )*,
+                    other => Err(LookupError::$err(name.clone(), other.clone())),
+                }
+            }
         )*
     }
 }
@@ -829,15 +880,15 @@ impl SymbolTable {
     // lookup_* looks up items by path, and returns the NameID and item if successful.
     // If the path is not in scope, or the item is not the right kind, returns an error.
     thing_accessors! {
-        unit_by_id, lookup_unit, UnitHead, NotAUnit {
+        unit_by_id, lookup_unit, lookup_unit_ignore_visibility, UnitHead, NotAUnit {
             Thing::Unit(head) => head.clone(),
             Thing::EnumVariant(variant) => variant.as_unit_head().at_loc(variant),
             Thing::Struct(s) => s.as_unit_head().at_loc(s),
         },
-        enum_variant_by_id, lookup_enum_variant, EnumVariant, NotAnEnumVariant {
+        enum_variant_by_id, lookup_enum_variant, lookup_enum_variant_ignore_visibility, EnumVariant, NotAnEnumVariant {
             Thing::EnumVariant(variant) => variant.clone()
         },
-        patternable_type_by_id, lookup_patternable_type, Patternable, NotAPatternableType {
+        patternable_type_by_id, lookup_patternable_type, lookup_patternable_type_ignore_visibility, Patternable, NotAPatternableType {
             Thing::EnumVariant(variant) => Patternable{
                 kind: PatternableKind::Enum,
                 params: variant.params.clone()
@@ -847,10 +898,10 @@ impl SymbolTable {
                 params: variant.params.clone()
             }.at_loc(variant),
         },
-        struct_by_id, lookup_struct, StructCallable, NotAStruct {
+        struct_by_id, lookup_struct, lookup_struct_ignore_visibility, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
-        trait_by_id, lookup_trait, TraitMarker, NotATrait {
+        trait_by_id, lookup_trait, lookup_trait_ignore_visibility, TraitMarker, NotATrait {
             Thing::Trait(t) => t.clone()
         }
     }
@@ -874,7 +925,7 @@ impl SymbolTable {
         &self,
         name: &Loc<Path>,
     ) -> Result<(NameID, Loc<TypeSymbol>), LookupError> {
-        let id = self.lookup_id(name)?;
+        let id = self.lookup_id(name, true)?;
 
         match self.types.get(&id) {
             Some(tsym) => Ok((id, tsym.clone())),
@@ -886,7 +937,7 @@ impl SymbolTable {
     }
 
     pub fn has_symbol(&self, name: Path) -> bool {
-        match self.lookup_id(&name.nowhere()) {
+        match self.lookup_id(&name.nowhere(), false) {
             Ok(_) => true,
             Err(LookupError::NoSuchSymbol(_)) => false,
             Err(LookupError::BarrierError(_)) => unreachable!(),
@@ -934,7 +985,7 @@ impl SymbolTable {
     }
 
     pub fn lookup_variable(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {
-        let id = self.lookup_id(name)?;
+        let id = self.lookup_id(name, false)?;
 
         match self.things.get(&id) {
             Some(Thing::Variable(_)) => Ok(id),
@@ -966,7 +1017,7 @@ impl SymbolTable {
     }
 
     pub fn try_lookup_id(&self, name: &Loc<Path>) -> Option<NameID> {
-        match self.lookup_id(name) {
+        match self.lookup_id(name, true) {
             Ok(id) => Some(id),
             Err(LookupError::NoSuchSymbol(_)) => None,
             Err(err) => unreachable!("Got {err:?} when looking up final ID"),
@@ -975,8 +1026,12 @@ impl SymbolTable {
 
     /// Returns the name ID of the provided path if that path exists and resolving
     /// all aliases along the way.
-    pub fn lookup_id(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {
-        self.lookup_id_in_namespace(name, &self.namespace)
+    pub fn lookup_id(
+        &self,
+        name: &Loc<Path>,
+        check_visibility: bool,
+    ) -> Result<NameID, LookupError> {
+        self.lookup_id_in_namespace(name, &self.namespace, check_visibility)
     }
 
     /// Returns the name ID of the provided path if that path exists and resolving
@@ -985,9 +1040,15 @@ impl SymbolTable {
         &self,
         name: &Loc<Path>,
         namespace: &Path,
+        check_visibility: bool,
     ) -> Result<NameID, LookupError> {
-        let (offset, path) =
-            self.canonicalize_in_namespace(name, namespace, &Default::default(), 0)?;
+        let (offset, path) = self.canonicalize_in_namespace(
+            name,
+            namespace,
+            &Default::default(),
+            0,
+            check_visibility,
+        )?;
 
         let id = self.symbols[self.current_scope() - offset]
             .vars
@@ -1008,18 +1069,13 @@ impl SymbolTable {
         Ok(id)
     }
 
-    #[tracing::instrument(level = "trace", skip(self))]
-    #[inline]
-    pub fn lookup_id_in_lib(&self, name: &Loc<Path>) -> Result<NameID, LookupError> {
-        self.lookup_id_in_namespace(name, &self.base_namespace)
-    }
-
     fn canonicalize_in_namespace(
         &self,
         path: &Loc<Path>,
         namespace: &Path,
         forbidden: &HashSet<NameID>,
         offset: usize,
+        check_visibility: bool,
     ) -> Result<(usize, Path), LookupError> {
         // Find which namespace this path belongs (lib-relative, local or dep-relative)
         let (mut scope_offset, mut working_path, segments) = match path.extract_prefix() {
@@ -1070,20 +1126,26 @@ impl SymbolTable {
                 (off, ns, segments)
             }
             (PathPrefix::None, _) => {
-                let segments = path.0.clone();
-                let head = path.0[0].clone();
-                let absolute_head = namespace.push_segment(head.clone());
+                if path.0.is_empty() {
+                    (0, self.current_namespace().clone(), vec![])
+                } else {
+                    let segments = path.0.clone();
+                    let head = path.0[0].clone();
+                    let absolute_head = namespace.push_segment(head.clone());
 
-                let (off, ns) = self
-                    .symbols
-                    .iter()
-                    .rev()
-                    .enumerate()
-                    .skip(offset)
-                    .find_map(|(o, s)| s.vars.get(&absolute_head).map(|_| (o, namespace.clone())))
-                    .unwrap_or((self.current_scope(), Path(vec![])));
+                    let (off, ns) = self
+                        .symbols
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .skip(offset)
+                        .find_map(|(o, s)| {
+                            s.vars.get(&absolute_head).map(|_| (o, namespace.clone()))
+                        })
+                        .unwrap_or((self.current_scope(), Path(vec![])));
 
-                (off, ns, segments)
+                    (off, ns, segments)
+                }
             }
         };
 
@@ -1109,39 +1171,57 @@ impl SymbolTable {
                     return Err(LookupError::NoSuchSymbol(segment_path));
                 }
 
-                // Visibility information may not apply for the path target (e.g., local variables).
-                // If visibility information does not exist, the check is ignored.
-                if let Some(visibility) = self.visibilities.get(id) {
-                    let vis_path = match visibility.inner {
-                        Visibility::Public => Path(vec![]),
-                        Visibility::Implicit => working_path.prelude(),
-                        Visibility::AtLib => self.base_namespace.clone(),
-                        Visibility::AtSelf => working_path.prelude(),
-                        Visibility::AtSuper => working_path.prelude().prelude(),
-                        Visibility::AtSuperSuper => working_path.prelude().prelude().prelude(),
-                    };
+                if check_visibility {
+                    // Visibility information may not apply for the path target (e.g., local variables).
+                    // If visibility information does not exist, the check is ignored.
+                    if let Some(visibility) = self.visibilities.get(id) {
+                        let vis_path = match visibility.inner {
+                            Visibility::Public => Path(vec![]),
+                            Visibility::Implicit => working_path.prelude(),
+                            Visibility::AtLib => self.base_namespace.clone(),
+                            Visibility::AtSelf => working_path.prelude(),
+                            Visibility::AtSuper => working_path.prelude().prelude(),
+                            Visibility::AtSuperSuper => working_path.prelude().prelude().prelude(),
+                        };
 
-                    let is_visible =
-                        vis_path
-                            .0
-                            .iter()
-                            .zip_longest(&namespace.0)
-                            .all(|entry| match entry {
-                                EitherOrBoth::Both(l, r) => l == r,
-                                EitherOrBoth::Left(_) => false,
-                                EitherOrBoth::Right(_) => true,
+                        let is_visible =
+                            vis_path
+                                .0
+                                .iter()
+                                .zip_longest(&namespace.0)
+                                .all(|entry| match entry {
+                                    EitherOrBoth::Both(l, r) => l == r,
+                                    EitherOrBoth::Left(_) => false,
+                                    EitherOrBoth::Right(_) => true,
+                                });
+
+                        if !is_visible {
+                            let target_item = self.thing_by_id(&id).map(|thing| thing.loc());
+
+                            // Only show the invisible item if it isn't the item we are looking for in the first place
+                            let invisible_item = if i != 0 {
+                                self.lookup_thing_ignore_visibility(
+                                    &Path(path.0[0..=i].to_vec()).at_loc(path),
+                                )
+                                .ok()
+                                .and_then(|(name, thing)| {
+                                    if &name != id {
+                                        Some(thing.loc())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            } else {
+                                None
+                            };
+
+                            return Err(LookupError::NotVisible {
+                                full_path: path.clone(),
+                                invisible_segment: segment.clone(),
+                                target_item,
+                                invisible_item,
                             });
-
-                    if !is_visible {
-                        let invisible_loc = self
-                            .thing_by_id(&id)
-                            .map(|thing| thing.loc());
-
-                        return Err(LookupError::NotVisible {
-                            full_path: path.clone(),
-                            invisible_segment: segment.clone(),
-                            invisible_loc,
-                        });
+                        }
                     }
                 }
 
@@ -1159,6 +1239,7 @@ impl SymbolTable {
                             in_namespace,
                             &local_forbidden,
                             offset,
+                            check_visibility,
                         )?;
                     }
                     _ => break,

@@ -13,10 +13,15 @@ mod b {
 error: Path cannot be traversed
   ┌─ testinput:6:9
   │
+1 │ mod a {
+  │     - The item is inaccessible because this module is inaccessible
+2 │     mod secret {}
+  │         ------ The inaccessible item is defined here
+  ·
 6 │     use super::a::secret; // this will fail
   │         ^^^^^^^^^^^^^^^^
   │         │         │
-  │         │         this item is not visible from the current namespace
+  │         │         this item is not inaccessible from the current namespace
   │         Path cannot be traversed
   │
   = note: consider using `pub` to alter its visibility
