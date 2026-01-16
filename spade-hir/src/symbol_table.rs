@@ -1202,7 +1202,7 @@ impl SymbolTable {
                             let target_item = target_id.as_ref().and_then(|id| {
                                 self.thing_by_id(id)
                                     .map(Thing::loc)
-                                    .or_else(|| self.type_symbol_by_id(id).map(Loc::loc))
+                                    .or_else(|| self.try_type_symbol_by_id(id).map(|ty| ty.loc()))
                             });
 
                             let invisible_item = if target_id != Some(id.clone()) {
