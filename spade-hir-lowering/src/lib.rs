@@ -2599,7 +2599,7 @@ impl ExprLocal for Loc<Expression> {
                 );
             }
             None => {
-                unreachable!("Instantiating an item which is not known ({name})")
+                diag_bail!(name, "Instantiating an item which is not known ({name})")
             }
         };
 
