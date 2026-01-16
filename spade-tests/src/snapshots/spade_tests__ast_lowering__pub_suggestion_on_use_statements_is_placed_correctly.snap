@@ -1,0 +1,31 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+pub mod submod {
+    enum A {}
+    use A as b;
+}
+mod submod2 {
+    use lib::submod::b;
+}
+
+
+error: b is inaccessible
+  ┌─ testinput:6:22
+  │
+2 │     enum A {}
+  │     --------- The inaccessible item is defined here
+3 │     use A as b;
+  │     ----------- The item is inaccessible because b is inaccessible
+  ·
+6 │     use lib::submod::b;
+  │                      ^ b is inaccessible
+  │
+  = Consider adding `pub`
+  │
+3 │     pub use A as b;
+  │     ++++
+  = Or a more limited visibility like pub(lib) or pub(super)
+  │
+3 │     pub(lib) use A as b;
+  │     +++++++++

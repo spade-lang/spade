@@ -12,7 +12,7 @@ pipeline(3) main(clk: clock) -> int<8> {
 }
 
 
-error: Use of c before it was decleared
+error: Use of c before it was declared
   ┌─ testinput:3:17
   │
 3 │         let b = c; // <-- This should be an error

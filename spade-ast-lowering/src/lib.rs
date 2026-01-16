@@ -2260,6 +2260,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 | Err(LookupError::NotAVariable(
                     path,
                     ref was @ Thing::Alias {
+                        loc: _,
                         path: _,
                         in_namespace: _,
                     },

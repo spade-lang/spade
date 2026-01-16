@@ -23,7 +23,7 @@ error: secret is inaccessible
   │
 2 │     pub mod secret {}
   │     ++++
-  = Or a more limited visiblity like pub(lib) or pub(super)
+  = Or a more limited visibility like pub(lib) or pub(super)
   │
 2 │     pub(lib) mod secret {}
   │     +++++++++

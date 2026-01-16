@@ -39,7 +39,8 @@ pub enum LookupError {
         /// we may end up not finding a loc. Since this is only a helper diagnostic anyway,
         /// this will be empty in those situations
         target_item: Option<Loc<()>>,
-        visilbity_marker: Option<Loc<()>>,
+        visibility_marker: Option<Loc<()>>,
+        suggest_modifications: bool,
     },
 }
 
@@ -51,7 +52,7 @@ impl From<LookupError> for Diagnostic {
                     .primary_label("Undeclared name")
             }
             LookupError::NotAThing(path) => {
-                Diagnostic::error(path, format!("Use of {path} before it was decleared"))
+                Diagnostic::error(path, format!("Use of {path} before it was declared"))
                     .primary_label("Undeclared name")
             }
             LookupError::IsAType(path, loc) => {
@@ -148,7 +149,8 @@ impl From<LookupError> for Diagnostic {
                 invisible_segment,
                 target_item,
                 invisible_item,
-                visilbity_marker,
+                visibility_marker,
+                suggest_modifications,
             } => {
                 let diag = Diagnostic::error(
                     target_segment.loc(),
@@ -156,24 +158,28 @@ impl From<LookupError> for Diagnostic {
                 )
                 .primary_label(format!("{} is inaccessible", target_segment));
 
-                let diag = if let Some(pub_insertion) = invisible_item.or(*target_item) {
-                    if let Some(marker) = visilbity_marker {
-                        diag.span_suggest_replace(
-                            "Consider changing the visiblity to `pub`",
-                            marker,
-                            "pub",
-                        )
+                let diag = if *suggest_modifications {
+                    if let Some(pub_insertion) = invisible_item.or(*target_item) {
+                        if let Some(marker) = visibility_marker {
+                            diag.span_suggest_replace(
+                                "Consider changing the visibility to `pub`",
+                                marker,
+                                "pub",
+                            )
+                        } else {
+                            diag.span_suggest_insert_before(
+                                "Consider adding `pub`",
+                                pub_insertion,
+                                "pub ",
+                            )
+                            .span_suggest_insert_before(
+                                "Or a more limited visibility like pub(lib) or pub(super)",
+                                pub_insertion,
+                                "pub(lib) ",
+                            )
+                        }
                     } else {
-                        diag.span_suggest_insert_before(
-                            "Consider adding `pub`",
-                            pub_insertion,
-                            "pub ",
-                        )
-                        .span_suggest_insert_before(
-                            "Or a more limited visiblity like pub(lib) or pub(super)",
-                            pub_insertion,
-                            "pub(lib) ",
-                        )
+                        diag
                     }
                 } else {
                     diag
@@ -281,6 +287,7 @@ pub enum Thing {
     Unit(Loc<UnitHead>),
     Variable(Loc<Identifier>),
     Alias {
+        loc: Loc<()>,
         path: Loc<Path>,
         in_namespace: Path,
     },
@@ -318,9 +325,10 @@ impl Thing {
             Thing::Unit(i) => i.loc(),
             Thing::EnumVariant(i) => i.loc(),
             Thing::Alias {
-                path,
+                loc,
+                path: _,
                 in_namespace: _,
-            } => path.loc(),
+            } => loc.loc(),
             Thing::ArrayLabel(v) => v.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc, _name) => loc.loc(),
@@ -337,6 +345,7 @@ impl Thing {
             Thing::Variable(v) => v.loc(),
             Thing::ArrayLabel(l) => l.loc(),
             Thing::Alias {
+                loc: _,
                 path,
                 in_namespace: _,
             } => path.loc(),
@@ -700,6 +709,7 @@ impl SymbolTable {
     #[tracing::instrument(skip_all, fields(?name, ?target))]
     pub fn add_alias(
         &mut self,
+        loc: Loc<()>,
         name: Loc<Identifier>,
         target: Loc<Path>,
         visibility: Loc<Visibility>,
@@ -709,6 +719,7 @@ impl SymbolTable {
         Ok(self.add_thing(
             Path::ident(name),
             Thing::Alias {
+                loc: loc,
                 path: target,
                 in_namespace: self.current_namespace().clone(),
             },
@@ -1250,11 +1261,19 @@ impl SymbolTable {
                                 invisible_segment: segment.clone(),
                                 target_item,
                                 invisible_item: invisible_item.map(Thing::loc),
-                                visilbity_marker: if visibility.inner != Visibility::Implicit {
+                                visibility_marker: if visibility.inner != Visibility::Implicit {
                                     Some(visibility.loc())
                                 } else {
                                     None
                                 },
+                                // We don't want to suggest modifications outside the current project
+                                // We can't know that for sure currently, but a decent heuristic is if
+                                // the lookuped item is in the same base namespace. This will give false positives
+                                // if there is a visibility issue fully in a single dependency, which I think
+                                // is an OK tradeoff
+                                suggest_modifications: target_id
+                                    .map(|id| id.1.starts_with(&self.base_namespace))
+                                    .unwrap_or(false),
                             });
                         }
                     }
@@ -1265,7 +1284,11 @@ impl SymbolTable {
                 }
 
                 match self.things.get(id) {
-                    Some(Thing::Alias { path, in_namespace }) => {
+                    Some(Thing::Alias {
+                        loc: _,
+                        path,
+                        in_namespace,
+                    }) => {
                         local_forbidden.insert(id.clone());
 
                         // Alias target is itself a non-canonical path, it must be resolved first.
@@ -1315,7 +1338,11 @@ impl SymbolTable {
                 Thing::Unit(_) => println!("unit"),
                 Thing::Variable(_) => println!("variable"),
                 Thing::ArrayLabel(_) => println!("array label"),
-                Thing::Alias { path, in_namespace } => {
+                Thing::Alias {
+                    loc: _,
+                    path,
+                    in_namespace,
+                } => {
                     println!("{}", format!("alias => {path} in {in_namespace}").green())
                 }
                 Thing::Trait(t) => println!("trait {}", t.name),

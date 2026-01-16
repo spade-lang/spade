@@ -23,7 +23,7 @@ error: Secret is inaccessible
   │
 2 │     pub struct Secret {}
   │     ++++
-  = Or a more limited visiblity like pub(lib) or pub(super)
+  = Or a more limited visibility like pub(lib) or pub(super)
   │
 2 │     pub(lib) struct Secret {}
   │     +++++++++

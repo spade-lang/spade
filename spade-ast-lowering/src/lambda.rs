@@ -102,6 +102,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 | spade_hir::symbol_table::Thing::EnumVariant(_)
                 | spade_hir::symbol_table::Thing::Unit(_)
                 | spade_hir::symbol_table::Thing::Alias {
+                    loc: _,
                     path: _,
                     in_namespace: _,
                 }

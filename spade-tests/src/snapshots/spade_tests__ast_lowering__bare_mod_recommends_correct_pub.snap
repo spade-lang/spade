@@ -27,7 +27,7 @@ error: Thing is inaccessible
   │
 1 │ pub struct Thing {}
   │ ++++
-  = Or a more limited visiblity like pub(lib) or pub(super)
+  = Or a more limited visibility like pub(lib) or pub(super)
   │
 1 │ pub(lib) struct Thing {}
   │ +++++++++

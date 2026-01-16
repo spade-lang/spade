@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct Thing {}
+
+use other::Thing;
+
+
+error: Thing is inaccessible
+  ┌─ src/main.spade:1:12
+  │
+1 │ use other::Thing;
+  │            ^^^^^ Thing is inaccessible
+  │
+  ┌─ src/main.spade:1:1
+  │
+1 │ struct Thing {}
+  │ --------------- The inaccessible item is defined here

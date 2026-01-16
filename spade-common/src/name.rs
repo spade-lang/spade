@@ -248,6 +248,10 @@ impl Path {
     pub fn prelude(&self) -> Path {
         Self(self.0[0..self.0.len() - 1].to_owned())
     }
+
+    pub fn starts_with(&self, other: &Path) -> bool {
+        self.0.iter().zip(&other.0).all(|(l, r)| l == r)
+    }
 }
 
 impl std::fmt::Display for Path {

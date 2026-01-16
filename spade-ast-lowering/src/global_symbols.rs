@@ -186,8 +186,12 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                         None => u.path.0.last().unwrap().unwrap_named().clone(),
                     };
 
-                    ctx.symtab
-                        .add_alias(new_name, u.path.clone(), u.visibility.clone())?;
+                    ctx.symtab.add_alias(
+                        us.loc(),
+                        new_name,
+                        u.path.clone(),
+                        u.visibility.clone(),
+                    )?;
                 }
             }
         }

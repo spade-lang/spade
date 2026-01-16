@@ -107,6 +107,7 @@ impl ServerBackend {
                 )
             }
             symbol_table::Thing::Alias {
+                loc: _,
                 path,
                 in_namespace: _,
             } => {

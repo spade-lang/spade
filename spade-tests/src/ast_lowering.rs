@@ -1648,6 +1648,20 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    pub_suggestion_on_use_statements_is_placed_correctly,
+    "
+        pub mod submod {
+            enum A {}
+            use A as b;
+        }
+        mod submod2 {
+            use lib::submod::b;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
     bare_mod_recommends_correct_pub,
     {
         {
@@ -1676,6 +1690,29 @@ snapshot_error! {
             "
                 mod submod;
                 mod submod2;
+            "
+        },
+    },
+    false
+}
+
+snapshot_error! {
+    pub_suggestions_are_not_printed_if_the_use_and_usee_are_in_different_base_namespaces,
+    {
+        {
+            Path::from_strs(&["other"]),
+            Path::from_strs(&["other"]),
+            "src/main.spade",
+            "
+                struct Thing {}
+            "
+        },
+        {
+            Path::from_idents(&[&Identifier::intern("test").nowhere()]),
+            Path::from_idents(&[&Identifier::intern("test").nowhere()]),
+            "src/main.spade",
+            "
+                use other::Thing;
             "
         },
     },
