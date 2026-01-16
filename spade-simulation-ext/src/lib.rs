@@ -233,6 +233,13 @@ impl Spade {
         // Set the namespace of the module
         let namespace = uut.prelude();
         let mut symtab = state.symtab.unfreeze();
+        symtab.set_base_namespace(SpadePath(
+            namespace
+                .0
+                .get(0)
+                .map(|segment| vec![segment.clone()])
+                .unwrap_or(vec![]),
+        ));
         for segment in namespace.0 {
             symtab.push_namespace(segment)
         }
