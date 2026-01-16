@@ -13,13 +13,21 @@ error: A is inaccessible
   ┌─ testinput:5:25
   │
 2 │     mod x {struct A {}}
-  │         -  ----------- The inaccessible item is defined here
-  │         │   
-  │         The item is inaccessible because x is inaccessible
+  │     -------------------
+  │     │      │
+  │     │      The inaccessible item is defined here
+  │     The item is inaccessible because x is inaccessible
   ·
 5 │     use lib::submod::x::A;
   │                      -  ^ A is inaccessible
   │                      │   
   │                      Because x is inaccessible
   │
-  = note: consider using `pub` to alter its visibility
+  = Consider adding `pub`
+  │
+2 │     pub mod x {struct A {}}
+  │     ++++
+  = Or a more limited visiblity like pub(lib) or pub(super)
+  │
+2 │     pub(lib) mod x {struct A {}}
+  │     +++++++++

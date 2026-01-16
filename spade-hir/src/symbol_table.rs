@@ -39,6 +39,7 @@ pub enum LookupError {
         /// we may end up not finding a loc. Since this is only a helper diagnostic anyway,
         /// this will be empty in those situations
         target_item: Option<Loc<()>>,
+        visilbity_marker: Option<Loc<()>>,
     },
 }
 
@@ -147,14 +148,42 @@ impl From<LookupError> for Diagnostic {
                 invisible_segment,
                 target_item,
                 invisible_item,
+                visilbity_marker,
             } => {
-                let diag = Diagnostic::error(target_segment.loc(), format!("{} is inaccessible", target_segment))
-                    .primary_label(format!("{} is inaccessible", target_segment))
-                    .note("consider using `pub` to alter its visibility");
+                let diag = Diagnostic::error(
+                    target_segment.loc(),
+                    format!("{} is inaccessible", target_segment),
+                )
+                .primary_label(format!("{} is inaccessible", target_segment));
+
+                let diag = if let Some(pub_insertion) = invisible_item.or(*target_item) {
+                    if let Some(marker) = visilbity_marker {
+                        diag.span_suggest_replace(
+                            "Consider changing the visiblity to `pub`",
+                            marker,
+                            "pub",
+                        )
+                    } else {
+                        diag.span_suggest_insert_before(
+                            "Consider adding `pub`",
+                            pub_insertion,
+                            "pub ",
+                        )
+                        .span_suggest_insert_before(
+                            "Or a more limited visiblity like pub(lib) or pub(super)",
+                            pub_insertion,
+                            "pub(lib) ",
+                        )
+                    }
+                } else {
+                    diag
+                };
 
                 let diag = if !invisible_segment.loc().is_same_loc(&target_segment.loc()) {
-                    diag
-                        .secondary_label(invisible_segment.loc(), format!("Because {invisible_segment} is inaccessible"))
+                    diag.secondary_label(
+                        invisible_segment.loc(),
+                        format!("Because {invisible_segment} is inaccessible"),
+                    )
                 } else {
                     diag
                 };
@@ -168,7 +197,9 @@ impl From<LookupError> for Diagnostic {
                 if let Some(loc) = invisible_item {
                     diag.secondary_label(
                         loc,
-                        format!("The item is inaccessible because {invisible_segment} is inaccessible"),
+                        format!(
+                            "The item is inaccessible because {invisible_segment} is inaccessible"
+                        ),
                     )
                 } else {
                     diag
@@ -254,7 +285,7 @@ pub enum Thing {
         in_namespace: Path,
     },
     ArrayLabel(Loc<usize>),
-    Module(Loc<Identifier>),
+    Module(Loc<()>, Loc<Identifier>),
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
     Trait(Loc<TraitMarker>),
@@ -274,7 +305,7 @@ impl Thing {
             Thing::Alias { .. } => "alias",
             Thing::ArrayLabel(_) => "array label",
             Thing::Trait(_) => "trait",
-            Thing::Module(_) => "module",
+            Thing::Module(_, _) => "module",
             Thing::Dummy => "dummy (implementation detail)",
         }
     }
@@ -292,7 +323,7 @@ impl Thing {
             } => path.loc(),
             Thing::ArrayLabel(v) => v.loc(),
             Thing::Trait(loc) => loc.loc(),
-            Thing::Module(loc) => loc.loc(),
+            Thing::Module(loc, _name) => loc.loc(),
             Thing::Dummy => ().nowhere(),
         }
     }
@@ -310,7 +341,7 @@ impl Thing {
                 in_namespace: _,
             } => path.loc(),
             Thing::Trait(loc) => loc.loc(),
-            Thing::Module(loc) => loc.loc(),
+            Thing::Module(_loc, name) => name.loc(),
             Thing::Dummy => ().nowhere(),
         }
     }
@@ -469,7 +500,7 @@ impl SymbolTable {
 
         result.add_thing(
             Path(vec![]),
-            Thing::Module(Identifier::intern("<root>").nowhere()),
+            Thing::Module(().nowhere(), Identifier::intern("<root>").nowhere()),
             None,
         );
 
@@ -1219,6 +1250,11 @@ impl SymbolTable {
                                 invisible_segment: segment.clone(),
                                 target_item,
                                 invisible_item: invisible_item.map(Thing::loc),
+                                visilbity_marker: if visibility.inner != Visibility::Implicit {
+                                    Some(visibility.loc())
+                                } else {
+                                    None
+                                },
                             });
                         }
                     }
@@ -1283,7 +1319,7 @@ impl SymbolTable {
                     println!("{}", format!("alias => {path} in {in_namespace}").green())
                 }
                 Thing::Trait(t) => println!("trait {}", t.name),
-                Thing::Module(name) => println!("mod {name}"),
+                Thing::Module(_, name) => println!("mod {name}"),
                 Thing::Dummy => println!("dummy"),
             }
         }

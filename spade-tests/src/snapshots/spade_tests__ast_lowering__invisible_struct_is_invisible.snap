@@ -19,4 +19,11 @@ error: Secret is inaccessible
 5 │ fn test() -> a::Secret {
   │                 ^^^^^^ Secret is inaccessible
   │
-  = note: consider using `pub` to alter its visibility
+  = Consider adding `pub`
+  │
+2 │     pub struct Secret {}
+  │     ++++
+  = Or a more limited visiblity like pub(lib) or pub(super)
+  │
+2 │     pub(lib) struct Secret {}
+  │     +++++++++

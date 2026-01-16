@@ -23,4 +23,11 @@ error: Thing is inaccessible
 1 │ struct Thing {}
   │ --------------- The inaccessible item is defined here
   │
-  = note: consider using `pub` to alter its visibility
+  = Consider adding `pub`
+  │
+1 │ pub struct Thing {}
+  │ ++++
+  = Or a more limited visiblity like pub(lib) or pub(super)
+  │
+1 │ pub(lib) struct Thing {}
+  │ +++++++++

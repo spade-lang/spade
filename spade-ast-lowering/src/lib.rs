@@ -1474,7 +1474,7 @@ pub fn visit_module(module: &ast::Module, ctx: &mut Context) -> Result<()> {
         .lookup_thing(path)
         .map_err(|_| diag_anyhow!(module.name, "Failed to find {path} in symtab"))?;
 
-    if !matches!(thing, Thing::Module(_)) {
+    if !matches!(thing, Thing::Module(_, _)) {
         diag_bail!(
             module.name,
             "Found {} to be a {}",

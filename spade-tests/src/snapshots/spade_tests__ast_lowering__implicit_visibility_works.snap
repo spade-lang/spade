@@ -14,9 +14,16 @@ error: secret is inaccessible
   ┌─ testinput:6:19
   │
 2 │     mod secret {}
-  │         ------ The inaccessible item is defined here
+  │     ------------- The inaccessible item is defined here
   ·
 6 │     use super::a::secret; // this will fail
   │                   ^^^^^^ secret is inaccessible
   │
-  = note: consider using `pub` to alter its visibility
+  = Consider adding `pub`
+  │
+2 │     pub mod secret {}
+  │     ++++
+  = Or a more limited visiblity like pub(lib) or pub(super)
+  │
+2 │     pub(lib) mod secret {}
+  │     +++++++++

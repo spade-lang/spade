@@ -50,7 +50,7 @@ pub fn handle_external_modules(
                     // We're going to eagerly add the `mod` first in order to detect duplicates.
                     let name_id = ctx.symtab.add_unique_thing(
                         Path::ident(name.clone()).at_loc(&name),
-                        Thing::Module(name.clone()),
+                        Thing::Module(em.loc(), name.clone()),
                         Some(em.visibility.clone()),
                     )?;
 
@@ -154,7 +154,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             ast::Item::Module(ref m) => {
                 ctx.symtab.add_unique_thing(
                     Path::ident(m.name.clone()).at_loc(&m.name),
-                    Thing::Module(m.name.clone()),
+                    Thing::Module(m.loc(), m.name.clone()),
                     Some(m.visibility.clone()),
                 )?;
                 ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?

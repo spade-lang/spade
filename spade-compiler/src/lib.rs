@@ -179,6 +179,7 @@ pub fn compile(
             let name_id = ctx.symtab.add_thing(
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
+                    ().nowhere(),
                     namespace.namespace.0.last().unwrap().unwrap_named().clone(),
                 ),
                 Some(Visibility::Implicit.nowhere()),

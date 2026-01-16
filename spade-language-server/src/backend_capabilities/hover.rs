@@ -115,7 +115,7 @@ impl ServerBackend {
             symbol_table::Thing::ArrayLabel(value) => {
                 format!("Array label: {value}")
             }
-            symbol_table::Thing::Module(_) => {
+            symbol_table::Thing::Module(_, _) => {
                 format!("(module)")
             }
             symbol_table::Thing::Trait(_) => {

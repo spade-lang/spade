@@ -18,4 +18,11 @@ error: A is inaccessible
 5 │     use lib::submod::A;
   │                      ^ A is inaccessible
   │
-  = note: consider using `pub` to alter its visibility
+  = Consider adding `pub`
+  │
+2 │     pub struct A {}
+  │     ++++
+  = Or a more limited visiblity like pub(lib) or pub(super)
+  │
+2 │     pub(lib) struct A {}
+  │     +++++++++

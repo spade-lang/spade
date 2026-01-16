@@ -25,4 +25,7 @@ error: Dog is inaccessible
 10 │     use super::a::Dog as D; // this will fail
    │                   ^^^ Dog is inaccessible
    │
-   = note: consider using `pub` to alter its visibility
+   = Consider changing the visiblity to `pub`
+   │
+ 3 │     pub enum Dog {}
+   │     ~~~
