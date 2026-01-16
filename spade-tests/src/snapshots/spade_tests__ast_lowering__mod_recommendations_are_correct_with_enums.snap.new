@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/ast_lowering.rs
+assertion_line: 1637
+---
+pub mod submod {
+    mod x {enum A {}}
+}
+mod submod2 {
+    use lib::submod::x::A;
+}
+
+
+error: A is private
+  ┌─ testinput:5:9
+  │
+2 │     mod x {enum A {}}
+  │         - The item is inaccessible because this module is inaccessible
+  ·
+5 │     use lib::submod::x::A;
+  │         ^^^^^^^^^^^^^^^^^
+  │         │            │
+  │         │            this item is not inaccessible from the current namespace
+  │         private item
+  │
+  = note: consider using `pub` to alter its visibility

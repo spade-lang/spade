@@ -10,7 +10,7 @@ fn test() -> a::Secret {
 }
 
 
-error: Path cannot be traversed
+error: Secret is private
   ┌─ testinput:5:14
   │
 2 │     struct Secret {}
@@ -20,6 +20,6 @@ error: Path cannot be traversed
   │              ^^^^^^^^^
   │              │  │
   │              │  this item is not inaccessible from the current namespace
-  │              Path cannot be traversed
+  │              private item
   │
   = note: consider using `pub` to alter its visibility

@@ -1,0 +1,29 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct Thing {}
+
+use lib::submod::Thing;
+struct Thing2 {
+    field: Thing
+}
+
+mod submod;
+mod submod2;
+
+
+error: Thing is private
+  ┌─ src/submod2.spade:1:5
+  │
+1 │ use lib::submod::Thing;
+  │     ^^^^^^^^^^^^^^^^^^
+  │     │            │
+  │     │            this item is not inaccessible from the current namespace
+  │     private item
+  │
+  ┌─ src/submod.spade:1:1
+  │
+1 │ struct Thing {}
+  │ --------------- The inaccessible item is defined here
+  │
+  = note: consider using `pub` to alter its visibility

@@ -1,3 +1,8 @@
+use spade_common::{
+    location_info::WithLocation,
+    name::{Identifier, Path},
+};
+
 use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error, snapshot_mir};
 
 snapshot_error! {
@@ -1601,4 +1606,78 @@ snapshot_error! {
             let x = {@label.thing};
         }
     "
+}
+
+snapshot_error! {
+    mod_recommendations_are_correct,
+    "
+        pub mod submod {
+            struct A {}
+        }
+        mod submod2 {
+            use lib::submod::A;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    mod_recommendations_are_correct2,
+    "
+        pub mod submod {
+            mod x {struct A {}}
+        }
+        mod submod2 {
+            use lib::submod::x::A;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    mod_recommendations_are_correct_with_enums,
+    "
+        pub mod submod {
+            mod x {enum A {}}
+        }
+        mod submod2 {
+            use lib::submod::x::A;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    bare_mod_recommends_correct_pub,
+    {
+        {
+            Path::from_strs(&["test", "submod"]),
+            Path::from_strs(&["test"]),
+            "src/submod.spade",
+            "
+                struct Thing {}
+            "
+        },
+        {
+            Path::from_strs(&["test", "submod2"]),
+            Path::from_strs(&["test"]),
+            "src/submod2.spade",
+            "
+                use lib::submod::Thing;
+                struct Thing2 {
+                    field: Thing
+                }
+            "
+        },
+        {
+            Path::from_idents(&[&Identifier::intern("test").nowhere()]),
+            Path::from_idents(&[&Identifier::intern("test").nowhere()]),
+            "src/main.spade",
+            "
+                mod submod;
+                mod submod2;
+            "
+        },
+    },
+    false
 }

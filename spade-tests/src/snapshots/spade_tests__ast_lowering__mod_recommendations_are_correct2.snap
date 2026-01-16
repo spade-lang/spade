@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+pub mod submod {
+    mod x {struct A {}}
+}
+mod submod2 {
+    use lib::submod::x::A;
+}
+
+
+error: A is private
+  ┌─ testinput:5:9
+  │
+2 │     mod x {struct A {}}
+  │         -  ----------- The inaccessible item is defined here
+  │         │   
+  │         The item is inaccessible because this module is inaccessible
+  ·
+5 │     use lib::submod::x::A;
+  │         ^^^^^^^^^^^^^^^^^
+  │         │            │
+  │         │            this item is not inaccessible from the current namespace
+  │         private item
+  │
+  = note: consider using `pub` to alter its visibility

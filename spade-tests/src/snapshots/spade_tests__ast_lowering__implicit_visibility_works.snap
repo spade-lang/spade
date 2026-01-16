@@ -10,11 +10,9 @@ mod b {
 }
 
 
-error: Path cannot be traversed
+error: secret is private
   ┌─ testinput:6:9
   │
-1 │ mod a {
-  │     - The item is inaccessible because this module is inaccessible
 2 │     mod secret {}
   │         ------ The inaccessible item is defined here
   ·
@@ -22,6 +20,6 @@ error: Path cannot be traversed
   │         ^^^^^^^^^^^^^^^^
   │         │         │
   │         │         this item is not inaccessible from the current namespace
-  │         Path cannot be traversed
+  │         private item
   │
   = note: consider using `pub` to alter its visibility

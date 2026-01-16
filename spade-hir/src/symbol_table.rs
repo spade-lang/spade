@@ -148,8 +148,8 @@ impl From<LookupError> for Diagnostic {
                 target_item,
                 invisible_item,
             } => {
-                let diag = Diagnostic::error(full_path, "Path cannot be traversed")
-                    .primary_label("Path cannot be traversed")
+                let diag = Diagnostic::error(full_path, format!("{} is private", full_path.tail()))
+                    .primary_label("private item")
                     .secondary_label(
                         invisible_segment.loc(),
                         format!("this item is not inaccessible from the current namespace"),
@@ -1151,7 +1151,7 @@ impl SymbolTable {
 
         // Walk through all segments, resolving any aliases found along the way,
         // until the final thing is found or hitting a roadblock.
-        for (i, segment) in segments.iter().enumerate() {
+        for segment in segments.iter() {
             let mut local_forbidden = forbidden.clone();
             let idx = self.current_scope() - scope_offset;
             let scope = &self.symbols[idx];
@@ -1196,21 +1196,17 @@ impl SymbolTable {
                                 });
 
                         if !is_visible {
-                            let target_item = self.thing_by_id(&id).map(|thing| thing.loc());
+                            let target_id =
+                                self.lookup_id_in_namespace(path, namespace, false).ok();
 
-                            // Only show the invisible item if it isn't the item we are looking for in the first place
-                            let invisible_item = if i != 0 {
-                                self.lookup_thing_ignore_visibility(
-                                    &Path(path.0[0..=i].to_vec()).at_loc(path),
-                                )
-                                .ok()
-                                .and_then(|(name, thing)| {
-                                    if &name != id {
-                                        Some(thing.loc())
-                                    } else {
-                                        None
-                                    }
-                                })
+                            let target_item = target_id.as_ref().and_then(|id| {
+                                self.thing_by_id(id)
+                                    .map(Thing::loc)
+                                    .or_else(|| self.type_symbol_by_id(id).map(Loc::loc))
+                            });
+
+                            let invisible_item = if target_id != Some(id.clone()) {
+                                self.things.get(id)
                             } else {
                                 None
                             };
@@ -1219,7 +1215,7 @@ impl SymbolTable {
                                 full_path: path.clone(),
                                 invisible_segment: segment.clone(),
                                 target_item,
-                                invisible_item,
+                                invisible_item: invisible_item.map(Thing::loc),
                             });
                         }
                     }
