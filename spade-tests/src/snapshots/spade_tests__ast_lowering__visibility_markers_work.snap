@@ -16,16 +16,13 @@ mod b {
 }
 
 
-error: Dog is private
-   ┌─ testinput:10:9
+error: Dog is inaccessible
+   ┌─ testinput:10:19
    │
  3 │     pub(self) enum Dog {}
    │               ----------- The inaccessible item is defined here
    ·
 10 │     use super::a::Dog as D; // this will fail
-   │         ^^^^^^^^^^^^^
-   │         │         │
-   │         │         this item is not inaccessible from the current namespace
-   │         private item
+   │                   ^^^ Dog is inaccessible
    │
    = note: consider using `pub` to alter its visibility

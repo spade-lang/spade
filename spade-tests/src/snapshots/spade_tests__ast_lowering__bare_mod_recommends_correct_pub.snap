@@ -12,14 +12,11 @@ mod submod;
 mod submod2;
 
 
-error: Thing is private
-  ┌─ src/submod2.spade:1:5
+error: Thing is inaccessible
+  ┌─ src/submod2.spade:1:18
   │
 1 │ use lib::submod::Thing;
-  │     ^^^^^^^^^^^^^^^^^^
-  │     │            │
-  │     │            this item is not inaccessible from the current namespace
-  │     private item
+  │                  ^^^^^ Thing is inaccessible
   │
   ┌─ src/submod.spade:1:1
   │

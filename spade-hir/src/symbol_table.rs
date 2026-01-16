@@ -30,7 +30,7 @@ pub enum LookupError {
     BarrierError(Diagnostic),
     TooManySuperSegments(Loc<Path>, PathSegment),
     NotVisible {
-        full_path: Loc<Path>,
+        target_segment: PathSegment,
         invisible_segment: PathSegment,
         /// This is present if the reason the target item is invisible is because of a module
         /// further up the stack.
@@ -143,18 +143,21 @@ impl From<LookupError> for Diagnostic {
                     ))
             }
             LookupError::NotVisible {
-                full_path,
+                target_segment,
                 invisible_segment,
                 target_item,
                 invisible_item,
             } => {
-                let diag = Diagnostic::error(full_path, format!("{} is private", full_path.tail()))
-                    .primary_label("private item")
-                    .secondary_label(
-                        invisible_segment.loc(),
-                        format!("this item is not inaccessible from the current namespace"),
-                    )
+                let diag = Diagnostic::error(target_segment.loc(), format!("{} is inaccessible", target_segment))
+                    .primary_label(format!("{} is inaccessible", target_segment))
                     .note("consider using `pub` to alter its visibility");
+
+                let diag = if !invisible_segment.loc().is_same_loc(&target_segment.loc()) {
+                    diag
+                        .secondary_label(invisible_segment.loc(), format!("Because {invisible_segment} is inaccessible"))
+                } else {
+                    diag
+                };
 
                 let diag = if let Some(loc) = target_item {
                     diag.secondary_label(loc, "The inaccessible item is defined here")
@@ -165,7 +168,7 @@ impl From<LookupError> for Diagnostic {
                 if let Some(loc) = invisible_item {
                     diag.secondary_label(
                         loc,
-                        "The item is inaccessible because this module is inaccessible",
+                        format!("The item is inaccessible because {invisible_segment} is inaccessible"),
                     )
                 } else {
                     diag
@@ -1212,7 +1215,7 @@ impl SymbolTable {
                             };
 
                             return Err(LookupError::NotVisible {
-                                full_path: path.clone(),
+                                target_segment: path.tail(),
                                 invisible_segment: segment.clone(),
                                 target_item,
                                 invisible_item: invisible_item.map(Thing::loc),

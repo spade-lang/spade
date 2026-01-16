@@ -9,16 +9,13 @@ mod submod2 {
 }
 
 
-error: A is private
-  ┌─ testinput:5:9
+error: A is inaccessible
+  ┌─ testinput:5:22
   │
 2 │     struct A {}
   │     ----------- The inaccessible item is defined here
   ·
 5 │     use lib::submod::A;
-  │         ^^^^^^^^^^^^^^
-  │         │            │
-  │         │            this item is not inaccessible from the current namespace
-  │         private item
+  │                      ^ A is inaccessible
   │
   = note: consider using `pub` to alter its visibility

@@ -10,16 +10,13 @@ fn test() -> a::Secret {
 }
 
 
-error: Secret is private
-  ┌─ testinput:5:14
+error: Secret is inaccessible
+  ┌─ testinput:5:17
   │
 2 │     struct Secret {}
   │     ---------------- The inaccessible item is defined here
   ·
 5 │ fn test() -> a::Secret {
-  │              ^^^^^^^^^
-  │              │  │
-  │              │  this item is not inaccessible from the current namespace
-  │              private item
+  │                 ^^^^^^ Secret is inaccessible
   │
   = note: consider using `pub` to alter its visibility

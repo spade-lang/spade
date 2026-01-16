@@ -9,18 +9,17 @@ mod submod2 {
 }
 
 
-error: A is private
-  ┌─ testinput:5:9
+error: A is inaccessible
+  ┌─ testinput:5:25
   │
 2 │     mod x {enum A {}}
   │         -  --------- The inaccessible item is defined here
   │         │   
-  │         The item is inaccessible because this module is inaccessible
+  │         The item is inaccessible because x is inaccessible
   ·
 5 │     use lib::submod::x::A;
-  │         ^^^^^^^^^^^^^^^^^
-  │         │            │
-  │         │            this item is not inaccessible from the current namespace
-  │         private item
+  │                      -  ^ A is inaccessible
+  │                      │   
+  │                      Because x is inaccessible
   │
   = note: consider using `pub` to alter its visibility

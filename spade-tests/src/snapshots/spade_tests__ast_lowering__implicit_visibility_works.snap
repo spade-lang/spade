@@ -10,16 +10,13 @@ mod b {
 }
 
 
-error: secret is private
-  ┌─ testinput:6:9
+error: secret is inaccessible
+  ┌─ testinput:6:19
   │
 2 │     mod secret {}
   │         ------ The inaccessible item is defined here
   ·
 6 │     use super::a::secret; // this will fail
-  │         ^^^^^^^^^^^^^^^^
-  │         │         │
-  │         │         this item is not inaccessible from the current namespace
-  │         private item
+  │                   ^^^^^^ secret is inaccessible
   │
   = note: consider using `pub` to alter its visibility
