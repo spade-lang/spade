@@ -185,6 +185,9 @@ impl TypeState {
                 base: primitive.clone(),
                 params,
             },
+            hir::TypeDeclKind::Alias(a) => {
+                Self::type_spec_to_concrete(&a.type_spec, type_list, &generic_subs, invert)
+            }
         }
     }
 

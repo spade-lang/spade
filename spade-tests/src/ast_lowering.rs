@@ -1745,6 +1745,81 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    type_aliases_work,
+    "
+        type Pair<A, B> = (A, B);
+        type Left<A> = Pair<A, ()>;
+
+        fn test() {
+            let p: Pair<bool, bool> = (true, false);
+            let q: Left<bool> = (true, ());
+        }
+    "
+}
+
+code_compiles! {
+    type_aliases_alias_struct_constructors,
+    "
+        struct Base<T, U> { t: T, u: U }
+        type Mid<M> = Base<M, uint<8>>;
+        type Top = Mid<bool>;
+
+        fn test() {
+            let _: Base<bool, uint<8>> = Mid$(t: true, u: 8u8);
+            let _: Base<bool, uint<8>> = Top$(t: true, u: 8u8);
+            let _: Mid<bool> = Base$(t: true, u: 8u8);
+            let _: Top = Top$(t: true, u: 8u8);
+        }
+    "
+}
+
+code_compiles! {
+    type_aliases_alias_enum_variants,
+    "
+        enum Base<T, U> { Variant { t: T, u: U } }
+        type Mid<M> = Base<M, uint<8>>;
+        type Top = Mid<bool>;
+
+        fn test() {
+            let _: Base<bool, uint<8>> = Mid::Variant$(t: true, u: 8u8);
+            let _: Base<bool, uint<8>> = Top::Variant$(t: true, u: 8u8);
+            let _: Mid<bool> = Base::Variant$(t: true, u: 8u8);
+            let _: Top = Top::Variant$(t: true, u: 8u8);
+        }
+    "
+}
+
+snapshot_error! {
+    type_aliases_cannot_alias_ports,
+    "
+    type A = &bool;
+    "
+}
+
+snapshot_error! {
+    type_aliases_cannot_alias_inout,
+    "
+    type A = inout<bool>;
+    "
+}
+
+snapshot_error! {
+    type_declaration_cycle_is_rejected,
+    "
+    type A = (B, bool);
+    struct B { x: [C; 3] }
+    enum C { Variant { val: Option<A> } }
+    "
+}
+
+snapshot_error! {
+    type_declaration_cycle_with_itself_is_rejected,
+    "
+    type A = A;
+    "
+}
+
 snapshot_error! {
     lambda_variables_are_not_visible_externally,
     "

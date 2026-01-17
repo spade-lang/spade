@@ -7,10 +7,10 @@ use hir::{
 use spade_ast::{self as ast, Module, ModuleBody};
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, Path, Visibility},
+    name::{Identifier, NameID, Path, Visibility},
     namespace::ModuleNamespace,
 };
-use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_diagnostics::{diag_anyhow, diagnostic::Subdiagnostic, Diagnostic};
 use spade_hir::WhereClause;
 use spade_hir::{self as hir, symbol_table::TraitMarker};
 use spade_types::meta_types::MetaType;
@@ -299,7 +299,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::TraitDef(ref def) => {
             validate_default_param_position(&def.type_params)?;
 
-            let (name, _) = ctx.symtab.lookup_trait_ignore_metadata(&Path::ident_with_loc(def.name.clone())).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
+            let (name, _) = ctx.symtab.lookup_trait(&Path::ident_with_loc(def.name.clone()), false).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
 
             let mut paren_sugar = false;
 
@@ -395,12 +395,11 @@ pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
     Ok(meta)
 }
 
-pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
-    validate_default_param_position(&t.generic_args)?;
-
-    let args = t
-        .generic_args
-        .as_ref()
+fn visit_generic_args(
+    args: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
+    ctx: &mut Context,
+) -> Result<Vec<Loc<GenericArg>>> {
+    args.as_ref()
         .map(|args| &args.inner)
         .unwrap_or(&vec![])
         .iter()
@@ -426,7 +425,13 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
             .at_loc(&arg.loc());
             Ok(result)
         })
-        .collect::<Result<_>>()?;
+        .collect::<Result<_>>()
+}
+
+pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
+    validate_default_param_position(&t.generic_args)?;
+
+    let args = visit_generic_args(&t.generic_args, ctx)?;
 
     let (kind, attrs) = match &t.kind {
         ast::TypeDeclKind::Enum(e) => (hir::symbol_table::TypeDeclKind::Enum, &e.attributes),
@@ -436,6 +441,7 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
             },
             &s.attributes,
         ),
+        ast::TypeDeclKind::Alias(a) => (hir::symbol_table::TypeDeclKind::Alias, &a.attributes),
     };
 
     let deprecation_note = attrs
@@ -456,12 +462,27 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         .count();
 
     let new_thing = t.name.clone();
-    ctx.symtab.add_unique_type(
+    let name_id = ctx.symtab.add_unique_type(
         new_thing,
         TypeSymbol::Declared(args, min_required_params, kind).at_loc(t),
         t.visibility.clone(),
-        deprecation_note,
+        deprecation_note.clone(),
     )?;
+
+    if let ast::TypeDeclKind::Alias(a) = &t.kind {
+        if let ast::TypeSpec::Named(target_path, _) = &a.type_spec.inner {
+            ctx.symtab.add_thing_with_name_id(
+                name_id,
+                Thing::Alias {
+                    loc: t.loc(),
+                    path: target_path.clone(),
+                    in_namespace: ctx.symtab.current_namespace().clone(),
+                },
+                Some(t.visibility.clone()),
+                deprecation_note,
+            );
+        }
+    }
 
     Ok(())
 }
@@ -558,6 +579,11 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         type_params.push(param.at_loc(arg))
     }
 
+    // All name IDs referenced by the type declaration will be collected here, forming a graph.
+    // A cycle in this graph will be searched, and if found, the declaration will be rejected.
+    let mut pending_names = HashSet::default();
+    let mut visited_edges = HashMap::default();
+
     let hir_kind = match &t.inner.kind {
         ast::TypeDeclKind::Enum(e) => {
             let mut member_names = HashSet::<Loc<Identifier>>::default();
@@ -623,6 +649,12 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                             .primary_label("This is an inout")
                             .secondary_label(&e.name, "This is an enum"));
                     }
+                    add_type_spec_name_ids_to_graph(
+                        &ty.inner,
+                        &declaration_id,
+                        &mut pending_names,
+                        &mut visited_edges,
+                    );
                 }
 
                 let documentation = variant.attributes.merge_docs();
@@ -751,6 +783,12 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                             ));
                     }
                 }
+                add_type_spec_name_ids_to_graph(
+                    &hir_ty.inner,
+                    &declaration_id,
+                    &mut pending_names,
+                    &mut visited_edges,
+                );
             }
 
             let members = visit_parameter_list(&s.members, ctx, None)?;
@@ -832,7 +870,142 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 .at_loc(s),
             )
         }
+        ast::TypeDeclKind::Alias(a) => {
+            let mut wal_traceable = None;
+            let documentation = a.attributes.merge_docs();
+            let _ = a.attributes.lower(&mut |attr| match &attr.inner {
+                ast::Attribute::WalTraceable {
+                    suffix,
+                    uses_rst,
+                    uses_clk,
+                } => {
+                    let suffix = if let Some(suffix) = suffix {
+                        Path::ident(suffix.clone())
+                    } else {
+                        declaration_id.1.clone()
+                    };
+                    wal_traceable = Some(
+                        WalTraceable {
+                            suffix,
+                            uses_clk: *uses_clk,
+                            uses_rst: *uses_rst,
+                        }
+                        .at_loc(attr),
+                    );
+                    Ok(None)
+                }
+                ast::Attribute::Documentation { .. } | ast::Attribute::Deprecated { .. } => {
+                    Ok(None)
+                }
+                ast::Attribute::Optimize { .. }
+                | ast::Attribute::VerilogAttrs { .. }
+                | ast::Attribute::NoMangle { .. }
+                | ast::Attribute::Fsm { .. }
+                | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::SpadecParenSugar
+                | ast::Attribute::Inline
+                | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("type alias")),
+            })?;
+
+            let type_spec = visit_type_spec(&a.type_spec, &TypeSpecKind::Alias, ctx)?;
+
+            if type_spec.is_port(&ctx)? {
+                return Err(Diagnostic::error(type_spec, "Port in alias")
+                    .primary_label("This is a port")
+                    .secondary_label(&a.name, "This is an alias"));
+            }
+            if type_spec.is_inout(&ctx)? {
+                return Err(Diagnostic::error(type_spec, "Inout in alias")
+                    .primary_label("This is an inout")
+                    .secondary_label(&a.name, "This is an alias"));
+            }
+
+            add_type_spec_name_ids_to_graph(
+                &type_spec.inner,
+                &declaration_id,
+                &mut pending_names,
+                &mut visited_edges,
+            );
+
+            hir::TypeDeclKind::Alias(
+                hir::TypeAlias {
+                    type_spec,
+                    wal_traceable,
+                    documentation,
+                }
+                .at_loc(a),
+            )
+        }
     };
+
+    while let Some(pending_name) = pending_names.extract_if(|_| true).next() {
+        if pending_name == declaration_id.inner {
+            let mut diag = Diagnostic::error(
+                t.name,
+                format!("Cycle caused by type declaration `{}`", t.name),
+            );
+
+            let mut current_name = visited_edges.get(&declaration_id).unwrap();
+
+            while current_name != &declaration_id {
+                diag.push_subdiagnostic(Subdiagnostic::span_note(
+                    current_name,
+                    format!("... which is part of type declaration `{current_name}`"),
+                ));
+                current_name = visited_edges.get(&current_name).unwrap();
+            }
+
+            diag.push_subdiagnostic(Subdiagnostic::span_note(
+                current_name,
+                format!(
+                    "... which is part of type declaration `{}`, completing the cycle",
+                    t.name
+                ),
+            ));
+
+            return Err(diag);
+        }
+
+        if let TypeSymbol::Declared(_, _, _) = ctx.symtab.type_symbol_by_id(&pending_name).inner {
+            let Some(decl) = ctx.item_list.types.get(&pending_name) else {
+                continue;
+            };
+
+            match &decl.kind {
+                hir::TypeDeclKind::Enum(e) => {
+                    for (_, members) in &e.options {
+                        for member in &members.0 {
+                            add_type_spec_name_ids_to_graph(
+                                &member.ty,
+                                &decl.name,
+                                &mut pending_names,
+                                &mut visited_edges,
+                            );
+                        }
+                    }
+                }
+                hir::TypeDeclKind::Primitive(_) => {}
+                hir::TypeDeclKind::Struct(s) => {
+                    for member in &s.members.0 {
+                        add_type_spec_name_ids_to_graph(
+                            &member.ty,
+                            &decl.name,
+                            &mut pending_names,
+                            &mut visited_edges,
+                        );
+                    }
+                }
+                hir::TypeDeclKind::Alias(a) => add_type_spec_name_ids_to_graph(
+                    &a.type_spec,
+                    &decl.name,
+                    &mut pending_names,
+                    &mut visited_edges,
+                ),
+            }
+        }
+    }
+
     // Close the symtab scope
     ctx.symtab.close_scope();
 
@@ -840,10 +1013,46 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     let decl = hir::TypeDeclaration {
         name: declaration_id.clone(),
         kind: hir_kind,
-        generic_args: type_params,
+        generic_args: type_params.clone(),
     }
     .at_loc(t);
+
     ctx.item_list.types.insert(declaration_id.inner, decl);
 
     Ok(())
+}
+
+// Visits a HIR type spec, adds all name IDs contained in it to a set of names, and creates a
+// mapping from it to `prev_name` at the location it was found. This is used for cycle detection in
+// while revisiting type declarations.
+fn add_type_spec_name_ids_to_graph(
+    ty: &hir::TypeSpec,
+    prev_name: &Loc<NameID>,
+    names: &mut HashSet<NameID>,
+    edges: &mut HashMap<NameID, Loc<NameID>>,
+) {
+    match ty {
+        hir::TypeSpec::Declared(name, args) => {
+            names.insert(name.inner.clone());
+            edges.insert(name.inner.clone(), prev_name.inner.clone().at_loc(&name));
+            for arg in args {
+                if let hir::TypeExpression::TypeSpec(ts) = &arg.inner {
+                    add_type_spec_name_ids_to_graph(ts, prev_name, names, edges);
+                }
+            }
+        }
+        hir::TypeSpec::Tuple(members) => members
+            .iter()
+            .for_each(|m| add_type_spec_name_ids_to_graph(m, prev_name, names, edges)),
+        hir::TypeSpec::Array { inner, size } => {
+            add_type_spec_name_ids_to_graph(inner, prev_name, names, edges);
+            if let hir::TypeExpression::TypeSpec(ts) = &size.inner {
+                add_type_spec_name_ids_to_graph(ts, prev_name, names, edges);
+            }
+        }
+        hir::TypeSpec::Inverted(inner) | hir::TypeSpec::Wire(inner) => {
+            add_type_spec_name_ids_to_graph(inner, prev_name, names, edges);
+        }
+        hir::TypeSpec::Generic(_) | hir::TypeSpec::TraitSelf(_) | hir::TypeSpec::Wildcard(_) => {}
+    }
 }

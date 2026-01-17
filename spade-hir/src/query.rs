@@ -11,7 +11,7 @@ use spade_common::{
 use crate::{
     expression::NamedArgument, ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind,
     Expression, Generic, ItemList, Pattern, PatternArgument, PatternKind, Register, Statement,
-    Struct, TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
+    Struct, TypeAlias, TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -334,6 +334,7 @@ impl<'a> QueryCache {
             TypeDeclKind::Enum(e) => self.visit_enum_decl(e),
             TypeDeclKind::Primitive(_) => {}
             TypeDeclKind::Struct(s) => self.visit_struct(s),
+            TypeDeclKind::Alias(a) => self.visit_type_alias(a),
         }
     }
 
@@ -349,6 +350,10 @@ impl<'a> QueryCache {
         for member in &s.members.0 {
             self.visit_type_spec(&member.ty);
         }
+    }
+
+    fn visit_type_alias(&mut self, a: &Loc<TypeAlias>) {
+        self.visit_type_spec(&a.type_spec);
     }
 
     fn visit_type_spec(&mut self, ts: &Loc<TypeSpec>) {

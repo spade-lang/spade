@@ -546,10 +546,18 @@ pub struct Struct {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct TypeAlias {
+    pub type_spec: Loc<TypeSpec>,
+    pub wal_traceable: Option<Loc<WalTraceable>>,
+    pub documentation: String,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum TypeDeclKind {
     Enum(Loc<Enum>),
     Primitive(PrimitiveType),
     Struct(Loc<Struct>),
+    Alias(Loc<TypeAlias>),
 }
 impl TypeDeclKind {
     pub fn name(&self) -> &str {
@@ -557,6 +565,7 @@ impl TypeDeclKind {
             TypeDeclKind::Enum(_) => "enum",
             TypeDeclKind::Primitive(_) => "primitive",
             TypeDeclKind::Struct(_) => "struct",
+            TypeDeclKind::Alias(_) => "type alias",
         }
     }
 }

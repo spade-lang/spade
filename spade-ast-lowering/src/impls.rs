@@ -4,18 +4,17 @@ use itertools::{EitherOrBoth, Itertools};
 use spade_ast as ast;
 use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, Path, PathSegment, Visibility};
+use spade_common::name::{Identifier, NameID, Path, PathSegment, Visibility};
 use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::pretty_debug::PrettyDebug;
-use spade_hir::symbol_table::TypeSymbol;
+use spade_hir::symbol_table::{Thing, TypeDeclKind, TypeSymbol};
 use spade_hir::{self as hir, TraitName, TypeExpression};
 use spade_types::meta_types::MetaType;
 
 use crate::error::Result;
 use crate::global_symbols::{self, visit_meta_type};
-use crate::type_alias::add_type_alias;
 use crate::{
     unit_head, visit_default_type_expression, visit_trait_spec, visit_trait_specs,
     visit_type_expression, visit_type_params, visit_type_spec, visit_unit, visit_where_clauses,
@@ -38,14 +37,42 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     let target_type = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
     let self_name = Identifier::intern("Self").nowhere();
 
-    add_type_alias(
-        self_name.clone(),
-        &impl_type_params,
-        &target_type,
+    let alias_id = ctx.symtab.add_type(
+        self_name,
+        TypeSymbol::Declared(vec![], 0, TypeDeclKind::Alias).at_loc(&target_type),
         Visibility::Implicit.nowhere(),
         None,
-        ctx,
-    )?;
+    );
+
+    ctx.item_list.types.insert(
+        alias_id.clone(),
+        hir::TypeDeclaration {
+            name: alias_id.clone().nowhere(),
+            kind: hir::TypeDeclKind::Alias(
+                hir::TypeAlias {
+                    type_spec: target_type.clone(),
+                    wal_traceable: None,
+                    documentation: String::new(),
+                }
+                .nowhere(),
+            ),
+            generic_args: vec![],
+        }
+        .nowhere(),
+    );
+
+    if let ast::TypeSpec::Named(path, _) = &block.target.inner {
+        ctx.symtab.add_thing_with_name_id(
+            alias_id.clone(),
+            Thing::Alias {
+                loc: block.target.loc(),
+                path: path.clone(),
+                in_namespace: ctx.symtab.current_namespace().clone(),
+            },
+            None,
+            None,
+        );
+    }
 
     let (target, target_args) = get_impl_target(block, ctx)?;
 
@@ -145,12 +172,14 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             impl_method,
             &trait_method_mono,
             &target_type.inner,
+            &alias_id,
         )?;
 
         check_params_for_impl_method_and_trait_method_match(
             impl_method,
             &trait_method_mono,
             &target_type.inner,
+            &alias_id,
         )?;
 
         missing_methods.remove(&unit.head.name.inner);
@@ -185,9 +214,7 @@ pub fn get_or_create_trait(
     ctx: &mut Context,
 ) -> Result<(TraitName, Loc<hir::TraitSpec>)> {
     if let Some(trait_spec) = &block.r#trait {
-        let (name, loc) = ctx
-            .symtab
-            .lookup_trait_ignore_metadata(&trait_spec.inner.path)?;
+        let (name, loc) = ctx.symtab.lookup_trait(&trait_spec.inner.path, false)?;
         Ok((
             TraitName::Named(name.at_loc(&loc)),
             visit_trait_spec(trait_spec, &TypeSpecKind::ImplTrait, ctx)?,
@@ -732,27 +759,33 @@ fn check_type_params_for_impl_method_and_trait_method_match(
     }
 }
 
-fn resolve_trait_self(trait_ty: hir::TypeSpec, impl_target_type: hir::TypeSpec) -> hir::TypeSpec {
-    let resolve_in_expr = |e: Loc<TypeExpression>| {
-        let (e, loc) = e.split_loc();
-        match e {
-            hir::TypeExpression::TypeSpec(ts) => {
-                hir::TypeExpression::TypeSpec(resolve_trait_self(ts, impl_target_type.clone()))
-                    .at_loc(&loc)
+fn resolve_trait_self(
+    trait_ty: hir::TypeSpec,
+    impl_target_type: hir::TypeSpec,
+    self_id: &NameID,
+) -> hir::TypeSpec {
+    let resolve_in_expr =
+        |e: Loc<TypeExpression>| {
+            let (e, loc) = e.split_loc();
+            match e {
+                hir::TypeExpression::TypeSpec(ts) => hir::TypeExpression::TypeSpec(
+                    resolve_trait_self(ts, impl_target_type.clone(), self_id),
+                )
+                .at_loc(&loc),
+                hir::TypeExpression::Bool(_) => e.at_loc(&loc),
+                hir::TypeExpression::Integer(_) => e.at_loc(&loc),
+                hir::TypeExpression::String(_) => e.at_loc(&loc),
+                // There is no way for `Self` to be used inside a const generic block
+                hir::TypeExpression::ConstGeneric(_) => e.at_loc(&loc),
             }
-            hir::TypeExpression::Bool(_) => e.at_loc(&loc),
-            hir::TypeExpression::Integer(_) => e.at_loc(&loc),
-            hir::TypeExpression::String(_) => e.at_loc(&loc),
-            // There is no way for `Self` to be used inside a const generic block
-            hir::TypeExpression::ConstGeneric(_) => e.at_loc(&loc),
-        }
-    };
+        };
     match trait_ty {
         hir::TypeSpec::Tuple(inner) => hir::TypeSpec::Tuple(
             inner
                 .iter()
                 .map(|inner| {
-                    resolve_trait_self(inner.inner.clone(), impl_target_type.clone()).at_loc(&inner)
+                    resolve_trait_self(inner.inner.clone(), impl_target_type.clone(), self_id)
+                        .at_loc(&inner)
                 })
                 .collect(),
         ),
@@ -760,21 +793,24 @@ fn resolve_trait_self(trait_ty: hir::TypeSpec, impl_target_type: hir::TypeSpec) 
             let (inner, loc) = inner.split_loc();
 
             hir::TypeSpec::Array {
-                inner: Box::new(resolve_trait_self(inner, impl_target_type.clone()).at_loc(&loc)),
+                inner: Box::new(
+                    resolve_trait_self(inner, impl_target_type.clone(), self_id).at_loc(&loc),
+                ),
                 size: Box::new(resolve_in_expr(*size)),
             }
         }
         hir::TypeSpec::Inverted(inner) => {
             let loc = inner.loc();
-            let new_inner = resolve_trait_self(inner.inner, impl_target_type).at_loc(&loc);
+            let new_inner = resolve_trait_self(inner.inner, impl_target_type, self_id).at_loc(&loc);
             hir::TypeSpec::Inverted(Box::new(new_inner))
         }
         hir::TypeSpec::Wire(inner) => {
             let loc = inner.loc();
-            let new_inner = resolve_trait_self(inner.inner, impl_target_type).at_loc(&loc);
+            let new_inner = resolve_trait_self(inner.inner, impl_target_type, self_id).at_loc(&loc);
             hir::TypeSpec::Wire(Box::new(new_inner))
         }
         hir::TypeSpec::TraitSelf(_) => impl_target_type,
+        hir::TypeSpec::Declared(name_id, _) if &name_id.inner == self_id => impl_target_type,
         hir::TypeSpec::Declared(name, exprs) => {
             hir::TypeSpec::Declared(name, exprs.into_iter().map(resolve_in_expr).collect())
         }
@@ -786,11 +822,15 @@ fn check_output_type_for_impl_method_and_trait_method_matches(
     impl_method: &hir::UnitHead,
     trait_method: &hir::UnitHead,
     target_type: &hir::TypeSpec,
+    self_id: &NameID,
 ) -> Result<()> {
-    let trait_output = trait_method.output_type().inner;
-    let trait_output = resolve_trait_self(trait_output.clone(), target_type.clone());
+    let impl_output = impl_method.output_type().inner;
+    let impl_output = resolve_trait_self(impl_output.clone(), target_type.clone(), self_id);
 
-    if impl_method.output_type().inner != trait_output {
+    let trait_output = trait_method.output_type().inner;
+    let trait_output = resolve_trait_self(trait_output.clone(), target_type.clone(), self_id);
+
+    if impl_output != trait_output {
         return Err(Diagnostic::error(
             impl_method.output_type(),
             "Return type does not match trait",
@@ -805,6 +845,7 @@ fn check_params_for_impl_method_and_trait_method_match(
     impl_method: &hir::UnitHead,
     trait_method: &hir::UnitHead,
     impl_target_type: &hir::TypeSpec,
+    self_id: &NameID,
 ) -> Result<()> {
     for (i, pair) in impl_method
         .inputs
@@ -837,8 +878,11 @@ fn check_params_for_impl_method_and_trait_method_match(
                         ));
                 }
 
-                let trait_type = resolve_trait_self(t_spec.inner.clone(), impl_target_type.clone());
-                if trait_type != i_spec.inner {
+                let trait_type =
+                    resolve_trait_self(t_spec.inner.clone(), impl_target_type.clone(), self_id);
+                let impl_type =
+                    resolve_trait_self(i_spec.inner.clone(), impl_target_type.clone(), self_id);
+                if trait_type != impl_type {
                     return Err(Diagnostic::error(i_spec, "Argument type mismatch")
                         .primary_label(format!("Expected {t_spec}"))
                         .secondary_label(

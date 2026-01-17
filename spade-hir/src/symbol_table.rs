@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use colored::Colorize;
 use itertools::{EitherOrBoth, Itertools};
@@ -403,6 +406,7 @@ pub enum TypeDeclKind {
     Struct { is_port: bool },
     Enum,
     Primitive { is_port: bool, is_inout: bool },
+    Alias,
 }
 
 impl TypeDeclKind {
@@ -418,8 +422,9 @@ impl TypeDeclKind {
             TypeDeclKind::Struct { is_port } => {
                 format!("struct{}", if *is_port { " port" } else { "" })
             }
-            TypeDeclKind::Enum => "enum".to_string(),
+            TypeDeclKind::Enum { .. } => "enum".to_string(),
             TypeDeclKind::Primitive { .. } => "primitive".to_string(),
+            TypeDeclKind::Alias { .. } => "type alias".to_string(),
         }
     }
 }
@@ -435,9 +440,6 @@ pub enum TypeSymbol {
         traits: Vec<Loc<TraitSpec>>,
     },
     GenericMeta(MetaType),
-    /// A type alias. This is lowered during initial AST lowering, so subsequent compilation
-    /// stages can bail on finding this
-    Alias(Loc<TypeSpec>),
 }
 
 /// The declaration/definition status of a variable
@@ -865,9 +867,10 @@ impl SymbolTable {
     pub fn lookup_thing_impl(
         &self,
         path: &Loc<Path>,
+        namespace: &Path,
         check_metadata: bool,
     ) -> Result<(NameID, &Thing), LookupError> {
-        let id = self.lookup_id(path, check_metadata)?;
+        let id = self.lookup_id_in_namespace(path, namespace, check_metadata)?;
 
         match self.things.get(&id) {
             Some(thing) => Ok((id, thing)),
@@ -878,15 +881,21 @@ impl SymbolTable {
         }
     }
 
-    pub fn lookup_thing_ignore_metadata(
+    pub fn lookup_thing(
         &self,
         path: &Loc<Path>,
+        ignore_metadata: bool,
     ) -> Result<(NameID, &Thing), LookupError> {
-        self.lookup_thing_impl(path, false)
+        self.lookup_thing_impl(path, self.current_namespace(), ignore_metadata)
     }
 
-    pub fn lookup_thing(&self, path: &Loc<Path>) -> Result<(NameID, &Thing), LookupError> {
-        self.lookup_thing_impl(path, true)
+    pub fn lookup_thing_in_namespace(
+        &self,
+        path: &Loc<Path>,
+        namespace: &Path,
+        ignore_metadata: bool,
+    ) -> Result<(NameID, &Thing), LookupError> {
+        self.lookup_thing_impl(path, namespace, ignore_metadata)
     }
 }
 
@@ -895,7 +904,7 @@ macro_rules! thing_accessors {
         $(
             $by_id_name:ident,
             $lookup_name:ident,
-            $lookup_ignore_metadata:ident,
+            $lookup_in_ns_name:ident,
             $result:path,
             $err:ident $(,)?
             {$($thing:pat => $conversion:expr),*$(,)?}
@@ -917,29 +926,37 @@ macro_rules! thing_accessors {
             /// Look up an item, with errors if the item is not currently in scope, or is not
             /// convertible to the return type.
             #[tracing::instrument(level = "trace", skip_all, fields(%name.inner, %name.span, %name.file_id))]
-            pub fn $lookup_name(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
-                let (id, thing) = self.lookup_thing(name)?;
+            pub fn $lookup_in_ns_name(
+                &self,
+                name: &Loc<Path>,
+                namespace: &Path,
+                ignore_metadata: bool,
+            ) -> Result<(NameID, Loc<$result>), LookupError> {
+                let (id, thing) =
+                    self.lookup_thing_in_namespace(name, namespace, ignore_metadata)?;
 
                 match thing {
                     $(
                         $thing => {Ok((id, $conversion))}
                     )*,
+                    Thing::Alias { path, in_namespace, .. } => self.$lookup_in_ns_name(
+                        &path,
+                        &in_namespace,
+                        ignore_metadata,
+                    ),
                     other => Err(LookupError::$err(name.clone(), other.clone())),
                 }
             }
 
-            /// Look up an item without performing visibility checks, with errors if the item is not currently in scope, or is not
+            /// Look up an item, with errors if the item is not currently in scope, or is not
             /// convertible to the return type.
             #[tracing::instrument(level = "trace", skip_all, fields(%name.inner, %name.span, %name.file_id))]
-            pub fn $lookup_ignore_metadata(&self, name: &Loc<Path>) -> Result<(NameID, Loc<$result>), LookupError> {
-                let (id, thing) = self.lookup_thing_ignore_metadata(name)?;
-
-                match thing {
-                    $(
-                        $thing => {Ok((id, $conversion))}
-                    )*,
-                    other => Err(LookupError::$err(name.clone(), other.clone())),
-                }
+            pub fn $lookup_name(
+                &self,
+                name: &Loc<Path>,
+                ignore_metadata: bool,
+            ) -> Result<(NameID, Loc<$result>), LookupError> {
+                self.$lookup_in_ns_name(name, self.current_namespace(), ignore_metadata)
             }
         )*
     }
@@ -953,15 +970,15 @@ impl SymbolTable {
     // lookup_* looks up items by path, and returns the NameID and item if successful.
     // If the path is not in scope, or the item is not the right kind, returns an error.
     thing_accessors! {
-        unit_by_id, lookup_unit, lookup_unit_ignore_metadata, UnitHead, NotAUnit {
+        unit_by_id, lookup_unit, lookup_unit_in_namespace, UnitHead, NotAUnit {
             Thing::Unit(head) => head.clone(),
             Thing::EnumVariant(variant) => variant.as_unit_head().at_loc(variant),
             Thing::Struct(s) => s.as_unit_head().at_loc(s),
         },
-        enum_variant_by_id, lookup_enum_variant, lookup_enum_variant_ignore_metadata, EnumVariant, NotAnEnumVariant {
+        enum_variant_by_id, lookup_enum_variant, lookup_enum_variant_in_namespace, EnumVariant, NotAnEnumVariant {
             Thing::EnumVariant(variant) => variant.clone()
         },
-        patternable_type_by_id, lookup_patternable_type, lookup_patternable_type_ignore_metadata, Patternable, NotAPatternableType {
+        patternable_type_by_id, lookup_patternable_type, lookup_patternable_type_in_namespace, Patternable, NotAPatternableType {
             Thing::EnumVariant(variant) => Patternable{
                 kind: PatternableKind::Enum,
                 params: variant.params.clone()
@@ -971,10 +988,10 @@ impl SymbolTable {
                 params: variant.params.clone()
             }.at_loc(variant),
         },
-        struct_by_id, lookup_struct, lookup_struct_ignore_metadata, StructCallable, NotAStruct {
+        struct_by_id, lookup_struct, lookup_struct_in_namespace, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
-        trait_by_id, lookup_trait, lookup_trait_ignore_metadata, TraitMarker, NotATrait {
+        trait_by_id, lookup_trait, lookup_trait_in_namespace, TraitMarker, NotATrait {
             Thing::Trait(t) => t.clone()
         }
     }
@@ -1131,7 +1148,6 @@ impl SymbolTable {
             let kind_name = if let Some(ty) = self.types.get(&id) {
                 match &ty.inner {
                     TypeSymbol::Declared(_, _, kind) => kind.name(),
-                    TypeSymbol::Alias(_) => "type alias".to_string(),
                     TypeSymbol::GenericArg { .. } => unreachable!(),
                     TypeSymbol::GenericMeta(_) => unreachable!(),
                 }
@@ -1248,15 +1264,18 @@ impl SymbolTable {
             }
         };
 
+        let mut segments = VecDeque::from(segments);
+
         // Walk through all segments, resolving any aliases found along the way,
         // until the final thing is found or hitting a roadblock.
-        for segment in segments.iter() {
+        while let Some(segment) = segments.pop_front() {
             let mut local_forbidden = forbidden.clone();
-            let idx = self.current_scope() - scope_offset;
-            let scope = &self.symbols[idx];
             working_path = working_path.push_segment(segment.clone());
 
             loop {
+                let idx = self.current_scope() - scope_offset;
+                let scope = &self.symbols[idx];
+
                 // If the (partially extended) working path does not exist,
                 // a missing item has been found inside it.
                 let Some(id) = scope.vars.get(&working_path) else {
@@ -1337,7 +1356,7 @@ impl SymbolTable {
                     }
                 }
 
-                if self.types.contains_key(id) {
+                if self.types.contains_key(id) && segments.is_empty() {
                     break;
                 }
 

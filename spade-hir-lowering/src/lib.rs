@@ -1025,6 +1025,7 @@ pub fn do_wal_trace_lowering(
                             .symtab()
                             .lookup_unit(
                                 &Path::from_strs(&["std", "ports", "read_mut_wire"]).nowhere(),
+                                true,
                             )
                             .expect("did not find std::ports::read_mut_wire in symtab")
                             .0
@@ -1546,6 +1547,7 @@ impl ExprLocal for Loc<Expression> {
                         self.loc(),
                         &hir::TypeSpec::Generic(Generic::Named(name.clone().nowhere())),
                         generic_list,
+                        ctx.item_list,
                     )?;
 
                     let value = match ctx.types.ungenerify_type(
@@ -1597,6 +1599,7 @@ impl ExprLocal for Loc<Expression> {
                         self.loc(),
                         &hir::TypeSpec::Generic(Generic::Named(name.clone().nowhere())),
                         generic_list,
+                        ctx.item_list,
                     )?;
 
                     let value = match ctx.types.ungenerify_type(
@@ -2606,7 +2609,6 @@ impl ExprLocal for Loc<Expression> {
 
         generic_port_check()?;
 
-        // Look up the name in the executable list to see if this is a type instantiation
         match ctx.item_list.executables.get(name) {
             Some(hir::ExecutableItem::EnumInstance {
                 base_enum: _,

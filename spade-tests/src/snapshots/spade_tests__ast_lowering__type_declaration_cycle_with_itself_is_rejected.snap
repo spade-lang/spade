@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+type A = A;
+
+
+error: Cycle caused by type declaration `A`
+  ┌─ testinput:1:6
+  │
+1 │ type A = A;
+  │      ^
+  │
+note: ... which is part of type declaration `A`, completing the cycle
+  ┌─ testinput:1:10
+  │
+1 │ type A = A;
+  │          ^
+  │

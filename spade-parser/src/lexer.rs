@@ -118,6 +118,8 @@ pub enum TokenKind {
     Port,
     #[token("mod")]
     Mod,
+    #[token("type")]
+    Type,
     #[token("use")]
     Use,
     #[token("as")]
@@ -302,6 +304,7 @@ impl TokenKind {
             TokenKind::Port => "port",
             TokenKind::Mod => "mod",
             TokenKind::As => "as",
+            TokenKind::Type => "type",
             TokenKind::Use => "use",
             TokenKind::Assert => "assert",
             TokenKind::Set => "set",

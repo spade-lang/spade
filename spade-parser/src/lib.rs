@@ -2324,6 +2324,7 @@ impl<'a> Parser<'a> {
                 Box::new(items::StructParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::EnumParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::ModuleParser {}),
+                Box::new(items::TypeAliasParser {}.map(|inner| Ok(Item::Type(inner)))),
                 Box::new(items::UseParser {}.map(|inner| Ok(Item::Use(inner.0, inner.1)))),
             ],
             true,

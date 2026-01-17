@@ -848,9 +848,17 @@ impl Struct {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct TypeAlias {
+    pub attributes: AttributeList,
+    pub name: Loc<Identifier>,
+    pub type_spec: Loc<TypeSpec>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum TypeDeclKind {
     Enum(Loc<Enum>),
     Struct(Loc<Struct>),
+    Alias(Loc<TypeAlias>),
 }
 
 /// A declaration of a new type

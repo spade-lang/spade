@@ -352,12 +352,18 @@ impl Spade {
             .type_state
             .create_empty_generic_list(GenericListSource::Anonymous);
 
+        let owned_state = self.owned.as_ref().unwrap();
+
         let ty = self
             .type_state
-            .type_var_from_hir(output_type.loc(), &output_type, &generic_list)
+            .type_var_from_hir(
+                output_type.loc(),
+                &output_type,
+                &generic_list,
+                &owned_state.item_list,
+            )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
-        let owned_state = self.owned.as_ref().unwrap();
         let concrete = self
             .type_state
             .ungenerify_type(
@@ -734,9 +740,7 @@ impl Spade {
         name: &Loc<SpadePath>,
         symtab: &SymbolTable,
     ) -> std::result::Result<UnitHead, LookupError> {
-        symtab
-            .lookup_unit_ignore_metadata(name)
-            .map(|(_, head)| head.inner)
+        symtab.lookup_unit(name, false).map(|(_, head)| head.inner)
     }
 
     /// Tries to get the type and the name of the port in the generated verilog of the specified
@@ -767,7 +771,7 @@ impl Spade {
                     .create_empty_generic_list(GenericListSource::Anonymous);
                 let ty = self
                     .type_state
-                    .type_var_from_hir(ty.loc(), &ty, &generic_list)
+                    .type_var_from_hir(ty.loc(), &ty, &generic_list, &owned_state.item_list)
                     .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
                     .resolve(&self.type_state)
                     .into_known(&self.type_state)

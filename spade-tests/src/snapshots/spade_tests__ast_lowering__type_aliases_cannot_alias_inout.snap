@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+type A = inout<bool>;
+
+
+error: Inout in alias
+  ┌─ testinput:1:10
+  │
+1 │ type A = inout<bool>;
+  │      -   ^^^^^^^^^^^ This is an inout
+  │      │    
+  │      This is an alias

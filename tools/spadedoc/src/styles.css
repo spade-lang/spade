@@ -59,6 +59,7 @@
     --badge-bg-pipeline: #77ddb6;
     --badge-bg-struct: #ffdb5c;
     --badge-bg-enum: #c7e478;
+    --badge-bg-type-alias: #f26457;
     --badge-bg-primitive: #ff8750;
     --badge-bg-trait: #db5dd1;
     --badge-text-color: var(--black);
@@ -199,6 +200,10 @@ body {
 
 .sdoc_badge_enum {
     background-color: var(--badge-bg-enum);
+}
+
+.sdoc_badge_type_alias {
+    background-color: var(--badge-bg-type-alias);
 }
 
 .sdoc_badge_primitive {

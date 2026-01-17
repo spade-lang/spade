@@ -6,7 +6,6 @@ mod impls;
 mod lambda;
 pub mod pipelines;
 pub mod testutil;
-mod type_alias;
 mod type_level_if;
 pub mod types;
 
@@ -262,6 +261,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<
 /// The context in which a type expression occurs. This controls what hir::TypeExpressions an
 /// ast::TypeExpression can be lowered to
 pub enum TypeSpecKind {
+    Alias,
     Argument,
     OutputType,
     EnumMember,
@@ -318,7 +318,8 @@ pub fn visit_type_expression(
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bounds", "trait bound")
                 }
-                TypeSpecKind::Argument
+                TypeSpecKind::Alias
+                | TypeSpecKind::Argument
                 | TypeSpecKind::OutputType
                 | TypeSpecKind::Turbofish
                 | TypeSpecKind::TypeLevelIf
@@ -429,7 +430,6 @@ pub fn visit_type_spec(
                         Ok(hir::TypeSpec::Generic(Generic::Named(base_id.at_loc(path))))
                     }
                 }
-                TypeSymbol::Alias(expr) => Ok(expr.inner.clone()),
             }
         }
         ast::TypeSpec::Array { inner, size } => {
@@ -471,9 +471,6 @@ pub fn visit_type_spec(
                                     .primary_label(format!("Expected type, found {other_meta}"))
                                     .secondary_label(&inner, format!("{name} is defined as {other_meta} here")))
                                 }
-                                TypeSymbol::Alias(_) => {
-                                    return Err(Diagnostic::bug(p, "Aliases in tuple types are currently unsupported"));
-                                },
                             }
                         }
                     },
@@ -586,6 +583,7 @@ pub fn visit_type_spec(
                 )
             };
             match kind {
+                TypeSpecKind::Alias => default_error("Type aliases", "type alias"),
                 TypeSpecKind::Argument => default_error("Argument types", "argument type"),
                 TypeSpecKind::OutputType => default_error("Return types", "return type"),
                 TypeSpecKind::ImplTrait => default_error("Implemented traits", "implemented trait"),
@@ -1002,10 +1000,7 @@ pub fn visit_const_generic(
                 TypeSymbol::GenericMeta(_) => {
                     ConstGeneric::Name(name.at_loc(t))
                 },
-                TypeSymbol::Alias(a) => {
-                    return Err(Diagnostic::error(t, "Type aliases are not supported in const generics").primary_label("Type alias in const generic")
-                    .secondary_label(a, "Alias defined here"))
-                }
+
             }
         }
         ast::Expression::BoolLiteral(val) => ConstGeneric::Bool(val.inner),
@@ -1153,7 +1148,7 @@ pub fn visit_where_clauses(
                                 ast::Inequality::Geq => hir::WhereClauseKind::Geq,
                             },
                             constraint: visit_const_generic(expression, ctx)?,
-                            if_unsatisfied: if_unsatisfied.clone()
+                            if_unsatisfied: if_unsatisfied.clone(),
                         }
                         .between_locs(target, expression);
 
@@ -1183,17 +1178,6 @@ pub fn visit_where_clauses(
                             "Declared type in generic integer constraint".into(),
                         )
                         .secondary_label(sym, format!("`{target}` is a type declared here")));
-                    }
-                    TypeSymbol::Alias(a) => {
-                        return Err(Diagnostic::error(
-                                &sym, "Type aliases are not supported in where clauses"
-                            )
-                            .primary_label("Type alias in where clause")
-                            .secondary_label(a, "Alias defined here")
-                            .note(
-                                "This is a soft limitation in the compiler. If you need this feature, open an issue at https://gitlab.com/spade-lang/spade/"
-                            )
-                        )
                     }
                 }
             }
@@ -1240,17 +1224,6 @@ pub fn visit_where_clauses(
                         return Err(make_diag("Declared type in trait bound".into())
                             .secondary_label(sym, format!("{target} is a type declared here")));
                     }
-                    TypeSymbol::Alias(a) => {
-                        return Err(Diagnostic::error(
-                                &sym, "Type aliases are not supported in where clauses"
-                            )
-                            .primary_label("Type alias in where clause")
-                            .secondary_label(a, "Alias defined here")
-                            .note(
-                                "This is a soft limitation in the compiler. If you need this feature, open an issue at https://gitlab.com/spade-lang/spade/"
-                            )
-                        )
-                    }
                 };
             }
         }
@@ -1291,7 +1264,7 @@ pub fn visit_unit(
         .join(Path::ident(name.clone()))
         .at_loc(&name.loc());
 
-    let (id, head) = ctx.symtab.lookup_unit_ignore_metadata(&path).map_err(|_| {
+    let (id, head) = ctx.symtab.lookup_unit(&path, false).map_err(|_| {
         diag_anyhow!(
             path,
             "Attempting to lower an entity that has not been added to the symtab previously"
@@ -1471,7 +1444,7 @@ pub fn visit_trait_spec(
     type_spec_kind: &TypeSpecKind,
     ctx: &mut Context,
 ) -> Result<Loc<hir::TraitSpec>> {
-    let (name_id, loc) = match ctx.symtab.lookup_trait(&trait_spec.inner.path) {
+    let (name_id, loc) = match ctx.symtab.lookup_trait(&trait_spec.inner.path, true) {
         Ok(res) => res,
         Err(LookupError::IsAType(path, loc)) => {
             return Err(Diagnostic::error(
@@ -1605,7 +1578,7 @@ pub fn visit_module(module: &ast::Module, ctx: &mut Context) -> Result<()> {
 
     let (id, thing) = ctx
         .symtab
-        .lookup_thing(path)
+        .lookup_thing(path, true)
         .map_err(|_| diag_anyhow!(module.name, "Failed to find {path} in symtab"))?;
 
     if !matches!(thing, Thing::Module(_, _)) {
@@ -1651,7 +1624,7 @@ pub fn visit_module_body(body: &ast::ModuleBody, ctx: &mut Context) -> Result<()
 }
 
 fn try_lookup_enum_variant(path: &Loc<Path>, ctx: &mut Context) -> Result<hir::PatternKind> {
-    let (name_id, variant) = ctx.symtab.lookup_enum_variant(path)?;
+    let (name_id, variant) = ctx.symtab.lookup_enum_variant(path, true)?;
     if variant.inner.params.argument_num() == 0 {
         Ok(hir::PatternKind::Type(name_id.at_loc(path), vec![]))
     } else {
@@ -1754,7 +1727,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
         }
         ast::Pattern::Type(path, args) => {
             // Look up the name to see if it's an enum variant.
-            let (name_id, p) = ctx.symtab.lookup_patternable_type(path)?;
+            let (name_id, p) = ctx.symtab.lookup_patternable_type(path, true)?;
             match &args.inner {
                 ast::ArgumentPattern::Named(patterns) => {
                     let mut bound = HashSet::<Loc<Identifier>>::default();
@@ -2375,7 +2348,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             args,
             turbofish,
         } => {
-            let (name_id, _) = ctx.symtab.lookup_unit(callee)?;
+            let (name_id, _) = ctx.symtab.lookup_unit(callee, true)?;
             let args = visit_argument_list(args, ctx)?.at_loc(args);
 
             let kind = visit_call_kind(kind, ctx)?;
@@ -2426,10 +2399,11 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                                 "#uint ",
                             ))
                         }
-                        TypeSymbol::Declared(_, _, _) | TypeSymbol::Alias(_) => Err(
-                            Diagnostic::error(path, format!("Type {name} is used as a value"))
-                                .primary_label(format!("{name} is a type")),
-                        ),
+                        TypeSymbol::Declared(_, _, _) => Err(Diagnostic::error(
+                            path,
+                            format!("Type {name} is used as a value"),
+                        )
+                        .primary_label(format!("{name} is a type"))),
                     }
                 }
                 Err(LookupError::NotAVariable(path, ref was @ Thing::EnumVariant(_)))
@@ -2441,7 +2415,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                         in_namespace: _,
                     },
                 )) => {
-                    let (name_id, variant) = match ctx.symtab.lookup_enum_variant(&path) {
+                    let (name_id, variant) = match ctx.symtab.lookup_enum_variant(&path, true) {
                         Ok(res) => res,
                         Err(_) => return Err(LookupError::NotAValue(path, was.clone()).into()),
                     };
@@ -2521,7 +2495,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             })
         }
         ast::Expression::LabelAccess { label, field } => {
-            let (_, label_target) = ctx.symtab.lookup_thing(label)?;
+            let (_, label_target) = ctx.symtab.lookup_thing(label, true)?;
 
             match label_target {
                 Thing::ArrayLabel(val) => match field.inner.as_str() {

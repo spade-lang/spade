@@ -1,6 +1,6 @@
 use spade_ast::{
     AttributeList, Enum, Expression, ExternalMod, ImplBlock, Item, Module, Struct, TraitDef,
-    TraitSpec, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
+    TraitSpec, TypeAlias, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
 };
 use spade_common::location_info::{AsLabel, Loc, WithLocation};
 use spade_common::name::Visibility;
@@ -385,6 +385,45 @@ impl KeywordPeekingParser<Item> for ModuleParser {
             }
             .into())
         }
+    }
+}
+
+pub(crate) struct TypeAliasParser {}
+
+impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Type
+    }
+
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<TypeDeclaration>> {
+        let start = parser.eat_unconditional()?;
+        let name = parser.identifier()?;
+        let generic_args = parser.generics_list()?;
+
+        parser.eat(&TokenKind::Assignment)?;
+
+        let type_spec = parser.type_spec(false)?;
+        let end = parser.eat(&TokenKind::Semi)?;
+
+        Ok(TypeDeclaration {
+            name: name.clone(),
+            generic_args,
+            kind: TypeDeclKind::Alias(
+                TypeAlias {
+                    attributes: attributes.clone(),
+                    name,
+                    type_spec,
+                }
+                .between(parser.file_id, &start.span, &end),
+            ),
+            visibility: visibility.clone(),
+        }
+        .between(parser.file_id, &start.span, &end))
     }
 }
 

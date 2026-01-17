@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+type A = &bool;
+
+
+error: Port in alias
+  ┌─ testinput:1:10
+  │
+1 │ type A = &bool;
+  │      -   ^^^^^ This is a port
+  │      │    
+  │      This is an alias

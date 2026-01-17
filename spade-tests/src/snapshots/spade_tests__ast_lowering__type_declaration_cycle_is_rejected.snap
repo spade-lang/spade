@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+type A = (B, bool);
+struct B { x: [C; 3] }
+enum C { Variant { val: Option<A> } }
+
+
+error: Cycle caused by type declaration `C`
+  ┌─ testinput:3:6
+  │
+3 │ enum C { Variant { val: Option<A> } }
+  │      ^
+  │
+note: ... which is part of type declaration `B`
+  ┌─ testinput:2:16
+  │
+2 │ struct B { x: [C; 3] }
+  │                ^
+  │
+note: ... which is part of type declaration `A`
+  ┌─ testinput:1:11
+  │
+1 │ type A = (B, bool);
+  │           ^
+  │
+note: ... which is part of type declaration `C`, completing the cycle
+  ┌─ testinput:3:32
+  │
+3 │ enum C { Variant { val: Option<A> } }
+  │                                ^
+  │

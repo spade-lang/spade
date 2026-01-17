@@ -40,6 +40,7 @@ pub enum ItemKind {
     Pipeline,
     Struct,
     Enum,
+    TypeAlias,
     Primitive,
     Trait,
 }
@@ -52,6 +53,7 @@ impl ItemKind {
             ItemKind::Pipeline => "Pipelines",
             ItemKind::Struct => "Structs",
             ItemKind::Enum => "Enums",
+            ItemKind::TypeAlias => "Type aliases",
             ItemKind::Primitive => "Primitives",
             ItemKind::Trait => "Traits",
         }

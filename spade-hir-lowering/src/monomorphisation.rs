@@ -524,6 +524,7 @@ fn monomorphize_item(
         Some((ExecutableItem::EnumInstance { .. }, _)) => {
             panic!("Requesting compilation of enum instance as module")
         }
+
         Some((ExecutableItem::ExternUnit(_, _), _)) => {
             panic!("Requesting compilation of extern unit")
         }

@@ -11,7 +11,7 @@ fn get_field_type(artefacts: &Artefacts, target_name: &str) -> Type {
         .state
         .symtab
         .symtab()
-        .lookup_unit(&Path::from_strs(&["main"]).nowhere())
+        .lookup_unit(&Path::from_strs(&["main"]).nowhere(), true)
         .unwrap();
 
     // Look up the mir context of the unit we are observing

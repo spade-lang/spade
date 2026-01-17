@@ -133,6 +133,7 @@ impl Requirement {
                                 .primary_label(format!("expected a struct, got {}", type_name))
                                 .note("Field access is only allowed on structs"));
                             }
+                            TypeSymbol::Declared(_, _, TypeDeclKind::Alias) => unreachable!(),
                             TypeSymbol::GenericArg { traits: _ } | TypeSymbol::GenericMeta(_) => {
                                 return Err(Diagnostic::error(
                                     target_type,
@@ -144,10 +145,6 @@ impl Requirement {
                                 ))
                                 .note("Field access is only allowed on structs"))
                             }
-                            TypeSymbol::Alias(_) => diag_bail!(
-                                target_type,
-                                "Found a type alias that wasn't lowered during AST lowering"
-                            ),
                         }
 
                         // Get the struct, find the type of the field and unify
@@ -176,8 +173,12 @@ impl Requirement {
                         let generic_list = type_state
                             .add_mapped_generic_list(GenericListSource::Anonymous, mapping);
 
-                        let raw_field_type =
-                            type_state.type_var_from_hir(expr.loc(), field_spec, &generic_list)?;
+                        let raw_field_type = type_state.type_var_from_hir(
+                            expr.loc(),
+                            field_spec,
+                            &generic_list,
+                            ctx.items,
+                        )?;
                         let field_type = if inverted {
                             match raw_field_type.resolve(type_state) {
                                 TypeVar::Known(loc, KnownType::Wire, inner) => {

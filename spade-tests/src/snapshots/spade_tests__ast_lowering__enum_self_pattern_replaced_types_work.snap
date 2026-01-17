@@ -19,8 +19,8 @@ impl<T> Maybe<T, bool, 2> {
 error: Match branches have incompatible type
    ┌─ testinput:10:34
    │
- 3 │     Right { val : [R; N] },
-   │                   ------ Type bool inferred here
+ 6 │ impl<T> Maybe<T, bool, 2> {
+   │                  ---- Type bool inferred here
    ·
  9 │             Self::Left$(val) => (val, [(), ()]),
    │                                 ---------------

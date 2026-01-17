@@ -13,15 +13,19 @@ impl<T> Maybe<T, bool, 2> {
 }
 
 
-error: Argument type mismatch. Expected [bool; 2] got [(); 2]
-  ┌─ testinput:8:42
-  │
-7 │     fn foo(self, t: T, u: ()) -> [Self; 2] {
-  │                           -- Type () inferred here
-8 │         [Self::Left([t, t]), Self::Right([u, u])]
-  │                                          ^^^^^^ expected [bool; 2]
-  │
+error: Output type mismatch. Expected [Maybe<_, bool, 2>; 2], got [Maybe<_, (), 2>; 2]
+  ┌─ testinput:7:44
+  │  
+7 │       fn foo(self, t: T, u: ()) -> [Self; 2] {
+  │                             --     --------- [Maybe<_, bool, 2>; 2] type specified here
+  │                             │       
+  │                             Type () inferred here
+  │ ╭────────────────────────────────────────────^
+8 │ │         [Self::Left([t, t]), Self::Right([u, u])]
+9 │ │     }
+  │ ╰─────^ Found type [Maybe<_, (), 2>; 2]
+  │  
   = note: Expected: bool
-                in: [bool; 2]
+                in: [Maybe<_, bool, 2>; 2]
                Got: ()
-                in: [(); 2]
+                in: [Maybe<_, (), 2>; 2]

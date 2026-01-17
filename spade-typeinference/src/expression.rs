@@ -130,7 +130,7 @@ impl TypeState {
                     self.unify(&depth, &var, ctx).unwrap()
                 },
                 spade_hir::expression::PipelineRefKind::Relative(expr) => {
-                    let expr_var = self.hir_type_expr_to_var(expr, generic_list)?;
+                    let expr_var = self.hir_type_expr_to_var(expr, generic_list, ctx.items)?;
                     let total_offset = self.new_generic_tlint(stage.loc());
                     self.add_constraint(
                         total_offset.clone(),

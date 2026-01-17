@@ -31,12 +31,12 @@ impl IsPort for hir::TypeSpec {
                 match &symbol.inner {
                     TypeSymbol::Declared(_, _, kind) => match kind {
                         TypeDeclKind::Struct { ref is_port } => *is_port,
-                        TypeDeclKind::Enum => false,
+                        TypeDeclKind::Enum { .. } => false,
                         TypeDeclKind::Primitive { ref is_port, .. } => *is_port,
+                        TypeDeclKind::Alias { .. } => false,
                     },
                     TypeSymbol::GenericArg { traits: _ } => false,
                     TypeSymbol::GenericMeta(_) => false,
-                    TypeSymbol::Alias(expr) => expr.is_port(ctx)?,
                 }
             }
             spade_hir::TypeSpec::Generic(_) => false,
@@ -91,12 +91,12 @@ impl IsInOut for hir::TypeSpec {
                 match &symbol.inner {
                     TypeSymbol::Declared(_, _, kind) => match kind {
                         TypeDeclKind::Struct { .. } => false,
-                        TypeDeclKind::Enum => false,
+                        TypeDeclKind::Enum { .. } => false,
                         TypeDeclKind::Primitive { ref is_inout, .. } => *is_inout,
+                        TypeDeclKind::Alias => false,
                     },
                     TypeSymbol::GenericArg { .. } => false,
                     TypeSymbol::GenericMeta(_) => false,
-                    TypeSymbol::Alias(expr) => expr.is_inout(ctx)?,
                 }
             }
             spade_hir::TypeSpec::Generic(_) => false,

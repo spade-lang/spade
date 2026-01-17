@@ -142,7 +142,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .map(|(i, arg)| Identifier::intern(&format!("A{i}")).at_loc(arg))
         .collect::<Vec<_>>();
 
-    let output_generic_param_name = output_type_name.clone().at_loc(body);
+    let output_generic_param_name = output_type_name.clone().at_loc(unit_kind);
 
     // Generic params of the environment in which the lambda is defined
     let outer_generic_params = current_unit
@@ -393,9 +393,10 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
 
     // For the rest of the process, we need the HIR type params which we have to extract
     // from the HIR struct that was created earlier
-    let (callee_name, callee_struct) = ctx
-        .symtab
-        .lookup_struct(&Path::ident(type_name.at_loc(&debug_loc)).at_loc(&debug_loc))?;
+    let (callee_name, callee_struct) = ctx.symtab.lookup_struct(
+        &Path::ident(type_name.at_loc(&debug_loc)).at_loc(&debug_loc),
+        true,
+    )?;
     let struct_type_params = callee_struct.type_params.clone();
     if struct_type_params.len() != all_generic_param_names.len() {
         diag_bail!(

@@ -155,6 +155,7 @@ impl ServerBackend {
                         TypeDeclKind::Struct { is_port: false } => "struct",
                         TypeDeclKind::Enum => "enum",
                         TypeDeclKind::Primitive { .. } => "primitive type",
+                        TypeDeclKind::Alias { .. } => "type alias",
                     };
 
                     let generics = match generics.as_slice() {
@@ -182,9 +183,6 @@ impl ServerBackend {
                 }
                 symbol_table::TypeSymbol::GenericMeta(meta) => {
                     format!("{meta}")
-                }
-                symbol_table::TypeSymbol::Alias(aliased) => {
-                    formatdoc!(r#"type {name} = {}"#, aliased.pretty_print())
                 }
             })
     }

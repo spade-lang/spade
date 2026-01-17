@@ -281,6 +281,7 @@ impl TypeState {
         &'a mut self,
         e: &Loc<hir::TypeExpression>,
         generic_list_token: &GenericListToken,
+        item_list: &ItemList,
     ) -> Result<TypeVarID> {
         let id = match &e.inner {
             hir::TypeExpression::Bool(b) => {
@@ -297,7 +298,7 @@ impl TypeState {
                 vec![],
             )),
             hir::TypeExpression::TypeSpec(spec) => {
-                self.type_var_from_hir(e.loc(), &spec.clone(), generic_list_token)?
+                self.type_var_from_hir(e.loc(), &spec.clone(), generic_list_token, item_list)?
             }
             hir::TypeExpression::ConstGeneric(g) => {
                 let constraint = self.visit_const_generic(g, generic_list_token)?;
@@ -323,14 +324,36 @@ impl TypeState {
         loc: Loc<()>,
         hir_type: &crate::hir::TypeSpec,
         generic_list_token: &GenericListToken,
+        item_list: &ItemList,
     ) -> Result<TypeVarID> {
         let generic_list = self.get_generic_list(generic_list_token);
         let var = match &hir_type {
             hir::TypeSpec::Declared(base, params) => {
                 let params = params
                     .iter()
-                    .map(|e| self.hir_type_expr_to_var(e, generic_list_token))
+                    .map(|e| self.hir_type_expr_to_var(e, generic_list_token, item_list))
                     .collect::<Result<Vec<_>>>()?;
+
+                let ty = item_list.types.get(base).unwrap();
+
+                if let crate::hir::TypeDeclKind::Alias(a) = &ty.kind {
+                    self.modify_generic_list(generic_list_token, |gl| {
+                        let mappings = ty
+                            .generic_args
+                            .iter()
+                            .zip(&params)
+                            .map(|(p, tv)| (p.name.clone(), tv.clone()));
+
+                        gl.extend(mappings);
+                    });
+
+                    return self.type_var_from_hir(
+                        loc,
+                        &a.type_spec,
+                        &generic_list_token,
+                        item_list,
+                    );
+                }
 
                 self.add_type_var(TypeVar::Known(
                     loc,
@@ -353,24 +376,24 @@ impl TypeState {
             hir::TypeSpec::Tuple(inner) => {
                 let inner = inner
                     .iter()
-                    .map(|t| self.type_var_from_hir(loc, t, generic_list_token))
+                    .map(|t| self.type_var_from_hir(loc, t, generic_list_token, item_list))
                     .collect::<Result<_>>()?;
 
                 self.add_type_var(TypeVar::tuple(loc, inner))
             }
             hir::TypeSpec::Array { inner, size } => {
-                let inner = self.type_var_from_hir(loc, inner, generic_list_token)?;
-                let size = self.hir_type_expr_to_var(size, generic_list_token)?;
+                let inner = self.type_var_from_hir(loc, inner, generic_list_token, item_list)?;
+                let size = self.hir_type_expr_to_var(size, generic_list_token, item_list)?;
 
                 self.add_type_var(TypeVar::array(loc, inner, size))
             }
             hir::TypeSpec::Wire(inner) => {
-                let inner = self.type_var_from_hir(loc, inner, generic_list_token)?;
+                let inner = self.type_var_from_hir(loc, inner, generic_list_token, item_list)?;
                 self.add_type_var(TypeVar::wire(loc, inner))
             }
 
             hir::TypeSpec::Inverted(inner) => {
-                let inner = self.type_var_from_hir(loc, inner, generic_list_token)?;
+                let inner = self.type_var_from_hir(loc, inner, generic_list_token, item_list)?;
                 self.add_type_var(TypeVar::inverted(loc, inner))
             }
             hir::TypeSpec::Wildcard(_) => self.new_generic_any(),
@@ -499,7 +522,7 @@ impl TypeState {
     pub fn new_generic_number(&mut self, loc: Loc<()>, ctx: &Context) -> (TypeVarID, TypeVarID) {
         let number = ctx
             .symtab
-            .lookup_trait(&Path::from_strs(&["Number"]).nowhere())
+            .lookup_trait(&Path::from_strs(&["Number"]).nowhere(), true)
             .expect("Did not find number in symtab")
             .0;
         let id = self.new_typeid();
@@ -560,7 +583,7 @@ impl TypeState {
 
         // Add equations for the inputs
         for (name, t) in &entity.inputs {
-            let tvar = self.type_var_from_hir(t.loc(), t, &generic_list)?;
+            let tvar = self.type_var_from_hir(t.loc(), t, &generic_list, ctx.items)?;
             self.add_equation(TypedExpression::Name(name.inner.clone()), tvar)
         }
 
@@ -575,6 +598,7 @@ impl TypeState {
                 &generic_list,
                 depth,
                 depth_typeexpr_id,
+                ctx.items,
             )?;
 
             let clock_index = if entity.head.is_nonstatic_method {
@@ -610,7 +634,8 @@ impl TypeState {
 
         // Ensure that the output type matches what the user specified, and unit otherwise
         if let Some(output_type) = &entity.head.output_type {
-            let tvar = self.type_var_from_hir(output_type.loc(), output_type, &generic_list)?;
+            let tvar =
+                self.type_var_from_hir(output_type.loc(), output_type, &generic_list, ctx.items)?;
 
             self.owned.trace_stack.push(|| {
                 TraceStackEntry::Message(format!(
@@ -689,8 +714,9 @@ impl TypeState {
         generic_list: &GenericListToken,
         depth: &Loc<TypeExpression>,
         depth_typeexpr_id: &ExprID,
+        item_list: &ItemList,
     ) -> Result<()> {
-        let depth_var = self.hir_type_expr_to_var(depth, generic_list)?;
+        let depth_var = self.hir_type_expr_to_var(depth, generic_list, item_list)?;
         self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth_var.clone());
         self.owned.pipeline_state = Some(PipelineState {
             current_stage_depth: self.add_type_var(TypeVar::Known(
@@ -741,7 +767,8 @@ impl TypeState {
             kind,
         } in args.iter()
         {
-            let target_type = self.type_var_from_hir(value.loc(), target_type, generic_list)?;
+            let target_type =
+                self.type_var_from_hir(value.loc(), target_type, generic_list, ctx.items)?;
 
             let loc = match kind {
                 hir::param_util::ArgumentKind::Positional => value.loc(),
@@ -906,6 +933,7 @@ impl TypeState {
                         &generic_list,
                         depth,
                         depth_typeexpr_id,
+                        ctx.items,
                     )?;
                 }
                 self.visit_expression(body, ctx, generic_list);
@@ -1057,8 +1085,9 @@ impl TypeState {
                     depth_typeexpr_id: cdepth_typeexpr_id,
                 },
             ) => {
-                let definition_depth = self.hir_type_expr_to_var(udepth, &unit_generic_list)?;
-                let call_depth = self.hir_type_expr_to_var(cdepth, generic_list)?;
+                let definition_depth =
+                    self.hir_type_expr_to_var(udepth, &unit_generic_list, ctx.items)?;
+                let call_depth = self.hir_type_expr_to_var(cdepth, generic_list, ctx.items)?;
 
                 // NOTE: We're not adding udepth_typeexpr_id here as that would break
                 // in the future if we try to do recursion. We will also never need to look
@@ -1184,7 +1213,7 @@ impl TypeState {
         let return_type = head
             .output_type
             .as_ref()
-            .map(|o| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list))
+            .map(|o| self.type_var_from_hir(expression_id.loc(), o, &unit_generic_list, ctx.items))
             .transpose()?
             .unwrap_or_else(|| {
                 self.add_type_var(TypeVar::Known(
@@ -1505,7 +1534,7 @@ impl TypeState {
                         None => &self.create_empty_generic_list(GenericListSource::Anonymous),
                     };
 
-                    let ty = self.hir_type_expr_to_var(tf, generic_list)?;
+                    let ty = self.hir_type_expr_to_var(tf, generic_list, ctx.items)?;
                     self.unify(&ty, &t, ctx)
                         .into_default_diagnostic(param, self)?;
                 }
@@ -1565,6 +1594,7 @@ impl TypeState {
                         target,
                         Vec::from_iter(all_transitive_traits).as_slice(),
                         &token,
+                        &ctx.items,
                     )?;
                 }
                 WhereClause::Int {
@@ -1713,6 +1743,7 @@ impl TypeState {
                                         Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
                                             &param.clone().at_loc(&loc),
                                             &generic_list,
+                                            item_list,
                                         )?))
                                     })
                                     .collect::<Result<_>>()?;
@@ -1723,6 +1754,7 @@ impl TypeState {
                                         Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
                                             &param.clone().at_loc(&loc),
                                             &generic_list,
+                                            item_list,
                                         )?))
                                     })
                                     .collect::<Result<_>>()?;
@@ -1871,6 +1903,7 @@ impl TypeState {
                                 pattern.loc(),
                                 &enum_variant.output_type,
                                 &generic_list,
+                                ctx.items,
                             )?;
 
                             (condition_type, enum_variant.params, generic_list)
@@ -1892,8 +1925,12 @@ impl TypeState {
                                 ctx,
                             )?;
 
-                            let condition_type =
-                                self.type_var_from_hir(pattern.loc(), &s.self_type, &generic_list)?;
+                            let condition_type = self.type_var_from_hir(
+                                pattern.loc(),
+                                &s.self_type,
+                                &generic_list,
+                                ctx.items,
+                            )?;
 
                             (condition_type, s.params, generic_list)
                         }
@@ -1917,8 +1954,12 @@ impl TypeState {
                 ) in args.iter().zip(params.0.iter())
                 {
                     self.visit_pattern(pattern, ctx, &generic_list)?;
-                    let target_type =
-                        self.type_var_from_hir(target_type.loc(), target_type, &generic_list)?;
+                    let target_type = self.type_var_from_hir(
+                        target_type.loc(),
+                        target_type,
+                        &generic_list,
+                        ctx.items,
+                    )?;
 
                     let loc = match kind {
                         hir::ArgumentKind::Positional => pattern.loc(),
@@ -2016,7 +2057,7 @@ impl TypeState {
                     .handle_in(&mut self.owned.diags);
 
                 if let Some(t) = ty {
-                    let tvar = self.type_var_from_hir(t.loc(), t, generic_list)?;
+                    let tvar = self.type_var_from_hir(t.loc(), t, generic_list, ctx.items)?;
                     self.unify(&TypedExpression::Id(pattern.id), &tvar, ctx)
                         .into_default_diagnostic(value.loc(), self)
                         .handle_in(&mut self.owned.diags);
@@ -2072,7 +2113,7 @@ impl TypeState {
                         count,
                         count_typeexpr_id,
                     }) => {
-                        let var = self.hir_type_expr_to_var(count, generic_list)?;
+                        let var = self.hir_type_expr_to_var(count, generic_list, ctx.items)?;
                         self.add_equation(TypedExpression::Id(*count_typeexpr_id), var.clone());
                         var
                     }
@@ -2182,7 +2223,10 @@ impl TypeState {
         self.visit_pattern(&reg.pattern, ctx, generic_list)?;
 
         let type_spec_type = match &reg.value_type {
-            Some(t) => Some(self.type_var_from_hir(t.loc(), t, generic_list)?.at_loc(t)),
+            Some(t) => Some(
+                self.type_var_from_hir(t.loc(), t, generic_list, ctx.items)?
+                    .at_loc(t),
+            ),
             None => None,
         };
 
@@ -2296,12 +2340,13 @@ impl TypeState {
         &mut self,
         trait_spec: &Loc<TraitSpec>,
         generic_list: &GenericListToken,
+        item_list: &ItemList,
     ) -> Result<Loc<TraitReq>> {
         let type_params = if let Some(type_params) = &trait_spec.inner.type_params {
             type_params
                 .inner
                 .iter()
-                .map(|te| self.hir_type_expr_to_var(te, generic_list))
+                .map(|te| self.hir_type_expr_to_var(te, generic_list, item_list))
                 .collect::<Result<_>>()?
         } else {
             vec![]
@@ -2320,10 +2365,11 @@ impl TypeState {
         target: &Generic,
         traits: &[Loc<TraitSpec>],
         generic_list_tok: &GenericListToken,
+        item_list: &ItemList,
     ) -> Result<()> {
         let trait_reqs = traits
             .iter()
-            .map(|spec| self.visit_trait_spec(spec, generic_list_tok))
+            .map(|spec| self.visit_trait_spec(spec, generic_list_tok, item_list))
             .collect::<Result<BTreeSet<_>>>()?
             .into_iter()
             .collect_vec();
@@ -2426,13 +2472,6 @@ impl TypeState {
                     TypeSymbol::GenericMeta(MetaType::Str) => self.new_generic_tlstr(gen.loc()),
                     TypeSymbol::GenericMeta(MetaType::Any) => {
                         diag_bail!(gen, "Found any meta type")
-                    }
-                    TypeSymbol::Alias(_) => {
-                        return Err(Diagnostic::error(
-                            gen,
-                            "Aliases are not currently supported in const generics",
-                        )
-                        .secondary_label(ty, "Alias defined here"))
                     }
                 }
             }
@@ -2738,12 +2777,6 @@ impl TypeState {
                             (TypeSymbol::GenericMeta(_), TypeSymbol::Declared(_, _, _)) => todo!(),
                             (TypeSymbol::GenericMeta(_), TypeSymbol::GenericArg { traits: _ }) => {
                                 todo!()
-                            }
-                            (TypeSymbol::Alias(_), _) | (_, TypeSymbol::Alias(_)) => {
-                                return Err(UnificationError::Specific(Diagnostic::bug(
-                                    ().nowhere(),
-                                    "Encountered a raw type alias during unification",
-                                )))
                             }
                             (TypeSymbol::GenericMeta(_), TypeSymbol::GenericMeta(_)) => todo!(),
                         }
@@ -3067,6 +3100,7 @@ impl TypeState {
                             KnownType::Named(name_id) => {
                                 return Err(format!("{name_id}<{}>", list));
                             }
+
                             KnownType::Bool(_) | KnownType::Integer(_) | KnownType::String(_) => {
                                 unreachable!("Encountered recursive type level bool, int or str")
                             }
@@ -3112,7 +3146,7 @@ impl TypeState {
 
         let number = ctx
             .symtab
-            .lookup_trait(&Path::from_strs(&["Number"]).nowhere())
+            .lookup_trait(&Path::from_strs(&["Number"]).nowhere(), true)
             .expect("Did not find number in symtab")
             .0;
 

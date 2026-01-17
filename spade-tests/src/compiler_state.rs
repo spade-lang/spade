@@ -17,7 +17,7 @@ macro_rules! test_hierarchical_lookup {
                 .state
                 .symtab
                 .symtab()
-                .lookup_unit(&Path::from_strs(&["main"]).nowhere())
+                .lookup_unit(&Path::from_strs(&["main"]).nowhere(), true)
                 .unwrap()
                 .0;
 
@@ -47,7 +47,7 @@ macro_rules! snapshot_hierarchical_lookup_error {
                 .state
                 .symtab
                 .symtab()
-                .lookup_unit(&Path::from_strs(&["main"]).nowhere())
+                .lookup_unit(&Path::from_strs(&["main"]).nowhere(), true)
                 .unwrap()
                 .0;
 
