@@ -103,8 +103,6 @@ pub extern fn comb_div<N>(x: N, y: N) -> N;
 pub extern fn comb_mod<N>(x: N, y: N) -> N;
 
 /// Interleave the bits of two unsigned integers
-pub fn interleave<#uint N, #uint ON>(l: uint<N>, r: uint<N>) -> uint<ON>
-    where ON: {2 * N}
-{
+pub fn interleave<#uint N>(l: uint<N>, r: uint<N>) -> uint<{2 * N}> {
     (l.to_bits() `interleave_arrays` r.to_bits()).to_uint()
 }

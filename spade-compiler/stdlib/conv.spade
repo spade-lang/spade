@@ -19,9 +19,7 @@ pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 
 /// Concatenate the contents of two arrays `[l0, l1, l2...]`
 /// and `[r0, r1, r2...]` to form `[l0, l1, l2..., ln, r0, r1, r2...]`
-pub fn concat_arrays<T, #uint L, #uint R, #uint O>(l: [T; L], r: [T; R]) -> [T; O]
-    where O: { L + R }
-{
+pub fn concat_arrays<T, #uint L, #uint R>(l: [T; L], r: [T; R]) -> [T; {L + R}] {
     unsafe {
         std::conv::transmute((r, l))
     }
@@ -226,9 +224,7 @@ impl<#uint N> uint<N> {
         trunc(self)
     }
 
-    pub fn interleave<#uint ON>(self, other: Self) -> uint<ON>
-        where ON: {2 * N}
-    {
+    pub fn interleave(self, other: Self) -> uint<{2 * N}> {
         self `interleave` other
     }
 }

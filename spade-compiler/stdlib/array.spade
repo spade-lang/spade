@@ -10,9 +10,7 @@ pub fn zip<L, R, #uint N>(l: [L; N], r: [R; N]) -> [(L, R); N] {
 
 /// Interleave the elements of two arrays `[l0, l1, l2...]`
 /// and `[r0, r1, r2...]` to form `[l0, r0, l1, r1, l2, r2...]`
-pub fn interleave_arrays<T, #uint N, #uint ON>(l: [T; N], r: [T; N]) -> [T; ON]
-    where ON: {2 * N}
-{
+pub fn interleave_arrays<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
     gen if N == 0 {
         []
     } else {
@@ -21,9 +19,7 @@ pub fn interleave_arrays<T, #uint N, #uint ON>(l: [T; N], r: [T; N]) -> [T; ON]
 }
 
 impl<T, #uint N> [T; N] {
-    pub fn concat<#uint M, #uint OL>(self, other: [T; M]) -> [T; OL]
-        where OL: {M + N}
-    {
+    pub fn concat<#uint M>(self, other: [T; M]) -> [T; {M + N}] {
         self `concat_arrays` other
     }
 
@@ -41,9 +37,7 @@ impl<T, #uint N> [T; N] {
         self `zip` other
     }
 
-    pub fn interleave<#uint ON>(self, other: Self) -> [T; ON]
-        where ON: {2 * N}
-    {
+    pub fn interleave(self, other: Self) -> [T; {2 * N}] {
         self `interleave_arrays` other
     }
 }
