@@ -32,7 +32,7 @@ use spade_ast_lowering::{
     ensure_unique_anonymous_traits, global_symbols, visit_module_body, Context as AstLoweringCtx,
     SelfContext,
 };
-use spade_common::id_tracker::ImplIdTracker;
+use spade_common::id_tracker::{GenericIdTracker, ImplIdTracker};
 use spade_common::name::{NameID, Path as SpadePath, Visibility};
 use spade_diagnostics::{CodeBundle, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::SymbolTable;
@@ -163,6 +163,7 @@ pub fn compile(
         item_list,
         idtracker: Arc::new(ExprIdTracker::new()),
         impl_idtracker: ImplIdTracker::new(),
+        generic_idtracker: GenericIdTracker::new(),
         pipeline_ctx: None,
         self_ctx: SelfContext::FreeStanding,
         current_unit: None,
@@ -261,6 +262,7 @@ pub fn compile(
         mut item_list,
         idtracker,
         impl_idtracker,
+        generic_idtracker,
         pipeline_ctx: _,
         self_ctx: _,
         current_unit: _,
@@ -365,6 +367,7 @@ pub fn compile(
         symtab: frozen_symtab,
         idtracker,
         impl_idtracker,
+        generic_idtracker,
         item_list: item_list.clone(),
         name_source_map,
         instance_map,

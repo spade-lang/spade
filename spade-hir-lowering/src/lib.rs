@@ -58,6 +58,8 @@ use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_assert, diag_bail, Diagnostic};
 use spade_hir::expression::Safety;
+use spade_hir::pretty_print::PrettyPrint;
+use spade_hir::Generic;
 use spade_hir::UnitHead;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
@@ -1072,6 +1074,7 @@ pub fn do_wal_trace_lowering(
                 spade_typeinference::GenericListSource::Anonymous,
                 &[],
                 &[],
+                &[],
                 None,
                 &[],
             )?;
@@ -1538,7 +1541,7 @@ impl ExprLocal for Loc<Expression> {
                 if let Some(generic_list) = ctx.unit_generic_list {
                     let value = ctx.types.type_var_from_hir(
                         self.loc(),
-                        &hir::TypeSpec::Generic(name.clone().nowhere()),
+                        &hir::TypeSpec::Generic(Generic::Named(name.clone().nowhere())),
                         generic_list,
                     )?;
 
@@ -2446,9 +2449,9 @@ impl ExprLocal for Loc<Expression> {
         for (param, var) in unit_head
             .get_type_params()
             .iter()
-            .map(|p| (p, instance_list.get(&p.name_id)))
+            .map(|p| (p, instance_list.get(&p.name)))
         {
-            let param_name = &param.name_id;
+            let param_name = &param.name.pretty_print();
             let Some(var) = var else {
                 diag_bail!(self, "Did not find a type for {param_name}");
             };
@@ -2480,6 +2483,7 @@ impl ExprLocal for Loc<Expression> {
                         Diagnostic::error(self.loc(), "Generic types cannot be ports")
                             .primary_label(format!(
                                 "Parameter {name} is {actual} which is a port type",
+                                name = name.pretty_print(),
                                 actual = actual.unwrap()
                             )),
                     );
@@ -2585,7 +2589,7 @@ impl ExprLocal for Loc<Expression> {
                     let t = type_params
                         .iter()
                         .map(|param| {
-                            let name = param.name_id();
+                            let name = param.name.clone();
 
                             let t = instance_list[&name].clone().resolve(&ctx.types);
                             t.into_known(&ctx.types)
@@ -2655,7 +2659,7 @@ impl ExprLocal for Loc<Expression> {
                     .iter()
                     .flat_map(|type_param| match type_param.inner.meta {
                         MetaType::Number | MetaType::Int | MetaType::Uint => {
-                            instance_list.get(&type_param.name_id).and_then(|type_var| {
+                            instance_list.get(&type_param.name).and_then(|type_var| {
                                 type_var
                                     .resolve(&ctx.types)
                                     .expect_integer(
@@ -2667,32 +2671,30 @@ impl ExprLocal for Loc<Expression> {
                                     .ok()
                                     .map(|value| {
                                         (
-                                            type_param.ident.inner.as_str().to_owned(),
+                                            type_param.ident().unwrap().inner.as_str().to_owned(),
                                             ConstantValue::Int(value.to_bigint()),
                                         )
                                     })
                             })
                         }
 
-                        MetaType::Str => {
-                            instance_list.get(&type_param.name_id).and_then(|type_var| {
-                                type_var
-                                    .resolve(&ctx.types)
-                                    .expect_string(
-                                        Result::Ok,
-                                        || unreachable!(),
-                                        |_| unreachable!(),
-                                        || Ok(String::new()),
+                        MetaType::Str => instance_list.get(&type_param.name).and_then(|type_var| {
+                            type_var
+                                .resolve(&ctx.types)
+                                .expect_string(
+                                    Result::Ok,
+                                    || unreachable!(),
+                                    |_| unreachable!(),
+                                    || Ok(String::new()),
+                                )
+                                .ok()
+                                .map(|value| {
+                                    (
+                                        type_param.ident().unwrap().as_str().to_owned(),
+                                        ConstantValue::String(value),
                                     )
-                                    .ok()
-                                    .map(|value| {
-                                        (
-                                            type_param.ident.inner.as_str().to_owned(),
-                                            ConstantValue::String(value),
-                                        )
-                                    })
-                            })
-                        }
+                                })
+                        }),
 
                         _ => None,
                     })

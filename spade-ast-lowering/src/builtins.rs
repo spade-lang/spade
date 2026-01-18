@@ -4,7 +4,7 @@ use spade_common::{
 };
 use spade_hir::{
     symbol_table::{GenericArg, SymbolTable, TypeDeclKind, TypeSymbol},
-    TypeDeclaration,
+    Generic, TypeDeclaration,
 };
 use spade_hir::{ItemList, TypeParam};
 use spade_types::{meta_types::MetaType, PrimitiveType};
@@ -49,8 +49,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                             Visibility::Implicit.nowhere(),
                         );
                         TypeParam {
-                            ident: a.clone().nowhere(),
-                            name_id: id,
+                            name: Generic::Named(id.nowhere()),
                             trait_bounds: vec![],
                             meta: MetaType::Type,
                         }
@@ -63,8 +62,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                             Visibility::Implicit.nowhere(),
                         );
                         TypeParam {
-                            ident: name.clone().nowhere(),
-                            name_id: id,
+                            name: Generic::Named(id.nowhere()),
                             trait_bounds: vec![],
                             meta: meta.clone(),
                         }

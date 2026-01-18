@@ -404,7 +404,7 @@ impl<'d> Renderer<'d> {
                         };
                         Ok(WhereClause {
                             target: Spec::Declared {
-                                name: Cow::Borrowed(target.1.tail().unwrap_named().inner.as_str()),
+                                name: Cow::Borrowed(target.ident().unwrap().inner.as_str()),
                                 type_args: vec![],
                             },
                             constraints,

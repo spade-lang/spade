@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, NameID, Path, Visibility},
+    name::{Identifier, Path, Visibility},
 };
 use spade_diagnostics::Diagnostic;
 use spade_hir::{
@@ -35,7 +35,7 @@ pub fn add_type_alias(
                 }) => {
                     let replacements = generic_args
                         .iter()
-                        .map(|tp| tp.inner.name_id.clone())
+                        .map(|tp| tp.inner.name.clone())
                         .zip(generic_params.iter().cloned())
                         .collect::<HashMap<_, _>>();
 
@@ -86,7 +86,7 @@ pub fn add_type_alias(
 
                         let replacements = generic_args
                             .iter()
-                            .map(|tp| tp.inner.name_id.clone())
+                            .map(|tp| tp.inner.name.clone())
                             .zip(generic_params.iter().cloned())
                             .collect::<HashMap<_, _>>();
 
@@ -151,7 +151,7 @@ pub fn add_type_alias(
 
 fn apply_replacements_to_type_spec(
     ty: &Loc<hir::TypeSpec>,
-    replacements: &HashMap<NameID, Loc<hir::TypeExpression>>,
+    replacements: &HashMap<hir::Generic, Loc<hir::TypeExpression>>,
 ) -> Result<Loc<hir::TypeSpec>> {
     match &ty.inner {
         hir::TypeSpec::Declared(name_id, generic_args) => Ok(hir::TypeSpec::Declared(
@@ -162,7 +162,7 @@ fn apply_replacements_to_type_spec(
                 .collect::<Result<_>>()?,
         )
         .at_loc(&ty)),
-        hir::TypeSpec::Generic(name_id) => match replacements.get(name_id) {
+        hir::TypeSpec::Generic(g) => match replacements.get(g) {
             Some(t) => {
                 let ts = match &t.inner {
                     hir::TypeExpression::TypeSpec(ts) => ts,
@@ -203,20 +203,21 @@ fn apply_replacements_to_type_spec(
             apply_replacements_to_type_spec(&ts, replacements)?,
         ))
         .at_loc(&ty)),
+
         hir::TypeSpec::TraitSelf(_) | hir::TypeSpec::Wildcard(_) => Ok(ty.clone()),
     }
 }
 
 fn apply_replacements_to_type_expr(
     ty: &Loc<hir::TypeExpression>,
-    replacements: &HashMap<NameID, Loc<hir::TypeExpression>>,
+    replacements: &HashMap<hir::Generic, Loc<hir::TypeExpression>>,
 ) -> Result<Loc<hir::TypeExpression>> {
     match &ty.inner {
         hir::TypeExpression::Integer(_) => Ok(ty.clone()),
         hir::TypeExpression::String(_) => Ok(ty.clone()),
         hir::TypeExpression::TypeSpec(ts) => {
-            if let hir::TypeSpec::Generic(name_id) = ts {
-                match replacements.get(name_id) {
+            if let hir::TypeSpec::Generic(name) = ts {
+                match replacements.get(name) {
                     Some(replacement) => Ok(replacement.clone()),
                     None => Ok(ty.clone()),
                 }
@@ -236,10 +237,11 @@ fn apply_replacements_to_type_expr(
 
 fn apply_replacements_to_const_generic(
     ty: &Loc<hir::ConstGeneric>,
-    replacements: &HashMap<NameID, Loc<hir::TypeExpression>>,
+    replacements: &HashMap<hir::Generic, Loc<hir::TypeExpression>>,
 ) -> Result<Loc<hir::ConstGeneric>> {
     match &ty.inner {
-        hir::ConstGeneric::Name(name_id) => match replacements.get(name_id) {
+        hir::ConstGeneric::Name(name) => match replacements.get(&hir::Generic::Named(name.clone()))
+        {
             Some(t) => match &t.inner {
                 hir::TypeExpression::TypeSpec(_) => {
                     return Err(Diagnostic::bug(

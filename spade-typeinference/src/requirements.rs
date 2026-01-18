@@ -3,13 +3,14 @@ use num::traits::Pow;
 use num::{BigInt, ToPrimitive, Zero};
 use spade_common::id_tracker::ExprID;
 use spade_common::location_info::WithLocation;
-use spade_common::name::{NameID, Path};
+use spade_common::name::Path;
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::{location_info::Loc, name::Identifier};
 use spade_diagnostics::{diag_anyhow, diag_assert, diag_bail, Diagnostic};
 use spade_hir::expression::CallKind;
+use spade_hir::pretty_print::PrettyPrint;
 use spade_hir::symbol_table::{TypeDeclKind, TypeSymbol};
-use spade_hir::{ArgumentList, Expression, TypeExpression, WhereClauseKind};
+use spade_hir::{ArgumentList, Expression, Generic, TypeExpression, WhereClauseKind};
 use spade_types::KnownType;
 
 use crate::equation::{ResolvedNamedOrInverted, TypeVar, TypeVarID};
@@ -84,7 +85,7 @@ pub enum Requirement {
         array_size: Loc<TypeVarID>,
     },
     WhereInequality {
-        var: NameID,
+        var: Generic,
         lhs: Loc<TypeVarID>,
         rhs: Loc<TypeVarID>,
         inequality: WhereClauseKind,
@@ -172,7 +173,7 @@ impl Requirement {
                         let mapping = s
                             .type_params
                             .iter()
-                            .map(|p| p.clone().name_id())
+                            .map(|p| p.clone().name.clone())
                             .zip(params.iter().cloned())
                             .collect();
 
@@ -609,11 +610,13 @@ impl Requirement {
                         let mut diag = Diagnostic::error(
                             loc,
                             format!(
-                                "Expected {var} {inequality} {rhs_val} but {var} is {lhs_val} "
+                                "Expected {var} {inequality} {rhs_val} but {var} is {lhs_val} ",
+                                var = var.pretty_print()
                             ),
                         )
                         .primary_label(format!(
-                            "Expected {var} {inequality} {rhs_val}, but {var} is {lhs_val}"
+                            "Expected {var} {inequality} {rhs_val}, but {var} is {lhs_val}",
+                            var = var.pretty_print()
                         ));
                         if let Some(message) = message {
                             diag = diag.note(message.to_string())

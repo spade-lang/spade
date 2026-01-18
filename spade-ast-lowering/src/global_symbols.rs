@@ -404,8 +404,10 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             .symtab
             .lookup_type_symbol(&Path::ident_with_loc(arg.name().clone()))
             .expect("Expected generic param to be in symtab");
-        let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(name_id.clone().at_loc(arg)))
-            .at_loc(arg);
+        let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(hir::Generic::Named(
+            name_id.clone().at_loc(arg),
+        )))
+        .at_loc(arg);
         let param = match &arg.inner {
             ast::TypeParam::TypeName { name, traits } => {
                 let trait_bounds = traits
@@ -414,15 +416,13 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .collect::<Result<Vec<_>>>()?;
 
                 hir::TypeParam {
-                    ident: name.clone(),
-                    name_id: name_id.clone(),
+                    name: hir::Generic::Named(name_id.clone().at_loc(name)),
                     trait_bounds,
                     meta: MetaType::Type,
                 }
             }
             ast::TypeParam::TypeWithMeta { meta, name } => hir::TypeParam {
-                ident: name.clone(),
-                name_id: name_id.clone(),
+                name: hir::Generic::Named(name_id.clone().at_loc(name)),
                 trait_bounds: vec![],
                 meta: visit_meta_type(&meta)?,
             },

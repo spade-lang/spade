@@ -30,7 +30,7 @@ impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
         let (pattern, start_span) = parser.pattern()?.separate();
 
         let ty = if parser.peek_and_eat(&TokenKind::Colon)?.is_some() {
-            Some(parser.type_spec()?)
+            Some(parser.type_spec(false)?)
         } else {
             None
         };
@@ -124,7 +124,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
 
         // Optional type
         let value_type = if parser.peek_and_eat(&TokenKind::Colon)?.is_some() {
-            Some(parser.type_spec()?)
+            Some(parser.type_spec(false)?)
         } else {
             None
         };

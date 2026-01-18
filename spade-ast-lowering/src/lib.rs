@@ -42,10 +42,12 @@ use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
 use rustc_hash::FxHashSet as HashSet;
 use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
-use spade_common::id_tracker::{ExprIdTracker, ImplIdTracker};
+use spade_common::id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
-use spade_hir::{self as hir, ExprKind, ItemList, Module, TraitSpec, TypeExpression, TypeSpec};
+use spade_hir::{
+    self as hir, ExprKind, Generic, ItemList, Module, TraitSpec, TypeExpression, TypeSpec,
+};
 
 use error::Result;
 
@@ -55,6 +57,7 @@ pub struct Context {
     pub item_list: ItemList,
     pub idtracker: Arc<ExprIdTracker>,
     pub impl_idtracker: ImplIdTracker,
+    pub generic_idtracker: GenericIdTracker,
     pub pipeline_ctx: Option<PipelineContext>,
     pub self_ctx: SelfContext,
     pub current_unit: Option<hir::UnitHead>,
@@ -73,6 +76,7 @@ impl Context {
                 item_list: _,
                 idtracker: _,
                 impl_idtracker: _,
+                generic_idtracker: _,
                 pipeline_ctx,
                 self_ctx,
                 current_unit,
@@ -90,6 +94,7 @@ impl Context {
                 item_list: _,
                 idtracker: _,
                 impl_idtracker: _,
+                generic_idtracker: _,
                 pipeline_ctx,
                 self_ctx,
                 current_unit,
@@ -172,8 +177,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
             );
 
             Ok(hir::TypeParam {
-                ident: ident.clone(),
-                name_id,
+                name: Generic::Named(name_id.at_loc(ident)),
                 trait_bounds,
                 meta: MetaType::Type,
             })
@@ -187,8 +191,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
             );
 
             Ok(hir::TypeParam {
-                ident: name.clone(),
-                name_id,
+                name: Generic::Named(name_id.at_loc(name)),
                 trait_bounds: vec![],
                 meta,
             })
@@ -220,8 +223,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir:
             };
 
             Ok(hir::TypeParam {
-                ident: ident.clone(),
-                name_id,
+                name: Generic::Named(name_id.at_loc(&ident)),
                 trait_bounds,
                 meta: MetaType::Type,
             })
@@ -230,8 +232,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir:
             let path = Path::ident(name.clone()).at_loc(name);
             let name_id = ctx.symtab.lookup_type_symbol(&path)?.0;
             Ok(hir::TypeParam {
-                ident: name.clone(),
-                name_id,
+                name: Generic::Named(name_id.at_loc(&name)),
                 trait_bounds: vec![],
                 meta: visit_meta_type(meta)?,
             })
@@ -383,7 +384,7 @@ pub fn visit_type_spec(
                                 .secondary_label(base_t, format!("{path} is a generic type")),
                         )
                     } else {
-                        Ok(hir::TypeSpec::Generic(base_id.at_loc(path)))
+                        Ok(hir::TypeSpec::Generic(Generic::Named(base_id.at_loc(path))))
                     }
                 }
                 TypeSymbol::Alias(expr) => Ok(expr.inner.clone()),
@@ -409,15 +410,16 @@ pub fn visit_type_spec(
                 .iter()
                 .map(|p| match visit_type_expression(p, kind, ctx)? {
                     hir::TypeExpression::TypeSpec(t) => match &t {
-                        TypeSpec::Tuple(_)
+                        TypeSpec::Generic(Generic::Hidden(_))
+                        | TypeSpec::Tuple(_)
                         | TypeSpec::Array { inner: _, size: _ }
                         | TypeSpec::Inverted(_)
                         | TypeSpec::Wire(_)
                         | TypeSpec::TraitSelf(_)
                         | TypeSpec::Wildcard(_)
                         | TypeSpec::Declared(_, _) => Ok(t.at_loc(p)),
-                        TypeSpec::Generic(name) => {
-                            let inner = ctx.symtab.type_symbol_by_id(&name.inner);
+                        TypeSpec::Generic(Generic::Named(name)) => {
+                            let inner = ctx.symtab.type_symbol_by_id(name);
                             match &inner.inner {
                                 TypeSymbol::Declared(_, _)
                                 | TypeSymbol::GenericArg { traits: _ }
@@ -523,6 +525,16 @@ pub fn visit_type_spec(
             } else {
                 Ok(hir::TypeSpec::Inverted(Box::new(inner)))
             }
+        }
+        ast::TypeSpec::Impl(specs) => {
+            let specs = specs
+                .iter()
+                .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
+                .collect::<Result<Vec<_>>>()?;
+
+            let new_id = ctx.generic_idtracker.next();
+            ctx.item_list.hidden_constraints.push(specs.at_loc(&t));
+            Ok(hir::TypeSpec::Generic(Generic::Hidden(new_id.at_loc(&t))))
         }
         ast::TypeSpec::Wildcard => {
             let default_error = |message, primary| {
@@ -652,6 +664,7 @@ fn visit_parameter_list(
             field_translator,
         });
     }
+
     Ok(hir::ParameterList(result).at_loc(l))
 }
 
@@ -820,7 +833,9 @@ pub fn unit_head(
         ));
     }
 
+    let first_hidden_id = ctx.generic_idtracker.peek();
     let inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
+    let last_hidden_id = ctx.generic_idtracker.peek();
 
     // Check for ports in functions
     // We need to have the scope open to check this, but we also need to close
@@ -835,12 +850,27 @@ pub fn unit_head(
         .cloned()
         .collect();
 
+    let hidden_type_params = (first_hidden_id..last_hidden_id)
+        .map(|id| {
+            let (trait_bounds, loc) = ctx.item_list.hidden_constraints[id as usize]
+                .clone()
+                .split_loc();
+            hir::TypeParam {
+                name: Generic::Hidden(id.at_loc(&loc)),
+                trait_bounds,
+                meta: MetaType::Type,
+            }
+            .at_loc(&loc)
+        })
+        .collect();
+
     Ok(hir::UnitHead {
         name: head.name.clone(),
         is_nonstatic_method: head.inputs.self_.is_some(),
         inputs,
         output_type,
         unit_type_params,
+        hidden_type_params,
         scope_type_params,
         unit_kind: unit_kind?,
         where_clauses,
@@ -1017,7 +1047,7 @@ pub fn visit_where_clauses(
                 match &sym.inner {
                     TypeSymbol::GenericMeta(_) => {
                         let clause = hir::WhereClause::Int {
-                            target: name_id.at_loc(target),
+                            target: Generic::Named(name_id.at_loc(&target.loc())),
                             kind: match kind {
                                 ast::Inequality::Eq => hir::WhereClauseKind::Eq,
                                 ast::Inequality::Neq => hir::WhereClauseKind::Neq,
@@ -1101,7 +1131,7 @@ pub fn visit_where_clauses(
 
                         visited_where_clauses.push(
                             hir::WhereClause::Type {
-                                target: name_id.at_loc(target),
+                                target: Generic::Named(name_id.at_loc(&target.loc())),
                                 traits,
                             }
                             .at_loc(target),
@@ -1178,10 +1208,12 @@ pub fn visit_unit(
 
     ctx.current_unit = Some(head.inner.clone());
 
-    let mut unit_name = if type_params.is_some() || scope_type_params.is_some() {
-        hir::UnitName::WithID(id.clone().at_loc(name))
-    } else {
+    let all_type_params = head.get_type_params();
+
+    let mut unit_name = if all_type_params.is_empty() {
         hir::UnitName::FullPath(id.clone().at_loc(name))
+    } else {
+        hir::UnitName::WithID(id.clone().at_loc(name))
     };
 
     let mut wal_suffix = None;
@@ -1269,14 +1301,16 @@ pub fn visit_unit(
         .collect::<Vec<_>>();
 
     // Add the type params to the symtab to make them visible in the body
-    for param in head.get_type_params() {
-        let hir::TypeParam {
-            ident,
-            name_id,
+    for param in all_type_params {
+        if let hir::TypeParam {
+            name: hir::Generic::Named(name_id),
             trait_bounds: _,
             meta: _,
-        } = param.inner;
-        ctx.symtab.re_add_type(ident, name_id)
+        } = param.inner
+        {
+            let ident = name_id.1 .0.last().unwrap().unwrap_named();
+            ctx.symtab.re_add_type(ident.clone(), name_id.inner)
+        }
     }
 
     ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx)?;

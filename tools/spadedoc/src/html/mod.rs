@@ -82,7 +82,7 @@ impl<'r> GenericTypeParam<'r> {
     pub fn mirror_typeparam(type_param: &'r TypeParam) -> Result<Self> {
         let where_clause = WhereClause {
             target: Spec::Declared {
-                name: Cow::Borrowed(type_param.ident.inner.as_str()),
+                name: Cow::Borrowed(type_param.ident().unwrap().inner.as_str()),
                 type_args: vec![],
             },
             constraints: type_param

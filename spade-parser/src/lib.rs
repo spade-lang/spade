@@ -1050,7 +1050,7 @@ impl<'a> Parser<'a> {
             )?;
             Ok(TypeExpression::ConstGeneric(Box::new(expr)).at(self.file_id, &span))
         } else {
-            let inner = self.type_spec()?;
+            let inner = self.type_spec(false)?;
 
             Ok(TypeExpression::TypeSpec(Box::new(inner.clone())).at_loc(&inner))
         }
@@ -1058,7 +1058,7 @@ impl<'a> Parser<'a> {
 
     // Types
     #[trace_parser]
-    pub fn type_spec(&mut self) -> Result<Loc<TypeSpec>> {
+    pub fn type_spec(&mut self, accept_impl: bool) -> Result<Loc<TypeSpec>> {
         if let Some(inv) = self.peek_and_eat(&TokenKind::Inv)? {
             let rest = self.type_expression()?;
             Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(self.file_id, &inv, &rest))
@@ -1085,6 +1085,40 @@ impl<'a> Parser<'a> {
 
             let rest = self.type_expression()?;
             Ok(TypeSpec::Wire(Box::new(rest.clone())).between(self.file_id, &wire_sign, &rest))
+        } else if let Some(r#impl) = self.peek_and_eat(&TokenKind::Impl)? {
+            let traits = self
+                .token_separated(
+                    Self::trait_spec,
+                    &TokenKind::Plus,
+                    vec![
+                        TokenKind::Assignment,
+                        TokenKind::Comma,
+                        TokenKind::CloseBrace,
+                        TokenKind::CloseParen,
+                        TokenKind::Gt,
+                        TokenKind::OpenBrace,
+                    ],
+                )
+                .extra_expected(vec!["identifier"])?
+                .into_iter()
+                .map(|spec| {
+                    let loc = ().at_loc(&spec.path);
+                    spec.at_loc(&loc)
+                })
+                .collect::<Vec<_>>();
+
+            let span_end = traits.last().map(|t| t.span).unwrap_or(r#impl.loc().span);
+
+            if !accept_impl {
+                return Err(Diagnostic::error(
+                    ().between(self.file_id, &r#impl, &span_end),
+                    "`impl Trait` syntax cannot be used in this context",
+                )
+                .primary_label("`impl Trait` type cannot be used in this context")
+                .note("`impl Trait` can only be used inside unit parameters"));
+            }
+
+            Ok(TypeSpec::Impl(traits).between(self.file_id, &r#impl, &span_end))
         } else if let Some(tuple) = self.tuple_spec()? {
             Ok(tuple)
         } else if let Some(array) = self.array_spec()? {
@@ -1178,10 +1212,10 @@ impl<'a> Parser<'a> {
     ///
     /// name: Type
     #[trace_parser]
-    pub fn name_and_type(&mut self) -> Result<(Loc<Identifier>, Loc<TypeSpec>)> {
+    pub fn name_and_type(&mut self, accept_impl: bool) -> Result<(Loc<Identifier>, Loc<TypeSpec>)> {
         let name = self.identifier()?;
         self.eat(&TokenKind::Colon)?;
-        let t = self.type_spec()?;
+        let t = self.type_spec(accept_impl)?;
         Ok((name, t))
     }
 
@@ -1375,14 +1409,18 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn parameter(&mut self) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
+    pub fn parameter(
+        &mut self,
+        accept_impl: bool,
+    ) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
         let attrs = self.attributes()?;
-        let (name, ty) = self.name_and_type()?;
+        let (name, ty) = self.name_and_type(accept_impl)?;
+
         Ok((attrs, name, ty))
     }
 
     #[trace_parser]
-    pub fn parameter_list(&mut self) -> Result<ParameterList> {
+    pub fn parameter_list(&mut self, accept_impl: bool) -> Result<ParameterList> {
         let mut first_attrs = self.attributes()?;
 
         let self_ = if self.peek_cond(
@@ -1399,7 +1437,7 @@ impl<'a> Parser<'a> {
         };
 
         let mut args = self
-            .comma_separated(Self::parameter, &TokenKind::CloseParen)
+            .comma_separated(|s| s.parameter(accept_impl), &TokenKind::CloseParen)
             .no_context()?;
 
         if !first_attrs.is_empty() {
@@ -1419,7 +1457,7 @@ impl<'a> Parser<'a> {
     #[tracing::instrument(skip(self))]
     pub fn type_parameter_list(&mut self) -> Result<ParameterList> {
         Ok(ParameterList::without_self(
-            self.comma_separated(Self::parameter, &TokenKind::CloseBrace)
+            self.comma_separated(|s| s.parameter(false), &TokenKind::CloseBrace)
                 .no_context()?,
         ))
     }
@@ -1678,14 +1716,14 @@ impl<'a> Parser<'a> {
         // Input types
         let (inputs, inputs_loc) = self.surrounded(
             &TokenKind::OpenParen,
-            Self::parameter_list,
+            |s| s.parameter_list(true),
             &TokenKind::CloseParen,
         )?;
         let inputs = inputs.at_loc(&inputs_loc);
 
         // Return type
         let output_type = if let Some(arrow) = self.peek_and_eat(&TokenKind::SlimArrow)? {
-            Some((arrow.loc(), self.type_spec()?))
+            Some((arrow.loc(), self.type_spec(false)?))
         } else {
             None
         };
@@ -1872,7 +1910,7 @@ impl<'a> Parser<'a> {
             _ => return Ok(false),
         };
         let mut try_parameter_list = self.clone();
-        if try_parameter_list.parameter_list().is_err() {
+        if try_parameter_list.parameter_list(false).is_err() {
             return Ok(false);
         }
         let close_paren = match try_parameter_list.peek_and_eat(&TokenKind::CloseParen)? {
@@ -2996,7 +3034,7 @@ mod tests {
             Some(vec![TypeExpression::Integer(10u32.to_bigint()).nowhere()].nowhere()),
         )
         .nowhere();
-        check_parse!("uint<10>", type_spec, Ok(expected));
+        check_parse!("uint<10>", type_spec(false), Ok(expected));
     }
 
     #[test]
@@ -3019,7 +3057,7 @@ mod tests {
         )
         .nowhere();
 
-        check_parse!(code, type_spec, Ok(expected));
+        check_parse!(code, type_spec(false), Ok(expected));
     }
 
     #[test]
@@ -3131,7 +3169,7 @@ mod tests {
         )
         .nowhere();
 
-        check_parse!(code, type_spec, Ok(expected));
+        check_parse!(code, type_spec(false), Ok(expected));
     }
 
     #[test]

@@ -174,7 +174,7 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
 
         let type_params = parser.generics_list()?;
 
-        let trait_or_target_path = parser.type_spec()?;
+        let trait_or_target_path = parser.type_spec(false)?;
 
         let (r#trait, target) = if parser.peek_and_eat(&TokenKind::For)?.is_some() {
             let (trait_path, params) = match trait_or_target_path.inner.clone() {
@@ -193,7 +193,7 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
             }
             .at_loc(&trait_or_target_path);
 
-            let target = parser.type_spec()?;
+            let target = parser.type_spec(false)?;
 
             (Some(r#trait), target)
         } else {

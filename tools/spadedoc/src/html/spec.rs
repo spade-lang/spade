@@ -90,7 +90,7 @@ impl<'r> Spec<'r> {
                     .collect::<Result<Vec<_>>>()?,
             }),
             TypeSpec::Generic(name) => Ok(Spec::Declared {
-                name: Cow::Borrowed(name.inner.1.tail().unwrap_named().inner.as_str()),
+                name: Cow::Borrowed(name.ident().unwrap().inner.as_str()),
                 type_args: vec![],
             }),
             TypeSpec::Inverted(inner) => {

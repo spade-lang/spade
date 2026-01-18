@@ -171,7 +171,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .chain(
             outer_generic_params
                 .iter()
-                .map(|p| p.name_id().1.tail().unwrap_named().inner.clone().at_loc(&p)),
+                .map(|p| p.ident().unwrap().inner.clone().at_loc(&p)),
         )
         .collect::<Vec<_>>();
 
@@ -200,14 +200,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                                 diag_bail!(loc, "Found unexpected meta in captured type args")
                             }
                         },
-                        name: tp
-                            .name_id()
-                            .1
-                            .tail()
-                            .unwrap_named()
-                            .inner
-                            .clone()
-                            .at_loc(tp),
+                        name: tp.ident().unwrap().inner.clone().at_loc(tp),
                     }
                     .at_loc(tp))
                 })
@@ -442,8 +435,14 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     .skip(manufactured_generic_params.len()),
             )
             .map(|(in_body, in_lambda)| OuterLambdaParam {
-                name_in_lambda: in_lambda.name_id(),
-                name_in_body: in_body.name_id().at_loc(in_body),
+                name_in_lambda: in_lambda.name.name_id().unwrap().clone().inner,
+                name_in_body: in_body
+                    .name
+                    .name_id()
+                    .unwrap()
+                    .clone()
+                    .inner
+                    .at_loc(in_body),
             })
             .collect(),
         type_params,

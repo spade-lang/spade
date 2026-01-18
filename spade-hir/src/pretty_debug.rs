@@ -8,8 +8,8 @@ use spade_common::{
 use crate::{
     expression::{NamedArgument, OuterLambdaParam, Safety},
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
-    Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression, TypeParam, TypeSpec,
-    Unit, UnitHead, WhereClause,
+    Generic, Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression, TypeParam,
+    TypeSpec, Unit, UnitHead, WhereClause,
 };
 
 pub trait PrettyDebug {
@@ -39,6 +39,7 @@ impl PrettyDebug for Unit {
                     is_nonstatic_method: _,
                     output_type,
                     unit_type_params,
+                    hidden_type_params,
                     scope_type_params,
                     unit_kind,
                     where_clauses,
@@ -51,8 +52,12 @@ impl PrettyDebug for Unit {
         } = self;
 
         let type_params = format!(
-            "<{} | {}>",
+            "<{} | {} | {}>",
             scope_type_params
+                .iter()
+                .map(PrettyDebug::pretty_debug)
+                .join(","),
+            hidden_type_params
                 .iter()
                 .map(PrettyDebug::pretty_debug)
                 .join(","),
@@ -144,7 +149,7 @@ impl PrettyDebug for TypeSpec {
                     args.iter().map(|arg| arg.pretty_debug()).join(", ")
                 )
             }
-            TypeSpec::Generic(name) => name.pretty_debug(),
+            TypeSpec::Generic(g) => g.pretty_debug(),
             TypeSpec::Tuple(inner) => format!(
                 "({})",
                 inner.iter().map(|arg| arg.pretty_debug()).join(", ")
@@ -154,7 +159,7 @@ impl PrettyDebug for TypeSpec {
             }
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_debug()),
             TypeSpec::Wire(inner) => format!("&{}", inner.pretty_debug()),
-            TypeSpec::TraitSelf(_) => format!("TraitSelf"),
+            TypeSpec::TraitSelf(_) => format!("Self"),
             TypeSpec::Wildcard(_) => format!("_"),
         }
     }
@@ -352,19 +357,26 @@ impl PrettyDebug for ExprKind {
     }
 }
 
+impl PrettyDebug for Generic {
+    fn pretty_debug(&self) -> String {
+        match self {
+            Generic::Named(name_id) => name_id.pretty_debug(),
+            Generic::Hidden(id) => format!("<hidden#{id}>"),
+        }
+    }
+}
+
 impl PrettyDebug for TypeParam {
     fn pretty_debug(&self) -> String {
         let Self {
-            ident: _,
-            name_id,
+            name,
             trait_bounds,
             meta,
         } = self;
 
         format!(
-            "{:?} {}: ({})",
-            meta,
-            name_id.pretty_debug(),
+            "{meta:?} {}: ({})",
+            name.pretty_debug(),
             trait_bounds.iter().map(PrettyDebug::pretty_debug).join(",")
         )
     }
@@ -372,49 +384,7 @@ impl PrettyDebug for TypeParam {
 
 impl PrettyDebug for TraitSpec {
     fn pretty_debug(&self) -> String {
-        let Self {
-            name,
-            type_params,
-            paren_syntax,
-        } = self;
-
-        if *paren_syntax {
-            let mut type_params = type_params.clone().unwrap();
-            let return_type = type_params.pop().unwrap();
-            let param_tuple = type_params.pop().unwrap();
-
-            let type_params_string = match type_params.as_slice() {
-                [] => String::new(),
-                params => format!(
-                    "<{}>",
-                    params.iter().map(PrettyDebug::pretty_debug).join(", ")
-                ),
-            };
-
-            let return_type_string = match return_type.inner {
-                TypeExpression::TypeSpec(TypeSpec::Tuple(t)) if t.is_empty() => String::new(),
-                ty => format!(" -> {}", ty.pretty_debug()),
-            };
-
-            format!(
-                "{}{}{}{}",
-                name.name_loc().pretty_debug(),
-                type_params_string,
-                param_tuple.pretty_debug(),
-                return_type_string,
-            )
-        } else {
-            format!(
-                "{}{}",
-                name.name_loc().pretty_debug(),
-                type_params
-                    .as_ref()
-                    .map(|tp| {
-                        format!("<{}>", tp.iter().map(PrettyDebug::pretty_debug).join(", "))
-                    })
-                    .unwrap_or(String::new())
-            )
-        }
+        format!("{self}")
     }
 }
 

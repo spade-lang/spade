@@ -6,7 +6,8 @@ use spade_common::id_tracker::ExprID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::NameID;
 use spade_diagnostics::Diagnostic;
-use spade_hir::{self as hir, ConstGenericWithId};
+use spade_hir::pretty_print::PrettyPrint;
+use spade_hir::{self as hir, ConstGenericWithId, Generic};
 use spade_hir::{TypeDeclaration, TypeList};
 use spade_types::{ConcreteType, KnownType, PrimitiveType};
 
@@ -100,7 +101,7 @@ impl TypeState {
             .generic_args
             .iter()
             .zip(params.iter())
-            .map(|(lhs, rhs)| (lhs.name_id(), rhs))
+            .map(|(lhs, rhs)| (lhs.name.clone(), rhs))
             .collect::<HashMap<_, _>>();
 
         match &decl.kind {
@@ -190,7 +191,7 @@ impl TypeState {
     pub fn type_expr_to_concrete(
         expr: &TypeExpression,
         type_list: &TypeList,
-        generic_substitutions: &HashMap<NameID, &ConcreteType>,
+        generic_substitutions: &HashMap<Generic, &ConcreteType>,
         invert: bool,
     ) -> ConcreteType {
         match &expr {
@@ -208,7 +209,7 @@ impl TypeState {
     pub fn type_spec_to_concrete(
         spec: &TypeSpec,
         type_list: &TypeList,
-        generic_substitutions: &HashMap<NameID, &ConcreteType>,
+        generic_substitutions: &HashMap<Generic, &ConcreteType>,
         invert: bool,
     ) -> ConcreteType {
         match spec {
@@ -228,9 +229,9 @@ impl TypeState {
             }
             TypeSpec::Generic(name) => {
                 // Substitute the generic for the current substitution
-                (*generic_substitutions
-                    .get(name)
-                    .unwrap_or_else(|| panic!("Expected a substitution for {}", name)))
+                (*generic_substitutions.get(name).unwrap_or_else(|| {
+                    panic!("Expected a substitution for {}", name.pretty_print())
+                }))
                 .clone()
             }
             TypeSpec::Tuple(t) => {
@@ -292,6 +293,7 @@ impl TypeState {
                 // reaching another inversion, go back to the normal direction
                 !invert,
             ),
+
             TypeSpec::TraitSelf(_) => panic!("Trying to concretize HIR TraitSelf type"),
             TypeSpec::Wildcard(_) => panic!("Trying to concretize HIR Wildcard type"),
         }

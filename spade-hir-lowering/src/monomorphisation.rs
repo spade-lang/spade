@@ -10,6 +10,7 @@ use spade_common::{id_tracker::ExprIdTracker, location_info::WithLocation, name:
 use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_hir::pretty_print::PrettyPrint;
 use spade_hir::Unit;
 use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
@@ -259,7 +260,7 @@ pub fn compile_items(
 
                 s.spawn_fifo(move |_s| {
                     let key = item.key();
-                    let local = monoprhipze_item(
+                    let local = monomorphize_item(
                         item,
                         items,
                         body_replacements,
@@ -298,7 +299,7 @@ pub fn compile_items(
         .collect::<Vec<_>>()
 }
 
-fn monoprhipze_item(
+fn monomorphize_item(
     item: MonoItem,
     items: &BTreeMap<&NameID, (&ExecutableItem, TypeState)>,
     body_replacements: Arc<RwLock<BodyReplacements>>,
@@ -344,7 +345,7 @@ fn monoprhipze_item(
                                 .clone();
                             for (i, (_, ty)) in replacement.arguments.into_iter().enumerate() {
                                 let old_ty = gl
-                                    .get(&unit.head.get_type_params()[i].name_id)
+                                    .get(&unit.head.get_type_params()[i].name)
                                     .ok_or_else(|| {
                                         diag_anyhow!(unit, "Did not have an entry for argument {i}")
                                     })?
@@ -391,20 +392,22 @@ fn monoprhipze_item(
                             .get_type_params()
                             .iter()
                             .zip(item.params.iter())
-                            .map(|(param, outer_var)| {
-                                (param.name_id().at_loc(param), outer_var.clone())
-                            })
+                            .map(|(param, outer_var)| (param.name.clone(), outer_var.clone()))
                             .collect::<Vec<_>>();
 
                         for (name, outer_var) in generic_map {
                             let inner_var = gl.get(&name).ok_or_else(|| {
-                                diag_anyhow!(name.clone(), "Did not find a generic type for {name}")
+                                diag_anyhow!(
+                                    name.loc(),
+                                    "Did not find a generic type for {}",
+                                    name.pretty_print()
+                                )
                             })?;
 
                             let outer_var = outer_var.insert(type_state);
                             type_state
                                 .unify(&inner_var.clone(), &outer_var, ctx)
-                                .into_default_diagnostic(name, type_state)?;
+                                .into_default_diagnostic(name.loc(), type_state)?;
                         }
 
                         if let Some(preprocessor) = preprocessor {

@@ -160,9 +160,8 @@ impl<'a> ParameterListLike<'a, ()> for &[Loc<TypeParam>] {
     fn as_listlike(&'a self) -> ParameterListWrapper<'a, ()> {
         ParameterListWrapper(
             self.iter()
-                .map(|p| match &p.inner {
-                    TypeParam { ident, .. } => (ident, &()),
-                })
+                .flat_map(|p| p.inner.ident())
+                .map(|n| (n, &()))
                 .collect(),
         )
     }

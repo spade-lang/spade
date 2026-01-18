@@ -9,8 +9,9 @@ use spade_common::{
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
     expression::{CallKind, Safety},
-    ArgumentList, ExprKind, Expression, Parameter, ParameterList, Pattern, PatternKind, Statement,
-    TypeParam, TypeSpec, Unit, UnitHead,
+    pretty_print::PrettyPrint,
+    ArgumentList, ExprKind, Expression, Generic, Parameter, ParameterList, Pattern, PatternKind,
+    Statement, TypeParam, TypeSpec, Unit, UnitHead,
 };
 use spade_typeinference::{equation::KnownTypeVar, GenericListToken, HasType, TypeState};
 
@@ -21,7 +22,7 @@ use super::pass::Pass;
 pub(crate) struct LambdaReplacement {
     pub new_body: Loc<Expression>,
     pub arguments: Vec<(Loc<Pattern>, KnownTypeVar)>,
-    pub outer_type_params: HashMap<NameID, NameID>,
+    pub outer_type_params: HashMap<Generic, Generic>,
     pub clock: Option<Loc<NameID>>,
     pub captures: Vec<(Loc<Identifier>, Loc<NameID>)>,
 }
@@ -33,18 +34,12 @@ impl LambdaReplacement {
             .map(|tp| {
                 let loc = tp.loc();
                 let TypeParam {
-                    ident,
-                    name_id,
+                    name,
                     trait_bounds,
                     meta,
                 } = tp.inner;
                 TypeParam {
-                    name_id: self
-                        .outer_type_params
-                        .get(&name_id)
-                        .cloned()
-                        .unwrap_or(name_id),
-                    ident,
+                    name: self.outer_type_params.get(&name).cloned().unwrap_or(name),
                     trait_bounds,
                     meta,
                 }
@@ -58,8 +53,8 @@ impl LambdaReplacement {
         for (from, to) in &self.outer_type_params {
             new_ts = new_ts.map(|ty| {
                 ty.replace_in(
-                    &TypeSpec::Generic(from.clone().at_loc(&ts)),
-                    &TypeSpec::Generic(to.clone().at_loc(&ts)),
+                    &TypeSpec::Generic(from.clone()),
+                    &TypeSpec::Generic(to.clone()),
                 )
             })
         }
@@ -173,6 +168,7 @@ impl LambdaReplacement {
             .collect::<Vec<_>>();
 
         let scope_type_params = self.replace_type_params(&old.head.scope_type_params);
+        let hidden_type_params = self.replace_type_params(&old.head.hidden_type_params);
         let unit_type_params = self.replace_type_params(&old.head.unit_type_params);
 
         let body = self.new_body.clone().map(|mut body| {
@@ -196,6 +192,7 @@ impl LambdaReplacement {
                 .collect(),
             head: UnitHead {
                 scope_type_params: scope_type_params.clone(),
+                hidden_type_params: hidden_type_params.clone(),
                 unit_type_params: unit_type_params.clone(),
                 inputs: ParameterList(
                     unit.head
@@ -266,7 +263,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 .all()
                 .map(|tp| {
                     let result = generic_list
-                        .get(&tp.name_id)
+                        .get(&tp.name)
                         .ok_or_else(|| {
                             diag_anyhow!(
                             tp,
@@ -276,7 +273,11 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                         .resolve(&self.type_state)
                         .into_known(&self.type_state)
                         .ok_or_else(|| {
-                            diag_anyhow!(tp, "The type of {} was not fully known", tp.name_id)
+                            diag_anyhow!(
+                                tp,
+                                "The type of {} was not fully known",
+                                tp.name.pretty_print()
+                            )
                         })?;
                     Ok(result)
                 })
@@ -289,7 +290,12 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                     arguments: arguments.clone(),
                     outer_type_params: outer_generic_params
                         .iter()
-                        .map(|tp| (tp.name_in_lambda.clone(), tp.name_in_body.inner.clone()))
+                        .map(|tp| {
+                            (
+                                Generic::Named(tp.name_in_lambda.clone().nowhere()),
+                                Generic::Named(tp.name_in_body.inner.clone().nowhere()),
+                            )
+                        })
                         .collect(),
                     clock: clock.clone(),
                     captures: captures.clone(),

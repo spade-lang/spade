@@ -147,10 +147,8 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                         .unit_type_params
                         .iter()
                         .map(|p| {
-                            TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(
-                                p.name_id.clone().at_loc(p),
-                            ))
-                            .at_loc(p)
+                            TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(p.name.clone()))
+                                .at_loc(p)
                         })
                         .collect(),
                 )

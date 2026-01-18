@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait T {}
+fn f() {
+    let x: impl T = ();
+}
+
+
+error: `impl Trait` syntax cannot be used in this context
+  ┌─ testinput:3:12
+  │
+3 │     let x: impl T = ();
+  │            ^^^^^^ `impl Trait` type cannot be used in this context
+  │
+  = note: `impl Trait` can only be used inside unit parameters

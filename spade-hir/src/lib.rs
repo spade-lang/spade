@@ -16,6 +16,7 @@ use num::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
+use spade_common::name::PathSegment;
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID, Path},
@@ -25,6 +26,7 @@ use spade_diagnostics::Diagnostic;
 use spade_types::{meta_types::MetaType, PrimitiveType};
 
 use crate::impl_tab::ImplTab;
+use crate::pretty_print::PrettyPrint;
 
 /**
   Representation of the language with most language constructs still present, with
@@ -231,14 +233,17 @@ pub struct Module {
 /// re-added to the symtab multiple times
 #[derive(PartialEq, Debug, Clone, Hash, Eq, Serialize, Deserialize)]
 pub struct TypeParam {
-    pub ident: Loc<Identifier>,
-    pub name_id: NameID,
+    pub name: Generic,
     pub trait_bounds: Vec<Loc<TraitSpec>>,
     pub meta: MetaType,
 }
 impl TypeParam {
-    pub fn name_id(&self) -> NameID {
-        self.name_id.clone()
+    pub fn name_id(&self) -> Option<&Loc<NameID>> {
+        self.name.name_id()
+    }
+
+    pub fn ident(&self) -> Option<&Loc<Identifier>> {
+        self.name.ident()
     }
 }
 
@@ -277,6 +282,35 @@ impl std::fmt::Display for TypeExpression {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+pub enum Generic {
+    Named(Loc<NameID>),
+    Hidden(Loc<u64>),
+}
+
+impl Generic {
+    pub fn loc(&self) -> Loc<()> {
+        match self {
+            Generic::Named(name_id) => name_id.loc(),
+            Generic::Hidden(id) => id.loc(),
+        }
+    }
+
+    pub fn name_id(&self) -> Option<&Loc<NameID>> {
+        match &self {
+            Generic::Named(name_id) => Some(name_id),
+            Generic::Hidden(_) => None,
+        }
+    }
+
+    pub fn ident(&self) -> Option<&Loc<Identifier>> {
+        match self.name_id() {
+            Some(id) => id.1 .0.last().map(PathSegment::unwrap_named),
+            None => None,
+        }
+    }
+}
+
 /// A specification of a type to be used. For example, the types of input/output arguments the type
 /// of fields in a struct etc.
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
@@ -284,7 +318,7 @@ pub enum TypeSpec {
     /// The type is a declared type (struct, enum, typedef etc.) with n arguments
     Declared(Loc<NameID>, Vec<Loc<TypeExpression>>),
     /// The type is a generic argument visible in the current scope
-    Generic(Loc<NameID>),
+    Generic(Generic),
     /// The type is a tuple of other variables
     Tuple(Vec<Loc<TypeSpec>>),
     Array {
@@ -306,6 +340,19 @@ pub enum TypeSpec {
 impl TypeSpec {
     pub fn unit() -> Self {
         TypeSpec::Tuple(Vec::new())
+    }
+
+    pub fn is_empty_tuple(&self) -> bool {
+        match self {
+            TypeSpec::Tuple(_) => true,
+            TypeSpec::Declared(_, _)
+            | TypeSpec::Generic(_)
+            | TypeSpec::Array { .. }
+            | TypeSpec::Inverted(_)
+            | TypeSpec::Wire(_)
+            | TypeSpec::TraitSelf(_)
+            | TypeSpec::Wildcard(_) => false,
+        }
     }
 
     pub fn type_params(&self) -> Vec<TypeExpression> {
@@ -380,7 +427,8 @@ impl std::fmt::Display for TypeSpec {
                 };
                 format!("{name}{type_params}")
             }
-            TypeSpec::Generic(name) => format!("{name}"),
+            TypeSpec::Generic(Generic::Named(name)) => format!("{name}"),
+            TypeSpec::Generic(Generic::Hidden(_)) => format!("(hidden generic)"),
             TypeSpec::Tuple(members) => {
                 format!(
                     "({})",
@@ -407,6 +455,66 @@ pub struct TraitSpec {
     pub name: TraitName,
     pub type_params: Option<Loc<Vec<Loc<TypeExpression>>>>,
     pub paren_syntax: bool,
+}
+
+impl TraitSpec {
+    pub fn replace_in(self, from: &TypeSpec, to: &TypeSpec) -> Self {
+        TraitSpec {
+            name: self.name,
+            paren_syntax: self.paren_syntax,
+            type_params: self.type_params.as_ref().map(|tp| {
+                tp.iter()
+                    .map(|e| e.inner.clone().replace_in(from, to).at_loc(&e))
+                    .collect::<Vec<_>>()
+                    .at_loc(&tp)
+            }),
+        }
+    }
+}
+
+impl std::fmt::Display for TraitSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            name,
+            type_params,
+            paren_syntax,
+        } = self;
+
+        let name = match name.name_loc() {
+            None => "(anonymous)".to_string(),
+            Some(name_id) => format!("{name_id}"),
+        };
+
+        if *paren_syntax {
+            let mut type_params = type_params.clone().unwrap();
+            let return_type = type_params.pop().unwrap();
+            let param_tuple = type_params.pop().unwrap();
+
+            let type_params_string = match type_params.as_slice() {
+                [] => String::new(),
+                params => format!("<{}>", params.iter().map(|p| format!("{p}")).join(", ")),
+            };
+
+            let return_type_string = match return_type.inner {
+                TypeExpression::TypeSpec(ts) if ts.is_empty_tuple() => String::new(),
+                ty => format!(" -> {ty}"),
+            };
+
+            write!(
+                f,
+                "{name}{type_params_string}{param_tuple}{return_type_string}",
+            )
+        } else {
+            write!(
+                f,
+                "{name}{}",
+                type_params
+                    .as_ref()
+                    .map(|tp| { format!("<{}>", tp.iter().map(|e| format!("{e}")).join(", ")) })
+                    .unwrap_or(String::new())
+            )
+        }
+    }
 }
 
 /// Declaration of an enum
@@ -527,13 +635,13 @@ impl std::fmt::Display for WhereClauseKind {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum WhereClause {
     Int {
-        target: Loc<NameID>,
+        target: Generic,
         kind: WhereClauseKind,
         constraint: Loc<ConstGeneric>,
         if_unsatisfied: Option<String>,
     },
     Type {
-        target: Loc<NameID>,
+        target: Generic,
         traits: Vec<Loc<TraitSpec>>,
     },
 }
@@ -547,11 +655,15 @@ impl std::fmt::Display for WhereClause {
                 constraint,
                 if_unsatisfied,
             } => {
-                format!("{target} {kind} {constraint} else {if_unsatisfied:?}")
+                format!(
+                    "{} {kind} {constraint} else {if_unsatisfied:?}",
+                    target.pretty_print()
+                )
             }
             WhereClause::Type { target, traits } => {
                 format!(
-                    "{target}: {}",
+                    "{}: {}",
+                    target.pretty_print(),
                     traits.iter().map(|trait_spec| &trait_spec.name).join(" + ")
                 )
             }
@@ -726,6 +838,7 @@ pub struct UnitHead {
     /// (-> token, type)
     pub output_type: Option<Loc<TypeSpec>>,
     pub unit_type_params: Vec<Loc<TypeParam>>,
+    pub hidden_type_params: Vec<Loc<TypeParam>>,
     pub scope_type_params: Vec<Loc<TypeParam>>,
     pub unit_kind: Loc<UnitKind>,
     pub where_clauses: Vec<Loc<WhereClause>>,
@@ -746,6 +859,7 @@ impl UnitHead {
     pub fn get_type_params(&self) -> Vec<Loc<TypeParam>> {
         self.unit_type_params
             .iter()
+            .chain(self.hidden_type_params.iter())
             .chain(self.scope_type_params.iter())
             .cloned()
             .collect_vec()
@@ -936,6 +1050,7 @@ pub struct ItemList {
     /// visible to the user.
     pub traits: HashMap<TraitName, TraitDef>,
     pub impls: ImplTab,
+    pub hidden_constraints: Vec<Loc<Vec<Loc<TraitSpec>>>>,
 }
 
 impl Default for ItemList {
@@ -952,6 +1067,7 @@ impl ItemList {
             modules: BTreeMap::new(),
             traits: HashMap::default(),
             impls: ImplTab::new(),
+            hidden_constraints: vec![],
         }
     }
 

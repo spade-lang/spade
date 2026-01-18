@@ -1908,3 +1908,146 @@ snapshot_error! {
     },
     false
 }
+
+code_compiles! {
+    impl_trait_types_work,
+    "
+        trait T {
+            fn a(self) -> bool;
+            fn b(self) -> bool;
+        }
+
+        impl T for uint<8> {
+            fn a(self) -> bool { true }
+            fn b(self) -> bool { false }
+        }
+
+        fn f(t: impl T) -> bool {
+            t.a() && t.b()
+        }
+
+        fn test() {
+            let _ = f(8u8);
+        }
+    "
+}
+
+snapshot_error! {
+    impl_trait_types_typecheck_correctly,
+    "
+        trait T {
+            fn a(self) -> bool;
+            fn b(self) -> bool;
+        }
+
+        impl T for uint<8> {
+            fn a(self) -> bool { true }
+            fn b(self) -> bool { false }
+        }
+
+        fn f(t: impl T) -> bool {
+            t.a() && t.b()
+        }
+
+        fn test() {
+            let _ = f(());
+        }
+    "
+}
+
+code_compiles! {
+    impl_trait_types_work_inside_impl_blocks,
+    "
+        trait T {
+            fn a(self) -> bool;
+            fn b(self) -> bool;
+        }
+
+        impl T for uint<8> {
+            fn a(self) -> bool { true }
+            fn b(self) -> bool { false }
+        }
+
+        impl bool {
+            fn f(self, t: impl T) -> bool {
+                t.a() && t.b()
+            }
+        }
+
+        fn test() {
+            let _ = true.f(8u8);
+        }
+    "
+}
+
+snapshot_error! {
+    impl_trait_types_typecheck_correctly_inside_impl_blocks,
+    "
+        trait T {
+            fn a(self) -> bool;
+            fn b(self) -> bool;
+        }
+
+        impl T for uint<8> {
+            fn a(self) -> bool { true }
+            fn b(self) -> bool { false }
+        }
+
+        impl bool {
+            fn f(self, t: impl T) -> bool {
+                t.a() && t.b()
+            }
+        }
+
+        fn test() {
+            let _ = true.f(());
+        }
+    "
+}
+
+snapshot_error! {
+    impl_trait_type_cannot_be_used_as_return_types,
+    "
+        trait T {}
+        fn f(self) -> impl T {}
+    "
+}
+
+snapshot_error! {
+    impl_trait_type_cannot_be_used_as_struct_members,
+    "
+        trait T {}
+        struct S {
+            x: impl T,
+        }
+    "
+}
+
+snapshot_error! {
+    impl_trait_type_cannot_be_used_as_enum_variant_members,
+    "
+        trait T {}
+        enum E {
+            V { x: impl T },
+        }
+    "
+}
+
+snapshot_error! {
+    impl_trait_type_cannot_be_used_as_type_declarations,
+    "
+        trait T {}
+        fn f() {
+            let x: impl T = ();
+        }
+    "
+}
+
+snapshot_error! {
+    impl_trait_type_cannot_be_passed_as_generic_arguments,
+    "
+        trait T {}
+        struct X<P> {}
+        impl X<impl T> {}
+    "
+}

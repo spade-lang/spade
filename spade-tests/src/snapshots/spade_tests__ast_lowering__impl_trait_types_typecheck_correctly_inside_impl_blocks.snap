@@ -1,0 +1,32 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait T {
+    fn a(self) -> bool;
+    fn b(self) -> bool;
+}
+
+impl T for uint<8> {
+    fn a(self) -> bool { true }
+    fn b(self) -> bool { false }
+}
+
+impl bool {
+    fn f(self, t: impl T) -> bool {
+        t.a() && t.b()
+    }
+}
+
+fn test() {
+    let _ = true.f(());
+}
+
+
+error: Trait bound not satisfied. () does not implement T
+   ┌─ testinput:18:20
+   │
+12 │     fn f(self, t: impl T) -> bool {
+   │                        - Required because of the trait bound specified here
+   ·
+18 │     let _ = true.f(());
+   │                    ^^ () does not implement T

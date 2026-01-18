@@ -5,7 +5,7 @@ use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diagnostic::DiagnosticLevel;
 use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::expression::{BinaryOperator, IntLiteralKind, NamedArgument, UnaryOperator};
-use spade_hir::{ExprKind, Expression};
+use spade_hir::{ExprKind, Expression, Generic};
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::MetaType;
 use spade_types::KnownType;
@@ -63,7 +63,7 @@ impl TypeState {
                     diag_anyhow!(expression, "Found no generic list here")
                 })?;
             let generic = generic_list
-                .get(value)
+                .get(&Generic::Named(value.clone().nowhere()))
                 .ok_or_else(|| {
                     diag_anyhow!(expression, "Found no entry for {value:?} in generic list. It has {generic_list:?}")
                 })?;

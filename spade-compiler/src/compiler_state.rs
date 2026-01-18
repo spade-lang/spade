@@ -8,8 +8,8 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
-use spade_common::location_info::WithLocation;
 use spade_common::name::NameID;
+use spade_common::{id_tracker::GenericIdTracker, location_info::WithLocation};
 use spade_hir::{
     query::QueryCache,
     symbol_table::{FrozenSymtab, SymbolTable},
@@ -99,6 +99,7 @@ pub struct StoredCompilerState {
     pub symtab: FrozenSymtab,
     pub idtracker: Arc<ExprIdTracker>,
     pub impl_idtracker: ImplIdTracker,
+    pub generic_idtracker: GenericIdTracker,
     pub item_list: ItemList,
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub instance_map: InstanceMap,
@@ -114,6 +115,7 @@ impl StoredCompilerState {
             symtab,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
             item_list,
             name_source_map,
             instance_map,
@@ -127,6 +129,7 @@ impl StoredCompilerState {
             symtab,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
             item_list,
             name_source_map,
             instance_map,
@@ -146,6 +149,7 @@ pub struct CompilerState {
     pub symtab: FrozenSymtab,
     pub idtracker: Arc<ExprIdTracker>,
     pub impl_idtracker: ImplIdTracker,
+    pub generic_idtracker: GenericIdTracker,
     pub item_list: ItemList,
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub instance_map: InstanceMap,
@@ -161,6 +165,7 @@ impl CompilerState {
             symtab: self.symtab,
             idtracker: self.idtracker,
             impl_idtracker: self.impl_idtracker,
+            generic_idtracker: self.generic_idtracker,
             item_list: self.item_list,
             name_source_map: self.name_source_map,
             instance_map: self.instance_map,
@@ -269,6 +274,7 @@ impl SerializedSize for StoredCompilerState {
             symtab,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
             item_list,
             name_source_map,
             instance_map,
@@ -287,6 +293,7 @@ impl SerializedSize for StoredCompilerState {
         add_field(field, "symtab", symtab, into);
         add_field(field, "idtracker", idtracker, into);
         add_field(field, "impl_idtracker", impl_idtracker, into);
+        add_field(field, "generic_idtracker", generic_idtracker, into);
         add_field(field, "item_list", item_list, into);
         add_field(field, "name_source_map", name_source_map, into);
         add_field(field, "instance_map", instance_map, into);

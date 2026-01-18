@@ -7,6 +7,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::impl_tab::type_specs_overlap;
+use spade_hir::pretty_debug::PrettyDebug;
 use spade_hir::symbol_table::TypeSymbol;
 use spade_hir::{self as hir, TraitName, TypeExpression};
 use spade_types::meta_types::MetaType;
@@ -219,7 +220,7 @@ pub fn get_or_create_trait(
                     let (name, _) = ctx.symtab.lookup_type_symbol(
                         &param.map_ref(|_| Path::ident(param.inner.name().clone())),
                     )?;
-                    let spec = hir::TypeSpec::Generic(name.at_loc(param));
+                    let spec = hir::TypeSpec::Generic(hir::Generic::Named(name.at_loc(param)));
                     type_expressions.push(hir::TypeExpression::TypeSpec(spec).at_loc(param));
                 }
                 Some(type_expressions.at_loc(params))
@@ -289,6 +290,12 @@ pub fn get_impl_target(
                 ctx,
             )?],
         )),
+        ast::TypeSpec::Impl(_) => {
+            return Err(
+                Diagnostic::error(&block.target, "Impls target cannot be impl type")
+                    .primary_label("Impl target cannot be impl type"),
+            );
+        }
         spade_ast::TypeSpec::Wildcard => {
             return Err(
                 Diagnostic::error(&block.target, "Impl target cannot be wildcard")
@@ -349,15 +356,13 @@ pub fn create_trait_from_unit_heads(
                                     .collect::<Result<_>>()?;
 
                                 hir::TypeParam {
-                                    ident: ident.clone(),
-                                    name_id,
+                                    name: hir::Generic::Named(name_id.at_loc(&ident)),
                                     trait_bounds,
                                     meta: MetaType::Type,
                                 }
                             }
                             ast::TypeParam::TypeWithMeta { meta, name: _ } => hir::TypeParam {
-                                ident: ident.clone(),
-                                name_id,
+                                name: hir::Generic::Named(name_id.at_loc(&ident)),
                                 trait_bounds: vec![],
                                 meta: visit_meta_type(meta)?,
                             },
@@ -802,7 +807,12 @@ fn map_trait_method_parameters(
         .as_ref()
         .map_or(vec![], |params| params.inner.clone());
 
-    let trait_method_type_params = &trait_method.unit_type_params;
+    let trait_method_type_params = &trait_method
+        .unit_type_params
+        .iter()
+        .chain(&trait_method.hidden_type_params)
+        .cloned()
+        .collect_vec();
 
     let impl_type_params = trait_spec
         .type_params
@@ -812,8 +822,9 @@ fn map_trait_method_parameters(
     let impl_method_type_params = &impl_method
         .unit_type_params
         .iter()
+        .chain(&impl_method.hidden_type_params)
         .map(|param| {
-            let spec = hir::TypeSpec::Generic(param.map_ref(hir::TypeParam::name_id));
+            let spec = hir::TypeSpec::Generic(param.name.clone());
             hir::TypeExpression::TypeSpec(spec).at_loc(param)
         })
         .collect_vec();
@@ -885,14 +896,18 @@ fn map_const_generic_to_trait(
         hir::ConstGeneric::Name(name) => {
             let param_idx = trait_type_params
                 .iter()
-                .find_position(|tp| tp.name_id() == name.inner)
+                .find_position(|tp| tp.name_id() == Some(name))
                 .map(|(idx, _)| idx);
 
             if let Some(param_idx) = param_idx {
                 impl_type_params[param_idx].try_map_ref(|te| match &te {
-                    hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(name)) => {
-                        Ok(hir::ConstGeneric::Name(name.clone()))
-                    }
+                    hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(g)) => match g {
+                        hir::Generic::Named(name) => Ok(hir::ConstGeneric::Name(name.clone())),
+                        hir::Generic::Hidden(_) => Err(Diagnostic::bug(
+                            cg,
+                            "Cannot substitute hidden type generic into const generic",
+                        )),
+                    },
                     hir::TypeExpression::TypeSpec(_) => Err(Diagnostic::bug(
                         cg,
                         "Cannot substitute type spec into const generic",
@@ -904,14 +919,18 @@ fn map_const_generic_to_trait(
             } else {
                 let param_idx = trait_method_type_params
                     .iter()
-                    .find_position(|tp| tp.name_id() == name.inner)
+                    .find_position(|tp| tp.name_id() == Some(name))
                     .map(|(idx, _)| idx);
 
                 if let Some(param_idx) = param_idx {
                     impl_method_type_params[param_idx].try_map_ref(|te| match &te {
-                        hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(name)) => {
-                            Ok(hir::ConstGeneric::Name(name.clone()))
-                        }
+                        hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(g)) => match g {
+                            hir::Generic::Named(name) => Ok(hir::ConstGeneric::Name(name.clone())),
+                            hir::Generic::Hidden(_) => Err(Diagnostic::bug(
+                                cg,
+                                "Cannot substitute hidden type generic into const generic",
+                            )),
+                        },
                         hir::TypeExpression::TypeSpec(_) => Err(Diagnostic::bug(
                             cg,
                             "Cannot substitute type spec into const generic",
@@ -1028,7 +1047,7 @@ fn map_type_spec_to_trait(
         hir::TypeSpec::Generic(name) => {
             let param_idx = trait_type_params
                 .iter()
-                .find_position(|tp| tp.name_id() == name.inner)
+                .find_position(|tp| &tp.name == name)
                 .map(|(idx, _)| idx);
 
             if let Some(param_idx) = param_idx {
@@ -1049,7 +1068,7 @@ fn map_type_spec_to_trait(
             } else {
                 let param_idx = trait_method_type_params
                     .iter()
-                    .find_position(|tp| tp.name_id() == name.inner)
+                    .find_position(|tp| &tp.name == name)
                     .map(|(idx, _)| idx);
 
                 if let Some(param_idx) = param_idx {
@@ -1069,10 +1088,10 @@ fn map_type_spec_to_trait(
                     })
                 } else {
                     Err(Diagnostic::bug(
-                        name,
+                        name.loc(),
                         format!(
                             "Could not find type parameter {} in trait or trait method.",
-                            name.inner
+                            name.pretty_debug()
                         ),
                     ))
                 }

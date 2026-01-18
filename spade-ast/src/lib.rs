@@ -56,6 +56,7 @@ pub enum TypeSpec {
     /// If applied to a struct port, all fields are inverted.
     Inverted(Box<Loc<TypeExpression>>),
     Wire(Box<Loc<TypeExpression>>),
+    Impl(Vec<Loc<TraitSpec>>),
     Wildcard,
 }
 
@@ -67,17 +68,19 @@ impl TypeSpec {
             | TypeSpec::Named(_, _)
             | TypeSpec::Inverted(_)
             | TypeSpec::Wire(_)
+            | TypeSpec::Impl(_)
             | TypeSpec::Wildcard => false,
         }
     }
 
     pub fn is_empty_tuple(&self) -> bool {
         match self {
-            TypeSpec::Tuple(_) => true,
+            TypeSpec::Tuple(ts) => ts.is_empty(),
             TypeSpec::Array { .. }
             | TypeSpec::Named(_, _)
             | TypeSpec::Inverted(_)
             | TypeSpec::Wire(_)
+            | TypeSpec::Impl(_)
             | TypeSpec::Wildcard => false,
         }
     }
@@ -99,6 +102,11 @@ impl std::fmt::Display for TypeSpec {
             }
             TypeSpec::Inverted(inner) => write!(f, "inv {inner}"),
             TypeSpec::Wire(inner) => write!(f, "&{inner}"),
+            TypeSpec::Impl(trait_specs) => write!(
+                f,
+                "impl {}",
+                trait_specs.iter().map(|s| format!("{s}")).join(" + ")
+            ),
             TypeSpec::Wildcard => write!(f, "_"),
         }
     }
@@ -722,6 +730,46 @@ pub struct TraitSpec {
     pub path: Loc<Path>,
     pub type_params: Option<Loc<Vec<Loc<TypeExpression>>>>,
     pub paren_syntax: bool,
+}
+
+impl std::fmt::Display for TraitSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            path,
+            type_params,
+            paren_syntax,
+        } = self;
+
+        if *paren_syntax {
+            let mut type_params = type_params.clone().unwrap();
+            let return_type = type_params.pop().unwrap();
+            let param_tuple = type_params.pop().unwrap();
+
+            let type_params_string = match type_params.as_slice() {
+                [] => String::new(),
+                params => format!("<{}>", params.iter().map(|p| format!("{p}")).join(", ")),
+            };
+
+            let return_type_string = match return_type.inner {
+                TypeExpression::TypeSpec(ts) if ts.is_empty_tuple() => String::new(),
+                ty => format!(" -> {ty}"),
+            };
+
+            write!(
+                f,
+                "{path}{type_params_string}{param_tuple}{return_type_string}",
+            )
+        } else {
+            write!(
+                f,
+                "{path}{}",
+                type_params
+                    .as_ref()
+                    .map(|tp| { format!("<{}>", tp.iter().map(|e| format!("{e}")).join(", ")) })
+                    .unwrap_or(String::new())
+            )
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

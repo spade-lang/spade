@@ -6,8 +6,8 @@ use spade_common::{
 use spade_types::meta_types::MetaType;
 
 use crate::{
-    symbol_table::GenericArg, ConstGeneric, Parameter, ParameterList, TraitName, TraitSpec,
-    TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
+    symbol_table::GenericArg, ConstGeneric, Generic, Parameter, ParameterList, TraitName,
+    TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
 };
 
 pub trait MaybePrettyPrint {
@@ -160,7 +160,7 @@ impl PrettyPrint for TypeSpec {
                 };
                 format!("{}{}", base.pretty_print(), args)
             }
-            TypeSpec::Generic(name) => name.pretty_print(),
+            TypeSpec::Generic(g) => g.pretty_print(),
             TypeSpec::Tuple(inner) => format!(
                 "({})",
                 inner.iter().map(|arg| arg.pretty_print()).join(", ")
@@ -176,11 +176,19 @@ impl PrettyPrint for TypeSpec {
     }
 }
 
+impl PrettyPrint for Generic {
+    fn pretty_print(&self) -> String {
+        match self {
+            Generic::Named(name_id) => name_id.pretty_print(),
+            Generic::Hidden(_) => "(hidden generic)".to_string(),
+        }
+    }
+}
+
 impl PrettyPrint for TypeParam {
     fn pretty_print(&self) -> String {
         let Self {
-            ident: _,
-            name_id,
+            name,
             trait_bounds,
             meta,
         } = self;
@@ -195,10 +203,9 @@ impl PrettyPrint for TypeParam {
         };
 
         format!(
-            "{}{}{}",
-            meta.with_trailing_space(),
-            name_id.pretty_print(),
-            traits
+            "{}{}{traits}",
+            name.pretty_print(),
+            meta.with_trailing_space()
         )
     }
 }
@@ -226,6 +233,7 @@ impl PrettyPrint for UnitHead {
             is_nonstatic_method: _,
             output_type,
             unit_type_params,
+            hidden_type_params: _,
             scope_type_params: _,
             unit_kind,
             where_clauses: _,

@@ -2,6 +2,7 @@ use colored::*;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{cloning_rwlock::CloningRWLock, name::NameID};
+use spade_hir::{pretty_print::PrettyPrint, Generic};
 use spade_types::KnownType;
 
 use crate::{
@@ -61,7 +62,7 @@ pub enum TraceStackEntry {
     AddingTraitBounds(TypeVarString, TraitList),
     AddRequirement(Requirement),
     ResolvedRequirement(Requirement),
-    NewGenericList(HashMap<NameID, TypeVarString>),
+    NewGenericList(HashMap<Generic, TypeVarString>),
     AddingConstraint(TypeVarString, ConstraintRhs),
     /// Inferring more from constraints
     InferringFromConstraints(TypeVarString, KnownType),
@@ -132,7 +133,7 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
                     "new generic list".bright_cyan(),
                     mapping
                         .iter()
-                        .map(|(k, v)| format!("{k} -> {v}"))
+                        .map(|(k, v)| format!("{} -> {v}", k.pretty_print()))
                         .join(", ")
                 )
             }

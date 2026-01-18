@@ -29,6 +29,7 @@ use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
+use spade_hir::pretty_print::PrettyPrint;
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{unify_meta, MetaType};
 use trace_stack::TraceStack;
@@ -38,7 +39,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path, PathSegment};
 use spade_hir::param_util::{match_args_with_params, Argument};
 use spade_hir::symbol_table::{Patternable, PatternableKind, SymbolTable, TypeSymbol};
-use spade_hir::{self as hir, ConstGenericWithId, ImplTarget};
+use spade_hir::{self as hir, ConstGenericWithId, Generic, ImplTarget};
 use spade_hir::{
     ArgumentList, Block, ExprKind, Expression, ItemList, Pattern, PatternArgument, Register,
     Statement, TraitName, TraitSpec, TypeParam, Unit,
@@ -76,7 +77,7 @@ pub mod testutil;
 pub mod trace_stack;
 pub mod traits;
 
-type GenericList = HashMap<NameID, TypeVarID>;
+type GenericList = HashMap<Generic, TypeVarID>;
 type GenericLists = HashMap<GenericListToken, GenericList>;
 
 pub struct Context<'a> {
@@ -249,7 +250,7 @@ impl TypeState {
     pub fn get_generic_list(
         &self,
         generic_list_token: &GenericListToken,
-    ) -> Option<HashMap<NameID, TypeVarID>> {
+    ) -> Option<HashMap<Generic, TypeVarID>> {
         match generic_list_token {
             GenericListToken::Anonymous(_) | GenericListToken::ImplBlock(_, _) => self
                 .shared
@@ -342,8 +343,10 @@ impl TypeState {
                 ))
             }
             hir::TypeSpec::Generic(name) => match generic_list
-                .ok_or_else(|| diag_anyhow!(loc, "Found no generic list for {name}"))?
-                .get(&name.inner)
+                .ok_or_else(|| {
+                    diag_anyhow!(loc, "Found no generic list for {}", name.pretty_print())
+                })?
+                .get(&name)
             {
                 Some(t) => t.clone(),
                 None => {
@@ -356,6 +359,7 @@ impl TypeState {
                     .iter()
                     .map(|t| self.type_var_from_hir(loc, t, generic_list_token))
                     .collect::<Result<_>>()?;
+
                 self.add_type_var(TypeVar::tuple(loc, inner))
             }
             hir::TypeSpec::Array { inner, size } => {
@@ -368,6 +372,7 @@ impl TypeState {
                 let inner = self.type_var_from_hir(loc, inner, generic_list_token)?;
                 self.add_type_var(TypeVar::wire(loc, inner))
             }
+
             hir::TypeSpec::Inverted(inner) => {
                 let inner = self.type_var_from_hir(loc, inner, generic_list_token)?;
                 self.add_type_var(TypeVar::inverted(loc, inner))
@@ -544,6 +549,7 @@ impl TypeState {
         let generic_list = self.create_generic_list(
             GenericListSource::Definition(&entity.name.name_id().inner),
             &entity.head.unit_type_params,
+            &entity.head.hidden_type_params,
             &entity.head.scope_type_params,
             None,
             // NOTE: I'm not 100% sure we need to pass these here, the information
@@ -921,13 +927,15 @@ impl TypeState {
                                         "Found a captured generic but no generic list"
                                     )
                                 })?;
-                                let t = gl.get(&cap.name_in_body).ok_or_else(|| {
-                                    diag_anyhow!(
-                                        &cap.name_in_body,
-                                        "Did not find an entry for {} in lambda generic list",
-                                        cap.name_in_body
-                                    )
-                                });
+                                let t = gl
+                                    .get(&Generic::Named(cap.name_in_body.clone()))
+                                    .ok_or_else(|| {
+                                        diag_anyhow!(
+                                            &cap.name_in_body,
+                                            "Did not find an entry for {} in lambda generic list",
+                                            cap.name_in_body
+                                        )
+                                    });
                                 Ok(t?.clone())
                             })
                             .collect::<Result<Vec<_>>>()?
@@ -945,6 +953,7 @@ impl TypeState {
                     GenericListSource::Expression(expression.id.at_loc(expression)),
                     &type_params.all().cloned().collect::<Vec<_>>(),
                     &[],
+                    &[],
                     None,
                     &[],
                 )?;
@@ -953,11 +962,11 @@ impl TypeState {
                     let gl = self.get_generic_list(&unit_generic_list).unwrap();
                     // Safe unwrap, we're just unifying unknowns with unknowns
                     p.unify_with(
-                        gl.get(&tp.name_id).ok_or_else(|| {
+                        gl.get(&tp.name).ok_or_else(|| {
                             diag_anyhow!(
                                 expression,
                                 "Lambda unit list did not contain {}",
-                                tp.name_id
+                                tp.name.pretty_print()
                             )
                         })?,
                         self,
@@ -1025,6 +1034,7 @@ impl TypeState {
         let unit_generic_list = self.create_generic_list(
             GenericListSource::Expression(expression_id),
             &head.unit_type_params,
+            &head.hidden_type_params,
             &head.scope_type_params,
             turbofish,
             &head.where_clauses,
@@ -1093,7 +1103,7 @@ impl TypeState {
             ($idx:expr) => {
                 self.get_generic_list(&unit_generic_list)
                     .ok_or_else(|| diag_anyhow!(expression_id, "Found no generic list for call"))?
-                    [&type_params[$idx].name_id()]
+                    [&type_params[$idx].name]
                     .clone()
             };
         }
@@ -1338,6 +1348,7 @@ impl TypeState {
         &mut self,
         source: GenericListSource,
         type_params: &[Loc<TypeParam>],
+        hidden_type_params: &[Loc<TypeParam>],
         scope_type_params: &[Loc<TypeParam>],
         turbofish: Option<TurbofishCtx>,
         where_clauses: &[Loc<WhereClause>],
@@ -1365,12 +1376,13 @@ impl TypeState {
                         .enumerate()
                         .find_map(|(i, param)| match &param.inner {
                             TypeParam {
-                                ident,
-                                name_id: _,
+                                name,
                                 trait_bounds: _,
                                 meta: _,
                             } => {
-                                if ident == matched_param.target {
+                                if name.name_id().map(|p| p.1.tail())
+                                    == Some(PathSegment::Named(matched_param.target.clone()))
+                                {
                                     Some(i)
                                 } else {
                                     None
@@ -1389,12 +1401,11 @@ impl TypeState {
 
         let mut inline_trait_bounds: Vec<Loc<WhereClause>> = vec![];
 
-        let scope_type_params = scope_type_params
+        let hidden_type_params = hidden_type_params
             .iter()
             .map(|param| {
                 let hir::TypeParam {
-                    ident,
-                    name_id,
+                    name,
                     trait_bounds,
                     meta,
                 } = &param.inner;
@@ -1402,7 +1413,7 @@ impl TypeState {
                     if let MetaType::Type = meta {
                         inline_trait_bounds.push(
                             WhereClause::Type {
-                                target: name_id.clone().at_loc(ident),
+                                target: name.clone(),
                                 traits: trait_bounds.clone(),
                             }
                             .at_loc(param),
@@ -1413,7 +1424,36 @@ impl TypeState {
                     }
                 }
                 Ok((
-                    name_id.clone(),
+                    name.clone(),
+                    self.new_generic_with_meta(param.loc(), meta.clone()),
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let scope_type_params = scope_type_params
+            .iter()
+            .map(|param| {
+                let hir::TypeParam {
+                    name,
+                    trait_bounds,
+                    meta,
+                } = &param.inner;
+                if !trait_bounds.is_empty() {
+                    if let MetaType::Type = meta {
+                        inline_trait_bounds.push(
+                            WhereClause::Type {
+                                target: name.clone(),
+                                traits: trait_bounds.clone(),
+                            }
+                            .at_loc(param),
+                        );
+                    } else {
+                        return Err(Diagnostic::bug(param, "Trait bounds on generic int")
+                            .primary_label("Trait bounds are only allowed on type parameters"));
+                    }
+                }
+                Ok((
+                    name.clone(),
                     self.new_generic_with_meta(param.loc(), meta.clone()),
                 ))
             })
@@ -1424,8 +1464,7 @@ impl TypeState {
             .enumerate()
             .map(|(i, param)| {
                 let hir::TypeParam {
-                    ident,
-                    name_id,
+                    name,
                     trait_bounds,
                     meta,
                 } = &param.inner;
@@ -1443,19 +1482,20 @@ impl TypeState {
                     if let MetaType::Type = meta {
                         inline_trait_bounds.push(
                             WhereClause::Type {
-                                target: name_id.clone().at_loc(ident),
+                                target: name.clone(),
                                 traits: trait_bounds.clone(),
                             }
                             .at_loc(param),
                         );
                     }
-                    Ok((name_id.clone(), t))
+                    Ok((name.clone(), t))
                 } else {
-                    Ok((name_id.clone(), t))
+                    Ok((name.clone(), t))
                 }
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
+            .chain(hidden_type_params.into_iter())
             .chain(scope_type_params.into_iter())
             .map(|(name, t)| (name, t.clone()))
             .collect::<HashMap<_, _>>();
@@ -1484,8 +1524,11 @@ impl TypeState {
                 } => {
                     let tvar = new_list.get(target).ok_or_else(|| {
                         Diagnostic::error(
-                            target,
-                            format!("{target} is not a generic parameter on this unit"),
+                            target.loc(),
+                            format!(
+                                "{} is not a generic parameter on this unit",
+                                target.pretty_print()
+                            ),
                         )
                         .primary_label("Not a generic parameter")
                     })?;
@@ -1511,8 +1554,8 @@ impl TypeState {
                             );
 
                             self.add_requirement(Requirement::WhereInequality {
-                                var: target.inner.clone(),
-                                lhs: tvar.clone().at_loc(target),
+                                var: target.clone(),
+                                lhs: tvar.clone().at_loc(&target.loc()),
                                 rhs: rhsvar.at_loc(&constraint.loc()),
                                 inequality: *kind,
                                 message: if_unsatisfied.clone(),
@@ -1536,7 +1579,7 @@ impl TypeState {
     pub fn add_mapped_generic_list(
         &mut self,
         source: GenericListSource,
-        mapping: HashMap<NameID, TypeVarID>,
+        mapping: HashMap<Generic, TypeVarID>,
     ) -> GenericListToken {
         let token = match source {
             GenericListSource::Anonymous => GenericListToken::Anonymous(
@@ -1598,6 +1641,7 @@ impl TypeState {
                                         target,
                                         id: impl_block.id,
                                     },
+                                    &[],
                                     &[],
                                     impl_block.type_params.as_slice(),
                                     None,
@@ -1761,6 +1805,7 @@ impl TypeState {
                                 GenericListSource::Anonymous,
                                 &enum_variant.type_params,
                                 &[],
+                                &[],
                                 None,
                                 &[],
                             )?;
@@ -1781,6 +1826,7 @@ impl TypeState {
                             let generic_list = self.create_generic_list(
                                 GenericListSource::Anonymous,
                                 &s.type_params,
+                                &[],
                                 &[],
                                 None,
                                 &[],
@@ -2211,7 +2257,7 @@ impl TypeState {
     #[trace_typechecker]
     pub fn visit_trait_bounds(
         &mut self,
-        target: &Loc<NameID>,
+        target: &Generic,
         traits: &[Loc<TraitSpec>],
         generic_list_tok: &GenericListToken,
     ) -> Result<()> {
@@ -2227,19 +2273,19 @@ impl TypeState {
 
             let generic_list = self.get_generic_list(generic_list_tok).ok_or_else(|| {
                 diag_anyhow!(
-                    target,
+                    target.loc(),
                     "Did not have a generic list when visiting trait bounds"
                 )
             })?;
 
-            let Some(tvar) = generic_list.get(&target.inner) else {
+            let Some(tvar) = generic_list.get(&target) else {
                 return Err(Diagnostic::bug(
-                    target,
+                    target.loc(),
                     "Couldn't find generic from where clause in generic list",
                 )
                 .primary_label(format!(
                     "Generic type {} not found in generic list",
-                    target.inner
+                    target.pretty_print()
                 )));
             };
 
@@ -2266,11 +2312,11 @@ impl TypeState {
                     trace!(
                         "Adding trait bound {} on type {}",
                         new_tvar.display_with_meta(true, self),
-                        target.inner
+                        target.pretty_print()
                     );
 
                     self.modify_generic_list(generic_list_tok, |generic_list| {
-                        generic_list.insert(target.inner.clone(), new_tvar);
+                        generic_list.insert(target.clone(), new_tvar);
                     });
                 }
             }
@@ -2368,7 +2414,7 @@ impl TypeState {
                 let gl = self
                     .get_generic_list(generic_list)
                     .ok_or_else(|| diag_anyhow!(n, "Found no generic list"))?;
-                let var = gl.get(n).ok_or_else(|| {
+                let var = gl.get(&Generic::Named(n.clone())).ok_or_else(|| {
                     Diagnostic::bug(n, "Found non-generic argument in where clause")
                 })?;
                 ConstraintExpr::Var(*var)

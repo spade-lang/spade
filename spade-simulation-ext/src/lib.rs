@@ -18,6 +18,7 @@ use spade_codespan_reporting::term::termcolor::Buffer;
 use range::UptoRange;
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_ast_lowering::SelfContext;
+use spade_common::id_tracker::GenericIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path as SpadePath};
 use spade_diagnostics::diag_list::DiagList;
@@ -134,6 +135,7 @@ pub struct OwnedState {
     trait_impls: TraitImplList,
     idtracker: Arc<ExprIdTracker>,
     impl_idtracker: ImplIdTracker,
+    generic_idtracker: GenericIdTracker,
 }
 
 #[cfg_attr(feature = "python", pyclass)]
@@ -261,6 +263,7 @@ impl Spade {
                 trait_impls: state.trait_impl_list,
                 idtracker: state.idtracker,
                 impl_idtracker: state.impl_idtracker,
+                generic_idtracker: state.generic_idtracker,
             }),
             uut_head,
             compilation_cache: HashMap::default(),
@@ -347,7 +350,7 @@ impl Spade {
         };
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+            .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         let ty = self
@@ -473,6 +476,7 @@ impl Spade {
             item_list: owned_state.item_list,
             idtracker: owned_state.idtracker,
             impl_idtracker: owned_state.impl_idtracker,
+            generic_idtracker: owned_state.generic_idtracker,
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
@@ -491,7 +495,7 @@ impl Spade {
 
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+            .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
         // NOTE: We need to actually have the type information about what we're
         // assigning to available here
@@ -571,6 +575,7 @@ impl Spade {
             item_list,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
             pipeline_ctx: _,
             self_ctx: _,
             current_unit: _,
@@ -586,6 +591,7 @@ impl Spade {
             trait_impls: owned_state.trait_impls,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
         });
 
         let mut path = field.path.clone();
@@ -760,7 +766,7 @@ impl Spade {
 
                 let generic_list = self
                     .type_state
-                    .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+                    .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
                     .report_and_convert(
                         &mut self.error_buffer,
                         &self.code,
@@ -813,6 +819,7 @@ impl Spade {
             trait_impls,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
         } = self
             .owned
             .take()
@@ -825,6 +832,7 @@ impl Spade {
             item_list,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
             pipeline_ctx: None,
             self_ctx: SelfContext::FreeStanding,
             current_unit: None,
@@ -839,6 +847,7 @@ impl Spade {
             item_list,
             mut idtracker,
             impl_idtracker,
+            generic_idtracker,
             pipeline_ctx: _,
             self_ctx: _,
             current_unit: _,
@@ -856,7 +865,7 @@ impl Spade {
         };
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &[], &[], None, &[])
+            .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         self.type_state
@@ -915,6 +924,7 @@ impl Spade {
             trait_impls,
             idtracker,
             impl_idtracker,
+            generic_idtracker,
         });
 
         let result = eval_statements(&mir.to_vec_no_source_map());

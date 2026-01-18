@@ -10,8 +10,8 @@ use spade_common::{
 
 use crate::{
     expression::NamedArgument, ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind,
-    Expression, ItemList, Pattern, PatternArgument, PatternKind, Register, Statement, Struct,
-    TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
+    Expression, Generic, ItemList, Pattern, PatternArgument, PatternKind, Register, Statement,
+    Struct, TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -358,7 +358,8 @@ impl<'a> QueryCache {
                     self.visit_type_expr(param);
                 }
             }
-            TypeSpec::Generic(n) => self.names.insert(n.clone()),
+            TypeSpec::Generic(Generic::Named(n)) => self.names.insert(n.clone()),
+            TypeSpec::Generic(Generic::Hidden(_)) => {}
             TypeSpec::Tuple(inner) => {
                 for i in inner {
                     self.visit_type_spec(i);
