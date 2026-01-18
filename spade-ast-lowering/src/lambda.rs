@@ -1,3 +1,4 @@
+use rustc_hash::FxHashSet as HashSet;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -89,13 +90,18 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let shared_captures = Arc::new(Mutex::new(vec![]));
     {
         let captures = shared_captures.clone();
+        let visited_variables = Arc::new(Mutex::new(HashSet::default()));
         ctx.symtab
             .new_scope_with_barrier(Box::new(move |_name: _, previous, thing| match thing {
                 spade_hir::symbol_table::Thing::Variable(name) => {
-                    captures
-                        .lock()
-                        .unwrap()
-                        .push((name.clone(), previous.clone()));
+                    let mut visited_variables = visited_variables.lock().unwrap();
+                    if !visited_variables.contains(name) {
+                        captures
+                            .lock()
+                            .unwrap()
+                            .push((name.clone(), previous.clone()));
+                        visited_variables.insert(name.clone());
+                    }
                     Ok(())
                 }
                 spade_hir::symbol_table::Thing::Struct(_)
