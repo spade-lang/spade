@@ -823,6 +823,106 @@ fn map_trait_method_parameters(
     })
 }
 
+fn map_const_generic_to_trait(
+    cg: &Loc<hir::ConstGeneric>,
+    trait_type_params: &[Loc<hir::TypeParam>],
+    trait_method_type_params: &[Loc<hir::TypeParam>],
+    impl_type_params: &[Loc<hir::TypeExpression>],
+    impl_method_type_params: &[Loc<hir::TypeExpression>],
+    ctx: &mut Context,
+) -> Result<Loc<hir::ConstGeneric>> {
+    let mut map_boilerplate = |cg| {
+        Result::Ok(Box::new(map_const_generic_to_trait(
+            cg,
+            trait_type_params,
+            trait_method_type_params,
+            impl_type_params,
+            impl_method_type_params,
+            ctx,
+        )?))
+    };
+
+    match &cg.inner {
+        hir::ConstGeneric::Name(name) => {
+            let param_idx = trait_type_params
+                .iter()
+                .find_position(|tp| tp.name_id() == name.inner)
+                .map(|(idx, _)| idx);
+
+            if let Some(param_idx) = param_idx {
+                impl_type_params[param_idx].try_map_ref(|te| match &te {
+                    hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(name)) => {
+                        Ok(hir::ConstGeneric::Name(name.clone()))
+                    }
+                    hir::TypeExpression::TypeSpec(_) => Err(Diagnostic::bug(
+                        cg,
+                        "Cannot substitute type spec into const generic",
+                    )),
+                    hir::TypeExpression::Integer(i) => Ok(hir::ConstGeneric::Int(i.clone())),
+                    hir::TypeExpression::String(s) => Ok(hir::ConstGeneric::Str(s.clone())),
+                    hir::TypeExpression::ConstGeneric(cg) => Ok(cg.inner.clone()),
+                })
+            } else {
+                let param_idx = trait_method_type_params
+                    .iter()
+                    .find_position(|tp| tp.name_id() == name.inner)
+                    .map(|(idx, _)| idx);
+
+                if let Some(param_idx) = param_idx {
+                    impl_method_type_params[param_idx].try_map_ref(|te| match &te {
+                        hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(name)) => {
+                            Ok(hir::ConstGeneric::Name(name.clone()))
+                        }
+                        hir::TypeExpression::TypeSpec(_) => Err(Diagnostic::bug(
+                            cg,
+                            "Cannot substitute type spec into const generic",
+                        )),
+                        hir::TypeExpression::Integer(i) => Ok(hir::ConstGeneric::Int(i.clone())),
+                        hir::TypeExpression::String(s) => Ok(hir::ConstGeneric::Str(s.clone())),
+                        hir::TypeExpression::ConstGeneric(cg) => Ok(cg.inner.clone()),
+                    })
+                } else {
+                    Err(Diagnostic::bug(
+                        name,
+                        format!(
+                            "Could not find type parameter {} in trait or trait method.",
+                            name.inner
+                        ),
+                    ))
+                }
+            }
+        }
+
+        hir::ConstGeneric::Add(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Add(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Sub(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Sub(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Mul(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Mul(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Div(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Div(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Mod(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Mod(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::UintBitsToFit(inner) => {
+            Ok(hir::ConstGeneric::UintBitsToFit(map_boilerplate(inner)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Eq(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Eq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::NotEq(lhs, rhs) => {
+            Ok(hir::ConstGeneric::NotEq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+
+        hir::ConstGeneric::Int(_) => Ok(cg.clone()),
+        hir::ConstGeneric::Str(_) => Ok(cg.clone()),
+    }
+}
+
 fn map_type_expr_to_trait(
     te: &Loc<hir::TypeExpression>,
     trait_type_params: &[Loc<hir::TypeParam>],
@@ -846,7 +946,17 @@ fn map_type_expr_to_trait(
             .split_loc();
             Ok(hir::TypeExpression::TypeSpec(inner).at_loc(&loc))
         }
-        hir::TypeExpression::ConstGeneric(_) => diag_bail!(te, "Const generic in impl head"),
+        hir::TypeExpression::ConstGeneric(cg) => Ok(hir::TypeExpression::ConstGeneric(
+            map_const_generic_to_trait(
+                cg,
+                trait_type_params,
+                trait_method_type_params,
+                impl_type_params,
+                impl_method_type_params,
+                ctx,
+            )?,
+        )
+        .at_loc(&te)),
     }
 }
 

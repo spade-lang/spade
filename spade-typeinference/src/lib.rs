@@ -2650,7 +2650,7 @@ impl TypeState {
                     loc2
                 };
                 let new_t = match unify_meta(meta1, meta2) {
-                    Some(meta @ MetaType::Any) | Some(meta @ MetaType::Number) => {
+                    Some(meta @ MetaType::Any) => {
                         if traits1.inner.is_empty() || traits2.inner.is_empty() {
                             return Err(UnificationError::Specific(diag_anyhow!(
                                 new_loc,
@@ -2698,6 +2698,7 @@ impl TypeState {
 
                         self.new_generic_with_traits(*new_loc, TraitList::from_vec(new_traits))
                     }
+                    Some(MetaType::Number) => self.new_generic_tlnumber(*new_loc),
                     Some(MetaType::Int) => self.new_generic_tlint(*new_loc),
                     Some(MetaType::Uint) => self.new_generic_tluint(*new_loc),
                     Some(MetaType::Bool) => self.new_generic_tlbool(*new_loc),

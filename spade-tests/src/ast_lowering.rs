@@ -651,6 +651,46 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    const_generics_in_impl_block,
+    "
+        impl<#uint N> uint<N> {
+            fn twice(self) -> uint<{N + 1}> {
+                self + self
+            }
+
+            fn times<#uint M>(self, other: uint<M>) -> uint<{N + M}> {
+                self * other
+            }
+        }
+
+        fn test() {
+            let x = 5u8.twice();
+            let y = 5u8.times(2u10);
+        }
+    "
+}
+
+snapshot_error! {
+    const_generics_in_impl_block_typecheck_correctly,
+    "
+        impl<#uint N> uint<N> {
+            fn twice(self) -> uint<{N + 2}> {
+                self + self
+            }
+
+            fn times<#uint M>(self, other: uint<M>) -> uint<{N + M + 1}> {
+                self * other
+            }
+        }
+
+        fn test() {
+            let x = 5u8.twice();
+            let y = 5u8.times(2u10);
+        }
+    "
+}
+
 snapshot_error! {
     inst_function_used,
     "
