@@ -688,10 +688,16 @@ impl<'a> Parser<'a> {
                 s.comma_separated(
                     |s| {
                         let pattern = s.pattern()?;
+                        let if_condition = if s.peek_kind(&TokenKind::If)? {
+                            s.eat_unconditional()?;
+                            Some(s.expression()?)
+                        } else {
+                            None
+                        };
                         s.eat(&TokenKind::FatArrow)?;
                         let value = s.expression()?;
 
-                        Ok((pattern, value))
+                        Ok((pattern, if_condition, value))
                     },
                     &TokenKind::CloseBrace,
                 )

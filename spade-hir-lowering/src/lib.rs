@@ -563,54 +563,124 @@ impl PatternLocal for Loc<Pattern> {
     /// Returns MIR code for a condition that must hold for `expr` to satisfy
     /// this pattern.
     #[tracing::instrument(level = "trace", skip(self, ctx))]
-    fn condition(&self, value_name: &ValueName, ctx: &mut Context) -> Result<PatternCondition> {
+    fn condition(
+        &self,
+        value_name: &ValueName,
+        if_cond_name: Option<ValueName>,
+        ctx: &mut Context,
+    ) -> Result<PatternCondition> {
         let output_id = ctx.idtracker.next();
         let result_name = ValueName::Expr(output_id);
-        match &self.kind {
-            hir::PatternKind::Integer(val) => {
+        match (&self.kind, if_cond_name) {
+            (hir::PatternKind::Integer(val), c) => {
                 let self_type =
                     ctx.types
                         .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?;
                 let const_id = ctx.idtracker.next();
-                let statements = vec![
-                    mir::Statement::Constant(
-                        const_id,
-                        self_type.to_mir_type(),
-                        ConstantValue::Int(val.clone()),
-                    ),
-                    mir::Statement::Binding(mir::Binding {
-                        name: result_name.clone(),
-                        ty: MirType::Bool,
-                        operator: mir::Operator::Eq,
-                        operands: vec![value_name.clone(), ValueName::Expr(const_id)],
-                        loc: None,
-                    }),
-                ];
+                let statements = match c {
+                    Some(c) => {
+                        let intermediate_name = ValueName::Expr(ctx.idtracker.next());
+                        vec![
+                            mir::Statement::Constant(
+                                const_id,
+                                self_type.to_mir_type(),
+                                ConstantValue::Int(val.clone()),
+                            ),
+                            mir::Statement::Binding(mir::Binding {
+                                name: intermediate_name.clone(),
+                                ty: MirType::Bool,
+                                operator: mir::Operator::Eq,
+                                operands: vec![value_name.clone(), ValueName::Expr(const_id)],
+                                loc: None,
+                            }),
+                            mir::Statement::Binding(mir::Binding {
+                                name: result_name.clone(),
+                                ty: MirType::Bool,
+                                operator: mir::Operator::LogicalAnd,
+                                operands: vec![intermediate_name, c],
+                                loc: None,
+                            }),
+                        ]
+                    }
+                    None => vec![
+                        mir::Statement::Constant(
+                            const_id,
+                            self_type.to_mir_type(),
+                            ConstantValue::Int(val.clone()),
+                        ),
+                        mir::Statement::Binding(mir::Binding {
+                            name: result_name.clone(),
+                            ty: MirType::Bool,
+                            operator: mir::Operator::Eq,
+                            operands: vec![value_name.clone(), ValueName::Expr(const_id)],
+                            loc: None,
+                        }),
+                    ],
+                };
 
                 Ok(PatternCondition {
                     statements,
                     result_name,
                 })
             }
-            hir::PatternKind::Bool(true) => Ok(PatternCondition {
+            (hir::PatternKind::Bool(true), Some(c)) => Ok(PatternCondition {
+                statements: vec![mir::Statement::Binding(mir::Binding {
+                    name: result_name.clone(),
+                    ty: MirType::Bool,
+                    operator: mir::Operator::LogicalAnd,
+                    operands: vec![value_name.clone(), c],
+                    loc: None,
+                })],
+                result_name: result_name,
+            }),
+            (hir::PatternKind::Bool(true), None) => Ok(PatternCondition {
                 statements: vec![],
                 result_name: value_name.clone(),
             }),
-            hir::PatternKind::Bool(false) => {
-                let statements = vec![mir::Statement::Binding(mir::Binding {
+            (hir::PatternKind::Bool(false), Some(c)) => {
+                let negated_value_name = ValueName::Expr(ctx.idtracker.next());
+
+                Ok(PatternCondition {
+                    statements: vec![
+                        mir::Statement::Binding(mir::Binding {
+                            name: negated_value_name.clone(),
+                            ty: MirType::Bool,
+                            operator: mir::Operator::LogicalNot,
+                            operands: vec![value_name.clone()],
+                            loc: None,
+                        }),
+                        mir::Statement::Binding(mir::Binding {
+                            name: result_name.clone(),
+                            ty: MirType::Bool,
+                            operator: mir::Operator::LogicalAnd,
+                            operands: vec![negated_value_name, c],
+                            loc: None,
+                        }),
+                    ],
+                    result_name,
+                })
+            }
+            (hir::PatternKind::Bool(false), None) => Ok(PatternCondition {
+                statements: vec![mir::Statement::Binding(mir::Binding {
                     name: result_name.clone(),
                     ty: MirType::Bool,
                     operator: mir::Operator::LogicalNot,
                     operands: vec![value_name.clone()],
                     loc: None,
-                })];
-
-                Ok(PatternCondition {
-                    statements,
-                    result_name,
-                })
-            }
-            hir::PatternKind::Name { .. } => Ok(PatternCondition {
+                })],
+                result_name,
+            }),
+            (hir::PatternKind::Name { .. }, Some(c)) => Ok(PatternCondition {
+                statements: vec![mir::Statement::Binding(mir::Binding {
+                    name: result_name.clone(),
+                    ty: MirType::Bool,
+                    operator: mir::Operator::Alias,
+                    operands: vec![c],
+                    loc: None,
+                })],
+                result_name,
+            }),
+            (hir::PatternKind::Name { .. }, None) => Ok(PatternCondition {
                 statements: vec![mir::Statement::Constant(
                     output_id,
                     MirType::Bool,
@@ -618,15 +688,16 @@ impl PatternLocal for Loc<Pattern> {
                 )],
                 result_name,
             }),
-            hir::PatternKind::Tuple(branches) | hir::PatternKind::Array(branches) => {
+            (hir::PatternKind::Tuple(branches), c) | (hir::PatternKind::Array(branches), c) => {
                 let subpatterns = branches
                     .iter()
-                    .map(|pat| pat.condition(&pat.value_name(), ctx))
+                    .map(|pat| pat.condition(&pat.value_name(), None, ctx))
                     .collect::<Result<Vec<_>>>()?;
 
                 let conditions = subpatterns
                     .iter()
                     .map(|sub| sub.result_name.clone())
+                    .chain(c)
                     .collect::<Vec<_>>();
 
                 let mut statements = subpatterns
@@ -642,7 +713,7 @@ impl PatternLocal for Loc<Pattern> {
                     result_name,
                 })
             }
-            hir::PatternKind::Type(path, args) => {
+            (hir::PatternKind::Type(path, args), c) => {
                 let patternable = ctx.symtab.symtab().patternable_type_by_id(path);
 
                 let self_condition_id = ctx.idtracker.next();
@@ -678,9 +749,13 @@ impl PatternLocal for Loc<Pattern> {
                     // argument with the specified value_name, so we can just use that
                     let value_name = p.value.value_name();
 
-                    let mut cond = p.value.condition(&value_name, ctx)?;
+                    let mut cond = p.value.condition(&value_name, None, ctx)?;
                     conditions.push(cond.result_name.clone());
                     cond_statements.append(&mut cond.statements);
+                }
+
+                if let Some(if_cond_name) = c {
+                    conditions.push(if_cond_name);
                 }
 
                 let (mut extra_statements, result_name) = all_conditions(conditions, ctx);
@@ -1973,10 +2048,13 @@ impl ExprLocal for Loc<Expression> {
 
                 if !operand_ty.is_error_recursively() {
                     // Check for missing branches
-                    let pat_stacks = branches
+                    let mut pat_stacks = branches
                         .iter()
-                        .map(|(pat, _)| {
-                            PatStack::new(vec![DeconstructedPattern::from_hir(pat, ctx)])
+                        .filter_map(|(pat, if_cond, _)| match if_cond {
+                            Some(_) => None,
+                            None => Some(PatStack::new(vec![DeconstructedPattern::from_hir(
+                                pat, ctx,
+                            )])),
                         })
                         .collect::<Vec<_>>();
 
@@ -1987,27 +2065,74 @@ impl ExprLocal for Loc<Expression> {
                         &usefulness::Matrix::new(&pat_stacks),
                     );
 
-                    if wildcard_useful.is_useful() {
-                        let witnesses = format_witnesses(&wildcard_useful.witnesses);
+                    let mut predicated_branch_diagnosed = false;
 
-                        return Err(Diagnostic::error(
+                    if wildcard_useful.is_useful() {
+                        let witness_string = format_witnesses(&wildcard_useful.witnesses);
+
+                        let mut diagnostics = Diagnostic::error(
                             self.loc(),
-                            format!("Non-exhaustive match: {witnesses} not covered"),
+                            format!("Non-exhaustive match: {witness_string} not covered"),
                         )
-                        .primary_label(format!("{witnesses} not covered")));
+                        .primary_label(format!("{witness_string} not covered",));
+
+                        for witness in &wildcard_useful.witnesses {
+                            for (pat, _, _) in branches.iter().filter(|(_, c, _)| c.is_some()) {
+                                // Try adding each predicated branch to the end and checking if the
+                                // witness pattern stacks stop being useful. That means this branch,
+                                // if unpredicated, could prevent the witness from existing.
+
+                                let extra_pat_stack =
+                                    PatStack::new(vec![DeconstructedPattern::from_hir(pat, ctx)]);
+
+                                pat_stacks.push(extra_pat_stack);
+
+                                let witness_useful = is_useful(
+                                    &PatStack::new(witness.0.clone()),
+                                    &usefulness::Matrix::new(&pat_stacks),
+                                );
+
+                                pat_stacks.pop();
+
+                                if !witness_useful.is_useful() {
+                                    diagnostics = diagnostics.secondary_label(
+                                        pat,
+                                        format!("This provides {witness} but the branch has a predicate"),
+                                    );
+                                    predicated_branch_diagnosed = true;
+                                }
+                            }
+                        }
+
+                        if predicated_branch_diagnosed {
+                            diagnostics.add_note(
+                                "Predicated branches are ignored when checking exhaustiveness",
+                            );
+                        }
+
+                        return Err(diagnostics);
                     }
                 }
 
                 result.append(operand.lower(ctx)?);
                 let mut operands = vec![];
-                for (pat, result_expr) in branches {
+                for (pat, if_cond, result_expr) in branches {
                     let pat_ty = ctx
                         .types
                         .concrete_type_of(pat, ctx.symtab.symtab(), &ctx.item_list.types)?
                         .to_mir_type();
                     result.append(pat.lower(operand.variable(ctx)?, pat_ty, ctx)?);
 
-                    let cond = pat.condition(&operand.variable(ctx)?, ctx)?;
+                    let if_cond = match if_cond {
+                        Some(c) => {
+                            result.append(c.lower(ctx)?);
+                            Some(c.variable(ctx)?)
+                        }
+                        None => None,
+                    };
+
+                    let cond = pat.condition(&operand.variable(ctx)?, if_cond, ctx)?;
+
                     result.append_secondary(cond.statements, pat, "Pattern condition");
 
                     result.append(result_expr.lower(ctx)?);

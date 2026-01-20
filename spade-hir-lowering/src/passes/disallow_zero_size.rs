@@ -83,7 +83,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
                 }
             }
             spade_hir::ExprKind::Match(_cond, operands) => {
-                if let Some((_cond, val)) = operands.first() {
+                if let Some((_, _, val)) = operands.first() {
                     if type_of(val)?.size() == BigUint::ZERO {
                         return Err(Diagnostic::error(
                             val,

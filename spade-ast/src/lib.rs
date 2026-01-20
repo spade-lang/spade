@@ -330,7 +330,7 @@ pub enum Expression {
     ),
     Match(
         Box<Loc<Expression>>,
-        Loc<Vec<(Loc<Pattern>, Loc<Expression>)>>,
+        Loc<Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>>,
     ),
     UnaryOperator(Loc<UnaryOperator>, Box<Loc<Expression>>),
     BinaryOperator(

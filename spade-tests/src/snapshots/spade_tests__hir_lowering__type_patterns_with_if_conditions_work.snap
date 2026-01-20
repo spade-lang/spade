@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \uwu ((e, e_n17, enum option [], option [])) -> bool {
+	let e4: enum option [], option [] = Alias(e_n17)
+	const e6: int<7> = 6
+	const e7: int<7> = 8
+	let e5: bool = Eq(e6, e7)
+	let e12: bool = IsEnumVariant(0)(e_n17)
+	let e13: bool = LogicalAnd(e12, e5)
+	const e8: bool = true
+	let __n18: enum option [], option [] = Alias(e_n17)
+	const e14: bool = true
+	const e10: bool = false
+	let e2: bool = Match(e13, e8, e14, e10)
+} => e2

@@ -1,0 +1,48 @@
+struct MatchIfOut {
+    mi0: uint<8>,
+    mi1: uint<8>,
+    mi2: uint<8>,
+    mi3: uint<8>,
+    mi4: uint<8>,
+}
+
+enum Color {
+    Purple,
+    Yellow,
+}
+
+fn test_match_if(input: (int<8>, bool, Color), cond: bool) -> MatchIfOut {
+    let (i0, i1, i2) = input;
+
+    let mi0 = match i0 {
+        0 if cond => 0,
+        0 => 1,
+        _ => 2,
+    };
+
+    let mi1 = match i1 {
+        true if cond => 0,
+        true => 1,
+        false if cond => 2,
+        false => 3,
+    };
+
+    let mi2 = match i2 {
+        Color::Purple if cond => 0,
+        Color::Purple => 1,
+        _ => 2,
+    };
+
+    let mi3 = match i0 {
+        _ if cond => 0,
+        _ => 1,
+    };
+
+    let mi4 = match (i0, i1) {
+        (0, true) if cond => 0,
+        (0, true) => 1,
+        (_, _) => 2,
+    };
+
+    MatchIfOut$(mi0, mi1, mi2, mi3, mi4)
+}

@@ -164,8 +164,11 @@ impl<'a> QueryCache {
             crate::ExprKind::Match(cond, branches) => {
                 self.visit_expression(cond);
 
-                for (pattern, expr) in branches {
+                for (pattern, if_cond, expr) in branches {
                     self.visit_pattern(pattern);
+                    if let Some(if_cond) = if_cond {
+                        self.visit_expression(if_cond);
+                    }
                     self.visit_expression(expr);
                 }
             }

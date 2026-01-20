@@ -257,7 +257,10 @@ pub enum ExprKind {
         Box<Loc<Expression>>,
     ),
     UnaryOperator(Loc<UnaryOperator>, Box<Loc<Expression>>),
-    Match(Box<Loc<Expression>>, Vec<(Loc<Pattern>, Loc<Expression>)>),
+    Match(
+        Box<Loc<Expression>>,
+        Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>,
+    ),
     Block(Box<Block>),
     If(
         Box<Loc<Expression>>,

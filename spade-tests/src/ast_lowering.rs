@@ -362,6 +362,18 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    match_expression_names_are_visible_inside_if_conditions,
+    "
+    fn test(x: int<32>, y: int<32>) -> int<32> {
+        match (x, y) {
+            (a, b) if a == b => 0,
+            (a, b) => a ^ b,
+        }
+    }
+    "
+}
+
 snapshot_error! {
     unused_attribute_errors_on_entity_entity,
     "

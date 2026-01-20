@@ -312,8 +312,11 @@ fn visit_expression(
         }
         spade_hir::ExprKind::Match(cond, variants) => {
             visit_expression(cond, linear_state, ctx)?;
-            for (pat, expr) in variants {
+            for (pat, if_cond, expr) in variants {
                 linear_state.push_pattern(pat, ctx)?;
+                if let Some(if_cond) = if_cond {
+                    visit_expression(if_cond, linear_state, ctx)?;
+                }
                 visit_expression(expr, linear_state, ctx)?;
             }
         }

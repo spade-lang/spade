@@ -670,22 +670,31 @@ impl TypeState {
         assuming_kind!(ExprKind::Match(cond, branches) = &expression => {
             self.visit_expression(cond, ctx, generic_list);
 
-            for (i, (pattern, result)) in branches.iter().enumerate() {
+            for (i, (pattern, if_cond, result)) in branches.iter().enumerate() {
                 self.visit_pattern(pattern, ctx, generic_list)?;
 
                 self.unify(pattern, &cond.inner, ctx)
                     .into_default_diagnostic(pattern, self)?;
 
+                if let Some(if_cond) = if_cond {
+                    self.visit_expression(if_cond, ctx, generic_list);
+
+                    if_cond
+                        .unify_with(&self.t_bool(if_cond.loc(), ctx.symtab), self)
+                        .commit(self, ctx)
+                        .into_default_diagnostic(if_cond, self)?;
+                }
+
                 self.visit_expression(result, ctx, generic_list);
 
                 if i != 0 {
-                    self.unify(&branches[0].1, result, ctx).into_diagnostic(
+                    self.unify(&branches[0].2, result, ctx).into_diagnostic(
                         result,
                         |diag, tm| {
                             let (expected, got) = tm.display_e_g(self);
                             diag.message("Match branches have incompatible type")
                                 .primary_label(format!("This branch has type {got}"))
-                                .secondary_label(&branches[0].1, format!("But this one has type {expected}"))
+                                .secondary_label(&branches[0].2, format!("But this one has type {expected}"))
                         }, self
                     )?;
                 }
@@ -696,7 +705,7 @@ impl TypeState {
                 "Empty match statements should be checked by ast lowering"
             );
 
-            self.unify_expression_generic_error(&branches[0].1, expression, ctx)?;
+            self.unify_expression_generic_error(&branches[0].2, expression, ctx)?;
         });
         Ok(())
     }

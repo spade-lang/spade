@@ -15,6 +15,7 @@ mod flip_array;
 mod generic_impl_stuff;
 mod gray_code;
 mod int_bit_conversion;
+mod match_if;
 mod no_mangle_params;
 mod parametrized_externs;
 mod pipeline_ready_valid;

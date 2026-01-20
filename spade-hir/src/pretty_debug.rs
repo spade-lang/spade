@@ -274,8 +274,12 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::Match(expr, branches) => {
                 code!{
                     [0] format!("match {} {{", expr.pretty_debug());
-                    [1]     branches.iter().map(|(pat, expr)| {
-                        format!("{} => {},", pat.pretty_debug(), expr.pretty_debug())
+                    [1]     branches.iter().map(|(pat, if_cond, expr)| {
+                        let if_cond = match if_cond {
+                            Some(c) => format!(" if {}", c.pretty_debug()),
+                            None => "".to_string(),
+                        };
+                        format!("{}{if_cond} => {},", pat.pretty_debug(), expr.pretty_debug())
                     }).join("\n");
                     [0] "}"
                 }.to_string()

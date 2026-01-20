@@ -1788,6 +1788,19 @@ mod tests {
         false
     }
 
+    snapshot_error! {
+        match_arm_with_if_cond_is_ignored_when_checking_exhaustiveness,
+        "
+            fn test() -> uint<8> {
+                match false {
+                    true => 1,
+                    false if true => 2,
+                    false if false => 3,
+                }
+            }
+        "
+    }
+
     #[test]
     fn assigning_ports_to_variables_works() {
         let code = r#"
@@ -3263,6 +3276,78 @@ snapshot_mir! {
         let x = fn |a| {
             a.value
         }.call((X(true),));
+    }
+    ",
+    all
+}
+
+snapshot_mir! {
+    integer_patterns_with_if_conditions_work,
+    "
+    entity uwu(e: int<16>) -> bool {
+        match e {
+            0 if 6i7 == 8i7 => true,
+            _ => false
+        }
+    }
+    ",
+    all
+}
+
+snapshot_mir! {
+    bool_patterns_with_if_conditions_work,
+    "
+    entity uwu(e: bool) -> bool {
+        match e {
+            true if 6i7 == 8i7 => true,
+            false if 0i7 == 1i7 => false,
+            _ => false
+        }
+    }
+    ",
+    all
+}
+
+snapshot_mir! {
+    name_patterns_with_if_conditions_work,
+    "
+    entity uwu(e: int<16>) -> bool {
+        match e {
+            x if 6i7 == 8i7 => true,
+            _ if 0i7 == 1i7 => false,
+            _ => false
+        }
+    }
+    ",
+    all
+}
+
+snapshot_mir! {
+    tuple_patterns_with_if_conditions_work,
+    "
+    entity uwu(e: (int<16>, bool)) -> bool {
+        match e {
+            (0, b) if 6i7 == 8i7 => b,
+            (x, true) if 0i7 == 1i7 => true,
+            _ => false
+        }
+    }
+    ",
+    all
+}
+
+snapshot_mir! {
+    type_patterns_with_if_conditions_work,
+    "
+    enum Color {
+        Purple,
+        Yellow,
+    }
+    entity uwu(e: Color) -> bool {
+        match e {
+            Color::Purple if 6i7 == 8i7 => true,
+            _ => false
+        }
     }
     ",
     all

@@ -926,10 +926,12 @@ mod test {
                 (
                     Pattern::Tuple(vec![Pattern::integer(0).nowhere(), Pattern::name("y")])
                         .nowhere(),
+                    None,
                     Expression::Identifier(ast_path("y")).nowhere(),
                 ),
                 (
                     Pattern::Tuple(vec![Pattern::name("x"), Pattern::name("y")]).nowhere(),
+                    None,
                     Expression::Identifier(ast_path("x")).nowhere(),
                 ),
             ]

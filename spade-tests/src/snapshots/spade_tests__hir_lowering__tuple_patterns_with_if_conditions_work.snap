@@ -1,0 +1,31 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \uwu ((e, e_n14, (int<16>, bool))) -> bool {
+	let e6: (int<16>, bool) = Alias(e_n14)
+	let e4: int<16> = IndexTuple(0)(e_n14)
+	let b_n15: bool = IndexTuple(1)(e_n14)
+	const e8: int<7> = 6
+	const e9: int<7> = 8
+	let e7: bool = Eq(e8, e9)
+	const e22: int<16> = 0
+	let e21: bool = Eq(e4, e22)
+	const e23: bool = true
+	let e24: bool = LogicalAnd(e21, e23)
+	let e25: bool = LogicalAnd(e24, e7)
+	let e13: (int<16>, bool) = Alias(e_n14)
+	let x_n16: int<16> = IndexTuple(0)(e_n14)
+	let e12: bool = IndexTuple(1)(e_n14)
+	const e15: int<7> = 0
+	const e16: int<7> = 1
+	let e14: bool = Eq(e15, e16)
+	const e27: bool = true
+	let e29: bool = LogicalAnd(e27, e12)
+	let e30: bool = LogicalAnd(e29, e14)
+	const e17: bool = true
+	let __n17: (int<16>, bool) = Alias(e_n14)
+	const e31: bool = true
+	const e19: bool = false
+	let e2: bool = Match(e25, b_n15, e30, e17, e31, e19)
+} => e2

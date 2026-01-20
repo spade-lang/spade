@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \uwu ((e, e_n14, int<16>)) -> bool {
+	let x_n15: int<16> = Alias(e_n14)
+	const e6: int<7> = 6
+	const e7: int<7> = 8
+	let e5: bool = Eq(e6, e7)
+	let e16: bool = Alias(e5)
+	const e8: bool = true
+	let __n16: int<16> = Alias(e_n14)
+	const e11: int<7> = 0
+	const e12: int<7> = 1
+	let e10: bool = Eq(e11, e12)
+	let e17: bool = Alias(e10)
+	const e13: bool = false
+	let __n17: int<16> = Alias(e_n14)
+	const e18: bool = true
+	const e15: bool = false
+	let e2: bool = Match(e16, e8, e17, e13, e18, e15)
+} => e2

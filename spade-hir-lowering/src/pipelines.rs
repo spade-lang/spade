@@ -644,7 +644,11 @@ impl PipelineAvailability for Expression {
             }
             ExprKind::UnaryOperator(_, val) => val.inner.available_in(ctx),
             ExprKind::Match(_, values) => try_compute_availability(
-                &values.iter().map(|(_, expr)| expr).collect::<Vec<_>>(),
+                &values
+                    .iter()
+                    .flat_map(|(_, if_cond, expr)| [if_cond.as_ref(), Some(expr)])
+                    .flatten()
+                    .collect::<Vec<_>>(),
                 ctx,
             ),
             ExprKind::Block(inner) => {

@@ -2158,12 +2158,15 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
 
             let b = branches
                 .iter()
-                .map(|(pattern, result)| {
+                .map(|(pattern, if_condition, result)| {
                     ctx.symtab.new_scope();
                     let p = pattern.try_visit(visit_pattern, ctx)?;
+                    let c = if_condition
+                        .as_ref()
+                        .map(|c| c.visit(visit_expression, ctx));
                     let r = result.visit(visit_expression, ctx);
                     ctx.symtab.close_scope();
-                    Ok((p, r))
+                    Ok((p, c, r))
                 })
                 .collect::<Result<Vec<_>>>()?;
 

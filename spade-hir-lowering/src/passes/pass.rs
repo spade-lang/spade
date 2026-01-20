@@ -95,7 +95,10 @@ impl Passable for Loc<Expression> {
             ExprKind::UnaryOperator(_, operand) => subnodes!(operand),
             ExprKind::Match(cond, branches) => {
                 cond.apply(pass)?;
-                for (_, branch) in branches {
+                for (_, if_cond, branch) in branches {
+                    if let Some(if_cond) = if_cond {
+                        if_cond.apply(pass)?;
+                    }
                     branch.apply(pass)?;
                 }
             }
