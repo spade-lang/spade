@@ -47,5 +47,6 @@ take the opportunity to highlight other stuff that normally doesn't fit in a blo
 - [ ] Announcements
     - [ ] Discord
     - [ ] Mastodon
-    - [ ] Twitter
+    - [ ] LinkedIn
+    - [ ] BlueSky
 

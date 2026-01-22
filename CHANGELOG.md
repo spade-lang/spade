@@ -9,6 +9,52 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.16.0] - 2026-01-22
+
+## Added
+- [!523][!523] Add `inout<T>::read_write` method (equivalent to `read_write_inout`)
+- [!525][!525] Added `self` and `super` support for paths
+- [!526][!526] Added command line flag to not include standard library and prelude before compilation
+- [!530][!530] Add ASCII literals (`b'a'`)
+- [!532][!532] Added `Trait(Args) -> Output` syntax for function-like traits (currently `Fn`, `Entity` and `Pipeline`)
+- [!534][!534] Added a limited `#[verilog_attrs(...)]` mechanism, allowing Verilog `(* ... *)` annotations to be injected
+- [!538][!538] Added raw identifier support in the form of `r#ident`
+- [!539][!539] Add array labels (`'label` and `@label.index`)
+- [!546][!546] **Breaking change**: Added support for visibility markers (`pub`, `pub(lib)`, `pub(self)`, `pub(super)`) for modules, types, traits, units and `use` aliases.
+- [!549][!549] Add string literals
+- [!566][!566] Added support for boolean conditions alongside `match` arms
+
+## Fixed
+- [!525][!525] Strengthen path resolution, especially around `use` aliases
+- [!545][!545] Fixed panic if `main.spade` has a syntax error and other files contain `mod`
+- [!545][!545] Don't print missing `mod` errors as often when other errors are present
+- [!548][!548] Fix performance issues when binding large arrays and similar to variables
+- [!557][!557] Made `Self` usable as both pattern inside `match` blocks and constructors for its target type inside `impl` blocks
+- [!563][!563] Fix const generic handling inside traits and `impl` blocks
+
+## Changed
+- [!533][!533] `use` can now import multiple paths using braces to describe a path tree (e.g., `use std::{array::{zip, interleave_arrays}, conv::transmute}`
+- [!537][!537] Changed tuple indexing syntax from `tuple#N` to `tuple.N`
+
+[!523]: https://gitlab.com/spade-lang/spade/-/merge_requests/523
+[!525]: https://gitlab.com/spade-lang/spade/-/merge_requests/525
+[!526]: https://gitlab.com/spade-lang/spade/-/merge_requests/526
+[!530]: https://gitlab.com/spade-lang/spade/-/merge_requests/530
+[!532]: https://gitlab.com/spade-lang/spade/-/merge_requests/532
+[!533]: https://gitlab.com/spade-lang/spade/-/merge_requests/533
+[!534]: https://gitlab.com/spade-lang/spade/-/merge_requests/534
+[!537]: https://gitlab.com/spade-lang/spade/-/merge_requests/537
+[!538]: https://gitlab.com/spade-lang/spade/-/merge_requests/538
+[!539]: https://gitlab.com/spade-lang/spade/-/merge_requests/539
+[!545]: https://gitlab.com/spade-lang/spade/-/merge_requests/545
+[!546]: https://gitlab.com/spade-lang/spade/-/merge_requests/546
+[!548]: https://gitlab.com/spade-lang/spade/-/merge_requests/548
+[!549]: https://gitlab.com/spade-lang/spade/-/merge_requests/549
+[!557]: https://gitlab.com/spade-lang/spade/-/merge_requests/557
+[!563]: https://gitlab.com/spade-lang/spade/-/merge_requests/563
+[!566]: https://gitlab.com/spade-lang/spade/-/merge_requests/566
+
+
 ## [0.15.0] - 2025-11-20
 
 ## Added
@@ -600,7 +646,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.15.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...main
+[0.15.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...v0.15.0
 [0.15.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.15.0...v0.14.0
 [0.14.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.14.0...v0.13.0
 [0.13.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...v0.12.0

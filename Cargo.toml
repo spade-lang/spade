@@ -11,7 +11,7 @@ resolver = "2"
 # Shared between internal crates. Can be overridden per-crate if needed.
 
 [workspace.package]
-version = "0.15.0"
+version = "0.16.0"
 license = "EUPL-1.2"
 edition = "2021"
 rust-version = "1.88"
@@ -20,17 +20,17 @@ homepage = "https://spade-lang.org"
 repository = "https://gitlab.com/spade-lang/spade"
 
 [workspace.dependencies]
-spade-ast = {path = "spade-ast", version = "0.15.0"}
-spade-ast-lowering = {path = "spade-ast-lowering", version = "0.15.0"}
-spade-common = {path = "spade-common", version = "0.15.0"}
-spade-diagnostics = { path = "spade-diagnostics" , version = "0.15.0"}
-spade-hir = {path = "spade-hir", version = "0.15.0"}
-spade-hir-lowering = {path = "spade-hir-lowering", version = "0.15.0"}
-spade-macros = {path = "spade-macros", version = "0.15.0"}
-spade-mir = {path = "spade-mir", version = "0.15.0"}
-spade-parser = {path = "spade-parser", version = "0.15.0"}
-spade-typeinference = {path = "spade-typeinference", version = "0.15.0"}
-spade-types = {path = "spade-types", version = "0.15.0"}
+spade-ast = {path = "spade-ast", version = "0.16.0"}
+spade-ast-lowering = {path = "spade-ast-lowering", version = "0.16.0"}
+spade-common = {path = "spade-common", version = "0.16.0"}
+spade-diagnostics = { path = "spade-diagnostics" , version = "0.16.0"}
+spade-hir = {path = "spade-hir", version = "0.16.0"}
+spade-hir-lowering = {path = "spade-hir-lowering", version = "0.16.0"}
+spade-macros = {path = "spade-macros", version = "0.16.0"}
+spade-mir = {path = "spade-mir", version = "0.16.0"}
+spade-parser = {path = "spade-parser", version = "0.16.0"}
+spade-typeinference = {path = "spade-typeinference", version = "0.16.0"}
+spade-types = {path = "spade-types", version = "0.16.0"}
 
 bumpalo = { version = "3.14.0" }
 clap = { version = "4.4", features = ["derive"] }
