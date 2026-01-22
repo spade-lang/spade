@@ -162,16 +162,16 @@ fn main() -> Result<()> {
     };
 
     let diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
-    match spade::compile(
+    let result = spade::compile(
         sources?,
         !opts.omit_stdlib_and_prelude,
         spade_opts,
         diag_handler,
-    ) {
+    );
+    std::io::stderr().write_all(buffer.as_slice())?;
+
+    match result {
         Ok(_) => Ok(()),
-        Err(_) => {
-            std::io::stderr().write_all(buffer.as_slice())?;
-            Err(anyhow!("aborting due to previous error"))
-        }
+        Err(_) => Err(anyhow!("aborting due to previous error")),
     }
 }

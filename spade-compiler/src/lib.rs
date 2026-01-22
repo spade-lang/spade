@@ -231,9 +231,10 @@ pub fn compile(
         })
     }
 
+    errors.drain_diag_list(&mut ctx.diags);
+
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        errors.drain_diag_list(&mut ctx.diags);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
 
@@ -244,10 +245,10 @@ pub fn compile(
     }
 
     unfinished_artefacts.item_list = Some(ctx.item_list.clone());
+    errors.drain_diag_list(&mut ctx.diags);
 
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        errors.drain_diag_list(&mut ctx.diags);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
     // Let's prevent using this thing again
