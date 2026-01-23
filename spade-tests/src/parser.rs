@@ -347,6 +347,23 @@ code_compiles! {
     "#
 }
 
+code_compiles! {
+    verilog_attrs_works_on_entity_instantiations,
+    r#"
+        entity X() {}
+
+        entity T() {
+            #[verilog_attrs(single)]
+            #[verilog_attrs(standalone, key = "val")]
+            inst X();
+
+            #[verilog_attrs(single)]
+            #[verilog_attrs(standalone, key = "val")]
+            let _ = inst X();
+        }
+    "#
+}
+
 snapshot_error! {
     wal_traceable_with_unexpected_param_is_error,
     "

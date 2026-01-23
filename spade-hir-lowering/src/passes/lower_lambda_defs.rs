@@ -319,6 +319,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 .at_loc(expression),
                 turbofish: None,
                 safety: Safety::Default,
+                verilog_attr_groups: vec![],
             }
             .with_id(expression.id)
             .at_loc(expression);

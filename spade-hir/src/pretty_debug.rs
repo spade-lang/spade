@@ -262,6 +262,7 @@ impl PrettyDebug for ExprKind {
                 args,
                 turbofish,
                 safety,
+                verilog_attr_groups: _,
             } => {
                 code! {
                     [0] format!("{}{}::<{}>{}", if *safety == Safety::Unsafe { "unsafe " } else { "" }, callee.pretty_debug(), turbofish.pretty_debug(), args.pretty_debug());

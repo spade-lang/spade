@@ -166,6 +166,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             args,
             turbofish,
             safety: Safety::Unsafe, // This essentially skips the safety check as we don't want to virtually generate a unsafe block around the generated call
+            verilog_attr_groups: vec![],
         }
         .with_id(ctx.idtracker.next())
         .at_loc(&unit.body)

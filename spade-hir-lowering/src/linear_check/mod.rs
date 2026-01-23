@@ -336,6 +336,7 @@ fn visit_expression(
             args: list,
             turbofish: _,
             safety: _,
+            verilog_attr_groups: _,
         } => {
             // The read_mut_wire function is special and should not consume the port
             // it is reading.

@@ -892,7 +892,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
 
             // Unless this is a special operator, we just use assign value = expression
             let assignment = match &binding.operator {
-                Operator::Instance{name: module_name, params, argument_names, loc} => {
+                Operator::Instance{name: module_name, params, argument_names, loc, verilog_attr_groups} => {
                     let param_string = if params.is_empty() {
                         "".into()
                     } else {
@@ -942,6 +942,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
 
                     code!{
                         [0] source_attribute(loc, ctx.source_code);
+                        [0] codegen_verilog_attr_groups(verilog_attr_groups);
                         [0] format!(
                             "{}{} \\{} ({});",
                             &module_name.as_verilog(),
@@ -1942,6 +1943,7 @@ mod tests {
                 always @(posedge \clk ) begin
                     \x__s1  <= \x_ ;
                 end
+                
                 \A  \A_0 (.output__(\x_ ));
                 assign \x  = \x_ ;
                 assign output__ = \x ;
@@ -2029,7 +2031,8 @@ mod tests {
                         ParamName{name: "a".to_string(), no_mangle: None},
                         ParamName{name: "b".to_string(), no_mangle: None},
                     ],
-                    loc: None
+                    loc: None,
+                    verilog_attr_groups: vec![],
                 }););
                 (e(0); Type::int(16); Instance({
                     name: inst2_unit_name,
@@ -2038,7 +2041,8 @@ mod tests {
                         ParamName{name: "a".to_string(), no_mangle: None},
                         ParamName{name: "b".to_string(), no_mangle: None},
                     ],
-                    loc: None
+                    loc: None,
+                    verilog_attr_groups: vec![],
                 }););
                 (n(0, "x_"); Type::int(16); Alias; e(0));
                 // Stage 1
@@ -2893,7 +2897,8 @@ mod expression_tests {
                     ParamName{name: "a".to_string(), no_mangle: None},
                     ParamName{name: "b".to_string(), no_mangle: None},
                 ],
-                loc: None
+                loc: None,
+                verilog_attr_groups: vec![],
             });
             e(1),
             e(2)
@@ -2902,6 +2907,7 @@ mod expression_tests {
         let expected = indoc!(
             r#"
             logic _e_0;
+
             \e_test  \e_test_0 (.a_i(_e_1), .b_i(_e_2), .output__(_e_0));"#
         );
 
@@ -2929,13 +2935,15 @@ mod expression_tests {
                 ParamName{name: "a".to_string(), no_mangle: None},
                 ParamName{name: "b".to_string(), no_mangle: None},
             ],
-            loc: None
+            loc: None,
+            verilog_attr_groups: vec![],
         }); e(1), e(2));
 
         let expected = indoc!(
             r#"
             logic _e_0;
             logic _e_0_mut;
+
             \e_test  \e_test_0 (.a_i(_e_1), .b_i(_e_2), .output__(_e_0), .input__(_e_0_mut));"#
         );
 
@@ -2962,12 +2970,14 @@ mod expression_tests {
                 ParamName{name: "a".to_string(), no_mangle: None},
                 ParamName{name: "b".to_string(), no_mangle: None},
             ],
-            loc: None
+            loc: None,
+            verilog_attr_groups: vec![],
         }); e(1), e(2));
 
         let expected = indoc!(
             r#"
             logic _e_0_mut;
+
             \e_test  \e_test_0 (.a_i(_e_1), .b_i(_e_2), .input__(_e_0_mut));"#
         );
 
@@ -2994,12 +3004,14 @@ mod expression_tests {
                 ParamName{name: "a".to_string(), no_mangle: None},
                 ParamName{name: "b".to_string(), no_mangle: None},
             ],
-            loc: None
+            loc: None,
+            verilog_attr_groups: vec![],
         }); e(1), e(2));
 
         let expected = indoc!(
             r#"
             logic _e_0;
+
             \test  \test_0 (.a_i(_e_1), .a_o(_e_1_mut), .b_o(_e_2_mut), .output__(_e_0));"#
         );
 
@@ -3535,6 +3547,128 @@ mod expression_tests {
                     end
                 end
                 `endif
+            endmodule"#
+        );
+
+        assert_same_code!(
+            &entity_code(
+                &prepare_codegen(input.clone(), &mut ExprIdTracker::new()),
+                &mut InstanceMap::new(),
+                &None
+            )
+            .0
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn verilog_attrs_codegen_on_entity_declaration() {
+        let input = spade_mir::Entity {
+            name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inputs: vec![spade_mir::MirInput {
+                name: "a".to_string(),
+                val_name: ValueName::_test_named(0, "a".to_string()),
+                ty: Type::Bool,
+                no_mangle: Some(().nowhere()),
+            }],
+            output: ValueName::Expr(ExprID(0)),
+            output_type: Type::unit(),
+            statements: vec![],
+            verilog_attr_groups: vec![
+                vec![("single".into(), None)],
+                vec![
+                    ("standalone".into(), None),
+                    ("key".into(), Some("val".into())),
+                ],
+            ],
+        };
+
+        let expected = indoc!(
+            r#"
+            (* single *)
+            (* standalone, key = "val" *)
+            module test (
+                    input a
+                );
+                `ifdef COCOTB_SIM
+                string __top_module;
+                string __vcd_file;
+                initial begin
+                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
+                        $dumpfile (__vcd_file);
+                        $dumpvars (0, test);
+                    end
+                end
+                `endif
+            endmodule"#
+        );
+
+        assert_same_code!(
+            &entity_code(
+                &prepare_codegen(input.clone(), &mut ExprIdTracker::new()),
+                &mut InstanceMap::new(),
+                &None
+            )
+            .0
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn verilog_attrs_codegen_on_entity_instantiation() {
+        let input = spade_mir::Entity {
+            name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
+            inputs: vec![spade_mir::MirInput {
+                name: "a".to_string(),
+                val_name: ValueName::_test_named(0, "a".to_string()),
+                ty: Type::Bool,
+                no_mangle: Some(().nowhere()),
+            }],
+            output: ValueName::Expr(ExprID(0)),
+            output_type: Type::unit(),
+            statements: vec![spade_mir::Statement::Binding(spade_mir::Binding {
+                name: ValueName::_test_named(0, "x".to_string()),
+                operator: spade_mir::Operator::Instance {
+                    name: UnitName::_test_from_strs(&["foo"]),
+                    params: vec![],
+                    argument_names: vec![],
+                    loc: None,
+                    verilog_attr_groups: vec![
+                        vec![("single".into(), None)],
+                        vec![
+                            ("standalone".into(), None),
+                            ("key".into(), Some("val".into())),
+                        ],
+                    ],
+                },
+                operands: vec![],
+                ty: Type::unit(),
+                loc: None,
+            })],
+            verilog_attr_groups: vec![],
+        };
+
+        let expected = indoc!(
+            r#"
+
+            module test (
+                    input a
+                );
+                `ifdef COCOTB_SIM
+                string __top_module;
+                string __vcd_file;
+                initial begin
+                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
+                        $dumpfile (__vcd_file);
+                        $dumpvars (0, test);
+                    end
+                end
+                `endif
+                (* single *)
+                (* standalone, key = "val" *)
+                \foo  \foo_0 ();
             endmodule"#
         );
 

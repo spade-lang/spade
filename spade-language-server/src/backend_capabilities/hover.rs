@@ -318,6 +318,7 @@ impl ExprKindExt for ExprKind {
                 args: _,
                 turbofish: _,
                 safety: _,
+                verilog_attr_groups: _,
             } => callee.contains_start(loc),
             ExprKind::BinaryOperator(_, op, _) => op.contains_start(loc),
 

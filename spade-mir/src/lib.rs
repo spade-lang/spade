@@ -291,6 +291,7 @@ pub enum Operator {
         argument_names: Vec<ParamName>,
         #[derive_where(skip)]
         loc: Option<Loc<()>>,
+        verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
     },
     /// Alias another named value
     Alias,
@@ -311,6 +312,7 @@ impl Operator {
                 })
                 .collect(),
             loc: None,
+            verilog_attr_groups: vec![],
         }
     }
 }

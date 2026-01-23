@@ -86,6 +86,7 @@ impl Passable for Loc<Expression> {
                 args,
                 turbofish: _,
                 safety: _,
+                verilog_attr_groups: _,
             } => {
                 for arg in args.expressions_mut() {
                     arg.apply(pass)?;

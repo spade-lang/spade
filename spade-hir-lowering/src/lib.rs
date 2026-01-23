@@ -1042,6 +1042,7 @@ pub fn do_wal_trace_lowering(
                         .nowhere(),
                         turbofish: None,
                         safety: Safety::Default,
+                        verilog_attr_groups: vec![],
                     },
                 }
                 .nowhere()
@@ -2161,6 +2162,7 @@ impl ExprLocal for Loc<Expression> {
                 args,
                 turbofish: _,
                 safety,
+                verilog_attr_groups,
             } => {
                 let head = ctx.symtab.symtab().unit_by_id(callee);
                 let args = match_args_with_params(args, &head.inputs.inner, false)
@@ -2192,7 +2194,13 @@ impl ExprLocal for Loc<Expression> {
                 match (&head.unit_kind.inner, kind) {
                     (UnitKind::Function(_), CallKind::Function)
                     | (UnitKind::Entity, CallKind::Entity(_)) => {
-                        result.append(self.handle_call(callee, &args, &head, ctx)?);
+                        result.append(self.handle_call(
+                            callee,
+                            &args,
+                            &head,
+                            verilog_attr_groups,
+                            ctx,
+                        )?);
                     }
                     (
                         UnitKind::Pipeline {
@@ -2205,7 +2213,13 @@ impl ExprLocal for Loc<Expression> {
                             depth_typeexpr_id: _,
                         },
                     ) => {
-                        result.append(self.handle_call(callee, &args, &head, ctx)?);
+                        result.append(self.handle_call(
+                            callee,
+                            &args,
+                            &head,
+                            verilog_attr_groups,
+                            ctx,
+                        )?);
                     }
                     (
                         UnitKind::Function(_),
@@ -2401,12 +2415,27 @@ impl ExprLocal for Loc<Expression> {
         name: &Loc<NameID>,
         args: &[Argument<Expression, TypeSpec>],
         unit_head: &Loc<UnitHead>,
+        verilog_attr_groups: &Vec<Vec<(Loc<Identifier>, Option<Loc<String>>)>>,
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = StatementList::new();
         for param in args {
             result.append(param.value.lower(ctx)?);
         }
+
+        let verilog_attr_groups = verilog_attr_groups
+            .iter()
+            .map(|attrs| {
+                attrs
+                    .iter()
+                    .map(|(key, val)| {
+                        let key = key.inner.to_string();
+                        let val = val.as_ref().map(|v| v.inner.clone());
+                        (key, val)
+                    })
+                    .collect()
+            })
+            .collect();
 
         let tok = GenericListToken::Expression(self.id);
         let instance_list = &ctx
@@ -2603,6 +2632,7 @@ impl ExprLocal for Loc<Expression> {
                             params: vec![],
                             argument_names,
                             loc: Some(self.loc()),
+                            verilog_attr_groups,
                         },
                         operands: args
                             .iter()
@@ -2710,6 +2740,7 @@ impl ExprLocal for Loc<Expression> {
                             params: verilog_parameters,
                             argument_names,
                             loc: Some(self.loc()),
+                            verilog_attr_groups,
                         },
                         operands: args
                             .iter()

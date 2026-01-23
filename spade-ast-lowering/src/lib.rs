@@ -1741,7 +1741,7 @@ fn try_visit_statement(
                 None
             };
 
-            let value = value.visit(visit_expression, ctx);
+            let mut value = value.visit(visit_expression, ctx);
 
             let pattern = pattern.try_visit(visit_pattern, ctx)?;
 
@@ -1770,6 +1770,11 @@ fn try_visit_statement(
                     }
                     Ok(None)
                 }
+                ast::Attribute::VerilogAttrs { entries }
+                    if inject_verilog_attrs(&mut value, entries) =>
+                {
+                    Ok(None)
+                }
                 ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
@@ -1791,8 +1796,27 @@ fn try_visit_statement(
             );
             Ok(stmts)
         }
-        ast::Statement::Expression(expr) => {
-            let value = expr.visit(visit_expression, ctx);
+        ast::Statement::Expression(expr, attrs) => {
+            let mut value = expr.visit(visit_expression, ctx);
+            attrs.lower(&mut |attr| match &attr.inner {
+                ast::Attribute::VerilogAttrs { entries }
+                    if inject_verilog_attrs(&mut value, entries) =>
+                {
+                    Ok(None)
+                }
+                ast::Attribute::VerilogAttrs { .. }
+                | ast::Attribute::WalTrace { .. }
+                | ast::Attribute::WalSuffix { .. }
+                | ast::Attribute::NoMangle { .. }
+                | ast::Attribute::Fsm { .. }
+                | ast::Attribute::Optimize { .. }
+                | ast::Attribute::Documentation { .. }
+                | ast::Attribute::SurferTranslator(_)
+                | ast::Attribute::SpadecParenSugar
+                | ast::Attribute::WalTraceable { .. } => {
+                    Err(attr.report_unused("expression statement"))
+                }
+            })?;
             Ok(vec![hir::Statement::Expression(value).at_loc(expr)])
         }
         ast::Statement::Register(inner) => visit_register(inner, ctx),
@@ -2215,6 +2239,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 args,
                 turbofish,
                 safety: ctx.safety,
+                verilog_attr_groups: vec![],
             })
         }
         ast::Expression::Identifier(path) => {
@@ -2276,6 +2301,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                             args,
                             turbofish: None,
                             safety: ctx.safety,
+                            verilog_attr_groups: vec![],
                         })
                     } else {
                         Err(LookupError::NotAValue(path, was.clone()).into())
@@ -2515,4 +2541,46 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
     );
 
     Ok(stmts)
+}
+
+fn inject_verilog_attrs(
+    expr: &mut Loc<hir::Expression>,
+    verilog_attrs: &Vec<(Loc<Identifier>, Option<Loc<String>>)>,
+) -> bool {
+    match &mut expr.inner.kind {
+        ExprKind::Call {
+            verilog_attr_groups,
+            ..
+        } => {
+            verilog_attr_groups.push(verilog_attrs.clone());
+            true
+        }
+        ExprKind::Error
+        | ExprKind::Identifier(_)
+        | ExprKind::IntLiteral(_, _)
+        | ExprKind::BoolLiteral(_)
+        | ExprKind::TriLiteral(_)
+        | ExprKind::TypeLevelInteger(_)
+        | ExprKind::CreatePorts
+        | ExprKind::TupleLiteral(_)
+        | ExprKind::ArrayLiteral(_)
+        | ExprKind::ArrayShorthandLiteral(_, _)
+        | ExprKind::Index(_, _)
+        | ExprKind::RangeIndex { .. }
+        | ExprKind::TupleIndex(_, _)
+        | ExprKind::FieldAccess(_, _)
+        | ExprKind::MethodCall { .. }
+        | ExprKind::BinaryOperator(_, _, _)
+        | ExprKind::UnaryOperator(_, _)
+        | ExprKind::Match(_, _)
+        | ExprKind::Block(_)
+        | ExprKind::If(_, _, _)
+        | ExprKind::TypeLevelIf(_, _, _)
+        | ExprKind::PipelineRef { .. }
+        | ExprKind::LambdaDef { .. }
+        | ExprKind::StageValid
+        | ExprKind::StageReady
+        | ExprKind::StaticUnreachable(_)
+        | ExprKind::Null => false,
+    }
 }

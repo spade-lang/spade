@@ -1352,15 +1352,18 @@ impl<'a> Parser<'a> {
             ],
             true,
             vec![|tok| tok == &TokenKind::CloseBrace],
-            |parser| {
+            |parser, attrs| {
+                let start_token = parser.peek()?;
                 if parser.peek_kind(&TokenKind::CloseBrace)? {
+                    parser.disallow_attributes(&attrs, &start_token)?;
                     return Ok(None);
                 }
                 let (expr, loc) = parser.non_comptime_expression()?.separate_loc();
                 if matches!(semi_validator(parser.peek()?)?, TokenKind::Semi) {
                     parser.eat_unconditional()?;
-                    Ok(Some(Statement::Expression(expr).at_loc(&loc)))
+                    Ok(Some(Statement::Expression(expr, attrs).at_loc(&loc)))
                 } else {
+                    parser.disallow_attributes(&attrs, &start_token)?;
                     // no semicolon afterwards - set as return value and break out of loop
                     final_expr = Some(expr);
                     Ok(None)
@@ -2406,26 +2409,12 @@ impl<'a> Parser<'a> {
         support_attributes: bool,
         additional_continuations: Vec<fn(&TokenKind) -> bool>,
     ) -> Result<Vec<T>> {
-        let mut result = vec![];
-        let continuations = parsers
-            .iter()
-            .map(|p| p.is_leading_token())
-            .chain(additional_continuations.iter().cloned())
-            .collect::<Vec<_>>();
-        loop {
-            let inner = self._keyword_peeking_parser_inner(
-                parsers.as_slice(),
-                support_attributes,
-                continuations.as_slice(),
-            );
-
-            match inner {
-                RecoveryResult::Ok(Some(stmt)) => result.push(stmt),
-                RecoveryResult::Ok(None) => break,
-                RecoveryResult::Recovered => continue,
-            }
-        }
-        Ok(result)
+        self.keyword_peeking_parser_or_else_seq(
+            parsers,
+            support_attributes,
+            additional_continuations,
+            |_, _| Ok(None),
+        )
     }
 
     /// Works like `keyword_peeking_parser_seq` but runs the `other` function if none of the keyword parsers matched.
@@ -2440,7 +2429,7 @@ impl<'a> Parser<'a> {
         mut other: F,
     ) -> Result<Vec<T>>
     where
-        F: FnMut(&mut Self) -> Result<Option<T>>,
+        F: FnMut(&mut Self, AttributeList) -> Result<Option<T>>,
     {
         let mut result = vec![];
         let continuations = parsers
@@ -2449,16 +2438,32 @@ impl<'a> Parser<'a> {
             .chain(additional_continuations)
             .collect::<Vec<_>>();
         loop {
-            let inner = self._keyword_peeking_parser_inner(
-                parsers.as_slice(),
-                support_attributes,
-                continuations.as_slice(),
+            let mut attributes = AttributeList::empty();
+
+            let inner = self.with_recovery(
+                |s| {
+                    if support_attributes {
+                        attributes = s.attributes()?;
+                    }
+
+                    let visibility = s.visibility()?;
+
+                    let next = s.peek()?;
+                    let mut result = None;
+                    for parser in &parsers {
+                        if parser.is_leading_token()(&next.kind) {
+                            result = Some(parser.parse(s, &attributes, &visibility)?)
+                        }
+                    }
+                    Ok(result)
+                },
+                continuations.clone(),
             );
 
             match inner {
                 RecoveryResult::Ok(Some(stmt)) => result.push(stmt),
                 RecoveryResult::Ok(None) => {
-                    if let Some(other_res) = (other)(self)? {
+                    if let Some(other_res) = (other)(self, attributes)? {
                         result.push(other_res);
                     } else {
                         break;
@@ -2470,38 +2475,9 @@ impl<'a> Parser<'a> {
         Ok(result)
     }
 
-    fn _keyword_peeking_parser_inner<T>(
-        &mut self,
-        parsers: &[Box<dyn KeywordPeekingParser<T>>],
-        support_attributes: bool,
-        continuations: &[fn(&TokenKind) -> bool],
-    ) -> RecoveryResult<Option<T>> {
-        self.with_recovery(
-            |s| {
-                let attributes = if support_attributes {
-                    s.attributes()?
-                } else {
-                    AttributeList::empty()
-                };
-
-                let visibility = s.visibility()?;
-
-                let next = s.peek()?;
-                let mut result = None;
-                for parser in parsers {
-                    if parser.is_leading_token()(&next.kind) {
-                        result = Some(parser.parse(s, &attributes, &visibility)?)
-                    }
-                }
-                Ok(result)
-            },
-            Vec::from(continuations),
-        )
-    }
-
     pub fn with_recovery<T>(
         &mut self,
-        inner: impl Fn(&mut Self) -> Result<T>,
+        mut inner: impl FnMut(&mut Self) -> Result<T>,
         continuations: Vec<fn(&TokenKind) -> bool>,
     ) -> RecoveryResult<T> {
         let new_continuations = continuations.len();

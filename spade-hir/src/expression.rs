@@ -250,6 +250,7 @@ pub enum ExprKind {
         args: Loc<ArgumentList<Expression>>,
         turbofish: Option<Loc<ArgumentList<TypeExpression>>>,
         safety: Safety,
+        verilog_attr_groups: Vec<Vec<(Loc<Identifier>, Option<Loc<String>>)>>,
     },
     BinaryOperator(
         Box<Loc<Expression>>,

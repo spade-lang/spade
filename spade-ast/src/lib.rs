@@ -502,7 +502,7 @@ pub enum Statement {
     Label(Loc<Identifier>),
     Declaration(Vec<Loc<Identifier>>),
     Binding(Binding),
-    Expression(Loc<Expression>),
+    Expression(Loc<Expression>, AttributeList),
     PipelineRegMarker(Option<Loc<TypeExpression>>, Option<Loc<Expression>>),
     Register(Loc<Register>),
     /// Sets the value of the target expression, which must be a Backward port to

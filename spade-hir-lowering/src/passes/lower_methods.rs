@@ -68,6 +68,7 @@ impl<'a> Pass for LowerMethods<'a> {
                     args: args.clone(),
                     turbofish: None,
                     safety: *safety,
+                    verilog_attr_groups: vec![],
                 })
             }
             _ => None,

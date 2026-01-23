@@ -137,6 +137,7 @@ impl<'a> QueryCache {
                 args,
                 turbofish: _turbofish,
                 safety: _,
+                verilog_attr_groups: _,
             } => {
                 self.names.insert(callee.clone());
                 // FIXME: handle callee and turbofish

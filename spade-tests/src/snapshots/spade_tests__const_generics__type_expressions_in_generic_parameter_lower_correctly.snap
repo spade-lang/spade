@@ -136,6 +136,7 @@ expression: build_items(code)
                         loc: Some(
                             (),
                         ),
+                        verilog_attr_groups: [],
                     },
                     operands: [
                         Expr(
@@ -215,6 +216,7 @@ expression: build_items(code)
                         loc: Some(
                             (),
                         ),
+                        verilog_attr_groups: [],
                     },
                     operands: [
                         Expr(

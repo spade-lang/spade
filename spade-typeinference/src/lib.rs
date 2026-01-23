@@ -812,6 +812,7 @@ impl TypeState {
                 args,
                 turbofish,
                 safety: _,
+                verilog_attr_groups: _,
             } => {
                 let head = ctx.symtab.unit_by_id(&callee.inner);
 
