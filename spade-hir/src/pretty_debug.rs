@@ -361,7 +361,7 @@ impl PrettyDebug for Generic {
     fn pretty_debug(&self) -> String {
         match self {
             Generic::Named(name_id) => name_id.pretty_debug(),
-            Generic::Hidden(id) => format!("<hidden#{id}>"),
+            Generic::Hidden(id) => format!("<hidden#{}>", id.0),
         }
     }
 }

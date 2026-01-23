@@ -42,7 +42,7 @@ use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
 use rustc_hash::FxHashSet as HashSet;
 use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
-use spade_common::id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker};
+use spade_common::id_tracker::{ExprIdTracker, GenericID, GenericIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_hir::{
@@ -856,7 +856,7 @@ pub fn unit_head(
                 .clone()
                 .split_loc();
             hir::TypeParam {
-                name: Generic::Hidden(id.at_loc(&loc)),
+                name: Generic::Hidden(GenericID(id).at_loc(&loc)),
                 trait_bounds,
                 meta: MetaType::Type,
             }

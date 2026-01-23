@@ -12,6 +12,4 @@ error: Generic types cannot be ports
   ┌─ testinput:3:36
   │
 3 │     let mem: Memory<&bool, 1024> = inst std::mem::clocked_memory(clk, [(true, idx, p)]);
-  │                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Parameter std::mem::D is &bool which is a port type
-
-
+  │                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Parameter D is &bool which is a port type

@@ -15,7 +15,7 @@ use itertools::Itertools;
 use num::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
-use spade_common::id_tracker::{ExprID, ImplID};
+use spade_common::id_tracker::{ExprID, GenericID, ImplID};
 use spade_common::name::PathSegment;
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -285,7 +285,7 @@ impl std::fmt::Display for TypeExpression {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum Generic {
     Named(Loc<NameID>),
-    Hidden(Loc<u64>),
+    Hidden(Loc<GenericID>),
 }
 
 impl Generic {

@@ -103,8 +103,11 @@ pub struct ExprID(pub u64);
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct ImplID(pub u64);
 
+#[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize, Debug)]
+pub struct GenericID(pub u64);
+
 def_typed_id_tracker!(ExprIdTracker, ExprID);
 def_typed_id_tracker!(ImplIdTracker, ImplID);
-def_id_tracker!(GenericIdTracker);
+def_typed_id_tracker!(GenericIdTracker, GenericID);
 def_id_tracker!(NameIdTracker);
 def_id_tracker!(AAVarTracker);

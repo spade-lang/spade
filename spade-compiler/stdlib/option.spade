@@ -43,18 +43,14 @@ impl<T> Option<T> {
     /// ```
     /// let add_one = option.map(fn(x) {x + 1})
     /// ```
-    pub fn map<F, O>(self, f: F) -> Option<O>
-        where F: Fn(T) -> O
-    {
+    pub fn map<O>(self, f: impl Fn(T) -> O) -> Option<O> {
         match self {
             Some(val) => Some(f.call((val,))),
             None => None
         }
     }
 
-    pub pipeline(Depth) pmap<#int Depth, F, O>(self, clk: clock, f: F) -> Option<O>
-        where F: Pipeline<Depth>(T) -> O
-    {
+    pub pipeline(Depth) pmap<#int Depth, O>(self, clk: clock, f: impl Pipeline<Depth>(T) -> O) -> Option<O> {
         let pipe_in = match self {
             Some(x) => x,
             None => std::undef::undef(),
@@ -71,9 +67,7 @@ impl<T> Option<T> {
     /// value. `f` returns another Option
     ///
     /// let filtered = option.and_then(fn |x| {if x < 10 {Some(x)} else {None}
-    pub fn and_then<F, O>(self, f: F) -> Option<O>
-        where F: Fn(T) -> Option<O>
-    {
+    pub fn and_then<O>(self, f: impl Fn(T) -> Option<O>) -> Option<O> {
         match self {
             Some(val) => f.call((val,)),
             None => None

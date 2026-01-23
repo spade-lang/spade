@@ -23,9 +23,7 @@ impl<T, #uint N> [T; N] {
         self `concat_arrays` other
     }
 
-    pub fn map<F, O>(self, f: F) -> [O; N]
-        where F: Fn(T) -> O
-    {
+    pub fn map<O>(self, f: impl Fn(T) -> O) -> [O; N] {
         gen if N == 0 {
             []
         } else {
