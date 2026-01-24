@@ -41,6 +41,7 @@ take the opportunity to highlight other stuff that normally doesn't fit in a blo
 - [ ] Upload Spade release to zenodo
 - [ ] Update release blog post MR with link to relevant changelog section. Merge blog
 - [ ] Release on crates.io using `./release.sh`
+- [ ] Create a new MR with 0.x+1.0-dev
 
 ## Post release
 

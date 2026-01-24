@@ -25,7 +25,7 @@ use spade::{
 };
 
 #[derive(Deserialize, Parser)]
-#[structopt(name = "spade", about = "Compiler for the spade language")]
+#[structopt(name = "spade", about = "Compiler for the spade language", version)]
 pub struct Opt {
     #[serde(skip, default = "dummy_file")]
     #[arg(name = "INPUT_FILE", value_parser(namespaced_file))]
