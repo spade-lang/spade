@@ -1757,6 +1757,195 @@ snapshot_mir! {
     all
 }
 
+code_compiles! {
+    type_param_defaults_work,
+    "
+    struct S<T = bool> {}
+
+    fn test() {
+        let _ = S();
+    }
+    "
+}
+
+code_compiles! {
+    type_param_defaults_can_be_skipped_by_position,
+    "
+    struct S<T, U = bool> { t: T, u: U }
+
+    fn test() {
+        let _ = S::<()>$(t: (), u: false);
+    }
+    "
+}
+
+code_compiles! {
+    type_param_defaults_can_be_skipped_by_name,
+    "
+    struct S<T, U = bool> { t: T, u: U }
+
+    fn test() {
+        let _ = S::$<T: ()>$(t: (), u: false);
+    }
+    "
+}
+
+code_compiles! {
+    type_param_defaults_can_be_overridden_by_position,
+    "
+    struct S<T, U = bool> { t: T, u: U }
+
+    fn test() {
+        let _ = S::<(), ()>$(t: (), u: ());
+    }
+    "
+}
+
+code_compiles! {
+    type_param_defaults_can_be_overridden_by_name,
+    "
+    struct S<T, U = bool> { t: T, u: U }
+
+    fn test() {
+        let _ = S::$<T: (), U: ()>$(t: (), u: ());
+    }
+    "
+}
+
+snapshot_error! {
+    type_param_defaults_must_be_overridden_explicitly,
+    "
+    struct S<T = bool> { val: T }
+
+    fn test() {
+        let _ = S$(val: ());
+    }
+    "
+}
+
+snapshot_error! {
+    type_param_defaults_missing_params_report,
+    "
+    struct S<T, U, V = bool> { t: T, u: U, v: V }
+
+    fn test() {
+        let _ = S::<()>$(t: (), u: (), v: ());
+    }
+    "
+}
+
+snapshot_error! {
+    type_param_defaults_must_be_packed_at_the_end,
+    "
+    struct S<T = bool, U, V = ()> {}
+
+    fn test() {
+        let _ = S();
+    }
+    "
+}
+
+code_compiles! {
+    trait_param_defaults_work,
+    "
+    trait Trout<T = bool> {}
+    impl Trout for bool {}
+    "
+}
+
+code_compiles! {
+    trait_param_defaults_can_be_skipped,
+    "
+    trait Trout<T, U = bool> {}
+    impl Trout<()> for bool {}
+    "
+}
+
+code_compiles! {
+    trait_param_defaults_can_be_overridden,
+    "
+    trait Trout<T, U = bool> {}
+    impl Trout<(), bool> for bool {}
+    "
+}
+
+snapshot_error! {
+    trait_param_defaults_missing_params_report,
+    "
+    trait Trout<T, U, V = bool> {}
+    impl Trout<bool> for bool {}
+    "
+}
+
+snapshot_error! {
+    trait_param_defaults_must_be_packed_at_the_end,
+    "
+    trait Trout<T = bool, U, V = ()> {}
+    "
+}
+
+code_compiles! {
+    trait_param_defaults_are_passed_down_to_impls,
+    "
+    trait Trout<T = bool> {
+        fn f(self, x: T);
+    }
+
+    impl Trout for bool {
+        fn f(self, x: bool) {}
+    }
+    "
+}
+
+code_compiles! {
+    unit_param_defaults_work,
+    "
+    extern fn f<#uint N = 1>();
+    fn test() {
+        f();
+    }
+    "
+}
+
+code_compiles! {
+    unit_param_defaults_missing_params_report,
+    "
+    extern fn f<#uint N, #int M = -1>();
+    fn test() {
+        f::<2>();
+    }
+    "
+}
+
+code_compiles! {
+    unit_param_defaults_can_be_overridden,
+    "
+    extern fn f<#uint N, #int M = -1>();
+    fn test() {
+        f::<2, 3>();
+    }
+    "
+}
+
+snapshot_error! {
+    unit_param_defaults_can_be_skipped,
+    "
+    extern fn f<#uint N, #int M, #uint O = -1>();
+    fn test() {
+        f::<2>();
+    }
+    "
+}
+
+snapshot_error! {
+    unit_param_defaults_must_be_packed_at_the_end,
+    "
+    extern fn f<#uint N = 1, #uint M, #uint O = 2>() -> (T, U, V);
+    "
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 snapshot_mir! {
     array_labels_work,
     "

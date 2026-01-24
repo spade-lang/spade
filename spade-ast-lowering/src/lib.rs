@@ -161,6 +161,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
         ast::TypeParam::TypeName {
             name: ident,
             traits,
+            default,
         } => {
             let trait_bounds: Vec<Loc<TraitSpec>> = traits
                 .iter()
@@ -177,13 +178,20 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 None,
             );
 
+            let default = visit_default_type_expression(default, ctx)?;
+
             Ok(hir::TypeParam {
                 name: Generic::Named(name_id.at_loc(ident)),
                 trait_bounds,
                 meta: MetaType::Type,
+                default: default.map(Box::new),
             })
         }
-        ast::TypeParam::TypeWithMeta { meta, name } => {
+        ast::TypeParam::TypeWithMeta {
+            meta,
+            name,
+            default,
+        } => {
             let meta = visit_meta_type(meta)?;
             let name_id = ctx.symtab.add_type(
                 name.clone(),
@@ -192,10 +200,13 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
                 None,
             );
 
+            let default = visit_default_type_expression(default, ctx)?;
+
             Ok(hir::TypeParam {
                 name: Generic::Named(name_id.at_loc(name)),
                 trait_bounds: vec![],
                 meta,
+                default: default.map(Box::new),
             })
         }
     }
@@ -205,11 +216,12 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
 /// added to the symbol table as this function is re-used for both global symbol collection
 /// and normal HIR lowering.
 #[tracing::instrument(skip_all, fields(name=%param.name()))]
-pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir::TypeParam> {
+pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir::TypeParam> {
     match &param {
         ast::TypeParam::TypeName {
             name: ident,
             traits: _,
+            default,
         } => {
             let path = Path::ident(ident.clone()).at_loc(ident);
             let (name_id, tsym) = ctx.symtab.lookup_type_symbol(&path, true)?;
@@ -224,19 +236,29 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &Context) -> Result<hir:
                 ))
             };
 
+            let default = visit_default_type_expression(default, ctx)?;
+
             Ok(hir::TypeParam {
                 name: Generic::Named(name_id.at_loc(&ident)),
                 trait_bounds,
                 meta: MetaType::Type,
+                default: default.map(Box::new),
             })
         }
-        ast::TypeParam::TypeWithMeta { meta, name } => {
+        ast::TypeParam::TypeWithMeta {
+            meta,
+            name,
+            default,
+        } => {
             let path = Path::ident(name.clone()).at_loc(name);
             let name_id = ctx.symtab.lookup_type_symbol(&path, false)?.0;
+            let default = visit_default_type_expression(default, ctx)?;
+
             Ok(hir::TypeParam {
                 name: Generic::Named(name_id.at_loc(&name)),
                 trait_bounds: vec![],
                 meta: visit_meta_type(meta)?,
+                default: default.map(Box::new),
             })
         }
     }
@@ -258,6 +280,16 @@ pub enum TypeSpecKind {
     PipelineInstDepth,
     TraitBound,
     TypeLevelIf,
+}
+
+fn visit_default_type_expression(
+    default: &Option<Loc<ast::TypeExpression>>,
+    ctx: &mut Context,
+) -> Result<Option<Loc<hir::TypeExpression>>> {
+    default
+        .as_ref()
+        .map(|d| Ok(visit_type_expression(d, &TypeSpecKind::TraitBound, ctx)?.at_loc(d)))
+        .transpose()
 }
 
 #[recursive]
@@ -327,7 +359,7 @@ pub fn visit_type_spec(
 
             // Check if the type is a declared type or a generic argument.
             match &base_t.inner {
-                TypeSymbol::Declared(generic_args, _) => {
+                TypeSymbol::Declared(generic_args, min_required_params, _) => {
                     // We'll defer checking the validity of generic args to the type checker,
                     // but we still have to visit them now
                     let visited_params = params
@@ -339,19 +371,21 @@ pub fn visit_type_spec(
                         .map(|p| p.try_map_ref(|p| visit_type_expression(p, kind, ctx)))
                         .collect::<Result<Vec<_>>>()?;
 
-                    if generic_args.len() != visited_params.len() {
-                        Err(Diagnostic::error(
+                    if visited_params.len() >= *min_required_params
+                        && visited_params.len() <= generic_args.len()
+                    {
+                        Ok(hir::TypeSpec::Declared(
+                            base_id.at_loc(path),
+                            visited_params,
+                        ))
+                    } else {
+                        let mut diag = Diagnostic::error(
                             params
                                 .as_ref()
                                 .map(|p| ().at_loc(p))
                                 .unwrap_or(().at_loc(t)),
                             "Wrong number of generic type parameters",
                         )
-                        .primary_label(format!(
-                            "Expected {} type parameter{}",
-                            generic_args.len(),
-                            if generic_args.len() != 1 { "s" } else { "" }
-                        ))
                         .secondary_label(
                             if !generic_args.is_empty() {
                                 ().between_locs(
@@ -366,12 +400,22 @@ pub fn visit_type_spec(
                                 generic_args.len(),
                                 if generic_args.len() != 1 { "s" } else { "" }
                             ),
-                        ))
-                    } else {
-                        Ok(hir::TypeSpec::Declared(
-                            base_id.at_loc(path),
-                            visited_params,
-                        ))
+                        );
+                        if *min_required_params == generic_args.len() {
+                            diag = diag.primary_label(format!(
+                                "Expected {} type parameter{}",
+                                generic_args.len(),
+                                if generic_args.len() != 1 { "s" } else { "" }
+                            ))
+                        } else {
+                            diag = diag.primary_label(format!(
+                                "Expected between {} and {} type parameter{}",
+                                min_required_params,
+                                generic_args.len(),
+                                if generic_args.len() != 1 { "s" } else { "" }
+                            ))
+                        }
+                        Err(diag)
                     }
                 }
                 TypeSymbol::GenericArg { traits: _ } | TypeSymbol::GenericMeta(_) => {
@@ -423,7 +467,7 @@ pub fn visit_type_spec(
                         TypeSpec::Generic(Generic::Named(name)) => {
                             let inner = ctx.symtab.type_symbol_by_id(name);
                             match &inner.inner {
-                                TypeSymbol::Declared(_, _)
+                                TypeSymbol::Declared(_, _, _)
                                 | TypeSymbol::GenericArg { traits: _ }
                                 | TypeSymbol::GenericMeta(MetaType::Type) => Ok(t.at_loc(p)),
                                 | TypeSymbol::GenericMeta(other_meta) => {
@@ -772,6 +816,43 @@ pub fn visit_unit_kind(kind: &ast::UnitKind, ctx: &mut Context) -> Result<hir::U
     Ok(inner)
 }
 
+fn validate_default_param_position(
+    type_params: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
+) -> Result<()> {
+    let misplaced_default = type_params
+        .iter()
+        .map(Loc::strip_ref)
+        .flatten()
+        .rev()
+        .skip_while(|d| d.default().is_some())
+        .find(|d| d.default().is_some());
+
+    if let Some(param) = misplaced_default {
+        return Err(Diagnostic::error(
+            type_params.as_ref().unwrap(),
+            "Generic parameters with a default must be trailing",
+        )
+        .secondary_label(param, "This parameter has a default and is not trailing"));
+    };
+
+    Ok(())
+}
+
+pub fn visit_type_params(
+    type_params: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
+    ctx: &mut Context,
+) -> Result<Vec<Loc<hir::TypeParam>>> {
+    validate_default_param_position(type_params)?;
+
+    type_params
+        .as_ref()
+        .map(Loc::strip_ref)
+        .into_iter()
+        .flatten()
+        .map(|loc| loc.try_map_ref(|p| visit_type_param(p, ctx)))
+        .collect::<Result<Vec<_>>>()
+}
+
 /// Visit the head of an entity to generate an entity head
 #[tracing::instrument(skip_all, fields(name=%head.name))]
 pub fn unit_head(
@@ -791,14 +872,7 @@ pub fn unit_head(
         .map(|loc| loc.try_map_ref(|p| re_visit_type_param(p, ctx)))
         .collect::<Result<Vec<Loc<hir::TypeParam>>>>()?;
 
-    let unit_type_params = head
-        .type_params
-        .as_ref()
-        .map(Loc::strip_ref)
-        .into_iter()
-        .flatten()
-        .map(|loc| loc.try_map_ref(|p| visit_type_param(p, ctx)))
-        .collect::<Result<Vec<Loc<hir::TypeParam>>>>()?;
+    let unit_type_params = visit_type_params(&head.type_params, ctx)?;
 
     let unit_where_clauses = visit_where_clauses(&head.where_clauses, ctx);
 
@@ -867,10 +941,12 @@ pub fn unit_head(
             let (trait_bounds, loc) = ctx.item_list.hidden_constraints[id as usize]
                 .clone()
                 .split_loc();
+
             hir::TypeParam {
                 name: Generic::Hidden(GenericID(id).at_loc(&loc)),
                 trait_bounds,
                 meta: MetaType::Type,
+                default: None,
             }
             .at_loc(&loc)
         })
@@ -900,7 +976,7 @@ pub fn visit_const_generic(
         ast::Expression::Identifier(name) => {
             let (name, sym) = ctx.symtab.lookup_type_symbol(name, true)?;
             match &sym.inner {
-                TypeSymbol::Declared(_, _) => {
+                TypeSymbol::Declared(_, _, _) => {
                     return Err(Diagnostic::error(t, format!(
                             "{name} is not a type level integer but is used in a const generic expression."
                         ),
@@ -1317,13 +1393,14 @@ pub fn visit_unit(
     // Add the type params to the symtab to make them visible in the body
     for param in all_type_params {
         if let hir::TypeParam {
-            name: hir::Generic::Named(name_id),
+            name: hir::Generic::Named(ref name_id),
             trait_bounds: _,
             meta: _,
+            default: _,
         } = param.inner
         {
-            let ident = name_id.1 .0.last().unwrap().unwrap_named();
-            ctx.symtab.re_add_type(ident.clone(), name_id.inner)
+            let ident = param.ident().unwrap();
+            ctx.symtab.re_add_type(ident.clone(), name_id.inner.clone())
         }
     }
 
@@ -2324,7 +2401,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                                 "#uint ",
                             ))
                         }
-                        TypeSymbol::Declared(_, _) | TypeSymbol::Alias(_) => Err(
+                        TypeSymbol::Declared(_, _, _) | TypeSymbol::Alias(_) => Err(
                             Diagnostic::error(path, format!("Type {name} is used as a value"))
                                 .primary_label(format!("{name} is a type")),
                         ),

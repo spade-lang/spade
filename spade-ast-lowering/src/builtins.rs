@@ -24,8 +24,12 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
             .add_type_with_id(
                 id,
                 Identifier::intern(name).nowhere(),
-                TypeSymbol::Declared(args.clone(), TypeDeclKind::Primitive { is_port, is_inout })
-                    .nowhere(),
+                TypeSymbol::Declared(
+                    args.clone(),
+                    0,
+                    TypeDeclKind::Primitive { is_port, is_inout },
+                )
+                .nowhere(),
                 Visibility::Public.nowhere(),
                 None,
             )
@@ -54,6 +58,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                             name: Generic::Named(id.nowhere()),
                             trait_bounds: vec![],
                             meta: MetaType::Type,
+                            default: None,
                         }
                     }
                     GenericArg::TypeWithMeta { name, meta } => {
@@ -68,6 +73,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                             name: Generic::Named(id.nowhere()),
                             trait_bounds: vec![],
                             meta: meta.clone(),
+                            default: None,
                         }
                     }
                 }

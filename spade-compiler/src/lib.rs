@@ -282,15 +282,18 @@ pub fn compile(
 
     let shared_type_state = Arc::new(SharedTypeState::new());
     let mut impl_type_state = TypeState::fresh(Arc::clone(&shared_type_state));
-    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list);
 
-    errors.drain_diag_list(&mut impl_type_state.owned.diags);
-
-    let type_inference_ctx = typeinference::Context {
+    let mut type_inference_ctx = typeinference::Context {
         symtab: frozen_symtab.symtab(),
         items: &item_list,
-        trait_impls: &mapped_trait_impls,
+        trait_impls: &TraitImplList::new(),
     };
+
+    // NOTE: feels hacky but does the job
+    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list, &type_inference_ctx);
+    type_inference_ctx.trait_impls = &mapped_trait_impls;
+
+    errors.drain_diag_list(&mut impl_type_state.owned.diags);
 
     let mut type_states = BTreeMap::new();
 

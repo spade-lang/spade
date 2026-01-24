@@ -2,14 +2,14 @@
 // because this is required twice in the compilation process: first during type inference,
 // and then again during hir lowering
 
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use rustc_hash::FxHashSet as HashSet;
 use spade_diagnostics::Diagnostic;
 
 use spade_common::{location_info::Loc, name::Identifier};
 
 use crate::expression::NamedArgument;
-use crate::{ArgumentList, ParameterList, TypeParam, TypeSpec};
+use crate::{ArgumentList, ParameterList, TypeExpression, TypeParam, TypeSpec};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ArgumentError {
@@ -18,12 +18,14 @@ pub enum ArgumentError {
         expected: usize,
         missing: Vec<Identifier>,
         at: Loc<()>,
+        num_defaults: usize,
     },
     TooManyArguments {
         got: usize,
         expected: usize,
         extra: Vec<Loc<()>>,
         at: Loc<()>,
+        num_defaults: usize,
     },
     NoSuchArgument {
         name: Loc<Identifier>,
@@ -46,13 +48,22 @@ impl From<ArgumentError> for Diagnostic {
                 got,
                 extra,
                 at,
+                num_defaults,
             } => {
                 let plural = if expected == 1 { "" } else { "s" };
+
+                let at_most = if num_defaults > 0 { "at most " } else { "" };
+                let between = if num_defaults > 0 {
+                    format!("between {} and ", expected - num_defaults)
+                } else {
+                    "".into()
+                };
+
                 let mut base = Diagnostic::error(
                     at,
-                    format!("Too many arguments. Expected {expected}, got {got}"),
+                    format!("Too many arguments. Expected {between}{expected}, got {got}"),
                 )
-                .primary_label(format!("Expected {expected} argument{plural}"));
+                .primary_label(format!("Expected {at_most}{expected} argument{plural}"));
 
                 for e in extra {
                     base = base.secondary_label(e, "Unexpected argument".to_string())
@@ -64,8 +75,16 @@ impl From<ArgumentError> for Diagnostic {
                 got,
                 missing,
                 at,
+                num_defaults,
             } => {
                 let missing_plural = if missing.len() == 1 { "" } else { "s" };
+
+                let at_least = if num_defaults > 0 { "at_least " } else { "" };
+                let between = if num_defaults > 0 {
+                    format!("between {} and ", expected - num_defaults)
+                } else {
+                    "".into()
+                };
 
                 let leading_comma = if got == 0 { "" } else { ", " };
                 let suggestion = format!(
@@ -75,11 +94,11 @@ impl From<ArgumentError> for Diagnostic {
 
                 Diagnostic::error(
                     at,
-                    format!("Too few arguments. Expected {expected}, got {got}"),
+                    format!("Too few arguments. Expected {between}{expected}, got {got}"),
                 )
                 .primary_label(format!(
-                    "Missing {count} argument{missing_plural}",
-                    count = missing.len()
+                    "Missing {at_least}{count} argument{missing_plural}",
+                    count = missing.len() - num_defaults
                 ))
                 .span_suggest_insert_after(
                     format!("Consider providing the argument{missing_plural}"),
@@ -114,6 +133,7 @@ pub enum ArgumentKind {
     Positional,
     Named,
     ShortNamed,
+    Default,
 }
 
 /// A resolved positional or named argument. Used by both value arguments and turbofishes.
@@ -125,11 +145,13 @@ pub struct Argument<'a, T, TypeLike> {
     pub kind: ArgumentKind,
 }
 
-pub struct ParameterListWrapper<'a, TypeLike>(Vec<(&'a Loc<Identifier>, &'a TypeLike)>);
+pub struct ParameterListWrapper<'a, TypeLike, T>(
+    Vec<(&'a Loc<Identifier>, &'a TypeLike, Option<&'a Loc<T>>)>,
+);
 
-impl<'a, TypeLike> ParameterListWrapper<'a, TypeLike> {
+impl<'a, TypeLike, T> ParameterListWrapper<'a, TypeLike, T> {
     fn try_get_arg_type(&self, name: &Identifier) -> Option<&'a TypeLike> {
-        self.0.iter().find_map(|(aname, val)| {
+        self.0.iter().find_map(|(aname, val, _)| {
             if &aname.inner == name {
                 Some(*val)
             } else {
@@ -142,26 +164,40 @@ impl<'a, TypeLike> ParameterListWrapper<'a, TypeLike> {
         self.0
             .iter()
             .enumerate()
-            .find_map(|(i, (aname, _))| if &aname.inner == name { Some(i) } else { None })
+            .find_map(|(i, (aname, _, _))| if &aname.inner == name { Some(i) } else { None })
+    }
+
+    fn arg_default(&self, name: &'a Identifier) -> Option<Option<&'a Loc<T>>> {
+        self.0.iter().find_map(|(aname, _, default)| {
+            if &aname.inner == name {
+                Some(default.clone())
+            } else {
+                None
+            }
+        })
     }
 }
 
-pub trait ParameterListLike<'a, TypeLike> {
-    fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeLike>;
+pub trait ParameterListLike<'a, TypeLike, T> {
+    fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeLike, T>;
 }
 
-impl<'a> ParameterListLike<'a, TypeSpec> for ParameterList {
-    fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeSpec> {
-        ParameterListWrapper(self.0.iter().map(|p| (&p.name, &p.ty.inner)).collect())
+impl<'a, T> ParameterListLike<'a, TypeSpec, T> for ParameterList {
+    fn as_listlike(&'a self) -> ParameterListWrapper<'a, TypeSpec, T> {
+        ParameterListWrapper(
+            self.0
+                .iter()
+                .map(|p| (&p.name, &p.ty.inner, None))
+                .collect(),
+        )
     }
 }
 
-impl<'a> ParameterListLike<'a, ()> for &[Loc<TypeParam>] {
-    fn as_listlike(&'a self) -> ParameterListWrapper<'a, ()> {
+impl<'a> ParameterListLike<'a, (), TypeExpression> for &[Loc<TypeParam>] {
+    fn as_listlike(&'a self) -> ParameterListWrapper<'a, (), TypeExpression> {
         ParameterListWrapper(
             self.iter()
-                .flat_map(|p| p.inner.ident())
-                .map(|n| (n, &()))
+                .map(|p| (p.ident().unwrap(), &(), p.default.as_deref()))
                 .collect(),
         )
     }
@@ -173,51 +209,66 @@ impl<'a> ParameterListLike<'a, ()> for &[Loc<TypeParam>] {
 /// (but with named argument targets included for better diagnostics)
 pub fn match_args_with_params<'a, T: Clone, TypeLike>(
     arg_list: &'a Loc<ArgumentList<T>>,
-    params: &'a impl ParameterListLike<'a, TypeLike>,
+    params: &'a impl ParameterListLike<'a, TypeLike, T>,
     is_method: bool,
 ) -> Result<Vec<Argument<'a, T, TypeLike>>, ArgumentError> {
     match &arg_list.inner {
         ArgumentList::Positional(inner) => {
             let inner_loc = arg_list.shrink_left("(").shrink_right(")");
-
             let params = params.as_listlike();
-            if inner.len() < params.0.len() {
-                return Err(ArgumentError::TooFewArguments {
-                    got: inner.len() - if is_method { 1 } else { 0 },
-                    expected: params.0.len() - if is_method { 1 } else { 0 },
-                    missing: params
-                        .0
-                        .iter()
-                        .skip(inner.len())
-                        .map(|(name, _)| name.inner.clone())
-                        .collect(),
-                    at: inner_loc,
-                });
-            }
 
-            if inner.len() > params.0.len() {
-                return Err(ArgumentError::TooManyArguments {
-                    got: inner.len() - if is_method { 1 } else { 0 },
-                    expected: params.0.len() - if is_method { 1 } else { 0 },
-                    extra: inner
-                        .iter()
-                        .skip(params.0.len())
-                        .map(|arg| arg.loc())
-                        .collect(),
-                    at: inner_loc,
-                });
-            }
-
-            Ok(inner
+            // The error message changes when there are default values
+            let num_defaults = params
+                .0
                 .iter()
-                .zip(params.0)
-                .map(|(arg, param)| Argument {
-                    target: param.0,
-                    target_type: param.1,
-                    value: arg,
-                    kind: ArgumentKind::Positional,
+                .rev()
+                .take_while(|param| param.2.is_some())
+                .count();
+
+            inner
+                .iter()
+                .zip_longest(&params.0)
+                .enumerate()
+                .map(|(i, item)| match item {
+                    EitherOrBoth::Both(arg, param) => Ok(Argument {
+                        target: param.0,
+                        target_type: param.1,
+                        value: arg,
+                        kind: ArgumentKind::Positional,
+                    }),
+                    EitherOrBoth::Left(_) => Err(ArgumentError::TooManyArguments {
+                        got: inner.len() - if is_method { 1 } else { 0 },
+                        expected: params.0.len() - if is_method { 1 } else { 0 },
+                        extra: inner
+                            .iter()
+                            .skip(params.0.len())
+                            .map(|arg| arg.loc())
+                            .collect(),
+                        at: inner_loc,
+                        num_defaults,
+                    }),
+                    EitherOrBoth::Right(param) => match param.2 {
+                        Some(d) => Ok(Argument {
+                            target: param.0,
+                            target_type: param.1,
+                            value: d,
+                            kind: ArgumentKind::Default,
+                        }),
+                        None => Err(ArgumentError::TooFewArguments {
+                            got: i - if is_method { 1 } else { 0 },
+                            expected: params.0.len() - if is_method { 1 } else { 0 },
+                            missing: params
+                                .0
+                                .iter()
+                                .skip(inner.len())
+                                .map(|(name, _, _)| name.inner.clone())
+                                .collect(),
+                            at: inner_loc,
+                            num_defaults,
+                        }),
+                    },
                 })
-                .collect())
+                .collect()
         }
         ArgumentList::Named(inner) => {
             let mut bound: HashSet<Loc<Identifier>> = HashSet::default();
@@ -225,7 +276,8 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
             let mut unbound = params
                 .0
                 .iter()
-                .map(|(ident, _)| ident.inner.clone())
+                .cloned()
+                .map(|(ident, _, _)| ident)
                 .collect::<HashSet<_>>();
 
             let mut result = inner
@@ -271,13 +323,32 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                 })
                 .collect::<Result<Vec<_>, ArgumentError>>()?;
 
+            for name in unbound.clone() {
+                // NOTE: Safe unwraps, all these are guaranteed to exist because they belong to an
+                // unbound parameter
+                if let Some(default) = params.arg_default(&name).unwrap() {
+                    let index = params.arg_index(&name).unwrap();
+                    let target_type = params.try_get_arg_type(&name).unwrap();
+                    unbound.remove(&name);
+                    result.push((
+                        index,
+                        Argument {
+                            target: name,
+                            value: default,
+                            target_type,
+                            kind: ArgumentKind::Default,
+                        },
+                    ))
+                }
+            }
+
             result.sort_by_key(|(i, _)| *i);
 
             let result = result.into_iter().map(|(_, arg)| arg).collect();
 
             if !unbound.is_empty() {
                 return Err(ArgumentError::MissingArguments {
-                    missing: unbound.into_iter().collect(),
+                    missing: unbound.into_iter().map(|u| u.inner).collect(),
                     at: arg_list.loc(),
                 });
             };

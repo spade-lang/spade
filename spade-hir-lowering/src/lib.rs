@@ -31,6 +31,7 @@ use hir::WalTrace;
 use itertools::Itertools;
 use local_impl::local_impl;
 use mir::passes::MirPass;
+use num::BigInt;
 use num::ToPrimitive;
 
 use hir::param_util::{match_args_with_params, Argument};
@@ -1070,14 +1071,9 @@ pub fn do_wal_trace_lowering(
                 items: ctx.item_list,
                 trait_impls: &ctx.trait_impls,
             };
-            let generic_list = &ctx.types.create_generic_list(
-                spade_typeinference::GenericListSource::Anonymous,
-                &[],
-                &[],
-                &[],
-                None,
-                &[],
-            )?;
+            let generic_list = &ctx
+                .types
+                .create_empty_generic_list(spade_typeinference::GenericListSource::Anonymous);
             ctx.types
                 .visit_expression(&dummy_expr, &type_ctx, generic_list);
 
@@ -2663,16 +2659,16 @@ impl ExprLocal for Loc<Expression> {
                                 type_var
                                     .resolve(&ctx.types)
                                     .expect_integer(
-                                        BigUint::try_from,
+                                        BigInt::try_from,
                                         || unreachable!(),
                                         |_| unreachable!(),
-                                        || Ok(BigUint::ZERO),
+                                        || Ok(BigInt::ZERO),
                                     )
                                     .ok()
                                     .map(|value| {
                                         (
                                             type_param.ident().unwrap().inner.as_str().to_owned(),
-                                            ConstantValue::Int(value.to_bigint()),
+                                            ConstantValue::Int(value),
                                         )
                                     })
                             })

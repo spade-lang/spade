@@ -373,12 +373,20 @@ impl PrettyDebug for TypeParam {
             name,
             trait_bounds,
             meta,
+            default,
         } = self;
 
         format!(
-            "{meta:?} {}: ({})",
+            "{meta:?} {}: ({}) = ({})",
             name.pretty_debug(),
-            trait_bounds.iter().map(PrettyDebug::pretty_debug).join(",")
+            trait_bounds
+                .iter()
+                .map(PrettyDebug::pretty_debug)
+                .join(", "),
+            default
+                .as_deref()
+                .map(|d| format!(" = {}", d.pretty_debug()))
+                .unwrap_or_default(),
         )
     }
 }

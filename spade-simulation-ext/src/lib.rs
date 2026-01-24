@@ -350,8 +350,7 @@ impl Spade {
         };
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .create_empty_generic_list(GenericListSource::Anonymous);
 
         let ty = self
             .type_state
@@ -495,8 +494,7 @@ impl Spade {
 
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .create_empty_generic_list(GenericListSource::Anonymous);
         // NOTE: We need to actually have the type information about what we're
         // assigning to available here
         self.type_state
@@ -766,12 +764,7 @@ impl Spade {
 
                 let generic_list = self
                     .type_state
-                    .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
-                    .report_and_convert(
-                        &mut self.error_buffer,
-                        &self.code,
-                        &mut self.diag_handler,
-                    )?;
+                    .create_empty_generic_list(GenericListSource::Anonymous);
                 let ty = self
                     .type_state
                     .type_var_from_hir(ty.loc(), &ty, &generic_list)
@@ -865,8 +858,7 @@ impl Spade {
         };
         let generic_list = self
             .type_state
-            .create_generic_list(GenericListSource::Anonymous, &[], &[], &[], None, &[])
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .create_empty_generic_list(GenericListSource::Anonymous);
 
         self.type_state
             .visit_expression(&hir, &type_ctx, &generic_list);

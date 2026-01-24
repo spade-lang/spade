@@ -16,8 +16,9 @@ use crate::error::Result;
 use crate::global_symbols::{self, visit_meta_type};
 use crate::type_alias::add_type_alias;
 use crate::{
-    unit_head, visit_trait_spec, visit_type_expression, visit_type_param, visit_type_spec,
-    visit_unit, visit_where_clauses, Context, SelfContext, TypeSpecKind,
+    unit_head, visit_default_type_expression, visit_trait_spec, visit_type_expression,
+    visit_type_params, visit_type_spec, visit_unit, visit_where_clauses, Context, SelfContext,
+    TypeSpecKind,
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
@@ -32,15 +33,7 @@ pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<
 pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
     let mut result = vec![];
 
-    let mut impl_type_params = vec![];
-
-    if let Some(type_params) = &block.type_params {
-        for param in type_params.inner.iter() {
-            let param = param.try_map_ref(|p| visit_type_param(p, ctx))?;
-            impl_type_params.push(param);
-        }
-    }
-
+    let impl_type_params = visit_type_params(&block.type_params, ctx)?;
     let target_type = visit_type_spec(&block.target, &TypeSpecKind::ImplTarget, ctx)?;
     let self_name = Identifier::intern("Self").nowhere();
 
@@ -327,6 +320,8 @@ pub fn create_trait_from_unit_heads(
 ) -> Result<()> {
     ctx.symtab.new_scope();
 
+    ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
+
     let visited_type_params = if let Some(params) = type_params {
         Some(params.try_map_ref(|params| {
             params
@@ -335,7 +330,11 @@ pub fn create_trait_from_unit_heads(
                     param.try_map_ref(|tp| {
                         let ident = tp.name();
                         let type_symbol = match tp {
-                            ast::TypeParam::TypeName { name, traits } => {
+                            ast::TypeParam::TypeName {
+                                name,
+                                traits,
+                                default: _,
+                            } => {
                                 let traits = traits
                                     .iter()
                                     .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
@@ -343,9 +342,11 @@ pub fn create_trait_from_unit_heads(
 
                                 TypeSymbol::GenericArg { traits }.at_loc(name)
                             }
-                            ast::TypeParam::TypeWithMeta { meta, name } => {
-                                TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name)
-                            }
+                            ast::TypeParam::TypeWithMeta {
+                                meta,
+                                name,
+                                default: _,
+                            } => TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name),
                         };
                         let name_id = ctx.symtab.add_type(
                             ident.clone(),
@@ -354,23 +355,39 @@ pub fn create_trait_from_unit_heads(
                             None,
                         );
                         Ok(match tp {
-                            ast::TypeParam::TypeName { name: _, traits } => {
+                            ast::TypeParam::TypeName {
+                                name: _,
+                                traits,
+                                default,
+                            } => {
                                 let trait_bounds = traits
                                     .iter()
                                     .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
                                     .collect::<Result<_>>()?;
 
+                                let default = visit_default_type_expression(default, ctx)?;
+
                                 hir::TypeParam {
                                     name: hir::Generic::Named(name_id.at_loc(&ident)),
                                     trait_bounds,
                                     meta: MetaType::Type,
+                                    default: default.map(Box::new),
                                 }
                             }
-                            ast::TypeParam::TypeWithMeta { meta, name: _ } => hir::TypeParam {
-                                name: hir::Generic::Named(name_id.at_loc(&ident)),
-                                trait_bounds: vec![],
-                                meta: visit_meta_type(meta)?,
-                            },
+                            ast::TypeParam::TypeWithMeta {
+                                meta,
+                                name: _,
+                                default,
+                            } => {
+                                let default = visit_default_type_expression(default, ctx)?;
+
+                                hir::TypeParam {
+                                    name: hir::Generic::Named(name_id.at_loc(&ident)),
+                                    trait_bounds: vec![],
+                                    meta: visit_meta_type(meta)?,
+                                    default: default.map(Box::new),
+                                }
+                            }
                         })
                     })
                 })
@@ -382,7 +399,6 @@ pub fn create_trait_from_unit_heads(
 
     let visited_where_clauses = visit_where_clauses(where_clauses, ctx)?;
 
-    ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
     let trait_members = heads
         .iter()
         .map(|head| {
@@ -411,19 +427,24 @@ fn check_generic_params_match_trait_def(
     trait_spec: &Loc<hir::TraitSpec>,
 ) -> Result<()> {
     if let Some(generic_params) = &trait_def.type_params {
+        let min_required_params = generic_params
+            .inner
+            .iter()
+            .take_while(|p| p.default.is_none())
+            .count();
+
         if let hir::TraitSpec {
             type_params: Some(generic_spec),
             ..
         } = &trait_spec.inner
         {
-            if generic_params.len() != generic_spec.len() {
-                Err(
+            if generic_spec.len() >= min_required_params
+                && generic_spec.len() <= generic_params.len()
+            {
+                Ok(())
+            } else {
+                let mut diag =
                     Diagnostic::error(generic_spec, "Wrong number of generic type parameters")
-                        .primary_label(format!(
-                            "Expected {} type parameter{}",
-                            generic_params.len(),
-                            if generic_params.len() != 1 { "s" } else { "" }
-                        ))
                         .secondary_label(
                             ().between_locs(
                                 &generic_params[0],
@@ -434,25 +455,41 @@ fn check_generic_params_match_trait_def(
                                 generic_params.len(),
                                 if generic_params.len() != 1 { "s" } else { "" }
                             ),
-                        ),
-                )
-            } else {
-                Ok(())
+                        );
+                if min_required_params == generic_params.len() {
+                    diag = diag.primary_label(format!(
+                        "Expected {} type parameter{}",
+                        generic_params.len(),
+                        if generic_params.len() != 1 { "s" } else { "" }
+                    ));
+                } else {
+                    diag = diag.primary_label(format!(
+                        "Expected between {} and {} type parameter{}",
+                        min_required_params,
+                        generic_params.len(),
+                        if generic_params.len() != 1 { "s" } else { "" }
+                    ));
+                }
+                Err(diag)
             }
         } else {
-            match &trait_spec.name {
-                TraitName::Named(name) => Err(Diagnostic::error(
-                    trait_spec,
-                    format!("Raw use of generic trait {name}"),
-                )
-                .primary_label(format!(
-                    "Trait {name} used without specifying type parameters"
-                ))
-                .secondary_label(name, format!("Trait {name} defined here"))),
-                TraitName::Anonymous(_) => Err(Diagnostic::bug(
-                    ().nowhere(),
-                    "Generic anonymous trait found, which should not be possible here",
-                )),
+            if min_required_params == 0 {
+                Ok(())
+            } else {
+                match &trait_spec.name {
+                    TraitName::Named(name) => Err(Diagnostic::error(
+                        trait_spec,
+                        format!("Raw use of generic trait {name}"),
+                    )
+                    .primary_label(format!(
+                        "Trait {name} used without specifying type parameters"
+                    ))
+                    .secondary_label(name, format!("Trait {name} defined here"))),
+                    TraitName::Anonymous(_) => Err(Diagnostic::bug(
+                        ().nowhere(),
+                        "Generic anonymous trait found, which should not be possible here",
+                    )),
+                }
             }
         }
     } else if let hir::TraitSpec {
@@ -824,6 +861,21 @@ fn map_trait_method_parameters(
         .as_ref()
         .map_or(vec![], |params| params.inner.clone());
 
+    let impl_or_default_type_params = impl_type_params
+        .into_iter()
+        .zip_longest(&trait_type_params)
+        .map(|elem| match elem {
+            EitherOrBoth::Both(expr, _) => Ok(expr),
+            EitherOrBoth::Right(param) => Ok(*param.default.clone().unwrap()),
+            EitherOrBoth::Left(expr) => {
+                diag_bail!(
+                    expr,
+                    "Excess type parameter slipped through trait parameter checks"
+                )
+            }
+        })
+        .collect::<Result<Vec<_>>>()?;
+
     let impl_method_type_params = &impl_method
         .unit_type_params
         .iter()
@@ -843,7 +895,7 @@ fn map_trait_method_parameters(
                     &param.ty,
                     trait_type_params.as_slice(),
                     trait_method_type_params.as_slice(),
-                    impl_type_params.as_slice(),
+                    impl_or_default_type_params.as_slice(),
                     impl_method_type_params.as_slice(),
                     ctx,
                 )
@@ -863,7 +915,7 @@ fn map_trait_method_parameters(
             &ty,
             trait_type_params.as_slice(),
             trait_method_type_params.as_slice(),
-            impl_type_params.as_slice(),
+            impl_or_default_type_params.as_slice(),
             impl_method_type_params.as_slice(),
             ctx,
         )?)

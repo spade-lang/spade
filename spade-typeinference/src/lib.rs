@@ -115,13 +115,6 @@ pub enum GenericListToken {
     Expression(ExprID),
 }
 
-#[derive(Debug)]
-pub struct TurbofishCtx<'a> {
-    turbofish: &'a Loc<ArgumentList<TypeExpression>>,
-    prev_generic_list: &'a GenericListToken,
-    type_ctx: &'a Context<'a>,
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PipelineState {
     current_stage_depth: TypeVarID,
@@ -551,10 +544,13 @@ impl TypeState {
             &entity.head.unit_type_params,
             &entity.head.hidden_type_params,
             &entity.head.scope_type_params,
+            false,
             None,
             // NOTE: I'm not 100% sure we need to pass these here, the information
             // is probably redundant
             &entity.head.where_clauses,
+            None,
+            ctx,
         )?;
 
         pp(self, entity, &generic_list, ctx)?;
@@ -748,6 +744,7 @@ impl TypeState {
                 hir::param_util::ArgumentKind::Positional => value.loc(),
                 hir::param_util::ArgumentKind::Named => value.loc(),
                 hir::param_util::ArgumentKind::ShortNamed => target.loc(),
+                hir::param_util::ArgumentKind::Default => value.loc(),
             };
 
             self.unify(&value.inner, &target_type, ctx)
@@ -832,11 +829,7 @@ impl TypeState {
                     ctx,
                     true,
                     false,
-                    turbofish.as_ref().map(|turbofish| TurbofishCtx {
-                        turbofish,
-                        prev_generic_list: generic_list,
-                        type_ctx: ctx,
-                    }),
+                    turbofish.as_ref(),
                     generic_list,
                 )?;
             }
@@ -954,8 +947,11 @@ impl TypeState {
                     &type_params.all().cloned().collect::<Vec<_>>(),
                     &[],
                     &[],
+                    false,
                     None,
                     &[],
+                    None,
+                    ctx,
                 )?;
 
                 for (p, tp) in lambda_params.iter().zip(type_params.all()) {
@@ -1027,7 +1023,7 @@ impl TypeState {
         // If we are calling a method, we have an implicit self argument which means
         // that any error reporting number of arguments should be reduced by one
         is_method: bool,
-        turbofish: Option<TurbofishCtx>,
+        turbofish: Option<&Loc<ArgumentList<TypeExpression>>>,
         generic_list: &GenericListToken,
     ) -> Result<()> {
         // Add new symbols for all the type parameters
@@ -1036,8 +1032,11 @@ impl TypeState {
             &head.unit_type_params,
             &head.hidden_type_params,
             &head.scope_type_params,
+            true,
             turbofish,
             &head.where_clauses,
+            Some(generic_list),
+            ctx,
         )?;
 
         match (&head.unit_kind.inner, call_kind) {
@@ -1343,6 +1342,14 @@ impl TypeState {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn create_empty_generic_list(&mut self, source: GenericListSource) -> GenericListToken {
+        self.owned
+            .trace_stack
+            .push(|| TraceStackEntry::NewGenericList(Default::default()));
+        self.add_mapped_generic_list(source.clone(), HashMap::default())
+    }
+
     #[tracing::instrument(level = "trace", skip(self, turbofish, where_clauses))]
     pub fn create_generic_list(
         &mut self,
@@ -1350,20 +1357,22 @@ impl TypeState {
         type_params: &[Loc<TypeParam>],
         hidden_type_params: &[Loc<TypeParam>],
         scope_type_params: &[Loc<TypeParam>],
-        turbofish: Option<TurbofishCtx>,
+        substitute_param_defaults: bool,
+        turbofish: Option<&Loc<ArgumentList<TypeExpression>>>,
         where_clauses: &[Loc<WhereClause>],
+        prev_generic_list: Option<&GenericListToken>,
+        ctx: &Context,
     ) -> Result<GenericListToken> {
-        let turbofish_params = if let Some(turbofish) = turbofish.as_ref() {
+        let turbofish_and_default_params = if let Some(turbofish) = turbofish {
             if type_params.is_empty() {
-                return Err(Diagnostic::error(
-                    turbofish.turbofish,
-                    "Turbofish on non-generic function",
-                )
-                .primary_label("Turbofish on non-generic function"));
+                return Err(
+                    Diagnostic::error(turbofish, "Turbofish on non-generic function")
+                        .primary_label("Turbofish on non-generic function"),
+                );
             }
 
             let matched_params =
-                param_util::match_args_with_params(turbofish.turbofish, &type_params, false)?;
+                param_util::match_args_with_params(turbofish, &type_params, false)?;
 
             // We want this to be positional, but the params we get from matching are
             // named, transform it. We'll do some unwrapping here, but it is safe
@@ -1379,6 +1388,7 @@ impl TypeState {
                                 name,
                                 trait_bounds: _,
                                 meta: _,
+                                default: _,
                             } => {
                                 if name.name_id().map(|p| p.1.tail())
                                     == Some(PathSegment::Named(matched_param.target.clone()))
@@ -1396,7 +1406,16 @@ impl TypeState {
                 .map(|(_, mp)| Some(mp.value))
                 .collect::<Vec<_>>()
         } else {
-            type_params.iter().map(|_| None).collect::<Vec<_>>()
+            type_params
+                .iter()
+                .map(|param| {
+                    if substitute_param_defaults {
+                        param.default.as_deref()
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
         };
 
         let mut inline_trait_bounds: Vec<Loc<WhereClause>> = vec![];
@@ -1408,6 +1427,7 @@ impl TypeState {
                     name,
                     trait_bounds,
                     meta,
+                    default: _,
                 } = &param.inner;
                 if !trait_bounds.is_empty() {
                     if let MetaType::Type = meta {
@@ -1437,6 +1457,7 @@ impl TypeState {
                     name,
                     trait_bounds,
                     meta,
+                    default: _,
                 } = &param.inner;
                 if !trait_bounds.is_empty() {
                     if let MetaType::Type = meta {
@@ -1467,14 +1488,19 @@ impl TypeState {
                     name,
                     trait_bounds,
                     meta,
+                    default: _,
                 } = &param.inner;
 
                 let t = self.new_generic_with_meta(param.loc(), meta.clone());
 
-                if let Some(tf) = &turbofish_params[i] {
-                    let tf_ctx = turbofish.as_ref().unwrap();
-                    let ty = self.hir_type_expr_to_var(tf, tf_ctx.prev_generic_list)?;
-                    self.unify(&ty, &t, tf_ctx.type_ctx)
+                if let Some(tf) = &turbofish_and_default_params[i] {
+                    let generic_list = match prev_generic_list {
+                        Some(list) => list,
+                        None => &self.create_empty_generic_list(GenericListSource::Anonymous),
+                    };
+
+                    let ty = self.hir_type_expr_to_var(tf, generic_list)?;
+                    self.unify(&ty, &t, ctx)
                         .into_default_diagnostic(param, self)?;
                 }
 
@@ -1628,7 +1654,7 @@ impl TypeState {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_impl_blocks(&mut self, item_list: &ItemList) -> TraitImplList {
+    pub fn visit_impl_blocks(&mut self, item_list: &ItemList, ctx: &Context) -> TraitImplList {
         let mut trait_impls = TraitImplList::new();
         for (target, impls) in &item_list.impls.inner {
             for (trait_name, impls) in impls {
@@ -1644,8 +1670,11 @@ impl TypeState {
                                     &[],
                                     &[],
                                     impl_block.type_params.as_slice(),
+                                    true,
                                     None,
                                     &[],
+                                    None,
+                                    ctx,
                                 )?;
 
                                 let loc = trait_name
@@ -1806,8 +1835,11 @@ impl TypeState {
                                 &enum_variant.type_params,
                                 &[],
                                 &[],
+                                true,
                                 None,
                                 &[],
+                                None,
+                                ctx,
                             )?;
 
                             let condition_type = self.type_var_from_hir(
@@ -1828,8 +1860,11 @@ impl TypeState {
                                 &s.type_params,
                                 &[],
                                 &[],
+                                true,
                                 None,
                                 &[],
+                                None,
+                                ctx,
                             )?;
 
                             let condition_type =
@@ -2336,7 +2371,7 @@ impl TypeState {
             ConstGeneric::Name(name) => {
                 let ty = &ctx.symtab.type_symbol_by_id(&name);
                 match &ty.inner {
-                    TypeSymbol::Declared(_, _) => {
+                    TypeSymbol::Declared(_, _, _) => {
                         return Err(Diagnostic::error(
                             name,
                             "{type_decl_kind} cannot be used in a const generic expression",
@@ -2625,7 +2660,7 @@ impl TypeState {
                             &ctx.symtab.type_symbol_by_id(n1).inner,
                             &ctx.symtab.type_symbol_by_id(n2).inner,
                         ) {
-                            (TypeSymbol::Declared(_, _), TypeSymbol::Declared(_, _)) => {
+                            (TypeSymbol::Declared(_, _, _), TypeSymbol::Declared(_, _, _)) => {
                                 if n1 != n2 {
                                     return Err(err_producer!());
                                 }
@@ -2635,13 +2670,13 @@ impl TypeState {
                                 unify_params(self, &p1, &p2)?;
                                 unify_if!(new_ts1 == new_ts2, v1, vec![])
                             }
-                            (TypeSymbol::Declared(_, _), TypeSymbol::GenericArg { traits }) => {
+                            (TypeSymbol::Declared(_, _, _), TypeSymbol::GenericArg { traits }) => {
                                 if !traits.is_empty() {
                                     todo!("Implement trait unifictaion");
                                 }
                                 Ok((v1, vec![]))
                             }
-                            (TypeSymbol::GenericArg { traits }, TypeSymbol::Declared(_, _)) => {
+                            (TypeSymbol::GenericArg { traits }, TypeSymbol::Declared(_, _, _)) => {
                                 if !traits.is_empty() {
                                     todo!("Implement trait unifictaion");
                                 }
@@ -2656,11 +2691,11 @@ impl TypeState {
                                 }
                                 Ok((v1, vec![]))
                             }
-                            (TypeSymbol::Declared(_, _), TypeSymbol::GenericMeta(_)) => todo!(),
+                            (TypeSymbol::Declared(_, _, _), TypeSymbol::GenericMeta(_)) => todo!(),
                             (TypeSymbol::GenericArg { traits: _ }, TypeSymbol::GenericMeta(_)) => {
                                 todo!()
                             }
-                            (TypeSymbol::GenericMeta(_), TypeSymbol::Declared(_, _)) => todo!(),
+                            (TypeSymbol::GenericMeta(_), TypeSymbol::Declared(_, _, _)) => todo!(),
                             (TypeSymbol::GenericMeta(_), TypeSymbol::GenericArg { traits: _ }) => {
                                 todo!()
                             }

@@ -19,7 +19,8 @@ use crate::{
     attributes::{AttributeListExt, LocAttributeExt},
     impls::create_trait_from_unit_heads,
     types::{IsInOut, IsPort},
-    visit_parameter_list, visit_trait_spec, visit_type_spec, Context, Result, TypeSpecKind,
+    validate_default_param_position, visit_default_type_expression, visit_parameter_list,
+    visit_trait_spec, visit_type_spec, Context, Result, TypeSpecKind,
 };
 use spade_hir::symbol_table::{GenericArg, Thing, TypeSymbol};
 
@@ -292,6 +293,8 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
         ast::Item::TraitDef(ref def) => {
+            validate_default_param_position(&def.type_params)?;
+
             let (name, _) = ctx.symtab.lookup_trait_ignore_metadata(&Path::ident_with_loc(def.name.clone())).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
 
             let paren_sugar = def
@@ -375,6 +378,8 @@ pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
 }
 
 pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
+    validate_default_param_position(&t.generic_args)?;
+
     let args = t
         .generic_args
         .as_ref()
@@ -383,7 +388,11 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         .iter()
         .map(|arg| {
             let result = match &arg.inner {
-                ast::TypeParam::TypeName { name, traits } => {
+                ast::TypeParam::TypeName {
+                    name,
+                    traits,
+                    default: _,
+                } => {
                     let traits = traits
                         .iter()
                         .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
@@ -394,7 +403,11 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
                         traits,
                     }
                 }
-                ast::TypeParam::TypeWithMeta { name, meta } => GenericArg::TypeWithMeta {
+                ast::TypeParam::TypeWithMeta {
+                    name,
+                    meta,
+                    default: _,
+                } => GenericArg::TypeWithMeta {
                     name: name.inner.clone(),
                     meta: visit_meta_type(meta)?,
                 },
@@ -423,10 +436,18 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         })
         .last();
 
+    let min_required_params = t
+        .generic_args
+        .iter()
+        .map(Loc::strip_ref)
+        .flatten()
+        .take_while(|d| d.default().is_none())
+        .count();
+
     let new_thing = t.name.clone();
     ctx.symtab.add_unique_type(
         new_thing,
-        TypeSymbol::Declared(args, kind).at_loc(t),
+        TypeSymbol::Declared(args, min_required_params, kind).at_loc(t),
         t.visibility.clone(),
         deprecation_note,
     )?;
@@ -457,7 +478,11 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         .unwrap_or(&vec![])
     {
         let (name, symbol_type) = match &param.inner {
-            ast::TypeParam::TypeName { name: n, traits } => {
+            ast::TypeParam::TypeName {
+                name: n,
+                traits,
+                default: _,
+            } => {
                 let resolved_traits = traits
                     .iter()
                     .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
@@ -469,9 +494,11 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     },
                 )
             }
-            ast::TypeParam::TypeWithMeta { name, meta } => {
-                (name, TypeSymbol::GenericMeta(visit_meta_type(meta)?))
-            }
+            ast::TypeParam::TypeWithMeta {
+                name,
+                meta,
+                default: _,
+            } => (name, TypeSymbol::GenericMeta(visit_meta_type(meta)?)),
         };
         ctx.symtab.add_type(
             name.clone(),
@@ -495,23 +522,39 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
         )))
         .at_loc(arg);
         let param = match &arg.inner {
-            ast::TypeParam::TypeName { name, traits } => {
+            ast::TypeParam::TypeName {
+                name,
+                traits,
+                default,
+            } => {
                 let trait_bounds = traits
                     .iter()
                     .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
                     .collect::<Result<Vec<_>>>()?;
 
+                let default = visit_default_type_expression(default, ctx)?;
+
                 hir::TypeParam {
                     name: hir::Generic::Named(name_id.clone().at_loc(name)),
                     trait_bounds,
                     meta: MetaType::Type,
+                    default: default.map(Box::new),
                 }
             }
-            ast::TypeParam::TypeWithMeta { meta, name } => hir::TypeParam {
-                name: hir::Generic::Named(name_id.clone().at_loc(name)),
-                trait_bounds: vec![],
-                meta: visit_meta_type(&meta)?,
-            },
+            ast::TypeParam::TypeWithMeta {
+                meta,
+                name,
+                default,
+            } => {
+                let default = visit_default_type_expression(default, ctx)?;
+
+                hir::TypeParam {
+                    name: hir::Generic::Named(name_id.clone().at_loc(name)),
+                    trait_bounds: vec![],
+                    meta: visit_meta_type(&meta)?,
+                    default: default.map(Box::new),
+                }
+            }
         };
         output_type_exprs.push(expr);
         type_params.push(param.at_loc(arg))

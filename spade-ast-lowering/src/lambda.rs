@@ -181,6 +181,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             ast::TypeParam::TypeName {
                 name: name.clone(),
                 traits: vec![],
+                default: None,
             }
             .at_loc(name)
         })
@@ -189,6 +190,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 .iter()
                 .map(|tp| {
                     Ok(ast::TypeParam::TypeWithMeta {
+                        name: tp.ident().unwrap().inner.clone().at_loc(tp),
                         // NOTE: Recreating the meta-type like this is kind of strange, but works for now. If we add more meta-types in the future, recondsider this decision
                         meta: match tp.meta {
                             MetaType::Int => Identifier::intern("int").at_loc(tp),
@@ -200,7 +202,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                                 diag_bail!(loc, "Found unexpected meta in captured type args")
                             }
                         },
-                        name: tp.ident().unwrap().inner.clone().at_loc(tp),
+                        default: None,
                     }
                     .at_loc(tp))
                 })

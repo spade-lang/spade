@@ -1,0 +1,14 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait Trout<T, U, V = bool> {}
+impl Trout<bool> for bool {}
+
+
+error: Wrong number of generic type parameters
+  ┌─ testinput:2:11
+  │
+1 │ trait Trout<T, U, V = bool> {}
+  │             ------- Because this has 3 type parameters
+2 │ impl Trout<bool> for bool {}
+  │           ^^^^^^ Expected between 2 and 3 type parameters

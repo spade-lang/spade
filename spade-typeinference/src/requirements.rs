@@ -18,7 +18,7 @@ use crate::error::{Result, TypeMismatch, UnificationErrorExt};
 use crate::method_resolution::{select_method, FunctionLikeName};
 use crate::trace_stack::TraceStackEntry;
 use crate::traits::TraitList;
-use crate::{Context, GenericListSource, GenericListToken, TurbofishCtx, TypeState};
+use crate::{Context, GenericListSource, GenericListToken, TypeState};
 
 #[derive(Clone, Debug)]
 pub enum ConstantInt {
@@ -120,8 +120,8 @@ impl Requirement {
                     ResolvedNamedOrInverted::Named(inverted, type_name, params) => {
                         // Check if we're dealing with a struct
                         match ctx.symtab.type_symbol_by_id(&type_name).inner {
-                            TypeSymbol::Declared(_, TypeDeclKind::Struct { is_port: _ }) => {}
-                            TypeSymbol::Declared(_, TypeDeclKind::Enum) => {
+                            TypeSymbol::Declared(_, _, TypeDeclKind::Struct { is_port: _ }) => {}
+                            TypeSymbol::Declared(_, _, TypeDeclKind::Enum) => {
                                 return Err(Diagnostic::error(
                                     target_type,
                                     "Field access on an enum type",
@@ -129,7 +129,7 @@ impl Requirement {
                                 .primary_label(format!("expected a struct, got {}", type_name))
                                 .help("Field access is only allowed on structs"));
                             }
-                            TypeSymbol::Declared(_, TypeDeclKind::Primitive { .. }) => {
+                            TypeSymbol::Declared(_, _, TypeDeclKind::Primitive { .. }) => {
                                 return Err(Diagnostic::error(
                                     target_type,
                                     "Field access on a primitive type",
@@ -259,11 +259,7 @@ impl Requirement {
                         ctx,
                         false,
                         true,
-                        turbofish.as_ref().map(|turbofish| TurbofishCtx {
-                            turbofish,
-                            prev_generic_list,
-                            type_ctx: ctx,
-                        }),
+                        turbofish.as_ref(),
                         prev_generic_list,
                     )?;
                     Ok(RequirementResult::Satisfied(vec![]))

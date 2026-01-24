@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+extern fn f<#uint N, #int M, #uint O = -1>();
+fn test() {
+    f::<2>();
+}
+
+
+error: Too few arguments. Expected between 2 and 3, got 1
+  ┌─ testinput:3:9
+  │
+3 │     f::<2>();
+  │         ^ Missing at_least 1 arguments
+  │
+  = Consider providing the arguments
+  │
+3 │     f::<2, /* M */, /* O */>();
+  │          ++++++++++++++++++

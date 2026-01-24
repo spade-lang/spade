@@ -429,7 +429,7 @@ impl TypeDeclKind {
 pub enum TypeSymbol {
     /// A fixed type that has been declared, like a typedef, enum or struct with the
     /// specified generic arguments
-    Declared(Vec<Loc<GenericArg>>, TypeDeclKind),
+    Declared(Vec<Loc<GenericArg>>, usize, TypeDeclKind),
     /// A generic type present in the current scope
     GenericArg {
         traits: Vec<Loc<TraitSpec>>,
@@ -1130,7 +1130,7 @@ impl SymbolTable {
         if let Some(note) = deprecation_note {
             let kind_name = if let Some(ty) = self.types.get(&id) {
                 match &ty.inner {
-                    TypeSymbol::Declared(_, kind) => kind.name(),
+                    TypeSymbol::Declared(_, _, kind) => kind.name(),
                     TypeSymbol::Alias(_) => "type alias".to_string(),
                     TypeSymbol::GenericArg { .. } => unreachable!(),
                     TypeSymbol::GenericMeta(_) => unreachable!(),

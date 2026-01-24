@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct S<T, U, V = bool> { t: T, u: U, v: V }
+
+fn test() {
+    let _ = S::<()>$(t: (), u: (), v: ());
+}
+
+
+error: Too few arguments. Expected between 2 and 3, got 1
+  ┌─ testinput:4:17
+  │
+4 │     let _ = S::<()>$(t: (), u: (), v: ());
+  │                 ^^ Missing at_least 1 arguments
+  │
+  = Consider providing the arguments
+  │
+4 │     let _ = S::<(), /* U */, /* V */>$(t: (), u: (), v: ());
+  │                   ++++++++++++++++++

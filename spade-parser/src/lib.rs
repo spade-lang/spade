@@ -1468,11 +1468,18 @@ impl<'a> Parser<'a> {
         if let Some(_hash) = self.peek_and_eat(&TokenKind::Hash)? {
             let meta_type = self.identifier()?;
             let name = self.identifier()?;
-
             let loc = ().between_locs(&meta_type, &name);
+
+            let default = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
+                Some(self.type_expression()?)
+            } else {
+                None
+            };
+
             Ok(TypeParam::TypeWithMeta {
                 meta: meta_type,
                 name,
+                default,
             }
             .at_loc(&loc))
         } else {
@@ -1481,7 +1488,7 @@ impl<'a> Parser<'a> {
                 self.token_separated(
                     Self::trait_spec,
                     &TokenKind::Plus,
-                    vec![TokenKind::Comma, TokenKind::Gt],
+                    vec![TokenKind::Assignment, TokenKind::Comma, TokenKind::Gt],
                 )
                 .no_context()?
                 .into_iter()
@@ -1493,7 +1500,17 @@ impl<'a> Parser<'a> {
             } else {
                 vec![]
             };
-            Ok(TypeParam::TypeName { name: id, traits }.at(self.file_id, &loc))
+            let default = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
+                Some(self.type_expression()?)
+            } else {
+                None
+            };
+            Ok(TypeParam::TypeName {
+                name: id,
+                traits,
+                default,
+            }
+            .at(self.file_id, &loc))
         }
     }
 

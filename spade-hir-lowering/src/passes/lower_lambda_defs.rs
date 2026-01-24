@@ -37,11 +37,13 @@ impl LambdaReplacement {
                     name,
                     trait_bounds,
                     meta,
+                    default,
                 } = tp.inner;
                 TypeParam {
                     name: self.outer_type_params.get(&name).cloned().unwrap_or(name),
                     trait_bounds,
                     meta,
+                    default,
                 }
                 .at_loc(&loc)
             })

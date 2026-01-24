@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait Trout<T = bool, U, V = ()> {}
+
+
+error: Generic parameters with a default must be trailing
+  ┌─ testinput:1:12
+  │
+1 │ trait Trout<T = bool, U, V = ()> {}
+  │            ^^^^^^^^^^^^^^^^^^^^^
+  │             │
+  │             This parameter has a default and is not trailing

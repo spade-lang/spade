@@ -236,6 +236,7 @@ pub struct TypeParam {
     pub name: Generic,
     pub trait_bounds: Vec<Loc<TraitSpec>>,
     pub meta: MetaType,
+    pub default: Option<Box<Loc<TypeExpression>>>,
 }
 impl TypeParam {
     pub fn name_id(&self) -> Option<&Loc<NameID>> {

@@ -544,17 +544,42 @@ pub enum TypeParam {
     TypeName {
         name: Loc<Identifier>,
         traits: Vec<Loc<TraitSpec>>,
+        default: Option<Loc<TypeExpression>>,
     },
     TypeWithMeta {
         meta: Loc<Identifier>,
         name: Loc<Identifier>,
+        default: Option<Loc<TypeExpression>>,
     },
 }
 impl TypeParam {
     pub fn name(&self) -> &Loc<Identifier> {
         match self {
-            TypeParam::TypeName { name, traits: _ } => name,
-            TypeParam::TypeWithMeta { meta: _, name } => name,
+            TypeParam::TypeName {
+                name,
+                traits: _,
+                default: _,
+            } => name,
+            TypeParam::TypeWithMeta {
+                meta: _,
+                name,
+                default: _,
+            } => name,
+        }
+    }
+
+    pub fn default(&self) -> &Option<Loc<TypeExpression>> {
+        match self {
+            TypeParam::TypeName {
+                name: _,
+                traits: _,
+                default,
+            } => default,
+            TypeParam::TypeWithMeta {
+                meta: _,
+                name: _,
+                default,
+            } => default,
         }
     }
 }

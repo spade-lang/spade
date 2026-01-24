@@ -191,6 +191,7 @@ impl PrettyPrint for TypeParam {
             name,
             trait_bounds,
             meta,
+            default,
         } = self;
 
         let traits = if trait_bounds.is_empty() {
@@ -202,10 +203,15 @@ impl PrettyPrint for TypeParam {
             )
         };
 
+        let default = match default {
+            Some(d) => format!(" = {}", d.pretty_print()),
+            None => "".to_string(),
+        };
+
         format!(
-            "{}{}{traits}",
+            "{}{}{traits}{default}",
+            meta.with_trailing_space(),
             name.pretty_print(),
-            meta.with_trailing_space()
         )
     }
 }

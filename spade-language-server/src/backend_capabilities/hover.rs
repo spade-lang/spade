@@ -149,7 +149,7 @@ impl ServerBackend {
             .symtab()
             .try_type_symbol_by_id(&name.inner)
             .map(|ts| match &ts.inner {
-                symbol_table::TypeSymbol::Declared(generics, type_decl_kind) => {
+                symbol_table::TypeSymbol::Declared(generics, _, type_decl_kind) => {
                     let base = match type_decl_kind {
                         TypeDeclKind::Struct { is_port: true } => "struct port",
                         TypeDeclKind::Struct { is_port: false } => "struct",

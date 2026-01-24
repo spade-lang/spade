@@ -28,7 +28,7 @@ impl IsPort for hir::TypeSpec {
                 let symbol = ctx.symtab.type_symbol_by_id(name);
 
                 match &symbol.inner {
-                    TypeSymbol::Declared(_, kind) => match kind {
+                    TypeSymbol::Declared(_, _, kind) => match kind {
                         TypeDeclKind::Struct { ref is_port } => *is_port,
                         TypeDeclKind::Enum => false,
                         TypeDeclKind::Primitive { ref is_port, .. } => *is_port,
@@ -87,7 +87,7 @@ impl IsInOut for hir::TypeSpec {
                 let symbol = ctx.symtab.type_symbol_by_id(name);
 
                 match &symbol.inner {
-                    TypeSymbol::Declared(_, kind) => match kind {
+                    TypeSymbol::Declared(_, _, kind) => match kind {
                         TypeDeclKind::Struct { .. } => false,
                         TypeDeclKind::Enum => false,
                         TypeDeclKind::Primitive { ref is_inout, .. } => *is_inout,
