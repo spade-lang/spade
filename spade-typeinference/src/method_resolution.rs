@@ -2,8 +2,9 @@ use itertools::Itertools;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID};
 
+use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::Diagnostic;
-use spade_hir::{ImplTarget, TypeExpression, TypeSpec};
+use spade_hir::{ImplTarget, TraitName, TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
 use crate::equation::{TypeVar, TypeVarID};
@@ -78,7 +79,7 @@ pub fn select_method(
             .iter()
             .flat_map(
                 |TraitImpl {
-                     name: _,
+                     name,
                      target_type_params: _,
                      trait_type_params: _,
                      impl_block: r#impl,
@@ -89,8 +90,8 @@ pub fn select_method(
                                 spec_is_overlapping(&r#impl.target, self_type, type_state);
                             let selected = actual_fn.0.clone().at_loc(&actual_fn.1);
                             match is_overlapping {
-                                Overlap::Yes => (Some(selected), None, None),
-                                Overlap::Maybe => (None, Some(selected), None),
+                                Overlap::Yes => (Some((name, selected)), None, None),
+                                Overlap::Maybe => (None, Some((name, selected)), None),
                                 Overlap::No => (None, None, Some(&r#impl.target)),
                             }
                         } else {
@@ -119,7 +120,7 @@ pub fn select_method(
     }
 
     let final_method = match matched_candidates.as_slice() {
-        [name] => name,
+        [(_, method_name)] => method_name,
         [] => {
             let self_type = self_type.display_with_meta(false, type_state);
             let mut d =
@@ -145,11 +146,24 @@ pub fn select_method(
             };
             return Err(d);
         }
-        _ => {
-            return Err(Diagnostic::bug(
-                method,
-                "Multiple candidates satisfy this method",
-            ))
+        candidates => {
+            let Some((_, anon_method)) = candidates
+                .iter()
+                .find(|(trait_name, _)| matches!(trait_name, TraitName::Anonymous(_)))
+            else {
+                let mut d = Diagnostic::error(method, "Multiple candidates satisfy this method");
+
+                for (trait_name, name) in candidates {
+                    d.push_subdiagnostic(Subdiagnostic::span_note(
+                        name,
+                        format!("a possible candidate corresponds to trait `{trait_name}`"),
+                    ));
+                }
+
+                return Err(d);
+            };
+
+            anon_method
         }
     };
 

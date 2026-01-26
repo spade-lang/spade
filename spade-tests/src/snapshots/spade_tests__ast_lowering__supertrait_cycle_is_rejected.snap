@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait A: B + C {}
+trait B: D {}
+trait C: D {}
+trait D: A {}
+
+
+error: Cycle caused by supertrait of `D`
+  ┌─ testinput:4:7
+  │
+4 │ trait D: A {}
+  │       ^
+  │
+note: ... which is a supertrait of `C`
+  ┌─ testinput:3:10
+  │
+3 │ trait C: D {}
+  │          ^
+  │
+note: ... which is a supertrait of `A`
+  ┌─ testinput:1:14
+  │
+1 │ trait A: B + C {}
+  │              ^
+  │
+note: ... which is a supertrait of `D`, completing the cycle
+  ┌─ testinput:4:10
+  │
+4 │ trait D: A {}
+  │          ^
+  │

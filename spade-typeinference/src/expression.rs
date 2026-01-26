@@ -366,20 +366,9 @@ impl TypeState {
             let target_type = self.type_of(&TypedExpression::Id(target.id));
             let self_type = self.type_of(&TypedExpression::Id(expression.id));
 
-            let trait_list = if let TypeVar::Unknown(_, _, trait_list, MetaType::Type) = &target_type.resolve(self) {
-                if !trait_list.inner.is_empty() {
-                    Some(trait_list.clone())
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
             let requirement = Requirement::HasMethod {
                 expr_id: expression.map_ref(|e| e.id),
                 target_type: target_type.at_loc(target),
-                trait_list,
                 method: name.clone(),
                 expr: self_type.at_loc(expression),
                 args: args_with_self,

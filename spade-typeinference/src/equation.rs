@@ -61,7 +61,7 @@ impl TypeVarID {
                         type_params
                             .iter_mut()
                             .for_each(|t| *t = t.replace_inside(from, to, state));
-                    })
+                    });
                 }
             };
 
@@ -183,7 +183,7 @@ impl TypeVarID {
                             .inner
                             .iter()
                             .map(|t| t.debug_display(state))
-                            .join(" + ")
+                            .join(" + "),
                     )
                 };
                 TypeVarString(format!("t{id}{traits}"), self)
@@ -226,11 +226,10 @@ impl TemplateTypeVarID {
                     .map(|p| TemplateTypeVarID { inner: p }.make_copy_with_mapping(state, mapped))
                     .collect(),
             ),
-            TypeVar::Unknown(loc, id, TraitList { inner: tl }, meta_type) => TypeVar::Unknown(
-                loc,
-                id,
-                TraitList {
-                    inner: tl
+            TypeVar::Unknown(loc, id, trait_list, meta_type) => {
+                let mut map_list = |list: TraitList| TraitList {
+                    inner: list
+                        .inner
                         .into_iter()
                         .map(|loc| {
                             loc.map(|req| TraitReq {
@@ -246,9 +245,9 @@ impl TemplateTypeVarID {
                             })
                         })
                         .collect(),
-                },
-                meta_type,
-            ),
+                };
+                TypeVar::Unknown(loc, id, map_list(trait_list), meta_type)
+            }
         };
         let result = state.add_type_var(new);
         mapped.insert(*self, result);

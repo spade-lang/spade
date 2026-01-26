@@ -1757,6 +1757,117 @@ snapshot_mir! {
     all
 }
 
+snapshot_error! {
+    supertrait_cycle_is_rejected,
+    "
+    trait A: B + C {}
+    trait B: D {}
+    trait C: D {}
+    trait D: A {}
+    "
+}
+
+snapshot_error! {
+    supertrait_cycle_with_itself_is_rejected,
+    "
+    trait A: A {}
+    "
+}
+
+snapshot_error! {
+    supertraits_are_enforced,
+    "
+    trait A: B {}
+    trait B {}
+
+    impl A for bool {}
+
+    struct S<T: A> { t: T }
+
+    fn test() {
+        let _ = S(false);
+    }
+    "
+}
+
+code_compiles! {
+    supertraits_methods_are_accessible,
+    "
+    trait A: B {}
+    trait B {
+        fn method_from_b(self);
+    }
+
+    impl A for bool {}
+
+    impl B for bool {
+        fn method_from_b(self) {}
+    }
+
+    fn foo<T: A>(a: T) {
+        a.method_from_b();
+    }
+
+    fn test() {
+        foo(true);
+    }
+    "
+}
+
+snapshot_error! {
+    method_provided_by_different_traits_conflict,
+    "
+    trait A {
+        fn foo(self);
+    }
+
+    trait B {
+        fn foo(self);
+    }
+
+    impl A for bool {
+        fn foo(self) {}
+    }
+
+    impl B for bool {
+        fn foo(self) {}
+    }
+
+    fn test() {
+        true.foo();
+    }
+    "
+}
+
+code_compiles! {
+    method_provided_by_different_traits_allowed_if_anonymous_impl_shadows_it,
+    "
+    trait A {
+        fn foo(self);
+    }
+
+    trait B {
+        fn foo(self);
+    }
+
+    impl A for bool {
+        fn foo(self) {}
+    }
+
+    impl B for bool {
+        fn foo(self) {}
+    }
+
+    impl bool {
+        fn foo(self) {}
+    }
+
+    fn test() {
+        true.foo();
+    }
+    "
+}
+
 code_compiles! {
     type_param_defaults_work,
     "
@@ -1943,8 +2054,6 @@ snapshot_error! {
     extern fn f<#uint N = 1, #uint M, #uint O = 2>() -> (T, U, V);
     "
 }
-
-///////////////////////////////////////////////////////////////////////////////
 
 snapshot_mir! {
     array_labels_work,

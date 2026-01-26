@@ -5,6 +5,7 @@ use spade_ast as ast;
 use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
+use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::pretty_debug::PrettyDebug;
@@ -16,9 +17,9 @@ use crate::error::Result;
 use crate::global_symbols::{self, visit_meta_type};
 use crate::type_alias::add_type_alias;
 use crate::{
-    unit_head, visit_default_type_expression, visit_trait_spec, visit_type_expression,
-    visit_type_params, visit_type_spec, visit_unit, visit_where_clauses, Context, SelfContext,
-    TypeSpecKind,
+    unit_head, visit_default_type_expression, visit_trait_spec, visit_trait_specs,
+    visit_type_expression, visit_type_params, visit_type_spec, visit_unit, visit_where_clauses,
+    Context, SelfContext, TypeSpecKind,
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
@@ -198,6 +199,7 @@ pub fn get_or_create_trait(
         create_trait_from_unit_heads(
             trait_name.clone(),
             &block.type_params,
+            &vec![],
             &block.where_clauses,
             &block
                 .units
@@ -312,6 +314,7 @@ pub fn get_impl_target(
 pub fn create_trait_from_unit_heads(
     name: TraitName,
     type_params: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
+    subtraits: &Vec<Loc<ast::TraitSpec>>,
     where_clauses: &[ast::WhereClause],
     heads: &[Loc<ast::UnitHead>],
     paren_sugar: bool,
@@ -334,14 +337,10 @@ pub fn create_trait_from_unit_heads(
                                 name,
                                 traits,
                                 default: _,
-                            } => {
-                                let traits = traits
-                                    .iter()
-                                    .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                                    .collect::<Result<Vec<_>>>()?;
-
-                                TypeSymbol::GenericArg { traits }.at_loc(name)
+                            } => TypeSymbol::GenericArg {
+                                traits: visit_trait_specs(&traits, &TypeSpecKind::TraitBound, ctx)?,
                             }
+                            .at_loc(name),
                             ast::TypeParam::TypeWithMeta {
                                 meta,
                                 name,
@@ -359,35 +358,26 @@ pub fn create_trait_from_unit_heads(
                                 name: _,
                                 traits,
                                 default,
-                            } => {
-                                let trait_bounds = traits
-                                    .iter()
-                                    .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                                    .collect::<Result<_>>()?;
-
-                                let default = visit_default_type_expression(default, ctx)?;
-
-                                hir::TypeParam {
-                                    name: hir::Generic::Named(name_id.at_loc(&ident)),
-                                    trait_bounds,
-                                    meta: MetaType::Type,
-                                    default: default.map(Box::new),
-                                }
-                            }
+                            } => hir::TypeParam {
+                                name: hir::Generic::Named(name_id.at_loc(&ident)),
+                                trait_bounds: visit_trait_specs(
+                                    traits,
+                                    &TypeSpecKind::TraitBound,
+                                    ctx,
+                                )?,
+                                meta: MetaType::Type,
+                                default: visit_default_type_expression(default, ctx)?.map(Box::new),
+                            },
                             ast::TypeParam::TypeWithMeta {
                                 meta,
                                 name: _,
                                 default,
-                            } => {
-                                let default = visit_default_type_expression(default, ctx)?;
-
-                                hir::TypeParam {
-                                    name: hir::Generic::Named(name_id.at_loc(&ident)),
-                                    trait_bounds: vec![],
-                                    meta: visit_meta_type(meta)?,
-                                    default: default.map(Box::new),
-                                }
-                            }
+                            } => hir::TypeParam {
+                                name: hir::Generic::Named(name_id.at_loc(&ident)),
+                                trait_bounds: vec![],
+                                meta: visit_meta_type(meta)?,
+                                default: visit_default_type_expression(default, ctx)?.map(Box::new),
+                            },
                         })
                     })
                 })
@@ -397,6 +387,7 @@ pub fn create_trait_from_unit_heads(
         None
     };
 
+    let subtraits = visit_trait_specs(subtraits, &TypeSpecKind::ImplTarget, ctx)?;
     let visited_where_clauses = visit_where_clauses(where_clauses, ctx)?;
 
     let trait_members = heads
@@ -409,10 +400,61 @@ pub fn create_trait_from_unit_heads(
         })
         .collect::<Result<Vec<_>>>()?;
 
+    let mut pending_names = subtraits
+        .iter()
+        .map(|s| s.name.clone())
+        .collect::<HashSet<_>>();
+
+    let mut visited_edges = subtraits
+        .iter()
+        .map(|s| (s.name.clone(), name.clone().at_loc(s)))
+        .collect::<HashMap<_, _>>();
+
+    while let Some(pending_name) = pending_names.extract_if(|_| true).next() {
+        if pending_name == name {
+            let mut diag = Diagnostic::error(
+                name.name_loc().unwrap(),
+                format!("Cycle caused by supertrait of `{name}`"),
+            );
+
+            let mut current_name = visited_edges.get(&name).unwrap();
+
+            while current_name.inner != name {
+                diag.push_subdiagnostic(Subdiagnostic::span_note(
+                    current_name,
+                    format!("... which is a supertrait of `{current_name}`"),
+                ));
+                current_name = visited_edges.get(&current_name).unwrap();
+            }
+
+            diag.push_subdiagnostic(Subdiagnostic::span_note(
+                current_name,
+                format!("... which is a supertrait of `{name}`, completing the cycle"),
+            ));
+
+            return Err(diag);
+        }
+
+        let Some(subtrait_def) = ctx.item_list.get_trait(&pending_name) else {
+            continue;
+        };
+
+        for subsubtrait in &subtrait_def.subtraits {
+            if !visited_edges.contains_key(&subsubtrait.name) {
+                pending_names.insert(subsubtrait.name.clone());
+                visited_edges.insert(
+                    subsubtrait.name.clone(),
+                    pending_name.clone().at_loc(subsubtrait),
+                );
+            }
+        }
+    }
+
     // Add the trait to the trait list
     ctx.item_list.add_trait(
         name,
         visited_type_params,
+        subtraits,
         trait_members,
         paren_sugar,
         documentation,

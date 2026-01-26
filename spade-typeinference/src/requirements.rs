@@ -17,7 +17,6 @@ use crate::equation::{ResolvedNamedOrInverted, TypeVar, TypeVarID};
 use crate::error::{Result, TypeMismatch, UnificationErrorExt};
 use crate::method_resolution::{select_method, FunctionLikeName};
 use crate::trace_stack::TraceStackEntry;
-use crate::traits::TraitList;
 use crate::{Context, GenericListSource, GenericListToken, TypeState};
 
 #[derive(Clone, Debug)]
@@ -42,9 +41,6 @@ pub enum Requirement {
         expr_id: Loc<ExprID>,
         /// The type which should have the associated method
         target_type: Loc<TypeVarID>,
-        /// For method call on monomorphised generic with trait bounds
-        /// The traits which should be searched for the method
-        trait_list: Option<TraitList>,
         /// The method which should exist on the type
         method: Loc<Identifier>,
         /// The expression from which this requirement arises
@@ -225,7 +221,6 @@ impl Requirement {
                 expr_id,
                 target_type,
                 method,
-                trait_list: _,
                 expr,
                 args,
                 turbofish,

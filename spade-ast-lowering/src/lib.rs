@@ -45,9 +45,7 @@ pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, GenericID, GenericIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
-use spade_hir::{
-    self as hir, ExprKind, Generic, ItemList, Module, TraitSpec, TypeExpression, TypeSpec,
-};
+use spade_hir::{self as hir, ExprKind, Generic, ItemList, Module, TypeExpression, TypeSpec};
 
 use error::Result;
 
@@ -163,10 +161,7 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
             traits,
             default,
         } => {
-            let trait_bounds: Vec<Loc<TraitSpec>> = traits
-                .iter()
-                .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                .collect::<Result<_>>()?;
+            let trait_bounds = visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?;
 
             let name_id = ctx.symtab.add_type(
                 ident.clone(),
@@ -1214,11 +1209,7 @@ pub fn visit_where_clauses(
                 };
                 match &sym.inner {
                     TypeSymbol::GenericArg { .. } | TypeSymbol::GenericMeta(MetaType::Type) => {
-                        let traits = traits
-                            .iter()
-                            .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                            .collect::<Result<Vec<_>>>()?;
-
+                        let traits = visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?;
                         ctx.symtab.add_traits_to_generic(&name_id, traits.clone())?;
 
                         visited_where_clauses.push(
@@ -1447,6 +1438,18 @@ pub fn visit_unit(
         .at_loc(unit),
         ctx,
     )?))
+}
+
+#[tracing::instrument(skip_all, fields(name=?trait_specs))]
+pub fn visit_trait_specs(
+    trait_specs: &Vec<Loc<ast::TraitSpec>>,
+    kind: &TypeSpecKind,
+    ctx: &mut Context,
+) -> Result<Vec<Loc<hir::TraitSpec>>> {
+    trait_specs
+        .iter()
+        .map(|t| visit_trait_spec(t, kind, ctx))
+        .collect()
 }
 
 #[tracing::instrument(skip_all, fields(name=?trait_spec.path))]

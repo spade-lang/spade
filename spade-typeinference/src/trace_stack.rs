@@ -159,7 +159,7 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
             TraceStackEntry::AddRequirement(req) => format!("{} {req:?}", "added".yellow()),
             TraceStackEntry::ResolvedRequirement(req) => format!("{} {req:?}", "resolved".blue()),
             TraceStackEntry::AddingTraitBounds(tvar, traits) => {
-                format!("{} {traits:?} to {tvar}", "adding trait bound".yellow())
+                format!("{} {traits:?} to {tvar}", "adding trait bound".yellow(),)
             }
         };
         if let TraceStackEntry::Exit = entry {

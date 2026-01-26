@@ -7,7 +7,7 @@
 // types according to the rules of the node.
 
 use std::cmp::PartialEq;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 
 use colored::Colorize;
@@ -23,7 +23,7 @@ use itertools::{Either, Itertools};
 use method_resolution::{FunctionLikeName, IntoImplTarget};
 use num::{BigInt, BigUint, Zero};
 use replacement::ReplacementStack;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -1540,7 +1540,26 @@ impl TypeState {
         for constraint in where_clauses.iter().chain(inline_trait_bounds.iter()) {
             match &constraint.inner {
                 WhereClause::Type { target, traits } => {
-                    self.visit_trait_bounds(target, traits.as_slice(), &token)?;
+                    let mut all_transitive_traits = HashSet::default();
+                    let mut spec_queue = VecDeque::from(traits.clone());
+
+                    while let Some(spec) = spec_queue.pop_front() {
+                        if all_transitive_traits.contains(&spec) {
+                            continue;
+                        }
+
+                        let def = ctx.items.get_trait(&spec.name).unwrap();
+                        spec_queue.extend(def.subtraits.clone());
+                        all_transitive_traits.insert(spec);
+                    }
+
+                    all_transitive_traits.extend(traits.iter().cloned());
+
+                    self.visit_trait_bounds(
+                        target,
+                        Vec::from_iter(all_transitive_traits).as_slice(),
+                        &token,
+                    )?;
                 }
                 WhereClause::Int {
                     target,
@@ -2745,11 +2764,9 @@ impl TypeState {
                         let new_trait_names = traits1
                             .inner
                             .iter()
-                            .chain(traits2.inner.iter())
+                            .chain(&traits2.inner)
                             .map(|t| t.name.clone())
-                            .collect::<BTreeSet<_>>()
-                            .into_iter()
-                            .collect::<Vec<_>>();
+                            .collect::<BTreeSet<_>>();
 
                         let new_traits = new_trait_names
                             .iter()
@@ -2760,10 +2777,9 @@ impl TypeState {
                                             .inner
                                             .type_params
                                             .iter()
-                                            .zip(req2.inner.type_params.iter())
+                                            .zip(&req2.inner.type_params)
                                             .map(|(p1, p2)| self.unify(p1, p2, ctx))
-                                            .collect::<std::result::Result<_, UnificationError>>(
-                                            )?;
+                                            .collect::<std::result::Result<_, _>>()?;
 
                                         Ok(TraitReq {
                                             name: name.clone(),

@@ -125,12 +125,31 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
 
         let type_params = parser.generics_list()?;
 
+        let subtraits = if parser.peek_and_eat(&TokenKind::Colon)?.is_some() {
+            parser
+                .token_separated(
+                    Parser::trait_spec,
+                    &TokenKind::Plus,
+                    vec![TokenKind::OpenBrace, TokenKind::Where],
+                )
+                .no_context()?
+                .into_iter()
+                .map(|spec| {
+                    let loc = ().at_loc(&spec.path);
+                    spec.at_loc(&loc)
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
         let where_clauses = parser.where_clauses()?;
 
         let mut result = TraitDef {
             visibility: visibility.clone(),
             name,
             type_params,
+            subtraits,
             where_clauses,
             attributes: attributes.clone(),
             methods: vec![],

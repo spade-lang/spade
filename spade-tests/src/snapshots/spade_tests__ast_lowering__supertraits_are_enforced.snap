@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait A: B {}
+trait B {}
+
+impl A for bool {}
+
+struct S<T: A> { t: T }
+
+fn test() {
+    let _ = S(false);
+}
+
+
+error: Trait bound not satisfied. bool does not implement B
+  ┌─ testinput:9:15
+  │
+1 │ trait A: B {}
+  │          - Required because of the trait bound specified here
+  ·
+9 │     let _ = S(false);
+  │               ^^^^^ bool does not implement B

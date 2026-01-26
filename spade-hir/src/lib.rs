@@ -975,6 +975,7 @@ pub struct ImplBlock {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TraitDef {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
+    pub subtraits: Vec<Loc<TraitSpec>>,
     pub fns: HashMap<Identifier, Loc<UnitHead>>,
     pub paren_sugar: bool,
     pub documentation: String,
@@ -1093,6 +1094,7 @@ impl ItemList {
         &mut self,
         name: TraitName,
         type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
+        subtraits: Vec<Loc<TraitSpec>>,
         members: Vec<(Identifier, Loc<UnitHead>)>,
         paren_sugar: bool,
         documentation: String,
@@ -1113,6 +1115,7 @@ impl ItemList {
                 name,
                 TraitDef {
                     type_params,
+                    subtraits,
                     fns: members.into_iter().collect(),
                     paren_sugar,
                     documentation,

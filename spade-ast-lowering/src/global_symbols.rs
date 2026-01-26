@@ -20,7 +20,7 @@ use crate::{
     impls::create_trait_from_unit_heads,
     types::{IsInOut, IsPort},
     validate_default_param_position, visit_default_type_expression, visit_parameter_list,
-    visit_trait_spec, visit_type_spec, Context, Result, TypeSpecKind,
+    visit_trait_spec, visit_trait_specs, visit_type_spec, Context, Result, TypeSpecKind,
 };
 use spade_hir::symbol_table::{GenericArg, Thing, TypeSymbol};
 
@@ -308,6 +308,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             create_trait_from_unit_heads(
                 hir::TraitName::Named(name.at_loc(&def.name)),
                 &def.type_params,
+                &def.subtraits,
                 &def.where_clauses,
                 &def.methods,
                 paren_sugar,
@@ -392,17 +393,10 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
                     name,
                     traits,
                     default: _,
-                } => {
-                    let traits = traits
-                        .iter()
-                        .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                        .collect::<Result<Vec<_>>>()?;
-
-                    GenericArg::TypeName {
-                        name: name.inner.clone(),
-                        traits,
-                    }
-                }
+                } => GenericArg::TypeName {
+                    name: name.inner.clone(),
+                    traits: visit_trait_specs(&traits, &TypeSpecKind::TraitBound, ctx)?,
+                },
                 ast::TypeParam::TypeWithMeta {
                     name,
                     meta,
@@ -526,35 +520,22 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 name,
                 traits,
                 default,
-            } => {
-                let trait_bounds = traits
-                    .iter()
-                    .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                    .collect::<Result<Vec<_>>>()?;
-
-                let default = visit_default_type_expression(default, ctx)?;
-
-                hir::TypeParam {
-                    name: hir::Generic::Named(name_id.clone().at_loc(name)),
-                    trait_bounds,
-                    meta: MetaType::Type,
-                    default: default.map(Box::new),
-                }
-            }
+            } => hir::TypeParam {
+                name: hir::Generic::Named(name_id.clone().at_loc(name)),
+                trait_bounds: visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?,
+                meta: MetaType::Type,
+                default: visit_default_type_expression(default, ctx)?.map(Box::new),
+            },
             ast::TypeParam::TypeWithMeta {
                 meta,
                 name,
                 default,
-            } => {
-                let default = visit_default_type_expression(default, ctx)?;
-
-                hir::TypeParam {
-                    name: hir::Generic::Named(name_id.clone().at_loc(name)),
-                    trait_bounds: vec![],
-                    meta: visit_meta_type(&meta)?,
-                    default: default.map(Box::new),
-                }
-            }
+            } => hir::TypeParam {
+                name: hir::Generic::Named(name_id.clone().at_loc(name)),
+                trait_bounds: vec![],
+                meta: visit_meta_type(&meta)?,
+                default: visit_default_type_expression(default, ctx)?.map(Box::new),
+            },
         };
         output_type_exprs.push(expr);
         type_params.push(param.at_loc(arg))

@@ -1,0 +1,42 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait A {
+    fn foo(self);
+}
+
+trait B {
+    fn foo(self);
+}
+
+impl A for bool {
+    fn foo(self) {}
+}
+
+impl B for bool {
+    fn foo(self) {}
+}
+
+fn test() {
+    true.foo();
+}
+
+
+error: Multiple candidates satisfy this method
+   ┌─ testinput:18:10
+   │
+18 │     true.foo();
+   │          ^^^
+   │
+note: a possible candidate corresponds to trait `A`
+   ┌─ testinput:10:5
+   │
+10 │     fn foo(self) {}
+   │     ^^^^^^^^^^^^^^^
+   │
+note: a possible candidate corresponds to trait `B`
+   ┌─ testinput:14:5
+   │
+14 │     fn foo(self) {}
+   │     ^^^^^^^^^^^^^^^
+   │

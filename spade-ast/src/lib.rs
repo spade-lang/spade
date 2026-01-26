@@ -749,6 +749,7 @@ pub struct TraitDef {
     pub visibility: Loc<Visibility>,
     pub name: Loc<Identifier>,
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
+    pub subtraits: Vec<Loc<TraitSpec>>,
     pub where_clauses: Vec<WhereClause>,
     pub attributes: AttributeList,
     pub methods: Vec<Loc<UnitHead>>,
