@@ -195,6 +195,12 @@ impl WhereClause {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct AssocType {
+    pub name: Loc<Identifier>,
+    pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum BinaryOperator {
     Add,
     Sub,
@@ -791,6 +797,7 @@ pub struct TraitDef {
     pub subtraits: Vec<Loc<TraitSpec>>,
     pub where_clauses: Vec<WhereClause>,
     pub attributes: AttributeList,
+    pub assoc_types: Vec<Loc<AssocType>>,
     pub methods: Vec<Loc<UnitHead>>,
 }
 
@@ -848,6 +855,7 @@ pub struct ImplBlock {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub where_clauses: Vec<WhereClause>,
     pub target: Loc<TypeSpec>,
+    pub assoc_types: Vec<Loc<TypeDeclaration>>,
     pub units: Vec<Loc<Unit>>,
 }
 

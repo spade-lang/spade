@@ -1111,9 +1111,17 @@ pub struct ImplBlock {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct AssocType {
+    pub name: Loc<Identifier>,
+    pub name_id: Loc<NameID>,
+    pub type_params: Vec<Loc<TypeParam>>,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TraitDef {
     pub type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
     pub subtraits: Vec<Loc<TraitSpec>>,
+    pub assoc_types: HashMap<Identifier, AssocType>,
     pub fns: HashMap<Identifier, Loc<UnitHead>>,
     pub paren_sugar: bool,
     pub documentation: String,
@@ -1228,6 +1236,7 @@ impl ItemList {
         name: TraitName,
         type_params: Option<Loc<Vec<Loc<TypeParam>>>>,
         subtraits: Vec<Loc<TraitSpec>>,
+        assoc_types: Vec<(Identifier, AssocType)>,
         members: Vec<(Identifier, Loc<UnitHead>)>,
         paren_sugar: bool,
         documentation: String,
@@ -1249,6 +1258,7 @@ impl ItemList {
                 TraitDef {
                     type_params,
                     subtraits,
+                    assoc_types: assoc_types.into_iter().collect(),
                     fns: members.into_iter().collect(),
                     paren_sugar,
                     documentation,

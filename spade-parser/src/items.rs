@@ -1,6 +1,6 @@
 use spade_ast::{
-    AttributeList, Enum, Expression, ExternalMod, ImplBlock, Item, Module, Struct, TraitDef,
-    TraitSpec, TypeAlias, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
+    AssocType, AttributeList, Enum, Expression, ExternalMod, ImplBlock, Item, Module, Struct,
+    TraitDef, TraitSpec, TypeAlias, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
 };
 use spade_common::location_info::{AsLabel, Loc, WithLocation};
 use spade_common::name::Visibility;
@@ -152,6 +152,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
             subtraits,
             where_clauses,
             attributes: attributes.clone(),
+            assoc_types: vec![],
             methods: vec![],
         };
 
@@ -160,13 +161,28 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
         loop {
             let vis = Visibility::Implicit.nowhere();
 
-            let Some(mut decl) = parser.unit_head(&AttributeList::empty(), &vis)? else {
+            if let Some(start_token) = parser.peek_and_eat(&TokenKind::Type)? {
+                let name = parser.identifier()?;
+                let type_params = parser.generics_list()?;
+                let end_loc = match &type_params {
+                    Some(tp) => tp.loc(),
+                    None => name.loc(),
+                };
+                result
+                    .assoc_types
+                    .push(AssocType { name, type_params }.between(
+                        parser.file_id,
+                        &start_token,
+                        &end_loc,
+                    ));
+                parser.eat(&TokenKind::Semi)?;
+            } else if let Some(mut decl) = parser.unit_head(&AttributeList::empty(), &vis)? {
+                decl.visibility = vis;
+                result.methods.push(decl);
+                parser.eat(&TokenKind::Semi)?;
+            } else {
                 break;
             };
-
-            decl.visibility = vis;
-            result.methods.push(decl);
-            parser.eat(&TokenKind::Semi)?;
         }
         let end_token = parser.eat(&TokenKind::CloseBrace)?;
 
@@ -222,7 +238,7 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
 
         let where_clauses = parser.where_clauses()?;
 
-        let (body, body_span) = parser.surrounded(
+        let ((assoc_types, units), body_span) = parser.surrounded(
             &TokenKind::OpenBrace,
             Parser::impl_body,
             &TokenKind::CloseBrace,
@@ -233,7 +249,8 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
             type_params,
             target,
             where_clauses,
-            units: body,
+            assoc_types,
+            units,
         }
         .between(parser.file_id, &start_token.span, &body_span.span))
     }

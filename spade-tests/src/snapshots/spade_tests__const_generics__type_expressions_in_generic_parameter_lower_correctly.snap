@@ -4,16 +4,16 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \bar () -> () {
 	const e4: uint<3> = 0
-	let e3: () = Instance(\foo[397] )(e4)
+	let e3: () = Instance(\foo[399] )(e4)
 	let __n91: () = Alias(e3)
 	const e7: uint<4> = 0
-	let e6: () = Instance(\foo[398] )(e7)
+	let e6: () = Instance(\foo[400] )(e7)
 	let __n92: () = Alias(e6)
 	let e2: () = Nop()
 } => e2
-entity \foo[397] ((value, value_n90, uint<3>)) -> () {
+entity \foo[399] ((value, value_n90, uint<3>)) -> () {
 	let e1: () = Nop()
 } => e1
-entity \foo[398] ((value, value_n90, uint<4>)) -> () {
+entity \foo[400] ((value, value_n90, uint<4>)) -> () {
 	let e1: () = Nop()
 } => e1

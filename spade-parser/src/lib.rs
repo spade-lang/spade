@@ -19,8 +19,8 @@ use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
     EnumVariant, Expression, Inequality, IntLiteral, Item, ModuleBody, NamedArgument,
     NamedTurbofish, ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec,
-    TurbofishInner, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
-    WireMarker,
+    TurbofishInner, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind,
+    WhereClause, WireMarker,
 };
 use spade_common::location_info::{AsLabel, FullSpan, HasCodespan, Loc, WithLocation, lspan};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
@@ -1996,14 +1996,28 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    pub fn impl_body(&mut self) -> Result<Vec<Loc<Unit>>> {
-        let result = self.keyword_peeking_parser_seq(
-            vec![Box::new(items::UnitParser {}.map(|u| Ok(u)))],
+    pub fn impl_body(&mut self) -> Result<(Vec<Loc<TypeDeclaration>>, Vec<Loc<Unit>>)> {
+        let results = self.keyword_peeking_parser_seq(
+            vec![
+                Box::new(items::TypeAliasParser {}.map(|a| Ok((Some(a), None)))),
+                Box::new(items::UnitParser {}.map(|u| Ok((None, Some(u))))),
+            ],
             true,
             vec![|tok| tok == &TokenKind::CloseBrace],
         )?;
 
-        Ok(result)
+        let mut assoc_types = vec![];
+        let mut units = vec![];
+
+        for result in results {
+            match result {
+                (Some(a), _) => assoc_types.push(a),
+                (_, Some(u)) => units.push(u),
+                _ => {}
+            }
+        }
+
+        Ok((assoc_types, units))
     }
 
     #[trace_parser]

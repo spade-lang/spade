@@ -2287,6 +2287,59 @@ snapshot_mir! {
     "
 }
 
+code_compiles! {
+    associated_types_work,
+    "
+        trait Trout {
+            type Inner;
+            fn swim(self, x: Self::Inner) -> Self;
+        }
+
+        impl Trout for bool {
+            type Inner = Self;
+            fn swim(self, x: Self::Inner) -> Self { x }
+        }
+    "
+}
+
+snapshot_error! {
+    missing_associated_types_are_rejected,
+    "
+        trait Trout {
+            type Inner;
+        }
+
+        impl Trout for bool {}
+    "
+}
+
+snapshot_error! {
+    extra_associated_types_are_rejected,
+    "
+        trait Trout {
+        }
+
+        impl Trout for bool {
+            type Inner = ();
+        }
+    "
+}
+
+snapshot_error! {
+    associated_types_name_conflicts_are_reported,
+    "
+        trait Trout {
+            type Inner;
+        }
+
+        enum E { Inner }
+
+        impl Trout for E {
+            type Inner = uint<8>;
+        }
+    "
+}
+
 // NOTE: This error is awful, but i'm keeping it here for completion and to make sure
 // things at least error. We should fix it, but at the moment pipeline stage references
 // are just generic types with no label to indicate what they are

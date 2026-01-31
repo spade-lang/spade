@@ -11,9 +11,9 @@ impl X for A {
 }
 
 
-error: Missing methods a
+error: Missing methods `a`
   ┌─ testinput:7:1
   │  
 7 │ ╭ impl X for A {
 8 │ │ }
-  │ ╰─^ Missing definition of a in this impl block
+  │ ╰─^ Missing definition of `a` in this impl block

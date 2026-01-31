@@ -1,6 +1,6 @@
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, Visibility},
+    name::{Identifier, Path},
 };
 use spade_hir::{
     Generic, TypeDeclaration,
@@ -20,10 +20,10 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
             let name = symtab
                 .add_type_with_id(
                     id,
-                    Identifier::intern(name).nowhere(),
+                    Path::from_strs(&[name]).nowhere(),
                     TypeSymbol::Declared(args.clone(), 0, TypeDeclKind::Primitive { is_inout })
                         .nowhere(),
-                    Visibility::Public.nowhere(),
+                    None,
                     None,
                 )
                 .nowhere();
@@ -42,9 +42,9 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
 
                             let id = symtab.add_type_with_id(
                                 id,
-                                a.clone().nowhere(),
+                                Path::ident_with_loc(a.clone().nowhere()),
                                 TypeSymbol::GenericArg { traits: vec![] }.nowhere(),
-                                Visibility::Implicit.nowhere(),
+                                None,
                                 None,
                             );
                             TypeParam {
@@ -57,9 +57,9 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                         GenericArg::TypeWithMeta { name, meta } => {
                             let id = symtab.add_type_with_id(
                                 id,
-                                name.clone().nowhere(),
+                                Path::ident_with_loc(name.clone().nowhere()),
                                 TypeSymbol::GenericMeta(meta.clone()).nowhere(),
-                                Visibility::Implicit.nowhere(),
+                                None,
                                 None,
                             );
                             TypeParam {

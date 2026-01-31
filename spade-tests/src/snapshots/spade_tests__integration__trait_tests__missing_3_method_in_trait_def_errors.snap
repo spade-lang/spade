@@ -13,9 +13,9 @@ impl X for A {
 }
 
 
-error: Missing methods a, b and c
+error: Missing methods `a`, `b` and `c`
    ┌─ testinput:9:1
    │  
  9 │ ╭ impl X for A {
 10 │ │ }
-   │ ╰─^ Missing definition of a, b and c in this impl block
+   │ ╰─^ Missing definition of `a`, `b` and `c` in this impl block

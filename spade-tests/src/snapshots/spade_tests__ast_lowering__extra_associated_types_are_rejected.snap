@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait Trout {
+}
+
+impl Trout for bool {
+    type Inner = ();
+}
+
+
+error: `Inner` is not a member of the trait `Trout`
+  ┌─ testinput:5:10
+  │
+4 │ impl Trout for bool {
+  │      ----- This is an impl for the trait `Trout`
+5 │     type Inner = ();
+  │          ^^^^^ Not a member of `Trout`

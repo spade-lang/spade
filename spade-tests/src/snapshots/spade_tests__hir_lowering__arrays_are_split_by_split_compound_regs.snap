@@ -9,5 +9,5 @@ entity \test ((clk, clk_n88, bool), (x, x_n89, [uint<8>; 3])) -> [uint<8>; 3] {
 	reg(clk_n88) e303: uint<8> = e302
 	let e304: uint<8> = IndexTuple(2)(x_n89)
 	reg(clk_n88) e305: uint<8> = e304
-	let s1_x_n394: [uint<8>; 3] = ConstructTuple(e301, e303, e305)
-} => s1_x_n394
+	let s1_x_n396: [uint<8>; 3] = ConstructTuple(e301, e303, e305)
+} => s1_x_n396

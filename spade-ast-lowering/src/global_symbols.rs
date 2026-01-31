@@ -253,7 +253,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
     for item in &module.members {
         match item {
             ast::Item::Type(t) => {
-                visit_type_declaration(t, ctx)?;
+                visit_type_declaration(None, t, ctx)?;
             }
             ast::Item::ExternalMod(_) => {}
             ast::Item::Module(m) => {
@@ -314,6 +314,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
                 &def.type_params,
                 &def.subtraits,
                 &def.where_clauses,
+                &def.assoc_types,
                 &def.methods,
                 paren_sugar,
                 documentation,
@@ -322,7 +323,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         }
         ast::Item::ImplBlock(_) => {}
         ast::Item::Type(t) => {
-            re_visit_type_declaration(t, ctx)?;
+            re_visit_type_declaration(None, t, ctx)?;
         }
         ast::Item::ExternalMod(_) => {}
         ast::Item::Module(m) => {
@@ -354,7 +355,7 @@ pub fn visit_unit(
     let new_path = extra_path
         .as_ref()
         .unwrap_or(&Path(vec![]))
-        .join(Path::ident(unit.head.name.clone()))
+        .push_ident(unit.head.name)
         .at_loc(&unit.head.name);
 
     ctx.symtab.add_unique_thing(
@@ -383,7 +384,7 @@ pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
     Ok(meta)
 }
 
-fn visit_generic_args(
+pub fn visit_generic_args(
     args: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
     ctx: &mut Context,
 ) -> Result<Vec<Loc<GenericArg>>> {
@@ -455,7 +456,14 @@ pub fn visit_trait(r#trait: &Loc<ast::TraitDef>, ctx: &mut Context) -> Result<()
     Ok(())
 }
 
-pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
+// `extra_path` indicates the namespace prefix of the type declaration path.
+// This is used when visiting associated types, as any such type `Ty` lives under the `Self`
+// namespace as `Self::Ty`.
+pub fn visit_type_declaration(
+    extra_path: Option<Path>,
+    t: &Loc<ast::TypeDeclaration>,
+    ctx: &mut Context,
+) -> Result<()> {
     validate_default_param_position(&t.generic_args)?;
 
     let mut args = visit_generic_args(&t.generic_args, ctx)?;
@@ -500,12 +508,23 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         spade_ast::TypeDeclKind::Alias(_) => {}
     }
 
-    let new_thing = t.name.clone();
+    let path = extra_path
+        .as_ref()
+        .unwrap_or(&Path(vec![]))
+        .push_ident(t.name)
+        .at_loc(&t.name);
+
+    let visibility = match ctx.self_ctx {
+        crate::SelfContext::FreeStanding => Some(t.visibility.clone()),
+        crate::SelfContext::ImplBlock(_) => None,
+        crate::SelfContext::TraitDefinition(_) => None,
+    };
+
     let name_id = ctx.symtab.add_unique_type(
-        new_thing,
+        path,
         TypeSymbol::Declared(args, min_required_params, kind).at_loc(t),
-        t.visibility.clone(),
-        deprecation_note.clone(),
+        visibility.clone(),
+        None,
     )?;
 
     if let ast::TypeDeclKind::Alias(a) = &t.kind {
@@ -517,7 +536,7 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
                     path: target_path.clone(),
                     in_namespace: ctx.symtab.current_namespace().clone(),
                 },
-                Some(t.visibility.clone()),
+                visibility,
                 deprecation_note,
             );
         }
@@ -530,14 +549,22 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
 /// as well as adding enum variants to the global scope.
 /// This needs to happen as a separate pass since other types need to be in scope when
 /// we check type declarations
-pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
+pub fn re_visit_type_declaration(
+    extra_path: Option<Path>,
+    t: &Loc<ast::TypeDeclaration>,
+    ctx: &mut Context,
+) -> Result<Loc<hir::TypeDeclaration>> {
     // Process right hand side of type declarations
     // The first visitor has already added the LHS to the symtab
     // Look up the ID
-    let (declaration_id, _) = ctx
-        .symtab
-        .lookup_type_symbol(&Path::ident_with_loc(t.name.clone()), false)
-        .expect("Expected type symbol to already be in symtab");
+    let (declaration_id, _) = ctx.symtab.lookup_type_symbol(
+        &extra_path
+            .as_ref()
+            .unwrap_or(&Path(vec![]))
+            .push_ident(t.name)
+            .at_loc(&t.name),
+        false,
+    )?;
     let declaration_id = declaration_id.at_loc(&t.name);
 
     // Add the generic parameters to a new symtab scope
@@ -581,12 +608,15 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 default: _,
             } => (name, TypeSymbol::GenericMeta(visit_meta_type(meta)?)),
         };
-        ctx.symtab.add_type(
-            name.clone(),
-            symbol_type.at_loc(param),
-            t.visibility.clone(),
-            None,
-        );
+
+        // NOTE: `extra_path` is not taken into account here because it really
+        // really messes symbol resolution up. It doesn't cause any problems
+        // outside the type declaration, as it all happens inside a new scope.
+        // It works fine inside the type declaration.
+        let path = Path::ident_with_loc(name.clone());
+
+        ctx.symtab
+            .add_type(path, symbol_type.at_loc(param), None, None);
     }
 
     // Generate TypeExprs and TypeParam vectors which are needed for building the
@@ -1048,9 +1078,11 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
     }
     .at_loc(t);
 
-    ctx.item_list.types.insert(declaration_id.inner, decl);
+    ctx.item_list
+        .types
+        .insert(declaration_id.inner, decl.clone());
 
-    Ok(())
+    Ok(decl)
 }
 
 // Visits a HIR type spec, adds all name IDs contained in it to a set of names, and creates a

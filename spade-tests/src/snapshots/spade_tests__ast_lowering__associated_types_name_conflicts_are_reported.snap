@@ -1,0 +1,34 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait Trout {
+    type Inner;
+}
+
+enum E { Inner }
+
+impl Trout for E {
+    type Inner = uint<8>;
+}
+
+
+error: Ambiguous path specification
+  ┌─ testinput:8:10
+  │
+8 │     type Inner = uint<8>;
+  │          ^^^^^
+  │          │
+  │          `Inner` may refer to different targets
+  │
+note: `Inner` may refer to this item
+  ┌─ testinput:5:10
+  │
+5 │ enum E { Inner }
+  │          ^^^^^
+  │
+note: `Inner` may also refer to this item
+  ┌─ testinput:8:5
+  │
+8 │     type Inner = uint<8>;
+  │     ^^^^^^^^^^^^^^^^^^^^^
+  │

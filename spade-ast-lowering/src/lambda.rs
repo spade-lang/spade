@@ -262,8 +262,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     }
     .at_loc(&debug_loc);
 
-    ctx.in_fresh_unit(|ctx| visit_type_declaration(&type_decl, ctx))?;
-    ctx.in_fresh_unit(|ctx| re_visit_type_declaration(&type_decl, ctx))?;
+    ctx.in_fresh_unit(|ctx| visit_type_declaration(None, &type_decl, ctx))?;
+    ctx.in_fresh_unit(|ctx| re_visit_type_declaration(None, &type_decl, ctx))?;
 
     let impl_block =
         ast::ImplBlock {
@@ -318,6 +318,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 ),
             )
             .nowhere(),
+            assoc_types: vec![],
             units: vec![ast::Unit {
             head: ast::UnitHead {
                 visibility: Visibility::Implicit.nowhere(),

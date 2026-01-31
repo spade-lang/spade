@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+trait Trout {
+    type Inner;
+}
+
+impl Trout for bool {}
+
+
+error: Missing associated types `Inner`
+  ┌─ testinput:5:1
+  │
+5 │ impl Trout for bool {}
+  │ ^^^^^^^^^^^^^^^^^^^^^^ Missing definition of `Inner` in this impl block

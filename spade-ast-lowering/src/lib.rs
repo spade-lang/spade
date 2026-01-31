@@ -26,12 +26,15 @@ use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{Diagnostic, diag_anyhow, diag_bail};
 use spade_hir::expression::Safety;
+use spade_hir::symbol_table::TypeDeclKind;
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
 use type_level_if::expand_type_level_if;
 
 use crate::attributes::AttributeListExt;
-use crate::global_symbols::{re_visit_type_declaration, visit_type_declaration};
+use crate::global_symbols::{
+    re_visit_type_declaration, visit_generic_args, visit_type_declaration,
+};
 pub use crate::impls::ensure_unique_anonymous_traits;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::IsSelf;
@@ -46,7 +49,7 @@ use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, GenericID, GenericIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
-use spade_common::name::{Identifier, Path, PathSegment, Visibility};
+use spade_common::name::{Identifier, Path, PathSegment};
 use spade_hir::{
     self as hir, ExprKind, Generic, Input, ItemList, Module, TypeExpression, TypeSpec,
 };
@@ -168,12 +171,12 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
             let trait_bounds = visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?;
 
             let name_id = ctx.symtab.add_type(
-                ident.clone(),
+                Path::ident_with_loc(*ident),
                 TypeSymbol::GenericArg {
                     traits: trait_bounds.clone(),
                 }
                 .at_loc(ident),
-                Visibility::Implicit.nowhere(),
+                None,
                 None,
             );
 
@@ -193,9 +196,9 @@ pub fn visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<hir
         } => {
             let meta = visit_meta_type(meta)?;
             let name_id = ctx.symtab.add_type(
-                name.clone(),
+                Path::ident_with_loc(*name),
                 TypeSymbol::GenericMeta(meta.clone()).at_loc(name),
-                Visibility::Implicit.nowhere(),
+                None,
                 None,
             );
 
@@ -775,6 +778,29 @@ pub fn visit_type_params(
         .flatten()
         .map(|loc| loc.try_map_ref(|p| visit_type_param(p, ctx)))
         .collect::<Result<Vec<_>>>()
+}
+
+pub fn associated_type(ty: &Loc<ast::AssocType>, ctx: &mut Context) -> Result<hir::AssocType> {
+    let visited_type_params = visit_type_params(&ty.type_params, ctx)?;
+    let visited_generic_args = visit_generic_args(&ty.type_params, ctx)?;
+
+    ctx.symtab
+        .add_dummy(PathSegment::Named(Identifier::intern("Self").nowhere()));
+
+    let name_id = ctx.in_named_namespace(Identifier::intern("Self").nowhere(), |ctx| {
+        ctx.symtab.add_unique_type(
+            Path::ident_with_loc(ty.name),
+            TypeSymbol::Declared(visited_generic_args, 0, TypeDeclKind::Alias).at_loc(ty),
+            None,
+            None,
+        )
+    })?;
+
+    Ok(hir::AssocType {
+        name: ty.name,
+        name_id: name_id.at_loc(ty),
+        type_params: visited_type_params,
+    })
 }
 
 /// Visit the head of an entity to generate an entity head
@@ -2014,8 +2040,8 @@ fn try_visit_statement(
             Ok(vec![hir::Statement::Set { target, value }.at_loc(s)])
         }
         ast::Statement::Type(ty) => {
-            visit_type_declaration(ty, ctx)?;
-            re_visit_type_declaration(ty, ctx)?;
+            visit_type_declaration(None, ty, ctx)?;
+            re_visit_type_declaration(None, ty, ctx)?;
             Ok(vec![])
         }
     }

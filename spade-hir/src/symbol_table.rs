@@ -33,6 +33,12 @@ pub enum LookupError {
     IsAType(Loc<Path>, Loc<()>),
     BarrierError(Diagnostic),
     TooManySuperSegments(Loc<Path>, PathSegment),
+    AmbiguousPath {
+        path: Loc<Path>,
+        segment: PathSegment,
+        aliased_item: Loc<()>,
+        regular_item: Loc<()>,
+    },
     NotVisible {
         target_segment: PathSegment,
         invisible_segment: PathSegment,
@@ -89,6 +95,7 @@ impl From<LookupError> for Diagnostic {
                     | LookupError::IsAType(_, _)
                     | LookupError::BarrierError(_)
                     | LookupError::TooManySuperSegments(_, _)
+                    | LookupError::AmbiguousPath { .. }
                     | LookupError::NotVisible { .. }
                     | LookupError::NotAThing(_)
                     | LookupError::Bug(_, _) => unreachable!(),
@@ -149,6 +156,30 @@ impl From<LookupError> for Diagnostic {
                         segment.loc(),
                         "parent does not exist for the root namespace",
                     ))
+            }
+            LookupError::AmbiguousPath {
+                path,
+                segment,
+                aliased_item,
+                regular_item,
+            } => {
+                let mut diag = Diagnostic::error(path, "Ambiguous path specification")
+                    .secondary_label(
+                        segment.loc(),
+                        format!("`{segment}` may refer to different targets"),
+                    );
+
+                diag.push_subdiagnostic(Subdiagnostic::span_note(
+                    aliased_item,
+                    format!("`{segment}` may refer to this item"),
+                ));
+
+                diag.push_subdiagnostic(Subdiagnostic::span_note(
+                    regular_item,
+                    format!("`{segment}` may also refer to this item"),
+                ));
+
+                diag
             }
             LookupError::NotVisible {
                 target_segment,
@@ -680,12 +711,12 @@ impl SymbolTable {
     pub fn add_type_with_id(
         &mut self,
         id: u64,
-        name: Loc<Identifier>,
+        path: Loc<Path>,
         t: Loc<TypeSymbol>,
-        visibility: Loc<Visibility>,
+        visibility: Option<Loc<Visibility>>,
         deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
-        let full_name = self.namespace.push_ident(name);
+        let full_name = self.namespace.join(path.inner);
         let name_id = NameID(id, full_name.clone());
 
         if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Data")] {
@@ -696,11 +727,16 @@ impl SymbolTable {
             panic!("Duplicate nameID for types, {}", id)
         }
 
-        self.types.insert(name_id.clone(), t);
-        self.visibilities.insert(name_id.clone(), visibility);
         if let Some(note) = deprecation_note {
             self.deprecation_notes.insert(name_id.clone(), note);
         }
+
+        if let Some(visibility) = visibility {
+            self.visibilities.insert(name_id.clone(), visibility);
+        }
+
+        self.types.insert(name_id.clone(), t);
+
         self.symbols
             .last_mut()
             .unwrap()
@@ -712,13 +748,13 @@ impl SymbolTable {
 
     pub fn add_type(
         &mut self,
-        name: Loc<Identifier>,
+        path: Loc<Path>,
         t: Loc<TypeSymbol>,
-        visibility: Loc<Visibility>,
+        visibility: Option<Loc<Visibility>>,
         deprecation_note: Option<Option<Loc<String>>>,
     ) -> NameID {
         let id = self.id_tracker.next();
-        self.add_type_with_id(id, name, t, visibility, deprecation_note)
+        self.add_type_with_id(id, path, t, visibility, deprecation_note)
     }
 
     pub fn add_traits_to_generic(
@@ -741,13 +777,13 @@ impl SymbolTable {
 
     pub fn add_unique_type(
         &mut self,
-        name: Loc<Identifier>,
+        path: Loc<Path>,
         t: Loc<TypeSymbol>,
-        visibility: Loc<Visibility>,
+        visibility: Option<Loc<Visibility>>,
         deprecation_note: Option<Option<Loc<String>>>,
     ) -> Result<NameID, Diagnostic> {
-        self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
-        Ok(self.add_type(name, t, visibility, deprecation_note))
+        self.ensure_is_unique(&path)?;
+        Ok(self.add_type(path, t, visibility, deprecation_note))
     }
 
     #[tracing::instrument(skip_all, fields(?name, ?target))]
@@ -1066,6 +1102,7 @@ impl SymbolTable {
             Err(LookupError::IsAType(_, _)) => unreachable!(),
             Err(LookupError::NotAThing(_)) => unreachable!(),
             Err(LookupError::TooManySuperSegments(_, _)) => unreachable!(),
+            Err(LookupError::AmbiguousPath { .. }) => unreachable!(),
             Err(LookupError::NotVisible { .. }) => unreachable!(),
             Err(LookupError::Bug(_, _)) => unreachable!(),
         }
@@ -1202,6 +1239,12 @@ impl SymbolTable {
         }
 
         Ok(id)
+    }
+
+    fn item_loc_by_id(&self, id: &NameID) -> Option<Loc<()>> {
+        self.thing_by_id(id)
+            .map(Thing::loc)
+            .or_else(|| self.try_type_symbol_by_id(id).map(|ty| ty.loc()))
     }
 
     fn canonicalize_in_namespace(
@@ -1343,11 +1386,8 @@ impl SymbolTable {
                             let target_id =
                                 self.lookup_id_in_namespace(path, namespace, false).ok();
 
-                            let target_item = target_id.as_ref().and_then(|id| {
-                                self.thing_by_id(id)
-                                    .map(Thing::loc)
-                                    .or_else(|| self.try_type_symbol_by_id(id).map(|ty| ty.loc()))
-                            });
+                            let target_item =
+                                target_id.as_ref().and_then(|id| self.item_loc_by_id(id));
 
                             let invisible_item = if target_id != Some(id.clone()) {
                                 self.things.get(id)
@@ -1385,24 +1425,71 @@ impl SymbolTable {
                 match self.things.get(id) {
                     Some(Thing::Alias {
                         loc: _,
-                        path,
+                        path: alias_path,
                         in_namespace,
                     }) => {
                         local_forbidden.insert(id.clone());
 
                         // Alias target is itself a non-canonical path, it must be resolved first.
-                        let new_deprecation_info;
-                        (scope_offset, working_path, new_deprecation_info) = self
+                        let (alias_scope_offset, alias_working_path, new_deprecation_note) = self
                             .canonicalize_in_namespace(
-                                path,
-                                in_namespace,
-                                &local_forbidden,
-                                offset,
-                                check_metadata,
-                            )?;
+                            alias_path,
+                            in_namespace,
+                            &local_forbidden,
+                            offset,
+                            check_metadata,
+                        )?;
 
-                        if let Some(info) = new_deprecation_info {
-                            deprecation_note = Some(info);
+                        // Peek next segment to see which way to proceed.
+                        // This is necessary mainly because of how `Self` in trait impl blocks may
+                        // refer to both the target type (which can be followed by other segments in
+                        // the case of enum variants) or the trait member namespace (which can
+                        // be followed by other segments referring to associated types).
+                        if let Some(peeked_segment) = segments.front() {
+                            let alias_idx = self.current_scope() - alias_scope_offset;
+                            let alias_scope = &self.symbols[alias_idx];
+
+                            let next_aliased_id = alias_scope
+                                .vars
+                                .get(&alias_working_path.push_segment(peeked_segment.clone()));
+
+                            let next_regular_id = scope
+                                .vars
+                                .get(&working_path.push_segment(peeked_segment.clone()));
+
+                            match (next_aliased_id, next_regular_id) {
+                                // Next segment exists only on the regular path, remain in it
+                                (None, Some(_)) => break,
+                                // Next segment exists only on the aliased path, follow it
+                                (Some(_), None) => {
+                                    scope_offset = alias_scope_offset;
+                                    working_path = alias_working_path;
+                                    deprecation_note = new_deprecation_note;
+                                }
+                                // Next segment does not exist, follow the alias and let it fail
+                                (None, None) => {
+                                    scope_offset = alias_scope_offset;
+                                    working_path = alias_working_path;
+                                    deprecation_note = new_deprecation_note;
+                                }
+                                // Next segment exists in both the aliased and the current path
+                                (Some(aliased_id), Some(regular_id)) => {
+                                    let aliased_item = self.item_loc_by_id(aliased_id).unwrap();
+                                    let regular_item = self.item_loc_by_id(regular_id).unwrap();
+
+                                    return Err(LookupError::AmbiguousPath {
+                                        path: path.clone(),
+                                        segment: peeked_segment.clone(),
+                                        aliased_item,
+                                        regular_item,
+                                    });
+                                }
+                            }
+                        } else {
+                            // Follow alias unconditionally
+                            scope_offset = alias_scope_offset;
+                            working_path = alias_working_path;
+                            deprecation_note = new_deprecation_note;
                         }
                     }
                     _ => break,

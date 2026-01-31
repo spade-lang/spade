@@ -4,7 +4,7 @@ use itertools::{EitherOrBoth, Itertools};
 use spade_ast as ast;
 use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, NameID, Path, PathSegment, Visibility};
+use spade_common::name::{Identifier, NameID, Path, PathSegment};
 use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::impl_tab::type_specs_overlap;
@@ -14,11 +14,13 @@ use spade_hir::{self as hir, TraitName, TypeExpression};
 use spade_types::meta_types::MetaType;
 
 use crate::error::Result;
-use crate::global_symbols::{self, visit_meta_type};
+use crate::global_symbols::{
+    self, re_visit_type_declaration, visit_meta_type, visit_type_declaration,
+};
 use crate::{
-    Context, SelfContext, TypeSpecKind, unit_head, visit_default_type_expression, visit_trait_spec,
-    visit_trait_specs, visit_type_expression, visit_type_params, visit_type_spec, visit_unit,
-    visit_where_clauses,
+    Context, SelfContext, TypeSpecKind, associated_type, unit_head, visit_default_type_expression,
+    visit_trait_spec, visit_trait_specs, visit_type_expression, visit_type_params, visit_type_spec,
+    visit_unit, visit_where_clauses,
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
@@ -38,9 +40,9 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     let self_name = Identifier::intern("Self").nowhere();
 
     let alias_id = ctx.symtab.add_type(
-        self_name,
+        Path::ident_with_loc(self_name),
         TypeSymbol::Declared(vec![], 0, TypeDeclKind::Alias).at_loc(&target_type),
-        Visibility::Implicit.nowhere(),
+        None,
         None,
     );
 
@@ -101,39 +103,66 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
     ctx.self_ctx = SelfContext::ImplBlock(target_type.clone());
 
+    let mut missing_assoc_types = trait_def.assoc_types.keys().collect::<HashSet<_>>();
     let mut missing_methods = trait_methods.keys().collect::<HashSet<_>>();
 
-    for unit in &block.units {
-        let trait_method = if let Some(method) = trait_methods.get(&unit.head.name.inner) {
-            method
-        } else {
-            return Err(Diagnostic::error(
-                &unit.head.name,
-                format!(
-                    "`{}` is not a member of the trait `{trait_name}`",
-                    unit.head.name
-                ),
-            )
-            .primary_label(format!("Not a member of `{trait_name}`"))
-            // NOTE: Safe unwrap, if we got here, we're not in an anonymous trait
-            .secondary_label(
-                block.r#trait.as_ref().unwrap(),
-                format!("This is an impl for the trait `{trait_name}`"),
-            ));
+    let error_not_in_def = |name| {
+        Err(Diagnostic::error(
+            name,
+            format!("`{name}` is not a member of the trait `{trait_name}`",),
+        )
+        .primary_label(format!("Not a member of `{trait_name}`"))
+        // NOTE: Safe unwrap, if we got here, we're not in an anonymous trait
+        .secondary_label(
+            block.r#trait.as_ref().unwrap(),
+            format!("This is an impl for the trait `{trait_name}`"),
+        ))
+    };
+
+    let impl_segment = PathSegment::Impl(impl_block_id.0);
+    let impl_prefix = Some(Path(vec![impl_segment.clone()]));
+    ctx.symtab.add_dummy(impl_segment.clone());
+
+    let mut assoc_type_remappings = HashMap::default();
+
+    for ty in &block.assoc_types {
+        visit_type_declaration(Some(Path::ident(self_name)), ty, ctx)?;
+    }
+
+    for ty in &block.assoc_types {
+        let impl_type_decl = re_visit_type_declaration(Some(Path::ident(self_name)), ty, ctx)?;
+
+        let Some(trait_assoc_type) = trait_def.assoc_types.get(&ty.name) else {
+            return error_not_in_def(&ty.name);
         };
 
-        let path_segment = PathSegment::Impl(impl_block_id.0);
-        let path_suffix = Some(Path(vec![path_segment.clone()]));
-        ctx.symtab.add_dummy(path_segment);
+        check_type_params_for_impl_element_and_trait_element_match(
+            (ty.name, &impl_type_decl.generic_args),
+            (trait_assoc_type.name, &trait_assoc_type.type_params),
+            "associated type",
+        )?;
+
+        assoc_type_remappings.insert(
+            trait_assoc_type.name_id.clone(),
+            impl_type_decl.name.clone(),
+        );
+
+        missing_assoc_types.remove(&ty.name.inner);
+    }
+
+    for unit in &block.units {
+        let Some(trait_method) = trait_methods.get(&unit.head.name.inner) else {
+            return error_not_in_def(&unit.head.name);
+        };
 
         global_symbols::visit_unit(
-            &path_suffix,
+            &impl_prefix,
             unit,
             &block.type_params,
             &visited_where_clauses,
             ctx,
         )?;
-        let item = visit_unit(path_suffix, unit, &block.type_params, ctx)?;
+        let item = visit_unit(impl_prefix.clone(), unit, &block.type_params, ctx)?;
 
         match &item {
             hir::Item::Unit(u) => {
@@ -163,7 +192,11 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
 
         check_safeness_for_impl_method_and_trait_method_match(impl_method, trait_method)?;
 
-        check_type_params_for_impl_method_and_trait_method_match(impl_method, trait_method)?;
+        check_type_params_for_impl_element_and_trait_element_match(
+            (impl_method.name, &impl_method.unit_type_params),
+            (trait_method.name, &trait_method.unit_type_params),
+            "method",
+        )?;
 
         let trait_method_mono =
             map_trait_method_parameters(trait_method, impl_method, &trait_def, &trait_spec, ctx)?;
@@ -173,6 +206,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             &trait_method_mono,
             &target_type.inner,
             &alias_id,
+            &assoc_type_remappings,
         )?;
 
         check_params_for_impl_method_and_trait_method_match(
@@ -180,6 +214,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             &trait_method_mono,
             &target_type.inner,
             &alias_id,
+            &assoc_type_remappings,
         )?;
 
         missing_methods.remove(&unit.head.name.inner);
@@ -187,7 +222,9 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         result.push(item);
     }
 
-    check_no_missing_methods(block, missing_methods)?;
+    check_no_missing_elements(block, missing_assoc_types, "associated types")?;
+
+    check_no_missing_elements(block, missing_methods, "methods")?;
 
     let insert_result = ctx.item_list.impls.insert(
         target,
@@ -228,6 +265,17 @@ pub fn get_or_create_trait(
             &block.type_params,
             &vec![],
             &block.where_clauses,
+            &block
+                .assoc_types
+                .iter()
+                .map(|p| {
+                    ast::AssocType {
+                        name: p.name,
+                        type_params: p.generic_args.clone(),
+                    }
+                    .at_loc(p)
+                })
+                .collect::<Vec<_>>(),
             &block
                 .units
                 .iter()
@@ -335,6 +383,7 @@ pub fn create_trait_from_unit_heads(
     type_params: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
     subtraits: &Vec<Loc<ast::TraitSpec>>,
     where_clauses: &[ast::WhereClause],
+    assoc_types: &[Loc<ast::AssocType>],
     heads: &[Loc<ast::UnitHead>],
     paren_sugar: bool,
     documentation: String,
@@ -367,9 +416,9 @@ pub fn create_trait_from_unit_heads(
                             } => TypeSymbol::GenericMeta(visit_meta_type(meta)?).at_loc(name),
                         };
                         let name_id = ctx.symtab.add_type(
-                            ident.clone(),
+                            Path::ident_with_loc(*ident),
                             type_symbol,
-                            Visibility::Implicit.nowhere(),
+                            None,
                             None,
                         );
                         Ok(match tp {
@@ -409,11 +458,16 @@ pub fn create_trait_from_unit_heads(
     let subtraits = visit_trait_specs(subtraits, &TypeSpecKind::ImplTarget, ctx)?;
     let visited_where_clauses = visit_where_clauses(where_clauses, ctx)?;
 
+    let trait_assoc_types = assoc_types
+        .iter()
+        .map(|t| Ok((t.name.inner, associated_type(t, ctx)?)))
+        .collect::<Result<Vec<_>>>()?;
+
     let trait_members = heads
         .iter()
         .map(|head| {
             Ok((
-                head.name.inner.clone(),
+                head.name.inner,
                 unit_head(head, type_params, &visited_where_clauses, ctx, None)?.at_loc(head),
             ))
         })
@@ -474,6 +528,7 @@ pub fn create_trait_from_unit_heads(
         name,
         visited_type_params,
         subtraits,
+        trait_assoc_types,
         trait_members,
         paren_sugar,
         documentation,
@@ -576,42 +631,41 @@ fn check_generic_params_match_trait_def(
     }
 }
 
-fn check_no_missing_methods(
+fn check_no_missing_elements(
     block: &Loc<ast::ImplBlock>,
-    missing_methods: HashSet<&Identifier>,
+    missing_elements: HashSet<&Identifier>,
+    kind: &'static str,
 ) -> Result<()> {
-    if !missing_methods.is_empty() {
+    if !missing_elements.is_empty() {
         // Sort for deterministic errors
-        let mut missing_list = missing_methods.into_iter().collect::<Vec<_>>();
+        let mut missing_list = missing_elements.into_iter().collect::<Vec<_>>();
         missing_list.sort_by_key(|ident| ident.as_str());
 
         let as_str = match missing_list.as_slice() {
             [] => unreachable!(),
-            [single] => format!("{single}"),
+            [single] => format!("`{single}`"),
             other => {
                 if other.len() <= 3 {
                     format!(
-                        "{} and {}",
+                        "{} and `{}`",
                         other[0..other.len() - 1]
                             .iter()
-                            .map(|id| id.as_str())
+                            .map(|id| format!("`{id}`"))
                             .join(", "),
                         other[other.len() - 1].as_str()
                     )
                 } else {
                     format!(
                         "{} and {} more",
-                        other[0..3].iter().map(|id| id.as_str()).join(", "),
+                        other[0..3].iter().map(|id| format!("`{id}`")).join(", "),
                         other.len() - 3
                     )
                 }
             }
         };
 
-        Err(
-            Diagnostic::error(block, format!("Missing methods {as_str}"))
-                .primary_label(format!("Missing definition of {as_str} in this impl block")),
-        )
+        Err(Diagnostic::error(block, format!("Missing {kind} {as_str}"))
+            .primary_label(format!("Missing definition of {as_str} in this impl block")))
     } else {
         Ok(())
     }
@@ -641,101 +695,64 @@ fn check_safeness_for_impl_method_and_trait_method_match(
     }
 }
 
-fn check_type_params_for_impl_method_and_trait_method_match(
-    impl_method: &hir::UnitHead,
-    trait_method: &hir::UnitHead,
+fn check_type_params_for_impl_element_and_trait_element_match(
+    impl_elem: (Loc<Identifier>, &Vec<Loc<hir::TypeParam>>),
+    trait_elem: (Loc<Identifier>, &Vec<Loc<hir::TypeParam>>),
+    kind: &'static str,
 ) -> Result<()> {
-    if impl_method.unit_type_params.len() != trait_method.unit_type_params.len() {
-        if impl_method.unit_type_params.is_empty() {
+    if impl_elem.1.len() != trait_elem.1.len() {
+        if impl_elem.1.is_empty() {
             Err(Diagnostic::error(
-                &impl_method.name,
+                &impl_elem.0,
                 format!(
-                    "Missing type parameter{} on impl of generic method",
-                    if trait_method.unit_type_params.len() != 1 {
-                        "s"
-                    } else {
-                        ""
-                    },
+                    "Missing type parameter{} on impl of generic {}",
+                    if trait_elem.1.len() != 1 { "s" } else { "" },
+                    kind,
                 ),
             )
             .primary_label(format!(
                 "Expected {} type parameter{}",
-                trait_method.unit_type_params.len(),
-                if trait_method.unit_type_params.len() != 1 {
-                    "s"
-                } else {
-                    ""
-                },
+                trait_elem.1.len(),
+                if trait_elem.1.len() != 1 { "s" } else { "" },
             ))
             .secondary_label(
-                ().between_locs(
-                    trait_method.unit_type_params.first().unwrap(),
-                    trait_method.unit_type_params.last().unwrap(),
-                ),
+                ().between_locs(trait_elem.1.first().unwrap(), trait_elem.1.last().unwrap()),
                 format!(
                     "Because this has {} type parameter{}",
-                    trait_method.unit_type_params.len(),
-                    if trait_method.unit_type_params.len() != 1 {
-                        "s"
-                    } else {
-                        ""
-                    },
+                    trait_elem.1.len(),
+                    if trait_elem.1.len() != 1 { "s" } else { "" },
                 ),
             ))
-        } else if trait_method.unit_type_params.is_empty() {
+        } else if trait_elem.1.is_empty() {
             Err(Diagnostic::error(
-                ().between_locs(
-                    impl_method.unit_type_params.first().unwrap(),
-                    impl_method.unit_type_params.last().unwrap(),
-                ),
+                ().between_locs(impl_elem.1.first().unwrap(), impl_elem.1.last().unwrap()),
                 format!(
-                    "Unexpected type parameter{} on impl of non-generic method",
-                    if impl_method.unit_type_params.len() != 1 {
-                        "s"
-                    } else {
-                        ""
-                    },
+                    "Unexpected type parameter{} on impl of non-generic {}",
+                    if impl_elem.1.len() != 1 { "s" } else { "" },
+                    kind,
                 ),
             )
             .primary_label(format!(
                 "Type parameter{} specified here",
-                if impl_method.unit_type_params.len() != 1 {
-                    "s"
-                } else {
-                    ""
-                },
+                if impl_elem.1.len() != 1 { "s" } else { "" },
             ))
-            .secondary_label(&trait_method.name, "But this is not generic"))
+            .secondary_label(&trait_elem.0, "But this is not generic"))
         } else {
             Err(Diagnostic::error(
-                ().between_locs(
-                    impl_method.unit_type_params.first().unwrap(),
-                    impl_method.unit_type_params.last().unwrap(),
-                ),
+                ().between_locs(impl_elem.1.first().unwrap(), impl_elem.1.last().unwrap()),
                 "Wrong number of generic type parameters",
             )
             .primary_label(format!(
                 "Expected {} type parameter{}",
-                trait_method.unit_type_params.len(),
-                if trait_method.unit_type_params.len() != 1 {
-                    "s"
-                } else {
-                    ""
-                },
+                trait_elem.1.len(),
+                if trait_elem.1.len() != 1 { "s" } else { "" },
             ))
             .secondary_label(
-                ().between_locs(
-                    trait_method.unit_type_params.first().unwrap(),
-                    trait_method.unit_type_params.last().unwrap(),
-                ),
+                ().between_locs(trait_elem.1.first().unwrap(), trait_elem.1.last().unwrap()),
                 format!(
                     "Because this has {} type parameter{}",
-                    trait_method.unit_type_params.len(),
-                    if trait_method.unit_type_params.len() != 1 {
-                        "s"
-                    } else {
-                        ""
-                    },
+                    trait_elem.1.len(),
+                    if trait_elem.1.len() != 1 { "s" } else { "" },
                 ),
             ))
         }
@@ -748,13 +765,14 @@ fn resolve_trait_self(
     trait_ty: hir::TypeSpec,
     impl_target_type: hir::TypeSpec,
     self_id: &NameID,
+    assoc_type_remaps: &HashMap<Loc<NameID>, Loc<NameID>>,
 ) -> hir::TypeSpec {
     let resolve_in_expr =
         |e: Loc<TypeExpression>| {
             let (e, loc) = e.split_loc();
             match e {
                 hir::TypeExpression::TypeSpec(ts) => hir::TypeExpression::TypeSpec(
-                    resolve_trait_self(ts, impl_target_type.clone(), self_id),
+                    resolve_trait_self(ts, impl_target_type.clone(), self_id, assoc_type_remaps),
                 )
                 .at_loc(&loc),
                 hir::TypeExpression::Bool(_) => e.at_loc(&loc),
@@ -769,8 +787,13 @@ fn resolve_trait_self(
             inner
                 .iter()
                 .map(|inner| {
-                    resolve_trait_self(inner.inner.clone(), impl_target_type.clone(), self_id)
-                        .at_loc(&inner)
+                    resolve_trait_self(
+                        inner.inner.clone(),
+                        impl_target_type.clone(),
+                        self_id,
+                        assoc_type_remaps,
+                    )
+                    .at_loc(&inner)
                 })
                 .collect(),
         ),
@@ -779,19 +802,25 @@ fn resolve_trait_self(
 
             hir::TypeSpec::Array {
                 inner: Box::new(
-                    resolve_trait_self(inner, impl_target_type.clone(), self_id).at_loc(&loc),
+                    resolve_trait_self(inner, impl_target_type.clone(), self_id, assoc_type_remaps)
+                        .at_loc(&loc),
                 ),
                 size: Box::new(resolve_in_expr(*size)),
             }
         }
         hir::TypeSpec::Inverted(inner) => {
             let loc = inner.loc();
-            let new_inner = resolve_trait_self(inner.inner, impl_target_type, self_id).at_loc(&loc);
+            let new_inner =
+                resolve_trait_self(inner.inner, impl_target_type, self_id, assoc_type_remaps)
+                    .at_loc(&loc);
             hir::TypeSpec::Inverted(Box::new(new_inner))
         }
         hir::TypeSpec::TraitSelf(_) => impl_target_type,
         hir::TypeSpec::Declared(name_id, _) if &name_id.inner == self_id => impl_target_type,
-        hir::TypeSpec::Declared(name, exprs) => {
+        hir::TypeSpec::Declared(mut name, exprs) => {
+            if let Some(new_name) = assoc_type_remaps.get(&name) {
+                name = new_name.clone();
+            };
             hir::TypeSpec::Declared(name, exprs.into_iter().map(resolve_in_expr).collect())
         }
         hir::TypeSpec::Generic(_) | hir::TypeSpec::Wildcard(_) => trait_ty,
@@ -803,12 +832,23 @@ fn check_output_type_for_impl_method_and_trait_method_matches(
     trait_method: &hir::UnitHead,
     target_type: &hir::TypeSpec,
     self_id: &NameID,
+    assoc_type_remaps: &HashMap<Loc<NameID>, Loc<NameID>>,
 ) -> Result<()> {
     let impl_output = impl_method.output_type().inner;
-    let impl_output = resolve_trait_self(impl_output.clone(), target_type.clone(), self_id);
+    let impl_output = resolve_trait_self(
+        impl_output.clone(),
+        target_type.clone(),
+        self_id,
+        assoc_type_remaps,
+    );
 
     let trait_output = trait_method.output_type().inner;
-    let trait_output = resolve_trait_self(trait_output.clone(), target_type.clone(), self_id);
+    let trait_output = resolve_trait_self(
+        trait_output.clone(),
+        target_type.clone(),
+        self_id,
+        assoc_type_remaps,
+    );
 
     if impl_output != trait_output {
         return Err(Diagnostic::error(
@@ -826,6 +866,7 @@ fn check_params_for_impl_method_and_trait_method_match(
     trait_method: &hir::UnitHead,
     impl_target_type: &hir::TypeSpec,
     self_id: &NameID,
+    assoc_type_remaps: &HashMap<Loc<NameID>, Loc<NameID>>,
 ) -> Result<()> {
     for (i, pair) in impl_method
         .inputs
@@ -860,10 +901,20 @@ fn check_params_for_impl_method_and_trait_method_match(
                         ));
                 }
 
-                let trait_type =
-                    resolve_trait_self(t_spec.inner.clone(), impl_target_type.clone(), self_id);
-                let impl_type =
-                    resolve_trait_self(i_spec.inner.clone(), impl_target_type.clone(), self_id);
+                let trait_type = resolve_trait_self(
+                    t_spec.inner.clone(),
+                    impl_target_type.clone(),
+                    self_id,
+                    assoc_type_remaps,
+                );
+
+                let impl_type = resolve_trait_self(
+                    i_spec.inner.clone(),
+                    impl_target_type.clone(),
+                    self_id,
+                    assoc_type_remaps,
+                );
+
                 if trait_type != impl_type {
                     return Err(Diagnostic::error(i_spec, "Argument type mismatch")
                         .primary_label(format!("Expected {t_spec}"))

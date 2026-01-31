@@ -3,7 +3,6 @@ use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
     doc_links::WIRE_DOCS,
     location_info::{Loc, WithLocation},
-    name::Visibility,
 };
 use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::{
@@ -173,7 +172,7 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
                             diag_bail!(param, "Found an impl Trait in a type definition")
                         };
                         let name = ctx.symtab.add_type(
-                            name.1.tail().unwrap_named().clone(),
+                            name.1.clone().at_loc(&name),
                             TypeSymbol::GenericArg {
                                 traits: vec![
                                     TraitSpec {
@@ -185,7 +184,7 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
                                 ],
                             }
                             .nowhere(),
-                            Visibility::Public.nowhere(),
+                            None,
                             None,
                         );
 
