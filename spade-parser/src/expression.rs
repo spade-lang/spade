@@ -37,8 +37,8 @@ fn binop_binding_power(op: &BinaryOperator) -> OpBindingPower {
         BinaryOperator::Mul => OpBindingPower::MulLike,
         BinaryOperator::Div => OpBindingPower::MulLike,
         BinaryOperator::Mod => OpBindingPower::MulLike,
-        BinaryOperator::Equals => OpBindingPower::Equality,
-        BinaryOperator::NotEquals => OpBindingPower::Equality,
+        BinaryOperator::Eq => OpBindingPower::Equality,
+        BinaryOperator::Neq => OpBindingPower::Equality,
         BinaryOperator::Lt => OpBindingPower::RelationalCmp,
         BinaryOperator::Gt => OpBindingPower::RelationalCmp,
         BinaryOperator::Le => OpBindingPower::RelationalCmp,
@@ -73,8 +73,8 @@ impl<'a> Parser<'a> {
             TokenKind::Asterisk => Some(BinaryOperator::Mul),
             TokenKind::Slash => Some(BinaryOperator::Div),
             TokenKind::Percentage => Some(BinaryOperator::Mod),
-            TokenKind::Equals => Some(BinaryOperator::Equals),
-            TokenKind::NotEquals => Some(BinaryOperator::NotEquals),
+            TokenKind::Equals => Some(BinaryOperator::Eq),
+            TokenKind::NotEquals => Some(BinaryOperator::Neq),
             // We have to handle left and right shifts separately because otherwise
             // their parsing interferes with generic arguments
             TokenKind::Lt => Some(BinaryOperator::Lt),
@@ -646,7 +646,7 @@ mod test {
                 )
                 .nowhere(),
             ),
-            BinaryOperator::Equals.nowhere(),
+            BinaryOperator::Eq.nowhere(),
             Box::new(Expression::Identifier(ast_path("c")).nowhere()),
         )
         .nowhere();
@@ -661,7 +661,7 @@ mod test {
                 Box::new(
                     Expression::BinaryOperator(
                         Box::new(Expression::Identifier(ast_path("a")).nowhere()),
-                        BinaryOperator::Equals.nowhere(),
+                        BinaryOperator::Eq.nowhere(),
                         Box::new(Expression::Identifier(ast_path("b")).nowhere()),
                     )
                     .nowhere(),
@@ -680,7 +680,7 @@ mod test {
                 Box::new(
                     Expression::BinaryOperator(
                         Box::new(Expression::Identifier(ast_path("b")).nowhere()),
-                        BinaryOperator::Equals.nowhere(),
+                        BinaryOperator::Eq.nowhere(),
                         Box::new(Expression::Identifier(ast_path("c")).nowhere()),
                     )
                     .nowhere(),
