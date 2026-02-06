@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn matchig_on_clock_with_wildcard_works() {
+    fn matching_on_clock_with_wildcard_works() {
         let code = r#"
             entity match_clock(clk: clock) -> bool {
                 match clk {

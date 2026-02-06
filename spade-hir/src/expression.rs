@@ -88,7 +88,7 @@ impl std::fmt::Display for UnaryOperator {
 // right hand side of a binding, i.e. an expression in an argument list
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum NamedArgument<T> {
-    /// Binds the arguent named LHS in the outer scope to the expression
+    /// Binds the argument named LHS in the outer scope to the expression
     Full(Loc<Identifier>, Loc<T>),
     /// Binds a local variable to an argument with the same name
     Short(Loc<Identifier>, Loc<T>),

@@ -31,7 +31,7 @@
         "esbuild": "^0.19.8"
     },
     "scripts": {
-        "transpile": "jco new ../../target/wasm32-wasip1/release/spade.wasm --wasi-command --output spade.wasm && jco transpile spade.wasm --instantiation sync --no-typescript --no-namespaced-exports --map 'wasi:io/*=runtime#io' --map 'wasi:cli/*=runtime#cli' --map 'wasi:clocks/*=runtime#*' --map 'wasi:filesystem/*=runtime#fs' --map 'wasi:random/*=runtime#random' --out-dir gen/",
+        "transpile": "jco new ${CARGO_TARGET_DIR:-../../target}/wasm32-wasip1/release/spade.wasm --wasi-command --output spade.wasm && jco transpile spade.wasm --instantiation sync --no-typescript --no-namespaced-exports --map 'wasi:io/*=runtime#io' --map 'wasi:cli/*=runtime#cli' --map 'wasi:clocks/*=runtime#*' --map 'wasi:filesystem/*=runtime#fs' --map 'wasi:random/*=runtime#random' --out-dir gen/",
         "pack": "yowasp-pack-resources gen/resources-spade.js gen",
         "build": "esbuild --bundle lib/api.js --outfile=gen/bundle.js --format=esm --platform=node --external:./resources-*.js",
         "all": "npm run transpile && npm run pack && npm run build"

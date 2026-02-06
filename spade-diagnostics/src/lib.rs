@@ -22,7 +22,7 @@
 //! let diag = Diagnostic::error(span, "something's fishy :spadesquint:");
 //! emitter.emit_diagnostic(&diag, &mut buffer, &code);
 //! # println!("{}", String::from_utf8_lossy(buffer.as_slice()));
-//! # // for takin' a peek at the output:
+//! # // for taking a peek at the output:
 //! # // println!("{}", String::from_utf8_lossy(buffer.as_slice())); panic!();
 //! ```
 //!

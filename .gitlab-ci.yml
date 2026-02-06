@@ -1,12 +1,18 @@
+stages:
+  - setup_n_build
+  - test
+  - binaries
+  - yowasp
+  - trawler
+
 variables:
-    CARGO_HOME: $CI_PROJECT_DIR/cargo
-    FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
-    GIT_SUBMODULE_STRATEGY: normal
-    RUST_VERSION: "1.88"
-    # Faster zipping helping with cache sync speeds (https://gitlab.com/gitlab-org/gitlab-runner/-/issues/1797)
-    FF_USE_FASTZIP: "true"
-    CACHE_COMPRESSION_LEVEL: fast
-    RUSTFLAGS: "-D warnings"
+  CARGO_TARGET_DIR: $CI_PROJECT_DIR/.cache/cargo_target
+  CARGO_HOME: $CI_PROJECT_DIR/.cache/cargo_home
+  CACHE_COMPRESSION_LEVEL: fast
+  FF_USE_FASTZIP: "true"
+  GIT_SUBMODULE_STRATEGY: normal
+  RUST_VERSION: "1.88"
+  RUSTFLAGS: ""
 
 # Only run pipelines for merge requests, tags, and the default branch.
 # https://docs.gitlab.com/ee/ci/pipelines/merge_request_pipelines.html#use-rules-to-add-jobs
@@ -15,171 +21,138 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
-stages:
-    - test
-    - trawler
-
-cache:
-    key:
-        files:
-            - Cargo.lock
-    paths:
-        # https://doc.rust-lang.org/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
-        - target
-        - $CARGO_HOME/.crates.toml
-        - $CARGO_HOME/.crates2.json
-        - $CARGO_HOME/bin/
-        - $CARGO_HOME/registry/index/
-        - $CARGO_HOME/registry/cache/
-        - $CARGO_HOME/git/db/
+  auto_cancel:
+    on_new_commit: interruptible
 
 
-check:clippy:
-    stage: test
-    variables:
-      # Override the -D warnings for clippy
-      RUSTFLAGS: ""
-    image: "rust:$RUST_VERSION"
-    before_script:
-        - rustup component add clippy
-        - cargo install --locked gitlab_clippy
-        - cargo clippy -V
-    script:
-        - cargo clippy --locked --workspace --exclude spade-cxx -- --allow clippy::useless_format
-    after_script:
-        - cargo clippy --locked --workspace --exclude spade-cxx --message-format=json -- --allow clippy::useless_format | $CARGO_HOME/bin/gitlab-clippy > gl-code-quality-report.json
-    artifacts:
-        reports:
-            codequality: gl-code-quality-report.json
-        expire_in: 1 week
-
-test:linux:
-    stage: test
-    image: "rust:$RUST_VERSION"
-    before_script:
-        - cargo -V
-        - rustc -V
-    script:
-        - cargo test --locked  --workspace --exclude spade-cxx --color=always
-        - cargo doc --locked --no-deps
-
-test:linux-latest:
-    stage: test
-    image: "rust:latest"
-    before_script:
-        - cargo -V
-        - rustc -V
-    script:
-        - cargo test --locked --workspace --exclude spade-cxx --color=always
-        - cargo doc --locked --no-deps
-
-test:linux-nightly:
-    variables:
-      CARGO_HOME: /usr/local/cargo
-    allow_failure: true
-    stage: test
-    image: "rust:latest"
-    before_script:
-        - rustup install nightly
-        - rustup default nightly
-    script:
-        - cargo build --locked -p spade-lang
-        - cargo test --locked --color=always
-        - cargo doc --locked --no-deps
-
-test:macos-aarch64:
-  rules:
-    - if: $CI_PROJECT_NAMESPACE == "spade-lang"
-  variables:
-    HOMEBREW_NO_AUTO_UPDATE: 1
-    HOMEBREW_NO_ENV_HINTS: 1
-    HOMEBREW_NO_INSTALL_CLEANUP: 1
-  tags:
-    - saas-macos-medium-m1
-  image: macos-14-xcode-15
-  before_script:
-    - brew install rustup-init python3
-    - rustup install $RUST_VERSION
-    - rustup override set $RUST_VERSION
-    - python3 -m pip install --upgrade cffi
-    - cargo -V
-    - rustc -V
-  script:
-    - cargo test --locked --workspace --exclude spade-cxx --color=always
-    - cargo doc --locked --no-deps
-  cache:
+# Caches
+#   They are designed to be pull by default so it's easy to use them in test tasks
+#   Build jobs should explicitly specify a pull-push policy
+.linux:
+  cache: &cache_linux
     key:
       files:
         - Cargo.lock
+      prefix: linux
     paths:
-      - target
-      # FIXME: homebrew installs cargo deps somewhere else. where?
-      # - $CARGO_HOME
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.linux:
+  cache: &cache_wheel_linux
+    key:
+      files:
+        - Cargo.lock
+      prefix: linux
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.linux:
+  cache: &cache_static_linux
+    key:
+      files:
+        - Cargo.lock
+      prefix: linux
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.linux:
+  cache: &cache_coverage
+    key:
+      files:
+        - Cargo.lock
+      prefix: coverage
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.surfer:
+  cache: &cache_swim
+    key:
+      files:
+        - Cargo.lock
+      prefix: swim
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.surfer:
+  cache: &cache_surfer
+    key:
+      files:
+        - Cargo.lock
+      prefix: surfer
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.yowasp:
+  cache: &cache_yowasp
+    key:
+      files:
+        - Cargo.lock
+      prefix: yowasp
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.tools:
+  cache: &cache_tools
+    key:
+      files:
+        - Cargo.lock
+      prefix: tools-$RUST_VERSION
+    paths:
+      - $CARGO_HOME/bin/
+      - $CARGO_HOME/.crates.toml
+      - $CARGO_HOME/.crates2.json
+    policy: pull
 
-test:output-test:
-    # Ubuntu 22.04 has iverilog-11.0, which it seems like we need.
-    image: ubuntu:22.04
-    variables:
-        APT_PYTHON_VERSION: "3.10"
-    stage: test
-    before_script:
-        - apt update
-        - apt install -y iverilog curl gcc make python$APT_PYTHON_VERSION libssl-dev
-        # pyo3 expects exactly `python3` in the path.
-        - command -v /usr/bin/python3 || ln -s /usr/bin/python$APT_PYTHON_VERSION /usr/bin/python3
-        - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
-        - source ./cargo/env
-        - rustup install $RUST_VERSION
-        - source ./cargo/env
-    script:
-        - cd output_test && make
-
-test:swim-tests:
-    image: "rust:$RUST_VERSION"
-    stage: test
-    script:
-        - apt update
-        - apt install -y iverilog python3-dev python3-venv
-        - cargo install --git https://gitlab.com/spade-lang/swim --locked
-        - cd swim_tests
-        - $CARGO_HOME/bin/swim test
-
-test:swim-test-errors:
-    image: "rust:$RUST_VERSION"
-    stage: test
-    script:
-        - apt update
-        - apt install -y iverilog python3-dev python3-venv
-        - cargo install --git https://gitlab.com/spade-lang/swim --locked
-        - cd swim_test_errors
-        - export PATH=$PATH:$CARGO_HOME/bin/
-        - python3 snapshot.py
-
-# Build static binaries of spade 
-build:static:
-  image: "rust:$RUST_VERSION-alpine"
-  stage: test
-  before_script:
-    - apk add git musl-dev g++
+# Build jobs
+build:linux:
+  stage: setup_n_build
+  image: "rust:$RUST_VERSION"
+  cache:
+    - <<: *cache_linux
+      policy: pull-push
   script:
-    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
-    - strip target/x86_64-unknown-linux-musl/release/spade
-  artifacts:
-    paths:
-      - target/x86_64-unknown-linux-musl/release/spade
-      - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/cxxbridge/include/spade-cxx/src/spade.rs.*
-      - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
+    - cargo build --workspace --locked
+
+build:tools:
+  stage: setup_n_build
+  image: "rust:$RUST_VERSION"
+  cache:
+    - <<: *cache_tools
+      policy: pull-push
+  script:
+    - cargo install --locked gitlab_clippy
 
 build:surfer-plugin:
-  image: "rust:$RUST_VERSION-alpine"
-  stage: test
-  before_script:
-    - apk add git musl-dev g++
+  stage: setup_n_build
+  image: "rust:$RUST_VERSION"
+  cache:
+    - <<: *cache_surfer
+      policy: pull-push
   script:
     - rustup target add wasm32-unknown-unknown
-    - cargo build --release --target wasm32-unknown-unknown -p spade-surfer-plugin
-    - cp target/wasm32-unknown-unknown/release/spade_surfer_plugin.wasm .
+    - cargo build --locked --target wasm32-unknown-unknown -p spade-surfer-plugin --release
+    - cp $CARGO_TARGET_DIR/wasm32-unknown-unknown/release/spade_surfer_plugin.wasm .
   artifacts:
     paths:
       - spade_surfer_plugin.wasm
@@ -187,95 +160,136 @@ build:surfer-plugin:
     # this on user devices a lot of the time
     expire_in: 3 months
 
-build:wheel-manylinux:
-  cache: []
-  image: quay.io/pypa/manylinux_2_34_x86_64
-  stage: test
-  before_script:
-    - curl https://sh.rustup.rs -sSf | sh -s -- -y
-    - source $CARGO_HOME/env
-    - /opt/python/cp38-cp38/bin/pip install maturin
-  script:
-    - /opt/python/cp38-cp38/bin/maturin build -i /opt/python/cp38-cp38/bin/python -m spade-python/Cargo.toml
-  artifacts:
-    paths:
-      - /builds/spade-lang/spade/target/wheels/*.whl
-
-build:wheel-musllinux:
-  image: quay.io/pypa/musllinux_1_1_x86_64
-  stage: test
-  before_script:
-    - curl https://sh.rustup.rs -sSf | sh -s -- -y
-    - source $CARGO_HOME/env
-    - /opt/python/cp38-cp38/bin/pip install maturin
-  script:
-    - /opt/python/cp38-cp38/bin/maturin build -i /opt/python/cp38-cp38/bin/python -m spade-python/Cargo.toml
-  artifacts:
-    paths:
-      - /builds/spade-lang/spade/target/wheels/*.whl
-
-test:coverage:
-    image: xd009642/tarpaulin
-    variables:
-        APT_PYTHON_VERSION: "3"
-    script:
-        - apt-get install -y pkg-config
-        # spade-python currently does not build with tarpaulin, but we also don't
-        # have many tests there so we'll ignore it
-        - cargo tarpaulin --locked --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --target-dir target/tarpaulin
-    coverage: '/^\d+.\d+% coverage/'
-    artifacts:
-        reports:
-            coverage_report:
-                coverage_format: cobertura
-                path: cobertura.xml
-
+# Check jobs
 check:cargo-fmt:
-    stage: test
-    image: "rust:$RUST_VERSION"
-    cache: [] # Disable cache since it takes too much space in gitlab
-    script:
-        - rustup component add rustfmt
-        # pass --check to rustfmt to error if un-formatted
-        - cargo fmt -- --check
+  needs: []
+  stage: test
+  image: "rust:$RUST_VERSION"
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - cargo fmt -- --check
 
 check:typos-and-todos:
-    image: rust:latest
-    stage: test
-    cache: [] # Disable cache since the spell checker finds typos in other peoples source code
-    before_script:
-        - apt update
-        - apt install -y wget
-        - wget https://github.com/crate-ci/typos/releases/download/v1.16.25/typos-v1.16.25-x86_64-unknown-linux-musl.tar.gz -O typos.tar.gz
-        # Extract only the typos executable to not get a docs folder which the typo checker
-        # will find typos in
-        - tar xzf typos.tar.gz ./typos
-    script:
-        - ./typos
-          # invert exit code of grep while still printing all matches
-        - set -e; find . -name "*.rs" | xargs grep -Ei "// *TODO" || exit 0 && exit 1
-    after_script:
-        - >
-            if [ $CI_JOB_STATUS == 'success' ]; then
-              echo 'SUCCESS'
-            else
-              echo 'Running again to give you all output since the test failed'
-              ./typos || echo ""
-              find . -name "*.rs" | xargs grep -Ei "// *TODO" || echo ""
-            fi
+  needs: []
+  stage: test
+  image: "rust:$RUST_VERSION"
+  before_script:
+    - apt update
+    - apt install -y wget
+    - wget https://github.com/crate-ci/typos/releases/download/v1.42.0/typos-v1.42.0-x86_64-unknown-linux-musl.tar.gz -O typos.tar.gz
+    # Extract only the typos executable to not get a docs folder which the typo checker
+    # will find typos in
+    - tar xzf typos.tar.gz ./typos
+  script:
+    - ./typos
+    # invert exit code of grep while still printing all matches
+    - set -e; find . -name "*.rs" | xargs grep -Ei "// *TODO" || exit 0 && exit 1
+  after_script:
+    - >
+      if [ $CI_JOB_STATUS == 'success' ]; then
+        echo 'SUCCESS'
+      else
+        echo 'Running again to give you all output since the test failed'
+        ./typos || echo ""
+        find . -name "*.rs" | xargs grep -Ei "// *TODO" || echo ""
+      fi
 
-trawler:
-    stage: trawler
-    allow_failure: true
-    variables:
-        UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
-    trigger: spade-lang/trawler
+check:clippy:
+  stage: test
+  image: "rust:$RUST_VERSION"
+  needs: [build:linux]
+  cache:
+    <<: *cache_linux
+  variables:
+    # We allow clippy to fail
+    RUSTFLAGS: ""
+  before_script:
+    - rustup component add clippy
+    - cargo clippy -V
+  script:
+    - cargo clippy --locked --workspace --exclude spade-cxx -- --allow clippy::useless_format
+  after_script:
+    - cargo clippy --locked --workspace --exclude spade-cxx --message-format=json -- --allow clippy::useless_format | $CARGO_HOME/bin/gitlab-clippy > gl-code-quality-report.json
+  artifacts:
+    reports:
+        codequality: gl-code-quality-report.json
+    expire_in: 1 week
+
+# Test jobs
+test:linux:
+  stage: test
+  image: "rust:$RUST_VERSION"
+  needs: [build:linux]
+  cache:
+    <<: *cache_linux
+  before_script:
+    - cargo -V
+    - rustc -V
+  script:
+    - cargo test --locked --color=always
+
+test:swim-tests:
+  image: "rust:$RUST_VERSION"
+  stage: test
+  # Since this is a long running test, we'll give it a head start even if this
+  # means unnecessarily double 
+  needs: []
+  cache:
+    - <<: *cache_swim
+      paths:
+        # Swim puts the maturin target dir in another folder by overriding
+        # $CARGO_TARGET_DIR. We'll just cache that here
+        - swim_tests/build/maturin_target
+        - $CARGO_TARGET_DIR
+        - $CARGO_HOME/registry/index/
+        - $CARGO_HOME/registry/cache/
+        - $CARGO_HOME/git/db/
+        - $CARGO_HOME/bin/
+        - $CARGO_HOME/.crates.toml
+        - $CARGO_HOME/.crates2.json
+      policy: pull-push
+  script:
+    - apt update
+    - apt install -y iverilog python3-dev python3-venv
+    - cargo install --git https://gitlab.com/spade-lang/swim --locked
+    - cd swim_tests
+    - $CARGO_HOME/bin/swim test
 
 
-yowaspBuild:
+test:coverage:
+  # No need to parallelize until we know if the project even builds
+  needs: [build:linux]
+  image: xd009642/tarpaulin
+  cache:
+    - <<: *cache_coverage
+      policy: pull-push
+  variables:
+    APT_PYTHON_VERSION: "3"
+  script:
+    - apt-get install -y pkg-config
+    # spade-python currently does not build with tarpaulin, but we also don't
+    # have many tests there so we'll ignore it
+    - cargo tarpaulin --locked --workspace --exclude spade-python --exclude spade-cxx --exclude spade-macros --exclude spade-surfer-plugin --out xml --engine llvm
+  coverage: '/^\d+.\d+% coverage/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cobertura.xml
+
+      
+
+# Yowasp jobs
+yowasp:build:
+  stage: yowasp
   image: alpine:latest
+  needs: []
   variables:
     CARGO_HOME: null
+  cache:
+    - <<: *cache_yowasp
+      policy: pull-push
   before_script:
     - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ curl npm git
     - apk add build-base rustup python3
@@ -293,11 +307,14 @@ yowaspBuild:
   artifacts:
     paths:
       # Path of our artifacts
-      - yowasp/npmjs/dist
+      - yowasp/npmjs/dist 
 
-yowaspPublish:
-  needs: [yowaspBuild]
+yowasp:publish:
+  stage: yowasp
   image: alpine:latest
+  needs:
+    - job: yowasp:build
+      artifacts: true
   before_script:
     - apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ npm
   script:
@@ -313,8 +330,9 @@ yowaspPublish:
       when: always
     - when: never
 
-yowaspPlayground:
-  needs: [yowaspPublish]
+yowasp:playground:
+  stage: yowasp
+  needs: [yowasp:publish]
   trigger: spade-lang/playground
   rules:
     # only publish on the main branch
@@ -322,4 +340,47 @@ yowaspPlayground:
       when: always
     - when: never
 
+ 
+trawler:
+    stage: trawler
+    allow_failure: true
+    variables:
+        UPSTREAM_BRANCH: $CI_COMMIT_SHA
+    trigger: spade-lang/trawler
+    
 
+build:wheel-manylinux:
+  cache:
+    - <<: *cache_wheel_linux
+      policy: pull-push
+  image: quay.io/pypa/manylinux_2_34_x86_64
+  stage: test
+  before_script:
+    - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - source $CARGO_HOME/env
+    - /opt/python/cp38-cp38/bin/pip install maturin
+  script:
+    - /opt/python/cp38-cp38/bin/maturin build -i /opt/python/cp38-cp38/bin/python -m spade-python/Cargo.toml
+  artifacts:
+    paths:
+      - /builds/spade-lang/spade/target/wheels/*.whl
+
+
+build:static:
+  cache:
+    - <<: *cache_static_linux
+      policy: pull-push
+  image: "rust:$RUST_VERSION-alpine"
+  stage: test
+  before_script:
+    - apk add git musl-dev g++
+  script:
+    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
+    - strip $CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/spade
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-musl/release/spade
+      - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/cxxbridge/include/spade-cxx/src/spade.rs.*
+      - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
+
+    

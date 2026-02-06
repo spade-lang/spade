@@ -1,5 +1,5 @@
 
-error: i.nested with type swim_test_errors::ports::Nested has both forward and backward valeus
+error: i.nested with type swim_test_errors::ports::Nested has both forward and backward values
     ┌��� ports.py:20
     │
  20 │ s.i.nested = 0

@@ -115,7 +115,7 @@ impl FieldRef {
                 .into()),
             },
             (Some(_), Some(_)) => Err(SourceCodeError::new(format!(
-                "{} with type {} has both forward and backward valeus",
+                "{} with type {} has both forward and backward values",
                 self.path.join("."),
                 self.ty
             ))
@@ -161,7 +161,7 @@ impl FieldRef {
                 .into()),
             },
             (Some(_), Some(_)) => Err(SourceCodeError::new(format!(
-                "{} with type {} has both forward and backward valeus",
+                "{} with type {} has both forward and backward values",
                 self.path.join("."),
                 self.ty
             ))
