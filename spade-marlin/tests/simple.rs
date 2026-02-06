@@ -8,7 +8,6 @@ use spade_marlin::prelude::*;
 use crate::types::spade_types;
 use crate::types::spade_types::spade_marlin::EnumOut;
 
-
 mod u48_passthrough {
     use super::*;
     #[spade_marlin(top = "spade_marlin::u48_passthrough")]
@@ -17,7 +16,6 @@ mod u48_passthrough {
     #[test]
     #[snafu::report]
     fn u48_passhtrough() -> Result<(), Whatever> {
-
         let runtime = SpadeRuntime::new(Default::default())?;
 
         let mut main = Uut::new_simple(&runtime)?;
@@ -30,9 +28,7 @@ mod u48_passthrough {
 
         Ok(())
     }
-
 }
-
 
 #[test]
 #[snafu::report]
@@ -78,7 +74,6 @@ fn option_in_works() -> Result<(), Whatever> {
     Ok(())
 }
 
-
 #[test]
 #[snafu::report]
 fn tuple_out_works() -> Result<(), Whatever> {
@@ -117,15 +112,21 @@ fn enum_out_works() -> Result<(), Whatever> {
     assert_eq!(main.i.result, EnumOut::Zero {});
     main.i.variant = 1u32.into();
     main.eval();
-    assert_eq!(main.i.result, EnumOut::One {x: 1u8.into()});
+    assert_eq!(main.i.result, EnumOut::One { x: 1u8.into() });
 
     main.i.variant = 2u32.into();
     main.eval();
-    assert_eq!(main.i.result, EnumOut::Two {y: 2u8.into()});
+    assert_eq!(main.i.result, EnumOut::Two { y: 2u8.into() });
 
     main.i.variant = 3u32.into();
     main.eval();
-    assert_eq!(main.i.result, EnumOut::Three {x: 1u8.into(), y: 2u8.into()});
+    assert_eq!(
+        main.i.result,
+        EnumOut::Three {
+            x: 1u8.into(),
+            y: 2u8.into()
+        }
+    );
 
     Ok(())
 }
