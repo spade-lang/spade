@@ -360,7 +360,13 @@ pub fn compile(
         mir_code,
         instance_map,
         mir_context,
-    } = codegen(mir_entities, Arc::clone(&code), &mut errors, &idtracker);
+    } = codegen(
+        mir_entities,
+        Arc::clone(&code),
+        &mut errors,
+        &idtracker,
+        &frozen_symtab.symtab().id_tracker,
+    );
 
     let state = CompilerState {
         code: code
@@ -547,13 +553,14 @@ fn codegen(
     code: Arc<RwLock<CodeBundle>>,
     error_handler: &mut ErrorHandler,
     idtracker: &Arc<ExprIdTracker>,
+    nameidtracker: &spade_common::id_tracker::NameIdTracker,
 ) -> CodegenArtefacts {
     let mir_entities: Vec<_> = mir_entities
         .into_iter()
         .filter_map(|result_mir| result_mir.or_report(error_handler))
         .collect();
 
-    let mir_entities = do_inlining(mir_entities, idtracker)
+    let mir_entities = do_inlining(mir_entities, idtracker, nameidtracker)
         .or_report(error_handler)
         .unwrap_or_default();
 

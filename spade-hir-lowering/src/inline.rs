@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use spade_common::id_tracker::ExprIdTracker;
+use spade_common::id_tracker::{ExprIdTracker, NameIdTracker};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{NameID, Path};
-use spade_diagnostics::{diag_anyhow, diag_bail};
+use spade_diagnostics::diag_anyhow;
 use spade_mir::types::Type;
 use spade_mir::{Binding, Operator, Register, Statement, UnitName, ValueName};
 use spade_typeinference::equation::{KnownTypeVar, TypedExpression};
@@ -35,6 +35,7 @@ impl<'a> InlinedStatements<'a> {
         idtracker: &ExprIdTracker,
         type_state: &mut TypeState,
         new_statements: &mut Vec<Statement>,
+        nameidtracker: &NameIdTracker,
     ) -> Result<()> {
         let get_final_name = |source_name| name_map.get(source_name).unwrap_or(source_name).clone();
         match self {
@@ -111,7 +112,17 @@ impl<'a> InlinedStatements<'a> {
                     .keys()
                     .chain(name_map.keys())
                     .chain(type_map.iter().map(|(n, _)| n))
-                    .map(|k| (k.clone(), ValueName::Expr(idtracker.next())))
+                    .map(|k| {
+                        let new_name = match k {
+                            ValueName::Named(_, name, value_name_source) => ValueName::Named(
+                                nameidtracker.next(),
+                                name.clone(),
+                                value_name_source.clone(),
+                            ),
+                            ValueName::Expr(_) => ValueName::Expr(idtracker.next()),
+                        };
+                        (k.clone(), new_name)
+                    })
                     .chain(
                         input_expr_map
                             .iter()
@@ -122,11 +133,10 @@ impl<'a> InlinedStatements<'a> {
                 for (dest, source_ty) in type_map.iter() {
                     let dest = new_name_map.get(dest).unwrap_or(dest);
                     let dest_type = match dest {
-                        ValueName::Named(_id, _name, _) => {
-                            diag_bail!(
-                                loc.unwrap_or(().nowhere()),
-                                "Found a ValueName::Named ({dest}) dest during inlining"
-                            )
+                        ValueName::Named(id, name, _) => {
+                            // NOTE: The name here is somewhat artificial, but since we only do actual
+                            // comparison based on the ID, it is fine
+                            TypedExpression::Name(NameID(*id, Path::from_strs(&[name])))
                         }
                         ValueName::Expr(expr_id) => TypedExpression::Id(*expr_id),
                     };
@@ -155,7 +165,13 @@ impl<'a> InlinedStatements<'a> {
                 });
 
                 for stmts in &target.statements {
-                    stmts.finalize(&new_name_map, idtracker, type_state, new_statements)?;
+                    stmts.finalize(
+                        &new_name_map,
+                        idtracker,
+                        type_state,
+                        new_statements,
+                        nameidtracker,
+                    )?;
                 }
                 new_statements.push(result_binding);
 
@@ -172,7 +188,11 @@ struct InlinedEntity<'a> {
 }
 
 impl<'a> InlinedEntity<'a> {
-    fn finalize(&self, idtracker: &ExprIdTracker) -> Result<MirOutput> {
+    fn finalize(
+        &self,
+        idtracker: &ExprIdTracker,
+        nameidtracker: &NameIdTracker,
+    ) -> Result<MirOutput> {
         let mut result = self.base_entity.clone();
         let mut new_statements = vec![];
         for stmt in &self.statements {
@@ -181,6 +201,7 @@ impl<'a> InlinedEntity<'a> {
                 idtracker,
                 &mut result.type_state,
                 &mut new_statements,
+                nameidtracker,
             )?;
         }
         result.mir.statements = new_statements;
@@ -192,6 +213,7 @@ fn perform_inlining<'a>(
     target: &'a MirOutput,
     source_map: &'a BTreeMap<UnitName, MirOutput>,
     idtracker: &ExprIdTracker,
+    nameidtracker: &NameIdTracker,
     cache: &'_ mut BTreeMap<UnitName, InlinedEntity<'a>>,
 ) -> Result<InlinedEntity<'a>> {
     if let Some(cached) = cache.get(&target.mir.name) {
@@ -238,22 +260,30 @@ fn perform_inlining<'a>(
                                 .map(|(input, operand)| (input.val_name.clone(), operand.clone()))
                                 .collect::<Vec<_>>();
 
+                            let name_generator = |current_name: &ValueName| match current_name {
+                                ValueName::Named(_, path, value_name_source) => ValueName::Named(
+                                    nameidtracker.next(),
+                                    path.clone(),
+                                    value_name_source.clone(),
+                                ),
+                                ValueName::Expr(_) => ValueName::Expr(idtracker.next()),
+                            };
+
                             // Build a map of names in the callee to new unique names in the caller
                             let inner_expr_map = callee
                                 .mir
                                 .statements
                                 .iter()
                                 .filter_map(|stmt| match stmt {
-                                    Statement::Binding(binding) => Some((
-                                        binding.name.clone(),
-                                        ValueName::Expr(idtracker.next()),
-                                    )),
+                                    Statement::Binding(binding) => {
+                                        Some((binding.name.clone(), name_generator(&binding.name)))
+                                    }
                                     Statement::Register(register) => Some((
                                         register.name.clone(),
-                                        ValueName::Expr(idtracker.next()),
+                                        name_generator(&register.name),
                                     )),
                                     Statement::Constant(name, _, _) => {
-                                        Some((name.clone(), ValueName::Expr(idtracker.next())))
+                                        Some((name.clone(), name_generator(name)))
                                     }
                                     Statement::Error => None,
                                     Statement::Assert(_) => None,
@@ -267,7 +297,7 @@ fn perform_inlining<'a>(
                                 let source_type = match source {
                                     ValueName::Named(id, name, _) => {
                                         // NOTE: The path::from_strs here is a lie,
-                                        // but we only need // this for lookups so
+                                        // but we only need this for lookups so
                                         // we're fine
                                         TypedExpression::Name(NameID(
                                             *id,
@@ -290,8 +320,13 @@ fn perform_inlining<'a>(
 
                             let expr_map = inner_expr_map.into_iter().collect::<BTreeMap<_, _>>();
 
-                            let inlined_callee =
-                                perform_inlining(callee, source_map, idtracker, cache)?;
+                            let inlined_callee = perform_inlining(
+                                callee,
+                                source_map,
+                                idtracker,
+                                nameidtracker,
+                                cache,
+                            )?;
 
                             new_stmts.push(InlinedStatements::InlinedCall {
                                 outer_output_name: output_name,
@@ -329,6 +364,7 @@ fn perform_inlining<'a>(
 pub fn do_inlining(
     mut mir_entities: Vec<MirOutput>,
     idtracker: &ExprIdTracker,
+    nameidtracker: &NameIdTracker,
 ) -> Result<Vec<MirOutput>> {
     let source_map = mir_entities
         .iter()
@@ -340,11 +376,11 @@ pub fn do_inlining(
     let partial = mir_entities
         .iter_mut()
         .filter(|entity| !entity.mir.inline)
-        .map(|entity| perform_inlining(entity, &source_map, idtracker, &mut cache))
+        .map(|entity| perform_inlining(entity, &source_map, idtracker, nameidtracker, &mut cache))
         .collect::<Result<Vec<_>>>()?;
 
     partial
         .into_iter()
-        .map(|inlined| inlined.finalize(idtracker))
+        .map(|inlined| inlined.finalize(idtracker, nameidtracker))
         .collect()
 }

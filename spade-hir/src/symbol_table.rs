@@ -483,7 +483,7 @@ pub struct SymbolTable {
     /// Each outer vec is a scope, inner vecs are symbols in that scope
     pub symbols: Vec<Scope>,
     pub declarations: Vec<HashMap<Loc<Identifier>, DeclarationState>>,
-    id_tracker: NameIdTracker,
+    pub id_tracker: NameIdTracker,
     pub types: HashMap<NameID, Loc<TypeSymbol>>,
     pub things: HashMap<NameID, Thing>,
     pub visibilities: HashMap<NameID, Loc<Visibility>>,
