@@ -156,6 +156,19 @@ test:swim-test-errors:
         - export PATH=$PATH:$CARGO_HOME/bin/
         - python3 snapshot.py
 
+test:spadedoc:
+    stage: test
+    image: "rust:latest"
+    before_script:
+        - cargo -V
+        - rustc -V
+    script:
+        # TODO(ethan):
+        # for now we just check that we built documentation
+        # we can be smarter with how we verify spadedoc output later
+        # and probably have proper integration tests
+        - cargo run --package spadedoc -- --lib std
+
 # Build static binaries of spade 
 build:static:
   image: "rust:$RUST_VERSION-alpine"
