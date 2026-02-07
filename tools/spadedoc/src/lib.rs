@@ -12,7 +12,7 @@ use spade::{namespaced_file::NamespacedFile, ModuleNamespace};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::{
     location_info::WithLocation,
-    name::{Identifier, NameID, Path as SpadePath},
+    name::{Identifier, NameID, Path as SpadePath, PathSegment},
 };
 use spade_diagnostics::{emitter::CodespanEmitter, DiagHandler};
 use spade_hir::{
@@ -175,7 +175,12 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
 
     for (NameID(_, path), executable) in root_item_list.executables {
         let namespace = path.prelude();
-        let name = path.tail().unwrap_named().inner.clone();
+        let name = match path.tail() {
+            PathSegment::Named(identifier) => identifier,
+            _ => continue,
+        }
+        .inner
+        .clone();
 
         let is_extern = matches!(executable, ExecutableItem::ExternUnit(_, _));
 
