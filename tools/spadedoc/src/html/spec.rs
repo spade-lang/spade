@@ -2,7 +2,8 @@ use std::borrow::Cow;
 
 use askama::Template;
 use color_eyre::eyre::Result;
-use spade_hir::{ConstGeneric, TraitSpec, TypeExpression, TypeSpec};
+use spade_common::name::PathSegment;
+use spade_hir::{ConstGeneric, Generic, TraitSpec, TypeExpression, TypeSpec};
 
 #[derive(Debug, Template)]
 pub enum Spec<'r> {
@@ -90,11 +91,18 @@ impl<'r> Spec<'r> {
                     .collect::<Result<Vec<_>>>()?,
             }),
             TypeSpec::Generic(name) => Ok(Spec::Declared {
-                name: Cow::Borrowed(
-                    name.ident()
-                        .map(|inner| inner.as_str())
-                        .unwrap_or("LOL HIDDEN IDK"),
-                ),
+                name: match name {
+                    Generic::Named(name) => Cow::Borrowed(
+                        name.1
+                             .0
+                            .last()
+                            .map(PathSegment::unwrap_named)
+                            .unwrap()
+                            .inner
+                            .as_str(),
+                    ),
+                    Generic::Hidden(loc) => format!("(hidden #{})", loc.0).into(),
+                },
                 type_args: vec![],
             }),
             TypeSpec::Inverted(inner) => {
