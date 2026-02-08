@@ -15,7 +15,7 @@ use spade_common::location_info::{Loc, WithLocation};
 pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::DiagList;
 use spade_hir::expression::Safety;
-use spade_mir::codegen::{prepare_codegen, Codegenable};
+use spade_mir::codegen::{cocotb_code, prepare_codegen, Codegenable};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
@@ -617,10 +617,12 @@ fn codegen(
 
     let mut bumpy_mir_entities = Vec::with_capacity(codegen_results.len());
     let mut flat_mir_entities = Vec::with_capacity(codegen_results.len());
-    let mut module_code = Vec::with_capacity(codegen_results.len());
+    let mut module_code = Vec::with_capacity(codegen_results.len() + 2);
     let mut mir_code = Vec::with_capacity(codegen_results.len());
     let mut instance_map = InstanceMap::new();
     let mut mir_context = HashMap::default();
+
+    module_code.push(cocotb_code().to_string());
 
     for CodegenArtefact {
         bumpy_mir_entity,

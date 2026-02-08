@@ -1217,6 +1217,24 @@ fn codegen_verilog_attr_groups(groups: &[Vec<(String, Option<String>)>]) -> Code
     code! { [0] lines; }
 }
 
+pub fn cocotb_code() -> Code {
+    code! {
+        [0] "`ifdef COCOTB_SIM";
+        [1]   "`define COCOTB_CODE(name) \\";
+        [2]     "string __top_module; \\";
+        [2]     "string __vcd_file; \\";
+        [2]     "initial begin \\";
+        [3]       r#"if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == `"name`" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin \"#;
+        [4]         "$dumpfile (__vcd_file); \\";
+        [4]         "$dumpvars (0, \\name ); \\";
+        [3]       "end \\";
+        [2]     "end";
+        [0] "`else";
+        [1]   "`define COCOTB_CODE(name)";
+        [0] "`endif";
+    }
+}
+
 /// Source code is used for two things: mapping expressions back to their original source code
 /// location, and for assertions. If source_code is None, no (* src = *) attributes will be
 /// emitted, however, assertions will cause a panic. This is convenient for tests where specifying
@@ -1380,16 +1398,7 @@ pub fn entity_code(
         [0] &format!("module {} (", entity_name);
                 [2] &port_definitions;
             [1] &");";
-            [1] "`ifdef COCOTB_SIM";
-            [1] "string __top_module;";
-            [1] "string __vcd_file;";
-            [1] "initial begin";
-            [2]   format!(r#"if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "{top_name}" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin"#, top_name = entity.name.without_escapes());
-            [3]     format!("$dumpfile (__vcd_file);");
-            [3]     format!("$dumpvars (0, {entity_name});");
-            [2]   "end";
-            [1] "end";
-            [1] "`endif";
+            [1] format!("`COCOTB_CODE( {top_name} )", top_name = entity.name.without_escapes());
             [1] &input_assignments;
             [1] &body;
             [1] &output_assignment;
@@ -1572,16 +1581,7 @@ mod tests {
                     input[5:0] op_i,
                     output[5:0] output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "pong" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, \pong );
-                    end
-                end
-                `endif
+                `COCOTB_CODE( pong )
                 logic[5:0] \op ;
                 assign \op  = op_i;
                 logic[5:0] _e_0;
@@ -1624,16 +1624,7 @@ mod tests {
                     input[5:0] op_i,
                     output[5:0] output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "pong" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, \pong );
-                    end
-                end
-                `endif
+                `COCOTB_CODE( pong )
                 logic[5:0] \op ;
                 assign \op  = op_i;
                 logic[5:0] _e_0;
@@ -1677,16 +1668,7 @@ mod tests {
                     input a,
                     output output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, test);
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
                 assign output__ = _e_0;
             endmodule"#
         );
@@ -1726,16 +1708,7 @@ mod tests {
                     output a,
                     output output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, test);
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
                 logic \a_mut ;
                 assign a = \a_mut ;
                 assign output__ = _e_0;
@@ -1768,16 +1741,7 @@ mod tests {
                     output[2:0] a_o,
                     output[5:0] output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, \test );
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
                 logic[2:0] \a_mut ;
                 assign a_o = \a_mut ;
                 localparam[5:0] _e_0 = 3;
@@ -1811,16 +1775,7 @@ mod tests {
                     input[3:0] a_i, output[2:0] a_o,
                     output[5:0] output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, \test );
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
                 logic[3:0] \a ;
                 assign \a  = a_i;
                 logic[2:0] \a_mut ;
@@ -1855,16 +1810,7 @@ mod tests {
                     output[3:0] output__,
                     input[2:0] input__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, test);
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
                 assign output__ = _e_0;
                 assign _e_0_mut = input__;
             endmodule"#
@@ -1925,16 +1871,7 @@ mod tests {
                     input clk_i,
                     output[15:0] output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "pl" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, \pl );
-                    end
-                end
-                `endif
+                `COCOTB_CODE( pl )
                 logic \clk ;
                 assign \clk  = clk_i;
                 reg[15:0] \x__s1 ;
@@ -1977,16 +1914,7 @@ mod tests {
             module \pl  (
                     output[15:0] output__
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "pl" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, \pl );
-                    end
-                end
-                `endif
+                `COCOTB_CODE( pl )
                 logic[15:0] \x ;
                 logic[15:0] x_n1;
                 assign \x  = !_e_0;
@@ -3537,16 +3465,7 @@ mod expression_tests {
             module test (
                     inout a
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, test);
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
             endmodule"#
         );
 
@@ -3591,16 +3510,7 @@ mod expression_tests {
             module test (
                     input a
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, test);
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
             endmodule"#
         );
 
@@ -3656,16 +3566,7 @@ mod expression_tests {
             module test (
                     input a
                 );
-                `ifdef COCOTB_SIM
-                string __top_module;
-                string __vcd_file;
-                initial begin
-                    if ($value$plusargs("TOP_MODULE=%s", __top_module) && __top_module == "test" && $value$plusargs("VCD_FILENAME=%s", __vcd_file)) begin
-                        $dumpfile (__vcd_file);
-                        $dumpvars (0, test);
-                    end
-                end
-                `endif
+                `COCOTB_CODE( test )
                 (* single *)
                 (* standalone, key = "val" *)
                 \foo  \foo_0 ();
