@@ -89,7 +89,7 @@ impl PrettyPrint for GenericArg {
 impl PrettyPrint for TraitName {
     fn pretty_print(&self) -> String {
         match self {
-            TraitName::Named(name) => name.pretty_print(),
+            TraitName::Named(path, _) => format!("{path}"),
             TraitName::Anonymous(_) => "[Anonymous]".to_string(),
         }
     }

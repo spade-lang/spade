@@ -8,8 +8,8 @@ entity \test () -> () {
 	const e5: uint<8> = 99
 	const e6: uint<8> = 34
 	let e2: [uint<8>; 4] = ConstructArray(e3, e4, e5, e6)
-	let x_n14: [uint<8>; 4] = Alias(e2)
+	let x_n77: [uint<8>; 4] = Alias(e2)
 	const e8: uint<8> = 39
-	let y_n15: uint<8> = Alias(e8)
+	let y_n78: uint<8> = Alias(e8)
 	let e1: () = Nop()
 } => e1

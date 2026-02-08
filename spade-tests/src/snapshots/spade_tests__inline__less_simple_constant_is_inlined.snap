@@ -3,7 +3,7 @@ source: spade-tests/src/inline.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test () -> uint<8> {
-	const e8: uint<8> = 0
-	let x_n21: uint<8> = Alias(e8)
-	let e6: uint<8> = Alias(x_n21)
+	const e205: uint<8> = 0
+	let x_n262: uint<8> = Alias(e205)
+	let e6: uint<8> = Alias(x_n262)
 } => e6

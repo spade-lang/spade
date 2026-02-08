@@ -17,5 +17,3 @@ error: Non-exhaustive match: patterns A(x: true, y: false), A(x: false, y: false
 5 │ │         A(true, true) => true,
 6 │ │     }
   │ ╰─────^ patterns A(x: true, y: false), A(x: false, y: false) and 1 more not covered
-
-

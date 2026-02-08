@@ -30,6 +30,7 @@ mod single_variant_recursive_enum;
 mod split_compound_test;
 mod stdlib;
 mod test_bool_wire_codegen;
+mod trait_based_ops_codegen_zero_sized;
 mod two_option_match;
 mod type_level_if;
 mod unsigned_add;

@@ -22,5 +22,3 @@ error: Sign-extending to a shorter value
   │
 3 │     let b: int<1> = trunc(a);
   │                     ~~~~~
-
-

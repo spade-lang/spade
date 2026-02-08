@@ -23,5 +23,3 @@ error: Expected type bool, got int<10>
   │
   = note: Expected: bool
                Got: int<10>
-
-

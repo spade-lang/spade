@@ -24,5 +24,3 @@ error: Expected A::V1 to be a value
   │
 7 │     A::V1(/* arg1 */, /* arg2 */)
   │          ++++++++++++++++++++++++
-
-

@@ -5,14 +5,10 @@ entity main() -> uint<8> {
     ~None
 }
 
-error: Expected type Number<_>, got std::option::Option<_>
+error: Trait bound not satisfied. std::option::Option<_> does not implement BitNot
   ┌─ testinput:2:6
   │
 2 │     ~None
-  │     -^^^^
-  │     ││
-  │     │Expected Number<_>
-  │     Type Number<_> inferred here
-  │
-  = note: Expected: Number<_>
-               Got: std::option::Option<_>
+  │     -^^^^ std::option::Option<_> does not implement BitNot
+  │     │ 
+  │     Required because of the trait bound specified here

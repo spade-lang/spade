@@ -18,5 +18,3 @@ error: Expected 2 arguments, got 3
   │
 7 │     let X(a, b, c) = x;
   │          ^^^^^^^^^ Expected 2 arguments
-
-

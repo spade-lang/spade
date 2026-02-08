@@ -10,5 +10,3 @@ error: Unexpected `identifier`, expected `(`
   │
 1 │ pipeline a(clk: clock) -> bool {
   │          ^ expected `(`
-
-

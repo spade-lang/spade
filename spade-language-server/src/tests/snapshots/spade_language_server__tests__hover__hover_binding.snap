@@ -1,6 +1,6 @@
 ---
 source: spade-language-server/src/tests/hover.rs
-expression: "indoc :: indoc!\n(\"\n        struct NameOfStruct {\n            field_a: bool,\n            field_b: int<4>,\n        }\n        fn foo() -> bool {\n            let s = NameOfStruct(false, 2);\n\n            let cow = s;\n                  //  ^[1] hover\n            false\n        }\n    \").to_string()\n+ \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+expression: "expected.to_string() + \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
 ---
 struct NameOfStruct {
     field_a: bool,

@@ -18,5 +18,3 @@ error: Expected type uint<16>, got uint<32>
                 in: uint<16>
                Got: 32
                 in: uint<32>
-
-

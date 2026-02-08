@@ -23,5 +23,3 @@ error: Output type mismatch. Expected int<1>, got int<2>
                 in: int<1>
                Got: 2
                 in: int<2>
-
-

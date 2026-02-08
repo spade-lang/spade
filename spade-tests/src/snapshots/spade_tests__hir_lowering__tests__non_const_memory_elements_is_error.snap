@@ -20,5 +20,3 @@ error: Memory initial values must be known at compile time
   │                                                                ││
   │                                                                │This subexpression cannot be computed at compile time
   │                                                                Value not known at compile time
-
-

@@ -21,5 +21,3 @@ error: Argument type mismatch. Expected bool got int<3>
   │
   = note: Expected: bool
                Got: int<3>
-
-

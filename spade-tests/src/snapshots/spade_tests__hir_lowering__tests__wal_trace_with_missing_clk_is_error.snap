@@ -19,5 +19,3 @@ error: The clock signal for this trace must be provided
   │
 8 │     #[wal_trace]
   │     ^^^^^^^^^^^^
-
-

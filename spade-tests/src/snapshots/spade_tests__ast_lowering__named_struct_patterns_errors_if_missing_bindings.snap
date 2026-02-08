@@ -14,5 +14,3 @@ error: Missing argument: x
   │
 4 │     let A$() = a;
   │          ^^^ Missing argument: x
-
-

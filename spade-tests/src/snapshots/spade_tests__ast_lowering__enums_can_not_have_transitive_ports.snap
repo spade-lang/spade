@@ -13,5 +13,3 @@ error: Port in enum
   │      - This is an enum
 3 │     A{x: A}
   │          ^ This is a port
-
-

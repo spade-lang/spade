@@ -16,5 +16,3 @@ error: X has no field named b
   │
 6 │         let y = x.b;
   │                   ^ Not a field of X
-
-

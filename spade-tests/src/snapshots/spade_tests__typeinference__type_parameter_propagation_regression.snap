@@ -22,7 +22,7 @@ entity fifo<#uint W>(
 
     let write_ptr_w  = 0;
 
-    let full_w = 0 == read_ptr_w;
+    let full_w = read_ptr_w == 0;
 
 
     inst fifo_read_side$(

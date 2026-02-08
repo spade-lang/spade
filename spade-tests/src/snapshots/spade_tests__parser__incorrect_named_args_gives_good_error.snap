@@ -20,5 +20,3 @@ error: Unexpected `=`, expected `:`, `,`, or `)`
   │
 6 │     f$(x : a)
   │          ~
-
-

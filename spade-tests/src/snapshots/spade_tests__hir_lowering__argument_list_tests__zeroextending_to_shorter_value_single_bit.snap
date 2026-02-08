@@ -21,5 +21,3 @@ error: Zero-extending to a shorter value
   │
 3 │     let b: uint<1> = trunc(a);
   │                      ~~~~~
-
-

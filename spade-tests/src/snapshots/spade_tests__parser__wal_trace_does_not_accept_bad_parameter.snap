@@ -12,5 +12,3 @@ error: Invalid parameter for wal_trace
   │                    ^^^^^^^^^^^ Invalid parameter
   │
   = note: wal_trace only takes the parameters clk or rst
-
-

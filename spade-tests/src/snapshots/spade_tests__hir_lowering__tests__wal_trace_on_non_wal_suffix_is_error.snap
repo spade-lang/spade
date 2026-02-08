@@ -18,5 +18,3 @@ error: #[wal_trace] on struct without #[wal_traceable]
   │         - This has type T which does not have #[wal_traceable]
   │
   = note: This most likely means that the struct can not be analyzed by a wal script
-
-

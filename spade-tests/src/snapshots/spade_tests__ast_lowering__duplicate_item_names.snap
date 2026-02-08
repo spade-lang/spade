@@ -17,5 +17,3 @@ error: Multiple items with the same name
   ·
 4 │ fn a() -> bool {
   │    ^ a is defined multiple times
-
-

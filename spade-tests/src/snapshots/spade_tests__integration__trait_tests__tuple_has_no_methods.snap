@@ -8,5 +8,3 @@ error: (bool, bool) does not have any methods
   │
 1 │ fn a(x: (bool, bool)) -> bool {x.test()}
   │                                ^^^^^^^^
-
-

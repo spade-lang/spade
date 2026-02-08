@@ -1471,7 +1471,7 @@ snapshot_error! {
 
             let write_ptr_w  = 0;
 
-            let full_w = 0 == read_ptr_w;
+            let full_w = read_ptr_w == 0;
 
 
             inst fifo_read_side$(
@@ -2459,7 +2459,7 @@ snapshot_error! {
         fn thing<#uint N>()
         where N > 5 else "If the requirement isn't satisfied, this is the message"
         {
-            
+
         }
 
         fn test() {

@@ -15,5 +15,3 @@ error: Non-exhaustive match: pattern false not covered
 3 │ │         true => true,
 4 │ │     }
   │ ╰─────^ pattern false not covered
-
-

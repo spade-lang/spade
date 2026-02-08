@@ -13,5 +13,3 @@ error: Generic arguments given for a generic type
   │           - T is a generic type
 2 │     B { value: T<U> },
   │                 ^^^ Generic arguments not allowed here
-
-

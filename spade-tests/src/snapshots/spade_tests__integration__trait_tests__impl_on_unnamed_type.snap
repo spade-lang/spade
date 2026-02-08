@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/integration.rs
-snapshot_kind: text
 ---
 impl (bool, bool) {}
 

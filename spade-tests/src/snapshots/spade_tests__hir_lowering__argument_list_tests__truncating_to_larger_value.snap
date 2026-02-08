@@ -18,5 +18,3 @@ error: Truncating to a larger value
   │                     The value is truncated to 8 bits here
   │
   = note: Truncation can only remove bits
-
-

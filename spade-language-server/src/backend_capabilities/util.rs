@@ -212,6 +212,7 @@ impl ServerBackend {
                 }
                 ExprKind::MethodCall {
                     target,
+                    target_trait: _,
                     name,
                     args: _,
                     call_kind: _,

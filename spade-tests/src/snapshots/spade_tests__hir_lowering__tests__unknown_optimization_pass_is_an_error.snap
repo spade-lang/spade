@@ -10,5 +10,3 @@ error: There is no optimization pass named banana
   │
 1 │ #[optimize(banana)]
   │            ^^^^^^ No such pass
-
-

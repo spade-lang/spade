@@ -15,5 +15,3 @@ error: Multiple items with the same name
   ·
 4 │ struct a{}
   │ ---------- Previous definition here
-
-

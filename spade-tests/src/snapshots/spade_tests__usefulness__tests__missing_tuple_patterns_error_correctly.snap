@@ -20,5 +20,3 @@ error: Non-exhaustive match: patterns (X::A, X::B), (X::B, X::A) and 1 more not 
 8 │ │         (X::A, X::A) => true,
 9 │ │     }
   │ ╰─────^ patterns (X::A, X::B), (X::B, X::A) and 1 more not covered
-
-

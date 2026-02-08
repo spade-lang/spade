@@ -321,11 +321,13 @@ pub fn source_of_hierarchical_value<'a>(
             .inner
             .get(&current_unit.clone())
             .ok_or_else(|| {
-                let candidates = instance_map
+                let mut candidates = instance_map
                     .inner
                     .keys()
                     .map(|n| format!("    {n}"))
                     .collect::<Vec<_>>();
+
+                candidates.sort();
 
                 let candidates_msg = if candidates.is_empty() {
                     String::new()

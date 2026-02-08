@@ -19,5 +19,3 @@ error: Expected type bool, got int<32>
   │
   = note: Expected: bool
                Got: int<32>
-
-

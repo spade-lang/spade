@@ -17,5 +17,3 @@ error: Expected ff to be a value
   ·
 4 │     let a = ff;
   │             ^^ Expected a value
-
-

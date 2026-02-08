@@ -9,7 +9,7 @@ error: Multiple items with the same name
 1 │ enum Option<T> {}
   │      ^^^^^^ Option is defined multiple times
   │
-  ┌─ <compiler dir>/prelude/prelude.spade:1:9
+  ┌─ <compiler dir>/stdlib/prelude.spade:1:9
   │
 1 │ pub use std::option::Option;
   │         ------------------- Previous definition here

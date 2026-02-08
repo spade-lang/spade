@@ -16,5 +16,3 @@ error: Multiple options called A
 3 │     B,
 4 │     A,
   │     ^ A occurs more than once
-
-

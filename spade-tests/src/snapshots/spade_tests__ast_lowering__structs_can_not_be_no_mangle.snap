@@ -10,5 +10,3 @@ error: no_mangle is not a valid attribute for struct
   │
 1 │ #[no_mangle]
   │ ^^^^^^^^^^^^ Unsupported attribute for struct
-
-

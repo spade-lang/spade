@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/typeinference.rs
-snapshot_kind: text
 ---
 fn a() -> int<32> {
     decl x;

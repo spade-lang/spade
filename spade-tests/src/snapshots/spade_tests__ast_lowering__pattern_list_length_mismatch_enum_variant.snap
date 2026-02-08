@@ -17,5 +17,3 @@ error: Expected 2 arguments, got 3
   │
 7 │         X::A(one, two, three) => x
   │             ^^^^^^^^^^^^^^^^^ Expected 2 arguments
-
-

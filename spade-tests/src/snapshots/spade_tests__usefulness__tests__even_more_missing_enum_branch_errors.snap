@@ -24,5 +24,3 @@ error: Non-exhaustive match: patterns X::B, X::C and 3 more not covered
 12 │ │         X::A => true,
 13 │ │     }
    │ ╰─────^ patterns X::B, X::C and 3 more not covered
-
-

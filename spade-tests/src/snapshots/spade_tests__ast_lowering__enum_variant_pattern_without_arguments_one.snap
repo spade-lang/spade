@@ -21,5 +21,3 @@ error: Expected 1 arguments, got 0
   │
 6 │     let E::Variant(_) = e;
   │                   +++
-
-

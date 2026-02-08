@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 
-use crate::{ConstGenericWithId, Pattern, TypeExpression, TypeParam, UnitKind};
+use crate::{ConstGenericWithId, Pattern, TraitSpec, TypeExpression, TypeParam, UnitKind};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -19,21 +19,9 @@ pub enum BinaryOperator {
     Mul,
     Div,
     Mod,
-    Eq,
-    NotEq,
-    Gt,
-    Lt,
-    Ge,
-    Le,
     LeftShift,
     RightShift,
     ArithmeticRightShift,
-    LogicalAnd,
-    LogicalOr,
-    LogicalXor,
-    BitwiseOr,
-    BitwiseAnd,
-    BitwiseXor,
 }
 
 impl std::fmt::Display for BinaryOperator {
@@ -44,21 +32,9 @@ impl std::fmt::Display for BinaryOperator {
             BinaryOperator::Mul => write!(f, "*"),
             BinaryOperator::Div => write!(f, "/"),
             BinaryOperator::Mod => write!(f, "%"),
-            BinaryOperator::Eq => write!(f, "=="),
-            BinaryOperator::NotEq => write!(f, "!="),
-            BinaryOperator::Gt => write!(f, ">"),
-            BinaryOperator::Lt => write!(f, "<"),
-            BinaryOperator::Ge => write!(f, ">="),
-            BinaryOperator::Le => write!(f, "<="),
             BinaryOperator::LeftShift => write!(f, ">>"),
             BinaryOperator::RightShift => write!(f, "<<"),
             BinaryOperator::ArithmeticRightShift => write!(f, ">>>"),
-            BinaryOperator::LogicalAnd => write!(f, "&&"),
-            BinaryOperator::LogicalOr => write!(f, "||"),
-            BinaryOperator::LogicalXor => write!(f, "^^"),
-            BinaryOperator::BitwiseOr => write!(f, "|"),
-            BinaryOperator::BitwiseAnd => write!(f, "&"),
-            BinaryOperator::BitwiseXor => write!(f, "^"),
         }
     }
 }
@@ -239,6 +215,7 @@ pub enum ExprKind {
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
     MethodCall {
         target: Box<Loc<Expression>>,
+        target_trait: Option<Loc<TraitSpec>>,
         name: Loc<Identifier>,
         args: Loc<ArgumentList<Expression>>,
         call_kind: CallKind,

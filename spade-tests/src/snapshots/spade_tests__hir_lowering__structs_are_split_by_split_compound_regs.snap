@@ -1,11 +1,11 @@
 ---
 source: spade-tests/src/hir_lowering.rs
-expression: "format! (\"{}\", items [0])"
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
-entity \test ((clk, clk_n15, bool), (x, x_n16, {a: uint<8>, b: uint<8>})) -> {a: uint<8>, b: uint<8>} {
-	let e4: uint<8> = IndexTuple(0)(x_n16)
-	reg(clk_n15) e5: uint<8> = e4
-	let e6: uint<8> = IndexTuple(1)(x_n16)
-	reg(clk_n15) e7: uint<8> = e6
-	let s1_x_n21: {a: uint<8>, b: uint<8>} = ConstructTuple(e5, e7)
-} => s1_x_n21
+entity \test ((clk, clk_n78, bool), (x, x_n79, {a: uint<8>, b: uint<8>})) -> {a: uint<8>, b: uint<8>} {
+	let e201: uint<8> = IndexTuple(0)(x_n79)
+	reg(clk_n78) e202: uint<8> = e201
+	let e203: uint<8> = IndexTuple(1)(x_n79)
+	reg(clk_n78) e204: uint<8> = e203
+	let s1_x_n262: {a: uint<8>, b: uint<8>} = ConstructTuple(e202, e204)
+} => s1_x_n262

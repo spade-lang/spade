@@ -18,5 +18,3 @@ error: Non-port in port struct
   │
 2 │     x: &int<32>,
   │        +
-
-

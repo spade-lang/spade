@@ -22,5 +22,3 @@ error: X already has a method named test
   ·
 6 │     fn test(self) -> bool {false}
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Duplicate method
-
-

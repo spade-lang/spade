@@ -17,5 +17,3 @@ error: Expected clock, got int<4>
   │
   = note: Expected: clock
                Got: int<4>
-
-

@@ -15,5 +15,3 @@ error: #[wal_trace] can only be applied to values of struct type
   │     ^^^^^^^^^^^^ #[wal_trace] on (int<8>, int<4>)
 3 │     let y = x;
   │         - This has type (int<8>, int<4>)
-
-

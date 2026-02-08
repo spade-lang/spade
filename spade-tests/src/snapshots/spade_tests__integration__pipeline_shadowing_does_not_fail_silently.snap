@@ -15,5 +15,3 @@ error: Use of undeclared name x
   │
 6 │         stage(-2).x
   │                   ^ Undeclared name
-
-

@@ -22,5 +22,3 @@ error: Non-exhaustive match: pattern (X::A, X::B) not covered
  9 │ │         (X::B, _) => true,
 10 │ │     }
    │ ╰─────^ pattern (X::A, X::B) not covered
-
-

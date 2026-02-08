@@ -299,7 +299,8 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::TraitDef(ref def) => {
             validate_default_param_position(&def.type_params)?;
 
-            let (name, _) = ctx.symtab.lookup_trait(&Path::ident_with_loc(def.name.clone()), false).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
+            let path = Path::ident_with_loc(def.name.clone());
+            let (name, _) = ctx.symtab.lookup_trait(&path, false).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
 
             let mut paren_sugar = false;
 
@@ -322,7 +323,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
             })?;
             create_trait_from_unit_heads(
-                hir::TraitName::Named(name.at_loc(&def.name)),
+                hir::TraitName::Named(path, name.at_loc(&def.name)),
                 &def.type_params,
                 &def.subtraits,
                 &def.where_clauses,

@@ -22,5 +22,3 @@ error: Unnecessary reset signal
   ·
 8 │     #[wal_trace(rst = true)]
   │                       ^^^^ Unnecessary reset signal
-
-

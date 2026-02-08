@@ -12,5 +12,3 @@ error: no_mangle is not a valid attribute for a register
   │
 2 │     #[no_mangle]
   │     ^^^^^^^^^^^^ Unsupported attribute for a register
-
-

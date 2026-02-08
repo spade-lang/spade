@@ -15,5 +15,3 @@ error: Declared variable is not defined
   │
   = help: Define x with a let or reg binding
   = help: Or, remove the declaration if the variable is unused
-
-

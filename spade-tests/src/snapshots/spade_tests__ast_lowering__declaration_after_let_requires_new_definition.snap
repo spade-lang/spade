@@ -15,5 +15,3 @@ error: Variable declared more than once
   │         - Previously declared here
 3 │     decl x;
   │          ^ This variable has been declared more than once
-
-

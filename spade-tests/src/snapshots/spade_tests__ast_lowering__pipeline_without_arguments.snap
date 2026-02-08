@@ -14,5 +14,3 @@ error: Missing clock argument for pipeline
   │                 ^^
   │
   = note: All pipelines need to take at least a clock as an argument
-
-

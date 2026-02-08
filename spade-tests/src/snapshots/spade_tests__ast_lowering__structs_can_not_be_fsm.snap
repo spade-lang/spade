@@ -10,5 +10,3 @@ error: fsm is not a valid attribute for struct
   │
 1 │ #[fsm]
   │ ^^^^^^ Unsupported attribute for struct
-
-

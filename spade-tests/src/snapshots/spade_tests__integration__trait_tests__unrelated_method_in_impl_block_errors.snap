@@ -26,5 +26,3 @@ error: `b` is not a member of the trait `X`
    ·
 12 │     fn b(self) -> bool {
    │        ^ Not a member of `X`
-
-

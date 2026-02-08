@@ -24,5 +24,3 @@ error: Non-exhaustive match: patterns Y::A(x1: X::A, x2: X::B), Y::A(x1: X::B, x
 12 │ │         Y::A(X::A, X::A) => true,
 13 │ │     }
    │ ╰─────^ patterns Y::A(x1: X::A, x2: X::B), Y::A(x1: X::B, x2: X::A) and 1 more not covered
-
-

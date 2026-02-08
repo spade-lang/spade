@@ -18,5 +18,3 @@ error: Missing methods a and b
 8 │ ╭ impl X for A {
 9 │ │ }
   │ ╰─^ Missing definition of a and b in this impl block
-
-

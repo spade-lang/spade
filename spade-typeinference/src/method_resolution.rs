@@ -139,6 +139,7 @@ pub fn select_method(
                         multiple[0..multiple.len() - 1]
                             .iter()
                             .map(|t| format!("`{t}`"))
+                            .sorted()
                             .join(", "),
                         multiple.last().unwrap()
                     ));
@@ -153,7 +154,7 @@ pub fn select_method(
             else {
                 let mut d = Diagnostic::error(method, "Multiple candidates satisfy this method");
 
-                for (trait_name, name) in candidates {
+                for (trait_name, name) in candidates.iter().sorted() {
                     d.push_subdiagnostic(Subdiagnostic::span_note(
                         name,
                         format!("a possible candidate corresponds to trait `{trait_name}`"),

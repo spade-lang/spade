@@ -17,5 +17,3 @@ error: Missing methods a
 7 │ ╭ impl X for A {
 8 │ │ }
   │ ╰─^ Missing definition of a in this impl block
-
-

@@ -8,7 +8,7 @@ mod tests {
     };
     use colored::Colorize;
     use insta::assert_debug_snapshot;
-    use spade_common::{location_info::WithLocation, num_ext::InfallibleToBigUint};
+    use spade_common::num_ext::InfallibleToBigUint;
     use spade_mir::assert_same_mir;
     use spade_mir::{self, entity, types::Type, ConstantValue};
 
@@ -177,234 +177,6 @@ mod tests {
     }
 
     #[test]
-    fn equals_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> bool {
-            a == b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; Eq; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn not_equals_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> bool {
-            a != b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; NotEq; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn logical_and_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: bool, b: bool) -> bool {
-            a && b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::Bool,
-                "b", n(1, "b"), Type::Bool
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; LogicalAnd; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn logical_or_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: bool, b: bool) -> bool {
-            a || b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::Bool,
-                "b", n(1, "b"), Type::Bool
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; LogicalOr; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn bitwise_and_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> int<16> {
-            a & b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::int(16); {
-                (e(0); Type::int(16); BitwiseAnd; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn xor_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: bool, b: bool) -> bool {
-            a ^^ b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::Bool,
-                "b", n(1, "b"), Type::Bool
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; LogicalXor; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn bitwise_xor_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<3>, b: int<3>) -> int<3> {
-            a ^ b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(3),
-                "b", n(1, "b"), Type::int(3)
-            ) -> Type::int(3); {
-                (e(0); Type::int(3); BitwiseXor; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn bitwise_or_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> int<16> {
-            a | b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::int(16); {
-                (e(0); Type::int(16); BitwiseOr; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn greater_than_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> bool {
-            a > b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; Gt; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn less_than_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> bool {
-            a < b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; Lt; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn greater_than_or_equals_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> bool {
-            a >= b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; Ge; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn less_than_or_equals_operator_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<16>, b: int<16>) -> bool {
-            a <= b
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(16),
-                "b", n(1, "b"), Type::int(16)
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; Le; n(0, "a"), n(1, "b"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
     fn usub_without_spaces_codegens_correctly() {
         let code = r#"
         entity name(a: int<16>) -> int<16> {
@@ -434,42 +206,6 @@ mod tests {
                 "a", n(0, "a"), Type::int(16),
             ) -> Type::int(16); {
                 (e(0); Type::int(16); USub; n(0, "a"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn not_codegens_correctly() {
-        let code = r#"
-        entity name(a: bool) -> bool {
-            !a
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::Bool,
-            ) -> Type::Bool; {
-                (e(0); Type::Bool; Not; n(0, "a"))
-            } => e(0)
-        );
-
-        assert_same_mir!(&build_entity!(code), &expected);
-    }
-
-    #[test]
-    fn bitwise_not_codegens_correctly() {
-        let code = r#"
-        entity name(a: int<8>) -> int<8> {
-            ~a
-        }
-        "#;
-
-        let expected = entity!(&["name"]; (
-                "a", n(0, "a"), Type::int(8),
-            ) -> Type::int(8); {
-                (e(0); (Type::int(8)); BitwiseNot; n(0, "a"))
             } => e(0)
         );
 
@@ -1464,23 +1200,13 @@ mod tests {
         build_and_compare_entities!(code, expected);
     }
 
-    #[test]
-    fn assert_statements_lower_correctly() {
-        let code = r#"entity name(x: int<16>, y: int<16>) -> int<16> {
+    snapshot_mir! {
+        assert_statements_lower_correctly,
+        r#"entity name(x: int<16>, y: int<16>) -> int<16> {
             assert x == y;
             x
-        }"#;
-
-        let expected = vec![entity! {&["name"]; (
-            "x", n(0, "x"), Type::int(16),
-            "y", n(1, "y"), Type::int(16),
-        ) -> Type::int(16); {
-                (e(0); Type::Bool; Eq; n(0, "x"), n(1, "y"));
-                (assert; e(0));
-            } => n(0, "x")
-        }];
-
-        build_and_compare_entities!(code, expected);
+        }"#,
+        all
     }
 
     #[test]

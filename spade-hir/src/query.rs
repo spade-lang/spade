@@ -122,13 +122,14 @@ impl<'a> QueryCache {
             crate::ExprKind::FieldAccess(target, _) => self.visit_expression(target),
             crate::ExprKind::MethodCall {
                 target,
+                target_trait: _,
                 name: _,
                 args,
                 call_kind: _,
                 turbofish: _,
                 safety: _,
             } => {
-                // FIXME: handle name and turbofish
+                // FIXME: handle name and turbofish (also target trait?)
                 self.visit_expression(target);
                 self.visit_arg_list(args)
             }

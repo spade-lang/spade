@@ -18,5 +18,3 @@ error: Method must take 'self' as the first parameter
   │
 4 │     fn a(self) -> bool {true}
   │         ~~~~~~
-
-

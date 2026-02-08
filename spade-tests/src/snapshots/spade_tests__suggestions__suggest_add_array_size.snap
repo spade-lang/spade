@@ -17,5 +17,3 @@ error: missing array size
   │
 2 │     let _: [bool; /* N */] = [true, false];
   │                 +++++++++
-
-

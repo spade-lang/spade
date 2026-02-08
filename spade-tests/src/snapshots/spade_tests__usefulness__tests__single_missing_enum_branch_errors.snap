@@ -20,5 +20,3 @@ error: Non-exhaustive match: pattern X::B not covered
 8 │ │         X::A => true,
 9 │ │     }
   │ ╰─────^ pattern X::B not covered
-
-

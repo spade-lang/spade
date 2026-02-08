@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/ast_lowering.rs
-snapshot_kind: text
 ---
 fn test(x: (bool, 2)) {}
 

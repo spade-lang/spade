@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/integration.rs
-snapshot_kind: text
 ---
 struct Struct<T1, T2> {x: T1, y: T2}
 

@@ -11,5 +11,3 @@ bug: oof
   = note: This is an internal bug in the compiler.
           We would appreciate if you opened an issue in the repository:
           https://gitlab.com/spade-lang/spade/-/issues/new?issuable_template=Internal%20bug
-
-

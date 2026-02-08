@@ -24,5 +24,3 @@ error: Multiple definitions of a
 7 │   
 8 │       fn a(self) -> bool {
   │          ^ a is defined multiple times
-
-

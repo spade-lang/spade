@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/hir_lowering.rs
-snapshot_kind: text
 ---
 fn test() {
     let x: uint<0> = 0;
@@ -62,14 +61,6 @@ error: Operator << does not support zero size operands
    │             ^^^ -- is not supported by this operator
    │             │    
    │             Zero size operand
-
-error: Operator ~ does not support zero size operands
-   ┌─ testinput:23:14
-   │
-23 │     let _ = ~0u0;
-   │             -^^^ Zero size operand
-   │             │ 
-   │             is not supported by ~
 
 error: Match expressions cannot produce zero size values
    ┌─ testinput:32:14

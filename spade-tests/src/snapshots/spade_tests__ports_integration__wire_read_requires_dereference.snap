@@ -19,5 +19,3 @@ error: Output type mismatch. Expected bool, got &bool
   │  
   = note: Expected: bool
                Got: &bool
-
-

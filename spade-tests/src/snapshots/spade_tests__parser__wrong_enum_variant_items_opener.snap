@@ -16,5 +16,3 @@ error: Unexpected `(`, expected `{`, `,` or `}`
   │
 2 │     A{int: int<4>},
   │      ~           ~
-
-

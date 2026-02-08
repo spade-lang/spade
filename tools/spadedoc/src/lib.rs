@@ -89,21 +89,24 @@ fn preprocess_item_list(item_list: ItemList, root_name: &str) -> PreprocessedIte
     }
 
     for (name, def) in item_list.traits {
-        let TraitName::Named(name) = name else {
+        let TraitName::Named(_, name_id) = name.clone() else {
             continue;
         };
 
-        if let Some(path) = name.1.as_lib(root_name) {
+        if let Some(path) = name_id.1.as_lib(root_name) {
             root_item_list.traits.insert(
-                TraitName::Named(NameID(name.0, path).at_loc(&name.loc())),
+                TraitName::Named(
+                    path.clone().at_loc(&name_id.loc()),
+                    NameID(name_id.0, path).at_loc(&name_id.loc()),
+                ),
                 def,
             );
-        } else if let Some(dep_name) = name.1.as_dep_lib() {
+        } else if let Some(dep_name) = name_id.1.as_dep_lib() {
             dependency_item_lists
                 .entry(dep_name)
                 .or_default()
                 .traits
-                .insert(TraitName::Named(name), def);
+                .insert(name, def);
         }
     }
 
@@ -203,7 +206,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, root_name: &str) -> Result<Documentatio
     }
 
     for (name, def) in root_item_list.traits {
-        let TraitName::Named(id) = name else {
+        let TraitName::Named(_, id) = name else {
             continue;
         };
 

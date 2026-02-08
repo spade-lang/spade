@@ -14,6 +14,7 @@ use crate::constraints::{bits_to_store, ce_int, ce_var, ConstraintExpr, Constrai
 use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{TypeMismatch as Tm, UnificationErrorExt};
 use crate::requirements::{ConstantInt, Requirement};
+use crate::traits::TraitList;
 use crate::{Context, GenericListToken, HasType, Result, TraceStackEntry, TypeState};
 
 macro_rules! assuming_kind {
@@ -363,7 +364,7 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::MethodCall{call_kind, target, name, args, turbofish, safety: _} = &expression => {
+        assuming_kind!(ExprKind::MethodCall{call_kind, target, target_trait, name, args, turbofish, safety: _} = &expression => {
             // NOTE: We don't visit_expression here as it is being added to the argument_list
             // which we *do* visit
             // self.visit_expression(target, ctx, generic_list)?;
@@ -382,6 +383,12 @@ impl TypeState {
             });
 
             self.visit_argument_list(&args_with_self, ctx, generic_list)?;
+
+            if let Some(target_trait) = target_trait {
+                let req = self.visit_trait_spec(target_trait, generic_list, ctx.items)?;
+                let op_trait_generic = self.new_generic_with_traits(().nowhere(), TraitList::from_vec(vec![req]));
+                self.unify_expression_generic_error(target, &op_trait_generic, ctx)?;
+            }
 
             let target_type = self.type_of(&TypedExpression::Id(target.id));
             let self_type = self.type_of(&TypedExpression::Id(expression.id));
@@ -808,9 +815,6 @@ impl TypeState {
                 },
                 // Shift operators have the same width in as they do out
                 BinaryOperator::LeftShift
-                | BinaryOperator::BitwiseAnd
-                | BinaryOperator::BitwiseXor
-                | BinaryOperator::BitwiseOr
                 | BinaryOperator::ArithmeticRightShift
                 | BinaryOperator::RightShift => {
                     let (int_type, _size) = self.new_generic_number(expression.loc(), ctx);
@@ -819,35 +823,6 @@ impl TypeState {
                     self.unify_expression_generic_error(lhs, &int_type, ctx)?;
                     self.unify_expression_generic_error(lhs, &rhs.inner, ctx)?;
                     self.unify_expression_generic_error(expression, &rhs.inner, ctx)?;
-                }
-                BinaryOperator::Eq
-                | BinaryOperator::NotEq
-                | BinaryOperator::Gt
-                | BinaryOperator::Lt
-                | BinaryOperator::Ge
-                | BinaryOperator::Le => {
-                    let (base, _size) = self.new_generic_number(expression.loc(), ctx);
-                    // FIXME: Make generic over types that can be compared
-                    self.unify_expression_generic_error(lhs, &base, ctx)?;
-                    self.unify_expression_generic_error(lhs, &rhs.inner, ctx)?;
-                    expression
-                        .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
-                        .commit(self, ctx)
-                        .into_default_diagnostic(expression.loc(), self)?;
-                }
-                BinaryOperator::LogicalAnd
-                | BinaryOperator::LogicalOr
-                | BinaryOperator::LogicalXor => {
-                    lhs
-                        .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
-                        .commit(self, ctx)
-                        .into_default_diagnostic(expression.loc(), self)?;
-                    self.unify_expression_generic_error(lhs, &rhs.inner, ctx)?;
-
-                    expression
-                        .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
-                        .commit(self, ctx)
-                        .into_default_diagnostic(expression, self)?;
                 }
             }
         });

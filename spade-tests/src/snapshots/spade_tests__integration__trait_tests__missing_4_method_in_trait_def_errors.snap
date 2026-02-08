@@ -20,5 +20,3 @@ error: Missing methods a, b, c and 1 more
 10 │ ╭ impl X for A {
 11 │ │ }
    │ ╰─^ Missing definition of a, b, c and 1 more in this impl block
-
-

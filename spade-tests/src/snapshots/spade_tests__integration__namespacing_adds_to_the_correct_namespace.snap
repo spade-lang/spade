@@ -17,5 +17,3 @@ error: Use of undeclared name x
   │
 8 │     x()
   │     ^ Undeclared name
-
-

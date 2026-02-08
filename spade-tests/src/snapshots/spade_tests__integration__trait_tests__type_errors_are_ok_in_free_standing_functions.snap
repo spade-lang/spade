@@ -18,5 +18,3 @@ error: Output type mismatch. Expected bool, got Number<_>
   │  
   = note: Expected: bool
                Got: Number<_>
-
-

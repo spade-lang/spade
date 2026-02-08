@@ -17,5 +17,3 @@ error: Register reset condition must be a bool, got int<4>
   │
   = note: Expected: bool
                Got: int<4>
-
-

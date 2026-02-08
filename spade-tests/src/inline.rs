@@ -105,8 +105,8 @@ snapshot_mir! {
     cache_cells_reproducer,
     "
     entity cache_cells() {
-        let self_has_value = match 0 {
-            addr => addr == 0u8,
+        let self_has_value = match 0u8 {
+            addr => addr == 0,
         };
         gen if 0 != 0 {
         } else {

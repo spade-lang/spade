@@ -16,5 +16,3 @@ error: Multiple items with the same name
   ·
 5 │ use x::b;
   │     ---- Previous definition here
-
-

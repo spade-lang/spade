@@ -12,5 +12,3 @@ error: Port in enum
   │      - This is an enum
 2 │     A{x: &int<32>}
   │          ^^^^^^^^ This is a port
-
-

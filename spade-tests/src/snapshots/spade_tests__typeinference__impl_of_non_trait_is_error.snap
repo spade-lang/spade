@@ -12,5 +12,3 @@ error: Expected A to be a trait
   │ ----------- A is a struct
 2 │ fn test<T: A>(x: T) {}
   │            ^ Expected a trait
-
-

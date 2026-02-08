@@ -151,21 +151,9 @@ impl LocExprExt for Loc<hir::Expression> {
                         BinaryOperator::Mul
                         | BinaryOperator::Div
                         | BinaryOperator::Mod
-                        | BinaryOperator::Eq
-                        | BinaryOperator::NotEq
-                        | BinaryOperator::Gt
-                        | BinaryOperator::Lt
-                        | BinaryOperator::Ge
-                        | BinaryOperator::Le
                         | BinaryOperator::LeftShift
                         | BinaryOperator::RightShift
-                        | BinaryOperator::ArithmeticRightShift
-                        | BinaryOperator::LogicalAnd
-                        | BinaryOperator::LogicalOr
-                        | BinaryOperator::LogicalXor
-                        | BinaryOperator::BitwiseOr
-                        | BinaryOperator::BitwiseAnd
-                        | BinaryOperator::BitwiseXor => Some(self.clone()),
+                        | BinaryOperator::ArithmeticRightShift => Some(self.clone()),
                     }
                 }
             }
@@ -1696,21 +1684,9 @@ impl ExprLocal for Loc<Expression> {
                     BinaryOperator::Add => dual_binop_builder!(Add, UnsignedAdd),
                     BinaryOperator::Sub => dual_binop_builder!(Sub, UnsignedSub),
                     BinaryOperator::Mul => dual_binop_builder!(Mul, UnsignedMul),
-                    BinaryOperator::Eq => binop_builder!(Eq),
-                    BinaryOperator::NotEq => binop_builder!(NotEq),
-                    BinaryOperator::Gt => dual_binop_builder!(Gt, UnsignedGt),
-                    BinaryOperator::Lt => dual_binop_builder!(Lt, UnsignedLt),
-                    BinaryOperator::Ge => dual_binop_builder!(Ge, UnsignedGe),
-                    BinaryOperator::Le => dual_binop_builder!(Le, UnsignedLe),
-                    BinaryOperator::LogicalXor => binop_builder!(LogicalXor),
                     BinaryOperator::LeftShift => binop_builder!(LeftShift),
                     BinaryOperator::RightShift => binop_builder!(RightShift),
                     BinaryOperator::ArithmeticRightShift => binop_builder!(ArithmeticRightShift),
-                    BinaryOperator::LogicalAnd => binop_builder!(LogicalAnd),
-                    BinaryOperator::LogicalOr => binop_builder!(LogicalOr),
-                    BinaryOperator::BitwiseAnd => binop_builder!(BitwiseAnd),
-                    BinaryOperator::BitwiseOr => binop_builder!(BitwiseOr),
-                    BinaryOperator::BitwiseXor => binop_builder!(BitwiseXor),
                     BinaryOperator::Div => {
                         match &rhs.inner.kind {
                             ExprKind::IntLiteral(val, _) => {
@@ -2567,7 +2543,7 @@ impl ExprLocal for Loc<Expression> {
             };
             ([$($path:expr),*] => $handler:ident $allow_port:expr) => {
                 let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
-                let final_id = ctx.symtab.symtab().try_lookup_id(&path);
+                let final_id = ctx.symtab.symtab().try_lookup_id(&path, false);
                 if final_id
                     .map(|n| &n == &name.inner)
                     .unwrap_or(false)
@@ -2589,6 +2565,19 @@ impl ExprLocal for Loc<Expression> {
         }
 
         handle_special_functions! {
+            // core
+            ["core", "conv", "transmute"] => handle_transmute {allow_port},
+            ["core", "ops", "intrinsics", "eq"] => handle_eq,
+            ["core", "ops", "intrinsics", "ne"] => handle_ne,
+            ["core", "ops", "intrinsics", "bit_not"] => handle_bit_not,
+            ["core", "ops", "intrinsics", "bit_and"] => handle_bit_and,
+            ["core", "ops", "intrinsics", "bit_or"] => handle_bit_or,
+            ["core", "ops", "intrinsics", "bit_xor"] => handle_bit_xor,
+            ["core", "ops", "intrinsics", "lt"] => handle_lt,
+            ["core", "ops", "intrinsics", "le"] => handle_le,
+            ["core", "ops", "intrinsics", "gt"] => handle_gt,
+            ["core", "ops", "intrinsics", "ge"] => handle_ge,
+            // std
             ["std", "mem", "clocked_memory"] => handle_clocked_memory_decl,
             ["std", "mem", "clocked_memory_init"] => handle_clocked_memory_initial_decl,
             ["std", "mem", "read_memory"] => handle_read_memory,
@@ -2596,7 +2585,6 @@ impl ExprLocal for Loc<Expression> {
             ["std", "conv", "sext"] => handle_sext,
             ["std", "conv", "zext"] => handle_zext,
             ["std", "conv", "concat"] => handle_concat,
-            ["std", "conv", "transmute"] => handle_transmute {allow_port},
             ["std", "ops", "div_pow2"] => handle_div_pow2,
             ["std", "ops", "reduce_and"] => handle_reduce_and,
             ["std", "ops", "reduce_or"] => handle_reduce_or,
@@ -3177,6 +3165,260 @@ impl ExprLocal for Loc<Expression> {
         );
 
         Ok(result)
+    }
+
+    fn handle_eqne(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        operator: mir::Operator,
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator,
+                operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
+                ty: self_type,
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
+    }
+
+    fn handle_eq(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_eqne(path, result, args, mir::Operator::Eq, ctx)
+    }
+
+    fn handle_ne(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_eqne(path, result, args, mir::Operator::NotEq, ctx)
+    }
+
+    fn handle_bit_not(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator: mir::Operator::BitwiseNot,
+                operands: vec![args[0].value.variable(ctx)?],
+                ty: self_type,
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
+    }
+
+    fn handle_bitwise_op(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        operator: mir::Operator,
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator,
+                operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
+                ty: self_type,
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
+    }
+
+    fn handle_bit_and(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_bitwise_op(path, result, args, mir::Operator::BitwiseAnd, ctx)
+    }
+
+    fn handle_bit_or(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_bitwise_op(path, result, args, mir::Operator::BitwiseOr, ctx)
+    }
+
+    fn handle_bit_xor(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_bitwise_op(path, result, args, mir::Operator::BitwiseXor, ctx)
+    }
+
+    fn handle_comparison_op(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        signed_operator: mir::Operator,
+        unsigned_operator: mir::Operator,
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let arg0_type = ctx
+            .types
+            .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        let arg1_type = ctx
+            .types
+            .concrete_type_of(args[1].value, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        // Must be guaranteed by the function signature
+        assert_eq!(arg0_type, arg1_type);
+
+        let operator = match &arg0_type {
+            mir::types::Type::Int(_) => signed_operator,
+            mir::types::Type::UInt(_) => unsigned_operator,
+            // Must be guaranteed by the function signature
+            _ => unreachable!(),
+        };
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator,
+                operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
+                ty: self_type,
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
+    }
+
+    fn handle_lt(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_comparison_op(
+            path,
+            result,
+            args,
+            mir::Operator::Lt,
+            mir::Operator::UnsignedLt,
+            ctx,
+        )
+    }
+
+    fn handle_le(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_comparison_op(
+            path,
+            result,
+            args,
+            mir::Operator::Le,
+            mir::Operator::UnsignedLe,
+            ctx,
+        )
+    }
+
+    fn handle_gt(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_comparison_op(
+            path,
+            result,
+            args,
+            mir::Operator::Gt,
+            mir::Operator::UnsignedGt,
+            ctx,
+        )
+    }
+
+    fn handle_ge(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        self.handle_comparison_op(
+            path,
+            result,
+            args,
+            mir::Operator::Ge,
+            mir::Operator::UnsignedGe,
+            ctx,
+        )
     }
 
     fn handle_concat(

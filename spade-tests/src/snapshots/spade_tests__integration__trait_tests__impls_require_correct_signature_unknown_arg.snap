@@ -22,5 +22,3 @@ error: Trait method does not have this argument
   ·
 8 │     fn a(self, x: bool) -> bool{
   │                ^ Extra argument
-
-

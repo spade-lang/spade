@@ -1,0 +1,312 @@
+pub trait Number<#uint N> {}
+
+impl<#uint N> Number<N> for uint<N> {}
+impl<#uint N> Number<N> for int<N> {}
+
+#[spadec_paren_sugar]
+pub trait Fn<Args, Output> {
+    fn call(self, args: Args) -> Output;
+}
+
+#[spadec_paren_sugar]
+pub trait Entity<Args, Output> {
+    fn call(self, clk: clock, args: Args) -> Output;
+}
+
+#[spadec_paren_sugar]
+pub trait Pipeline<#int Depth, Args, Output> {
+    pipeline(Depth) call(self, clk: clock, args: Args) -> Output;
+}
+
+pub trait PartialEq<Rhs = Self> {
+    fn eq(self, rhs: Rhs) -> bool;
+    fn ne(self, rhs: Rhs) -> bool;
+}
+
+impl PartialEq for bool {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        intrinsics::eq(self, rhs)
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        intrinsics::ne(self, rhs)
+    }
+}
+
+impl<#uint N> PartialEq for int<N> {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        intrinsics::eq(self, rhs)
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        intrinsics::ne(self, rhs)
+    }
+}
+
+impl<#uint N> PartialEq for uint<N> {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        intrinsics::eq(self, rhs)
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        intrinsics::ne(self, rhs)
+    }
+}
+
+impl<#uint N, T: PartialEq> PartialEq for [T; N] {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        intrinsics::eq(self, rhs)
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        intrinsics::ne(self, rhs)
+    }
+}
+
+pub trait Not {
+    fn not(self) -> Self;
+}
+
+impl Not for bool {
+    #[inline]
+    fn not(self) -> Self {
+        intrinsics::bit_not([self])[0]
+    }
+}
+
+pub trait BitNot {
+    fn bit_not(self) -> Self;
+}
+
+impl<#uint N> BitNot for [bool; N] {
+    #[inline]
+    fn bit_not(self) -> Self {
+        intrinsics::bit_not(self)
+    }
+}
+
+impl<#uint N> BitNot for int<N> {
+    #[inline]
+    fn bit_not(self) -> Self {
+        unsafe {
+            let bits: [bool; N] = lib::conv::transmute(self);
+            lib::conv::transmute(intrinsics::bit_not(bits))
+        }
+    }
+}
+
+impl<#uint N> BitNot for uint<N> {
+    #[inline]
+    fn bit_not(self) -> Self {
+        unsafe {
+            let bits: [bool; N] = lib::conv::transmute(self);
+            lib::conv::transmute(intrinsics::bit_not(bits))
+        }
+    }
+}
+
+pub trait And<Rhs = Self> {
+    fn and(self, rhs: Rhs) -> Self;
+}
+
+impl And for bool {
+    #[inline]
+    fn and(self, rhs: Self) -> Self {
+        intrinsics::bit_and([self], [rhs])[0]
+    }
+}
+
+pub trait BitAnd<Rhs = Self> {
+    fn bit_and(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> BitAnd for [bool; N] {
+    #[inline]
+    fn bit_and(self, rhs: Self) -> Self {
+        intrinsics::bit_and(self, rhs)
+    }
+}
+
+impl<#uint N> BitAnd for int<N> {
+    #[inline]
+    fn bit_and(self, rhs: Self) -> Self {
+        unsafe {
+            let lhs: [bool; N] = lib::conv::transmute(self);
+            let rhs: [bool; N] = lib::conv::transmute(rhs);
+            lib::conv::transmute(intrinsics::bit_and(lhs, rhs))
+        }
+    }
+}
+
+impl<#uint N> BitAnd for uint<N> {
+    #[inline]
+    fn bit_and(self, rhs: Self) -> Self {
+        unsafe {
+            let lhs: [bool; N] = lib::conv::transmute(self);
+            let rhs: [bool; N] = lib::conv::transmute(rhs);
+            lib::conv::transmute(intrinsics::bit_and(lhs, rhs))
+        }
+    }
+}
+
+pub trait Or<Rhs = Self> {
+    fn or(self, rhs: Rhs) -> Self;
+}
+
+impl Or for bool {
+    #[inline]
+    fn or(self, rhs: Self) -> Self {
+        intrinsics::bit_or([self], [rhs])[0]
+    }
+}
+
+pub trait BitOr<Rhs = Self> {
+    fn bit_or(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> BitOr for [bool; N] {
+    #[inline]
+    fn bit_or(self, rhs: Self) -> Self {
+        intrinsics::bit_or(self, rhs)
+    }
+}
+
+impl<#uint N> BitOr for int<N> {
+    #[inline]
+    fn bit_or(self, rhs: Self) -> Self {
+        unsafe {
+            let lhs: [bool; N] = lib::conv::transmute(self);
+            let rhs: [bool; N] = lib::conv::transmute(rhs);
+            lib::conv::transmute(intrinsics::bit_or(lhs, rhs))
+        }
+    }
+}
+
+impl<#uint N> BitOr for uint<N> {
+    #[inline]
+    fn bit_or(self, rhs: Self) -> Self {
+        unsafe {
+            let lhs: [bool; N] = lib::conv::transmute(self);
+            let rhs: [bool; N] = lib::conv::transmute(rhs);
+            lib::conv::transmute(intrinsics::bit_or(lhs, rhs))
+        }
+    }
+}
+
+pub trait Xor<Rhs = Self> {
+    fn xor(self, rhs: Rhs) -> Self;
+}
+
+impl Xor for bool {
+    #[inline]
+    fn xor(self, rhs: Self) -> Self {
+        intrinsics::bit_xor([self], [rhs])[0]
+    }
+}
+
+pub trait BitXor<Rhs = Self> {
+    fn bit_xor(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> BitXor for [bool; N] {
+    #[inline]
+    fn bit_xor(self, rhs: Self) -> Self {
+        intrinsics::bit_xor(self, rhs)
+    }
+}
+
+impl<#uint N> BitXor for int<N> {
+    #[inline]
+    fn bit_xor(self, rhs: Self) -> Self {
+        unsafe {
+            let lhs: [bool; N] = lib::conv::transmute(self);
+            let rhs: [bool; N] = lib::conv::transmute(rhs);
+            lib::conv::transmute(intrinsics::bit_xor(lhs, rhs))
+        }
+    }
+}
+
+impl<#uint N> BitXor for uint<N> {
+    #[inline]
+    fn bit_xor(self, rhs: Self) -> Self {
+        unsafe {
+            let lhs: [bool; N] = lib::conv::transmute(self);
+            let rhs: [bool; N] = lib::conv::transmute(rhs);
+            lib::conv::transmute(intrinsics::bit_xor(lhs, rhs))
+        }
+    }
+}
+
+pub trait PartialOrd<Rhs = Self>: PartialEq<Rhs> {
+    fn lt(self, rhs: Rhs) -> bool;
+    fn le(self, rhs: Rhs) -> bool;
+    fn gt(self, rhs: Rhs) -> bool;
+    fn ge(self, rhs: Rhs) -> bool;
+}
+
+impl<#uint N> PartialOrd for int<N> {
+    #[inline]
+    fn lt(self, rhs: Self) -> bool {
+        intrinsics::lt(self, rhs)
+    }
+
+    #[inline]
+    fn le(self, rhs: Self) -> bool {
+        intrinsics::le(self, rhs)
+    }
+
+    #[inline]
+    fn gt(self, rhs: Self) -> bool {
+        intrinsics::gt(self, rhs)
+    }
+
+    #[inline]
+    fn ge(self, rhs: Self) -> bool {
+        intrinsics::ge(self, rhs)
+    }
+}
+
+impl<#uint N> PartialOrd for uint<N> {
+    #[inline]
+    fn lt(self, rhs: Self) -> bool {
+        intrinsics::lt(self, rhs)
+    }
+
+    #[inline]
+    fn le(self, rhs: Self) -> bool {
+        intrinsics::le(self, rhs)
+    }
+
+    #[inline]
+    fn gt(self, rhs: Self) -> bool {
+        intrinsics::gt(self, rhs)
+    }
+
+    #[inline]
+    fn ge(self, rhs: Self) -> bool {
+        intrinsics::ge(self, rhs)
+    }
+}
+
+mod intrinsics {
+    pub(super) extern fn eq<T>(lhs: T, rhs: T) -> bool;
+    pub(super) extern fn ne<T>(lhs: T, rhs: T) -> bool;
+
+    pub(super) extern fn bit_not<#uint N>(val: [bool; N]) -> [bool; N];
+    pub(super) extern fn bit_and<#uint N>(lhs: [bool; N], rhs: [bool; N]) -> [bool; N];
+    pub(super) extern fn bit_or<#uint N>(lhs: [bool; N], rhs: [bool; N]) -> [bool; N];
+    pub(super) extern fn bit_xor<#uint N>(lhs: [bool; N], rhs: [bool; N]) -> [bool; N];
+
+    pub(super) extern fn lt<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
+    pub(super) extern fn le<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
+    pub(super) extern fn gt<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
+    pub(super) extern fn ge<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
+}

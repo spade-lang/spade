@@ -1,3 +1,5 @@
+pub use core::conv::transmute;
+
 ///
 /// Truncate the high order bits of the supplied integer. If the result is
 /// larger than the input, an error is emitted
@@ -96,15 +98,6 @@ pub fn int_to_uint <#uint N>(input: int<N>) -> uint<N> {
         transmute(input)
     }
 }
-
-/// Reinterprets a value as another value of the same size. It is up to the caller
-/// to ensure that the resulting value is valid
-///
-/// **NOTE**: The representation of compound types is generally undefined and you should
-/// not rely on it being fixed between compiler versions.
-/// If you still want to use this function on compound types, the representation of types is
-/// described here: https://docs.spade-lang.org/internal/type_representations.html
-pub unsafe extern fn transmute<T, O>(input: T) -> O;
 
 /// Converts a clock signal to a bool by just reinterpreting the bits. This should rarely
 /// be used but can be helpful in some situations, such as wanting to output a clock on a

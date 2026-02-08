@@ -16,10 +16,9 @@ use num::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::id_tracker::{ExprID, GenericID, ImplID};
-use spade_common::name::PathSegment;
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Identifier, NameID, Path},
+    name::{Identifier, NameID, Path, PathSegment},
     num_ext::InfallibleToBigInt,
 };
 use spade_diagnostics::Diagnostic;
@@ -485,9 +484,9 @@ impl std::fmt::Display for TraitSpec {
             paren_syntax,
         } = self;
 
-        let name = match name.name_loc() {
+        let path = match name.path_loc() {
             None => "(anonymous)".to_string(),
-            Some(name_id) => format!("{name_id}"),
+            Some(path) => format!("{path}"),
         };
 
         if *paren_syntax {
@@ -507,7 +506,7 @@ impl std::fmt::Display for TraitSpec {
 
             write!(
                 f,
-                "{name}{type_params_string}{param_tuple}{return_type_string}",
+                "{path}{type_params_string}{param_tuple}{return_type_string}",
             )
         } else {
             write!(
@@ -918,10 +917,55 @@ pub enum ExecutableItem {
 
 pub type TypeList = HashMap<NameID, Loc<TypeDeclaration>>;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+// Helper to implement std traits for `TraitName`
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum StrippedTraitName<'t> {
+    Named(&'t Loc<NameID>),
+    Anonymous(&'t ImplID),
+}
+
+impl<'t> From<&'t TraitName> for StrippedTraitName<'t> {
+    fn from(value: &'t TraitName) -> Self {
+        match value {
+            TraitName::Named(_, id) => StrippedTraitName::Named(id),
+            TraitName::Anonymous(id) => StrippedTraitName::Anonymous(id),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TraitName {
-    Named(Loc<NameID>),
+    // The path stored in the named variant supports error reporting, making it
+    // possible to use more concise names instead of absolute paths.
+    // That field does not participate in comparison operations.
+    Named(Loc<Path>, Loc<NameID>),
     Anonymous(ImplID),
+}
+
+impl std::cmp::PartialEq for TraitName {
+    fn eq(&self, other: &Self) -> bool {
+        StrippedTraitName::from(self) == StrippedTraitName::from(other)
+    }
+}
+
+impl std::cmp::Eq for TraitName {}
+
+impl std::cmp::PartialOrd for TraitName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        StrippedTraitName::from(self).partial_cmp(&StrippedTraitName::from(other))
+    }
+}
+
+impl std::cmp::Ord for TraitName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        StrippedTraitName::from(self).cmp(&StrippedTraitName::from(other))
+    }
+}
+
+impl std::hash::Hash for TraitName {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        StrippedTraitName::from(self).hash(state)
+    }
 }
 
 impl TraitName {
@@ -929,10 +973,18 @@ impl TraitName {
         matches!(self, Self::Anonymous(_))
     }
 
-    /// Returns the loc of the name of this trait, if it exists. None otherwise
+    /// Returns the loc of the path of this trait, if it exists. None otherwise
     pub fn name_loc(&self) -> Option<Loc<NameID>> {
         match self {
-            TraitName::Named(n) => Some(n.clone()),
+            TraitName::Named(_, n) => Some(n.clone()),
+            TraitName::Anonymous(_) => None,
+        }
+    }
+
+    /// Returns the loc of the path of this trait, if it exists. None otherwise
+    pub fn path_loc(&self) -> Option<Loc<Path>> {
+        match self {
+            TraitName::Named(p, _) => Some(p.clone()),
             TraitName::Anonymous(_) => None,
         }
     }
@@ -941,7 +993,7 @@ impl TraitName {
 impl std::fmt::Display for TraitName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitName::Named(n) => write!(f, "{n}"),
+            TraitName::Named(p, _) => write!(f, "{p}"),
             TraitName::Anonymous(id) => write!(f, "Anonymous({})", id.0),
         }
     }

@@ -27,5 +27,3 @@ error: Argument type mismatch. Expected B got A
    │
    = note: Expected: B
                 Got: A
-
-

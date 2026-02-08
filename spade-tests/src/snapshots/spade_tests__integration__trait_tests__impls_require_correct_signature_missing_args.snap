@@ -22,5 +22,3 @@ error: Missing argument x
   ·
 8 │     fn a(self) -> bool{
   │         ^^^^^^ Missing argument x
-
-

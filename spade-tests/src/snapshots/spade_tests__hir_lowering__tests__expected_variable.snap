@@ -17,5 +17,3 @@ error: Expected ff to be a variable
   ·
 5 │         stage(-1).ff
   │                   ^^ Expected a variable
-
-

@@ -688,7 +688,11 @@ macro_rules! sources {
 
 pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
     sources! {
-        ([], [], "../core/core.spade"),
+        ([], [], "../core/prelude.spade"),
+
+        (["core"], ["core"], "../core/main.spade"),
+        (["core"], ["core", "conv"], "../core/conv.spade"),
+        (["core"], ["core", "ops"], "../core/ops.spade")
     }
 }
 
@@ -696,7 +700,7 @@ pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
 /// than being passed on the command line. This includes the stdlib and prelude
 pub fn stdlib_and_prelude() -> Vec<(ModuleNamespace, String, String)> {
     sources! {
-        ([], [], "../prelude/prelude.spade"),
+        ([], [], "../stdlib/prelude.spade"),
 
         (["std"], ["std"], "../stdlib/main.spade"),
         (["std"], ["std", "array"], "../stdlib/array.spade"),
@@ -721,16 +725,12 @@ mod tests {
     fn sanity_check_static_sources_stdlib_included() {
         let included = super::stdlib_and_prelude()
             .into_iter()
-            .filter_map(|(ns, file, _)| {
-                if ns.base_namespace.to_named_strs() == [Some("std")] {
-                    Some(
-                        PathBuf::from(file)
-                            .file_name()
-                            .map(|f| f.to_string_lossy().to_string()),
-                    )
-                } else {
-                    None
-                }
+            .filter_map(|(_, file, _)| {
+                Some(
+                    PathBuf::from(file)
+                        .file_name()
+                        .map(|f| f.to_string_lossy().to_string()),
+                )
             })
             .collect::<Vec<_>>();
 

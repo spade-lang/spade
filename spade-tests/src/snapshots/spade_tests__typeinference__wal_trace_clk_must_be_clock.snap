@@ -23,5 +23,3 @@ error: Expected type clock, got bool
   │
   = note: Expected: clock
                Got: bool
-
-

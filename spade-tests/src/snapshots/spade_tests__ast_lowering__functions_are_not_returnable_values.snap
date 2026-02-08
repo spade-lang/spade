@@ -16,5 +16,3 @@ error: Expected f to be a value
 2 │ fn main() -> bool {
 3 │     let x = f;
   │             ^ Expected a value
-
-

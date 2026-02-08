@@ -15,5 +15,3 @@ error: Refutable pattern in local binding: pattern false not covered
   │
   = note: let requires a pattern which matches all possible options, such as a variable, struct or enum with only 1 option.
   = help: you might want to use match statement to handle different cases
-
-

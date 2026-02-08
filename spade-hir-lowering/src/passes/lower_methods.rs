@@ -23,6 +23,7 @@ impl<'a> Pass for LowerMethods<'a> {
         let replacement_kind = match &mut expression.kind {
             spade_hir::ExprKind::MethodCall {
                 target: self_,
+                target_trait: _,
                 name,
                 args,
                 call_kind,

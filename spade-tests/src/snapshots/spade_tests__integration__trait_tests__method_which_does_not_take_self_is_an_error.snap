@@ -21,5 +21,3 @@ error: Method must take 'self' as the first parameter
   │
 3 │     fn test(self, x: bool) -> bool {true}
   │             ++++++
-
-

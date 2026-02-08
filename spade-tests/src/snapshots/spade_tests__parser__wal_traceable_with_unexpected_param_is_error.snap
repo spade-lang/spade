@@ -12,5 +12,3 @@ error: Invalid parameter for wal_traceable
   │                 ^ Invalid parameter
   │
   = note: wal_traceable only takes the parameters suffix, uses_clk or uses_rst
-
-

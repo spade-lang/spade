@@ -21,5 +21,3 @@ error: Expected test to be a value
   │
 3 │     let x = test();
   │                 ++
-
-

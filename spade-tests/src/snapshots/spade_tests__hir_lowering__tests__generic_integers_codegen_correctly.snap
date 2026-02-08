@@ -2,9 +2,9 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \create_t[20] () -> int<8> {
+entity \create_t[261] () -> int<8> {
 	const e2: int<8> = 64
 } => e2
 entity \x () -> int<8> {
-	let e4: int<8> = Instance(\create_t[20] )()
+	let e4: int<8> = Instance(\create_t[261] )()
 } => e4

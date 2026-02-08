@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/hir_lowering.rs
-snapshot_kind: text
 ---
 pipeline(1) x(clk: clock) -> bool {
         let x = 0;

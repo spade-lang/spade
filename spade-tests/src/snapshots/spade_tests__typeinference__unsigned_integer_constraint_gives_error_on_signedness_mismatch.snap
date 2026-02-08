@@ -16,5 +16,3 @@ error: Expected type int<16>, got uint<32>
   │
   = note: Expected: int<16>
                Got: uint<32>
-
-

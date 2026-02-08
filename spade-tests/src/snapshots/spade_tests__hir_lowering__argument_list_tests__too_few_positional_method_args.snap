@@ -25,5 +25,3 @@ error: Too few arguments. Expected 2, got 0
   │
 8 │     x.function(/* a */, /* b */)
   │                ++++++++++++++++
-
-

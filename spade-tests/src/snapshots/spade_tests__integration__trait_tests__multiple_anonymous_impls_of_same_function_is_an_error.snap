@@ -20,5 +20,3 @@ error: X already has a method named a
   ·
 8 │     fn a(self) -> bool {false}
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^ Duplicate method
-
-

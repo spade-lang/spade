@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/parser.rs
-assertion_line: 115
 ---
 fn a() {
     let x = ¤;
@@ -11,5 +10,3 @@ error: Lexer error, unexpected symbol
   │
 2 │     let x = ¤;
   │             ^
-
-

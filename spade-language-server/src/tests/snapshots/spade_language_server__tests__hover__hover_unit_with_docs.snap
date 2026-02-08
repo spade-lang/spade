@@ -1,6 +1,6 @@
 ---
 source: spade-language-server/src/tests/hover.rs
-expression: "indoc :: indoc!\n(r#\"\n    /// This is a doc string\n    fn foo() -> bool {true}\n\n    fn bar() -> bool {\n        foo()\n     //  ^[1] hover\n    }\n    \"#).to_string()\n+ \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+expression: "expected.to_string() + \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
 ---
 /// This is a doc string
 fn foo() -> bool {true}

@@ -21,5 +21,3 @@ error: Non-exhaustive match: patterns (false, true, false), (true, true, false) 
 6 │ │         (false, false, false) => true,
 7 │ │     }
   │ ╰─────^ patterns (false, true, false), (true, true, false) and 2 more not covered
-
-

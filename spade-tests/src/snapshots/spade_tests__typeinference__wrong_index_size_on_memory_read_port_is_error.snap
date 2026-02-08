@@ -23,5 +23,3 @@ error: Argument type mismatch. Expected uint<5> got uint<32>
                 in: uint<5>
                Got: 32
                 in: uint<32>
-
-

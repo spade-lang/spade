@@ -14,5 +14,3 @@ error: Multiple items with the same name
   │       - Previous definition here
 2 │ trait A {}
   │       ^ A is defined multiple times
-
-

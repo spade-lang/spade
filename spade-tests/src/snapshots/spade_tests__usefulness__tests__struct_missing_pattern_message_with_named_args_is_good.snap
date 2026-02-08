@@ -23,5 +23,3 @@ error: Non-exhaustive match: pattern A(x: true, y: false) not covered
  9 │ │         A$(y:false, x: false) => true,
 10 │ │     }
    │ ╰─────^ pattern A(x: true, y: false) not covered
-
-

@@ -9,5 +9,3 @@ error: Use of undeclared name Trait
   │
 1 │ fn test<T: Trait>(x: T) {}
   │            ^^^^^ Undeclared name
-
-

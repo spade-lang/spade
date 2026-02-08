@@ -28,5 +28,3 @@ error: Multiple implementations of A for X
  9 │ │       fn a(self) {}
 10 │ │   }
    │ ╰───^
-
-

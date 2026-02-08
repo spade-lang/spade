@@ -15,5 +15,3 @@ error: Multiple items with the same name
   ·
 4 │ enum a{}
   │ -------- Previous definition here
-
-

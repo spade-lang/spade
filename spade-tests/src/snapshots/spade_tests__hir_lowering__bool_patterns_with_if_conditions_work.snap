@@ -2,22 +2,24 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n14, bool)) -> bool {
-	let e4: bool = Alias(e_n14)
+entity \uwu ((e, e_n77, bool)) -> bool {
+	let e4: bool = Alias(e_n77)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e5: bool = Eq(e6, e7)
-	let e16: bool = LogicalAnd(e_n14, e5)
+	let e219: bool = Eq(e6, e7)
+	let e5: bool = Alias(e219)
+	let e213: bool = LogicalAnd(e_n77, e5)
 	const e8: bool = true
-	let e9: bool = Alias(e_n14)
+	let e9: bool = Alias(e_n77)
 	const e11: int<7> = 0
 	const e12: int<7> = 1
-	let e10: bool = Eq(e11, e12)
-	let e18: bool = LogicalNot(e_n14)
-	let e17: bool = LogicalAnd(e18, e10)
+	let e221: bool = Eq(e11, e12)
+	let e10: bool = Alias(e221)
+	let e215: bool = LogicalNot(e_n77)
+	let e214: bool = LogicalAnd(e215, e10)
 	const e13: bool = false
-	let __n15: bool = Alias(e_n14)
-	const e19: bool = true
+	let __n78: bool = Alias(e_n77)
+	const e216: bool = true
 	const e15: bool = false
-	let e2: bool = Match(e16, e8, e17, e13, e19, e15)
+	let e2: bool = Match(e213, e8, e214, e13, e216, e15)
 } => e2

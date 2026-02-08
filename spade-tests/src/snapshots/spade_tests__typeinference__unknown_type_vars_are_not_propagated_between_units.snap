@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/typeinference.rs
-snapshot_kind: text
 ---
 fn inner<#uint A, #uint B, #uint C>() -> uint<8> {
     let _: uint<A> = 0u8;

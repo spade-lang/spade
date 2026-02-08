@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/ast_lowering.rs
-snapshot_kind: text
 ---
 struct X {}
 

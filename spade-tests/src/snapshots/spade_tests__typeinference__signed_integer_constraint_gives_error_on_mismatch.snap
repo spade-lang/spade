@@ -18,5 +18,3 @@ error: Expected type int<16>, got int<32>
                 in: int<16>
                Got: 32
                 in: int<32>
-
-

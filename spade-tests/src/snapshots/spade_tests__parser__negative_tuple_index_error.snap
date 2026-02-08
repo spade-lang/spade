@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/parser.rs
-assertion_line: 92
 ---
 fn a() -> int<10> {
     x#-10
@@ -11,5 +10,3 @@ error: Tuple indices must be non-negative
   │
 2 │     x#-10
   │       ^^^ Negative tuple index
-
-

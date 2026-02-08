@@ -800,7 +800,7 @@ impl SymbolTable {
                 .secondary_label(old, "Previously declared here")
         };
         // Check if a variable with this name already exists
-        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident.clone())) {
+        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident.clone()), false) {
             if let Some(Thing::Variable(prev)) = self.things.get(&id) {
                 return Err(declared_more_than_once(ident, prev));
             }
@@ -1094,7 +1094,7 @@ impl SymbolTable {
     ///
     /// Intended for use if undefined variables should be declared
     pub fn try_lookup_variable(&self, name: &Loc<Path>) -> Result<Option<NameID>, LookupError> {
-        let id = self.try_lookup_id(name);
+        let id = self.try_lookup_id(name, true);
         match id {
             Some(id) => match self.things.get(&id) {
                 Some(Thing::Variable(_)) => Ok(Some(id)),
@@ -1108,8 +1108,8 @@ impl SymbolTable {
         }
     }
 
-    pub fn try_lookup_id(&self, name: &Loc<Path>) -> Option<NameID> {
-        match self.lookup_id(name, true) {
+    pub fn try_lookup_id(&self, name: &Loc<Path>, check_metadata: bool) -> Option<NameID> {
+        match self.lookup_id(name, check_metadata) {
             Ok(id) => Some(id),
             Err(LookupError::NoSuchSymbol(_)) => None,
             Err(err) => unreachable!("Got {err:?} when looking up final ID"),

@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/hir_lowering.rs
-assertion_line: 2306
 ---
 fn main() -> int<2> {
     let a: int<1> = 0;
@@ -19,5 +18,3 @@ error: Truncating to a larger value
   │                     The value is truncated to 2 bits here
   │
   = note: Truncation can only remove bits
-
-

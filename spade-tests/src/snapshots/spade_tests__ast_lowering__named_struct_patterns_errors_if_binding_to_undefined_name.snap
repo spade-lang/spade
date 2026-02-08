@@ -14,5 +14,3 @@ error: No such argument: y
   │
 4 │     let A$(y) = a;
   │            ^ No such argument
-
-

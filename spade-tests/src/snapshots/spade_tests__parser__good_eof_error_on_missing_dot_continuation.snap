@@ -8,5 +8,3 @@ error: Unexpected `end of file`, expected `Identifier`
   │
 1 │ fn a() -> bool { a.
   │                    ^ expected `Identifier`
-
-

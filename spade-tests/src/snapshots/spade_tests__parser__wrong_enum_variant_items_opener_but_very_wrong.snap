@@ -11,5 +11,3 @@ error: Unexpected `|`, expected `{`, `,` or `}`
   │
 2 │     B|bool|,
   │      ^
-
-

@@ -302,7 +302,7 @@ impl<'d> Renderer<'d> {
                             .iter()
                             .map(|type_param| GenericTypeParam::mirror_typeparam(type_param))
                             .collect::<Result<_>>()?,
-                        impld_trait: if let TraitName::Named(n) = traitname {
+                        impld_trait: if let TraitName::Named(_, n) = traitname {
                             Some(n.inner.1.tail().to_string().into())
                         } else {
                             None

@@ -14,5 +14,3 @@ error: Ports cannot be put in a register
   │                  ^ This is a port
   │
   = note: &bool is a port
-
-

@@ -18,3 +18,9 @@ error: Use of undeclared name conv
   │
 7 │             conv::trunc(value + 1)
   │             ^^^^ Undeclared name
+
+error: {unknown} does not have any methods
+  ┌─ testinput:3:12
+  │
+3 │         if value == max {
+  │            ^^^^^

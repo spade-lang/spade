@@ -1,7 +1,6 @@
 ---
 source: spade-tests/src/compiler_state.rs
 ---
-
         fn sub() -> bool {
             false
         }
@@ -14,4 +13,3 @@ source: spade-tests/src/compiler_state.rs
     
 
 Did not find a unit named not_a_module in main
-

@@ -15,5 +15,3 @@ error: If condition must be a bool, got int<1>
   │
   = note: Expected: bool
                Got: int<1>
-
-

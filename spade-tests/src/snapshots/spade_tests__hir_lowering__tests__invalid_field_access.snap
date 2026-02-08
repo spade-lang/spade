@@ -13,5 +13,3 @@ error: X has no field named not_a_field
   │
 4 │     x.not_a_field
   │       ^^^^^^^^^^^ Not a field of X
-
-

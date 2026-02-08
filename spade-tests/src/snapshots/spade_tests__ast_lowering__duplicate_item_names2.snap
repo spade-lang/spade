@@ -17,5 +17,3 @@ error: Multiple items with the same name
   ·
 4 │ pipeline(0) a(clk: clock) -> bool {
   │             ^ a is defined multiple times
-
-

@@ -14,5 +14,3 @@ error: Generic types cannot be ports
   │
 4 │     let x: &bool = inst identity(p);
   │                    ^^^^^^^^^^^^^^^^ Parameter T is &bool which is a port type
-
-

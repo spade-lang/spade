@@ -20,5 +20,3 @@ error: Port in non-port struct
   │
 4 │ struct port A {
   │        +++++
-
-

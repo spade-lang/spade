@@ -520,15 +520,16 @@ impl TypeState {
     }
 
     pub fn new_generic_number(&mut self, loc: Loc<()>, ctx: &Context) -> (TypeVarID, TypeVarID) {
+        let path = Path::from_strs(&["Number"]).nowhere();
         let number = ctx
             .symtab
-            .lookup_trait(&Path::from_strs(&["Number"]).nowhere(), true)
-            .expect("Did not find number in symtab")
+            .lookup_trait(&path, true)
+            .expect("Did not find `Number` trait in symtab")
             .0;
         let id = self.new_typeid();
         let size = self.new_generic_tluint(loc);
         let t = TraitReq {
-            name: TraitName::Named(number.nowhere()),
+            name: TraitName::Named(path, number.nowhere()),
             type_params: vec![size.clone()],
         }
         .nowhere();
@@ -1121,7 +1122,7 @@ impl TypeState {
                 $(
                     let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
                     if ctx.symtab
-                        .try_lookup_id(&path)
+                        .try_lookup_id(&path, false)
                         .map(|n| &FunctionLikeName::Free(n) == name)
                         .unwrap_or(false)
                     {
@@ -3144,10 +3145,12 @@ impl TypeState {
             )
         });
 
+        let path = Path::from_strs(&["Number"]).nowhere();
+
         let number = ctx
             .symtab
-            .lookup_trait(&Path::from_strs(&["Number"]).nowhere(), true)
-            .expect("Did not find number in symtab")
+            .lookup_trait(&path, true)
+            .expect("Did not find `Number` trait in symtab")
             .0;
 
         macro_rules! error_producer {
@@ -3155,7 +3158,7 @@ impl TypeState {
                 if trait_is_expected {
                     if $required_traits.inner.len() == 1
                         && $required_traits
-                            .get_trait(&TraitName::Named(number.clone().nowhere()))
+                            .get_trait(&TraitName::Named(path, number.clone().nowhere()))
                             .is_some()
                     {
                         Err(UnificationError::Normal(Tm {

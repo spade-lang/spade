@@ -1,10 +1,6 @@
 ---
 source: spade-tests/src/parser.rs
-assertion_line: 135
 ---
 entity a(b: int<8>, c: int<8>, d: int<8>) -> int<8> {
     std::ops::min(c, std::ops::max(b, d))
 }
-
-
-

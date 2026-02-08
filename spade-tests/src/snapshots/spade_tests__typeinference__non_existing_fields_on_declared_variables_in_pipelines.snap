@@ -16,5 +16,3 @@ error: X has no field named b
   │
 4 │         let y = stage(+1).x.b;
   │                             ^ Not a field of X
-
-

@@ -19,5 +19,3 @@ error: Non-exhaustive match: patterns -128..-1, 2..3 and 1 more not covered
 5 │ │         4 => true,
 6 │ │     }
   │ ╰─────^ patterns -128..-1, 2..3 and 1 more not covered
-
-

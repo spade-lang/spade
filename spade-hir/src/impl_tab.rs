@@ -54,8 +54,8 @@ impl ImplTab {
                 .map(|(_, block)| block);
 
             if let Some(duplicate) = overlapping_traits.next() {
-                let name = match &trait_spec.name {
-                    TraitName::Named(n) => n,
+                let path = match &trait_spec.name {
+                    TraitName::Named(p, _) => p,
                     TraitName::Anonymous(_) => {
                         diag_bail!(block, "Found multiple impls of anonymous trait")
                     }
@@ -64,7 +64,7 @@ impl ImplTab {
                     block,
                     format!(
                         "Multiple implementations of {} for {}",
-                        name,
+                        path,
                         &target.display(&target_args)
                     ),
                 )

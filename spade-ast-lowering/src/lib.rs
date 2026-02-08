@@ -339,7 +339,7 @@ pub fn visit_type_spec(
     kind: &TypeSpecKind,
     ctx: &mut Context,
 ) -> Result<Loc<hir::TypeSpec>> {
-    let trait_loc = if let SelfContext::TraitDefinition(TraitName::Named(name)) = &ctx.self_ctx {
+    let trait_loc = if let SelfContext::TraitDefinition(TraitName::Named(_, name)) = &ctx.self_ctx {
         name.loc()
     } else {
         ().nowhere()
@@ -1521,7 +1521,7 @@ pub fn visit_trait_spec(
         }
         ctx.diags.lock().unwrap().errors.push(diag);
     }
-    let name = TraitName::Named(name_id.at_loc(&loc));
+    let name = TraitName::Named(trait_spec.inner.path.clone(), name_id.at_loc(&loc));
     let type_params = match &trait_spec.inner.type_params {
         Some(params) => Some(params.try_map_ref(|params| {
             params
@@ -2126,50 +2126,134 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         }
         ast::Expression::CreatePorts => Ok(hir::ExprKind::CreatePorts),
         ast::Expression::BinaryOperator(lhs, tok, rhs) => {
-            let lhs = lhs.visit(visit_expression, ctx);
-            let rhs = rhs.visit(visit_expression, ctx);
+            let lhs = &lhs.visit(visit_expression, ctx);
+            let rhs = &rhs.visit(visit_expression, ctx);
 
-            let operator = |op: BinaryOperator| {
-                hir::ExprKind::BinaryOperator(Box::new(lhs), op.at_loc(tok), Box::new(rhs))
+            let wildcard =
+                ast::TypeExpression::TypeSpec(Box::new(ast::TypeSpec::Wildcard.nowhere()))
+                    .nowhere();
+
+            let op = |op: BinaryOperator| {
+                hir::ExprKind::BinaryOperator(
+                    Box::new(lhs.clone()),
+                    op.at_loc(tok),
+                    Box::new(rhs.clone()),
+                )
             };
 
+            let mut op_method =
+                |op: &'static str,
+                 trait_name: &'static str,
+                 trait_params: Vec<Loc<ast::TypeExpression>>| {
+                    let rhs_loc = rhs.loc();
+
+                    let trait_spec = ast::TraitSpec {
+                        path: Path::from_strs(&[trait_name]).at_loc(tok),
+                        type_params: if trait_params.is_empty() {
+                            None
+                        } else {
+                            Some(trait_params.nowhere())
+                        },
+                        paren_syntax: false,
+                    };
+
+                    Result::Ok(hir::ExprKind::MethodCall {
+                        target: Box::new(lhs.clone()),
+                        target_trait: Some(visit_trait_spec(
+                            &trait_spec.at_loc(tok),
+                            &TypeSpecKind::Turbofish,
+                            ctx,
+                        )?),
+                        name: Identifier::intern(op).at_loc(tok),
+                        turbofish: None,
+                        args: hir::ArgumentList::Positional(vec![rhs.clone()]).at_loc(&rhs_loc),
+                        call_kind: hir::expression::CallKind::Function,
+                        safety: Safety::Default,
+                    })
+                };
+
             match tok.inner {
-                ast::BinaryOperator::Add => Ok(operator(BinaryOperator::Add)),
-                ast::BinaryOperator::Sub => Ok(operator(BinaryOperator::Sub)),
-                ast::BinaryOperator::Mul => Ok(operator(BinaryOperator::Mul)),
-                ast::BinaryOperator::Div => Ok(operator(BinaryOperator::Div)),
-                ast::BinaryOperator::Mod => Ok(operator(BinaryOperator::Mod)),
-                ast::BinaryOperator::Eq => Ok(operator(BinaryOperator::Eq)),
-                ast::BinaryOperator::Neq => Ok(operator(BinaryOperator::NotEq)),
-                ast::BinaryOperator::Gt => Ok(operator(BinaryOperator::Gt)),
-                ast::BinaryOperator::Lt => Ok(operator(BinaryOperator::Lt)),
-                ast::BinaryOperator::Ge => Ok(operator(BinaryOperator::Ge)),
-                ast::BinaryOperator::Le => Ok(operator(BinaryOperator::Le)),
-                ast::BinaryOperator::LeftShift => Ok(operator(BinaryOperator::LeftShift)),
-                ast::BinaryOperator::RightShift => Ok(operator(BinaryOperator::RightShift)),
-                ast::BinaryOperator::ArithmeticRightShift => {
-                    Ok(operator(BinaryOperator::ArithmeticRightShift))
+                ast::BinaryOperator::Add => Ok(op(BinaryOperator::Add)),
+                ast::BinaryOperator::Sub => Ok(op(BinaryOperator::Sub)),
+                ast::BinaryOperator::Mul => Ok(op(BinaryOperator::Mul)),
+                ast::BinaryOperator::Div => Ok(op(BinaryOperator::Div)),
+                ast::BinaryOperator::Mod => Ok(op(BinaryOperator::Mod)),
+                ast::BinaryOperator::Eq => {
+                    Ok(op_method("eq", "PartialEq", vec![wildcard.clone()])?)
                 }
-                ast::BinaryOperator::LogicalAnd => Ok(operator(BinaryOperator::LogicalAnd)),
-                ast::BinaryOperator::LogicalOr => Ok(operator(BinaryOperator::LogicalOr)),
-                ast::BinaryOperator::LogicalXor => Ok(operator(BinaryOperator::LogicalXor)),
-                ast::BinaryOperator::BitwiseOr => Ok(operator(BinaryOperator::BitwiseOr)),
-                ast::BinaryOperator::BitwiseAnd => Ok(operator(BinaryOperator::BitwiseAnd)),
-                ast::BinaryOperator::BitwiseXor => Ok(operator(BinaryOperator::BitwiseXor)),
+                ast::BinaryOperator::Neq => {
+                    Ok(op_method("ne", "PartialEq", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::Gt => {
+                    Ok(op_method("gt", "PartialOrd", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::Lt => {
+                    Ok(op_method("lt", "PartialOrd", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::Ge => {
+                    Ok(op_method("ge", "PartialOrd", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::Le => {
+                    Ok(op_method("le", "PartialOrd", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::LeftShift => Ok(op(BinaryOperator::LeftShift)),
+                ast::BinaryOperator::RightShift => Ok(op(BinaryOperator::RightShift)),
+                ast::BinaryOperator::ArithmeticRightShift => {
+                    Ok(op(BinaryOperator::ArithmeticRightShift))
+                }
+                ast::BinaryOperator::LogicalAnd => {
+                    Ok(op_method("and", "And", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::LogicalOr => {
+                    Ok(op_method("or", "Or", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::LogicalXor => {
+                    Ok(op_method("xor", "Xor", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::BitwiseOr => {
+                    Ok(op_method("bit_or", "BitOr", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::BitwiseAnd => {
+                    Ok(op_method("bit_and", "BitAnd", vec![wildcard.clone()])?)
+                }
+                ast::BinaryOperator::BitwiseXor => {
+                    Ok(op_method("bit_xor", "BitXor", vec![wildcard.clone()])?)
+                }
             }
         }
         ast::Expression::UnaryOperator(operator, operand) => {
-            let operand = operand.visit(visit_expression, ctx);
+            let operand = &operand.visit(visit_expression, ctx);
 
             let unop = |op: hir::expression::UnaryOperator| {
-                hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand))
+                hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand.clone()))
             };
+
+            let mut unop_method = |op: &'static str, trait_name: &'static str| {
+                let trait_spec = ast::TraitSpec {
+                    path: Path::from_strs(&[trait_name]).at_loc(operator),
+                    type_params: None,
+                    paren_syntax: false,
+                };
+
+                Result::Ok(hir::ExprKind::MethodCall {
+                    target: Box::new(operand.clone()),
+                    target_trait: Some(visit_trait_spec(
+                        &trait_spec.at_loc(operator),
+                        &TypeSpecKind::Turbofish,
+                        ctx,
+                    )?),
+                    name: Identifier::intern(op).at_loc(operator),
+                    turbofish: None,
+                    args: hir::ArgumentList::empty().nowhere(),
+                    call_kind: hir::expression::CallKind::Function,
+                    safety: Safety::Default,
+                })
+            };
+
             match operator.inner {
                 ast::UnaryOperator::Sub => Ok(unop(hir::expression::UnaryOperator::Sub)),
-                ast::UnaryOperator::Not => Ok(unop(hir::expression::UnaryOperator::Not)),
-                ast::UnaryOperator::BitwiseNot => {
-                    Ok(unop(hir::expression::UnaryOperator::BitwiseNot))
-                }
+                ast::UnaryOperator::Not => Ok(unop_method("not", "Not")?),
+                ast::UnaryOperator::BitwiseNot => Ok(unop_method("bit_not", "BitNot")?),
                 ast::UnaryOperator::Dereference => {
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }
@@ -2261,6 +2345,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::MethodCall {
                 target: Box::new(target),
+                target_trait: None,
                 name: name.clone(),
                 args: args.try_map_ref(|args| visit_argument_list(args, ctx))?,
                 call_kind: visit_call_kind(kind, ctx)?,

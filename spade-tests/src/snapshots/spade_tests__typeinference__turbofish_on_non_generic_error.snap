@@ -15,5 +15,3 @@ error: Turbofish on non-generic function
   │
 6 │     let x: int<8> = ret_int::<10>();
   │                              ^^^^ Turbofish on non-generic function
-
-

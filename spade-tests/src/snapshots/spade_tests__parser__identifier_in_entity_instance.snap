@@ -11,5 +11,3 @@ error: Unexpected `integer`, expected `identifier` or `pipeline depth`
   │
 2 │     inst 123
   │          ^^^ expected `identifier` or `pipeline depth`
-
-

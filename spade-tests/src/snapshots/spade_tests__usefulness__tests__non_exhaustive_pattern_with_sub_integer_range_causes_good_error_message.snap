@@ -15,5 +15,3 @@ error: Non-exhaustive match: pattern (-128..127, false) not covered
 3 │ │         (val, true) => true,
 4 │ │     }
   │ ╰─────^ pattern (-128..127, false) not covered
-
-

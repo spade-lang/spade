@@ -16,5 +16,3 @@ error: Missing arguments: a, b
   ·
 4 │     Test$()
   │          ^^ Missing arguments: a, b
-
-

@@ -8,5 +8,3 @@ error: Unknown attribute 'owo'
   │
 1 │ fn test(#[owo] a: bool) -> bool {true}
   │           ^^^ Unrecognised attribute
-
-

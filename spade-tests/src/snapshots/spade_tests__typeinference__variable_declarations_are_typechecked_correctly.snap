@@ -27,5 +27,3 @@ error: Output type mismatch. Expected int<8>, got int<9>
                 in: int<8>
                Got: 9
                 in: int<9>
-
-

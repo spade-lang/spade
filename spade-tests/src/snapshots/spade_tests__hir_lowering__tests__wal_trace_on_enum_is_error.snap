@@ -16,5 +16,3 @@ error: #[wal_trace] can only be applied to values of struct type
   │     ^^^^^^^^^^^^ #[wal_trace] on enum
 4 │     let y = x;
   │         - This has type T which is enum
-
-

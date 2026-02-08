@@ -14,5 +14,3 @@ error: Use of undeclared name count
   │
 4 │         None => count
   │                 ^^^^^ Undeclared name
-
-

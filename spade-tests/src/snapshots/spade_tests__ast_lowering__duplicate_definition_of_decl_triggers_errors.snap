@@ -20,5 +20,3 @@ error: x was already defined
   │         ^ Later defined here
   │
   = note: Declared variables can only be defined once
-
-

@@ -5,6 +5,6 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 entity \test::test () -> () {
 	const e3: uint<8> = 0
 	let e2: [uint<8>; 1] = ConstructArray(e3)
-	let __n16: [uint<8>; 1] = Alias(e2)
+	let __n79: [uint<8>; 1] = Alias(e2)
 	let e1: () = Nop()
 } => e1
