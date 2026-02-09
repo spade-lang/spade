@@ -71,6 +71,117 @@ impl<#uint N, T: PartialEq> PartialEq for [T; N] {
     }
 }
 
+pub trait WrappingNeg {
+    fn wrapping_neg(self) -> Self;
+}
+
+impl<#uint N> WrappingNeg for int<N> {
+    fn wrapping_neg(self) -> Self {
+        unsafe {
+            let bits: [bool; N] = lib::conv::transmute(-self);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+pub trait WrappingAdd<Rhs = Self> {
+    fn wrapping_add(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> WrappingAdd for int<N> {
+    fn wrapping_add(self, rhs: Self) -> Self {
+        unsafe {
+            let bits: [bool; {N + 1}] = lib::conv::transmute(self + rhs);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+impl<#uint N> WrappingAdd for uint<N> {
+    fn wrapping_add(self, rhs: Self) -> Self {
+        unsafe {
+            let bits: [bool; {N + 1}] = lib::conv::transmute(self + rhs);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+pub trait WrappingSub<Rhs = Self> {
+    fn wrapping_sub(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> WrappingSub for int<N> {
+    fn wrapping_sub(self, rhs: Self) -> Self {
+        unsafe {
+            let bits: [bool; {N + 1}] = lib::conv::transmute(self - rhs);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+impl<#uint N> WrappingSub for uint<N> {
+    fn wrapping_sub(self, rhs: Self) -> Self {
+        unsafe {
+            let bits: [bool; {N + 1}] = lib::conv::transmute(self - rhs);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+pub trait WrappingMul<Rhs = Self> {
+    fn wrapping_mul(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> WrappingMul for int<N> {
+    fn wrapping_mul(self, rhs: Self) -> Self {
+        unsafe {
+            let bits: [bool; {2 * N}] = lib::conv::transmute(self * rhs);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+impl<#uint N> WrappingMul for uint<N> {
+    fn wrapping_mul(self, rhs: Self) -> Self {
+        unsafe {
+            let bits: [bool; {2 * N}] = lib::conv::transmute(self * rhs);
+            lib::conv::transmute(bits[0..N])
+        }
+    }
+}
+
+pub trait WrappingShl<Rhs = Self> {
+    fn wrapping_shl(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> WrappingShl for int<N> {
+    fn wrapping_shl(self, rhs: Self) -> Self {
+        self << rhs
+    }
+}
+
+impl<#uint N> WrappingShl for uint<N> {
+    fn wrapping_shl(self, rhs: Self) -> Self {
+        self << rhs
+    }
+}
+
+pub trait WrappingShr<Rhs = Self> {
+    fn wrapping_shr(self, rhs: Rhs) -> Self;
+}
+
+impl<#uint N> WrappingShr for int<N> {
+    fn wrapping_shr(self, rhs: Self) -> Self {
+        self >> rhs
+    }
+}
+
+impl<#uint N> WrappingShr for uint<N> {
+    fn wrapping_shr(self, rhs: Self) -> Self {
+        self >> rhs
+    }
+}
+
 pub trait Not {
     fn not(self) -> Self;
 }

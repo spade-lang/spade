@@ -172,6 +172,16 @@ pub enum TokenKind {
     RightShift,
     #[token("<<")]
     LeftShift,
+    #[token("+.")]
+    PlusDot,
+    #[token("-.")]
+    MinusDot,
+    #[token("*.")]
+    AsteriskDot,
+    #[token(">>.")]
+    RightShiftDot,
+    #[token("<<.")]
+    LeftShiftDot,
     #[token("||")]
     DoublePipe,
     #[token("&&")]
@@ -333,6 +343,11 @@ impl TokenKind {
             TokenKind::LeftShift => "<<",
             TokenKind::RightShift => ">>",
             TokenKind::ArithmeticRightShift => ">>>",
+            TokenKind::PlusDot => "+.",
+            TokenKind::MinusDot => "-.",
+            TokenKind::AsteriskDot => "*.",
+            TokenKind::LeftShiftDot => "<<.",
+            TokenKind::RightShiftDot => ">>.",
             TokenKind::DoublePipe => "||",
             TokenKind::LogicalAnd => "&&",
             TokenKind::LogicalXor => "^^",

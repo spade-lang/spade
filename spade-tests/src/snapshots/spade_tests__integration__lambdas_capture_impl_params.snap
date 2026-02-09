@@ -4,17 +4,17 @@ expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \test () -> () {
 	let e13: {} = ConstructTuple()
-	let e12: () = Instance(\impl#0::test[279] )(e13)
+	let e12: () = Instance(\impl#0::test[368] )(e13)
 } => e12
-entity \impl#0::test[279] ((self, self_n84, {})) -> () {
+entity \impl#0::test[368] ((self, self_n101, {})) -> () {
 	let e3: {} = ConstructTuple()
 	let e9: () = ConstructTuple()
-	let e2: () = Instance(\impl#1::call[280] )(e3, e9)
-	let l_n96: () = Alias(e2)
+	let e2: () = Instance(\impl#1::call[369] )(e3, e9)
+	let l_n113: () = Alias(e2)
 	let e1: () = Nop()
 } => e1
-entity \impl#1::call[280] ((self, self_n94, {}), (args, args_n95, ())) -> () {
+entity \impl#1::call[369] ((self, self_n111, {}), (args, args_n112, ())) -> () {
 	const e4: uint<8> = 5
-	let x_n85: uint<8> = Alias(e4)
+	let x_n102: uint<8> = Alias(e4)
 	let e6: () = Nop()
 } => e6

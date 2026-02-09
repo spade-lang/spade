@@ -2201,6 +2201,31 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::BinaryOperator::ArithmeticRightShift => {
                     Ok(op(BinaryOperator::ArithmeticRightShift))
                 }
+                ast::BinaryOperator::WrappingAdd => Ok(op_method(
+                    "wrapping_add",
+                    "WrappingAdd",
+                    vec![wildcard.clone()],
+                )?),
+                ast::BinaryOperator::WrappingSub => Ok(op_method(
+                    "wrapping_sub",
+                    "WrappingSub",
+                    vec![wildcard.clone()],
+                )?),
+                ast::BinaryOperator::WrappingMul => Ok(op_method(
+                    "wrapping_mul",
+                    "WrappingMul",
+                    vec![wildcard.clone()],
+                )?),
+                ast::BinaryOperator::WrappingLeftShift => Ok(op_method(
+                    "wrapping_shl",
+                    "WrappingShl",
+                    vec![wildcard.clone()],
+                )?),
+                ast::BinaryOperator::WrappingRightShift => Ok(op_method(
+                    "wrapping_shr",
+                    "WrappingShr",
+                    vec![wildcard.clone()],
+                )?),
                 ast::BinaryOperator::LogicalAnd => {
                     Ok(op_method("and", "And", vec![wildcard.clone()])?)
                 }
@@ -2224,36 +2249,52 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         ast::Expression::UnaryOperator(operator, operand) => {
             let operand = &operand.visit(visit_expression, ctx);
 
+            let wildcard =
+                ast::TypeExpression::TypeSpec(Box::new(ast::TypeSpec::Wildcard.nowhere()))
+                    .nowhere();
+
             let unop = |op: hir::expression::UnaryOperator| {
                 hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand.clone()))
             };
 
-            let mut unop_method = |op: &'static str, trait_name: &'static str| {
-                let trait_spec = ast::TraitSpec {
-                    path: Path::from_strs(&[trait_name]).at_loc(operator),
-                    type_params: None,
-                    paren_syntax: false,
-                };
+            let mut unop_method =
+                |op: &'static str,
+                 trait_name: &'static str,
+                 trait_params: Vec<Loc<ast::TypeExpression>>| {
+                    let trait_spec = ast::TraitSpec {
+                        path: Path::from_strs(&[trait_name]).at_loc(operator),
+                        type_params: if trait_params.is_empty() {
+                            None
+                        } else {
+                            Some(trait_params.nowhere())
+                        },
+                        paren_syntax: false,
+                    };
 
-                Result::Ok(hir::ExprKind::MethodCall {
-                    target: Box::new(operand.clone()),
-                    target_trait: Some(visit_trait_spec(
-                        &trait_spec.at_loc(operator),
-                        &TypeSpecKind::Turbofish,
-                        ctx,
-                    )?),
-                    name: Identifier::intern(op).at_loc(operator),
-                    turbofish: None,
-                    args: hir::ArgumentList::empty().nowhere(),
-                    call_kind: hir::expression::CallKind::Function,
-                    safety: Safety::Default,
-                })
-            };
+                    Result::Ok(hir::ExprKind::MethodCall {
+                        target: Box::new(operand.clone()),
+                        target_trait: Some(visit_trait_spec(
+                            &trait_spec.at_loc(operator),
+                            &TypeSpecKind::Turbofish,
+                            ctx,
+                        )?),
+                        name: Identifier::intern(op).at_loc(operator),
+                        turbofish: None,
+                        args: hir::ArgumentList::empty().nowhere(),
+                        call_kind: hir::expression::CallKind::Function,
+                        safety: Safety::Default,
+                    })
+                };
 
             match operator.inner {
                 ast::UnaryOperator::Sub => Ok(unop(hir::expression::UnaryOperator::Sub)),
-                ast::UnaryOperator::Not => Ok(unop_method("not", "Not")?),
-                ast::UnaryOperator::BitwiseNot => Ok(unop_method("bit_not", "BitNot")?),
+                ast::UnaryOperator::Not => Ok(unop_method("not", "Not", vec![])?),
+                ast::UnaryOperator::BitwiseNot => Ok(unop_method("bit_not", "BitNot", vec![])?),
+                ast::UnaryOperator::WrappingSub => Ok(unop_method(
+                    "wrapping_neg",
+                    "WrappingNeg",
+                    vec![wildcard.clone()],
+                )?),
                 ast::UnaryOperator::Dereference => {
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }

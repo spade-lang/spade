@@ -1,5 +1,9 @@
 use core::ops::Number;
 use core::ops::{Entity, Fn, Pipeline};
 use core::ops::{PartialEq, PartialOrd};
+use core::ops::{
+    WrappingAdd, WrappingMul, WrappingNeg, WrappingSub, WrappingShl,
+    WrappingShr,
+};
 use core::ops::{And, Not, Or, Xor};
 use core::ops::{BitAnd, BitNot, BitOr, BitXor};

@@ -52,6 +52,11 @@ fn binop_binding_power(op: &BinaryOperator) -> OpBindingPower {
         BinaryOperator::BitwiseAnd => OpBindingPower::BitwiseAnd,
         BinaryOperator::BitwiseOr => OpBindingPower::BitwiseOr,
         BinaryOperator::BitwiseXor => OpBindingPower::BitwiseXor,
+        BinaryOperator::WrappingAdd => OpBindingPower::AddLike,
+        BinaryOperator::WrappingSub => OpBindingPower::AddLike,
+        BinaryOperator::WrappingMul => OpBindingPower::MulLike,
+        BinaryOperator::WrappingLeftShift => OpBindingPower::Shift,
+        BinaryOperator::WrappingRightShift => OpBindingPower::Shift,
     }
 }
 
@@ -60,6 +65,7 @@ fn unop_binding_power(op: &UnaryOperator) -> OpBindingPower {
         UnaryOperator::Sub => OpBindingPower::PrefixUnary,
         UnaryOperator::Not => OpBindingPower::PrefixUnary,
         UnaryOperator::BitwiseNot => OpBindingPower::PrefixUnary,
+        UnaryOperator::WrappingSub => OpBindingPower::PrefixUnary,
         UnaryOperator::Dereference => OpBindingPower::PrefixUnary,
         UnaryOperator::Reference => OpBindingPower::PrefixUnary,
     }
@@ -84,6 +90,11 @@ impl<'a> Parser<'a> {
             TokenKind::RightShift => Some(BinaryOperator::RightShift),
             TokenKind::ArithmeticRightShift => Some(BinaryOperator::ArithmeticRightShift),
             TokenKind::LeftShift => Some(BinaryOperator::LeftShift),
+            TokenKind::PlusDot => Some(BinaryOperator::WrappingAdd),
+            TokenKind::MinusDot => Some(BinaryOperator::WrappingSub),
+            TokenKind::AsteriskDot => Some(BinaryOperator::WrappingMul),
+            TokenKind::RightShiftDot => Some(BinaryOperator::WrappingRightShift),
+            TokenKind::LeftShiftDot => Some(BinaryOperator::WrappingLeftShift),
             TokenKind::DoublePipe => Some(BinaryOperator::LogicalOr),
             TokenKind::LogicalAnd => Some(BinaryOperator::LogicalAnd),
             TokenKind::LogicalXor => Some(BinaryOperator::LogicalXor),

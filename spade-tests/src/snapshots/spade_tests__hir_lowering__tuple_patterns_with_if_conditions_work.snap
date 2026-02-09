@@ -2,32 +2,32 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n77, (int<16>, bool))) -> bool {
-	let e6: (int<16>, bool) = Alias(e_n77)
-	let e4: int<16> = IndexTuple(0)(e_n77)
-	let b_n78: bool = IndexTuple(1)(e_n77)
+entity \uwu ((e, e_n94, (int<16>, bool))) -> bool {
+	let e6: (int<16>, bool) = Alias(e_n94)
+	let e4: int<16> = IndexTuple(0)(e_n94)
+	let b_n95: bool = IndexTuple(1)(e_n94)
 	const e8: int<7> = 6
 	const e9: int<7> = 8
-	let e231: bool = Eq(e8, e9)
-	let e7: bool = Alias(e231)
-	const e219: int<16> = 0
-	let e218: bool = Eq(e4, e219)
-	const e220: bool = true
-	let e221: bool = LogicalAnd(e218, e220)
-	let e222: bool = LogicalAnd(e221, e7)
-	let e13: (int<16>, bool) = Alias(e_n77)
-	let x_n79: int<16> = IndexTuple(0)(e_n77)
-	let e12: bool = IndexTuple(1)(e_n77)
+	let e330: bool = Eq(e8, e9)
+	let e7: bool = Alias(e330)
+	const e318: int<16> = 0
+	let e317: bool = Eq(e4, e318)
+	const e319: bool = true
+	let e320: bool = LogicalAnd(e317, e319)
+	let e321: bool = LogicalAnd(e320, e7)
+	let e13: (int<16>, bool) = Alias(e_n94)
+	let x_n96: int<16> = IndexTuple(0)(e_n94)
+	let e12: bool = IndexTuple(1)(e_n94)
 	const e15: int<7> = 0
 	const e16: int<7> = 1
-	let e233: bool = Eq(e15, e16)
-	let e14: bool = Alias(e233)
-	const e224: bool = true
-	let e226: bool = LogicalAnd(e224, e12)
-	let e227: bool = LogicalAnd(e226, e14)
+	let e332: bool = Eq(e15, e16)
+	let e14: bool = Alias(e332)
+	const e323: bool = true
+	let e325: bool = LogicalAnd(e323, e12)
+	let e326: bool = LogicalAnd(e325, e14)
 	const e17: bool = true
-	let __n80: (int<16>, bool) = Alias(e_n77)
-	const e228: bool = true
+	let __n97: (int<16>, bool) = Alias(e_n94)
+	const e327: bool = true
 	const e19: bool = false
-	let e2: bool = Match(e222, b_n78, e227, e17, e228, e19)
+	let e2: bool = Match(e321, b_n95, e326, e17, e327, e19)
 } => e2

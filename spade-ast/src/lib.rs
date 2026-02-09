@@ -212,6 +212,11 @@ pub enum BinaryOperator {
     BitwiseAnd,
     BitwiseOr,
     BitwiseXor,
+    WrappingAdd,
+    WrappingSub,
+    WrappingMul,
+    WrappingLeftShift,
+    WrappingRightShift,
 }
 
 impl std::fmt::Display for BinaryOperator {
@@ -237,6 +242,11 @@ impl std::fmt::Display for BinaryOperator {
             BinaryOperator::BitwiseAnd => write!(f, "&&"),
             BinaryOperator::BitwiseOr => write!(f, "||"),
             BinaryOperator::BitwiseXor => write!(f, "^^"),
+            BinaryOperator::WrappingAdd => write!(f, "+."),
+            BinaryOperator::WrappingSub => write!(f, "-."),
+            BinaryOperator::WrappingMul => write!(f, "*."),
+            BinaryOperator::WrappingLeftShift => write!(f, "<<."),
+            BinaryOperator::WrappingRightShift => write!(f, ">>."),
         }
     }
 }
@@ -246,6 +256,7 @@ pub enum UnaryOperator {
     Sub,
     Not,
     BitwiseNot,
+    WrappingSub,
     Dereference,
     Reference,
 }
@@ -256,6 +267,7 @@ impl std::fmt::Display for UnaryOperator {
             UnaryOperator::Sub => write!(f, "-"),
             UnaryOperator::Not => write!(f, "!"),
             UnaryOperator::BitwiseNot => write!(f, "~"),
+            UnaryOperator::WrappingSub => write!(f, "-."),
             UnaryOperator::Dereference => write!(f, "*"),
             UnaryOperator::Reference => write!(f, "&"),
         }

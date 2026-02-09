@@ -4,30 +4,30 @@ expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \test () -> () {
 	const e2: uint<8> = 0
-	let x_n77: uint<8> = Alias(e2)
-	let e5: {x: uint<8>} = ConstructTuple(x_n77)
+	let x_n94: uint<8> = Alias(e2)
+	let e5: {x: uint<8>} = ConstructTuple(x_n94)
 	let e22: () = ConstructTuple()
-	let e4: () = Instance(\impl#1::call[286] )(e5, e22)
-	let l2_n103: () = Alias(e4)
+	let e4: () = Instance(\impl#1::call[375] )(e5, e22)
+	let l2_n120: () = Alias(e4)
 	let e1: () = Nop()
 } => e1
-entity \impl#0::call[287] ((self, self_n90, {x: uint<8>, z: uint<8>}), (args, args_n91, ())) -> () {
-	let e229: uint<8> = IndexTuple(0)(self_n90)
-	let x_n77: uint<8> = Alias(e229)
-	let e232: uint<8> = IndexTuple(1)(self_n90)
-	let z_n78: uint<8> = Alias(e232)
-	let e10: (uint<8>, uint<8>) = ConstructTuple(x_n77, z_n78)
-	let y_n79: (uint<8>, uint<8>) = Alias(e10)
+entity \impl#0::call[376] ((self, self_n107, {x: uint<8>, z: uint<8>}), (args, args_n108, ())) -> () {
+	let e328: uint<8> = IndexTuple(0)(self_n107)
+	let x_n94: uint<8> = Alias(e328)
+	let e331: uint<8> = IndexTuple(1)(self_n107)
+	let z_n95: uint<8> = Alias(e331)
+	let e10: (uint<8>, uint<8>) = ConstructTuple(x_n94, z_n95)
+	let y_n96: (uint<8>, uint<8>) = Alias(e10)
 	let e14: () = Nop()
 } => e14
-entity \impl#1::call[286] ((self, self_n101, {x: uint<8>}), (args, args_n102, ())) -> () {
-	let e226: uint<8> = IndexTuple(0)(self_n101)
-	let x_n77: uint<8> = Alias(e226)
+entity \impl#1::call[375] ((self, self_n118, {x: uint<8>}), (args, args_n119, ())) -> () {
+	let e325: uint<8> = IndexTuple(0)(self_n118)
+	let x_n94: uint<8> = Alias(e325)
 	const e6: uint<8> = 0
-	let z_n78: uint<8> = Alias(e6)
-	let e9: {x: uint<8>, z: uint<8>} = ConstructTuple(x_n77, z_n78)
+	let z_n95: uint<8> = Alias(e6)
+	let e9: {x: uint<8>, z: uint<8>} = ConstructTuple(x_n94, z_n95)
 	let e17: () = ConstructTuple()
-	let e8: () = Instance(\impl#0::call[287] )(e9, e17)
-	let l_n92: () = Alias(e8)
+	let e8: () = Instance(\impl#0::call[376] )(e9, e17)
+	let l_n109: () = Alias(e8)
 	let e19: () = Nop()
 } => e19
