@@ -157,8 +157,6 @@ where
         Statement::Constant(name, ty, value) => {
             let name = translate_val_name(name, &lhs_trans, &rhs_trans);
 
-            println!("{name}");
-
             format!("const {}: {} = {}", name, ty, value)
         }
         Statement::Assert(value) => {

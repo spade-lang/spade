@@ -135,10 +135,45 @@ fn statement_declaration(
                 code! {}
             }
         }
-        Statement::Constant(name, ty, _) => {
+        Statement::Constant(name, ty, value) => {
             add_to_name_map(name_map, name, ty);
-            // Constants codegen as localparams in statement_code
-            code! {}
+
+            let name = name.var_name();
+
+            let expression = match value {
+                ConstantValue::Int(val) => {
+                    let size = match ty {
+                        crate::types::Type::Int(size) | crate::types::Type::UInt(size) => size,
+                        _ => panic!("Const integer that is not const"),
+                    };
+
+                    let val_abs = val.abs();
+                    let sign = if val < &BigInt::zero() { "-" } else { "" };
+
+                    // Verilog literals are 32 bits by default
+                    let size_spec = if *size >= 32u32.to_biguint() {
+                        format!("{size}'d")
+                    } else {
+                        String::new()
+                    };
+                    format!("{sign}{size_spec}{val_abs}")
+                }
+                ConstantValue::Bool(val) => format!("{}", if *val { 1 } else { 0 }),
+                ConstantValue::String(val) => format!("{:?}", val),
+                ConstantValue::HighImp => "'bz".to_string(),
+            };
+
+            if ty.size() != BigUint::ZERO {
+                let size = localparam_size_spec(&ty.size());
+
+                let assignment = format!("localparam{size} {name} = {expression};");
+
+                code! {
+                    [0] &assignment
+                }
+            } else {
+                code! {}
+            }
         }
         Statement::Assert(_) => {
             code! {}
@@ -1051,43 +1086,9 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 [0] main_body
             }
         }
-        Statement::Constant(name, t, value) => {
-            let name = name.var_name();
-
-            let expression = match value {
-                ConstantValue::Int(val) => {
-                    let size = match t {
-                        crate::types::Type::Int(size) | crate::types::Type::UInt(size) => size,
-                        _ => panic!("Const integer that is not const"),
-                    };
-
-                    let val_abs = val.abs();
-                    let sign = if val < &BigInt::zero() { "-" } else { "" };
-
-                    // Verilog literals are 32 bits by default
-                    let size_spec = if *size >= 32u32.to_biguint() {
-                        format!("{size}'d")
-                    } else {
-                        String::new()
-                    };
-                    format!("{sign}{size_spec}{val_abs}")
-                }
-                ConstantValue::Bool(val) => format!("{}", if *val { 1 } else { 0 }),
-                ConstantValue::String(val) => format!("{:?}", val),
-                ConstantValue::HighImp => "'bz".to_string(),
-            };
-
-            if t.size() != BigUint::ZERO {
-                let size = localparam_size_spec(&t.size());
-
-                let assignment = format!("localparam{size} {name} = {expression};");
-
-                code! {
-                    [0] &assignment
-                }
-            } else {
-                code! {}
-            }
+        Statement::Constant(_, _, _) => {
+            // Constants are fully codegened at the definition
+            code! {}
         }
         Statement::Assert(val) => {
             // NOTE: Source code unwrap is semi-safe. Non-tests are expected to pass an actual
