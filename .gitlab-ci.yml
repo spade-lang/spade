@@ -345,7 +345,8 @@ trawler:
     stage: trawler
     allow_failure: true
     variables:
-        UPSTREAM_BRANCH: $CI_COMMIT_SHA
+      UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+      UPSTREAM_URL: $CI_MERGE_REQUEST_SOURCE_PROJECT_URL
     trigger: spade-lang/trawler
     
 
