@@ -99,6 +99,7 @@ impl LocExprExt for Loc<hir::Expression> {
         match &self.kind {
             ExprKind::Error => Some(self.clone()),
             ExprKind::Identifier(_) => Some(self.clone()),
+            ExprKind::TypeLevelBool(_) => None,
             ExprKind::TypeLevelInteger(_) => None,
             ExprKind::IntLiteral(_, _) => None,
             ExprKind::BoolLiteral(_) => None,
@@ -1420,6 +1421,7 @@ impl ExprLocal for Loc<Expression> {
                 Substitution::Port | Substitution::ZeroSized => Ok(Some(ident.value_name())),
             },
             ExprKind::IntLiteral(_, _) => Ok(None),
+            ExprKind::TypeLevelBool(_) => Ok(None),
             ExprKind::TypeLevelInteger(_) => Ok(None),
             ExprKind::BoolLiteral(_) => Ok(None),
             ExprKind::TriLiteral(_) => Ok(None),
@@ -1588,6 +1590,46 @@ impl ExprLocal for Loc<Expression> {
                     ),
                     self,
                 );
+            }
+            ExprKind::TypeLevelBool(name) => {
+                let ty = self_type;
+                if let Some(generic_list) = ctx.unit_generic_list {
+                    let value = ctx.types.type_var_from_hir(
+                        self.loc(),
+                        &hir::TypeSpec::Generic(Generic::Named(name.clone().nowhere())),
+                        generic_list,
+                    )?;
+
+                    let value = match ctx.types.ungenerify_type(
+                        &value,
+                        ctx.symtab.symtab(),
+                        &ctx.item_list.types,
+                    ) {
+                        Some(ConcreteType::Bool(value)) => value,
+                        Some(other) => diag_bail!(self, "Inferred {other} for type level bool"),
+                        None => {
+                            return Err(Diagnostic::error(
+                                self,
+                                "This type level value is not fully known",
+                            )
+                            .primary_label("Unknown type level value"))
+                        }
+                    };
+
+                    result.push_primary(
+                        mir::Statement::Constant(
+                            ValueName::Expr(self.id),
+                            ty,
+                            mir::ConstantValue::Bool(value),
+                        ),
+                        self,
+                    )
+                } else {
+                    diag_bail!(
+                        self,
+                        "Attempted to use type level bool in non-generic function"
+                    )
+                }
             }
             ExprKind::TriLiteral(value) => {
                 let ty = self_type;

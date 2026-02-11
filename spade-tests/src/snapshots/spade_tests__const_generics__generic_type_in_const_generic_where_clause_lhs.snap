@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/const_generics.rs
 ---
-fn test<T, #uint N>() 
+fn test<T, #uint N>()
     where T: { N }
 {}
 
@@ -9,7 +9,7 @@ fn test<T, #uint N>()
 error: Expected `T` to be a type level integer
   ┌─ testinput:2:11
   │
-1 │ fn test<T, #uint N>() 
+1 │ fn test<T, #uint N>()
   │         - `T` is a generic type
 2 │     where T: { N }
   │           ^    - This is an integer constraint
@@ -18,9 +18,9 @@ error: Expected `T` to be a type level integer
   │
   = Try making the generic an integer
   │
-1 │ fn test<#int T, #uint N>() 
+1 │ fn test<#int T, #uint N>()
   │         +++++
   = or an unsigned integer
   │
-1 │ fn test<#uint T, #uint N>() 
+1 │ fn test<#uint T, #uint N>()
   │         ++++++

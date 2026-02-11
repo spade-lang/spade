@@ -1069,7 +1069,9 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
-        if let Some(val) = self.int_literal()? {
+        if let Some(val) = self.bool_literal()? {
+            Ok(TypeExpression::Bool(val.inner.clone()).at_loc(&val))
+        } else if let Some(val) = self.int_literal()? {
             Ok(TypeExpression::Integer(val.inner.clone().as_signed()).at_loc(&val))
         } else if let Some(val) = self.str_literal()? {
             Ok(TypeExpression::String(val.inner.clone()).at_loc(&val))

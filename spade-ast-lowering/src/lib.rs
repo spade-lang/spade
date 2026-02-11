@@ -299,6 +299,7 @@ pub fn visit_type_expression(
             // Look up the type. For now, we'll panic if we don't find a concrete type
             Ok(hir::TypeExpression::TypeSpec(inner.inner))
         }
+        ast::TypeExpression::Bool(val) => Ok(hir::TypeExpression::Bool(*val)),
         ast::TypeExpression::Integer(val) => Ok(hir::TypeExpression::Integer(val.clone())),
         ast::TypeExpression::String(val) => Ok(hir::TypeExpression::String(val.clone())),
         ast::TypeExpression::ConstGeneric(expr) => {
@@ -1007,6 +1008,7 @@ pub fn visit_const_generic(
                 }
             }
         }
+        ast::Expression::BoolLiteral(val) => ConstGeneric::Bool(val.inner),
         ast::Expression::IntLiteral(val) => ConstGeneric::Int(val.inner.clone().as_signed()),
         ast::Expression::StrLiteral(val) => ConstGeneric::Str(val.inner.clone()),
         ast::Expression::BinaryOperator(lhs, op, rhs) => {
@@ -1021,6 +1023,15 @@ pub fn visit_const_generic(
                 ast::BinaryOperator::Neq => ConstGeneric::NotEq(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Div => ConstGeneric::Div(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Mod => ConstGeneric::Mod(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::LogicalAnd => {
+                    ConstGeneric::LogicalAnd(Box::new(lhs), Box::new(rhs))
+                }
+                ast::BinaryOperator::LogicalOr => {
+                    ConstGeneric::LogicalOr(Box::new(lhs), Box::new(rhs))
+                }
+                ast::BinaryOperator::LogicalXor => {
+                    ConstGeneric::LogicalXor(Box::new(lhs), Box::new(rhs))
+                }
                 other => {
                     return Err(Diagnostic::error(
                         op,
@@ -1038,6 +1049,7 @@ pub fn visit_const_generic(
                     Box::new(ConstGeneric::Int(BigInt::zero()).at_loc(&operand)),
                     Box::new(operand),
                 ),
+                ast::UnaryOperator::Not => ConstGeneric::LogicalNot(Box::new(operand)),
                 other => {
                     return Err(Diagnostic::error(
                         t,
@@ -2390,8 +2402,11 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     let ty = ctx.symtab.lookup_type_symbol(path, false)?;
                     let (name, ty) = &ty;
                     match ty.inner {
+                        TypeSymbol::GenericMeta(MetaType::Bool) => {
+                            Ok(hir::ExprKind::TypeLevelBool(name.clone()))
+                        }
                         TypeSymbol::GenericMeta(
-                            MetaType::Int | MetaType::Uint | MetaType::Number | MetaType::Str,
+                            MetaType::Int | MetaType::Uint | MetaType::Number,
                         ) => Ok(hir::ExprKind::TypeLevelInteger(name.clone())),
                         TypeSymbol::GenericMeta(_) | TypeSymbol::GenericArg { traits: _ } => {
                             Err(Diagnostic::error(
@@ -2700,6 +2715,7 @@ fn inject_verilog_attrs(
         | ExprKind::IntLiteral(_, _)
         | ExprKind::BoolLiteral(_)
         | ExprKind::TriLiteral(_)
+        | ExprKind::TypeLevelBool(_)
         | ExprKind::TypeLevelInteger(_)
         | ExprKind::CreatePorts
         | ExprKind::TupleLiteral(_)

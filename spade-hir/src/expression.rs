@@ -223,6 +223,7 @@ pub enum ExprKind {
     IntLiteral(BigInt, IntLiteralKind),
     BoolLiteral(bool),
     TriLiteral(TriLiteral),
+    TypeLevelBool(NameID),
     TypeLevelInteger(NameID),
     CreatePorts,
     TupleLiteral(Vec<Loc<Expression>>),

@@ -195,6 +195,7 @@ impl TypeState {
         invert: bool,
     ) -> ConcreteType {
         match &expr {
+            hir::TypeExpression::Bool(val) => ConcreteType::Bool(*val),
             hir::TypeExpression::Integer(val) => ConcreteType::Integer(val.clone()),
             hir::TypeExpression::String(val) => ConcreteType::String(val.clone()),
             hir::TypeExpression::TypeSpec(inner) => {

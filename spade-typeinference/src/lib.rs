@@ -283,6 +283,9 @@ impl TypeState {
         generic_list_token: &GenericListToken,
     ) -> Result<TypeVarID> {
         let id = match &e.inner {
+            hir::TypeExpression::Bool(b) => {
+                self.add_type_var(TypeVar::Known(e.loc(), KnownType::Bool(*b), vec![]))
+            }
             hir::TypeExpression::Integer(i) => self.add_type_var(TypeVar::Known(
                 e.loc(),
                 KnownType::Integer(i.clone()),
@@ -299,7 +302,7 @@ impl TypeState {
             hir::TypeExpression::ConstGeneric(g) => {
                 let constraint = self.visit_const_generic(g, generic_list_token)?;
 
-                let tvar = self.new_generic_tlnumber(e.loc());
+                let tvar = self.new_generic_any();
                 self.add_constraint(
                     tvar.clone(),
                     constraint,
@@ -781,6 +784,9 @@ impl TypeState {
                     .unwrap();
             }
             ExprKind::Identifier(_) => self.visit_identifier(expression, ctx)?,
+            ExprKind::TypeLevelBool(_) => {
+                self.visit_type_level_bool(expression, generic_list, ctx)?
+            }
             ExprKind::TypeLevelInteger(_) => {
                 self.visit_type_level_integer(expression, generic_list, ctx)?
             }
@@ -2430,6 +2436,7 @@ impl TypeState {
                     }
                 }
             }
+            ConstGeneric::Bool(_) => self.new_generic_tlbool(gen.loc()),
             ConstGeneric::Int(_)
             | ConstGeneric::Add(_, _)
             | ConstGeneric::Sub(_, _)
@@ -2438,9 +2445,12 @@ impl TypeState {
             | ConstGeneric::Mod(_, _)
             | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
             ConstGeneric::Str(_) => self.new_generic_tlstr(gen.loc()),
-            ConstGeneric::Eq(_, _) | ConstGeneric::NotEq(_, _) => {
-                self.new_generic_tlbool(gen.loc())
-            }
+            ConstGeneric::Eq(_, _)
+            | ConstGeneric::NotEq(_, _)
+            | ConstGeneric::LogicalNot(_)
+            | ConstGeneric::LogicalAnd(_, _)
+            | ConstGeneric::LogicalOr(_, _)
+            | ConstGeneric::LogicalXor(_, _) => self.new_generic_tlbool(gen.loc()),
         };
         let constraint = self.visit_const_generic(&gen.inner.inner, generic_list_token)?;
         self.add_equation(TypedExpression::Id(gen.id), var.clone());
@@ -2473,6 +2483,7 @@ impl TypeState {
                 })?;
                 ConstraintExpr::Var(*var)
             }
+            ConstGeneric::Bool(val) => ConstraintExpr::Bool(*val),
             ConstGeneric::Int(val) => ConstraintExpr::Integer(val.clone()),
             ConstGeneric::Str(val) => ConstraintExpr::String(val.clone()),
             ConstGeneric::Add(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Sum)?,
@@ -2482,6 +2493,12 @@ impl TypeState {
             ConstGeneric::Mod(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Mod)?,
             ConstGeneric::Eq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Eq)?,
             ConstGeneric::NotEq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::NotEq)?,
+            ConstGeneric::LogicalNot(a) => {
+                ConstraintExpr::LogicalNot(Box::new(self.visit_const_generic(a, generic_list)?))
+            }
+            ConstGeneric::LogicalAnd(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalAnd)?,
+            ConstGeneric::LogicalOr(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalOr)?,
+            ConstGeneric::LogicalXor(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalXor)?,
             ConstGeneric::UintBitsToFit(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
                 self.visit_const_generic(a, generic_list)?,
             )),
@@ -2674,6 +2691,10 @@ impl TypeState {
                         // Copied from the (Integer, Integer) case, its remark may also apply
                         unify_if!(val1 == val2, v1, vec![])
                     }
+                    (KnownType::Bool(val1), KnownType::Bool(val2)) => {
+                        // Copied from the (Integer, Integer) case, its remark may also apply
+                        unify_if!(val1 == val2, v1, vec![])
+                    }
                     (KnownType::Named(n1), KnownType::Named(n2)) => {
                         match (
                             &ctx.symtab.type_symbol_by_id(n1).inner,
@@ -2751,15 +2772,7 @@ impl TypeState {
                     loc2
                 };
                 let new_t = match unify_meta(meta1, meta2) {
-                    Some(meta @ MetaType::Any) => {
-                        if traits1.inner.is_empty() || traits2.inner.is_empty() {
-                            return Err(UnificationError::Specific(diag_anyhow!(
-                                new_loc,
-                                "Inferred an any meta-type with traits"
-                            )));
-                        }
-                        self.new_generic_with_meta(*loc1, meta)
-                    }
+                    Some(meta @ MetaType::Any) => self.new_generic_with_meta(*loc1, meta),
                     Some(MetaType::Type) => {
                         let new_trait_names = traits1
                             .inner

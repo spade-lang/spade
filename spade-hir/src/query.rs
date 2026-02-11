@@ -100,6 +100,7 @@ impl<'a> QueryCache {
             crate::ExprKind::BoolLiteral(_) => {}
             crate::ExprKind::TriLiteral(_) => {}
             // FIXME Visit types
+            crate::ExprKind::TypeLevelBool(_) => {}
             crate::ExprKind::TypeLevelInteger(_) => {}
             crate::ExprKind::CreatePorts => {}
             crate::ExprKind::TupleLiteral(inner) | crate::ExprKind::ArrayLiteral(inner) => {
@@ -378,6 +379,7 @@ impl<'a> QueryCache {
 
     fn visit_type_expr(&mut self, te: &Loc<TypeExpression>) {
         match &te.inner {
+            TypeExpression::Bool(_) => {}
             TypeExpression::Integer(_) => {}
             TypeExpression::String(_) => {}
             TypeExpression::TypeSpec(ts) => self.visit_type_spec(&ts.clone().at_loc(te)),
@@ -390,6 +392,7 @@ impl<'a> QueryCache {
     fn visit_const_generic(&mut self, cg: &Loc<ConstGeneric>) {
         match &cg.inner {
             ConstGeneric::Name(n) => self.names.insert(n.clone()),
+            ConstGeneric::Bool(_) => {}
             ConstGeneric::Int(_) => {}
             ConstGeneric::Str(_) => {}
             ConstGeneric::Add(lhs, rhs) => {
@@ -417,6 +420,21 @@ impl<'a> QueryCache {
                 self.visit_const_generic(rhs);
             }
             ConstGeneric::NotEq(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::LogicalNot(inner) => {
+                self.visit_const_generic(inner);
+            }
+            ConstGeneric::LogicalAnd(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::LogicalOr(lhs, rhs) => {
+                self.visit_const_generic(lhs);
+                self.visit_const_generic(rhs);
+            }
+            ConstGeneric::LogicalXor(lhs, rhs) => {
                 self.visit_const_generic(lhs);
                 self.visit_const_generic(rhs);
             }

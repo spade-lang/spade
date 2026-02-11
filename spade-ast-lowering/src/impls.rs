@@ -740,6 +740,7 @@ fn resolve_trait_self(trait_ty: hir::TypeSpec, impl_target_type: hir::TypeSpec) 
                 hir::TypeExpression::TypeSpec(resolve_trait_self(ts, impl_target_type.clone()))
                     .at_loc(&loc)
             }
+            hir::TypeExpression::Bool(_) => e.at_loc(&loc),
             hir::TypeExpression::Integer(_) => e.at_loc(&loc),
             hir::TypeExpression::String(_) => e.at_loc(&loc),
             // There is no way for `Self` to be used inside a const generic block
@@ -1011,6 +1012,7 @@ fn map_const_generic_to_trait(
                         cg,
                         "Cannot substitute type spec into const generic",
                     )),
+                    hir::TypeExpression::Bool(b) => Ok(hir::ConstGeneric::Bool(*b)),
                     hir::TypeExpression::Integer(i) => Ok(hir::ConstGeneric::Int(i.clone())),
                     hir::TypeExpression::String(s) => Ok(hir::ConstGeneric::Str(s.clone())),
                     hir::TypeExpression::ConstGeneric(cg) => Ok(cg.inner.clone()),
@@ -1034,6 +1036,7 @@ fn map_const_generic_to_trait(
                             cg,
                             "Cannot substitute type spec into const generic",
                         )),
+                        hir::TypeExpression::Bool(b) => Ok(hir::ConstGeneric::Bool(*b)),
                         hir::TypeExpression::Integer(i) => Ok(hir::ConstGeneric::Int(i.clone())),
                         hir::TypeExpression::String(s) => Ok(hir::ConstGeneric::Str(s.clone())),
                         hir::TypeExpression::ConstGeneric(cg) => Ok(cg.inner.clone()),
@@ -1074,7 +1077,25 @@ fn map_const_generic_to_trait(
         hir::ConstGeneric::NotEq(lhs, rhs) => {
             Ok(hir::ConstGeneric::NotEq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
         }
-
+        hir::ConstGeneric::LogicalNot(inner) => {
+            Ok(hir::ConstGeneric::LogicalNot(map_boilerplate(inner)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::LogicalAnd(lhs, rhs) => Ok(hir::ConstGeneric::LogicalAnd(
+            map_boilerplate(lhs)?,
+            map_boilerplate(rhs)?,
+        )
+        .at_loc(&cg)),
+        hir::ConstGeneric::LogicalOr(lhs, rhs) => Ok(hir::ConstGeneric::LogicalOr(
+            map_boilerplate(lhs)?,
+            map_boilerplate(rhs)?,
+        )
+        .at_loc(&cg)),
+        hir::ConstGeneric::LogicalXor(lhs, rhs) => Ok(hir::ConstGeneric::LogicalXor(
+            map_boilerplate(lhs)?,
+            map_boilerplate(rhs)?,
+        )
+        .at_loc(&cg)),
+        hir::ConstGeneric::Bool(_) => Ok(cg.clone()),
         hir::ConstGeneric::Int(_) => Ok(cg.clone()),
         hir::ConstGeneric::Str(_) => Ok(cg.clone()),
     }
@@ -1089,6 +1110,7 @@ fn map_type_expr_to_trait(
     ctx: &mut Context,
 ) -> Result<Loc<hir::TypeExpression>> {
     match &te.inner {
+        hir::TypeExpression::Bool(_) => Ok(te.clone()),
         hir::TypeExpression::Integer(_) => Ok(te.clone()),
         hir::TypeExpression::String(_) => Ok(te.clone()),
         hir::TypeExpression::TypeSpec(s) => {
@@ -1152,6 +1174,10 @@ fn map_type_spec_to_trait(
             if let Some(param_idx) = param_idx {
                 impl_type_params[param_idx].try_map_ref(|te| match &te {
                     hir::TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
+                    hir::TypeExpression::Bool(_) => Err(Diagnostic::bug(
+                        &impl_type_params[param_idx],
+                        "Expected a TypeExpression::TypeSpec, found TypeExpression::Bool",
+                    )),
                     hir::TypeExpression::Integer(_) => Err(Diagnostic::bug(
                         &impl_type_params[param_idx],
                         "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",
@@ -1173,6 +1199,10 @@ fn map_type_spec_to_trait(
                 if let Some(param_idx) = param_idx {
                     impl_method_type_params[param_idx].try_map_ref(|te| match &te {
                         hir::TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
+                        hir::TypeExpression::Bool(_) => Err(Diagnostic::bug(
+                            &impl_type_params[param_idx],
+                            "Expected a TypeExpression::TypeSpec, found TypeExpression::Bool",
+                        )),
                         hir::TypeExpression::Integer(_) => Err(Diagnostic::bug(
                             &impl_method_type_params[param_idx],
                             "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",

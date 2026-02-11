@@ -2,7 +2,7 @@
 source: spade-tests/src/const_generics.rs
 ---
 trait X {}
-fn test<#uint N>() 
+fn test<#uint N>()
     where X: { N }
 {}
 
@@ -12,7 +12,7 @@ error: Expected `X` to be a type level integer
   │
 1 │ trait X {}
   │       - `X` is a trait declared here
-2 │ fn test<#uint N>() 
+2 │ fn test<#uint N>()
 3 │     where X: { N }
   │           ^    - This is an integer constraint
   │           │     

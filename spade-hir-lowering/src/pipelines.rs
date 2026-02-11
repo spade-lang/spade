@@ -621,6 +621,7 @@ impl PipelineAvailability for Expression {
             ExprKind::IntLiteral(_, _) => Ok(None),
             ExprKind::TypeLevelInteger(_) => Ok(None),
             ExprKind::BoolLiteral(_) => Ok(None),
+            ExprKind::TypeLevelBool(_) => Ok(None),
             ExprKind::TriLiteral(_) => Ok(None),
             ExprKind::CreatePorts => Ok(None),
             ExprKind::StageReady | ExprKind::StageValid => Ok(Some(0)),

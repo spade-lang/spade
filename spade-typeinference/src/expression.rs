@@ -43,6 +43,26 @@ impl TypeState {
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
+    pub fn visit_type_level_bool(
+        &mut self,
+        expression: &Loc<Expression>,
+        _generic_list: &GenericListToken,
+        ctx: &Context,
+    ) -> Result<()> {
+        assuming_kind!(ExprKind::TypeLevelBool(_) = &expression => {
+            let t = self.t_bool(expression.loc(), ctx.symtab);
+            self.unify(&t, &expression.inner, ctx)
+                .into_diagnostic(expression.loc(), |diag, _tm| {
+                    diag
+                        .level(DiagnosticLevel::Bug)
+                        .message("Failed to unify bool literal with bool")
+                }, self)?;
+        });
+        Ok(())
+    }
+
+    #[trace_typechecker]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_type_level_integer(
         &mut self,
         expression: &Loc<Expression>,

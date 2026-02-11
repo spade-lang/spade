@@ -381,6 +381,7 @@ pub fn visit_unit(
 
 pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
     let meta = match meta.inner.as_str() {
+        "bool" => MetaType::Bool,
         "int" => MetaType::Int,
         "uint" => MetaType::Uint,
         "str" => MetaType::Str,

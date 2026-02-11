@@ -132,6 +132,7 @@ impl PrettyDebug for AttributeList {
 impl PrettyDebug for TypeExpression {
     fn pretty_debug(&self) -> String {
         match self {
+            TypeExpression::Bool(b) => format!("{b}"),
             TypeExpression::Integer(i) => format!("{i}"),
             TypeExpression::String(s) => format!("{s:?}"),
             TypeExpression::TypeSpec(type_spec) => type_spec.pretty_debug(),
@@ -170,6 +171,7 @@ impl PrettyDebug for ConstGeneric {
     fn pretty_debug(&self) -> String {
         match self {
             ConstGeneric::Name(n) => n.pretty_debug(),
+            ConstGeneric::Bool(b) => format!("{b}"),
             ConstGeneric::Int(big_int) => format!("{big_int}"),
             ConstGeneric::Str(s) => format!("{s:?}"),
             ConstGeneric::Add(lhs, rhs) => {
@@ -196,6 +198,18 @@ impl PrettyDebug for ConstGeneric {
             ConstGeneric::NotEq(lhs, rhs) => {
                 format!("({} != {})", lhs.pretty_debug(), rhs.pretty_debug())
             }
+            ConstGeneric::LogicalNot(inner) => {
+                format!("(!{})", inner.pretty_debug())
+            }
+            ConstGeneric::LogicalAnd(lhs, rhs) => {
+                format!("({} && {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
+            ConstGeneric::LogicalOr(lhs, rhs) => {
+                format!("({} || {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
+            ConstGeneric::LogicalXor(lhs, rhs) => {
+                format!("({} ^^ {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
         }
     }
 }
@@ -220,6 +234,7 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::IntLiteral(value, _) => format!("{value}"),
             crate::ExprKind::BoolLiteral(value) => format!("{value}"),
             crate::ExprKind::TriLiteral(value) => format!("{value:?}"),
+            crate::ExprKind::TypeLevelBool(name_id) => name_id.pretty_debug(),
             crate::ExprKind::TypeLevelInteger(name_id) => name_id.pretty_debug(),
             crate::ExprKind::CreatePorts => "port".to_string(),
             crate::ExprKind::TupleLiteral(inner) => {

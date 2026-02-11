@@ -1,12 +1,11 @@
 ---
 source: spade-tests/src/const_generics.rs
-snapshot_kind: text
 ---
 trait X {}
 impl X for bool {}
 impl bool {
     fn test(self) {}
-} 
+}
 fn test<T: X>(it: T) {
     it.test()
 }

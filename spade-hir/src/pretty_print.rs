@@ -108,6 +108,7 @@ impl PrettyPrint for ConstGeneric {
     fn pretty_print(&self) -> String {
         match self {
             ConstGeneric::Name(n) => n.pretty_print(),
+            ConstGeneric::Bool(b) => format!("{b}"),
             ConstGeneric::Int(big_int) => format!("{big_int}"),
             ConstGeneric::Str(s) => format!("{s:?}"),
             ConstGeneric::Add(lhs, rhs) => {
@@ -134,6 +135,18 @@ impl PrettyPrint for ConstGeneric {
             ConstGeneric::NotEq(lhs, rhs) => {
                 format!("({} != {})", lhs.pretty_print(), rhs.pretty_print())
             }
+            ConstGeneric::LogicalNot(inner) => {
+                format!("(!{})", inner.pretty_print())
+            }
+            ConstGeneric::LogicalAnd(lhs, rhs) => {
+                format!("({} && {})", lhs.pretty_print(), rhs.pretty_print())
+            }
+            ConstGeneric::LogicalOr(lhs, rhs) => {
+                format!("({} || {})", lhs.pretty_print(), rhs.pretty_print())
+            }
+            ConstGeneric::LogicalXor(lhs, rhs) => {
+                format!("({} ^^ {})", lhs.pretty_print(), rhs.pretty_print())
+            }
         }
     }
 }
@@ -141,6 +154,7 @@ impl PrettyPrint for ConstGeneric {
 impl PrettyPrint for TypeExpression {
     fn pretty_print(&self) -> String {
         match self {
+            TypeExpression::Bool(val) => format!("{val}"),
             TypeExpression::Integer(val) => format!("{val}"),
             TypeExpression::String(val) => format!("{val:?}"),
             TypeExpression::TypeSpec(ts) => ts.pretty_print(),

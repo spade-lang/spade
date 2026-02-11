@@ -2,7 +2,7 @@
 source: spade-tests/src/const_generics.rs
 ---
 struct S {}
-fn test<#uint N>() 
+fn test<#uint N>()
     where S: { N }
 {}
 
@@ -12,7 +12,7 @@ error: Expected `S` to be a type level integer
   │
 1 │ struct S {}
   │ ----------- `S` is a type declared here
-2 │ fn test<#uint N>() 
+2 │ fn test<#uint N>()
 3 │     where S: { N }
   │           ^    - This is an integer constraint
   │           │     

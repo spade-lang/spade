@@ -175,6 +175,9 @@ fn apply_replacements_to_type_spec(
             Some(t) => {
                 let ts = match &t.inner {
                     hir::TypeExpression::TypeSpec(ts) => ts,
+                    hir::TypeExpression::Bool(_) => {
+                        return Err(Diagnostic::bug(t, "Cannot replace generic with bool"))
+                    }
                     hir::TypeExpression::Integer(_) => {
                         return Err(Diagnostic::bug(t, "Cannot replace generic with integer"))
                     }
@@ -222,6 +225,7 @@ fn apply_replacements_to_type_expr(
     replacements: &HashMap<hir::Generic, Loc<hir::TypeExpression>>,
 ) -> Result<Loc<hir::TypeExpression>> {
     match &ty.inner {
+        hir::TypeExpression::Bool(_) => Ok(ty.clone()),
         hir::TypeExpression::Integer(_) => Ok(ty.clone()),
         hir::TypeExpression::String(_) => Ok(ty.clone()),
         hir::TypeExpression::TypeSpec(ts) => {
@@ -258,6 +262,7 @@ fn apply_replacements_to_const_generic(
                         "Cannot replace const generic name with type spec",
                     ))
                 }
+                hir::TypeExpression::Bool(b) => Ok(hir::ConstGeneric::Bool(*b).at_loc(&t)),
                 hir::TypeExpression::Integer(i) => Ok(hir::ConstGeneric::Int(i.clone()).at_loc(&t)),
                 hir::TypeExpression::String(s) => Ok(hir::ConstGeneric::Str(s.clone()).at_loc(&t)),
                 hir::TypeExpression::ConstGeneric(cg) => Ok(cg.clone()),
@@ -303,6 +308,26 @@ fn apply_replacements_to_const_generic(
             Box::new(apply_replacements_to_const_generic(rhs, replacements)?),
         )
         .at_loc(ty)),
+        hir::ConstGeneric::LogicalNot(inner) => Ok(hir::ConstGeneric::LogicalNot(Box::new(
+            apply_replacements_to_const_generic(inner, replacements)?,
+        ))
+        .at_loc(ty)),
+        hir::ConstGeneric::LogicalAnd(lhs, rhs) => Ok(hir::ConstGeneric::LogicalAnd(
+            Box::new(apply_replacements_to_const_generic(lhs, replacements)?),
+            Box::new(apply_replacements_to_const_generic(rhs, replacements)?),
+        )
+        .at_loc(ty)),
+        hir::ConstGeneric::LogicalOr(lhs, rhs) => Ok(hir::ConstGeneric::LogicalOr(
+            Box::new(apply_replacements_to_const_generic(lhs, replacements)?),
+            Box::new(apply_replacements_to_const_generic(rhs, replacements)?),
+        )
+        .at_loc(ty)),
+        hir::ConstGeneric::LogicalXor(lhs, rhs) => Ok(hir::ConstGeneric::LogicalXor(
+            Box::new(apply_replacements_to_const_generic(lhs, replacements)?),
+            Box::new(apply_replacements_to_const_generic(rhs, replacements)?),
+        )
+        .at_loc(ty)),
+        hir::ConstGeneric::Bool(_) => Ok(ty.clone()),
         hir::ConstGeneric::Int(_) => Ok(ty.clone()),
         hir::ConstGeneric::Str(_) => Ok(ty.clone()),
     }

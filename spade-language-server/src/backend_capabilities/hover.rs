@@ -330,6 +330,7 @@ impl ExprKindExt for ExprKind {
             | ExprKind::If(_, _, _)
             | ExprKind::TypeLevelIf(_, _, _)
             | ExprKind::BoolLiteral(_)
+            | ExprKind::TypeLevelBool(_)
             | ExprKind::TriLiteral(_)
             | ExprKind::TupleLiteral(_)
             | ExprKind::ArrayLiteral(_)

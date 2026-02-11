@@ -217,6 +217,13 @@ fn specs_are_overlapping(
 
 fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVarID, type_state: &TypeState) -> Overlap {
     match (&expr, var.resolve(type_state)) {
+        (TypeExpression::Bool(eval), TypeVar::Known(_, KnownType::Bool(vval), _)) => {
+            if eval == &vval {
+                Overlap::Yes
+            } else {
+                Overlap::No
+            }
+        }
         (TypeExpression::Integer(eval), TypeVar::Known(_, KnownType::Integer(vval), _)) => {
             if eval == &vval {
                 Overlap::Yes
@@ -231,8 +238,12 @@ fn expr_is_overlapping(expr: &TypeExpression, var: &TypeVarID, type_state: &Type
                 Overlap::No
             }
         }
-        (TypeExpression::Integer(_) | TypeExpression::String(_), TypeVar::Unknown(_, _, _, _)) => {
-            Overlap::Maybe
+        (
+            TypeExpression::Bool(_) | TypeExpression::Integer(_) | TypeExpression::String(_),
+            TypeVar::Unknown(_, _, _, _),
+        ) => Overlap::Maybe,
+        (TypeExpression::Bool(_), _) => {
+            unreachable!("Non bool and non-generic type matched with bool")
         }
         (TypeExpression::Integer(_), _) => {
             unreachable!("Non integer and non-generic type matched with integer")

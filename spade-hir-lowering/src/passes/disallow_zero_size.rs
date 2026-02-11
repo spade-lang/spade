@@ -28,7 +28,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             spade_hir::ExprKind::TypeLevelInteger(_) | spade_hir::ExprKind::IntLiteral(_, _) => {
                 Ok(())
             }
-            spade_hir::ExprKind::BoolLiteral(_) => Ok(()),
+            spade_hir::ExprKind::TypeLevelBool(_) | spade_hir::ExprKind::BoolLiteral(_) => Ok(()),
             spade_hir::ExprKind::TriLiteral(_) => Ok(()),
             spade_hir::ExprKind::CreatePorts => Ok(()),
             spade_hir::ExprKind::TupleLiteral(_) => Ok(()),

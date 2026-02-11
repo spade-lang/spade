@@ -21,7 +21,17 @@ pub enum Spec<'r> {
     /// {{ self.0 }}
     /// ```
     #[template(ext = "html", in_doc = true)]
+    Bool(bool),
+    /// ```askama
+    /// {{ self.0 }}
+    /// ```
+    #[template(ext = "html", in_doc = true)]
     Number(i64),
+    /// ```askama
+    /// {{ self.0 }}
+    /// ```
+    #[template(ext = "html", in_doc = true)]
+    String(&'r str),
     /// ```askama
     /// [{{ ty.render()?|safe }}; {{+ size.render()?|safe }}]
     /// ```
@@ -57,6 +67,12 @@ pub enum Spec<'r> {
     /// ```
     #[template(ext = "html", in_doc = true)]
     Parenthesized(Box<Spec<'r>>),
+
+    /// ```askama
+    /// {{ self.op }}{{" "}} {{ self.inner.render()?|safe }}
+    /// ```
+    #[template(ext = "html", in_doc = true)]
+    ConstGenericUnOp { op: String, inner: Box<Spec<'r>> },
 
     /// ```askama
     /// {{ self.lhs.render()?|safe }} {{" "}}{{ self.op }}{{" "}} {{ self.rhs.render()?|safe }}
@@ -109,12 +125,13 @@ impl<'r> Spec<'r> {
 
     pub fn mirror_typeexpr(expr: &'r TypeExpression) -> Result<Self> {
         match expr {
+            TypeExpression::Bool(b) => Ok(Spec::Bool(*b)),
             TypeExpression::Integer(i) => {
                 Ok(Spec::Number(i.iter_u64_digits().next().unwrap_or(0) as i64))
             }
             TypeExpression::TypeSpec(ts) => Ok(Self::mirror_typespec(ts)?),
             TypeExpression::ConstGeneric(cg) => Ok(Self::mirror_constgeneric(cg, true, false)?),
-            TypeExpression::String(_) => todo!(),
+            TypeExpression::String(s) => Ok(Spec::String(s.as_str())),
         }
     }
 
@@ -130,6 +147,7 @@ impl<'r> Spec<'r> {
                 name: Cow::Borrowed(name.inner.1.tail().unwrap_named().inner.as_str()),
                 type_args: vec![],
             },
+            ConstGeneric::Bool(const_bool) => Self::Bool(*const_bool),
             ConstGeneric::Int(const_number) => {
                 Self::Number(const_number.iter_u64_digits().next().unwrap() as i64)
             }
@@ -172,7 +190,26 @@ impl<'r> Spec<'r> {
                 op: "!=".into(),
                 rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
             },
-            ConstGeneric::Str(_) => todo!(),
+            ConstGeneric::LogicalNot(inner) => Self::ConstGenericUnOp {
+                op: "!".into(),
+                inner: Self::mirror_constgeneric(inner, false, true)?.into(),
+            },
+            ConstGeneric::LogicalAnd(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: "&&".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
+            ConstGeneric::LogicalOr(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: "||".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
+            ConstGeneric::LogicalXor(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: "^^".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
+            ConstGeneric::Str(s) => Self::String(s.as_str()),
         };
         if root {
             Ok(Self::ConstGenericRoot(Box::new(spec)))

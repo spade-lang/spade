@@ -11,6 +11,7 @@ pub mod testutil;
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeExpression {
     TypeSpec(Box<Loc<TypeSpec>>),
+    Bool(bool),
     Integer(BigInt),
     String(String),
     ConstGeneric(Box<Loc<Expression>>),
@@ -20,6 +21,7 @@ impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeExpression::TypeSpec(inner) => write!(f, "{inner}"),
+            TypeExpression::Bool(inner) => write!(f, "{inner}"),
             TypeExpression::Integer(inner) => write!(f, "{inner}"),
             TypeExpression::String(inner) => write!(f, "{inner:?}"),
             TypeExpression::ConstGeneric(_) => write!(f, "{{...}}"),

@@ -250,6 +250,8 @@ impl TypeParam {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum TypeExpression {
+    /// A boolean value
+    Bool(bool),
     /// An integer value
     Integer(BigInt),
     /// A string value
@@ -265,6 +267,7 @@ impl TypeExpression {
             TypeExpression::TypeSpec(type_spec) => {
                 TypeExpression::TypeSpec(type_spec.replace_in(from, to))
             }
+            TypeExpression::Bool(_) => self,
             TypeExpression::Integer(_) => self,
             TypeExpression::String(_) => self,
             TypeExpression::ConstGeneric(_) => self,
@@ -275,6 +278,7 @@ impl TypeExpression {
 impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            TypeExpression::Bool(val) => write!(f, "{val}"),
             TypeExpression::Integer(val) => write!(f, "{val}"),
             TypeExpression::String(val) => write!(f, "{val:?}"),
             TypeExpression::TypeSpec(val) => write!(f, "{val}"),
@@ -568,6 +572,7 @@ pub struct TypeDeclaration {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum ConstGeneric {
     Name(Loc<NameID>),
+    Bool(bool),
     Int(BigInt),
     Str(String),
     Add(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
@@ -578,6 +583,10 @@ pub enum ConstGeneric {
     UintBitsToFit(Box<Loc<ConstGeneric>>),
     Eq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     NotEq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
+    LogicalNot(Box<Loc<ConstGeneric>>),
+    LogicalAnd(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
+    LogicalOr(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
+    LogicalXor(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
 }
 
 impl ConstGeneric {
@@ -596,6 +605,7 @@ impl std::fmt::Display for ConstGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ConstGeneric::Name(n) => write!(f, "{n}"),
+            ConstGeneric::Bool(val) => write!(f, "{val}"),
             ConstGeneric::Int(val) => write!(f, "{val}"),
             ConstGeneric::Str(val) => write!(f, "{val:?}"),
             ConstGeneric::Add(l, r) => write!(f, "({l} + {r})"),
@@ -605,6 +615,10 @@ impl std::fmt::Display for ConstGeneric {
             ConstGeneric::Mod(l, r) => write!(f, "({l} % {r})"),
             ConstGeneric::Eq(l, r) => write!(f, "({l} == {r})"),
             ConstGeneric::NotEq(l, r) => write!(f, "({l} != {r})"),
+            ConstGeneric::LogicalNot(a) => write!(f, "(!{a})"),
+            ConstGeneric::LogicalAnd(l, r) => write!(f, "({l} && {r})"),
+            ConstGeneric::LogicalOr(l, r) => write!(f, "({l} || {r})"),
+            ConstGeneric::LogicalXor(l, r) => write!(f, "({l} ^^ {r})"),
             ConstGeneric::UintBitsToFit(a) => write!(f, "uint_bits_to_fit({a})"),
         }
     }

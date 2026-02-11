@@ -1,4 +1,4 @@
-use crate::{build_items, snapshot_error, snapshot_mir};
+use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 
 #[test]
 fn constrained_ints_in_where_clause_compiles() {
@@ -92,7 +92,7 @@ snapshot_error! {
     trait_in_const_generic_where_clause_rhs,
     "
         trait X {}
-        fn test<#uint N>() 
+        fn test<#uint N>()
             where N: { X }
         {}
     "
@@ -102,7 +102,7 @@ snapshot_error! {
     trait_in_const_generic_where_clause_lhs,
     "
         trait X {}
-        fn test<#uint N>() 
+        fn test<#uint N>()
             where X: { N }
         {}
     "
@@ -112,7 +112,7 @@ snapshot_error! {
     struct_in_const_generic_where_clause_lhs,
     "
         struct S {}
-        fn test<#uint N>() 
+        fn test<#uint N>()
             where S: { N }
         {}
     "
@@ -121,7 +121,7 @@ snapshot_error! {
 snapshot_error! {
     generic_type_in_const_generic_where_clause_lhs,
     "
-        fn test<T, #uint N>() 
+        fn test<T, #uint N>()
             where T: { N }
         {}
     "
@@ -194,7 +194,7 @@ fn generic_trait_bound_compiles() {
                 self == 1
             }
         }
-        
+
         fn test<T: Into<bool>>(x: T) -> bool {
             1u1.into()
         }
@@ -300,7 +300,7 @@ snapshot_error! {
         impl X for bool {}
         impl bool {
             fn test(self) {}
-        } 
+        }
         fn test<T: X>(it: T) {
             it.test()
         }
@@ -432,6 +432,77 @@ snapshot_error! {
         fn bar() {
             let a: uint<3> = foo::<2>(0);
             let b: uint<2> = foo::<3>(0);
+        }
+    "
+}
+
+code_compiles! {
+    bool_type_param_works,
+    "
+        fn foo<#bool B>() -> bool { B }
+
+        fn bar() {
+            let _ = foo::<true>();
+            let _ = foo::<false>();
+            let _ = foo::<{true && false}>();
+        }
+    "
+}
+
+code_compiles! {
+    bool_type_not_works,
+    "
+        fn must_be_false<#bool V>() where V: {false} {}
+        fn must_be_true<#bool V>() where V: {true} {}
+
+        fn test() {
+            let _ = must_be_true::<{!false}>();
+            let _ = must_be_false::<{!true}>();
+        }
+    "
+}
+
+code_compiles! {
+    bool_type_and_works,
+    "
+        fn must_be_false<#bool V>() where V: {false} {}
+        fn must_be_true<#bool V>() where V: {true} {}
+
+        fn test() {
+            let _ = must_be_false::<{false && false}>();
+            let _ = must_be_false::<{true && false}>();
+            let _ = must_be_false::<{false && true}>();
+            let _ = must_be_true::<{true && true}>();
+        }
+    "
+}
+
+code_compiles! {
+    bool_type_or_works,
+    "
+        fn must_be_false<#bool V>() where V: {false} {}
+        fn must_be_true<#bool V>() where V: {true} {}
+
+        fn test() {
+            let _ = must_be_false::<{false || false}>();
+            let _ = must_be_true::<{true || false}>();
+            let _ = must_be_true::<{false || true}>();
+            let _ = must_be_true::<{true || true}>();
+        }
+    "
+}
+
+code_compiles! {
+    bool_type_xor_works,
+    "
+        fn must_be_false<#bool V>() where V: {false} {}
+        fn must_be_true<#bool V>() where V: {true} {}
+
+        fn test() {
+            let _ = must_be_false::<{false ^^ false}>();
+            let _ = must_be_true::<{true ^^ false}>();
+            let _ = must_be_true::<{false ^^ true}>();
+            let _ = must_be_false::<{true ^^ true}>();
         }
     "
 }

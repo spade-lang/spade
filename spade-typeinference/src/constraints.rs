@@ -22,6 +22,10 @@ pub enum ConstraintExpr {
     Sub(Box<ConstraintExpr>),
     Eq(Box<ConstraintExpr>, Box<ConstraintExpr>),
     NotEq(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    LogicalNot(Box<ConstraintExpr>),
+    LogicalAnd(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    LogicalOr(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    LogicalXor(Box<ConstraintExpr>, Box<ConstraintExpr>),
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
     UintBitsToRepresent(Box<ConstraintExpr>),
@@ -88,6 +92,30 @@ impl ConstraintExpr {
                     rhs.debug_display(type_state)
                 )
             }
+            ConstraintExpr::LogicalNot(inner) => {
+                format!("(!{})", inner.debug_display(type_state))
+            }
+            ConstraintExpr::LogicalAnd(lhs, rhs) => {
+                format!(
+                    "({} && {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::LogicalOr(lhs, rhs) => {
+                format!(
+                    "({} || {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::LogicalXor(lhs, rhs) => {
+                format!(
+                    "({} ^^ {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
             ConstraintExpr::UintBitsToRepresent(c) => {
                 format!("uint_bits_to_fit({})", c.debug_display(type_state))
             }
@@ -98,7 +126,7 @@ impl ConstraintExpr {
 impl ConstraintExpr {
     /// Evaluates the ConstraintExpr returning a new simplified form
     fn evaluate(&self, type_state: &TypeState) -> ConstraintExpr {
-        let binop =
+        let int_binop =
             |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> BigInt| {
                 match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
@@ -107,6 +135,16 @@ impl ConstraintExpr {
                     _ => self.clone(),
                 }
             };
+        let bool_binop = |lhs: &ConstraintExpr,
+                          rhs: &ConstraintExpr,
+                          op: &dyn Fn(bool, bool) -> bool| {
+            match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
+                    ConstraintExpr::Bool(op(l, r))
+                }
+                _ => self.clone(),
+            }
+        };
         match self {
             ConstraintExpr::Integer(_) => self.clone(),
             ConstraintExpr::Bool(_) => self.clone(),
@@ -127,17 +165,20 @@ impl ConstraintExpr {
                 },
                 TypeVar::Unknown(_, _, _, _) => self.clone(),
             },
-            ConstraintExpr::Sum(lhs, rhs) => binop(lhs, rhs, &|l, r| l + r),
-            ConstraintExpr::Difference(lhs, rhs) => binop(lhs, rhs, &|l, r| l - r),
-            ConstraintExpr::Product(lhs, rhs) => binop(lhs, rhs, &|l, r| l * r),
-            ConstraintExpr::Div(lhs, rhs) => binop(lhs, rhs, &|l, r| l / r),
-            ConstraintExpr::Mod(lhs, rhs) => binop(lhs, rhs, &|l, r| l % r),
+            ConstraintExpr::Sum(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l + r),
+            ConstraintExpr::Difference(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l - r),
+            ConstraintExpr::Product(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l * r),
+            ConstraintExpr::Div(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l / r),
+            ConstraintExpr::Mod(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l % r),
             ConstraintExpr::Sub(inner) => match inner.evaluate(type_state) {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
                 _ => self.clone(),
             },
             ConstraintExpr::Eq(lhs, rhs) => {
                 match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
+                        ConstraintExpr::Bool(l == r)
+                    }
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
                         ConstraintExpr::Bool(l == r)
                     }
@@ -149,6 +190,9 @@ impl ConstraintExpr {
             }
             ConstraintExpr::NotEq(lhs, rhs) => {
                 match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
+                        ConstraintExpr::Bool(l != r)
+                    }
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
                         ConstraintExpr::Bool(l != r)
                     }
@@ -158,6 +202,13 @@ impl ConstraintExpr {
                     _ => self.clone(),
                 }
             }
+            ConstraintExpr::LogicalNot(inner) => match inner.evaluate(type_state) {
+                ConstraintExpr::Bool(b) => ConstraintExpr::Bool(!b),
+                _ => self.clone(),
+            },
+            ConstraintExpr::LogicalAnd(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l && r),
+            ConstraintExpr::LogicalOr(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l || r),
+            ConstraintExpr::LogicalXor(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l != r),
             ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate(type_state) {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(val.bits().into()),
                 _ => self.clone(),
@@ -344,6 +395,10 @@ impl TypeConstraints {
                     | ConstraintExpr::Mod(_, _)
                     | ConstraintExpr::Eq(_, _)
                     | ConstraintExpr::NotEq(_, _)
+                    | ConstraintExpr::LogicalNot(_)
+                    | ConstraintExpr::LogicalAnd(_, _)
+                    | ConstraintExpr::LogicalOr(_, _)
+                    | ConstraintExpr::LogicalXor(_, _)
                     | ConstraintExpr::Difference(_, _)
                     | ConstraintExpr::Product(_, _)
                     | ConstraintExpr::UintBitsToRepresent(_)
