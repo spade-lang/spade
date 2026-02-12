@@ -2308,7 +2308,11 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 Box::new(onfalse),
             ))
         }
-        ast::Expression::Match(expression, branches) => {
+        ast::Expression::Match {
+            expression,
+            branches,
+            if_let: _,
+        } => {
             let e = expression.visit(visit_expression, ctx);
 
             if branches.is_empty() {

@@ -336,10 +336,11 @@ pub enum Expression {
         Box<Loc<Expression>>,
         Box<Loc<Expression>>,
     ),
-    Match(
-        Box<Loc<Expression>>,
-        Loc<Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>>,
-    ),
+    Match {
+        expression: Box<Loc<Expression>>,
+        branches: Loc<Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>>,
+        if_let: bool,
+    },
     UnaryOperator(Loc<UnaryOperator>, Box<Loc<Expression>>),
     BinaryOperator(
         Box<Loc<Expression>>,
@@ -417,7 +418,8 @@ impl Expression {
             Expression::FieldAccess(_, _) => "field access",
             Expression::If(_, _, _) => "if",
             Expression::TypeLevelIf(_, _, _) => "type level if",
-            Expression::Match(_, _) => "match",
+            Expression::Match { if_let: false, .. } => "match",
+            Expression::Match { if_let: true, .. } => "if let",
             Expression::Lambda { .. } => "lambda",
             Expression::Call { .. } => "call",
             Expression::MethodCall { .. } => "method call",

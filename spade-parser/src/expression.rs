@@ -251,7 +251,7 @@ impl<'a> Parser<'a> {
             Ok(val)
         } else if let Some(block) = self.block(false)? {
             Ok(block.map(Box::new).map(Expression::Block))
-        } else if let Some(if_expr) = self.if_expression(false)? {
+        } else if let Some(if_expr) = self.if_expression(false, true)? {
             Ok(if_expr)
         } else if let Some(if_expr) = self.type_level_if()? {
             Ok(if_expr)
@@ -920,9 +920,9 @@ mod test {
         }
         "#;
 
-        let expected = Expression::Match(
-            Box::new(Expression::Identifier(ast_path("x")).nowhere()),
-            vec![
+        let expected = Expression::Match {
+            expression: Box::new(Expression::Identifier(ast_path("x")).nowhere()),
+            branches: vec![
                 (
                     Pattern::Tuple(vec![Pattern::integer(0).nowhere(), Pattern::name("y")])
                         .nowhere(),
@@ -936,7 +936,49 @@ mod test {
                 ),
             ]
             .nowhere(),
-        )
+            if_let: false,
+        }
+        .nowhere();
+
+        check_parse!(code, expression, Ok(expected));
+    }
+
+    #[test]
+    fn if_let_expressions_work() {
+        let code = r#"
+        if let (0, y) = x {
+            y
+        } else {
+            x
+        }
+        "#;
+
+        let expected = Expression::Match {
+            expression: Box::new(Expression::Identifier(ast_path("x")).nowhere()),
+            branches: vec![
+                (
+                    Pattern::Tuple(vec![Pattern::integer(0).nowhere(), Pattern::name("y")])
+                        .nowhere(),
+                    None,
+                    Expression::Block(Box::new(Block {
+                        statements: vec![],
+                        result: Some(Expression::Identifier(ast_path("y")).nowhere()),
+                    }))
+                    .nowhere(),
+                ),
+                (
+                    Pattern::Path(ast_path("_")).nowhere(),
+                    None,
+                    Expression::Block(Box::new(Block {
+                        statements: vec![],
+                        result: Some(Expression::Identifier(ast_path("x")).nowhere()),
+                    }))
+                    .nowhere(),
+                ),
+            ]
+            .nowhere(),
+            if_let: true,
+        }
         .nowhere();
 
         check_parse!(code, expression, Ok(expected));

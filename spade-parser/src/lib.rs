@@ -600,8 +600,20 @@ impl<'a> Parser<'a> {
     // FIXME: Before changing this, merge it with type_level_if
     #[trace_parser]
     #[tracing::instrument(skip(self))]
-    pub fn if_expression(&mut self, allow_stages: bool) -> Result<Option<Loc<Expression>>> {
+    pub fn if_expression(
+        &mut self,
+        allow_stages: bool,
+        allow_let: bool,
+    ) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::If);
+
+        let let_pattern = if allow_let && self.peek_and_eat(&TokenKind::Let)?.is_some() {
+            let pat = self.pattern()?;
+            self.eat(&TokenKind::Assignment)?;
+            Some(pat)
+        } else {
+            None
+        };
 
         let cond = self.expression()?;
 
@@ -619,7 +631,7 @@ impl<'a> Parser<'a> {
         self.eat(&TokenKind::Else)?;
         let on_false = if let Some(block) = self.block(allow_stages)? {
             block.map(Box::new).map(Expression::Block)
-        } else if let Some(expr) = self.if_expression(allow_stages)? {
+        } else if let Some(expr) = self.if_expression(allow_stages, allow_let)? {
             expr
         } else {
             let got = self.peek()?;
@@ -634,20 +646,38 @@ impl<'a> Parser<'a> {
         };
         let end_span = on_false.span;
 
-        Ok(Some(
-            Expression::If(Box::new(cond), Box::new(on_true), Box::new(on_false)).between(
-                self.file_id,
-                &start.span,
-                &end_span,
-            ),
-        ))
+        match let_pattern {
+            None => Ok(Some(
+                Expression::If(Box::new(cond), Box::new(on_true), Box::new(on_false)).between(
+                    self.file_id,
+                    &start.span,
+                    &end_span,
+                ),
+            )),
+            Some(pat) => Ok(Some(
+                Expression::Match {
+                    expression: Box::new(cond),
+                    branches: vec![
+                        (pat, None, on_true),
+                        (
+                            Pattern::Path(Path::from_strs(&["_"]).nowhere()).nowhere(),
+                            None,
+                            on_false,
+                        ),
+                    ]
+                    .nowhere(),
+                    if_let: true,
+                }
+                .between(self.file_id, &start.span, &end_span),
+            )),
+        }
     }
 
     // FIXME: Before changing this, merge it with if_expression
     pub fn type_level_if(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Gen);
 
-        let Some(inner) = self.if_expression(true)? else {
+        let Some(inner) = self.if_expression(true, false)? else {
             return Err(
                 Diagnostic::error(self.peek()?, "gen must be followed by if")
                     .primary_label("Expected if")
@@ -708,11 +738,12 @@ impl<'a> Parser<'a> {
         let patterns = patterns.at_loc(&body_loc);
 
         Ok(Some(
-            Expression::Match(Box::new(expression), patterns).between(
-                self.file_id,
-                &start.span,
-                &body_loc,
-            ),
+            Expression::Match {
+                expression: Box::new(expression),
+                branches: patterns,
+                if_let: false,
+            }
+            .between(self.file_id, &start.span, &body_loc),
         ))
     }
 

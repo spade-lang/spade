@@ -363,6 +363,47 @@ snapshot_error! {
 }
 
 code_compiles! {
+    if_let_works,
+    "
+    fn test() {
+        let _ = if let (true, 8) = (true, 0u10) {
+            true
+        } else {
+            false
+        };
+    }
+    "
+}
+
+code_compiles! {
+    if_let_names_are_visible_inside_on_true_block,
+    "
+    fn test() {
+        let _ = if let (b, 8) = (true, 0u10) {
+            b
+        } else {
+            false
+        };
+    }
+    "
+}
+
+code_compiles! {
+    if_let_is_chainable,
+    "
+    fn test() {
+        let _ = if let (b, 8) = (true, 0u10) {
+            0u2
+        } else if let [0, 1] = [0u8, 2] {
+            1u2
+        } else {
+            2u2
+        };
+    }
+    "
+}
+
+code_compiles! {
     match_expression_names_are_visible_inside_if_conditions,
     "
     fn test(x: int<32>, y: int<32>) -> int<32> {
