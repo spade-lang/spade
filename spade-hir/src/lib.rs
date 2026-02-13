@@ -49,8 +49,9 @@ pub struct PatternArgument {
 pub enum PatternKind {
     Integer(BigInt),
     Bool(bool),
-    Name {
+    Bound {
         name: Loc<NameID>,
+        inner: Option<Box<Loc<Pattern>>>,
         pre_declared: bool,
     },
     Tuple(Vec<Loc<Pattern>>),
@@ -62,8 +63,9 @@ pub enum PatternKind {
 }
 impl PatternKind {
     pub fn name(name: Loc<NameID>) -> Self {
-        PatternKind::Name {
+        PatternKind::Bound {
             name,
+            inner: None,
             pre_declared: false,
         }
     }
@@ -89,7 +91,14 @@ impl std::fmt::Display for PatternKind {
         match self {
             PatternKind::Integer(val) => write!(f, "{val}"),
             PatternKind::Bool(val) => write!(f, "{val}"),
-            PatternKind::Name { name, .. } => write!(f, "{name}"),
+            PatternKind::Bound {
+                name, inner: None, ..
+            } => write!(f, "{name}"),
+            PatternKind::Bound {
+                name,
+                inner: Some(pat),
+                ..
+            } => write!(f, "{name} @ {}", pat.kind),
             PatternKind::Tuple(members) => {
                 write!(
                     f,
@@ -122,10 +131,15 @@ impl Pattern {
         match &self.kind {
             PatternKind::Integer(_) => vec![],
             PatternKind::Bool(_) => vec![],
-            PatternKind::Name {
+            PatternKind::Bound {
                 name,
+                inner,
                 pre_declared: _,
-            } => vec![name.clone()],
+            } => Some(name.clone())
+                .iter()
+                .cloned()
+                .chain(inner.iter().flat_map(|i| i.get_names()))
+                .collect(),
             PatternKind::Tuple(inner) => inner.iter().flat_map(|i| i.get_names()).collect(),
             PatternKind::Type(_, args) => {
                 args.iter().flat_map(|arg| arg.value.get_names()).collect()

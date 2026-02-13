@@ -573,8 +573,8 @@ impl LinearState {
         })
     }
 
-    /// Adds `from` as an alias to the tree at `base_expr#tuple_member`. Panics if base_expr is not
-    /// a tuple with at least idx elements
+    /// Adds `from` as an alias to the tree at `base_expr.struct_member`. Panics if base_expr is not
+    /// a struct with at least idx elements
     pub fn alias_struct_member(
         &mut self,
         to: Loc<ExprID>,
@@ -592,13 +592,25 @@ impl LinearState {
         match &pat.kind {
             PatternKind::Integer(_) => {}
             PatternKind::Bool(_) => {}
-            PatternKind::Name { name, pre_declared } => {
-                let pat_id = pat.id;
-                let id_loc = pat_id.at_loc(name);
+            PatternKind::Bound {
+                name,
+                inner,
+                pre_declared,
+            } => {
+                let id_loc = pat.id.at_loc(name);
                 if !pre_declared {
                     self.push_new_expression(&id_loc, ctx);
                 }
-                self.merge(ItemReference::anonymous(&id_loc), ItemReference::name(name))?;
+                self.add_alias_name(id_loc, name)?;
+                if let Some(pat) = inner {
+                    self.push_pattern(pat, ctx)?;
+                    // NOTE: this is not ideal and doesn't produce an error message immediately as
+                    // should be done. However, this prevents any port on either side from being
+                    // used, which prevents any unsoundness. If somebody who actually knows how the
+                    // linear checker works, feel free to improve this.
+                    self.consume_pattern(pat)?;
+                    self.consume_id(id_loc)?;
+                }
             }
             PatternKind::Tuple(inner) => {
                 for pat in inner {
@@ -613,6 +625,39 @@ impl LinearState {
             PatternKind::Type(_, args) => {
                 for arg in args {
                     self.push_pattern(&arg.value.inner, ctx)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn consume_pattern(&mut self, pat: &Loc<Pattern>) -> crate::error::Result<()> {
+        match &pat.kind {
+            PatternKind::Integer(_) => {}
+            PatternKind::Bool(_) => {}
+            PatternKind::Bound {
+                name,
+                inner,
+                pre_declared: _,
+            } => {
+                self.consume_id(pat.id.at_loc(name))?;
+                if let Some(pat) = inner {
+                    self.consume_pattern(pat)?;
+                }
+            }
+            PatternKind::Tuple(inner) => {
+                for pat in inner {
+                    self.consume_pattern(pat)?;
+                }
+            }
+            PatternKind::Array(inner) => {
+                for pat in inner {
+                    self.consume_pattern(pat)?;
+                }
+            }
+            PatternKind::Type(_, args) => {
+                for arg in args {
+                    self.consume_pattern(&arg.value)?;
                 }
             }
         }

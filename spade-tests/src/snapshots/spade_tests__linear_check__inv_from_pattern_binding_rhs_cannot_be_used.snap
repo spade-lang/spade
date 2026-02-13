@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+entity e(p: inv &bool) {
+    let q @ r = p;
+    set r = &false;
+}
+
+
+error: Use of consumed resource
+  ┌─ testinput:3:9
+  │
+2 │     let q @ r = p;
+  │             - Previously used here
+3 │     set r = &false;
+  │         ^ Use of consumed resource

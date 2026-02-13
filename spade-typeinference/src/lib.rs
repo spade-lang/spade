@@ -1814,12 +1814,26 @@ impl TypeState {
                     .commit(self, ctx)
                     .expect("Expected new_generic with boolean");
             }
-            hir::PatternKind::Name { name, pre_declared } => {
-                if !pre_declared {
-                    self.add_equation(
-                        TypedExpression::Name(name.clone().inner),
-                        pattern.get_type(self),
-                    );
+            hir::PatternKind::Bound {
+                name,
+                inner,
+                pre_declared,
+            } => {
+                if let Some(pat) = inner {
+                    self.visit_pattern(pat, ctx, generic_list)?;
+                    if !pre_declared {
+                        self.add_equation(
+                            TypedExpression::Name(name.clone().inner),
+                            pat.get_type(self),
+                        );
+                    }
+                } else {
+                    if !pre_declared {
+                        self.add_equation(
+                            TypedExpression::Name(name.clone().inner),
+                            pattern.get_type(self),
+                        );
+                    }
                 }
                 self.unify(
                     &TypedExpression::Id(pattern.id),

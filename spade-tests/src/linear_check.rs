@@ -259,3 +259,23 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    inv_from_pattern_binding_lhs_cannot_be_used,
+    "
+        entity e(p: inv &bool) {
+            let q @ r = p;
+            set q = &false;
+        }
+    "
+}
+
+snapshot_error! {
+    inv_from_pattern_binding_rhs_cannot_be_used,
+    "
+        entity e(p: inv &bool) {
+            let q @ r = p;
+            set r = &false;
+        }
+    "
+}

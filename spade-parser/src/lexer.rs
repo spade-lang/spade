@@ -224,6 +224,8 @@ pub enum TokenKind {
     FatArrow,
     #[token("->")]
     SlimArrow,
+    #[token("@")]
+    At,
     #[token(",")]
     Comma,
     #[token(".")]
@@ -369,6 +371,7 @@ impl TokenKind {
             TokenKind::SlimArrow => "->",
             TokenKind::Semi => ";",
             TokenKind::GreekQuestionMark => "GreekQuestionMark(;)",
+            TokenKind::At => "@",
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Dot => ".",

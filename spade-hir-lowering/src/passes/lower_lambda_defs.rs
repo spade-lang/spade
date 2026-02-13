@@ -107,8 +107,9 @@ impl LambdaReplacement {
 
             Some(
                 Statement::binding(
-                    PatternKind::Name {
+                    PatternKind::Bound {
                         name: clock.clone(),
+                        inner: None,
                         pre_declared: false,
                     }
                     .with_id(idtracker.next())
@@ -129,8 +130,9 @@ impl LambdaReplacement {
             .iter()
             .map(|(cap_ident, cap_name)| {
                 Ok(Statement::binding(
-                    PatternKind::Name {
+                    PatternKind::Bound {
                         name: cap_name.clone(),
+                        inner: None,
                         pre_declared: false,
                     }
                     .with_id(idtracker.next())

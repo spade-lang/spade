@@ -124,6 +124,7 @@ pub enum ArgumentPattern {
 pub enum Pattern {
     Integer(IntLiteral),
     Bool(bool),
+    Bound(Loc<Identifier>, Box<Loc<Pattern>>),
     Path(Loc<Path>),
     Tuple(Vec<Loc<Pattern>>),
     Array(Vec<Loc<Pattern>>),

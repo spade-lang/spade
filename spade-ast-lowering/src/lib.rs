@@ -1655,59 +1655,72 @@ fn try_lookup_enum_variant(path: &Loc<Path>, ctx: &mut Context) -> Result<hir::P
 }
 
 pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern> {
+    let bind_variable = |ident: &Loc<Identifier>, ctx: &mut Context| {
+        // Check if this is declaring a variable
+        if let Some(state) = ctx.symtab.get_declaration(ident) {
+            match state.inner {
+                DeclarationState::Undefined(id) => {
+                    ctx.symtab
+                        .mark_declaration_defined(ident.clone(), ident.loc());
+                    Ok((id, true))
+                }
+                DeclarationState::Undecleared(id) => {
+                    ctx.symtab.add_thing_with_name_id(
+                        id.clone(),
+                        Thing::Variable(ident.clone()),
+                        None,
+                        None,
+                    );
+                    ctx.symtab
+                        .mark_declaration_defined(ident.clone(), ident.loc());
+                    Ok((id, true))
+                }
+                DeclarationState::Defined(previous) => {
+                    return Err(
+                        Diagnostic::error(ident, format!("{ident} was already defined"))
+                            .secondary_label(previous, "First defined here")
+                            .primary_label("Later defined here")
+                            .secondary_label(state.loc(), format!("{ident} declared here"))
+                            .note("Declared variables can only be defined once"),
+                    );
+                }
+            }
+        } else {
+            Ok((
+                ctx.symtab.add_thing(
+                    Path::ident(ident.clone()),
+                    Thing::Variable(ident.clone()),
+                    None,
+                    None,
+                ),
+                false,
+            ))
+        }
+    };
+
     let kind = match &p {
         ast::Pattern::Integer(val) => hir::PatternKind::Integer(val.clone().as_signed()),
         ast::Pattern::Bool(val) => hir::PatternKind::Bool(*val),
+        ast::Pattern::Bound(name, inner) => {
+            let pat = visit_pattern(inner, ctx)?;
+            let (name_id, pre_declared) = bind_variable(name, ctx)?;
+
+            hir::PatternKind::Bound {
+                name: name_id.at_loc(name),
+                inner: Some(Box::new(pat.at_loc(&inner))),
+                pre_declared,
+            }
+        }
         ast::Pattern::Path(path) => {
             match (try_lookup_enum_variant(path, ctx), path.inner.0.as_slice()) {
                 (Ok(kind), _) => kind,
                 (_, [segment]) => {
                     let ident = segment.unwrap_named();
-                    // Check if this is declaring a variable
-                    let (name_id, pre_declared) =
-                        if let Some(state) = ctx.symtab.get_declaration(ident) {
-                            match state.inner {
-                                DeclarationState::Undefined(id) => {
-                                    ctx.symtab
-                                        .mark_declaration_defined(ident.clone(), ident.loc());
-                                    (id, true)
-                                }
-                                DeclarationState::Undecleared(id) => {
-                                    ctx.symtab.add_thing_with_name_id(
-                                        id.clone(),
-                                        Thing::Variable(ident.clone()),
-                                        None,
-                                        None,
-                                    );
-                                    ctx.symtab
-                                        .mark_declaration_defined(ident.clone(), ident.loc());
-                                    (id, true)
-                                }
-                                DeclarationState::Defined(previous) => {
-                                    return Err(Diagnostic::error(
-                                        ident,
-                                        format!("{ident} was already defined"),
-                                    )
-                                    .secondary_label(previous, "First defined here")
-                                    .primary_label("Later defined here")
-                                    .secondary_label(state.loc(), format!("{ident} declared here"))
-                                    .note("Declared variables can only be defined once"));
-                                }
-                            }
-                        } else {
-                            (
-                                ctx.symtab.add_thing(
-                                    Path::ident(ident.clone()),
-                                    Thing::Variable(ident.clone()),
-                                    None,
-                                    None,
-                                ),
-                                false,
-                            )
-                        };
+                    let (name_id, pre_declared) = bind_variable(ident, ctx)?;
 
-                    hir::PatternKind::Name {
+                    hir::PatternKind::Bound {
                         name: name_id.at_loc(ident),
+                        inner: None,
                         pre_declared,
                     }
                 }
@@ -2773,7 +2786,10 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
                 let name_id = if let Some(state) = state {
                     ctx.symtab
                         .lookup_variable(&Path::ident_with_loc(state.clone()))?
-                } else if let PatternKind::Name { name, .. } = &pattern.inner.kind {
+                } else if let PatternKind::Bound {
+                    name, inner: None, ..
+                } = &pattern.inner.kind
+                {
                     name.inner.clone()
                 } else {
                     return Err(Diagnostic::error(

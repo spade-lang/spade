@@ -399,7 +399,27 @@ impl PatternLocal for Loc<Pattern> {
         match &self.kind {
             hir::PatternKind::Integer(_) => {}
             hir::PatternKind::Bool(_) => {}
-            hir::PatternKind::Name { .. } => {}
+            hir::PatternKind::Bound { inner, .. } => {
+                if let Some(pat) = inner {
+                    let ty = ctx
+                        .types
+                        .concrete_type_of(pat, ctx.symtab.symtab(), &ctx.item_list.types)?
+                        .to_mir_type();
+
+                    result.push_primary(
+                        mir::Statement::Binding(mir::Binding {
+                            name: pat.value_name(),
+                            operator: mir::Operator::Alias,
+                            operands: vec![self_name.clone()],
+                            ty,
+                            loc: Some(self.loc()),
+                        }),
+                        pat.as_ref(),
+                    );
+
+                    result.append(pat.lower_no_initial_binding(pat.value_name(), ctx)?)
+                }
+            }
             hir::PatternKind::Tuple(inner) => {
                 for (i, p) in inner.iter().enumerate() {
                     let ty = ctx
@@ -662,7 +682,27 @@ impl PatternLocal for Loc<Pattern> {
                 })],
                 result_name,
             }),
-            (hir::PatternKind::Name { .. }, Some(c)) => Ok(PatternCondition {
+            (
+                hir::PatternKind::Bound {
+                    inner: Some(pat), ..
+                },
+                c,
+            ) => {
+                let mut pat_cond = pat.condition(&pat.value_name(), c, ctx)?;
+
+                pat_cond
+                    .statements
+                    .push(mir::Statement::Binding(mir::Binding {
+                        name: result_name.clone(),
+                        ty: MirType::Bool,
+                        operator: mir::Operator::Alias,
+                        operands: vec![pat_cond.result_name.clone()],
+                        loc: None,
+                    }));
+
+                Ok(pat_cond)
+            }
+            (hir::PatternKind::Bound { inner: None, .. }, Some(c)) => Ok(PatternCondition {
                 statements: vec![mir::Statement::Binding(mir::Binding {
                     name: result_name.clone(),
                     ty: MirType::Bool,
@@ -672,7 +712,7 @@ impl PatternLocal for Loc<Pattern> {
                 })],
                 result_name,
             }),
-            (hir::PatternKind::Name { .. }, None) => Ok(PatternCondition {
+            (hir::PatternKind::Bound { inner: None, .. }, None) => Ok(PatternCondition {
                 statements: vec![mir::Statement::Constant(
                     ValueName::Expr(output_id),
                     MirType::Bool,
@@ -769,8 +809,9 @@ impl PatternLocal for Loc<Pattern> {
     /// in the output code to make it more readable
     fn value_name(&self) -> ValueName {
         match &self.kind {
-            hir::PatternKind::Name {
+            hir::PatternKind::Bound {
                 name,
+                inner: _,
                 pre_declared: _,
             } => return name.value_name(),
             hir::PatternKind::Integer(_) => {}
@@ -786,7 +827,7 @@ impl PatternLocal for Loc<Pattern> {
     /// the case, an alias from its true name to `value_name` must be generated
     fn is_alias(&self) -> bool {
         match self.kind {
-            hir::PatternKind::Name { .. } => true,
+            hir::PatternKind::Bound { .. } => true,
             hir::PatternKind::Integer(_) => false,
             hir::PatternKind::Bool(_) => false,
             hir::PatternKind::Tuple(_) => false,
@@ -799,7 +840,10 @@ impl PatternLocal for Loc<Pattern> {
         match &self.kind {
             spade_hir::PatternKind::Integer(_) => false,
             spade_hir::PatternKind::Bool(_) => false,
-            spade_hir::PatternKind::Name { .. } => true,
+            spade_hir::PatternKind::Bound { inner, .. } => inner
+                .as_ref()
+                .map(|pat| pat.is_trivially_irrefutable())
+                .unwrap_or(false),
             spade_hir::PatternKind::Tuple(inner) | spade_hir::PatternKind::Array(inner) => {
                 inner.iter().all(Self::is_trivially_irrefutable)
             }

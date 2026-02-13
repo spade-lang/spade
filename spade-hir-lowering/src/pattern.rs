@@ -333,7 +333,10 @@ impl DeconstructedPattern {
                 vec![],
             ),
             spade_hir::PatternKind::Bool(val) => (Constructor::Bool(*val), vec![]),
-            spade_hir::PatternKind::Name { .. } => (Constructor::Wildcard, vec![]),
+            spade_hir::PatternKind::Bound { inner: None, .. } => (Constructor::Wildcard, vec![]),
+            spade_hir::PatternKind::Bound {
+                inner: Some(pat), ..
+            } => return Self::from_hir(pat, ctx),
             spade_hir::PatternKind::Tuple(inner) => (
                 Constructor::Single,
                 inner.iter().map(|i| Self::from_hir(i, ctx)).collect(),

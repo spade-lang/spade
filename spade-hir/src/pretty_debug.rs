@@ -442,10 +442,16 @@ impl PrettyDebug for Pattern {
         match &self.kind {
             crate::PatternKind::Integer(val) => format!("{val}"),
             crate::PatternKind::Bool(val) => format!("{val}"),
-            crate::PatternKind::Name {
+            crate::PatternKind::Bound {
                 name,
+                inner: None,
                 pre_declared: _,
             } => name.pretty_debug(),
+            crate::PatternKind::Bound {
+                name,
+                inner: Some(pat),
+                pre_declared: _,
+            } => format!("{} @ {}", name.pretty_debug(), pat.pretty_debug()),
             crate::PatternKind::Tuple(inner) => {
                 format!("({})", inner.iter().map(|i| i.pretty_debug()).join(", "))
             }

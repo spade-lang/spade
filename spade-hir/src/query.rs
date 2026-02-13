@@ -227,11 +227,15 @@ impl<'a> QueryCache {
         match &pat.inner.kind {
             PatternKind::Integer(_) => {}
             PatternKind::Bool(_) => {}
-            PatternKind::Name {
+            PatternKind::Bound {
                 name,
+                inner,
                 pre_declared: _,
             } => {
                 self.names.insert(name.clone());
+                if let Some(pat) = inner {
+                    self.visit_pattern(&pat);
+                }
             }
             PatternKind::Tuple(inner) => {
                 for pat in inner {

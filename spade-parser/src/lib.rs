@@ -1314,7 +1314,19 @@ impl<'a> Parser<'a> {
                 let path = s.path()?;
                 let path_span = path.span;
 
-                if let Some(start_paren) = s.peek_and_eat(&TokenKind::OpenParen)? {
+                if path.0.len() == 1 && s.peek_kind(&TokenKind::At)? {
+                    s.eat_unconditional()?;
+
+                    let name = path.tail().unwrap_named().clone();
+                    let inner = s.pattern()?;
+                    let inner_span = inner.span;
+
+                    Ok(Some(Pattern::Bound(name, Box::new(inner)).between(
+                        s.file_id,
+                        &path_span,
+                        &inner_span,
+                    )))
+                } else if let Some(start_paren) = s.peek_and_eat(&TokenKind::OpenParen)? {
                     let inner = s
                         .comma_separated(Self::pattern, &TokenKind::CloseParen)
                         .no_context()?;

@@ -202,8 +202,9 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 .add_local_variable(Identifier::intern("result").at_loc(&unit));
 
             let result_binding = Statement::Binding(Binding {
-                pattern: PatternKind::Name {
+                pattern: PatternKind::Bound {
                     name: result_name.clone().at_loc(&unit),
+                    inner: None,
                     pre_declared: false,
                 }
                 .with_id(ctx.idtracker.next())
