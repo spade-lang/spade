@@ -340,7 +340,10 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
         Operator::Concat => {
             format!(
                 "{{{}}}",
-                op_names.iter().map(|op| op.to_string()).join(", ")
+                ops.iter()
+                    .filter(|op| types[op].size() != BigUint::zero())
+                    .map(|op| op.var_name())
+                    .join(", ")
             )
         }
         Operator::SignExtend => {
@@ -3310,6 +3313,10 @@ mod expression_tests {
     fn concat_works() {
         let stmt = statement!(e(0); Type::int(8); Concat; e(1), e(2));
 
+        let type_list = MirTypeList::empty()
+            .with(ValueName::Expr(ExprID(1)), Type::int(4))
+            .with(ValueName::Expr(ExprID(2)), Type::int(4));
+
         let expected = indoc! {
             r#"
             logic[7:0] _e_0;
@@ -3317,12 +3324,29 @@ mod expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
+                .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn concat_works_with_one_zero_sized_arg() {
+        let stmt = statement!(e(0); Type::int(4); Concat; e(1), e(2));
+
+        let type_list = MirTypeList::empty()
+            .with(ValueName::Expr(ExprID(1)), Type::int(0))
+            .with(ValueName::Expr(ExprID(2)), Type::int(4));
+
+        let expected = indoc! {
+            r#"
+            logic[3:0] _e_0;
+            assign _e_0 = {_e_2};"#
+        };
+
+        assert_same_code!(
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
+                .to_string(),
             expected
         );
     }
