@@ -609,7 +609,7 @@ fn translate_concrete(
             }
         }
         ConcreteType::Enum { options } => {
-            let tag_size = (options.len() as f32).log2().ceil() as usize;
+            let tag_size = options.len().next_power_of_two().ilog2() as usize;
             let tag_section = &val[0..tag_size];
             if tag_section.contains('x') {
                 *problematic = true;

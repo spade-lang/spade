@@ -46,7 +46,7 @@ impl Type {
             Type::Tuple(inner) => inner.iter().map(Type::size).sum::<BigUint>(),
             Type::Struct(inner) => inner.iter().map(|(_, t)| t.size()).sum::<BigUint>(),
             Type::Enum(inner) => {
-                let discriminant_size = (inner.len() as f32).log2().ceil() as u64;
+                let discriminant_size = inner.len().next_power_of_two().ilog2() as u64;
 
                 let members_size = inner
                     .iter()

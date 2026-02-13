@@ -219,7 +219,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
             result.push(']');
         }
         ConcreteType::Enum { options } => {
-            let tag_size = (options.len() as f32).log2().ceil() as usize;
+            let tag_size = options.len().next_power_of_two().ilog2() as usize;
             let tag = translate_uint(&value[0..tag_size], false);
             match tag {
                 MaybeValue::Value(val) => {

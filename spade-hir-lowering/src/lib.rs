@@ -434,8 +434,7 @@ impl PatternLocal for Loc<Pattern> {
                 }
             }
             hir::PatternKind::Array(inner) => {
-                let index_ty =
-                    MirType::Int((((inner.len() as f32).log2().floor() + 1.) as u128).to_biguint());
+                let index_ty = MirType::Int((inner.len().ilog2() as u128 + 1).to_biguint());
                 for (i, p) in inner.iter().enumerate() {
                     let idx_id = ctx.idtracker.next();
                     result.push_secondary(
