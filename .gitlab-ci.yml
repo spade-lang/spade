@@ -380,8 +380,8 @@ build:static:
     - strip $CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/spade
   artifacts:
     paths:
-      - target/x86_64-unknown-linux-musl/release/spade
-      - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/cxxbridge/include/spade-cxx/src/spade.rs.*
-      - target/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
+      - ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade
+      - ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/cxxbridge/include/spade-cxx/src/spade.rs.*
+      - ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
 
     
