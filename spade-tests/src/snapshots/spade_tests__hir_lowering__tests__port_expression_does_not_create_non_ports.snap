@@ -9,10 +9,10 @@ entity t() -> X {
 }
 
 
-error: A port expression cannot create non-port values
-  ┌─ testinput:4:18
+error: b.x is unused
+  ┌─ testinput:4:13
   │
 4 │     let (a, b) = port;
-  │                  ^^^^ X is not a port type
+  │             ^ b.x is unused
   │
-  = note: The port expression creates a (X, inv X)
+  = note: b.x is an inverted wire (`inv &`) which must be set

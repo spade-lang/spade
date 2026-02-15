@@ -4,11 +4,3 @@ source: spade-tests/src/ast_lowering.rs
 enum X {
     A{x: &int<32>}
 }
-
-error: Port in enum
-  ┌─ testinput:2:10
-  │
-1 │ enum X {
-  │      - This is an enum
-2 │     A{x: &int<32>}
-  │          ^^^^^^^^ This is a port

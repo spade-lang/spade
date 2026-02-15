@@ -1135,8 +1135,8 @@ impl<'a> Parser<'a> {
                 ));
             }
 
-            let rest = self.type_expression()?;
-            Ok(TypeSpec::Wire(Box::new(rest.clone())).between(self.file_id, &wire_sign, &rest))
+            let rest = self.type_spec(accept_impl)?;
+            Ok(rest.clone().inner.between(self.file_id, &wire_sign, &rest))
         } else if let Some(r#impl) = self.peek_and_eat(&TokenKind::Impl)? {
             let traits = self
                 .token_separated(

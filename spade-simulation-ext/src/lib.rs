@@ -450,6 +450,13 @@ impl Spade {
         // the field which we need later. So we'll need to invent an expression and infer the
         // appropriate type
 
+        let type_ctx = spade_typeinference::Context {
+            symtab: &symtab,
+            items: &owned_state.item_list,
+            trait_impls: &owned_state.trait_impls,
+        };
+
+
         // NOTE: safe unwrap, o_name is something we just created, so it can be any type
         let g = self.type_state.new_generic_any();
         self.type_state
@@ -464,7 +471,7 @@ impl Spade {
                     trait_impls: &owned_state.trait_impls,
                 },
             )
-            .into_default_diagnostic(().nowhere(), &self.type_state)
+            .into_default_diagnostic(().nowhere(), &self.type_state, &type_ctx)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         // Now that we have a type which we can work with, we can create a virtual expression
@@ -493,14 +500,13 @@ impl Spade {
             safety: Safety::Default,
         };
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
-
-        self.handle_diags(&mut ast_ctx.diags.lock().unwrap())?;
-
         let type_ctx = spade_typeinference::Context {
             symtab: &ast_ctx.symtab,
             items: &ast_ctx.item_list,
             trait_impls: &owned_state.trait_impls,
         };
+
+        self.handle_diags(&mut ast_ctx.diags.lock().unwrap())?;
 
         let generic_list = self
             .type_state
@@ -982,11 +988,10 @@ fn concrete_ty_has_field(ty: &ConcreteType, field: &str) -> bool {
     match ty {
         ConcreteType::Struct {
             name: _,
-            is_port: _,
             members,
             field_translators: _,
         } => members.iter().find(|(n, _)| n.as_str() == field).is_some(),
-        ConcreteType::Backward(inner) | ConcreteType::Wire(inner) => {
+        ConcreteType::Backward(inner) => {
             concrete_ty_has_field(inner, field)
         }
         _ => false,

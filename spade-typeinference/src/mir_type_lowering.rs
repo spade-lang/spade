@@ -104,6 +104,14 @@ impl TypeState {
             .map(|(lhs, rhs)| (lhs.name.clone(), rhs))
             .collect::<HashMap<_, _>>();
 
+        let invert_leaf = |leaf| {
+            if invert {
+                ConcreteType::Backward(Box::new(leaf))
+            } else {
+                leaf
+            }
+        };
+
         match &decl.kind {
             hir::TypeDeclKind::Enum(e) => {
                 let options = e
@@ -128,7 +136,8 @@ impl TypeState {
                         (name.inner.clone(), args)
                     })
                     .collect();
-                ConcreteType::Enum { options }
+
+                invert_leaf(ConcreteType::Enum { options })
             }
             hir::TypeDeclKind::Struct(s) => {
                 let members = s
@@ -164,7 +173,6 @@ impl TypeState {
 
                 ConcreteType::Struct {
                     name: decl.name.inner.clone(),
-                    is_port: s.is_port,
                     members,
                     field_translators: translators.collect(),
                 }
@@ -181,9 +189,13 @@ impl TypeState {
                     concrete_type
                 }
             }
-            hir::TypeDeclKind::Primitive(primitive) => ConcreteType::Single {
-                base: primitive.clone(),
-                params,
+            hir::TypeDeclKind::Primitive(primitive) => {
+                let leaf = ConcreteType::Single {
+                    base: primitive.clone(),
+                    params,
+                };
+                invert_leaf(leaf)
+
             },
             hir::TypeDeclKind::Alias(a) => {
                 Self::type_spec_to_concrete(&a.type_spec, type_list, &generic_subs, invert)
@@ -276,19 +288,7 @@ impl TypeState {
                     size,
                 }
             }
-            TypeSpec::Wire(inner) => {
-                let inner = Box::new(Self::type_spec_to_concrete(
-                    inner,
-                    type_list,
-                    generic_substitutions,
-                    invert,
-                ));
-                if invert {
-                    ConcreteType::Backward(inner)
-                } else {
-                    ConcreteType::Wire(inner)
-                }
-            }
+
             TypeSpec::Inverted(inner) => Self::type_spec_to_concrete(
                 inner,
                 type_list,
@@ -368,15 +368,7 @@ impl TypeState {
                     .collect::<Option<Vec<_>>>()?;
                 Some(ConcreteType::Tuple(inner))
             }
-            TypeVar::Known(_, KnownType::Wire, inner) => {
-                if invert {
-                    self.inner_ungenerify_type(&inner[0], symtab, type_list, invert)
-                        .map(|t| ConcreteType::Backward(Box::new(t)))
-                } else {
-                    self.inner_ungenerify_type(&inner[0], symtab, type_list, invert)
-                        .map(|t| ConcreteType::Wire(Box::new(t)))
-                }
-            }
+            // TODO: We have to change the inversion logic here for correct code gen
             TypeVar::Known(_, KnownType::Inverted, inner) => {
                 self.inner_ungenerify_type(&inner[0], symtab, type_list, !invert)
             }

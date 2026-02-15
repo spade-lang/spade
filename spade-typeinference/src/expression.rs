@@ -57,7 +57,7 @@ impl TypeState {
                     diag
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify bool literal with bool")
-                }, self)?;
+                }, self, ctx)?;
         });
         Ok(())
     }
@@ -77,7 +77,7 @@ impl TypeState {
                     diag
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify integer literal with integer")
-                }, self)?;
+                }, self, ctx)?;
             let generic_list = self
                 .get_generic_list(generic_list)
                 .ok_or_else(|| {
@@ -205,8 +205,8 @@ impl TypeState {
                     diag
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify integer literal with integer")
-                }, self)?;
-            Requirement::FitsIntLiteral {
+                }, self, ctx)?;
+             Requirement::FitsIntLiteral {
                 value: ConstantInt::Literal(value.clone()),
                 target_type: t.at_loc(expression)
             }.check_or_add(self, ctx)?;
@@ -225,7 +225,7 @@ impl TypeState {
             expression
                 .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
                 .commit(self, ctx)
-                .into_default_diagnostic(expression, self)?;
+                .into_default_diagnostic(expression, self, ctx)?;
         });
         Ok(())
     }
@@ -237,7 +237,7 @@ impl TypeState {
             expression
                 .unify_with(&self.t_tri(expression.loc(), ctx.symtab), self)
                 .commit(self, ctx)
-                .into_default_diagnostic(expression, self)?
+                .into_default_diagnostic(expression, self, ctx)?
         });
         Ok(())
     }
@@ -269,7 +269,7 @@ impl TypeState {
                     self
                 )
                 .commit(self, ctx)
-                .into_default_diagnostic(expression, self)?
+                .into_default_diagnostic(expression, self, ctx)?
         });
         Ok(())
     }
@@ -442,7 +442,7 @@ impl TypeState {
                         ))
                         .primary_label(format!("Expected {}", expected))
                         .secondary_label(members.first().unwrap().loc(), "To match this".to_string())
-                    }, self)?;
+                    }, self, ctx)?;
             }
 
             let inner_type = if members.is_empty() {
@@ -478,7 +478,7 @@ impl TypeState {
             let size_type = self.visit_const_generic_with_id(amount, generic_list, ConstraintSource::ArraySize, ctx)?;
             // Force the type to be a uint
             let uint_type = self.new_generic_tluint(expression.loc());
-            self.unify(&size_type, &uint_type, ctx).into_default_diagnostic(expression.loc(), self)?;
+            self.unify(&size_type, &uint_type, ctx).into_default_diagnostic(expression.loc(), self, ctx)?;
 
             let result_type = TypeVar::array(expression.loc(), inner_type, size_type).insert(self);
 
@@ -545,7 +545,7 @@ impl TypeState {
                     let got = got.display(self);
                     diag.message(format!("Index must be an integer, got {}", got))
                         .primary_label("Expected integer".to_string())
-                }, self)?;
+                }, self, ctx)?;
 
             let array_type = TypeVar::array(
                 expression.loc(),
@@ -563,7 +563,7 @@ impl TypeState {
                     diag
                         .message(format!("Index target must be an array, got {}", got))
                         .primary_label("Expected array".to_string())
-                }, self)?;
+                }, self, ctx)?;
         });
         Ok(())
     }
@@ -607,7 +607,7 @@ impl TypeState {
             Requirement::RangeIndexInArray { index: end_var.at_loc(&end_loc), size: in_array_size.at_loc(&target.loc()) }.check_or_add(self, ctx)?;
 
             self.unify(&expression.inner, &out_array_type, ctx)
-                .into_default_diagnostic(expression, self)?;
+                .into_default_diagnostic(expression, self, ctx)?;
 
 
             self.unify(&target.inner, &in_array_type, ctx)
@@ -616,7 +616,7 @@ impl TypeState {
                     diag
                         .message(format!("Index target must be an array, got {}", got))
                         .primary_label("Expected array".to_string())
-                }, self)?;
+                }, self, ctx)?;
         });
         Ok(())
     }
@@ -638,7 +638,7 @@ impl TypeState {
                     // NOTE: We could be more specific about this error specifying
                     // that the type of the block must match the return type, though
                     // that might just be spammy.
-                    .into_default_diagnostic(result, self)?;
+                    .into_default_diagnostic(result, self, ctx)?;
             } else {
                 // Block without return value. Unify with unit type.
                 expression
@@ -649,7 +649,7 @@ impl TypeState {
                         diag_anyhow!(
                             Loc::nowhere(()),
                             "This error shouldn't be possible: {err:?}"
-                        )}, self)?;
+                        )}, self, ctx)?;
             }
         });
         Ok(())
@@ -677,16 +677,16 @@ impl TypeState {
                     diag.
                         message(format!("If condition must be a bool, got {}", got))
                         .primary_label("Expected boolean")
-                }, self)?;
+                }, self, ctx)?;
             self.unify(&on_false.inner, &on_true.inner, ctx)
                 .into_diagnostic(on_false.as_ref(), |diag, tm| {
                     let (expected, got) = tm.display_e_g(self);
                     diag.message("If branches have incompatible type")
                         .primary_label(format!("But this has type {got}"))
                         .secondary_label(on_true.as_ref(), format!("This branch has type {expected}"))
-                }, self)?;
+                }, self, ctx)?;
             self.unify(expression, &on_false.inner, ctx)
-                .into_default_diagnostic(expression, self)?;
+                .into_default_diagnostic(expression, self, ctx)?;
         });
         Ok(())
     }
@@ -706,7 +706,7 @@ impl TypeState {
                 self.visit_pattern(pattern, ctx, generic_list)?;
 
                 self.unify(pattern, &cond.inner, ctx)
-                    .into_default_diagnostic(pattern, self)?;
+                    .into_default_diagnostic(pattern, self, ctx)?;
 
                 if let Some(if_cond) = if_cond {
                     self.visit_expression(if_cond, ctx, generic_list);
@@ -714,7 +714,7 @@ impl TypeState {
                     if_cond
                         .unify_with(&self.t_bool(if_cond.loc(), ctx.symtab), self)
                         .commit(self, ctx)
-                        .into_default_diagnostic(if_cond, self)?;
+                        .into_default_diagnostic(if_cond, self, ctx)?;
                 }
 
                 self.visit_expression(result, ctx, generic_list);
@@ -727,7 +727,7 @@ impl TypeState {
                             diag.message("Match branches have incompatible type")
                                 .primary_label(format!("This branch has type {got}"))
                                 .secondary_label(&branches[0].2, format!("But this one has type {expected}"))
-                        }, self
+                        }, self, ctx
                     )?;
                 }
             }
@@ -871,17 +871,17 @@ impl TypeState {
                     self.unify_expression_generic_error(operand, &bool, ctx)?;
                     self.unify_expression_generic_error(expression, &bool, ctx)?
                 }
+
+                // Since these are now no-ops, we just forward the result
                 UnaryOperator::Dereference => {
                     let result_type = self.new_generic_type(expression.loc());
-                    let reference_type = TypeVar::wire(expression.loc(), result_type.clone()).insert(self);
-                    self.unify_expression_generic_error(operand, &reference_type, ctx)?;
-                    self.unify_expression_generic_error(expression, &result_type, ctx)?
+                    self.unify_expression_generic_error(expression, &result_type, ctx)?;
+                    self.unify_expression_generic_error(operand, &result_type, ctx)?
                 }
                 UnaryOperator::Reference => {
                     let result_type = self.new_generic_type(expression.loc());
-                    let reference_type = TypeVar::wire(expression.loc(), result_type.clone()).insert(self);
-                    self.unify_expression_generic_error(operand, &result_type, ctx)?;
-                    self.unify_expression_generic_error(expression, &reference_type, ctx)?
+                    self.unify_expression_generic_error(expression, &result_type, ctx)?;
+                    self.unify_expression_generic_error(operand, &result_type, ctx)?
                 }
             }
         });

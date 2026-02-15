@@ -5,13 +5,3 @@ struct port A {}
 
 
 extern entity x(a: inv &A) -> bool;
-
-
-error: Cannot create a wire of ports
-  ┌─ testinput:4:24
-  │
-4 │ extern entity x(a: inv &A) -> bool;
-  │                        ^^
-  │                        ││
-  │                        │Because this is a port
-  │                        This cannot be a wire

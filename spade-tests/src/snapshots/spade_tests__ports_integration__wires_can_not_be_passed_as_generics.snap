@@ -6,10 +6,3 @@ entity identity<T>(x: T) -> T {x}
 entity x(p: &bool) -> &bool {
     inst identity(p)
 }
-
-
-error: Generic types cannot be ports
-  ┌─ testinput:4:5
-  │
-4 │     inst identity(p)
-  │     ^^^^^^^^^^^^^^^^ Parameter T is &bool which is a port type

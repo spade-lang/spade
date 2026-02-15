@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/auto_traits.rs
+---
+struct A {
+    x: bool,
+    y: inv bool,
+}
+
+fn needs_data<T: Data>(x: T) {}
+
+fn test(x: A) {
+    needs_data(x)
+}
+
+
+error: Trait bound not satisfied. A does not implement core::Data
+  ┌─ testinput:9:16
+  │
+6 │ fn needs_data<T: Data>(x: T) {}
+  │                  ---- Required because of the trait bound specified here
+  ·
+9 │     needs_data(x)
+  │                ^ A does not implement core::Data

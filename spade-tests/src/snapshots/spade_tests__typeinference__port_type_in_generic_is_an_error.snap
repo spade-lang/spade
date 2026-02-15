@@ -11,8 +11,12 @@ entity x(b: X) -> bool {
 }
 
 
-error: Generic types cannot be ports
-  ┌─ testinput:7:5
+error: x.x is unused
+  ┌─ testinput:4:25
   │
-7 │     inst takes_generic(b)
-  │     ^^^^^^^^^^^^^^^^^^^^^ Parameter T is struct port X {x: inv &bool} which is a port type
+4 │ entity takes_generic<T>(x: T) -> bool {true}
+  │                         ^ x.x is unused
+  │
+  = note: x.x is an inverted wire (`inv &`) which must be set
+  = The error is in a generic unit instantiated at
+    ╰ testinput:7 takes_generic<X>

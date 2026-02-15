@@ -18,7 +18,6 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     let mut add_type = |name: &str,
                         args: Vec<Loc<GenericArg>>,
                         primitive: PrimitiveType,
-                        is_port: bool,
                         is_inout: bool| {
         let name = symtab
             .add_type_with_id(
@@ -27,7 +26,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                 TypeSymbol::Declared(
                     args.clone(),
                     0,
-                    TypeDeclKind::Primitive { is_port, is_inout },
+                    TypeDeclKind::Primitive { is_inout },
                 )
                 .nowhere(),
                 Visibility::Public.nowhere(),
@@ -99,13 +98,11 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
         vec![GenericArg::uint(Identifier::intern("size")).nowhere()],
         PrimitiveType::Uint,
         false,
-        false,
     );
     add_type(
         "int",
         vec![GenericArg::uint(Identifier::intern("size")).nowhere()],
         PrimitiveType::Int,
-        false,
         false,
     );
     add_type(
@@ -119,17 +116,15 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
             GenericArg::uint(Identifier::intern("AddrWidth")).nowhere(),
         ],
         PrimitiveType::Memory,
-        true,
         false,
     );
-    add_type("clock", vec![], PrimitiveType::Clock, true, false);
-    add_type("bool", vec![], PrimitiveType::Bool, false, false);
-    add_type("tri", vec![], PrimitiveType::Bool, false, false);
+    add_type("clock", vec![], PrimitiveType::Clock, false);
+    add_type("bool", vec![], PrimitiveType::Bool, false);
+    add_type("tri", vec![], PrimitiveType::Bool, false);
     add_type(
         "inout",
         vec![GenericArg::uint(Identifier::intern("T")).nowhere()],
         PrimitiveType::InOut,
-        false,
         true,
     );
 }

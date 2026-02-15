@@ -57,7 +57,6 @@ pub enum TypeSpec {
     /// ports.
     /// If applied to a struct port, all fields are inverted.
     Inverted(Box<Loc<TypeExpression>>),
-    Wire(Box<Loc<TypeExpression>>),
     Impl(Vec<Loc<TraitSpec>>),
     Wildcard,
 }
@@ -69,7 +68,6 @@ impl TypeSpec {
             TypeSpec::Array { .. }
             | TypeSpec::Named(_, _)
             | TypeSpec::Inverted(_)
-            | TypeSpec::Wire(_)
             | TypeSpec::Impl(_)
             | TypeSpec::Wildcard => false,
         }
@@ -81,7 +79,6 @@ impl TypeSpec {
             TypeSpec::Array { .. }
             | TypeSpec::Named(_, _)
             | TypeSpec::Inverted(_)
-            | TypeSpec::Wire(_)
             | TypeSpec::Impl(_)
             | TypeSpec::Wildcard => false,
         }
@@ -103,7 +100,6 @@ impl std::fmt::Display for TypeSpec {
                 write!(f, "{name}{args}")
             }
             TypeSpec::Inverted(inner) => write!(f, "inv {inner}"),
-            TypeSpec::Wire(inner) => write!(f, "&{inner}"),
             TypeSpec::Impl(trait_specs) => write!(
                 f,
                 "impl {}",
@@ -851,13 +847,6 @@ pub struct Struct {
     pub attributes: AttributeList,
     pub name: Loc<Identifier>,
     pub members: Loc<ParameterList>,
-    pub port_keyword: Option<Loc<()>>,
-}
-
-impl Struct {
-    pub fn is_port(&self) -> bool {
-        self.port_keyword.is_some()
-    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

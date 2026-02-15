@@ -134,9 +134,7 @@ impl Substitutions {
         ty: ConcreteType,
     ) {
         self.live_vars.push(from.clone());
-        let availability = if ty.is_port() {
-            Substitution::Port
-        } else if ty.to_mir_type().size() == BigUint::zero() {
+        let availability = if ty.to_mir_type().size() == BigUint::zero() {
             Substitution::ZeroSized
         } else if time == 0 {
             Substitution::Available(from.inner.clone())

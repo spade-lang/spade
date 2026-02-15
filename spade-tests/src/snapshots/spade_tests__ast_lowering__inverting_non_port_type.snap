@@ -2,12 +2,3 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 extern entity x(t: inv int<8>) -> int<8>;
-
-error: A non-port type can not be inverted
-  ┌─ testinput:1:20
-  │
-1 │ extern entity x(t: inv int<8>) -> int<8>;
-  │                    ^^^^^^^^^^
-  │                    │   │
-  │                    │   This is not a port
-  │                    Inverting non-port

@@ -54,7 +54,6 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
         ConcreteType::Tuple(inner) => inner.iter().any(is_linear),
         ConcreteType::Struct {
             name: _,
-            is_port: _,
             members,
             field_translators: _,
         } => members.iter().any(|(_, ty)| is_linear(ty)),
@@ -75,7 +74,6 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
         ConcreteType::Bool(_) => false,
         ConcreteType::String(_) => false,
         ConcreteType::Backward(_) => true,
-        ConcreteType::Wire(_) => false,
     }
 }
 
@@ -333,7 +331,6 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
         }
         ConcreteType::Struct {
             name: _,
-            is_port: _,
             members,
             field_translators: _,
         } => {
@@ -372,7 +369,6 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
             LinearTree::leaf(false)
         }
         ConcreteType::Backward(_) => LinearTree::leaf(true),
-        ConcreteType::Wire(_) => LinearTree::leaf(false),
     }
 }
 

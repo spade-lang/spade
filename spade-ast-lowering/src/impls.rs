@@ -308,14 +308,6 @@ pub fn get_impl_target(
                 ctx,
             )?],
         )),
-        spade_ast::TypeSpec::Wire(inner) => Ok((
-            hir::ImplTarget::Wire,
-            vec![visit_type_expression(
-                inner,
-                &TypeSpecKind::ImplTarget,
-                ctx,
-            )?],
-        )),
         ast::TypeSpec::Tuple(inner) => Ok((
             hir::ImplTarget::Tuple,
             inner
@@ -803,11 +795,6 @@ fn resolve_trait_self(
             let loc = inner.loc();
             let new_inner = resolve_trait_self(inner.inner, impl_target_type, self_id).at_loc(&loc);
             hir::TypeSpec::Inverted(Box::new(new_inner))
-        }
-        hir::TypeSpec::Wire(inner) => {
-            let loc = inner.loc();
-            let new_inner = resolve_trait_self(inner.inner, impl_target_type, self_id).at_loc(&loc);
-            hir::TypeSpec::Wire(Box::new(new_inner))
         }
         hir::TypeSpec::TraitSelf(_) => impl_target_type,
         hir::TypeSpec::Declared(name_id, _) if &name_id.inner == self_id => impl_target_type,
@@ -1336,17 +1323,6 @@ fn map_type_spec_to_trait(
                 ctx,
             )?;
             Ok(hir::TypeSpec::Inverted(Box::from(mono_inner)).at_loc(ty))
-        }
-        hir::TypeSpec::Wire(inner) => {
-            let mono_inner = map_type_spec_to_trait(
-                inner,
-                trait_type_params,
-                trait_method_type_params,
-                impl_type_params,
-                impl_method_type_params,
-                ctx,
-            )?;
-            Ok(hir::TypeSpec::Wire(Box::from(mono_inner)).at_loc(ty))
         }
         _ => Ok(ty.clone()),
     }

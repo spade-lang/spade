@@ -197,7 +197,6 @@ impl ConstraintExpr {
                     KnownType::Named(_)
                     | KnownType::Tuple
                     | KnownType::Array
-                    | KnownType::Wire
                     | KnownType::Inverted => {
                         panic!("Inferred non-integer or bool for constraint variable")
                     }

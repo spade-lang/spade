@@ -18,7 +18,7 @@ use spade_types::meta_types::MetaType;
 use crate::{
     attributes::{AttributeListExt, LocAttributeExt},
     impls::create_trait_from_unit_heads,
-    types::{IsInOut, IsPort},
+    types::IsInOut,
     validate_default_param_position, visit_default_type_expression, visit_parameter_list,
     visit_trait_spec, visit_trait_specs, visit_type_spec, Context, Result, TypeSpecKind,
 };
@@ -437,9 +437,7 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
     let (kind, attrs) = match &t.kind {
         ast::TypeDeclKind::Enum(e) => (hir::symbol_table::TypeDeclKind::Enum, &e.attributes),
         ast::TypeDeclKind::Struct(s) => (
-            hir::symbol_table::TypeDeclKind::Struct {
-                is_port: s.is_port(),
-            },
+            hir::symbol_table::TypeDeclKind::Struct,
             &s.attributes,
         ),
         ast::TypeDeclKind::Alias(a) => (hir::symbol_table::TypeDeclKind::Alias, &a.attributes),
@@ -640,11 +638,6 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 // Ensure that we don't have any port or inout types in the enum variants
                 for (_, _, ty) in args {
                     let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
-                    if ty.is_port(&ctx)? {
-                        return Err(Diagnostic::error(ty, "Port in enum")
-                            .primary_label("This is a port")
-                            .secondary_label(&e.name, "This is an enum"));
-                    }
                     if ty.is_inout(&ctx)? {
                         return Err(Diagnostic::error(ty, "Inout in enum")
                             .primary_label("This is an inout")
@@ -748,41 +741,12 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 ));
             }
 
-            // Disallow normal arguments if the struct is a port, and port types
-            // if it is not
-            for (_, f, ty) in &s.members.args {
+            for (_, _f, ty) in &s.members.args {
                 let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
                 if hir_ty.is_inout(ctx)? {
                     return Err(Diagnostic::error(ty, "Inout in struct")
                         .primary_label("This is an inout")
                         .secondary_label(&s.name, "This is a struct"));
-                }
-                if s.is_port() {
-                    if !hir_ty.is_port(ctx)? {
-                        return Err(Diagnostic::error(ty, "Non-port in port struct")
-                            .primary_label("This is not a port type")
-                            .secondary_label(
-                                s.port_keyword.unwrap(),
-                                format!("{} is a port struct", s.name),
-                            )
-                            .note("All members of a port struct must be ports")
-                            .span_suggest_insert_before(
-                                format!("Consider making {f} a wire"),
-                                ty,
-                                "&",
-                            ));
-                    }
-                } else {
-                    if hir_ty.is_port(ctx)? {
-                        return Err(Diagnostic::error(ty, "Port in non-port struct")
-                            .primary_label("This is a port")
-                            .secondary_label(&s.name, "This is not a port struct")
-                            .span_suggest_insert_before(
-                                format!("Consider making {} a port struct", s.name),
-                                &s.name,
-                                "port ",
-                            ));
-                    }
                 }
                 add_type_spec_name_ids_to_graph(
                     &hir_ty.inner,
@@ -863,7 +827,6 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             hir::TypeDeclKind::Struct(
                 hir::Struct {
                     members,
-                    is_port: s.is_port(),
                     attributes,
                     wal_traceable,
                     documentation,
@@ -911,11 +874,6 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
 
             let type_spec = visit_type_spec(&a.type_spec, &TypeSpecKind::Alias, ctx)?;
 
-            if type_spec.is_port(&ctx)? {
-                return Err(Diagnostic::error(type_spec, "Port in alias")
-                    .primary_label("This is a port")
-                    .secondary_label(&a.name, "This is an alias"));
-            }
             if type_spec.is_inout(&ctx)? {
                 return Err(Diagnostic::error(type_spec, "Inout in alias")
                     .primary_label("This is an inout")
@@ -1051,7 +1009,7 @@ fn add_type_spec_name_ids_to_graph(
                 add_type_spec_name_ids_to_graph(ts, prev_name, names, edges);
             }
         }
-        hir::TypeSpec::Inverted(inner) | hir::TypeSpec::Wire(inner) => {
+        hir::TypeSpec::Inverted(inner) => {
             add_type_spec_name_ids_to_graph(inner, prev_name, names, edges);
         }
         hir::TypeSpec::Generic(_) | hir::TypeSpec::TraitSelf(_) | hir::TypeSpec::Wildcard(_) => {}

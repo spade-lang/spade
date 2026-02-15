@@ -1,3 +1,66 @@
 pub mod conv;
 pub mod ops;
 pub mod undef;
+
+/// The data trait is implemented by any type whose bit representation can be interpreted as data.
+/// For now, this means that the value can be stored in a register and be passed through a multiplexer.
+///
+/// This data is automatically implemented by the compiler, analogous to an auto trait in Rust. It should
+/// not be implemented manually
+pub trait Data {}
+
+impl Data for () {}
+// TODO: Where claueses on these tuples
+impl<T0> Data for (T0)
+    where T0: Data
+{}
+impl<T0, T1> Data for (T0, T1)
+    where T0: Data,
+          T1: Data
+{}
+impl<T0, T1, T2> Data for (T0, T1, T2)
+    where T0: Data,
+          T1: Data,
+          T2: Data,
+{}
+impl<T0, T1, T2, T3> Data for (T0, T1, T2, T3)
+    where T0: Data,
+          T1: Data,
+          T2: Data,
+          T3: Data,
+{}
+impl<T0, T1, T2, T3, T4> Data for (T0, T1, T2, T3, T4)
+    where T0: Data,
+          T1: Data,
+          T2: Data,
+          T3: Data,
+          T4: Data,
+{}
+impl<T0, T1, T2, T3, T4, T5> Data for (T0, T1, T2, T3, T4, T5)
+    where T0: Data,
+          T1: Data,
+          T2: Data,
+          T3: Data,
+          T4: Data,
+          T5: Data,
+{}
+impl<T0, T1, T2, T3, T4, T5, T6> Data for (T0, T1, T2, T3, T4, T5, T6)
+    where T0: Data,
+          T1: Data,
+          T2: Data,
+          T3: Data,
+          T4: Data,
+          T5: Data,
+          T6: Data,
+{}
+impl<T0, T1, T2, T3, T4, T5, T6, T7> Data for (T0, T1, T2, T3, T4, T5, T6, T7)
+    where T0: Data,
+          T1: Data,
+          T2: Data,
+          T3: Data,
+          T4: Data,
+          T5: Data,
+          T6: Data,
+          T7: Data,
+{}
+impl<T, #uint N> Data for [T; N] {}

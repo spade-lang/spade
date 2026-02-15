@@ -6,7 +6,8 @@ snapshot_error! {
     entity x(resource: inv &bool) -> (inv &bool, inv &bool) {
         (resource, resource)
     }
-    "
+    ",
+    false
 }
 
 snapshot_error! {

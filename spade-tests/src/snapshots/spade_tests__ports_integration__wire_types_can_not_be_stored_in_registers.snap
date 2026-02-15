@@ -5,12 +5,3 @@ entity x(clk: clock, a: &bool) -> bool {
     reg(clk) _ = a;
     true
 }
-
-
-error: Ports cannot be put in a register
-  ┌─ testinput:2:18
-  │
-2 │     reg(clk) _ = a;
-  │                  ^ This is a port
-  │
-  = note: &bool is a port

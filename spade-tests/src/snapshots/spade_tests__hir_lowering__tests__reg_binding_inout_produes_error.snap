@@ -8,10 +8,11 @@ entity test(clk: clock, #[no_mangle] t: inout<int<8>>) {
     inst consumer(t_)
 }
 
-error: Values of inout type cannot be bound to names
+error: Trait bound not satisfied. inout<int<8>> does not implement core::Data
   ┌─ testinput:4:14
   │
 4 │     reg(clk) t_ = t;
-  │              ^^ inout type bound to name
-  │
-  = help: inout values can only be passed along to other modules
+  │              ^^
+  │              │
+  │              inout<int<8>> does not implement core::Data
+  │              Required because of the trait bound specified here

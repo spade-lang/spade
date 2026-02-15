@@ -1,3 +1,4 @@
+// TODO: An import of `IsInout` got removed here, we should make sure that's correct
 mod attributes;
 pub mod builtins;
 pub mod error;
@@ -8,6 +9,7 @@ pub mod pipelines;
 pub mod testutil;
 mod type_level_if;
 pub mod types;
+pub mod auto_traits;
 
 use std::sync::{Arc, Mutex};
 
@@ -31,7 +33,7 @@ use type_level_if::expand_type_level_if;
 use crate::attributes::AttributeListExt;
 pub use crate::impls::ensure_unique_anonymous_traits;
 use crate::pipelines::maybe_perform_pipelining_tasks;
-use crate::types::{IsInOut, IsPort, IsSelf};
+use crate::types::IsSelf;
 use ast::{Binding, CallKind, ParameterList};
 use hir::expression::{BinaryOperator, IntLiteralKind};
 use hir::param_util::ArgumentError;
@@ -456,7 +458,6 @@ pub fn visit_type_spec(
                         | TypeSpec::Tuple(_)
                         | TypeSpec::Array { inner: _, size: _ }
                         | TypeSpec::Inverted(_)
-                        | TypeSpec::Wire(_)
                         | TypeSpec::TraitSelf(_)
                         | TypeSpec::Wildcard(_)
                         | TypeSpec::Declared(_, _) => Ok(t.at_loc(p)),
@@ -484,66 +485,7 @@ pub fn visit_type_spec(
                 })
                 .collect::<Result<Vec<_>>>()?;
 
-            // Check if this tuple is a port by checking if any of the contained types
-            // are ports. If they are, retain the first one to use as a witness for this fact
-            // for error reporting
-            let transitive_port_witness = inner
-                .iter()
-                .map(|p| {
-                    if p.is_port(ctx)? {
-                        Ok(Some(p))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .collect::<Result<Vec<_>>>()?
-                .into_iter()
-                .find_map(|x| x);
-
-            if let Some(witness) = transitive_port_witness {
-                // Since this type has 1 port, all members must be ports
-                for ty in &inner {
-                    if !ty.is_port(ctx)? {
-                        return Err(Diagnostic::error(
-                            ty,
-                            "Cannot mix ports and non-ports in a tuple",
-                        )
-                        .primary_label("This is not a port")
-                        .secondary_label(witness, "This is a port")
-                        .note("A tuple must either contain only ports or no ports"));
-                    }
-                }
-            }
-
             Ok(hir::TypeSpec::Tuple(inner))
-        }
-        ast::TypeSpec::Wire(inner) => {
-            let inner = match visit_type_expression(inner, kind, ctx)? {
-                hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
-                _ => {
-                    return Err(Diagnostic::error(
-                        inner.as_ref(),
-                        "Wire inner types must be types, not type level integers",
-                    )
-                    .primary_label("Wires cannot contain non-types"))
-                }
-            };
-
-            if inner.is_port(&ctx)? {
-                return Err(Diagnostic::from(error::WireOfPort {
-                    full_type: t.loc(),
-                    inner_type: inner.loc(),
-                }));
-            }
-
-            if inner.is_inout(&ctx)? {
-                return Err(Diagnostic::from(error::WireOfInOut {
-                    full_type: t.loc(),
-                    inner_type: inner.loc(),
-                }));
-            }
-
-            Ok(hir::TypeSpec::Wire(Box::new(inner)))
         }
         ast::TypeSpec::Inverted(inner) => {
             let inner = match visit_type_expression(inner, kind, ctx)? {
@@ -557,13 +499,7 @@ pub fn visit_type_spec(
                 }
             };
 
-            if !inner.is_port(ctx)? {
-                Err(Diagnostic::error(t, "A non-port type can not be inverted")
-                    .primary_label("Inverting non-port")
-                    .secondary_label(inner, "This is not a port"))
-            } else {
-                Ok(hir::TypeSpec::Inverted(Box::new(inner)))
-            }
+            Ok(hir::TypeSpec::Inverted(Box::new(inner)))
         }
         ast::TypeSpec::Impl(specs) => {
             let specs = specs
@@ -786,7 +722,7 @@ fn build_no_mangle_all_output_diagnostic(
                     SuggestionParts::new()
                         .part(
                             (Span::new(span.start(), span.start()), file),
-                            format!("set {} = &", suggested_name),
+                            format!("set {} = ", suggested_name),
                         )
                         .part((Span::new(span.end(), span.end()), file), ";"),
                 );
@@ -2252,22 +2188,22 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::BinaryOperator::Div => Ok(op(BinaryOperator::Div)),
                 ast::BinaryOperator::Mod => Ok(op(BinaryOperator::Mod)),
                 ast::BinaryOperator::Eq => {
-                    Ok(op_method("eq", "PartialEq", vec![wildcard.clone()])?)
+                    Ok(op_method("eq", "PartialEq", vec![])?)
                 }
                 ast::BinaryOperator::Neq => {
-                    Ok(op_method("ne", "PartialEq", vec![wildcard.clone()])?)
+                    Ok(op_method("ne", "PartialEq", vec![])?)
                 }
                 ast::BinaryOperator::Gt => {
-                    Ok(op_method("gt", "PartialOrd", vec![wildcard.clone()])?)
+                    Ok(op_method("gt", "PartialOrd", vec![])?)
                 }
                 ast::BinaryOperator::Lt => {
-                    Ok(op_method("lt", "PartialOrd", vec![wildcard.clone()])?)
+                    Ok(op_method("lt", "PartialOrd", vec![])?)
                 }
                 ast::BinaryOperator::Ge => {
-                    Ok(op_method("ge", "PartialOrd", vec![wildcard.clone()])?)
+                    Ok(op_method("ge", "PartialOrd", vec![])?)
                 }
                 ast::BinaryOperator::Le => {
-                    Ok(op_method("le", "PartialOrd", vec![wildcard.clone()])?)
+                    Ok(op_method("le", "PartialOrd", vec![])?)
                 }
                 ast::BinaryOperator::LeftShift => Ok(op(BinaryOperator::LeftShift)),
                 ast::BinaryOperator::RightShift => Ok(op(BinaryOperator::RightShift)),
@@ -2277,45 +2213,45 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::BinaryOperator::WrappingAdd => Ok(op_method(
                     "wrapping_add",
                     "WrappingAdd",
-                    vec![wildcard.clone()],
+                    vec![],
                 )?),
                 ast::BinaryOperator::WrappingSub => Ok(op_method(
                     "wrapping_sub",
                     "WrappingSub",
-                    vec![wildcard.clone()],
+                    vec![],
                 )?),
                 ast::BinaryOperator::WrappingMul => Ok(op_method(
                     "wrapping_mul",
                     "WrappingMul",
-                    vec![wildcard.clone()],
+                    vec![],
                 )?),
                 ast::BinaryOperator::WrappingLeftShift => Ok(op_method(
                     "wrapping_shl",
                     "WrappingShl",
-                    vec![wildcard.clone()],
+                    vec![],
                 )?),
                 ast::BinaryOperator::WrappingRightShift => Ok(op_method(
                     "wrapping_shr",
                     "WrappingShr",
-                    vec![wildcard.clone()],
+                    vec![],
                 )?),
                 ast::BinaryOperator::LogicalAnd => {
-                    Ok(op_method("and", "And", vec![wildcard.clone()])?)
+                    Ok(op_method("and", "And", vec![])?)
                 }
                 ast::BinaryOperator::LogicalOr => {
-                    Ok(op_method("or", "Or", vec![wildcard.clone()])?)
+                    Ok(op_method("or", "Or", vec![])?)
                 }
                 ast::BinaryOperator::LogicalXor => {
-                    Ok(op_method("xor", "Xor", vec![wildcard.clone()])?)
+                    Ok(op_method("xor", "Xor", vec![])?)
                 }
                 ast::BinaryOperator::BitwiseOr => {
-                    Ok(op_method("bit_or", "BitOr", vec![wildcard.clone()])?)
+                    Ok(op_method("bit_or", "BitOr", vec![])?)
                 }
                 ast::BinaryOperator::BitwiseAnd => {
-                    Ok(op_method("bit_and", "BitAnd", vec![wildcard.clone()])?)
+                    Ok(op_method("bit_and", "BitAnd", vec![])?)
                 }
                 ast::BinaryOperator::BitwiseXor => {
-                    Ok(op_method("bit_xor", "BitXor", vec![wildcard.clone()])?)
+                    Ok(op_method("bit_xor", "BitXor", vec![])?)
                 }
             }
         }

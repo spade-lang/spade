@@ -7,10 +7,3 @@ entity x(p: &bool) -> &bool {
     let x: &bool = inst identity(p);
     x
 }
-
-
-error: Generic types cannot be ports
-  ┌─ testinput:4:20
-  │
-4 │     let x: &bool = inst identity(p);
-  │                    ^^^^^^^^^^^^^^^^ Parameter T is &bool which is a port type

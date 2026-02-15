@@ -15,18 +15,10 @@ entity uut(val: inv &A) -> bool {
 }
 
 
-error: Field access on inv &A which is not a struct
-  ┌─ testinput:9:32
+error: val.x is unused
+  ┌─ testinput:8:12
   │
-9 │     let x = inst read_mut_wire(val.x);
-  │                                ^^^ Expected a struct, found inv &A
+8 │ entity uut(val: inv &A) -> bool {
+  │            ^^^ val.x is unused
   │
-  = help: Field access is only allowed on structs
-
-error: Field access on inv &A which is not a struct
-   ┌─ testinput:10:32
-   │
-10 │     let y = inst read_mut_wire(val.y);
-   │                                ^^^ Expected a struct, found inv &A
-   │
-   = help: Field access is only allowed on structs
+  = note: val.x is an inverted wire (`inv &`) which must be set

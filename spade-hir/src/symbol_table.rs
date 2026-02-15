@@ -15,7 +15,7 @@ use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
-use crate::{FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec, UnitHead, UnitKind};
+use crate::{FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec, UnitHead, UnitKind, auto_traits::DataWitness};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LookupError {
@@ -403,24 +403,24 @@ impl GenericArg {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TypeDeclKind {
-    Struct { is_port: bool },
+    Struct,
     Enum,
-    Primitive { is_port: bool, is_inout: bool },
+    Primitive { is_inout: bool },
     Alias,
 }
 
 impl TypeDeclKind {
     pub fn normal_struct() -> Self {
-        TypeDeclKind::Struct { is_port: false }
+        TypeDeclKind::Struct
     }
     pub fn struct_port() -> Self {
-        TypeDeclKind::Struct { is_port: true }
+        TypeDeclKind::Struct
     }
 
     pub fn name(&self) -> String {
         match self {
-            TypeDeclKind::Struct { is_port } => {
-                format!("struct{}", if *is_port { " port" } else { "" })
+            TypeDeclKind::Struct  => {
+                format!("struct")
             }
             TypeDeclKind::Enum { .. } => "enum".to_string(),
             TypeDeclKind::Primitive { .. } => "primitive".to_string(),
@@ -473,6 +473,11 @@ impl std::fmt::Debug for Scope {
     }
 }
 
+#[derive(Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
+pub enum LangItem {
+    DataTrait,
+}
+
 /// A table of the symbols known to the program in the current scope. Names
 /// are mapped to IDs which are then mapped to the actual things
 ///
@@ -490,6 +495,12 @@ pub struct SymbolTable {
     pub things: HashMap<NameID, Thing>,
     pub visibilities: HashMap<NameID, Loc<Visibility>>,
     pub deprecation_notes: HashMap<NameID, Option<Loc<String>>>,
+
+    /// A lookup table for the source of a a named type not being `Data`
+    pub data_witnesses: HashMap<NameID, DataWitness>,
+
+    pub lang_items: HashMap<LangItem, NameID>,
+
     /// The namespace which we are currently in. When looking up and adding symbols, this namespace
     /// is added to the start of the path, thus ensuring all paths are absolute. If a path is not
     /// found that path is also looked up in the global namespace
@@ -513,6 +524,8 @@ impl SymbolTable {
             things: HashMap::default(),
             visibilities: HashMap::default(),
             deprecation_notes: HashMap::default(),
+            data_witnesses: HashMap::default(),
+            lang_items: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),
             diags,
@@ -527,6 +540,7 @@ impl SymbolTable {
 
         result
     }
+
     #[tracing::instrument(skip_all)]
     pub fn new_scope(&mut self) {
         self.symbols.push(Scope {
@@ -587,6 +601,10 @@ impl SymbolTable {
     ) -> NameID {
         let full_name = self.namespace.join(name);
         let name_id = NameID(id, full_name.clone());
+
+        if full_name.to_named_strs() == [Some("core"), Some("Data")] {
+            self.lang_items.insert(LangItem::DataTrait, name_id.clone());
+        }
 
         if self.things.contains_key(&name_id) {
             panic!("Duplicate nameID inserted, {}", id);
@@ -673,6 +691,10 @@ impl SymbolTable {
     ) -> NameID {
         let full_name = self.namespace.push_ident(name);
         let name_id = NameID(id, full_name.clone());
+
+        if full_name.to_named_strs() == [Some("core"), Some("Data")] {
+            self.lang_items.insert(LangItem::DataTrait, name_id.clone());
+        }
 
         if self.types.contains_key(&name_id) {
             panic!("Duplicate nameID for types, {}", id)
@@ -896,6 +918,10 @@ impl SymbolTable {
         ignore_metadata: bool,
     ) -> Result<(NameID, &Thing), LookupError> {
         self.lookup_thing_impl(path, namespace, ignore_metadata)
+    }
+
+    pub fn lang_item(&self, item: LangItem) -> &NameID {
+        &self.lang_items[&item]
     }
 }
 

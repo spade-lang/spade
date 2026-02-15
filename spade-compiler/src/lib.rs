@@ -13,7 +13,7 @@ use spade_ast_lowering::id_tracker::ExprIdTracker;
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
 pub use spade_common::namespace::ModuleNamespace;
-use spade_diagnostics::diag_list::DiagList;
+use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
 use spade_mir::codegen::{cocotb_code, prepare_codegen, Codegenable};
@@ -30,8 +30,8 @@ use typeinference::TypeState;
 
 use spade_ast::ModuleBody;
 use spade_ast_lowering::{
-    ensure_unique_anonymous_traits, global_symbols, visit_module_body, Context as AstLoweringCtx,
-    SelfContext,
+    auto_traits, ensure_unique_anonymous_traits, global_symbols, visit_module_body,
+    Context as AstLoweringCtx, SelfContext,
 };
 use spade_common::id_tracker::{GenericIdTracker, ImplIdTracker};
 use spade_common::name::{NameID, Path as SpadePath, Visibility};
@@ -259,6 +259,8 @@ pub fn compile(
     let _unfinished_artefacts = unfinished_artefacts;
 
     lower_ast(&module_asts, &mut ctx, &mut errors);
+
+    auto_traits::impl_auto_traits(&mut ctx).handle_in(&mut diags.lock().unwrap());
 
     let AstLoweringCtx {
         symtab,

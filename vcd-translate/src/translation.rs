@@ -187,7 +187,6 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
         }
         ConcreteType::Struct {
             name: _,
-            is_port: _,
             members,
             field_translators: _,
         } => {
@@ -303,7 +302,6 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
             panic!("Found a variable with type level string in the vcd file")
         }
         ConcreteType::Backward(inner) => inner_translate_value(result, in_value, inner),
-        ConcreteType::Wire(inner) => inner_translate_value(result, in_value, inner),
     }
 }
 
@@ -419,7 +417,6 @@ mod tests {
     fn struct_translation_works() {
         let ty = ConcreteType::Struct {
             name: name_id(0, "X").inner,
-            is_port: false,
             field_translators: HashMap::default(),
             members: vec![
                 (

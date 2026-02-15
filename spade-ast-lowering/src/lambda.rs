@@ -254,7 +254,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                         .collect(),
                 )
                 .at_loc(&debug_loc),
-                port_keyword: None,
             }
             .at_loc(&debug_loc),
         ),

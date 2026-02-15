@@ -40,7 +40,6 @@ pub enum ConcreteType {
     Tuple(Vec<ConcreteType>),
     Struct {
         name: NameID,
-        is_port: bool,
         members: Vec<(Identifier, ConcreteType)>,
         field_translators: HashMap<Identifier, String>,
     },
@@ -59,7 +58,6 @@ pub enum ConcreteType {
     Bool(bool),
     String(String),
     Backward(Box<ConcreteType>),
-    Wire(Box<ConcreteType>),
 }
 
 impl ConcreteType {
@@ -67,7 +65,6 @@ impl ConcreteType {
         match self {
             ConcreteType::Struct {
                 name,
-                is_port: _,
                 members,
                 field_translators: _,
             } => (name, members),
@@ -88,7 +85,6 @@ impl ConcreteType {
             ConcreteType::Tuple(inner) => inner.iter().any(|ty| ty.is_error_recursively()),
             ConcreteType::Struct {
                 name: _,
-                is_port: _,
                 members,
                 field_translators: _,
             } => members.iter().any(|(_, ty)| ty.is_error_recursively()),
@@ -106,35 +102,6 @@ impl ConcreteType {
             ConcreteType::Bool(_) => false,
             ConcreteType::String(_) => false,
             ConcreteType::Backward(inner) => inner.is_error_recursively(),
-            ConcreteType::Wire(inner) => inner.is_error_recursively(),
-        }
-    }
-
-    pub fn is_port(&self) -> bool {
-        match self {
-            ConcreteType::Error => false,
-            ConcreteType::Tuple(inner) => inner.iter().any(Self::is_port),
-            ConcreteType::Struct {
-                name: _,
-                is_port,
-                members: _,
-                field_translators: _,
-            } => *is_port,
-            ConcreteType::Array { inner, size: _ } => inner.is_port(),
-            // Enums cannot be ports
-            ConcreteType::Enum { .. } => false,
-            ConcreteType::Single {
-                base: PrimitiveType::Memory,
-                ..
-            } => true,
-            ConcreteType::Single {
-                base: PrimitiveType::Clock,
-                ..
-            } => true,
-            ConcreteType::Single { .. } => false,
-            ConcreteType::Integer(_) | ConcreteType::Bool(_) | ConcreteType::String(_) => false,
-            ConcreteType::Backward(_) => true,
-            ConcreteType::Wire(_) => true,
         }
     }
 }
@@ -155,13 +122,11 @@ impl std::fmt::Display for ConcreteType {
             }
             ConcreteType::Struct {
                 name,
-                is_port,
-                members,
+               members,
                 field_translators: _,
             } => {
-                let port = if *is_port { "port " } else { "" };
                 format!(
-                    "struct {port}{name} {{{}}}",
+                    "struct {name} {{{}}}",
                     members
                         .iter()
                         .map(|(name, t)| format!("{}: {}", name, t))
@@ -212,9 +177,6 @@ impl std::fmt::Display for ConcreteType {
             ConcreteType::Backward(inner) => {
                 format!("inv &{}", inner)
             }
-            ConcreteType::Wire(inner) => {
-                format!("&{}", inner)
-            }
         };
 
         write!(f, "{str}")
@@ -229,7 +191,6 @@ pub enum KnownType {
     String(String),
     Tuple,
     Array,
-    Wire,
     Inverted,
     // A special type that unifies with anything to produce another error. Doing code generation
     // on this type will produce invalid code.

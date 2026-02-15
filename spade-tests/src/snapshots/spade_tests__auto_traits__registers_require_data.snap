@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/auto_traits.rs
+---
+entity test(clk: clock) {
+    reg(clk) r = port.1;
+}
+
+
+error: Trait bound not satisfied. inv _ does not implement core::Data
+  ┌─ testinput:2:14
+  │
+2 │     reg(clk) r = port.1;
+  │              ^
+  │              │
+  │              inv _ does not implement core::Data
+  │              Required because of the trait bound specified here

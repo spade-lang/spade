@@ -151,8 +151,7 @@ impl ServerBackend {
             .map(|ts| match &ts.inner {
                 symbol_table::TypeSymbol::Declared(generics, _, type_decl_kind) => {
                     let base = match type_decl_kind {
-                        TypeDeclKind::Struct { is_port: true } => "struct port",
-                        TypeDeclKind::Struct { is_port: false } => "struct",
+                        TypeDeclKind::Struct => "struct",
                         TypeDeclKind::Enum => "enum",
                         TypeDeclKind::Primitive { .. } => "primitive type",
                         TypeDeclKind::Alias { .. } => "type alias",

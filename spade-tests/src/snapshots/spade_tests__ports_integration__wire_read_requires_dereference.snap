@@ -4,18 +4,3 @@ source: spade-tests/src/ports_integration.rs
 entity x(a: &bool) -> bool {
     a
 }
-
-error: Output type mismatch. Expected bool, got &bool
-  ┌─ testinput:1:28
-  │  
-1 │   entity x(a: &bool) -> bool {
-  │               -----     ---- bool type specified here
-  │               │          
-  │               Type &bool inferred here
-  │ ╭────────────────────────────^
-2 │ │     a
-3 │ │ }
-  │ ╰─^ Found type &bool
-  │  
-  = note: Expected: bool
-               Got: &bool

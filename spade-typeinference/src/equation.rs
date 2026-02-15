@@ -120,9 +120,6 @@ impl TypeVarID {
                     params[1].display_with_meta(meta, type_state)
                 )
             }
-            TypeVar::Known(_, KnownType::Wire, params) => {
-                format!("&{}", params[0].display_with_meta(meta, type_state))
-            }
             TypeVar::Known(_, KnownType::Inverted, params) => {
                 format!("inv {}", params[0].display_with_meta(meta, type_state))
             }
@@ -167,7 +164,6 @@ impl TypeVarID {
                     KnownType::String(val) => format!("{val:?}"),
                     KnownType::Tuple => format!("Tuple"),
                     KnownType::Array => format!("Array"),
-                    KnownType::Wire => format!("&"),
                     KnownType::Inverted => format!("inv &"),
                     KnownType::Error => format!("{{error}}"),
                 };
@@ -312,15 +308,12 @@ impl TypeVar {
         TypeVar::Known(loc, KnownType::Tuple, Vec::new())
     }
 
-    pub fn wire(loc: Loc<()>, inner: TypeVarID) -> Self {
-        TypeVar::Known(loc, KnownType::Wire, vec![inner])
-    }
-
     pub fn backward(loc: Loc<()>, inner: TypeVarID, type_state: &mut TypeState) -> Self {
+        // TODO: Insert a `Data` constraint on the inner type
         TypeVar::Known(
             loc,
             KnownType::Inverted,
-            vec![type_state.add_type_var(TypeVar::Known(loc, KnownType::Wire, vec![inner]))],
+            vec![inner],
         )
     }
 
@@ -506,9 +499,6 @@ impl TypeVar {
                     params[1].display_with_meta(display_meta, type_state)
                 )
             }
-            TypeVar::Known(_, KnownType::Wire, params) => {
-                format!("&{}", params[0].display_with_meta(display_meta, type_state))
-            }
             TypeVar::Known(_, KnownType::Inverted, params) => {
                 format!(
                     "inv {}",
@@ -574,7 +564,6 @@ impl std::fmt::Display for KnownTypeVar {
                 write!(f, "({})", params.iter().map(|t| format!("{t}")).join(", "))
             }
             KnownType::Array => write!(f, "[{}; {}]", params[0], params[1]),
-            KnownType::Wire => write!(f, "&{}", params[0]),
             KnownType::Inverted => write!(f, "inv {}", params[0]),
         }
     }

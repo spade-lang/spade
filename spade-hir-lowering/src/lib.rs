@@ -301,7 +301,6 @@ impl MirLowerable for ConcreteType {
             }
             CType::Struct {
                 name: _,
-                is_port: _,
                 members,
                 field_translators: _,
             } => {
@@ -312,9 +311,6 @@ impl MirLowerable for ConcreteType {
                 Type::Struct(members)
             }
             CType::Backward(inner) => Type::Backward(Box::new(inner.to_mir_type())),
-            // At this point we no longer need to know if this is a Wire or not, it will
-            // behave exactly as a normal type
-            CType::Wire(inner) => inner.to_mir_type(),
         }
     }
 }
@@ -943,7 +939,6 @@ pub fn do_wal_trace_lowering(
 
     if let ConcreteType::Struct {
         name: _,
-        is_port: _,
         members,
         field_translators: _,
     } = ty
@@ -1298,13 +1293,14 @@ impl StatementLocal for Statement {
                     &ctx.item_list.types,
                 )?;
 
-                if ty.is_port() {
-                    return Err(
-                        Diagnostic::error(value, "Ports cannot be put in a register")
-                            .primary_label("This is a port")
-                            .note(format!("{ty} is a port")),
-                    );
-                }
+                // TODO: This is where we'd now check for a `Data` impl
+                // if ty.is_port() {
+                //     return Err(
+                //         Diagnostic::error(value, "Ports cannot be put in a register")
+                //             .primary_label("This is a port")
+                //             .note(format!("{ty} is a port")),
+                //     );
+                // }
 
                 let mut traced = None;
                 attributes.lower(&mut |attr| match &attr.inner {
@@ -1875,37 +1871,6 @@ impl ExprLocal for Loc<Expression> {
                     }
                 };
 
-                if !inner_type.is_port() {
-                    // For good diagnostics, we also need to look up the TypeVars
-                    let self_tvar = ctx.types.type_of(&TypedExpression::Id(self.id));
-
-                    let inner_tvar = match self_tvar.resolve(ctx.types) {
-                        TypeVar::Known(_, KnownType::Tuple, inner) => {
-                            if inner.len() != 2 {
-                                diag_bail!(self, "port type was not 2-tuple. Got {hir_type}")
-                            }
-
-                            inner[0]
-                        }
-                        _ => {
-                            diag_bail!(self, "port type was not tuple. Got {hir_type}")
-                        }
-                    };
-
-                    return Err(Diagnostic::error(
-                        self,
-                        "A port expression cannot create non-port values",
-                    )
-                    .primary_label(format!(
-                        "{inner_tvar} is not a port type",
-                        inner_tvar = inner_tvar.display(ctx.types)
-                    ))
-                    .note(format!(
-                        "The port expression creates a {self_tvar}",
-                        self_tvar = self_tvar.display(ctx.types)
-                    )));
-                }
-
                 let inner_mir_type = inner_type.to_mir_type();
 
                 let lname = mir::ValueName::Expr(ctx.idtracker.next());
@@ -1953,7 +1918,6 @@ impl ExprLocal for Loc<Expression> {
 
                 let field_index = if let ConcreteType::Struct {
                     name: _,
-                    is_port: _,
                     members,
                     field_translators: _,
                 } = ctype
@@ -2575,47 +2539,22 @@ impl ExprLocal for Loc<Expression> {
             };
         }
 
-        let generic_port_check = || {
-            // Check if this is a call to something generic. If so we need to ensure that the
-            // generic arguments were not mapped to ports
-            for (name, ty) in instance_list {
-                let actual =
-                    ctx.types
-                        .ungenerify_type(&ty, ctx.symtab.symtab(), &ctx.item_list.types);
-                if actual.as_ref().map(|t| t.is_port()).unwrap_or(false) {
-                    return Err(
-                        Diagnostic::error(self.loc(), "Generic types cannot be ports")
-                            .primary_label(format!(
-                                "Parameter {name} is {actual} which is a port type",
-                                name = name.pretty_print(),
-                                actual = actual.unwrap()
-                            )),
-                    );
-                }
-            }
-            Ok(())
-        };
-
         // Check if this is a standard library function which we are supposed to
         // handle
         macro_rules! handle_special_function {
             ([$($path:expr),*] $allow_port:expr => $handler:ident {allow_port}) => {
-                handle_special_function!([$($path),*] => $handler true)
+                handle_special_function!([$($path),*] => $handler)
             };
             ([$($path:expr),*] $allow_port:expr => $handler:ident) => {
-                handle_special_function!([$($path),*] => $handler false)
+                handle_special_function!([$($path),*] => $handler)
             };
-            ([$($path:expr),*] => $handler:ident $allow_port:expr) => {
+            ([$($path:expr),*] => $handler:ident) => {
                 let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
                 let final_id = ctx.symtab.symtab().try_lookup_id(&path, false);
                 if final_id
                     .map(|n| &n == &name.inner)
                     .unwrap_or(false)
                 {
-                    if !$allow_port {
-                        generic_port_check()?;
-                    }
-
                     return self.$handler(&name, result, args, ctx);
                 };
             }
@@ -2661,8 +2600,7 @@ impl ExprLocal for Loc<Expression> {
             ["std", "ports", "read_write_items_inout"] => handle_read_write_items_inout
         }
 
-        generic_port_check()?;
-
+        // Look up the name in the executable list to see if this is a type instantiation
         match ctx.item_list.executables.get(name) {
             Some(hir::ExecutableItem::EnumInstance {
                 base_enum: _,

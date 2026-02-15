@@ -4,8 +4,8 @@ source: spade-tests/src/ast_lowering.rs
 fn test(x: &2) {}
 
 
-error: Wire inner types must be types, not type level integers
+error: Unexpected `integer`, expected `type`
   ┌─ testinput:1:13
   │
 1 │ fn test(x: &2) {}
-  │             ^ Wires cannot contain non-types
+  │             ^ expected `type`

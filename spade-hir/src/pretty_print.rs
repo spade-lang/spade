@@ -200,7 +200,6 @@ impl PrettyPrint for TypeSpec {
                 format!("[{}; {}]", inner.pretty_print(), size.pretty_print())
             }
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_print()),
-            TypeSpec::Wire(inner) => format!("&{}", inner.pretty_print()),
             TypeSpec::TraitSelf(_) => format!("self"),
             TypeSpec::Wildcard(_) => format!("_"),
         }

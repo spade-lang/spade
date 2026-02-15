@@ -112,7 +112,6 @@ impl<'r> Spec<'r> {
             TypeSpec::Inverted(inner) => {
                 Ok(Spec::Inverted(Box::new(Self::mirror_typespec(inner)?)))
             }
-            TypeSpec::Wire(inner) => Ok(Spec::Wire(Box::new(Self::mirror_typespec(inner)?))),
             TypeSpec::Tuple(specs) => Ok(Spec::Tuple(
                 specs
                     .into_iter()

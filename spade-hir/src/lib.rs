@@ -6,6 +6,7 @@ pub mod pretty_print;
 pub mod query;
 pub mod symbol_table;
 pub mod testutil;
+pub mod auto_traits;
 
 use std::collections::BTreeMap;
 use std::fmt::Formatter;
@@ -344,7 +345,6 @@ pub enum TypeSpec {
         size: Box<Loc<TypeExpression>>,
     },
     Inverted(Box<Loc<TypeSpec>>),
-    Wire(Box<Loc<TypeSpec>>),
     /// The type of the `self` parameter in a trait method spec. Should not
     /// occur in non-traits. The Loc is only used for diag_bails, so an approximate
     /// reference is fine.
@@ -367,7 +367,6 @@ impl TypeSpec {
             | TypeSpec::Generic(_)
             | TypeSpec::Array { .. }
             | TypeSpec::Inverted(_)
-            | TypeSpec::Wire(_)
             | TypeSpec::TraitSelf(_)
             | TypeSpec::Wildcard(_) => false,
         }
@@ -385,7 +384,6 @@ impl TypeSpec {
                 ]
             }
             TypeSpec::Inverted(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
-            TypeSpec::Wire(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
             TypeSpec::TraitSelf(_) => vec![],
             TypeSpec::Wildcard(_) => vec![],
         }
@@ -416,9 +414,6 @@ impl TypeSpec {
                 },
                 TypeSpec::Inverted(inner) => {
                     TypeSpec::Inverted(Box::new(inner.map(|s| s.replace_in(from, to))))
-                }
-                TypeSpec::Wire(inner) => {
-                    TypeSpec::Wire(Box::new(inner.map(|s| s.replace_in(from, to))))
                 }
                 TypeSpec::TraitSelf(_) => self,
                 TypeSpec::Wildcard(_) => self,
@@ -459,7 +454,6 @@ impl std::fmt::Display for TypeSpec {
             }
             TypeSpec::Array { inner, size } => format!("[{inner}; {size}]"),
             TypeSpec::Inverted(inner) => format!("~{inner}"),
-            TypeSpec::Wire(inner) => format!("&{inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),
             TypeSpec::Wildcard(_) => "_".into(),
         };
@@ -552,7 +546,6 @@ pub struct WalTraceable {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Struct {
     pub members: Loc<ParameterList>,
-    pub is_port: bool,
     pub attributes: AttributeList,
     pub wal_traceable: Option<Loc<WalTraceable>>,
     pub documentation: String,
@@ -1094,7 +1087,6 @@ pub struct TraitDef {
 pub enum ImplTarget {
     Array,
     Inverted,
-    Wire,
     Tuple,
     Named(NameID),
 }
@@ -1111,14 +1103,6 @@ impl ImplTarget {
                     args.get(1)
                         .map(|a| format!("{}", a))
                         .unwrap_or_else(|| "<(bug) Missing param 1>".to_string())
-                )
-            }
-            ImplTarget::Wire => {
-                format!(
-                    "&{}",
-                    args.get(0)
-                        .map(|a| format!("{}", a))
-                        .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
                 )
             }
             ImplTarget::Inverted => {

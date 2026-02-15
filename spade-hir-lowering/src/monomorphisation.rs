@@ -319,6 +319,12 @@ fn monomorphize_item(
     let unit;
     match original_item {
         Some((ExecutableItem::Unit(u), old_type_state)) => {
+            let type_ctx = &spade_typeinference::Context {
+                symtab: symtab.symtab(),
+                items: item_list,
+                trait_impls,
+            };
+
             let (u, mut preprocessor) = if let Some(replacement) = body_replacements
                 .write()
                 .unwrap()
@@ -355,7 +361,7 @@ fn monomorphize_item(
                                 ty.insert(type_state)
                                     .unify_with(&old_ty, type_state)
                                     .commit(type_state, ctx)
-                                    .into_default_diagnostic(unit, type_state)?;
+                                    .into_default_diagnostic(unit, type_state, type_ctx)?;
                             }
 
                             Ok(())
@@ -364,12 +370,6 @@ fn monomorphize_item(
                 )
             } else {
                 (u, None)
-            };
-
-            let type_ctx = &spade_typeinference::Context {
-                symtab: symtab.symtab(),
-                items: item_list,
-                trait_impls,
             };
 
             // If the unit is generic, we're going to re-do type inference from scratch
@@ -408,7 +408,7 @@ fn monomorphize_item(
                             let outer_var = outer_var.insert(type_state);
                             type_state
                                 .unify(&inner_var.clone(), &outer_var, ctx)
-                                .into_default_diagnostic(name.loc(), type_state)?;
+                                .into_default_diagnostic(name.loc(), type_state, type_ctx)?;
                         }
 
                         if let Some(preprocessor) = preprocessor {

@@ -34,6 +34,8 @@ mod typeinference;
 mod usefulness;
 #[cfg(test)]
 mod verilator_wrapper;
+#[cfg(test)]
+mod auto_traits;
 
 // NOTE: word length inference tests no longer work after adding `int` and `uint`
 // #[cfg(test)]

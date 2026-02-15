@@ -4,17 +4,3 @@ source: spade-tests/src/ast_lowering.rs
 struct port A {
     x: int<32>,
 }
-
-error: Non-port in port struct
-  ┌─ testinput:2:8
-  │
-1 │ struct port A {
-  │        ---- A is a port struct
-2 │     x: int<32>,
-  │        ^^^^^^^ This is not a port type
-  │
-  = note: All members of a port struct must be ports
-  = Consider making x a wire
-  │
-2 │     x: &int<32>,
-  │        +

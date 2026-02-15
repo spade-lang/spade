@@ -138,7 +138,6 @@ pub(crate) fn split_wildcard(
             | spade_types::PrimitiveType::InOut => vec![],
         },
         ConcreteType::Backward(_) => vec![Constructor::Single],
-        ConcreteType::Wire(_) => vec![Constructor::Single],
         ConcreteType::Integer(_) => unreachable!("Pattern matching on type level integer"),
         ConcreteType::Bool(_) => unreachable!("Pattern matching on type level bool"),
         ConcreteType::String(_) => unreachable!("Pattern matching on type level string"),
@@ -252,7 +251,6 @@ impl Constructor {
                 ConcreteType::Tuple(i) => i.clone(),
                 ConcreteType::Struct {
                     name: _,
-                    is_port: _,
                     members,
                     field_translators: _,
                 } => members.iter().map(|m| m.1.clone()).collect(),
@@ -269,7 +267,6 @@ impl Constructor {
                 ConcreteType::Bool(_) => unreachable!("Pattern matching on type level bool"),
                 ConcreteType::String(_) => unreachable!("Pattern matching on type level string"),
                 ConcreteType::Backward(_) => vec![],
-                ConcreteType::Wire(_) => vec![],
             },
             Constructor::Variant(idx) => match ty {
                 ConcreteType::Enum { options } => {
@@ -410,7 +407,6 @@ impl std::fmt::Display for DeconstructedPattern {
                 ),
                 ConcreteType::Struct {
                     name,
-                    is_port: _,
                     members,
                     field_translators: _,
                 } => {
@@ -438,7 +434,6 @@ impl std::fmt::Display for DeconstructedPattern {
                 ConcreteType::Bool(_) => unreachable!("Pattern on type level bool"),
                 ConcreteType::String(_) => unreachable!("Pattern on a type level string"),
                 ConcreteType::Backward(_) => unreachable!("Pattern on backward type"),
-                ConcreteType::Wire(_) => unreachable!("Pattern on backward type"),
             },
             Constructor::Variant(idx) => match &self.ty {
                 ConcreteType::Enum { options } => {

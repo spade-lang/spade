@@ -124,8 +124,6 @@ pub fn type_specs_overlap(l: &TypeSpec, r: &TypeSpec) -> bool {
             type_specs_overlap(&linner.inner, &rinner.inner)
         }
         (TypeSpec::Inverted(_), _) => todo!(),
-        (TypeSpec::Wire(linner), TypeSpec::Wire(rinner)) => type_specs_overlap(linner, rinner),
-        (TypeSpec::Wire(_), _) => false,
         (TypeSpec::TraitSelf(_), _) => unreachable!("Self type cannot be checked for overlap"),
         (TypeSpec::Wildcard(_), _) => {
             unreachable!("Wildcard type cannot be checked for overlap")

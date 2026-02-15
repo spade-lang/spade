@@ -610,9 +610,10 @@ impl PipelineAvailability for Expression {
             &ctx.item_list.types,
         ) {
             Ok(ty) => {
-                if ty.is_port() {
-                    return Ok(None);
-                }
+                // TODO: Data impl check
+                // if ty.is_port() {
+                //     return Ok(None);
+                // }
             }
             _ => {}
         }

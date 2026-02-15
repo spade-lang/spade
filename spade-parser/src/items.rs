@@ -254,6 +254,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
 
+        // TODO: Warn when we see this
         let port_keyword = parser
             .peek_and_eat(&TokenKind::Port)?
             .map(|tok| ().at(parser.file_id, &tok.span()));
@@ -276,7 +277,6 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
                 Struct {
                     name,
                     members,
-                    port_keyword,
                     attributes: attributes.clone(),
                 }
                 .between(parser.file_id, &start_token.span, &members_loc),
