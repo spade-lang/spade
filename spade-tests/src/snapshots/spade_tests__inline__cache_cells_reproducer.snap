@@ -4,15 +4,15 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> () {
 	const e332: uint<8> = 0
-	let addr_n359: uint<8> = Alias(e332)
+	let addr_n346: uint<8> = Alias(e332)
 	const e336: bool = true
 	const e334: uint<8> = 0
-	let e344: bool = Eq(addr_n359, e334)
+	let e344: bool = Eq(addr_n346, e334)
 	let e333: bool = Alias(e344)
 	let e331: bool = Match(e336, e333)
-	let self_has_value_n360: bool = Alias(e331)
+	let self_has_value_n347: bool = Alias(e331)
 	let e335: () = Nop()
 	let e329: () = Alias(e335)
-	let result_n357: () = Alias(e329)
-	let e22: () = Alias(result_n357)
+	let result_n344: () = Alias(e329)
+	let e22: () = Alias(result_n344)
 } => e22

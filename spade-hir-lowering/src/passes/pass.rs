@@ -70,7 +70,7 @@ impl Passable for Loc<Expression> {
             ExprKind::FieldAccess(lhs, _) => subnodes!(lhs),
             ExprKind::MethodCall {
                 target: self_,
-                target_trait: _,
+                op_trait: _,
                 name: _,
                 args,
                 call_kind: _,

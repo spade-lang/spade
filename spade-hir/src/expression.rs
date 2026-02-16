@@ -215,7 +215,7 @@ pub enum ExprKind {
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
     MethodCall {
         target: Box<Loc<Expression>>,
-        target_trait: Option<Loc<TraitSpec>>,
+        op_trait: Option<Loc<TraitSpec>>,
         name: Loc<Identifier>,
         args: Loc<ArgumentList<Expression>>,
         call_kind: CallKind,

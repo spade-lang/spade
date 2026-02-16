@@ -364,7 +364,7 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::MethodCall{call_kind, target, target_trait, name, args, turbofish, safety: _} = &expression => {
+        assuming_kind!(ExprKind::MethodCall{call_kind, target, op_trait, name, args, turbofish, safety: _} = &expression => {
             // NOTE: We don't visit_expression here as it is being added to the argument_list
             // which we *do* visit
             // self.visit_expression(target, ctx, generic_list)?;
@@ -384,10 +384,22 @@ impl TypeState {
 
             self.visit_argument_list(&args_with_self, ctx, generic_list)?;
 
-            if let Some(target_trait) = target_trait {
-                let req = self.visit_trait_spec(target_trait, generic_list, ctx.items)?;
+            if let Some(op_trait) = op_trait {
+                let req = self.visit_trait_spec(op_trait, generic_list, ctx.items)?;
                 let op_trait_generic = self.new_generic_with_traits(().nowhere(), TraitList::from_vec(vec![req]));
                 self.unify_expression_generic_error(target, &op_trait_generic, ctx)?;
+
+                // At the time of writing:
+                //
+                //   1. All operator traits operate over expressions with all have the same type.
+                //   2. Trait method selection is unable to operate on unknown target types.
+                //
+                // The code below emulates how operands were handled previously to mitigate #2,
+                // which remains valid as long as #1 remains true. As soon as `Rhs` type parameters
+                // are introduced to operator traits (just like Rust does), this code will be wrong!
+                for arg in args.expressions() {
+                    self.unify_expression_generic_error(target, arg, ctx)?;
+                }
             }
 
             let target_type = self.type_of(&TypedExpression::Id(target.id));

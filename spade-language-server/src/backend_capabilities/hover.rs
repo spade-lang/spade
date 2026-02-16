@@ -305,7 +305,7 @@ impl ExprKindExt for ExprKind {
             ExprKind::CreatePorts => true,
             ExprKind::MethodCall {
                 target: _,
-                target_trait: _,
+                op_trait: _,
                 name,
                 args: _,
                 call_kind: _,

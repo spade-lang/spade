@@ -2,22 +2,22 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n94, int<16>)) -> bool {
-	let x_n95: int<16> = Alias(e_n94)
+entity \uwu ((e, e_n81, int<16>)) -> bool {
+	let x_n82: int<16> = Alias(e_n81)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
 	let e317: bool = Eq(e6, e7)
 	let e5: bool = Alias(e317)
 	let e312: bool = Alias(e5)
 	const e8: bool = true
-	let __n96: int<16> = Alias(e_n94)
+	let __n83: int<16> = Alias(e_n81)
 	const e11: int<7> = 0
 	const e12: int<7> = 1
 	let e319: bool = Eq(e11, e12)
 	let e10: bool = Alias(e319)
 	let e313: bool = Alias(e10)
 	const e13: bool = false
-	let __n97: int<16> = Alias(e_n94)
+	let __n84: int<16> = Alias(e_n81)
 	const e314: bool = true
 	const e15: bool = false
 	let e2: bool = Match(e312, e8, e313, e13, e314, e15)

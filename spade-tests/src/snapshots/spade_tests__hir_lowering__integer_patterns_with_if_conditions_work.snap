@@ -2,17 +2,17 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n94, int<16>)) -> bool {
-	let e4: int<16> = Alias(e_n94)
+entity \uwu ((e, e_n81, int<16>)) -> bool {
+	let e4: int<16> = Alias(e_n81)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
 	let e312: bool = Eq(e6, e7)
 	let e5: bool = Alias(e312)
 	const e308: int<16> = 0
-	let e309: bool = Eq(e_n94, e308)
+	let e309: bool = Eq(e_n81, e308)
 	let e307: bool = LogicalAnd(e309, e5)
 	const e8: bool = true
-	let __n95: int<16> = Alias(e_n94)
+	let __n82: int<16> = Alias(e_n81)
 	const e310: bool = true
 	const e10: bool = false
 	let e2: bool = Match(e307, e8, e310, e10)

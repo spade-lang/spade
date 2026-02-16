@@ -2473,3 +2473,12 @@ code_compiles! {
         fn test() {}
     "
 }
+
+code_compiles! {
+    overloadable_operators_work_even_if_lhs_is_unknown,
+    "
+    fn test() -> bool {
+        0 == 0u8
+    }
+    "
+}

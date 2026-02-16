@@ -2159,7 +2159,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
 
                     Result::Ok(hir::ExprKind::MethodCall {
                         target: Box::new(lhs.clone()),
-                        target_trait: Some(visit_trait_spec(
+                        op_trait: Some(visit_trait_spec(
                             &trait_spec.at_loc(tok),
                             &TypeSpecKind::Turbofish,
                             ctx,
@@ -2273,7 +2273,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
 
                     Result::Ok(hir::ExprKind::MethodCall {
                         target: Box::new(operand.clone()),
-                        target_trait: Some(visit_trait_spec(
+                        op_trait: Some(visit_trait_spec(
                             &trait_spec.at_loc(operator),
                             &TypeSpecKind::Turbofish,
                             ctx,
@@ -2386,7 +2386,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::MethodCall {
                 target: Box::new(target),
-                target_trait: None,
+                op_trait: None,
                 name: name.clone(),
                 args: args.try_map_ref(|args| visit_argument_list(args, ctx))?,
                 call_kind: visit_call_kind(kind, ctx)?,

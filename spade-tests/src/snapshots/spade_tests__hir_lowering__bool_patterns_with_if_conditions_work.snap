@@ -2,23 +2,23 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n94, bool)) -> bool {
-	let e4: bool = Alias(e_n94)
+entity \uwu ((e, e_n81, bool)) -> bool {
+	let e4: bool = Alias(e_n81)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
 	let e318: bool = Eq(e6, e7)
 	let e5: bool = Alias(e318)
-	let e312: bool = LogicalAnd(e_n94, e5)
+	let e312: bool = LogicalAnd(e_n81, e5)
 	const e8: bool = true
-	let e9: bool = Alias(e_n94)
+	let e9: bool = Alias(e_n81)
 	const e11: int<7> = 0
 	const e12: int<7> = 1
 	let e320: bool = Eq(e11, e12)
 	let e10: bool = Alias(e320)
-	let e314: bool = LogicalNot(e_n94)
+	let e314: bool = LogicalNot(e_n81)
 	let e313: bool = LogicalAnd(e314, e10)
 	const e13: bool = false
-	let __n95: bool = Alias(e_n94)
+	let __n82: bool = Alias(e_n81)
 	const e315: bool = true
 	const e15: bool = false
 	let e2: bool = Match(e312, e8, e313, e13, e315, e15)

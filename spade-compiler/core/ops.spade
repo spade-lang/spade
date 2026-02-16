@@ -18,9 +18,9 @@ pub trait Pipeline<#int Depth, Args, Output> {
     pipeline(Depth) call(self, clk: clock, args: Args) -> Output;
 }
 
-pub trait PartialEq<Rhs = Self> {
-    fn eq(self, rhs: Rhs) -> bool;
-    fn ne(self, rhs: Rhs) -> bool;
+pub trait PartialEq {
+    fn eq(self, rhs: Self) -> bool;
+    fn ne(self, rhs: Self) -> bool;
 }
 
 impl PartialEq for bool {
@@ -84,8 +84,8 @@ impl<#uint N> WrappingNeg for int<N> {
     }
 }
 
-pub trait WrappingAdd<Rhs = Self> {
-    fn wrapping_add(self, rhs: Rhs) -> Self;
+pub trait WrappingAdd {
+    fn wrapping_add(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> WrappingAdd for int<N> {
@@ -106,8 +106,8 @@ impl<#uint N> WrappingAdd for uint<N> {
     }
 }
 
-pub trait WrappingSub<Rhs = Self> {
-    fn wrapping_sub(self, rhs: Rhs) -> Self;
+pub trait WrappingSub {
+    fn wrapping_sub(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> WrappingSub for int<N> {
@@ -128,8 +128,8 @@ impl<#uint N> WrappingSub for uint<N> {
     }
 }
 
-pub trait WrappingMul<Rhs = Self> {
-    fn wrapping_mul(self, rhs: Rhs) -> Self;
+pub trait WrappingMul {
+    fn wrapping_mul(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> WrappingMul for int<N> {
@@ -150,8 +150,8 @@ impl<#uint N> WrappingMul for uint<N> {
     }
 }
 
-pub trait WrappingShl<Rhs = Self> {
-    fn wrapping_shl(self, rhs: Rhs) -> Self;
+pub trait WrappingShl {
+    fn wrapping_shl(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> WrappingShl for int<N> {
@@ -166,8 +166,8 @@ impl<#uint N> WrappingShl for uint<N> {
     }
 }
 
-pub trait WrappingShr<Rhs = Self> {
-    fn wrapping_shr(self, rhs: Rhs) -> Self;
+pub trait WrappingShr {
+    fn wrapping_shr(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> WrappingShr for int<N> {
@@ -224,8 +224,8 @@ impl<#uint N> BitNot for uint<N> {
     }
 }
 
-pub trait And<Rhs = Self> {
-    fn and(self, rhs: Rhs) -> Self;
+pub trait And {
+    fn and(self, rhs: Self) -> Self;
 }
 
 impl And for bool {
@@ -235,8 +235,8 @@ impl And for bool {
     }
 }
 
-pub trait BitAnd<Rhs = Self> {
-    fn bit_and(self, rhs: Rhs) -> Self;
+pub trait BitAnd {
+    fn bit_and(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> BitAnd for [bool; N] {
@@ -268,8 +268,8 @@ impl<#uint N> BitAnd for uint<N> {
     }
 }
 
-pub trait Or<Rhs = Self> {
-    fn or(self, rhs: Rhs) -> Self;
+pub trait Or {
+    fn or(self, rhs: Self) -> Self;
 }
 
 impl Or for bool {
@@ -279,8 +279,8 @@ impl Or for bool {
     }
 }
 
-pub trait BitOr<Rhs = Self> {
-    fn bit_or(self, rhs: Rhs) -> Self;
+pub trait BitOr {
+    fn bit_or(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> BitOr for [bool; N] {
@@ -312,8 +312,8 @@ impl<#uint N> BitOr for uint<N> {
     }
 }
 
-pub trait Xor<Rhs = Self> {
-    fn xor(self, rhs: Rhs) -> Self;
+pub trait Xor {
+    fn xor(self, rhs: Self) -> Self;
 }
 
 impl Xor for bool {
@@ -323,8 +323,8 @@ impl Xor for bool {
     }
 }
 
-pub trait BitXor<Rhs = Self> {
-    fn bit_xor(self, rhs: Rhs) -> Self;
+pub trait BitXor {
+    fn bit_xor(self, rhs: Self) -> Self;
 }
 
 impl<#uint N> BitXor for [bool; N] {
@@ -356,11 +356,11 @@ impl<#uint N> BitXor for uint<N> {
     }
 }
 
-pub trait PartialOrd<Rhs = Self>: PartialEq<Rhs> {
-    fn lt(self, rhs: Rhs) -> bool;
-    fn le(self, rhs: Rhs) -> bool;
-    fn gt(self, rhs: Rhs) -> bool;
-    fn ge(self, rhs: Rhs) -> bool;
+pub trait PartialOrd: PartialEq {
+    fn lt(self, rhs: Self) -> bool;
+    fn le(self, rhs: Self) -> bool;
+    fn gt(self, rhs: Self) -> bool;
+    fn ge(self, rhs: Self) -> bool;
 }
 
 impl<#uint N> PartialOrd for int<N> {
