@@ -14,7 +14,7 @@ fn test() -> int<10> {
 }
 
 
-error: Output type mismatch. Expected int<10>, got Number<9>
+error: Output type mismatch. Expected int<10>, got int<9>
   ┌─ testinput:4:32
   │  
 4 │       fn add_one(self) -> int<O> {
@@ -23,11 +23,11 @@ error: Output type mismatch. Expected int<10>, got Number<9>
 5 │ │         self + 1
   │ │         -------- Type 9 inferred here
 6 │ │     }
-  │ ╰─────^ Found type Number<9>
+  │ ╰─────^ Found type int<9>
   │  
   = note: Expected: 10
                 in: int<10>
                Got: 9
-                in: Number<9>
+                in: int<9>
   = The error is in a generic unit instantiated at
     ╰ testinput:10 impl#14::add_one<8, 10>

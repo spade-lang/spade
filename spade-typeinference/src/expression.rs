@@ -773,10 +773,10 @@ impl TypeState {
                     self.unify_expression_generic_error(lhs, &rhs.inner, ctx)?;
                     self.unify_expression_generic_error(expression, &result_t, ctx)?;
 
-                    self.add_requirement(Requirement::SharedBase(vec![
+                    Requirement::SharedBase(vec![
                         in_t.at_loc(lhs),
                         result_t.at_loc(expression)
-                    ]));
+                    ]).check_or_add(self, ctx)?;
 
                 }
                 BinaryOperator::Mul => {
@@ -810,11 +810,11 @@ impl TypeState {
                     self.unify_expression_generic_error(rhs, &rhs_t, ctx)?;
                     self.unify_expression_generic_error(expression, &result_t, ctx)?;
 
-                    self.add_requirement(Requirement::SharedBase(vec![
+                    Requirement::SharedBase(vec![
                         lhs_t.at_loc(lhs),
-                        rhs_t.at_loc(rhs),
+                        rhs_t.at_loc(lhs),
                         result_t.at_loc(expression)
-                    ]));
+                    ]).check_or_add(self, ctx)?;
                 }
                 // Division, being integer division has the same width out as in
                 BinaryOperator::Div | BinaryOperator::Mod => {

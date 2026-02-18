@@ -6,15 +6,17 @@ fn test(x: int<8>, y: int<8>) -> uint<9> {
 }
 
 
-error: Expected type uint<9>, got int<_>
-  ┌─ testinput:2:5
-  │
-1 │ fn test(x: int<8>, y: int<8>) -> uint<9> {
-  │            ------                ------- Type uint<9> inferred here
-  │            │                      
-  │            Type int<_> inferred here
-2 │     x + y
-  │     ^^^^^ Expected uint<9>
-  │
+error: Output type mismatch. Expected uint<9>, got int<9>
+  ┌─ testinput:1:42
+  │  
+1 │   fn test(x: int<8>, y: int<8>) -> uint<9> {
+  │              ------                ------- uint<9> type specified here
+  │              │                      
+  │              Type int<9> inferred here
+  │ ╭──────────────────────────────────────────^
+2 │ │     x + y
+3 │ │ }
+  │ ╰─^ Found type int<9>
+  │  
   = note: Expected: uint<9>
-               Got: int<_>
+               Got: int<9>

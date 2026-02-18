@@ -17,38 +17,36 @@ fn test() {
 }
 
 
-error: Output type mismatch. Expected uint<10>, got Number<9>
-  ┌─ testinput:2:37
+error: Expected type 9, got 10
+  ┌─ testinput:2:29
   │  
 2 │       fn twice(self) -> uint<{N + 2}> {
-  │                         ------------- uint<10> type specified here
-  │ ╭─────────────────────────────────────^
+  │                               ^^^^^ Expected 9, got 10
+  │ ╭─────────────────────────────────────'
 3 │ │         self + self
-  │ │         ----------- Type 9 inferred here
 4 │ │     }
-  │ ╰─────^ Found type Number<9>
+  │ ╰─────' The error occurred when unifying types here
   │  
-  = note: Expected: 10
-                in: uint<10>
-               Got: 9
-                in: Number<9>
+  = note: Expected: 9
+                in: 9
+               Got: 10
+                in: 10
   = The error is in a generic unit instantiated at
     ╰ testinput:12 impl#14::twice<8>
 
-error: Output type mismatch. Expected uint<19>, got Number<18>
-  ┌─ testinput:6:66
+error: Expected type 18, got 19
+  ┌─ testinput:6:54
   │  
 6 │       fn times<#uint M>(self, other: uint<M>) -> uint<{N + M + 1}> {
-  │                                                  ----------------- uint<19> type specified here
-  │ ╭──────────────────────────────────────────────────────────────────^
+  │                                                        ^^^^^^^^^ Expected 18, got 19
+  │ ╭──────────────────────────────────────────────────────────────────'
 7 │ │         self * other
-  │ │         ------------ Type 18 inferred here
 8 │ │     }
-  │ ╰─────^ Found type Number<18>
+  │ ╰─────' The error occurred when unifying types here
   │  
-  = note: Expected: 19
-                in: uint<19>
-               Got: 18
-                in: Number<18>
+  = note: Expected: 18
+                in: 18
+               Got: 19
+                in: 19
   = The error is in a generic unit instantiated at
     ╰ testinput:13 impl#14::times<10, 8>

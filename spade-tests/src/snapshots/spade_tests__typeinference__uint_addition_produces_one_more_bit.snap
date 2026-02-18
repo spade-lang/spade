@@ -6,7 +6,7 @@ fn add(a: uint<8>, b: uint<8>) -> uint<10> {
 }
 
 
-error: Output type mismatch. Expected uint<10>, got Number<9>
+error: Output type mismatch. Expected uint<10>, got uint<9>
   ┌─ testinput:1:44
   │  
 1 │   fn add(a: uint<8>, b: uint<8>) -> uint<10> {
@@ -15,9 +15,9 @@ error: Output type mismatch. Expected uint<10>, got Number<9>
 2 │ │     a + b
   │ │     ----- Type 9 inferred here
 3 │ │ }
-  │ ╰─^ Found type Number<9>
+  │ ╰─^ Found type uint<9>
   │  
   = note: Expected: 10
                 in: uint<10>
                Got: 9
-                in: Number<9>
+                in: uint<9>

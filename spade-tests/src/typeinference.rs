@@ -2492,3 +2492,38 @@ snapshot_error! {
         }
     "#
 }
+
+code_compiles! {
+    number_trait_special_case_works,
+    "
+        impl<#uint N> uint<N> {
+          fn owo(self) {}
+        }
+        impl<#uint N> int<N> {
+          fn owo(self) {}
+        }
+
+        fn test() {
+          let a = 0u3;
+          (a + 5).owo();
+        }
+    "
+}
+
+code_compiles! {
+    number_trait_special_case_works2,
+    "
+        impl<#uint N> uint<N> {
+          fn owo(self) {}
+        }
+        impl<#uint N> int<N> {
+          fn owo(self) {}
+        }
+
+        pub entity delta_sigma<#uint N>(clock: clock, sample: uint<N>) {
+            reg(clock) accumulator initial(0) = sample + trunc(accumulator);
+            accumulator.owo()
+        }
+    ",
+    all
+}
