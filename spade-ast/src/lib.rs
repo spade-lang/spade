@@ -455,8 +455,8 @@ impl Expression {
 #[derive(PartialEq, Debug, Clone)]
 pub enum IntLiteral {
     Unsized(BigInt),
-    Signed { val: BigInt, size: BigUint },
-    Unsigned { val: BigUint, size: BigUint },
+    Signed { val: BigInt, size: Option<BigUint> },
+    Unsigned { val: BigUint, size: Option<BigUint> },
 }
 
 impl IntLiteral {

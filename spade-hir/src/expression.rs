@@ -147,8 +147,8 @@ pub enum TriLiteral {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum IntLiteralKind {
     Unsized,
-    Signed(BigUint),
-    Unsigned(BigUint),
+    Signed(Option<BigUint>),
+    Unsigned(Option<BigUint>),
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]

@@ -418,7 +418,7 @@ impl<'a> Parser<'a> {
                         Expression::IntLiteral(
                             IntLiteral::Unsigned {
                                 val: byte[0].to_biguint(),
-                                size: 8u32.to_biguint(),
+                                size: Some(8u32.to_biguint()),
                             }
                             .at_loc(&loc_c),
                         )
@@ -476,7 +476,7 @@ impl<'a> Parser<'a> {
         Ok(Some(
             IntLiteral::Unsigned {
                 val: byte[0].to_biguint(),
-                size: 8u32.to_biguint(),
+                size: Some(8u32.to_biguint()),
             }
             .at(self.file_id, &next),
         ))

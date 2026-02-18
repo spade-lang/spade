@@ -182,24 +182,23 @@ impl TypeState {
                 IntLiteralKind::Signed(size) => {
                     let (t, size_var) = self.new_split_generic_int(expression.loc(), ctx.symtab);
                     // NOTE: Safe unwrap, we're unifying a generic int with a size
-                    size_var
-                        .unify_with(&TypeVar::Known(
-                            expression.loc(),
-                            KnownType::Integer(size.to_bigint()),
-                            vec![]).insert(self),
-                            self
-                        )
-                        .commit(self, ctx)
-                        .unwrap();
+                    if let Some(sz) = size {
+                        size_var
+                            .unify_with(&self.new_concrete_int(sz.clone(), expression.loc()), self)
+                            .commit(self, ctx)
+                            .unwrap();
+                    }
                     (t, size_var)
                 },
                 IntLiteralKind::Unsigned(size) => {
                     let (t, size_var) = self.new_split_generic_uint(expression.loc(), ctx.symtab);
                     // NOTE: Safe unwrap, we're unifying a generic int with a size
-                    size_var
-                        .unify_with(&self.new_concrete_int(size.clone(), expression.loc()), self)
-                        .commit(self, ctx)
-                        .unwrap();
+                    if let Some(sz) = size {
+                        size_var
+                            .unify_with(&self.new_concrete_int(sz.clone(), expression.loc()), self)
+                            .commit(self, ctx)
+                            .unwrap();
+                    }
                     (t, size_var)
                 }
             };

@@ -187,7 +187,14 @@ impl<'a> Parser<'a> {
                     .span_suggest_replace(
                         "Try making the integer signed",
                         expr_loc,
-                        format!("-{val}i{size}"),
+                        format!(
+                            "-{val}i{}",
+                            if let Some(sz) = size {
+                                format!("{sz}")
+                            } else {
+                                String::new()
+                            }
+                        ),
                     )),
                 }?;
                 Ok(Expression::IntLiteral(int_literal.at_loc(&int)))

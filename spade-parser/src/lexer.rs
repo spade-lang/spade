@@ -6,8 +6,8 @@ use spade_common::name::Identifier;
 #[derive(Debug, PartialEq, Clone)]
 pub enum LiteralKind {
     Unsized,
-    Signed(BigUint),
-    Unsigned(BigUint),
+    Signed(Option<BigUint>),
+    Unsigned(Option<BigUint>),
 }
 
 fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
@@ -15,11 +15,11 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
 
     let (cleaned, kind) = if lower.contains("u") {
         let split = lower.split("u").collect::<Vec<_>>();
-        let kind = LiteralKind::Unsigned(BigUint::parse_bytes(split[1].as_bytes(), 10).unwrap());
+        let kind = LiteralKind::Unsigned(BigUint::parse_bytes(split[1].as_bytes(), 10));
         (split[0], kind)
     } else if lower.contains("i") {
         let split = lower.split("i").collect::<Vec<_>>();
-        let kind = LiteralKind::Signed(BigUint::parse_bytes(split[1].as_bytes(), 10).unwrap());
+        let kind = LiteralKind::Signed(BigUint::parse_bytes(split[1].as_bytes(), 10));
         (split[0], kind)
     } else {
         (lower.as_str(), LiteralKind::Unsized)
@@ -49,7 +49,7 @@ pub enum TokenKind {
     )"#, |lex| process_ident(lex.slice()))]
     Identifier(Identifier),
 
-    #[regex(r"[0-9][0-9_]*([uUiI][0-9]+)?", |lex| {
+    #[regex(r"[0-9][0-9_]*([uUiI][0-9]*)?", |lex| {
         parse_int(lex.slice(), 10)
     })]
     Integer((BigUint, LiteralKind)),
@@ -462,7 +462,7 @@ mod tests {
             lex.next(),
             Some(Ok(TokenKind::Integer((
                 123_u32.to_biguint(),
-                LiteralKind::Unsigned(3u32.to_biguint())
+                LiteralKind::Unsigned(Some(3u32.to_biguint()))
             ))))
         );
         assert_eq!(lex.next(), None);
@@ -476,7 +476,35 @@ mod tests {
             lex.next(),
             Some(Ok(TokenKind::Integer((
                 123_u32.to_biguint(),
-                LiteralKind::Signed(3u32.to_biguint())
+                LiteralKind::Signed(Some(3u32.to_biguint()))
+            ))))
+        );
+        assert_eq!(lex.next(), None);
+    }
+
+    #[test]
+    fn unsized_uint_integer_literals_work() {
+        let mut lex = TokenKind::lexer("123u");
+
+        assert_eq!(
+            lex.next(),
+            Some(Ok(TokenKind::Integer((
+                123_u32.to_biguint(),
+                LiteralKind::Unsigned(None)
+            ))))
+        );
+        assert_eq!(lex.next(), None);
+    }
+
+    #[test]
+    fn unsized_int_integer_literals_work() {
+        let mut lex = TokenKind::lexer("123i");
+
+        assert_eq!(
+            lex.next(),
+            Some(Ok(TokenKind::Integer((
+                123_u32.to_biguint(),
+                LiteralKind::Signed(None)
             ))))
         );
         assert_eq!(lex.next(), None);

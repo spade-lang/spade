@@ -11,5 +11,4 @@ async def test(dut):
     for i in range(0, 4):
         s.i.i = f"{i}u";
         await Timer(1, units='ns')
-        s.o.assert_eq(f"{i}u")
-
+        s.o.assert_eq(f"{i}i")
