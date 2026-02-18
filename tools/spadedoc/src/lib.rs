@@ -95,10 +95,7 @@ fn preprocess_item_list(item_list: ItemList, root_name: &str) -> PreprocessedIte
 
         if let Some(path) = name_id.1.as_lib(root_name) {
             root_item_list.traits.insert(
-                TraitName::Named(
-                    path.clone().at_loc(&name_id.loc()),
-                    NameID(name_id.0, path).at_loc(&name_id.loc()),
-                ),
+                TraitName::Named(None, NameID(name_id.0, path).at_loc(&name_id.loc())),
                 def,
             );
         } else if let Some(dep_name) = name_id.1.as_dep_lib() {

@@ -938,7 +938,7 @@ pub enum TraitName {
     // The path stored in the named variant supports error reporting, making it
     // possible to use more concise names instead of absolute paths.
     // That field does not participate in comparison operations.
-    Named(Loc<Path>, Loc<NameID>),
+    Named(Option<Path>, Loc<NameID>),
     Anonymous(ImplID),
 }
 
@@ -984,7 +984,12 @@ impl TraitName {
     /// Returns the loc of the path of this trait, if it exists. None otherwise
     pub fn path_loc(&self) -> Option<Loc<Path>> {
         match self {
-            TraitName::Named(p, _) => Some(p.clone()),
+            TraitName::Named(r#override, name) => Some(
+                r#override
+                    .clone()
+                    .unwrap_or_else(|| name.1.clone())
+                    .at_loc(name),
+            ),
             TraitName::Anonymous(_) => None,
         }
     }
@@ -993,7 +998,10 @@ impl TraitName {
 impl std::fmt::Display for TraitName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitName::Named(p, _) => write!(f, "{p}"),
+            TraitName::Named(r#override, default) => {
+                let path = r#override.as_ref().unwrap_or(&default.1);
+                write!(f, "{path}")
+            }
             TraitName::Anonymous(id) => write!(f, "Anonymous({})", id.0),
         }
     }

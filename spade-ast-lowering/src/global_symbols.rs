@@ -323,7 +323,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
             })?;
             create_trait_from_unit_heads(
-                hir::TraitName::Named(path, name.at_loc(&def.name)),
+                hir::TraitName::Named(None, name.at_loc(&def.name)),
                 &def.type_params,
                 &def.subtraits,
                 &def.where_clauses,

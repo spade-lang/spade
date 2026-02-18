@@ -23,7 +23,7 @@ entity counter(clk: clock, rst: bool) -> (int<8>, int<8>) {
 }
 
 
-error: Expected type Number<8> + PartialEq<_>, got Number<9> + PartialEq<_>
+error: Expected type Number<8> + core::ops::PartialEq<_>, got Number<9> + core::ops::PartialEq<_>
    ┌─ testinput:12:13
    │  
  1 │   entity counter(clk: clock, rst: bool) -> (int<8>, int<8>) {
@@ -33,14 +33,14 @@ error: Expected type Number<8> + PartialEq<_>, got Number<9> + PartialEq<_>
  4 │ │     let x_at_max = x == 8;
    · │
 12 │ │             x + 1
-   │ │             ^^^^^ Expected Number<8> + PartialEq<_>, got Number<9> + PartialEq<_>
+   │ │             ^^^^^ Expected Number<8> + core::ops::PartialEq<_>, got Number<9> + core::ops::PartialEq<_>
    · │
 19 │ │     (x, y)
 20 │ │ }
    │ ╰─' The error occurred when unifying types here
    │  
    = note: Expected: 8
-                 in: Number<8> + PartialEq<_>
+                 in: Number<8> + core::ops::PartialEq<_>
                 Got: 9
-                 in: Number<9> + PartialEq<_>
+                 in: Number<9> + core::ops::PartialEq<_>
    = note: Addition creates one more output bit than the input to avoid overflow

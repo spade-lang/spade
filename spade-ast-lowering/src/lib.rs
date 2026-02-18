@@ -1521,7 +1521,7 @@ pub fn visit_trait_spec(
         }
         ctx.diags.lock().unwrap().errors.push(diag);
     }
-    let name = TraitName::Named(trait_spec.inner.path.clone(), name_id.at_loc(&loc));
+    let name = TraitName::Named(None, name_id.at_loc(&loc));
     let type_params = match &trait_spec.inner.type_params {
         Some(params) => Some(params.try_map_ref(|params| {
             params

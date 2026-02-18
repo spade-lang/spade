@@ -55,7 +55,9 @@ impl ImplTab {
 
             if let Some(duplicate) = overlapping_traits.next() {
                 let path = match &trait_spec.name {
-                    TraitName::Named(p, _) => p,
+                    TraitName::Named(r#override, default) => {
+                        r#override.as_ref().unwrap_or(&default.1)
+                    }
                     TraitName::Anonymous(_) => {
                         diag_bail!(block, "Found multiple impls of anonymous trait")
                     }

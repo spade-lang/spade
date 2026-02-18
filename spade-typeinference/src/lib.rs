@@ -529,7 +529,7 @@ impl TypeState {
         let id = self.new_typeid();
         let size = self.new_generic_tluint(loc);
         let t = TraitReq {
-            name: TraitName::Named(path, number.nowhere()),
+            name: TraitName::Named(Some(path.inner), number.nowhere()),
             type_params: vec![size.clone()],
         }
         .nowhere();
@@ -3158,7 +3158,10 @@ impl TypeState {
                 if trait_is_expected {
                     if $required_traits.inner.len() == 1
                         && $required_traits
-                            .get_trait(&TraitName::Named(path, number.clone().nowhere()))
+                            .get_trait(&TraitName::Named(
+                                Some(path.inner),
+                                number.clone().nowhere(),
+                            ))
                             .is_some()
                     {
                         Err(UnificationError::Normal(Tm {

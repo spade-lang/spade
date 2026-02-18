@@ -216,7 +216,7 @@ pub fn get_or_create_trait(
     if let Some(trait_spec) = &block.r#trait {
         let (name, loc) = ctx.symtab.lookup_trait(&trait_spec.inner.path, false)?;
         Ok((
-            TraitName::Named(trait_spec.inner.path.clone(), name.at_loc(&loc)),
+            TraitName::Named(None, name.at_loc(&loc)),
             visit_trait_spec(trait_spec, &TypeSpecKind::ImplTrait, ctx)?,
         ))
     } else {
@@ -546,14 +546,14 @@ fn check_generic_params_match_trait_def(
                 Ok(())
             } else {
                 match &trait_spec.name {
-                    TraitName::Named(path, name) => Err(Diagnostic::error(
+                    name @ TraitName::Named(_, loc) => Err(Diagnostic::error(
                         trait_spec,
-                        format!("Raw use of generic trait {path}"),
+                        format!("Raw use of generic trait {name}"),
                     )
                     .primary_label(format!(
-                        "Trait {path} used without specifying type parameters"
+                        "Trait {name} used without specifying type parameters",
                     ))
-                    .secondary_label(name, format!("Trait {path} defined here"))),
+                    .secondary_label(loc, format!("Trait {name} defined here"))),
                     TraitName::Anonymous(_) => Err(Diagnostic::bug(
                         ().nowhere(),
                         "Generic anonymous trait found, which should not be possible here",
@@ -568,7 +568,7 @@ fn check_generic_params_match_trait_def(
     } = &trait_spec.inner
     {
         match name {
-            TraitName::Named(path, name) => {
+            name @ TraitName::Named(_, loc) => {
                 Err(Diagnostic::error(
                     generic_spec,
                     "Generic type parameters specified for non-generic trait",
@@ -577,8 +577,8 @@ fn check_generic_params_match_trait_def(
                     "Generic type parameters specified here",
                 )
                 .secondary_label(
-                    name,
-                    format!("Trait {} is not generic", path),
+                    loc,
+                    format!("Trait {} is not generic", name),
                 ))
             },
             TraitName::Anonymous(_) => Err(Diagnostic::bug(
