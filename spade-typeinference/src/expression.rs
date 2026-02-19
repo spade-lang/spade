@@ -88,12 +88,10 @@ impl TypeState {
                 .ok_or_else(|| {
                     diag_anyhow!(expression, "Found no entry for {value:?} in generic list. It has {generic_list:?}")
                 })?;
-            self.add_requirement(
-                Requirement::FitsIntLiteral {
-                    value: ConstantInt::Generic(generic.clone()),
-                    target_type: t.at_loc(expression)
-                }
-            )
+            Requirement::FitsIntLiteral {
+                value: ConstantInt::Generic(generic.clone()),
+                target_type: t.at_loc(expression)
+            }.check_or_add(self, ctx)?;
         });
         Ok(())
     }
@@ -155,13 +153,13 @@ impl TypeState {
                     expression,
                     "Expected a pipeline state"
                 ))?;
-            self.add_requirement(Requirement::ValidPipelineOffset {
+            Requirement::ValidPipelineOffset {
                 definition_depth: pipeline_state
                     .total_depth
                     .clone(),
                 current_stage: pipeline_state.current_stage_depth.clone().nowhere(),
                 reference_offset: depth.at_loc(stage)
-            });
+            }.check_or_add(self, ctx)?;
 
             // Add an equation for the anonymous id
             self.unify_expression_generic_error(
@@ -208,10 +206,10 @@ impl TypeState {
                         .level(DiagnosticLevel::Bug)
                         .message("Failed to unify integer literal with integer")
                 }, self)?;
-            self.add_requirement(Requirement::FitsIntLiteral {
+            Requirement::FitsIntLiteral {
                 value: ConstantInt::Literal(value.clone()),
                 target_type: t.at_loc(expression)
-            });
+            }.check_or_add(self, ctx)?;
         });
         Ok(())
     }
@@ -554,11 +552,11 @@ impl TypeState {
                 expression.get_type(self),
                 array_size.clone()
             ).insert(self);
-            self.add_requirement(Requirement::ArrayIndexeeIsNonZero {
+            Requirement::ArrayIndexeeIsNonZero {
                 index: index.loc(),
                 array: array_type.clone().at_loc(target),
                 array_size: array_size.clone().at_loc(index)
-            });
+            }.check_or_add(self, ctx)?;
             self.unify(&target.inner, &array_type, ctx)
                 .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
                     let got = got.display(self);
@@ -598,8 +596,8 @@ impl TypeState {
             let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
             self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
 
-            self.add_requirement(Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start), end: end_var.clone().at_loc(end) });
-            self.add_requirement(Requirement::RangeIndexInArray { index: end_var.at_loc(end), size: in_array_size.at_loc(&target.loc()) });
+            Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start), end: end_var.clone().at_loc(end) }.check_or_add(self, ctx)?;
+            Requirement::RangeIndexInArray { index: end_var.at_loc(end), size: in_array_size.at_loc(&target.loc()) }.check_or_add(self, ctx)?;
 
             self.unify(&expression.inner, &out_array_type, ctx)
                 .into_default_diagnostic(expression, self)?;
