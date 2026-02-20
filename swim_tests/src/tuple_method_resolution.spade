@@ -1,0 +1,30 @@
+impl () {
+    fn method(self) -> uint<8> {
+        0
+    }
+}
+impl (bool) {
+    fn method(self) -> uint<8> {
+        1
+    }
+}
+impl (bool, bool) {
+    fn method(self) -> uint<8> {
+        2
+    }
+}
+
+impl (bool, bool, bool) {
+    fn method(self) -> uint<8> {
+        3
+    }
+}
+
+fn test() -> [uint<8>; 4] {
+    [
+        (,).method(),
+        (true,).method(),
+        (true, true).method(),
+        (true, true, true).method(),
+    ]
+}

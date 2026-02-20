@@ -2527,3 +2527,40 @@ code_compiles! {
     ",
     all
 }
+
+code_compiles! {
+    impls_work_on_tuples,
+    "
+        impl () {
+            fn owo(self) {}
+        }
+
+        impl (bool) {
+            fn owo(self) {}
+        }
+
+        impl (bool, bool) {
+            fn owo(self) {}
+        }
+
+        impl (bool, bool, bool) {
+            fn owo(self) {}
+        }
+
+        fn calls() {
+            (true,).owo();
+            (true, true).owo();
+            (true, true, true).owo();
+        }
+    "
+}
+code_compiles! {
+    impls_work_on_generic_tuples,
+    "
+        trait Tr {}
+
+        impl Tr for () {}
+
+        impl<T1> Tr for (T1) {}
+    "
+}

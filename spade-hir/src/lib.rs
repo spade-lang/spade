@@ -1071,6 +1071,7 @@ pub enum ImplTarget {
     Array,
     Inverted,
     Wire,
+    Tuple,
     Named(NameID),
 }
 
@@ -1103,6 +1104,9 @@ impl ImplTarget {
                         .map(|a| format!("{}", a))
                         .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
                 )
+            }
+            ImplTarget::Tuple => {
+                format!("({})", args.iter().map(|arg| format!("{arg}")).join(","))
             }
             ImplTarget::Named(name) => {
                 format!(

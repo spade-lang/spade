@@ -35,7 +35,7 @@ impl IntoImplTarget for KnownType {
             KnownType::Error => None,
             KnownType::Named(name) => Some(ImplTarget::Named(name.clone())),
             KnownType::Integer(_) | KnownType::Bool(_) | KnownType::String(_) => None,
-            KnownType::Tuple => None,
+            KnownType::Tuple => Some(ImplTarget::Tuple),
             KnownType::Array => Some(ImplTarget::Array),
             KnownType::Wire => Some(ImplTarget::Wire),
             KnownType::Inverted => Some(ImplTarget::Inverted),
@@ -293,10 +293,12 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVarID, type_state: &TypeState)
         }
         (TypeSpec::Declared(_, _), _) => Overlap::No,
 
-        // NOTE: This block currently cannot be tested because we can't add methods to
-        // anything other than declared types
         (TypeSpec::Tuple(sspecs), TypeVar::Known(_, KnownType::Tuple, vvars)) => {
-            specs_are_overlapping(sspecs, &vvars, type_state)
+            if sspecs.len() == vvars.len() {
+                specs_are_overlapping(sspecs, &vvars, type_state)
+            } else {
+                Overlap::No
+            }
         }
         (TypeSpec::Tuple(_), _) => Overlap::No,
         (TypeSpec::Array { inner, size }, TypeVar::Known(_, KnownType::Array, vvars)) => [

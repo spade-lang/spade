@@ -316,6 +316,13 @@ pub fn get_impl_target(
                 ctx,
             )?],
         )),
+        ast::TypeSpec::Tuple(inner) => Ok((
+            hir::ImplTarget::Tuple,
+            inner
+                .iter()
+                .map(|t| visit_type_expression(t, &TypeSpecKind::ImplTarget, ctx))
+                .collect::<Result<_>>()?,
+        )),
         ast::TypeSpec::Impl(_) => {
             return Err(
                 Diagnostic::error(&block.target, "Impls target cannot be impl type")
@@ -327,13 +334,6 @@ pub fn get_impl_target(
                 Diagnostic::error(&block.target, "Impl target cannot be wildcard")
                     .primary_label("Impl target cannot be wildcard"),
             );
-        }
-        ast::TypeSpec::Tuple(_) => {
-            return Err(Diagnostic::error(
-                &block.target,
-                "Impls on tuples is currently unsupported",
-            )
-            .primary_label("Impl target cannot be a tuple"));
         }
     }
 }

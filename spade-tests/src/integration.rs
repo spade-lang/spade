@@ -1083,11 +1083,6 @@ mod trait_tests {
     }
 
     snapshot_error! {
-        tuple_has_no_methods,
-        "fn a(x: (bool, bool)) -> bool {x.test()}"
-    }
-
-    snapshot_error! {
         good_suggestion_for_missing_self_in_zero_arg_fn,
         "
             struct X {}
@@ -1468,13 +1463,6 @@ mod trait_tests {
     }
 
     snapshot_error! {
-        impl_on_tuple_is_error,
-        r#"
-            impl (bool, bool) {}
-        "#
-    }
-
-    snapshot_error! {
         impl_of_tuple_is_error,
         r#"
             struct T {}
@@ -1704,13 +1692,6 @@ mod trait_tests {
             }
         ";
         build_items(code);
-    }
-
-    snapshot_error! {
-        impl_on_unnamed_type,
-        "
-            impl (bool, bool) {}
-        "
     }
 
     snapshot_error! {

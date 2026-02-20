@@ -40,9 +40,13 @@ impl ImplTab {
 
         {
             let overlapping_targets = trait_impls.iter().filter(|(args, _)| {
-                args.iter()
-                    .zip(&target_args)
-                    .all(|(l, r)| type_exprs_overlap(l, r))
+                if args.len() == target_args.len() {
+                    args.iter()
+                        .zip(&target_args)
+                        .all(|(l, r)| type_exprs_overlap(l, r))
+                } else {
+                    false
+                }
             });
             let mut overlapping_traits = overlapping_targets
                 .flat_map(|(_, impls)| impls.iter())
@@ -94,10 +98,16 @@ pub fn type_specs_overlap(l: &TypeSpec, r: &TypeSpec) -> bool {
                     .all(|(le, re)| type_exprs_overlap(le, re))
         }
         (TypeSpec::Declared(_, _), _) => false,
-        (TypeSpec::Tuple(linner), TypeSpec::Tuple(rinner)) => linner
-            .iter()
-            .zip(rinner)
-            .all(|(l, r)| type_specs_overlap(l, r)),
+        (TypeSpec::Tuple(linner), TypeSpec::Tuple(rinner)) => {
+            if linner.len() == rinner.len() {
+                linner
+                    .iter()
+                    .zip(rinner)
+                    .all(|(l, r)| type_specs_overlap(l, r))
+            } else {
+                false
+            }
+        }
         (TypeSpec::Tuple(_), _) => false,
         (
             TypeSpec::Array {
