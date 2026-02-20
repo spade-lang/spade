@@ -5,15 +5,33 @@ pub entity new_mut_wire<T>() -> inv &T {
 /// Reads the current value of a `inv &T`
 pub extern entity read_mut_wire<T>(p: inv &T) -> T;
 
-// Return an (output, input) pair of wires to interact with an `inout` port
-// When the value at the input is `Some(T)`, `p` is set to that value and the
-// output is `None`
-// When the value at the input is `None`, `p` is left in a high-impedance state
-// and the output is the incoming value `Some(T)`
-pub extern entity read_write_inout<T>(#[no_mangle] p: inout<T>) -> (&Option<T>, inv &Option<T>);
+/// Return an (output, input) pair of wires to interact with an `inout` port.
+/// When the value at the input is `Some(T)`, `p` is set to that value and the
+/// output is `None`.
+/// When the value at the input is `None`, `p` is left in a high-impedance state
+/// and the output is the incoming value `Some(T)`.
+pub extern fn read_write_inout<T>(#[no_mangle] p: inout<T>) -> (&Option<T>, inv &Option<T>);
+
+/// Return an (output, input) pair of wires to interact with each item of an
+/// `inout` array.
+/// When the value at the input is `Some(T)`, `p` is set to that value and the
+/// output is `None`.
+/// When the value at the input is `None`, `p` is left in a high-impedance state
+/// and the output is the incoming value `Some(T)`.
+pub extern fn read_write_items_inout<T, #uint N>(
+    #[no_mangle] p: inout<[T; N]>,
+) -> [(&Option<T>, inv &Option<T>); N];
 
 impl<T> inout<T> {
-    pub entity read_write(#[no_mangle] self) -> (&Option<T>, inv &Option<T>) {
-        inst read_write_inout(self)
+    #[inline]
+    pub fn read_write(#[no_mangle] self) -> (&Option<T>, inv &Option<T>) {
+        read_write_inout(self)
+    }
+}
+
+impl<T, #uint N> inout<[T; N]> {
+    #[inline]
+    pub fn read_write_items(#[no_mangle] self) -> [(&Option<T>, inv &Option<T>); N] {
+        read_write_items_inout(self)
     }
 }

@@ -201,7 +201,7 @@ pub enum Operator {
     USub,
     Not,
     ReadPort,
-    ReadWriteInOut,
+    ReadWriteItemsInOut(BigUint),
     BitwiseNot,
     // Divide op[0] by 2**op[1] rounding towards 0
     DivPow2,
@@ -403,7 +403,7 @@ impl std::fmt::Display for Operator {
             Operator::ReadMutWires => write!(f, "ReadMutWires"),
             Operator::Nop => write!(f, "Nop"),
             Operator::ReadPort => write!(f, "ReadPort"),
-            Operator::ReadWriteInOut => write!(f, "ReadWriteInOut"),
+            Operator::ReadWriteItemsInOut(n) => write!(f, "ReadWriteInOut({})", n),
         }
     }
 }

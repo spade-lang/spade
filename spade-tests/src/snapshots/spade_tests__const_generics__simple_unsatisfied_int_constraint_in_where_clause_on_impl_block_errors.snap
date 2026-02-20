@@ -30,4 +30,4 @@ error: Output type mismatch. Expected int<10>, got int<9>
                Got: 9
                 in: int<9>
   = The error is in a generic unit instantiated at
-    ╰ testinput:10 impl#14::add_one<8, 10>
+    ╰ testinput:10 impl#15::add_one<8, 10>

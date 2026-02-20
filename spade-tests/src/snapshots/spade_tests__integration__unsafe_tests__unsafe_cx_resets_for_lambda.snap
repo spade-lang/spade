@@ -18,7 +18,7 @@ error: You cannot call unsafe code in safe context
   │                             ^^^^^^ This is missing an unsafe block
   │
   = The error is in a generic unit instantiated at
-    ╰ testinput:6 impl#14::call<()>
+    ╰ testinput:6 impl#15::call<()>
   = Consider wrapping the code in an unsafe block
   │
 5 │         let lambda = fn|| { unsafe { method() }; };

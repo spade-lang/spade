@@ -1,0 +1,22 @@
+#[no_mangle(all)]
+fn test(
+    single: inout<uint<8>>,
+    array: inout<[uint<8>; 2]>,
+    i0: Option<uint<8>>,
+    i1: Option<uint<8>>,
+    i2: Option<uint<8>>,
+    o0: inv &Option<uint<8>>,
+    o1: inv &Option<uint<8>>,
+    o2: inv &Option<uint<8>>,
+) {
+    let (sr, sw) = single.read_write();
+    let [(a0r, a0w), (a1r, a1w)] = array.read_write_items();
+
+    set sw = &i0;
+    set a0w = &i1;
+    set a1w = &i2;
+
+    set o0 = sr;
+    set o1 = a0r;
+    set o2 = a1r;
+}

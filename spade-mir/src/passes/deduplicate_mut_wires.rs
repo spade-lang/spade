@@ -83,7 +83,7 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::USub
         | Operator::Not
         | Operator::ReadPort
-        | Operator::ReadWriteInOut
+        | Operator::ReadWriteItemsInOut(_)
         | Operator::BitwiseNot
         | Operator::DivPow2
         | Operator::SignExtend { .. }

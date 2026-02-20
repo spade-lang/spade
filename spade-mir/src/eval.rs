@@ -332,7 +332,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     Operator::EnumMember { .. } => todo!(),
                     Operator::IndexTuple(_) => todo!(),
                     Operator::ReadPort => todo!(),
-                    Operator::ReadWriteInOut => todo!(),
+                    Operator::ReadWriteItemsInOut(_) => todo!(),
                     Operator::FlipPort => todo!(),
                     Operator::ReadMutWires => todo!(),
                     Operator::Instance { .. } => todo!(),

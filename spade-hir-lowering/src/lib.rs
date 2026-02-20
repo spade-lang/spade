@@ -2592,7 +2592,8 @@ impl ExprLocal for Loc<Expression> {
             ["std", "ops", "comb_div"] => handle_comb_div,
             ["std", "ops", "comb_mod"] => handle_comb_mod,
             ["std", "ports", "read_mut_wire"] => handle_read_mut_wire,
-            ["std", "ports", "read_write_inout"] => handle_read_write_inout
+            ["std", "ports", "read_write_inout"] => handle_read_write_inout,
+            ["std", "ports", "read_write_items_inout"] => handle_read_write_items_inout
         }
 
         generic_port_check()?;
@@ -3713,7 +3714,53 @@ impl ExprLocal for Loc<Expression> {
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::ReadWriteInOut,
+                operator: mir::Operator::ReadWriteItemsInOut(BigUint::one()),
+                operands: vec![args[0].value.variable(ctx)?],
+                ty: self_type,
+                loc: Some(path.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
+    }
+
+    fn handle_read_write_items_inout(
+        &self,
+        path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        if args.len() != 1 {
+            diag_bail!(
+                path,
+                "Invalid number of arguments (expected 1, got {})",
+                args.len()
+            );
+        }
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        let num_items = match self_type {
+            MirType::Array { ref length, .. } => length.clone(),
+            other => {
+                return Err(Diagnostic::bug(
+                    self,
+                    format!("Inferred non-integer type ({other}) for `read_write_items_inout`"),
+                ))
+            }
+        };
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator: mir::Operator::ReadWriteItemsInOut(num_items),
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(path.loc()),

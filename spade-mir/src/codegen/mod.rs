@@ -697,7 +697,7 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
             }
         }
         Operator::ReadPort => ops[0].backward_var_name(),
-        Operator::ReadWriteInOut => {
+        Operator::ReadWriteItemsInOut(_) => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
@@ -879,7 +879,7 @@ fn backward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[Value
             // NOTE Dummy. Set in statement_code
             String::new()
         }
-        Operator::ReadWriteInOut => {
+        Operator::ReadWriteItemsInOut(_) => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
@@ -1024,23 +1024,35 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     .to_string()
                 }
                 Operator::DeclClockedMemory { .. } => forward_expression.unwrap(),
-                Operator::ReadWriteInOut => {
-                    let total_size_minus_one = binding.ty.size() - BigUint::one();
-                    let payload_size = binding.ty.size() - BigUint::one();
-                    let payload_size_minus_one = &payload_size - BigUint::one();
-                    code! {
-                        [0] format!("assign {} = {}[{}] ? {}[{}:0] : {}'bZ;",
-                                ops[0],
-                                back_name, total_size_minus_one,
-                                back_name, payload_size_minus_one,
-                                payload_size);
-                        [0] format!("assign {} = {}[{}] ? {{ 1'b0, {}'bX }} : {{ 1'b1, {} }};",
-                                name,
-                                back_name, total_size_minus_one,
-                                payload_size,
-                                ops[0])
+                Operator::ReadWriteItemsInOut(num_items) => {
+                    // NOTE(repr): this code relies on the bit representation of `Option` to use the
+                    // MSB as the discriminant, with 0 indicating a `None` value and 1 indicating a
+                    // `Some(_)` value.
+                    let item_size = binding.ty.size() / num_items;
+                    let payload_size = binding.ty.size() / num_items - BigUint::one();
+                    let mut snippets = vec![];
+
+                    for i in 0..num_items.to_usize().unwrap() {
+                        let item_offset = i * item_size.clone();
+                        let payload_offset = i * payload_size.clone();
+                        let discriminant_offset = item_offset.clone() + item_size.clone() - BigUint::one();
+
+                        snippets.push(code! {
+                            [0] format!("assign {}[{}+:{}] = {}[{}] ? {}[{}+:{}] : {}'bZ;",
+                                    ops[0], payload_offset, payload_size,
+                                    back_name, discriminant_offset,
+                                    back_name, item_offset, payload_size,
+                                    payload_size);
+                            [0] format!("assign {}[{}+:{}] = {}[{}] ? {{ 1'b0, {}'bX }} : {{ 1'b1, {}[{}+:{}] }};",
+                                    name, item_offset, item_size,
+                                    back_name, discriminant_offset,
+                                    payload_size,
+                                    ops[0], payload_offset, payload_size)
+                        }
+                        .to_string());
                     }
-                    .to_string()
+
+                    snippets.join("\n")
                 }
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));

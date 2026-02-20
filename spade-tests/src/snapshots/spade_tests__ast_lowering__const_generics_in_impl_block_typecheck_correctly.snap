@@ -32,7 +32,7 @@ error: Expected type 9, got 10
                Got: 10
                 in: 10
   = The error is in a generic unit instantiated at
-    ╰ testinput:12 impl#14::twice<8>
+    ╰ testinput:12 impl#15::twice<8>
 
 error: Expected type 18, got 19
   ┌─ testinput:6:54
@@ -49,4 +49,4 @@ error: Expected type 18, got 19
                Got: 19
                 in: 19
   = The error is in a generic unit instantiated at
-    ╰ testinput:13 impl#14::times<10, 8>
+    ╰ testinput:13 impl#15::times<10, 8>
