@@ -103,7 +103,9 @@ pub fn handle_statement(
                     .set_available(name, time.unwrap_or(0), *current_stage, ty)
             }
         }
-        Statement::Declaration(_) => todo!(),
+        Statement::Declaration(_) => {
+            // Declarations have no effect on pipeline state
+        }
         Statement::PipelineRegMarker(extra) => {
             let local_cond = match extra {
                 Some(spade_hir::PipelineRegMarkerExtra::Condition(cond)) => {
