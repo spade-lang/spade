@@ -9,21 +9,19 @@ mod types;
 use std::env;
 
 use camino::Utf8PathBuf;
-use marlin_verilator::{PortDirection, mangle};
-use marlin_verilog_macro_builder::{
-     build_verilated_struct,
-};
+use marlin_verilator::{mangle, PortDirection};
+use marlin_verilog_macro_builder::build_verilated_struct;
 use num::ToPrimitive;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
 use proc_macro_error::{abort_call_site, proc_macro_error};
-use spade as spade_compiler;
+use spade::{self as spade_compiler, compiler_state::StoredCompilerState};
 use spade_compiler::compiler_state::CompilerState;
 use spade_hir_lowering::{MirLowerable, UnitNameExt};
 use types::mirror_types;
 
-use crate::types::{TypeSpecExt, primitive_map};
+use crate::types::{primitive_map, TypeSpecExt};
 
 // TODO: Move into a more general place
 struct MacroArgs {
@@ -58,9 +56,8 @@ struct SpadeInfo {
 }
 
 fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
-    let manifest_directory = Utf8PathBuf::from(
-        env::var("CARGO_MANIFEST_DIR").expect("Please use CARGO"),
-    );
+    let manifest_directory =
+        Utf8PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("Please use CARGO"));
     let Some(swim_toml) = search_for_swim_toml(manifest_directory) else {
         abort_call_site!("Could not find swim.toml")
     };
@@ -75,16 +72,13 @@ fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
         }
     };
 
-    let (compiler_state, _) =
-        match bincode::serde::decode_from_slice::<CompilerState, _>(
-            &state_file_content,
-            bincode::config::standard(),
-        ) {
-            Ok(state) => state,
-            Err(e) => {
-                abort_call_site!(format!("Failed to decode build/state.bincode. {e}"))
-            }
-        };
+    let compiler_state = match postcard::from_bytes::<StoredCompilerState>(&state_file_content)
+    {
+        Ok(state) => state.into_compiler_state(),
+        Err(e) => {
+            abort_call_site!(format!("Failed to decode build/state.bincode. {e}"))
+        }
+    };
 
     Ok(SpadeInfo {
         compiler_state,
@@ -122,20 +116,17 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
         Err(e) => return e.into_compile_error().into(),
     };
 
-    let Some(top_unit) =
-        compiler_state
-            .item_list
-            .executables
-            .iter()
-            .find_map(|(exec, item)| {
-                if exec.1.as_strs()
-                    == args.top.value().split("::").collect::<Vec<_>>()
-                {
-                    Some(item)
-                } else {
-                    None
-                }
-            })
+    let Some(top_unit) = compiler_state
+        .item_list
+        .executables
+        .iter()
+        .find_map(|(exec, item)| {
+            if exec.1.to_strings() == args.top.value().split("::").collect::<Vec<_>>() {
+                Some(item)
+            } else {
+                None
+            }
+        })
     else {
         return syn::Error::new_spanned(
             &args.top,
@@ -174,9 +165,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    if !(top_unit.head.unit_type_params.is_empty()
-        && top_unit.head.scope_type_params.is_empty())
-    {
+    if !(top_unit.head.unit_type_params.is_empty() && top_unit.head.scope_type_params.is_empty()) {
         return syn::Error::new_spanned(
             args.top,
             format!("The module under test cannot be generic. Consider creating a non-generic test harness.")
@@ -191,21 +180,15 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let primitive_map = primitive_map(&compiler_state);
 
-    let verilog_source_path = {
-        syn::LitStr::new(
-            source_path.join("build/spade.sv").as_str(),
-            args.top.span(),
-        )
-    };
+    let verilog_source_path =
+        { syn::LitStr::new(source_path.join("build/spade.sv").as_str(), args.top.span()) };
 
     let mut ports = vec![];
     let mut input_fields = vec![];
     let mut extra_init = vec![];
     let mut pre_hooks = vec![];
     let mut post_hooks = vec![];
-    for ((name, hir_type), param) in
-        top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone())
-    {
+    for ((name, hir_type), param) in top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone()) {
         let ty = type_state
             .concrete_type_of_name(
                 &name,
@@ -215,9 +198,9 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             .expect("Expected a concrete type for {name}");
 
         let verilog_name = if param.no_mangle.is_some() {
-            param.name.0.to_string()
+            param.name.as_str().to_string()
         } else {
-            format!("{}_i", param.name.0)
+            format!("{}_i", param.name.as_str())
         };
 
         let mir_ty = ty.to_mir_type();
@@ -227,34 +210,30 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             .to_usize()
             .expect("Types with more than 2^64 bits are unsupported");
         if size != 0 {
-            ports.push(
-                (
-                    verilog_name.clone(), // Inclusive, like Verilog
-                    size - 1,
-                    0,
-                    PortDirection::Input,
-                ),
-            );
+            ports.push((
+                verilog_name.clone(), // Inclusive, like Verilog
+                size - 1,
+                0,
+                PortDirection::Input,
+            ));
         }
 
         let back_size = mir_ty
             .backward_size()
             .to_usize()
             .expect("Types with more than 2^64 bits are unsupported");
-        let back_name = param.name.0.clone() + "_o";
+        let back_name = param.name.as_str().to_string() + "_o";
         if back_size != 0 {
             // TODO: Verify that this mangling scheme is correct
-            ports.push(
-                (
-                    back_name.clone(),
-                    back_size - 1, // Inclusive, like Verilog
-                    0,
-                    PortDirection::Output,
-                )
-            );
+            ports.push((
+                back_name.clone(),
+                back_size - 1, // Inclusive, like Verilog
+                0,
+                PortDirection::Output,
+            ));
         }
 
-        let field_name = format_ident!("{}", param.name.inner.0);
+        let field_name = format_ident!("{}", param.name.as_str());
         let field_ty = hir_type.mirror(&primitive_map);
         input_fields.push(quote! {
             pub #field_name: #field_ty
@@ -288,10 +267,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let top_name = top_name.without_escapes();
     let verilator = build_verilated_struct(
         "spade",
-        syn::LitStr::new(
-            &mangle(&top_name).unwrap(),
-            args.top.span(),
-        ),
+        syn::LitStr::new(&mangle(&top_name).unwrap(), args.top.span()),
         verilog_source_path,
         ports,
         None,
@@ -305,7 +281,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             return error.into_compile_error().into();
         }
     };
-    
+
     let struct_name = item.ident;
     let mod_name = format_ident!("{}_impl", struct_name);
 

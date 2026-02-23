@@ -36,7 +36,6 @@ spade-query = {path = "spade-query", version = "0.20.0"}
 spade-marlin = {path = "spade-marlin", version = "0.20.0"}
 spade-marlin-macro = {path = "spade-marlin-macro", version = "0.20.0"}
 
-bincode = { version = "2.0.0", features = ["serde"] }
 bumpalo = { version = "3.14.0" }
 camino = { version = "1.1.10", features = ["serde1"] }
 clap = { version = "4.4", features = ["derive"] }

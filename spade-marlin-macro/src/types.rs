@@ -25,7 +25,7 @@ impl NameIDExt for NameID {
         primitives.get(self).cloned().unwrap_or_else(|| {
             let full = format_ident!("spade_types");
             let here = self.1 .0.iter().map(|segment| {
-                let s = format_ident!("{}", &segment.0);
+                let s = format_ident!("{}", &segment.unwrap_named().as_str());
                 quote!(#s)
             });
             quote!(crate :: #full :: #(#here)::*)
@@ -40,7 +40,8 @@ impl NameIDExt for NameID {
                  .0
                 .last()
                 .expect("Found a NameID with 0 path segments")
-                .0
+                .unwrap_named()
+                .as_str()
         );
         quote!(#name)
     }
@@ -51,7 +52,7 @@ trait IdentExt {
 }
 impl IdentExt for Identifier {
     fn mirror(&self) -> TokenStream {
-        let name = format_ident!("{}", self.0);
+        let name = format_ident!("{}", self.as_str());
         quote!(#name)
     }
 }
@@ -78,6 +79,9 @@ impl Mirror for TypeExpression {
                 quote!({ #val })
             }
             TypeExpression::String(_) => {
+                panic!("Strings are not supported")
+            }
+            TypeExpression::Bool(_) => {
                 panic!("Strings are not supported")
             }
             TypeExpression::ConstGeneric(_) => {
@@ -115,7 +119,10 @@ impl TypeSpecExt for TypeSpec {
                 }
             }
             TypeSpec::Generic(name) => {
-                let name = name.mirror_local();
+                let name = name
+                    .name_id()
+                    .expect("Found a hidden generic in a type signature")
+                    .mirror_local();
                 quote!(#name)
             }
             TypeSpec::Tuple(inner) => {
@@ -163,7 +170,7 @@ impl TypeDeclarationExt for TypeDeclaration {
         let raw_generics = self
             .generic_args
             .iter()
-            .map(|param| param.name_id.mirror_local())
+            .map(|param| param.name_id().expect("Found a hidden generic").mirror_local())
             .collect::<Vec<_>>();
 
         let impl_generics = match self.generic_args.as_slice() {
@@ -302,7 +309,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                          ty,
                          field_translator: _,
                      }| {
-                        let name = format_ident!("{}", &name.0);
+                        let name = format_ident!("{}", &name.as_str());
                         let ty = ty.mirror(primitive_map);
 
                         quote! {#name : #ty}
@@ -354,6 +361,8 @@ impl TypeDeclarationExt for TypeDeclaration {
                 };
                 Some(def)
             }
+            // FIXME: For now, we won't mirror type aliases
+            spade_hir::TypeDeclKind::Alias(_) => None,
         };
 
         def
@@ -365,7 +374,7 @@ trait TypeParamExt {
 }
 impl TypeParamExt for TypeParam {
     fn mirror(&self, with_traits: Option<TokenStream>) -> TokenStream {
-        let name = self.name_id.mirror_local();
+        let name = self.name_id().expect("Attempted to mirror a type with no generics").mirror_local();
         match self.meta {
             spade_types::meta_types::MetaType::Type => {
                 let with_traits = with_traits.map(|t| quote!(: #t));
@@ -433,7 +442,7 @@ pub fn primitive_map(compiler_state: &CompilerState) -> PrimitiveMap {
     .map(|(name, value)| {
         (
             symtab
-                .lookup_type_symbol(&Path::from_strs(name).nowhere())
+                .lookup_type_symbol(&Path::from_strs(name).nowhere(), false)
                 .expect(&format!("The `{name:?}` type was not defined in Spade"))
                 .0,
             value,
@@ -460,8 +469,8 @@ pub fn mirror_types(compiler_state: &CompilerState) -> TokenStream {
         let mut module = &mut modules;
         for segment in &name.1 .0[0..(name.1 .0.len() - 1)] {
             let ModEntry::Submod(_, next) = module
-                .entry(segment.0.as_str())
-                .or_insert(ModEntry::Submod(segment.0.as_str(), HashMap::new()))
+                .entry(segment.unwrap_named().as_str())
+                .or_insert(ModEntry::Submod(segment.unwrap_named().as_str(), HashMap::new()))
             else {
                 panic!("Found {segment} in {name} to be both a type and a module")
             };
@@ -469,7 +478,7 @@ pub fn mirror_types(compiler_state: &CompilerState) -> TokenStream {
         }
 
         module.insert(
-            &name.1 .0.last().expect("Found an empty path").0,
+            &name.1.tail().unwrap_named().as_str(),
             ModEntry::Def(def),
         );
     }
