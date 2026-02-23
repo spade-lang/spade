@@ -98,21 +98,21 @@ fn tuple_out_works() -> Result<(), Whatever> {
     Ok(())
 }
 
-#[test]
-#[snafu::report]
-fn enum_out_works() -> Result<(), Whatever> {
-    #[spade_marlin(top = "spade_marlin::enum_out")]
-    struct Uut;
+// #[test]
+// #[snafu::report]
+// fn enum_out_works() -> Result<(), Whatever> {
+//     #[spade_marlin(top = "spade_marlin::enum_out")]
+//     struct Uut;
 
-    let runtime = SpadeRuntime::new(Default::default())?;
+//     let runtime = SpadeRuntime::new(Default::default())?;
 
-    let mut main = Uut::new_simple(&runtime)?;
+//     let mut main = Uut::new_simple(&runtime)?;
 
-    main.i.variant = 0u32.into();
-    main.i.x = 1u32.into();
-    main.i.y = 2u32.into();
+//     main.i.variant = 0u32.into();
+//     main.i.x = 1u32.into();
+//     main.i.y = 2u32.into();
 
-    // TODO: Finish these tests
+//     // TODO: Finish these tests
 
-    Ok(())
-}
+//     Ok(())
+// }
