@@ -370,6 +370,17 @@ impl TypeDeclarationExt for TypeDeclaration {
                     }
                 });
 
+                let size = if sizes.len() != 0 {
+                    quote!(#(#sizes)+*)
+                } else {
+                    quote!(0)
+                };
+                let backward_size = if backward_sizes.len() != 0 {
+                    quote!(#(#backward_sizes)+*)
+                } else {
+                    quote!(0)
+                };
+
                 let def = quote! {
                     #[derive(Default)]
                     pub struct #name #generics {
@@ -378,11 +389,11 @@ impl TypeDeclarationExt for TypeDeclaration {
 
                     impl #generics spade_marlin::type_translation::SpadeType for #name #impl_generics {
                         fn size() -> usize {
-                            #(#sizes)+*
+                            #size
                         }
 
                         fn backward_size() -> usize {
-                            #(#backward_sizes)+*
+                            #backward_size
                         }
 
                         fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
