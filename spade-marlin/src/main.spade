@@ -32,3 +32,17 @@ entity enum_out(variant: uint<2>, x: uint<8>, y: uint<16>, result: inv &EnumOut)
         3 => EnumOut::Three(x, y),
     };
 }
+
+enum ContainsIntEnum {
+    Variant{x: int<8>},
+}
+
+struct ContainsInt {
+    x: int<8>,
+}
+
+entity int_add(x: int<48>, y: int<48>, result: inv &int<49>) {
+    // TODO: Actual test
+    set result = &(x + y);
+}
+
