@@ -18,12 +18,12 @@ spade-hir.workspace = true
 spade-hir-lowering.workspace = true
 spade-common.workspace = true
 
-bincode.workspace = true
 camino.workspace = true
 itertools.workspace = true
 marlin-verilator.workspace = true
 marlin-verilog-macro-builder.workspace = true
 num.workspace = true
+postcard.workspace = true
 proc-macro-error = "1.0.4"
 proc-macro2 = "1.0.103"
 quote = "1.0.42"
