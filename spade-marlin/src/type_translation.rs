@@ -144,6 +144,31 @@ uint_methods!(u16);
 uint_methods!(u32);
 uint_methods!(u64);
 
+#[derive(PartialEq, Default, Debug)]
+pub struct SpadeInt<const N: u64> {
+    inner: u64,
+}
+
+impl<const N: u64> SpadeType for SpadeInt<N> {
+    fn size() -> usize {
+        N as usize
+    }
+
+    fn backward_size() -> usize {
+        0
+    }
+
+    fn from_verilator_value(&mut self, _bit_offset: usize, _bits: &[u32]) {
+        todo!("from_verilator_value is not currently implemented for ints")
+    }
+
+    fn to_verilator_value(&self, _bit_offset: usize, _target: &mut [u32]) {
+        todo!("to_verilator_value is not currently implemented for ints")
+    }
+}
+
+
+
 impl SpadeType for bool {
     fn size() -> usize {
         1
