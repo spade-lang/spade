@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use itertools::Itertools;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use spade::compiler_state::CompilerState;
@@ -80,10 +79,10 @@ impl Mirror for TypeExpression {
                 quote!({ #val })
             }
             TypeExpression::String(_) => {
-                panic!("Strings are not supported")
+                panic!("String type parameters are not supported")
             }
             TypeExpression::Bool(_) => {
-                panic!("Strings are not supported")
+                panic!("Bool type parameters not supported")
             }
             TypeExpression::ConstGeneric(_) => {
                 panic!("Const generics are not supported")
@@ -234,27 +233,35 @@ impl TypeDeclarationExt for TypeDeclaration {
 
                         quote! {#(#members)+*}
                     }
-                });
-                let variant_size =
+                })
+                .collect::<Vec<_>>();
+                let payload_size =
                     quote!([#(#variant_sizes),*].into_iter().max().unwrap_or_default());
                 let tag_size = (e.options.len() as f32).log2().floor() as usize;
 
-                let size = quote!(#tag_size + #variant_size);
+                let size = quote!(#tag_size + #payload_size);
 
                 let variant_updaters =
                     e.options
                         .iter()
                         .enumerate()
                         .map(|(i, (variant_name, variant))| {
+                            // Enums are packed msb first, so the indexing is "reversed"
+                            // |tag| v1 | padding |
+                            // |tag| v1 | v2      |
                             let variant_name = variant_name.mirror_local();
+
+                            let prelude = quote! {
+                                local_offset = #payload_size;
+                            };
 
                             let field_updaters = variant.0.iter().map(|param| {
                                 let name = &param.name.mirror();
                                 let ty = param.ty.mirror_with_turbofish(primitive_map);
                                 quote! {
                                     let mut #name = #ty::default();
+                                    local_offset -= #ty :: size();
                                     #name.from_verilator_value(bit_offset + local_offset, bits);
-                                    local_offset += #ty :: size();
                                 }
                             });
                             let field_names = variant.0.iter().map(|param| param.name.mirror());
@@ -263,6 +270,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                             let i = i as u64;
                             let result = quote! {
                                 #i => {
+                                    #prelude
                                     #(#field_updaters;)*
                                     #construction
                                 }
@@ -272,7 +280,8 @@ impl TypeDeclarationExt for TypeDeclaration {
 
                 let tag_size = tag_size as u64;
                 let result = quote! {
-                    enum #name #generics {
+                    #[derive(Debug, PartialEq)]
+                    pub enum #name #generics {
                         #(#options),*
                     }
 
@@ -290,7 +299,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                         fn from_verilator_value(&mut self, bit_offset: usize, bits: &[u32]) {
                             let mut local_offset = 0;
                             let mut tag = spade_marlin::type_translation::SpadeUint::<#tag_size>::default();
-                            tag.from_verilator_value(bit_offset + #variant_size, bits);
+                            tag.from_verilator_value(bit_offset + #payload_size, bits);
                             *self = match *tag {
                                 #(#variant_updaters,)*
                                 _ => {Default::default()} // TODO: What the hell do we do here
@@ -298,7 +307,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                         }
 
                         fn to_verilator_value(&self, bit_offset: usize, target: &mut [u32]) {
-                            unimplemented!("to_verilator_value is not implemented for structs yet")
+                            unimplemented!("to_verilator_value is not implemented for enums yet")
                         }
                     }
                 };

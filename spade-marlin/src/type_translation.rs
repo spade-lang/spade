@@ -282,6 +282,7 @@ impl<T: SpadeType> SpadeType for Option<T> {
     }
 }
 
+
 #[cfg(test)]
 mod test {
     use super::*;
