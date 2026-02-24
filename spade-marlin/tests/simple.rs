@@ -5,6 +5,9 @@ mod types;
 
 use spade_marlin::prelude::*;
 
+use crate::types::spade_types;
+use crate::types::spade_types::spade_marlin::EnumOut;
+
 
 mod u48_passthrough {
     use super::*;
@@ -91,28 +94,38 @@ fn tuple_out_works() -> Result<(), Whatever> {
 
     main.eval();
 
-    println!("Raw value from verilator: {:x}", main.verilator.result_o);
-
     assert_eq!(main.i.result, (10u8.into(), 1u8.into()));
 
     Ok(())
 }
 
-// #[test]
-// #[snafu::report]
-// fn enum_out_works() -> Result<(), Whatever> {
-//     #[spade_marlin(top = "spade_marlin::enum_out")]
-//     struct Uut;
+#[test]
+#[snafu::report]
+fn enum_out_works() -> Result<(), Whatever> {
+    #[spade_marlin(top = "spade_marlin::enum_out")]
+    struct Uut;
 
-//     let runtime = SpadeRuntime::new(Default::default())?;
+    let runtime = SpadeRuntime::new(Default::default())?;
 
-//     let mut main = Uut::new_simple(&runtime)?;
+    let mut main = Uut::new_simple(&runtime)?;
 
-//     main.i.variant = 0u32.into();
-//     main.i.x = 1u32.into();
-//     main.i.y = 2u32.into();
+    main.i.variant = 0u32.into();
+    main.i.x = 1u32.into();
+    main.i.y = 2u32.into();
 
-//     // TODO: Finish these tests
+    main.eval();
+    assert_eq!(main.i.result, EnumOut::Zero {});
+    main.i.variant = 1u32.into();
+    main.eval();
+    assert_eq!(main.i.result, EnumOut::One {x: 1u8.into()});
 
-//     Ok(())
-// }
+    main.i.variant = 2u32.into();
+    main.eval();
+    assert_eq!(main.i.result, EnumOut::Two {y: 2u8.into()});
+
+    main.i.variant = 3u32.into();
+    main.eval();
+    assert_eq!(main.i.result, EnumOut::Three {x: 1u8.into(), y: 2u8.into()});
+
+    Ok(())
+}
