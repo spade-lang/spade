@@ -496,6 +496,7 @@ pub fn primitive_map(compiler_state: &CompilerState) -> PrimitiveMap {
             quote! {spade_marlin::type_translation::SpadeInt},
         ),
         (["bool"].as_slice(), quote! {bool}),
+        (["clock"].as_slice(), quote! {bool}),
         (
             ["std", "option", "Option"].as_slice(),
             quote! {std::option::Option},

@@ -18,5 +18,5 @@ log = "0.4.29"
 marlin-verilator.workspace = true
 toml = "0.9.8"
 snafu = "0.8.9"
-marlin = "0.10.0"
+marlin.workspace = true
 itertools.workspace = true

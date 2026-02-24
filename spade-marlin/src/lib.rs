@@ -28,7 +28,8 @@ pub mod prelude {
     pub use crate as spade;
     pub use crate::{SpadeRuntime, SpadeRuntimeOptions};
     pub use spade_marlin_macro::spade_marlin;
-    pub  use spade_marlin_macro::spade_types;
+    pub use spade_marlin_macro::spade_types;
+    pub use marlin;
 }
 
 fn search_for_swim_toml(mut start: Utf8PathBuf) -> Option<Utf8PathBuf> {

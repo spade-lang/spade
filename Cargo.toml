@@ -53,6 +53,7 @@ logos = "0.16.0"
 num = {version = "0.4.0", features = ["serde"]}
 # TODO: Use upstream marlin
 marlin-verilator = {git = "https://github.com/thezoq2/marlin", branch = "mangling"}
+marlin = {git = "https://github.com/thezoq2/marlin", branch = "mangling"}
 marlin-verilog-macro-builder = {git = "https://github.com/thezoq2/marlin", branch = "mangling"}
 pretty_assertions = "1.4.1"
 prettydiff = { version = "0.9", default-features = false }
