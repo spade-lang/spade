@@ -309,6 +309,16 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 })
             }
 
+            pub fn new(runtime: &'a SpadeRuntime, config: crate::spade::SpadeModelConfig) -> Result<Self, snafu::Whatever> {
+                let model = runtime.create_model(config)?;
+                Ok(Self {
+                    verilator: model,
+                    i: Inputs {
+                        #(#extra_init),*
+                    }
+                })
+            }
+
             pub fn eval(&mut self) {
                 #(#pre_hooks);*
                 self.verilator.eval();
