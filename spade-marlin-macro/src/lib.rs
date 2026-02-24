@@ -19,6 +19,7 @@ use proc_macro_error::{abort_call_site, proc_macro_error};
 use spade::{self as spade_compiler, compiler_state::StoredCompilerState};
 use spade_compiler::compiler_state::CompilerState;
 use spade_hir_lowering::{MirLowerable, UnitNameExt};
+use syn::LitStr;
 use types::mirror_types;
 
 use crate::types::{primitive_map, TypeSpecExt};
@@ -52,7 +53,7 @@ fn search_for_swim_toml(mut start: Utf8PathBuf) -> Option<Utf8PathBuf> {
 
 struct SpadeInfo {
     compiler_state: CompilerState,
-    source_path: Utf8PathBuf,
+    project_dir: Utf8PathBuf,
 }
 
 fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
@@ -61,10 +62,10 @@ fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
     let Some(swim_toml) = search_for_swim_toml(manifest_directory) else {
         abort_call_site!("Could not find swim.toml")
     };
-    let mut source_path = swim_toml.clone();
-    source_path.pop();
+    let mut project_dir = swim_toml.clone();
+    project_dir.pop();
 
-    let state_file_path = source_path.join("build/state.bincode");
+    let state_file_path = project_dir.join("build/state.bincode");
     let state_file_content = match std::fs::read(&state_file_path) {
         Ok(state_file) => state_file,
         Err(e) => {
@@ -72,8 +73,7 @@ fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
         }
     };
 
-    let compiler_state = match postcard::from_bytes::<StoredCompilerState>(&state_file_content)
-    {
+    let compiler_state = match postcard::from_bytes::<StoredCompilerState>(&state_file_content) {
         Ok(state) => state.into_compiler_state(),
         Err(e) => {
             abort_call_site!(format!("Failed to decode build/state.bincode. {e}"))
@@ -82,7 +82,7 @@ fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
 
     Ok(SpadeInfo {
         compiler_state,
-        source_path,
+        project_dir,
     })
 }
 
@@ -91,7 +91,7 @@ fn get_compiler_state() -> Result<SpadeInfo, syn::Error> {
 pub fn spade_types(_args: TokenStream) -> TokenStream {
     let SpadeInfo {
         compiler_state,
-        source_path: _,
+        project_dir: _,
     } = match get_compiler_state() {
         Ok(state) => state,
         Err(e) => return e.into_compile_error().into(),
@@ -110,7 +110,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let SpadeInfo {
         compiler_state,
-        source_path,
+        project_dir,
     } = match get_compiler_state() {
         Ok(state) => state,
         Err(e) => return e.into_compile_error().into(),
@@ -181,7 +181,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let primitive_map = primitive_map(&compiler_state);
 
     let verilog_source_path =
-        { syn::LitStr::new(source_path.join("build/spade.sv").as_str(), args.top.span()) };
+        { syn::LitStr::new(project_dir.join("build/spade.sv").as_str(), args.top.span()) };
 
     let mut ports = vec![];
     let mut input_fields = vec![];
@@ -285,6 +285,10 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let struct_name = item.ident;
     let mod_name = format_ident!("{}_impl", struct_name);
 
+    let top = args.top;
+
+    let project_dir_lit = LitStr::new(&project_dir.to_string(), top.span());
+
     let spade_wrapper = quote! {
         struct Inputs {
             #(#input_fields),*
@@ -296,6 +300,8 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
             // we cannot grant mutable access to it externally
             verilator: #mod_name :: #struct_name<'a>,
             pub i: Inputs,
+
+            project_dir: String,
         }
 
         impl<'a> #struct_name<'a> {
@@ -305,7 +311,8 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                     verilator: model,
                     i: Inputs {
                         #(#extra_init),*
-                    }
+                    },
+                    project_dir: #project_dir_lit.to_string()
                 })
             }
 
@@ -315,7 +322,8 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                     verilator: model,
                     i: Inputs {
                         #(#extra_init),*
-                    }
+                    },
+                    project_dir: #project_dir_lit.to_string()
                 })
             }
 
@@ -327,6 +335,27 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
             pub fn verilator(&self) -> &#mod_name :: #struct_name {
                 &self.verilator
+            }
+
+            pub fn open_vcd(&mut self, path: impl AsRef<std::path::Path>) -> spade_marlin::prelude::marlin::verilator::vcd::Vcd<'a> {
+                let vcd_path = format!(
+                    "{}/{}",
+                    std::env::current_dir().expect("Failed to get current working directory").to_string_lossy(),
+                    path.as_ref().to_string_lossy()
+                );
+                let surfer_ron_content = format!(
+                    r#"(state_file:"{}/build/state.bincode",top_names:{{"{vcd_path}": "{}"}})"#,
+                    self.project_dir,
+                    #top,
+                );
+                let surfer_ron_path = format!("{}/build/surfer.ron", self.project_dir);
+
+                // TODO: This will clash if there are multiple tests.
+                std::fs::write(&surfer_ron_path, surfer_ron_content).expect(&format!("Failed to write surfer ron file to {surfer_ron_path}"));
+
+                println!("Opening VCD file {vcd_path}");
+
+                self.verilator.open_vcd(path)
             }
         }
     };
