@@ -29,6 +29,7 @@ use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
+use spade_hir::pretty_debug::PrettyDebug;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{unify_meta, MetaType};
@@ -1783,6 +1784,11 @@ impl TypeState {
                                     ctx,
                                 )?;
 
+                                println!(
+                                    "{}",
+                                    impl_block.type_params.iter().map(|tp| tp.pretty_debug()).join(", ")
+                                );
+
                                 let loc = trait_name
                                     .name_loc()
                                     .map(|n| ().at_loc(&n))
@@ -3304,9 +3310,7 @@ impl TypeState {
                                             self.unify(&l, r, ctx).is_ok()
                                         });
 
-                                    if trait_impl.target_type_params.len()
-                                        != params.len()
-                                    {
+                                    if trait_impl.target_type_params.len() != params.len() {
                                         return None;
                                     }
                                     let impl_params_match =

@@ -420,10 +420,12 @@ fn monomorphize_item(
                     type_ctx,
                 );
 
-                if std::env::var("SPADE_TRACE_TYPEINFERENCE").is_ok() {
-                    println!("After mono of {} with {:?}", u.inner.name, item.params);
-                    type_state.print_equations();
-                    println!("{}", format_trace_stack(&type_state));
+                if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
+                    if path == u.name.name_id().1.to_named_strs().iter().filter_map(|s| *s).join("::") {
+                        println!("After mono of {} with {:?}", u.inner.name, item.params);
+                        type_state.print_equations();
+                        println!("{}", format_trace_stack(&type_state));
+                    }
                 }
 
                 let mut errors = vec![];

@@ -69,7 +69,6 @@ use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::GenericListToken;
 use spade_typeinference::HasType;
 use spade_types::meta_types::MetaType;
-use spade_types::KnownType;
 use statement_list::StatementList;
 use substitution::Substitution;
 use substitution::Substitutions;

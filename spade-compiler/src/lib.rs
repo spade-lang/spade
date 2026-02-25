@@ -52,7 +52,6 @@ pub struct Opt<'b> {
     pub verilator_wrapper_output: Option<PathBuf>,
     pub state_dump_file: Option<PathBuf>,
     pub item_list_file: Option<PathBuf>,
-    pub print_type_traceback: bool,
     pub print_parse_traceback: bool,
     pub opt_passes: Vec<String>,
 }
@@ -320,9 +319,11 @@ pub fn compile(
                 type_states.insert(name.clone(), type_state.clone());
 
                 if let Ok(()) = result {
-                    if opts.print_type_traceback {
-                        type_state.print_equations();
-                        println!("{}", format_trace_stack(&type_state));
+                    if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
+                        if path == u.name.name_id().1.to_named_strs().iter().filter_map(|s| *s).join("::") {
+                            type_state.print_equations();
+                            println!("{}", format_trace_stack(&type_state));
+                        }
                     }
                     if !failures {
                         Some((name, (item, type_state)))
@@ -330,9 +331,11 @@ pub fn compile(
                         None
                     }
                 } else {
-                    if opts.print_type_traceback {
-                        type_state.print_equations();
-                        println!("{}", format_trace_stack(&type_state))
+                    if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
+                        if path == u.name.name_id().1.to_named_strs().iter().filter_map(|s| *s).join("::") {
+                            type_state.print_equations();
+                            println!("{}", format_trace_stack(&type_state));
+                        }
                     }
                     None
                 }

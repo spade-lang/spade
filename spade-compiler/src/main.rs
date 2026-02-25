@@ -156,7 +156,6 @@ fn main() -> Result<()> {
         verilator_wrapper_output: opts.verilator_wrapper_output,
         state_dump_file: opts.state_dump,
         item_list_file: opts.item_list,
-        print_type_traceback: opts.print_type_traceback,
         print_parse_traceback: opts.print_parse_traceback,
         opt_passes: opts.opt_passes,
     };
