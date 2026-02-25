@@ -1701,9 +1701,11 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                 name: name_id.at_loc(name),
                 inner: Some(Box::new(pat.at_loc(&inner))),
                 pre_declared,
+                // TODO: Wires should be supported on bounds too
+                wire: None
             }
         }
-        ast::Pattern::Path(path) => {
+        ast::Pattern::Path{wire, path} => {
             match (try_lookup_enum_variant(path, ctx), path.inner.0.as_slice()) {
                 (Ok(kind), _) => kind,
                 (_, [segment]) => {
@@ -1714,6 +1716,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                         name: name_id.at_loc(ident),
                         inner: None,
                         pre_declared,
+                        wire: wire.clone(),
                     }
                 }
                 (_, []) => unreachable!(),
@@ -1758,7 +1761,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                         .iter()
                         .map(|(target, pattern)| {
                             let ast_pattern = pattern.as_ref().cloned().unwrap_or_else(|| {
-                                ast::Pattern::Path(Path::ident_with_loc(target.clone()))
+                                ast::Pattern::Path{wire: None, path: Path::ident_with_loc(target.clone())}
                                     .at_loc(target)
                             });
                             let new_pattern = visit_pattern(&ast_pattern, ctx)?;

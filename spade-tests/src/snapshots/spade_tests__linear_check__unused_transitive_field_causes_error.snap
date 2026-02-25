@@ -1,11 +1,11 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-struct port A {
-    x: inv &bool,
-    y: &bool
+struct A {
+    x: inv bool,
+    y: bool
 }
-struct port B {
+struct B {
     a: A
 }
 entity x(resource: B) -> bool {

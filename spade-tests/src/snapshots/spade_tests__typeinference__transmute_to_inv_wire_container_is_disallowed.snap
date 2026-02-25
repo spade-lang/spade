@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-struct port Container {
+struct Container {
     m: inv &bool,
     r: &bool
 }

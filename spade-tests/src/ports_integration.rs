@@ -13,9 +13,9 @@ snapshot_error! {
 snapshot_error! {
     transitive_backward_type_can_not_be_put_in_registers,
     "
-    struct port X {
-        a: ~& bool,
-        b: &bool
+    struct X {
+        a: ~bool,
+        b: bool
     }
     entity x(clk: clock, a: X) -> bool {
         reg(clk) _ = a;

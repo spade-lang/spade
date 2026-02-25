@@ -3,7 +3,7 @@ source: spade-tests/src/typeinference.rs
 ---
 struct ReadPort_<#uint W> { }
 
-struct port FifoRead<#uint W> { }
+struct FifoRead<#uint W> { }
 
 entity fifo_read_side<#uint W>(
     write_ptr_w: uint<W>,

@@ -1,3 +1,4 @@
+pub mod auto_traits;
 pub mod expression;
 pub mod impl_tab;
 pub mod param_util;
@@ -6,7 +7,6 @@ pub mod pretty_print;
 pub mod query;
 pub mod symbol_table;
 pub mod testutil;
-pub mod auto_traits;
 
 use std::collections::BTreeMap;
 use std::fmt::Formatter;
@@ -54,6 +54,7 @@ pub enum PatternKind {
         name: Loc<NameID>,
         inner: Option<Box<Loc<Pattern>>>,
         pre_declared: bool,
+        wire: Option<Loc<()>>,
     },
     Tuple(Vec<Loc<Pattern>>),
     Array(Vec<Loc<Pattern>>),
@@ -68,6 +69,7 @@ impl PatternKind {
             name,
             inner: None,
             pre_declared: false,
+            wire: None,
         }
     }
 
@@ -136,6 +138,7 @@ impl Pattern {
                 name,
                 inner,
                 pre_declared: _,
+                wire: _,
             } => Some(name.clone())
                 .iter()
                 .cloned()

@@ -40,9 +40,9 @@ snapshot_error! {
 snapshot_error! {
     unused_field_causes_error,
     "
-    struct port A {
-        x: inv &bool,
-        y: &bool
+    struct A {
+        x: inv bool,
+        y: bool
     }
     entity x(resource: A) -> bool {
         true
@@ -53,11 +53,11 @@ snapshot_error! {
 snapshot_error! {
     unused_transitive_field_causes_error,
     "
-    struct port A {
-        x: inv &bool,
-        y: &bool
+    struct A {
+        x: inv bool,
+        y: bool
     }
-    struct port B {
+    struct B {
         a: A
     }
     entity x(resource: B) -> bool {
@@ -108,7 +108,7 @@ snapshot_error! {
 snapshot_error! {
     more_than_one_field_consumption_causes_error,
     "
-    struct port A {
+    struct A {
         x: inv &bool,
     }
     entity x(a: A) -> (inv &bool, inv &bool) {
@@ -120,11 +120,11 @@ snapshot_error! {
 snapshot_error! {
     consuming_a_field_produces_an_error_when_consuming_whole_struct,
     "
-    struct port A {
+    struct A {
         x: inv &bool,
     }
 
-    extern entity consumer(a: inv &bool) -> bool;
+    extern entity consumer(a: inv bool) -> bool;
 
     entity x(a: A) -> A {
         let _ = inst consumer(a.x);
@@ -136,7 +136,7 @@ snapshot_error! {
 snapshot_error! {
     destructuring_linear_type_requires_use_of_subtypes,
     "
-    entity x(a: (inv &bool, inv &bool)) -> inv &bool {
+    entity x(a: (inv bool, inv bool)) -> inv &bool {
         let (x, y) = a;
         x
     }
@@ -146,9 +146,9 @@ snapshot_error! {
 snapshot_error! {
     using_a_single_linear_field_does_not_use_the_whole_struct,
     "
-    struct port A {
-        a: inv &bool,
-        b: inv &bool,
+    struct A {
+        a: inv bool,
+        b: inv bool,
     }
     entity x(a: A) -> inv &bool {
         a.a

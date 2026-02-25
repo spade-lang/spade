@@ -592,6 +592,7 @@ impl LinearState {
                 name,
                 inner,
                 pre_declared,
+                wire: _,
             } => {
                 let id_loc = pat.id.at_loc(name);
                 if !pre_declared {
@@ -635,6 +636,7 @@ impl LinearState {
                 name,
                 inner,
                 pre_declared: _,
+                wire: _,
             } => {
                 self.consume_id(pat.id.at_loc(name))?;
                 if let Some(pat) = inner {

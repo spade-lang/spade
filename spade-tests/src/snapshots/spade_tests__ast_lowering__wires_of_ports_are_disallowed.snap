@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-struct port A {}
+struct A {}
 
 
 extern entity x(a: &A) -> bool;

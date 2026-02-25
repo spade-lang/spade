@@ -308,15 +308,6 @@ impl TypeVar {
         TypeVar::Known(loc, KnownType::Tuple, Vec::new())
     }
 
-    pub fn backward(loc: Loc<()>, inner: TypeVarID, type_state: &mut TypeState) -> Self {
-        // TODO: Insert a `Data` constraint on the inner type
-        TypeVar::Known(
-            loc,
-            KnownType::Inverted,
-            vec![inner],
-        )
-    }
-
     pub fn inverted(loc: Loc<()>, inner: TypeVarID) -> Self {
         TypeVar::Known(loc, KnownType::Inverted, vec![inner])
     }

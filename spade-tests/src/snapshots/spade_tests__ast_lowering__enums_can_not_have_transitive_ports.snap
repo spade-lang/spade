@@ -1,15 +1,7 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-struct port A {}
+struct A {}
 enum X {
     A{x: A}
 }
-
-error: Port in enum
-  ┌─ testinput:3:10
-  │
-2 │ enum X {
-  │      - This is an enum
-3 │     A{x: A}
-  │          ^ This is a port

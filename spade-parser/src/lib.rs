@@ -691,7 +691,11 @@ impl<'a> Parser<'a> {
                         branches: vec![
                             (pat, None, on_true),
                             (
-                                Pattern::Path(Path::from_strs(&["_"]).nowhere()).nowhere(),
+                                Pattern::Path {
+                                    wire: None,
+                                    path: Path::from_strs(&["_"]).nowhere(),
+                                }
+                                .nowhere(),
                                 None,
                                 on_false,
                             ),
@@ -1372,8 +1376,26 @@ impl<'a> Parser<'a> {
                         .between(s.file_id, &path_span, &end_brace.span),
                     ))
                 } else {
-                    Ok(Some(Pattern::Path(path.clone()).at(s.file_id, &path)))
+                    Ok(Some(
+                        Pattern::Path {
+                            wire: None,
+                            path: path.clone(),
+                        }
+                        .at(s.file_id, &path),
+                    ))
                 }
+            },
+            &|s| {
+                let wire = peek_for!(s, &TokenKind::Wire);
+
+                let path = s.path()?;
+                Ok(Some(
+                    Pattern::Path {
+                        wire: Some(().at(s.file_id, &wire.span)),
+                        path: path.clone(),
+                    }
+                    .at(s.file_id, &path),
+                ))
             },
         ])?;
 

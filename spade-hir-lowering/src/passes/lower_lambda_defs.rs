@@ -111,6 +111,7 @@ impl LambdaReplacement {
                         name: clock.clone(),
                         inner: None,
                         pre_declared: false,
+                        wire: None,
                     }
                     .with_id(idtracker.next())
                     .at_loc(&clock),
@@ -134,6 +135,7 @@ impl LambdaReplacement {
                         name: cap_name.clone(),
                         inner: None,
                         pre_declared: false,
+                        wire: None,
                     }
                     .with_id(idtracker.next())
                     .at_loc(cap_name),

@@ -1010,7 +1010,7 @@ snapshot_error! {
 
 snapshot_error! {
     ports_can_not_contain_values,
-    "struct port A {
+    "struct A {
         x: int<32>,
     }"
 }
@@ -1039,8 +1039,8 @@ snapshot_error! {
 snapshot_error! {
     non_ports_can_not_contain_transitive_ports,
     "
-    struct port P {
-        x: &int<32>
+    struct P {
+        x: int<32>
     }
     struct A {
         x: P
@@ -1056,7 +1056,7 @@ snapshot_error! {
 snapshot_error! {
     generics_in_ports_can_not_be_bare,
     "
-    struct port P<T> {
+    struct P<T> {
         x: T
     }
     "
@@ -1072,7 +1072,7 @@ snapshot_error! {
 snapshot_error! {
     enums_can_not_have_transitive_ports,
     "
-    struct port A {}
+    struct A {}
     enum X {
         A{x: A}
     }"
@@ -1081,7 +1081,7 @@ snapshot_error! {
 snapshot_error! {
     wires_of_ports_are_disallowed,
     "
-    struct port A {}
+    struct A {}
 
 
     extern entity x(a: &A) -> bool;
@@ -1091,7 +1091,7 @@ snapshot_error! {
 snapshot_error! {
     mut_wires_of_ports_are_disallowed,
     "
-    struct port A {}
+    struct A {}
 
 
     extern entity x(a: inv &A) -> bool;

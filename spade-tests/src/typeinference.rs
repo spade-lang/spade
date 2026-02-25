@@ -508,8 +508,8 @@ snapshot_error! {
 snapshot_error! {
     port_type_in_generic_is_an_error,
     "
-    struct port X {
-        x: inv &bool
+    struct X {
+        x: inv bool
     }
     entity takes_generic<T>(x: T) -> bool {true}
 
@@ -527,8 +527,8 @@ fn destructuring_a_read_mut_wire_gives_real_values() {
         y: int<3>
     }
 
-    struct port HasA {
-        inner: inv &A
+    struct HasA {
+        inner: inv A
     }
 
     extern fn takes_normal(x: bool, y: int<3>) -> bool;
@@ -752,10 +752,10 @@ fn unsigned_literals_fit() {
 #[test]
 fn accessing_fields_of_structs_in_inverted_ports_works() {
     let code = "
-        struct port Inner {
-            x: &bool
+        struct Inner {
+            x: bool
         }
-        struct port Outer {
+        struct Outer {
             inner: Inner
         }
 
@@ -1452,7 +1452,7 @@ snapshot_error! {
     "
         struct ReadPort_<#uint W> { }
 
-        struct port FifoRead<#uint W> { }
+        struct FifoRead<#uint W> { }
 
         entity fifo_read_side<#uint W>(
             write_ptr_w: uint<W>,
@@ -2388,7 +2388,7 @@ snapshot_error! {
 snapshot_error! {
     transmute_from_inv_wire_container_is_disallowed,
     "
-        struct port Container {
+        struct Container {
             m: inv &bool,
             r: &bool
         }
@@ -2402,7 +2402,7 @@ snapshot_error! {
 snapshot_error! {
     transmute_to_inv_wire_container_is_disallowed,
     "
-        struct port Container {
+        struct Container {
             m: inv &bool,
             r: &bool
         }

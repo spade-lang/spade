@@ -1,8 +1,8 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-struct port X {
-    x: inv &bool
+struct X {
+    x: inv bool
 }
 entity takes_generic<T>(x: T) -> bool {true}
 

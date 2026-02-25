@@ -1,6 +1,6 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-struct port A {
+struct A {
     x: int<32>,
 }

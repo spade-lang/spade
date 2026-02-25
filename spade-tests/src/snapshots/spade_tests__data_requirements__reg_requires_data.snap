@@ -1,20 +1,20 @@
 ---
-source: spade-tests/src/auto_traits.rs
+source: spade-tests/src/data_requirements.rs
 ---
 entity test(clk: clock) {
-    reg(clk) r = port.1;
+    reg(clk) r = port;
 }
 
 
-error: Trait bound not satisfied. inv _ does not implement core::Data
+error: Trait bound not satisfied. (_, inv _) does not implement core::Data
   ┌─ testinput:2:14
   │
-2 │     reg(clk) r = port.1;
-  │              ^   ------
+2 │     reg(clk) r = port;
+  │              ^   ----
   │              │   │
   │              │   Required because of the trait bound specified here
   │              │   The type of this expression is not Data which means it cannot be stored in a register.
-  │              inv _ does not implement core::Data
+  │              (_, inv _) does not implement core::Data
   │
   = help: An expression not being Data typically means it contains at least one `inv` type
   = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

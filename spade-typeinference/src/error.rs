@@ -3,7 +3,12 @@ use itertools::Itertools;
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
-use crate::{constraints::ConstraintSource, equation::TypeVarID, traits::TraitReq, Context, TypeState};
+use crate::{
+    constraints::ConstraintSource,
+    equation::TypeVarID,
+    traits::{TraitList, TraitReq},
+    Context, TypeState,
+};
 
 use super::equation::TypeVar;
 
@@ -55,7 +60,7 @@ pub trait UnificationErrorExt<T>: Sized {
         self,
         unification_point: impl Into<FullSpan> + Clone,
         type_state: &TypeState,
-        ctx: &Context
+        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic> {
         self.into_diagnostic(unification_point, |d, _| d, type_state, ctx)
     }
@@ -222,7 +227,7 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                 UnificationError::UnsatisfiedTraits {
                     var,
                     traits,
-                    target_loc: _,
+                    target_loc,
                 } => {
                     let trait_bound_loc = ().at_loc(&traits[0]);
                     let impls_str = if traits.len() >= 2 {
@@ -241,14 +246,30 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         "{var} does not implement {impls_str}",
                         var = var.display_with_meta(display_meta, type_state)
                     );
-                    Diagnostic::error(
-                        unification_point,
-                        format!("Trait bound not satisfied. {short_msg}"),
-                    )
-                    .primary_label(short_msg)
-                    .secondary_label(
-                        trait_bound_loc,
-                        "Required because of the trait bound specified here",
+
+                    let fake_got = type_state
+                        .create_child()
+                        .new_generic_with_traits(target_loc, TraitList::from_vec(traits));
+                    message(
+                        Diagnostic::error(
+                            unification_point,
+                            format!("Trait bound not satisfied. {short_msg}"),
+                        )
+                        .primary_label(short_msg)
+                        .secondary_label(
+                            trait_bound_loc,
+                            "Required because of the trait bound specified here",
+                        ),
+                        TypeMismatch {
+                            e: UnificationTrace {
+                                failing: var,
+                                inside: None,
+                            },
+                            g: UnificationTrace {
+                                failing: fake_got,
+                                inside: None,
+                            },
+                        },
                     )
                 }
                 UnificationError::FromConstraints {

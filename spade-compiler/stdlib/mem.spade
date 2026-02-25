@@ -32,9 +32,9 @@ pub extern entity read_memory<#uint AddrWidth, D, #uint NumElements> (
 ) -> D;
 
 
-pub struct port WritePort<#uint W, D> {
-    addr: inv &uint<W>,
-    write: inv &Option<D>,
+pub struct WritePort<#uint W, D> {
+    addr: inv uint<W>,
+    write: inv Option<D>,
 }
 
 impl<#uint W, D> WritePort<W, D> {
@@ -48,9 +48,9 @@ impl<#uint W, D> WritePort<W, D> {
 
 /// A read port for a memory. It is not recommended to manually read the signals
 /// in this struct, instead use `.read()` to access the port.
-pub struct port ReadPort<#uint W, D> {
-    addr: inv &uint<W>,
-    out: &D,
+pub struct ReadPort<#uint W, D> {
+    addr: inv uint<W>,
+    out: D,
 }
 
 impl<#uint W, D> ReadPort<W, D> {
@@ -93,19 +93,19 @@ pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (W
 
 /// A fifo write port. Writes a single element of data data in to the write port unless `full`
 /// is true. If full is true, the write is ignored
-pub struct port FifoWrite<D> {
-    write: inv &Option<D>,
-    full: &bool,
+pub struct FifoWrite<D> {
+    write: inv Option<D>,
+    full: bool,
 }
 /// A fifo read port
 /// If there fifo is not empty, `read` contains the next value. If ack is set,
 /// that element is popped from the fifo this clock cycle. / The num_elements
 /// is approximate but guaranteed to be a conservative estimate, i.e. there are
 /// at least `num_elements` in the fifo.
-pub struct port FifoRead<#uint W, D> {
-    read: &Option<D>,
-    ack: inv &bool,
-    num_elements: &uint<W>
+pub struct FifoRead<#uint W, D> {
+    read: Option<D>,
+    ack: inv bool,
+    num_elements: uint<W>
 }
 
 mod fifo_impl {
@@ -123,9 +123,9 @@ mod fifo_impl {
     use lib::mem::WritePort;
     use lib::mem::read_read_port;
 
-    struct port FifoRtoW<#uint W> {
-        read_ptr: &uint<W>,
-        write_ptr: inv &uint<W>,
+    struct FifoRtoW<#uint W> {
+        read_ptr: uint<W>,
+        write_ptr: inv uint<W>,
     }
 
     pub(super) entity fifo_read<#uint W, D, #uint C>(

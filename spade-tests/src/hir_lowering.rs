@@ -1713,9 +1713,9 @@ mod tests {
     #[test]
     fn port_pair_creation_works() {
         let code = "
-            struct port P {
-                x: &bool,
-                y: inv &int<2>,
+            struct P {
+                x: bool,
+                y: inv int<2>,
             }
 
             entity x() -> (P, inv P) {
@@ -1748,7 +1748,7 @@ mod tests {
     #[test]
     fn empty_port_pair_creation_works() {
         let code = "
-            struct port P { }
+            struct P { }
 
             entity x() -> (P, inv P) {
                 port
@@ -2010,7 +2010,7 @@ mod tests {
     fn wal_traced_struct_with_backward_port_is_traced() {
         let code = r#"
             #[wal_traceable(suffix = wal_suffix__)]
-            struct port Test {
+            struct Test {
                 a: &int<8>,
                 b: inv &int<4>
             }
@@ -2056,7 +2056,7 @@ mod tests {
     fn wal_traced_struct_with_multiple_backward_ports_is_traced() {
         let code = r#"
             #[wal_traceable(suffix = wal_suffix__)]
-            struct port Test {
+            struct Test {
                 a: &int<8>,
                 b: inv &int<4>,
                 c: &int<16>,
@@ -2255,7 +2255,7 @@ mod tests {
         wal_trace_on_mixed_direction_subfield_is_error,
         "
             #[wal_traceable()]
-            struct port T {
+            struct T {
                 a: (&bool, inv &bool)
             }
 

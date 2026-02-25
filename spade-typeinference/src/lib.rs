@@ -29,7 +29,6 @@ use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
-use spade_hir::pretty_debug::PrettyDebug;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{unify_meta, MetaType};
@@ -741,6 +740,8 @@ impl TypeState {
                 )?;
         }
 
+        self.handle_unit_data_constraints(entity, ctx)?;
+
         self.check_requirements(true, ctx)?;
 
         // NOTE: We may accidentally leak a stage depth if this function returns early. However,
@@ -749,6 +750,110 @@ impl TypeState {
         // may help track something down
         self.owned.pipeline_state = None;
 
+        Ok(())
+    }
+
+    /// Applies data constraints to the statements and bindings inside a unit
+    fn handle_unit_data_constraints(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
+        let is_pipeline = self.owned.pipeline_state.is_some();
+
+        if is_pipeline {
+            // TODO: Handle pipelines
+        }
+
+        self.expression_data_constraints(&entity.body, ctx)?;
+
+        Ok(())
+    }
+
+    fn statement_data_constraints(&mut self, stmt: &Loc<Statement>, ctx: &Context) -> Result<()> {
+        match &stmt.inner {
+            Statement::Error => {}
+            Statement::Binding(_) => {}
+            Statement::Expression(e) => self.expression_data_constraints(e, ctx)?,
+            Statement::Register(reg) => {
+                TypedExpression::Id(reg.value.id)
+                    .unify_with(&self.new_generic_data(reg.value.loc(), ctx), self)
+                    .commit(self, ctx)
+                    .into_diagnostic(
+                        &reg.pattern,
+                        |diag, _e| {
+                            diag.secondary_label(
+                                &reg.value,
+                                format!(
+                                    "The type of this expression is not Data which means it cannot be stored in a register."
+                                ),
+                            )
+                            .help("An expression not being Data typically means it contains at least one `inv` type")
+                            .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                        },
+                        self,
+                        ctx,
+                    )?;
+            }
+            Statement::Declaration(_) => {}
+            Statement::PipelineRegMarker(pipeline_reg_marker_extra) => {
+                // TODO
+            }
+            Statement::Label(_) => {}
+            Statement::Assert(_) => {}
+            Statement::Set { .. } => {}
+            Statement::WalSuffixed { .. } => {}
+        }
+        Ok(())
+    }
+
+    /// Relies on the ast lowering pass disallowing any statements which contains data requirements
+    /// in non-root blocks.
+    fn expression_data_constraints(&mut self, expr: &Loc<Expression>, ctx: &Context) -> Result<()> {
+        match &expr.kind {
+            ExprKind::Block(inner) => {
+                for stmt in &inner.statements {
+                    self.statement_data_constraints(&stmt, ctx)
+                        .handle_in(&mut self.owned.diags);
+                }
+                if let Some(result) = &inner.result {
+                    self.expression_data_constraints(result, ctx)?;
+                }
+            }
+            ExprKind::TypeLevelIf {
+                cond: _,
+                on_true,
+                on_false,
+            } => {
+                self.expression_data_constraints(&on_true, ctx)?;
+                self.expression_data_constraints(&on_false, ctx)?;
+            }
+
+            ExprKind::Error
+            | ExprKind::Identifier(_)
+            | ExprKind::IntLiteral(_, _)
+            | ExprKind::BoolLiteral(_)
+            | ExprKind::TriLiteral(_)
+            | ExprKind::TypeLevelBool(_)
+            | ExprKind::TypeLevelInteger(_)
+            | ExprKind::CreatePorts
+            | ExprKind::TupleLiteral(_)
+            | ExprKind::ArrayLiteral(_)
+            | ExprKind::ArrayShorthandLiteral(_, _)
+            | ExprKind::Index(_, _)
+            | ExprKind::RangeIndex { .. }
+            | ExprKind::TupleIndex(_, _)
+            | ExprKind::FieldAccess(_, _)
+            | ExprKind::MethodCall { .. }
+            | ExprKind::Call { .. }
+            | ExprKind::BinaryOperator(_, _, _)
+            | ExprKind::UnaryOperator(_, _)
+            | ExprKind::Match(_, _)
+            // TODO: The on_true and on_false need to have data constraints too
+            | ExprKind::If { .. }
+            | ExprKind::PipelineRef { .. }
+            | ExprKind::LambdaDef { .. }
+            | ExprKind::StageValid
+            | ExprKind::StageReady
+            | ExprKind::StaticUnreachable(_)
+            | ExprKind::Null => {}
+        };
         Ok(())
     }
 
@@ -1784,11 +1889,6 @@ impl TypeState {
                                     ctx,
                                 )?;
 
-                                println!(
-                                    "{}",
-                                    impl_block.type_params.iter().map(|tp| tp.pretty_debug()).join(", ")
-                                );
-
                                 let loc = trait_name
                                     .name_loc()
                                     .map(|n| ().at_loc(&n))
@@ -1870,6 +1970,7 @@ impl TypeState {
                 name,
                 inner,
                 pre_declared,
+                wire: _,
             } => {
                 if let Some(pat) = inner {
                     self.visit_pattern(pat, ctx, generic_list)?;
@@ -1887,12 +1988,10 @@ impl TypeState {
                         );
                     }
                 }
-                self.unify(
-                    &TypedExpression::Id(pattern.id),
-                    &TypedExpression::Name(name.clone().inner),
-                    ctx,
-                )
-                .into_default_diagnostic(name.loc(), self, ctx)?;
+
+                let name_expr = TypedExpression::Name(name.clone().inner);
+                self.unify(&TypedExpression::Id(pattern.id), &name_expr, ctx)
+                    .into_default_diagnostic(name.loc(), self, ctx)?;
             }
             hir::PatternKind::Tuple(subpatterns) => {
                 for pattern in subpatterns {
@@ -2409,12 +2508,6 @@ impl TypeState {
                 self,
                 ctx,
             )?;
-
-        // TODO: We can give a better error here
-        reg.value
-            .unify_with(&self.new_generic_data(reg.pattern.loc(), ctx), self)
-            .commit(self, ctx)
-            .into_default_diagnostic(reg.pattern.loc(), self, ctx)?;
 
         Ok(())
     }

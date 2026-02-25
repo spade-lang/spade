@@ -473,7 +473,7 @@ fn handle_unit_kind(
                 )
             }
             [clock, rest @ ..] => match &clock.inner {
-                spade_ast::Pattern::Path(p) => match p.inner.to_named_strs().as_slice() {
+                spade_ast::Pattern::Path{wire: _, path: p} => match p.inner.to_named_strs().as_slice() {
                     [Some("clk")] => (
                         Some((
                             ast::AttributeList(vec![]),

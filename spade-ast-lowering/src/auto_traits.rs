@@ -2,14 +2,11 @@ use crate::Result;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{Path, Visibility},
+    name::Visibility,
 };
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::diag_bail;
 use spade_hir::{
-    auto_traits::DataWitness,
-    symbol_table::{SymbolTable, TypeSymbol},
-    ImplBlock, Parameter, Struct, TraitName, TraitSpec, TypeAlias, TypeDeclaration, TypeExpression,
-    TypeParam, TypeSpec,
+    ImplBlock, Parameter, Struct, TraitName, TraitSpec, TypeAlias, TypeDeclaration, TypeExpression, TypeSpec, auto_traits::DataWitness, symbol_table::TypeSymbol
 };
 use spade_types::meta_types::MetaType;
 

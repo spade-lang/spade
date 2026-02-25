@@ -206,6 +206,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                     name: result_name.clone().at_loc(&unit),
                     inner: None,
                     pre_declared: false,
+                    wire: None, // TODO
                 }
                 .with_id(ctx.idtracker.next())
                 .at_loc(&unit),

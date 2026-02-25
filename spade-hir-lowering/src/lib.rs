@@ -808,6 +808,7 @@ impl PatternLocal for Loc<Pattern> {
                 name,
                 inner: _,
                 pre_declared: _,
+                wire: _,
             } => return name.value_name(),
             hir::PatternKind::Integer(_) => {}
             hir::PatternKind::Bool(_) => {}

@@ -2,7 +2,7 @@
 source: spade-tests/src/hir_lowering.rs
 ---
 #[wal_traceable()]
-struct port T {
+struct T {
     a: (&bool, inv &bool)
 }
 

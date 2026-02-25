@@ -1,8 +1,8 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-struct port P {
-    x: &int<32>
+struct P {
+    x: int<32>
 }
 struct A {
     x: P

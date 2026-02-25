@@ -1,9 +1,9 @@
 ---
 source: spade-tests/src/ports_integration.rs
 ---
-struct port X {
-    a: ~& bool,
-    b: &bool
+struct X {
+    a: ~bool,
+    b: bool
 }
 entity x(clk: clock, a: X) -> bool {
     reg(clk) _ = a;
@@ -14,12 +14,12 @@ entity x(clk: clock, a: X) -> bool {
 error: The syntax for inverted ports has changed from ~ to inv
   ┌─ testinput:2:8
   │
-2 │     a: ~& bool,
+2 │     a: ~bool,
   │        ^ ~ cannot be used in a type
   │
   = Consider using inv
   │
-2 │     a: inv & bool,
+2 │     a: inv bool,
   │        ~~~~
 
 error: Use of undeclared name X

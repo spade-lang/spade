@@ -37,10 +37,10 @@ pub entity sync2_bool(clk: clock, input: bool) -> bool {
 
 
 mod handshake_impl {
-    pub(super) struct port TxOutRxIn<T> {
-        data_valid: inv &bool,
-        data: inv &T,
-        ack: &bool,
+    pub(super) struct TxOutRxIn<T> {
+        data_valid: inv bool,
+        data: inv T,
+        ack: bool,
     }
 
     pub(super) enum TxState {
@@ -119,10 +119,10 @@ mod sync_wide_impl {
         WaitRelease,
     }
 
-    struct port FromSender<T> {
-        valid: &bool,
-        data: &T,
-        ack: inv &bool,
+    struct FromSender<T> {
+        valid: bool,
+        data: T,
+        ack: inv bool,
     }
 
     pub(super) entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: inv FromSender<T>) {

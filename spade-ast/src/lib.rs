@@ -121,7 +121,7 @@ pub enum Pattern {
     Integer(IntLiteral),
     Bool(bool),
     Bound(Loc<Identifier>, Box<Loc<Pattern>>),
-    Path(Loc<Path>),
+    Path{wire: Option<Loc<()>>, path: Loc<Path>},
     Tuple(Vec<Loc<Pattern>>),
     Array(Vec<Loc<Pattern>>),
     Type(Loc<Path>, Loc<ArgumentPattern>),
@@ -133,7 +133,7 @@ impl Pattern {
         Pattern::Integer(IntLiteral::Unsized(val.to_bigint()))
     }
     pub fn name(name: &str) -> Loc<Self> {
-        Pattern::Path(Path::from_strs(&[name]).nowhere()).nowhere()
+        Pattern::Path{wire: None, path: Path::from_strs(&[name]).nowhere()}.nowhere()
     }
 }
 

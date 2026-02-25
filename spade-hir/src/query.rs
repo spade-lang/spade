@@ -231,6 +231,7 @@ impl<'a> QueryCache {
                 name,
                 inner,
                 pre_declared: _,
+                wire: _,
             } => {
                 self.names.insert(name.clone());
                 if let Some(pat) = inner {

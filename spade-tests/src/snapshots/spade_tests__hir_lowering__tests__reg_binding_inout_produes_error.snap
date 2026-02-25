@@ -12,7 +12,11 @@ error: Trait bound not satisfied. inout<int<8>> does not implement core::Data
   ┌─ testinput:4:14
   │
 4 │     reg(clk) t_ = t;
-  │              ^^
-  │              │
+  │              ^^   -
+  │              │    │
+  │              │    Required because of the trait bound specified here
+  │              │    The type of this expression is not Data which means it cannot be stored in a register.
   │              inout<int<8>> does not implement core::Data
-  │              Required because of the trait bound specified here
+  │
+  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
