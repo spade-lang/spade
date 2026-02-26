@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/auto_traits.rs
+assertion_line: 139
+---
+struct A<T> {
+    x: T
+}
+
+fn needs_data<T: Data>(x: T) {}
+
+fn test1(x: A<(inv bool, bool)>) {
+    needs_data(x)
+}
+
+
+error: Argument type mismatch. Expected core::Data got A<(inv bool, bool)>
+  ┌─ testinput:8:16
+  │
+5 │ fn needs_data<T: Data>(x: T) {}
+  │                  ---- Required because of the trait bound specified here
+  ·
+8 │     needs_data(x)
+  │                ^ expected core::Data

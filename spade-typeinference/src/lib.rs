@@ -2140,7 +2140,6 @@ impl TypeState {
                             d.message(format!(
                                 "Argument type mismatch. Expected {expected} got {got}"
                             ))
-                            .primary_label(format!("expected {expected}"))
                         },
                         self,
                         ctx,
@@ -3359,6 +3358,9 @@ impl TypeState {
                             var: *var,
                             traits: $required_traits.inner,
                             target_loc: trait_list_loc.clone(),
+                            failing_var: UnificationTrace::new(
+                                self.new_generic_with_traits(*trait_list_loc, $required_traits),
+                            ),
                         })
                     }
                 } else {

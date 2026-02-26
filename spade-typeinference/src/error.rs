@@ -227,7 +227,8 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                 UnificationError::UnsatisfiedTraits {
                     var,
                     traits,
-                    target_loc,
+                    target_loc: _, // TODO: Can we just remove this?
+                    failing_var
                 } => {
                     let trait_bound_loc = ().at_loc(&traits[0]);
                     let impls_str = if traits.len() >= 2 {
@@ -247,9 +248,6 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         var = var.display_with_meta(display_meta, type_state)
                     );
 
-                    let fake_got = type_state
-                        .create_child()
-                        .new_generic_with_traits(target_loc, TraitList::from_vec(traits));
                     message(
                         Diagnostic::error(
                             unification_point,
@@ -261,12 +259,9 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             "Required because of the trait bound specified here",
                         ),
                         TypeMismatch {
-                            e: UnificationTrace {
-                                failing: var,
-                                inside: None,
-                            },
+                            e: failing_var,
                             g: UnificationTrace {
-                                failing: fake_got,
+                                failing: var,
                                 inside: None,
                             },
                         },
@@ -465,6 +460,7 @@ pub enum UnificationError {
         var: TypeVarID,
         traits: Vec<Loc<TraitReq>>,
         target_loc: Loc<()>,
+        failing_var: UnificationTrace,
     },
     FromConstraints {
         expected: UnificationTrace,
