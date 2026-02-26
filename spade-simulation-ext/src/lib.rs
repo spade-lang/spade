@@ -450,13 +450,6 @@ impl Spade {
         // the field which we need later. So we'll need to invent an expression and infer the
         // appropriate type
 
-        let type_ctx = spade_typeinference::Context {
-            symtab: &symtab,
-            items: &owned_state.item_list,
-            trait_impls: &owned_state.trait_impls,
-        };
-
-
         // NOTE: safe unwrap, o_name is something we just created, so it can be any type
         let g = self.type_state.new_generic_any();
         self.type_state
@@ -471,7 +464,7 @@ impl Spade {
                     trait_impls: &owned_state.trait_impls,
                 },
             )
-            .into_default_diagnostic(().nowhere(), &self.type_state, &type_ctx)
+            .into_default_diagnostic(().nowhere(), &self.type_state)
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
         // Now that we have a type which we can work with, we can create a virtual expression
@@ -767,6 +760,7 @@ impl Spade {
             name,
             ty,
             no_mangle,
+            wire: _,
             field_translator: _,
         } in &head.inputs.0
         {

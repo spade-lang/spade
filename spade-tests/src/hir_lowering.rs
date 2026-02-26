@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn pipelines_with_ports_work() {
         let code = r#"
-            pipeline(3) pl(clk: clock, a: inv & int<16>) -> inv & int<16> {
+            pipeline(3) pl(clk: clock, wire a: inv & int<16>) -> inv & int<16> {
                 reg;
                 reg;
                 reg;

@@ -17,7 +17,7 @@ fn test1(x: B<A<inv bool>>) {
 }
 
 
-error: Trait bound not satisfied. B<A<inv bool>> does not implement core::Data
+error: Argument type mismatch. Expected core::Data got B<A<inv bool>>
    ┌─ testinput:13:16
    │
 10 │ fn needs_data<T: Data>(x: T) {}

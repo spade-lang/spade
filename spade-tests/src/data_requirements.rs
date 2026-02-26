@@ -1,4 +1,4 @@
-use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
+use crate::{snapshot_error};
 
 snapshot_error! {
     reg_requires_data,
@@ -7,4 +7,14 @@ snapshot_error! {
             reg(clk) r = port;
         }
     "
+}
+
+snapshot_error! {
+    pipeline_binding_requires_data,
+    "
+        pipeline(0) test(clk: clock) {
+            let r = port;
+        }
+    ",
+    false
 }

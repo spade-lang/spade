@@ -151,6 +151,34 @@ impl Pattern {
             PatternKind::Array(inner) => inner.iter().flat_map(|i| i.get_names()).collect(),
         }
     }
+
+    pub fn get_names_and_wireness(&self) -> Vec<(Loc<NameID>, Option<Loc<()>>)> {
+        match &self.kind {
+            PatternKind::Integer(_) => vec![],
+            PatternKind::Bool(_) => vec![],
+            PatternKind::Bound {
+                name,
+                pre_declared: _,
+                inner,
+                wire,
+            } => vec![(name.clone(), wire.clone())]
+                .into_iter()
+                .chain(inner.iter().flat_map(|i| i.get_names_and_wireness()))
+                .collect(),
+            PatternKind::Tuple(inner) => inner
+                .iter()
+                .flat_map(|i| i.get_names_and_wireness())
+                .collect(),
+            PatternKind::Type(_, args) => args
+                .iter()
+                .flat_map(|arg| arg.value.get_names_and_wireness())
+                .collect(),
+            PatternKind::Array(inner) => inner
+                .iter()
+                .flat_map(|i| i.get_names_and_wireness())
+                .collect(),
+        }
+    }
 }
 
 impl PartialEq for Pattern {
@@ -749,12 +777,19 @@ impl std::fmt::Display for UnitName {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct Input {
+    pub wire: Option<Loc<()>>,
+    pub name: Loc<NameID>,
+    pub ty: Loc<TypeSpec>,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Unit {
     pub name: UnitName,
     pub head: UnitHead,
     pub attributes: AttributeList,
     // This is needed here because the head does not have NameIDs
-    pub inputs: Vec<(Loc<NameID>, Loc<TypeSpec>)>,
+    pub inputs: Vec<Input>,
     pub body: Loc<Expression>,
 }
 
@@ -763,6 +798,7 @@ pub struct Parameter {
     /// If the #[no_mangle] attribute is present, this field is set
     /// with the Loc pointing to the attribute
     pub no_mangle: Option<Loc<()>>,
+    pub wire: Option<Loc<()>>,
     pub name: Loc<Identifier>,
     pub ty: Loc<TypeSpec>,
     pub field_translator: Option<String>,
@@ -792,6 +828,7 @@ impl ParameterList {
     pub fn try_get_arg_type(&self, name: &Identifier) -> Option<&Loc<TypeSpec>> {
         for Parameter {
             name: arg,
+            wire: _,
             ty,
             no_mangle: _,
             field_translator: _,
@@ -814,6 +851,7 @@ impl ParameterList {
                     i,
                     Parameter {
                         name,
+                        wire: _,
                         ty: _,
                         no_mangle: _,
                         field_translator: _,

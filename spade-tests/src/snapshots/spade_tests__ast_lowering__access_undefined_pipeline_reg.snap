@@ -23,4 +23,4 @@ error: Type of a is not fully known
 2 │         let a = stage(+2).d;
   │             ^ The type of a is not fully known
   │
-  = note: Found incomplete type: _
+  = note: Found incomplete type: core::Data

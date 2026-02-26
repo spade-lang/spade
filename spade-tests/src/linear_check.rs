@@ -22,7 +22,7 @@ snapshot_error! {
 snapshot_error! {
     double_consumption_of_identifier_in_pipeline_produces_error,
     "
-    pipeline(0) x(clk: clock, resource: inv &bool) -> (inv &bool, inv &bool) {
+    pipeline(0) x(clk: clock, wire resource: inv &bool) -> (inv &bool, inv &bool) {
         (resource, resource)
     }
     "

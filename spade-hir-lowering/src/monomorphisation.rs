@@ -361,7 +361,7 @@ fn monomorphize_item(
                                 ty.insert(type_state)
                                     .unify_with(&old_ty, type_state)
                                     .commit(type_state, ctx)
-                                    .into_default_diagnostic(unit, type_state, type_ctx)?;
+                                    .into_default_diagnostic(unit, type_state)?;
                             }
 
                             Ok(())
@@ -408,7 +408,7 @@ fn monomorphize_item(
                             let outer_var = outer_var.insert(type_state);
                             type_state
                                 .unify(&inner_var.clone(), &outer_var, ctx)
-                                .into_default_diagnostic(name.loc(), type_state, type_ctx)?;
+                                .into_default_diagnostic(name.loc(), type_state)?;
                         }
 
                         if let Some(preprocessor) = preprocessor {

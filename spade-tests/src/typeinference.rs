@@ -546,24 +546,6 @@ fn destructuring_a_read_mut_wire_gives_real_values() {
 }
 
 snapshot_error! {
-    reading_from_port_members_is_a_type_error,
-    "
-    struct A {
-        x: bool,
-        y: int<3>
-    }
-
-    extern fn takes_normal(x: bool, y: int<3>) -> bool;
-
-    entity uut(val: inv &A) -> bool {
-        let x = inst read_mut_wire(val.x);
-        let y = inst read_mut_wire(val.y);
-        takes_normal(x, y)
-    }
-    "
-}
-
-snapshot_error! {
     reading_from_tuple_members_is_an_error,
     "
     extern fn takes_normal(x: bool, y: int<3>) -> bool;

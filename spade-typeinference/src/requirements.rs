@@ -687,7 +687,7 @@ impl Requirement {
                 for Replacement { from, to, context } in replacements {
                     type_state
                         .unify(&from.inner, &to, ctx)
-                        .into_diagnostic_or_default(&from, context, type_state, ctx)?;
+                        .into_diagnostic_or_default(&from, context, type_state)?;
                 }
                 Ok(())
             }

@@ -686,14 +686,17 @@ impl AttributeList {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub struct WireMarker {}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct ParameterList {
-    pub self_: Option<Loc<AttributeList>>,
-    pub args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>,
+    pub self_: Option<(Loc<AttributeList>, Option<Loc<WireMarker>>)>,
+    pub args: Vec<(AttributeList, Option<Loc<WireMarker>>, Loc<Identifier>, Loc<TypeSpec>)>,
 }
 
 impl ParameterList {
-    pub fn without_self(args: Vec<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
+    pub fn without_self(args: Vec<(AttributeList, Option<Loc<WireMarker>>, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
         Self { self_: None, args }
     }
 }

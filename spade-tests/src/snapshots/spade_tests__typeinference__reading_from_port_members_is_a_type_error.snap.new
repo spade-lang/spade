@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 548
+---
+struct A {
+    x: bool,
+    y: int<3>
+}
+
+extern fn takes_normal(x: bool, y: int<3>) -> bool;
+
+entity uut(val: inv &A) -> bool {
+    let x = inst read_mut_wire(val.x);
+    let y = inst read_mut_wire(val.y);
+    takes_normal(x, y)
+}
+
+
+error: val.x is unused
+  ┌─ testinput:8:12
+  │
+8 │ entity uut(val: inv &A) -> bool {
+  │            ^^^ val.x is unused
+  │
+  = note: val.x is an inverted wire (`inv &`) which must be set

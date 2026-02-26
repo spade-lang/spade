@@ -23,7 +23,7 @@ error: Argument type mismatch. Expected B got A
    │        - Type B inferred here
    ·
 10 │         X(A()) => true,
-   │           ^^^ expected B
+   │           ^^^ Expected B
    │
    = note: Expected: B
                 Got: A

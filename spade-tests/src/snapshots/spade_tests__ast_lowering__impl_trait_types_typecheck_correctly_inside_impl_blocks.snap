@@ -22,7 +22,7 @@ fn test() {
 }
 
 
-error: Trait bound not satisfied. () does not implement T
+error: Argument type mismatch. Expected T got ()
    ┌─ testinput:18:20
    │
 12 │     fn f(self, t: impl T) -> bool {

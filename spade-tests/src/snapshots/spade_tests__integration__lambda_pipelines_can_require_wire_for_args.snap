@@ -1,0 +1,37 @@
+---
+source: spade-tests/src/integration.rs
+---
+entity test(clk: clock) {
+    let pl = pipeline(1) |clk, x| {
+        reg;
+        x
+    };
+    
+    set pl.inst(1) call(clk, (port.1,)) = 1u32;
+}
+
+
+error: Trait bound not satisfied. inv uint<32> does not implement core::Data
+  ┌─ testinput:2:32
+  │    
+2 │         let pl = pipeline(1) |clk, x| {
+  │                                    ^
+  │                                    │
+  │                                    inv uint<32> does not implement core::Data
+  │                                    The type of this expression is not Data which means it cannot be stored in a register.
+  │ ╭─────────────────────────────────────'
+  │ │ ╭───────────────────────────────────'
+3 │ │ │         reg;
+4 │ │ │         x
+5 │ │ │     };
+  │ ╰─│─────' Required because of the trait bound specified here
+  │   ╰─────' The value needs to be in a register because it is in this pipeline
+  │    
+  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
+  = The error is in a generic unit instantiated at
+    ╰ testinput:7 impl#15::call<inv uint<32>, inv uint<32>>
+  = Consider making the binding a wire
+  │
+2 │     let pl = pipeline(1) |clk, wire x| {
+  │                                +++++

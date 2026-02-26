@@ -1,4 +1,5 @@
 use rustc_hash::FxHashSet as HashSet;
+use spade_ast::WireMarker;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -121,7 +122,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
 
     let clock = clock_arg
         .as_ref()
-        .map(|(_, clk, _)| ctx.symtab.add_local_variable(clk.clone()).at_loc(&clk));
+        .map(|(_, _, clk, _)| ctx.symtab.add_local_variable(clk.clone()).at_loc(&clk));
     let arguments = actual_args
         .iter()
         .map(|arg| arg.try_visit(visit_pattern, ctx))
@@ -249,7 +250,9 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             )
                             .at_loc(name_id);
 
-                            (ast::AttributeList::empty(), name_ident.clone(), ty)
+                            // TODO: We probably need to set wire here. I'm not sure if we can safely
+                            // blanket set wire (we can if code gen always generates an intermediate).
+                            (ast::AttributeList::empty(), None, name_ident.clone(), ty)
                         })
                         .collect(),
                 )
@@ -325,11 +328,19 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 unit_kind: unit_kind.clone(),
                 name: ast_ident("call"),
                 inputs: ast::ParameterList {
-                    self_: Some(ast::AttributeList::empty().nowhere()),
+                    self_: Some((
+                        ast::AttributeList::empty().nowhere(),
+                        Some(WireMarker {}.nowhere()),
+                    )),
                     args: clock_arg
                         .clone()
                         .into_iter()
-                        .chain([(ast::AttributeList(vec![]), ast_ident("args"), args_spec)])
+                        .chain([(
+                            ast::AttributeList(vec![]),
+                            Some(WireMarker {}.nowhere()),
+                            ast_ident("args"),
+                            args_spec,
+                        )])
                         .collect::<Vec<_>>(),
                 }
                 .nowhere(),
@@ -458,7 +469,12 @@ fn handle_unit_kind(
     unit_kind: &Loc<UnitKind>,
     args: &Loc<Vec<Loc<ast::Pattern>>>,
 ) -> Result<(
-    Option<(ast::AttributeList, Loc<Identifier>, Loc<ast::TypeSpec>)>,
+    Option<(
+        ast::AttributeList,
+        Option<Loc<WireMarker>>,
+        Loc<Identifier>,
+        Loc<ast::TypeSpec>,
+    )>,
     Vec<Loc<ast::Pattern>>,
 )> {
     let result = match &unit_kind.inner {
@@ -473,10 +489,15 @@ fn handle_unit_kind(
                 )
             }
             [clock, rest @ ..] => match &clock.inner {
-                spade_ast::Pattern::Path{wire: _, path: p} => match p.inner.to_named_strs().as_slice() {
+                spade_ast::Pattern::Path { wire: _, path: p } => match p
+                    .inner
+                    .to_named_strs()
+                    .as_slice()
+                {
                     [Some("clk")] => (
                         Some((
                             ast::AttributeList(vec![]),
+                            Some(WireMarker {}.nowhere()),
                             p.0.last().unwrap().unwrap_named().clone(),
                             ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
                                 .at_loc(clock),

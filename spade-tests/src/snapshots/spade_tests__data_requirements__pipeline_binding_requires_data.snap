@@ -1,0 +1,29 @@
+---
+source: spade-tests/src/data_requirements.rs
+---
+pipeline(0) test(clk: clock) {
+    let r = port;
+}
+
+
+error: Trait bound not satisfied. (_, inv _) does not implement core::Data
+  ┌─ testinput:2:9
+  │    
+1 │     pipeline(0) test(clk: clock) {
+  │ ╭────────────────────────────────'
+  │ │ ╭──────────────────────────────'
+2 │ │ │     let r = port;
+  │ │ │         ^
+  │ │ │         │
+  │ │ │         (_, inv _) does not implement core::Data
+  │ │ │         The type of this expression is not Data which means it cannot be stored in a register.
+3 │ │ │ }
+  │ ╰─│─' Required because of the trait bound specified here
+  │   ╰─' The value needs to be in a register because it is in this pipeline
+  │    
+  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
+  = Consider making the binding a wire
+  │
+2 │     let wire r = port;
+  │         +++++

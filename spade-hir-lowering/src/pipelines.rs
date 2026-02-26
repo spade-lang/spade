@@ -12,9 +12,9 @@ use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::Diagnostic;
+use spade_hir::Input;
 use spade_hir::expression::CallKind;
 use spade_hir::Binding;
-use spade_hir::TypeSpec;
 use spade_hir::{ExprKind, Expression, Pattern, Statement};
 use spade_mir as mir;
 use spade_types::ConcreteType;
@@ -78,29 +78,37 @@ pub fn handle_statement(
             ty: _,
         }) => {
             let time = expr.inner.available_in(ctx)?;
-            for name in pat.get_names() {
+            for (name, wire) in pat.get_names_and_wireness() {
                 let ty = ctx.types.concrete_type_of_name(
                     &name,
                     ctx.symtab.symtab(),
                     &ctx.item_list.types,
                 )?;
 
-                ctx.subs
-                    .set_available(name, time.unwrap_or(0), *current_stage, ty)
+                if wire.is_none() {
+                    ctx.subs
+                        .set_available(name, time.unwrap_or(0), *current_stage, ty)
+                } else {
+                    ctx.subs.set_wire(name);
+                }
             }
         }
         Statement::Expression(_) => {}
         Statement::Register(reg) => {
             let time = reg.value.available_in(ctx)?;
-            for name in reg.pattern.get_names() {
+            for (name, wire) in reg.pattern.get_names_and_wireness() {
                 let ty = ctx.types.concrete_type_of_name(
                     &name,
                     ctx.symtab.symtab(),
                     &ctx.item_list.types,
                 )?;
 
-                ctx.subs
-                    .set_available(name, time.unwrap_or(0), *current_stage, ty)
+                if wire.is_none() {
+                    ctx.subs
+                        .set_available(name, time.unwrap_or(0), *current_stage, ty)
+                } else {
+                    ctx.subs.set_wire(name);
+                }
             }
         }
         Statement::Declaration(_) => {
@@ -206,7 +214,7 @@ pub fn handle_statement(
 }
 
 pub fn lower_pipeline<'a>(
-    hir_inputs: &Vec<(Loc<NameID>, Loc<TypeSpec>)>,
+    hir_inputs: &Vec<Input>,
     body: &Loc<Expression>,
     statements: &mut StatementList,
     ctx: &mut Context,
@@ -214,7 +222,7 @@ pub fn lower_pipeline<'a>(
     name_map: &mut BTreeMap<NameID, NameID>,
     is_nonstatic_method: bool,
 ) -> Result<()> {
-    let clock = &hir_inputs[if is_nonstatic_method { 1 } else { 0 }].0;
+    let clock = &hir_inputs[if is_nonstatic_method { 1 } else { 0 }].name;
 
     let (body_statements, _) = if let ExprKind::Block(block) = &body.kind {
         (&block.statements, &block.result)
@@ -222,12 +230,16 @@ pub fn lower_pipeline<'a>(
         panic!("Pipeline body was not a block");
     };
 
-    for (name, _) in hir_inputs {
+    for Input{wire, name, ty: _} in hir_inputs {
         let ty =
             ctx.types
                 .concrete_type_of_name(name, ctx.symtab.symtab(), &ctx.item_list.types)?;
 
-        ctx.subs.set_available(name.clone(), 0, 0, ty)
+        if wire.is_some() {
+            ctx.subs.set_wire(name.clone());
+        } else {
+            ctx.subs.set_available(name.clone(), 0, 0, ty)
+        }
     }
 
     let num_stages = body_statements
@@ -603,24 +615,17 @@ impl PipelineAvailability for Expression {
     // Computes the availability of an expression. Returns `None` if the expression is always
     // available, i.e. it is constant or a port
     fn available_in(&self, ctx: &Context) -> Result<Option<usize>> {
-        // Port types are considered always available
-        match ctx.types.concrete_type_of(
-            &self.clone().nowhere(),
-            ctx.symtab.symtab(),
-            &ctx.item_list.types,
-        ) {
-            Ok(ty) => {
-                // TODO: Data impl check
-                // if ty.is_port() {
-                //     return Ok(None);
-                // }
-            }
-            _ => {}
-        }
-
         match &self.kind {
             ExprKind::Error => Ok(None),
-            ExprKind::Identifier(_) => Ok(Some(0)),
+            ExprKind::Identifier(name) => {
+                match ctx.subs.lookup(name) {
+                    crate::substitution::Substitution::Undefined => Ok(Some(0)),
+                    crate::substitution::Substitution::Waiting {..} => Ok(Some(0)),
+                    crate::substitution::Substitution::Available(_) => Ok(Some(0)),
+                    crate::substitution::Substitution::Wire => Ok(None),
+                    crate::substitution::Substitution::ZeroSized => Ok(None),
+                }
+            },
             ExprKind::IntLiteral(_, _) => Ok(None),
             ExprKind::TypeLevelInteger(_) => Ok(None),
             ExprKind::BoolLiteral(_) => Ok(None),

@@ -149,6 +149,7 @@ impl TypeState {
                              name: ident,
                              ty: t,
                              no_mangle: _,
+                             wire: _,
                              field_translator: _,
                          }| {
                             (

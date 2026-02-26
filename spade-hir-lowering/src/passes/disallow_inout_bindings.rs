@@ -1,6 +1,6 @@
 use spade_common::location_info::Loc;
 use spade_diagnostics::Diagnostic;
-use spade_hir::{symbol_table::FrozenSymtab, Binding, ItemList, Parameter, Register};
+use spade_hir::{symbol_table::FrozenSymtab, Binding, Input, ItemList, Parameter, Register};
 use spade_typeinference::TypeState;
 use spade_types::PrimitiveType;
 
@@ -42,9 +42,14 @@ impl<'a> Pass for InOutChecks<'a> {
                 no_mangle,
                 name: _,
                 ty: _,
+                wire: _,
                 field_translator: _,
             },
-            (name, _ty),
+            Input {
+                wire: _,
+                name,
+                ty: _,
+            },
         ) in unit.head.inputs.inner.0.iter().zip(&unit.inputs)
         {
             let ty =

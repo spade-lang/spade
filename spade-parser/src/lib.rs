@@ -20,6 +20,7 @@ use spade_ast::{
     EnumVariant, Expression, Inequality, IntLiteral, Item, ModuleBody, NamedArgument,
     NamedTurbofish, ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec,
     TurbofishInner, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
+    WireMarker,
 };
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
@@ -1315,6 +1316,18 @@ impl<'a> Parser<'a> {
             },
             &|s| Ok(s.ascii_char_literal()?.map(|val| val.map(Pattern::Integer))),
             &|s| {
+                let wire = peek_for!(s, &TokenKind::Wire);
+
+                let path = s.path()?;
+                Ok(Some(
+                    Pattern::Path {
+                        wire: Some(().at(s.file_id, &wire.span)),
+                        path: path.clone(),
+                    }
+                    .at(s.file_id, &path),
+                ))
+            },
+            &|s| {
                 let path = s.path()?;
                 let path_span = path.span;
 
@@ -1384,18 +1397,6 @@ impl<'a> Parser<'a> {
                         .at(s.file_id, &path),
                     ))
                 }
-            },
-            &|s| {
-                let wire = peek_for!(s, &TokenKind::Wire);
-
-                let path = s.path()?;
-                Ok(Some(
-                    Pattern::Path {
-                        wire: Some(().at(s.file_id, &wire.span)),
-                        path: path.clone(),
-                    }
-                    .at(s.file_id, &path),
-                ))
             },
         ])?;
 
@@ -1498,16 +1499,18 @@ impl<'a> Parser<'a> {
     pub fn parameter(
         &mut self,
         accept_impl: bool,
-    ) -> Result<(AttributeList, Loc<Identifier>, Loc<TypeSpec>)> {
+    ) -> Result<(AttributeList, Option<Loc<WireMarker>>, Loc<Identifier>, Loc<TypeSpec>)> {
         let attrs = self.attributes()?;
+        let wire = self.peek_and_eat(&TokenKind::Wire)?.map(|w| WireMarker{}.at(self.file_id, &w));
         let (name, ty) = self.name_and_type(accept_impl)?;
 
-        Ok((attrs, name, ty))
+        Ok((attrs, wire, name, ty))
     }
 
     #[trace_parser]
     pub fn parameter_list(&mut self, accept_impl: bool) -> Result<ParameterList> {
         let mut first_attrs = self.attributes()?;
+        let mut first_wire = self.peek_and_eat(&TokenKind::Wire)?.map(|w| WireMarker {}.at(self.file_id, &w));
 
         let self_ = if self.peek_cond(
             |tok| matches!(tok, TokenKind::Identifier(i) if i.as_str() == "self"),
@@ -1517,7 +1520,12 @@ impl<'a> Parser<'a> {
             self.peek_and_eat(&TokenKind::Comma)?;
             let attrs;
             (first_attrs, attrs) = (AttributeList::empty(), first_attrs);
-            Some(attrs.at(self.file_id, &self_tok))
+            let wire;
+            (first_wire, wire) = (None, first_wire);
+            Some((
+                attrs.at(self.file_id, &self_tok),
+                wire,
+            ))
         } else {
             None
         };
@@ -1535,6 +1543,14 @@ impl<'a> Parser<'a> {
 
             // Patch attributes into the first parameter
             first_arg.0 = first_attrs;
+        }
+        if let Some(wire) = first_wire {
+            let Some(first_arg) = args.first_mut() else {
+                // At this point this parser will definitely fail, we run it just for its diagnostic
+                self.eat_cond(TokenKind::is_identifier, "Identifier")?;
+                unreachable!();
+            };
+            first_arg.1 = Some(wire);
         }
 
         Ok(ParameterList { self_, args })

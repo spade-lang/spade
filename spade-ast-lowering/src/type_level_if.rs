@@ -138,7 +138,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
         let args = ArgumentList::Positional(
             unit.inputs
                 .iter()
-                .map(|(name, _)| {
+                .map(|spade_hir::Input{wire: _, name, ty: _}| {
                     ExprKind::Identifier(name.inner.clone())
                         .with_id(ctx.idtracker.next())
                         .at_loc(&name)

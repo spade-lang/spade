@@ -6,8 +6,8 @@ use spade_diagnostics::Diagnostic;
 use crate::{
     constraints::ConstraintSource,
     equation::TypeVarID,
-    traits::{TraitList, TraitReq},
-    Context, TypeState,
+    traits::TraitReq,
+    TypeState,
 };
 
 use super::equation::TypeVar;
@@ -60,9 +60,8 @@ pub trait UnificationErrorExt<T>: Sized {
         self,
         unification_point: impl Into<FullSpan> + Clone,
         type_state: &TypeState,
-        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic> {
-        self.into_diagnostic(unification_point, |d, _| d, type_state, ctx)
+        self.into_diagnostic(unification_point, |d, _| d, type_state)
     }
 
     /// Creates a diagnostic with a generic type mismatch error
@@ -71,15 +70,14 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         message: Option<F>,
         type_state: &TypeState,
-        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
         if let Some(message) = message {
-            self.into_diagnostic(unification_point, message, type_state, ctx)
+            self.into_diagnostic(unification_point, message, type_state)
         } else {
-            self.into_diagnostic(unification_point, |d, _| d, type_state, ctx)
+            self.into_diagnostic(unification_point, |d, _| d, type_state)
         }
     }
 
@@ -93,12 +91,11 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         message: F,
         type_state: &TypeState,
-        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
-        self.into_diagnostic_impl(unification_point, false, message, type_state, ctx)
+        self.into_diagnostic_impl(unification_point, false, message, type_state)
     }
 
     fn into_diagnostic_no_expected_source<F>(
@@ -106,12 +103,11 @@ pub trait UnificationErrorExt<T>: Sized {
         unification_point: impl Into<FullSpan> + Clone,
         message: F,
         type_state: &TypeState,
-        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,
     {
-        self.into_diagnostic_impl(unification_point, true, message, type_state, ctx)
+        self.into_diagnostic_impl(unification_point, true, message, type_state)
     }
 
     fn into_diagnostic_impl<F>(
@@ -120,7 +116,6 @@ pub trait UnificationErrorExt<T>: Sized {
         omit_expected_source: bool,
         message: F,
         type_state: &TypeState,
-        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic;
@@ -169,7 +164,6 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
         omit_expected_source: bool,
         message: F,
         type_state: &TypeState,
-        ctx: &Context,
     ) -> std::result::Result<T, Diagnostic>
     where
         F: Fn(Diagnostic, TypeMismatch) -> Diagnostic,

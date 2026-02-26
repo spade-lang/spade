@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/inline.rs
+assertion_line: 31
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> uint<8> {
+	const e304: uint<8> = 0
+	let x_n394: uint<8> = Alias(e304)
+	let e6: uint<8> = Alias(x_n394)
+} => e6

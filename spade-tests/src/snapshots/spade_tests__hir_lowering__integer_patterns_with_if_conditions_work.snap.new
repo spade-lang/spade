@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/hir_lowering.rs
+assertion_line: 3012
+expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
+---
+entity \uwu ((e, e_n87, int<16>)) -> bool {
+	let e4: int<16> = Alias(e_n87)
+	const e6: int<7> = 6
+	const e7: int<7> = 8
+	let e312: bool = Eq(e6, e7)
+	let e5: bool = Alias(e312)
+	const e308: int<16> = 0
+	let e309: bool = Eq(e_n87, e308)
+	let e307: bool = LogicalAnd(e309, e5)
+	const e8: bool = true
+	let __n88: int<16> = Alias(e_n87)
+	const e310: bool = true
+	const e10: bool = false
+	let e2: bool = Match(e307, e8, e310, e10)
+} => e2

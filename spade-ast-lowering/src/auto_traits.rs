@@ -103,6 +103,7 @@ impl TyExt for Loc<TypeDeclaration> {
                          no_mangle: _,
                          name: _,
                          ty,
+                         wire: _,
                          field_translator: _,
                      }| {
                         ty.get_data_witness(ctx).map(|w| w.recurse(&ty.loc()))

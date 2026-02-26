@@ -17,7 +17,7 @@ error: Argument type mismatch. Expected bool got int<3>
 6 │     let a: int<3> = 0;
   │            ------ Type int<3> inferred here
 7 │     inst e(clk, a)
-  │                 ^ expected bool
+  │                 ^ Expected bool
   │
   = note: Expected: bool
                Got: int<3>

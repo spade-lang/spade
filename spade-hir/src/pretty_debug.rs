@@ -8,8 +8,8 @@ use spade_common::{
 use crate::{
     expression::{NamedArgument, OuterLambdaParam, Safety},
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
-    Generic, Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression, TypeParam,
-    TypeSpec, Unit, UnitHead, WhereClause,
+    Generic, Input, Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression,
+    TypeParam, TypeSpec, Unit, UnitHead, WhereClause,
 };
 
 pub trait PrettyDebug {
@@ -70,7 +70,14 @@ impl PrettyDebug for Unit {
 
         let inputs = inputs
             .iter()
-            .map(|(n, t)| format!("{}: {}", n.pretty_debug(), t.pretty_debug()))
+            .map(|Input { wire, name, ty }| {
+                format!(
+                    "{}{}: {}",
+                    if wire.is_some() { "wire " } else { "" },
+                    name.pretty_debug(),
+                    ty.pretty_debug()
+                )
+            })
             .join(", ");
 
         code! [

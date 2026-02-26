@@ -255,9 +255,13 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
         let start_token = parser.eat_unconditional()?;
 
         // TODO: Warn when we see this
-        let port_keyword = parser
-            .peek_and_eat(&TokenKind::Port)?
-            .map(|tok| ().at(parser.file_id, &tok.span()));
+        if let Some(tok) = parser.peek_and_eat(&TokenKind::Port)? {
+            let tok = ().at(parser.file_id, &tok);
+            Diagnostic::warning(&tok, "The port keyword no longer has any effect on structs.")
+                .primary_label("struct port and struct are now the same thing")
+                .span_suggest_remove("Consider removing `port`", tok)
+                .handle_in(&mut parser.diags);
+        }
 
         let name = parser.identifier()?;
 

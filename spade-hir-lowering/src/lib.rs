@@ -59,6 +59,7 @@ use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_assert, diag_bail, Diagnostic};
+use spade_hir::Input;
 use spade_hir::expression::Safety;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_hir::Generic;
@@ -1287,21 +1288,6 @@ impl StatementLocal for Statement {
 
                 pattern.check_irrefutable("reg", ctx)?;
 
-                let ty = ctx.types.concrete_type_of(
-                    pattern,
-                    ctx.symtab.symtab(),
-                    &ctx.item_list.types,
-                )?;
-
-                // TODO: This is where we'd now check for a `Data` impl
-                // if ty.is_port() {
-                //     return Err(
-                //         Diagnostic::error(value, "Ports cannot be put in a register")
-                //             .primary_label("This is a port")
-                //             .note(format!("{ty} is a port")),
-                //     );
-                // }
-
                 let mut traced = None;
                 attributes.lower(&mut |attr| match &attr.inner {
                     Attribute::Fsm { state } => {
@@ -1446,7 +1432,7 @@ impl ExprLocal for Loc<Expression> {
                     )
                 }
                 Substitution::Available(current) => Ok(Some(current.value_name())),
-                Substitution::Port | Substitution::ZeroSized => Ok(Some(ident.value_name())),
+                Substitution::Wire | Substitution::ZeroSized => Ok(Some(ident.value_name())),
             },
             ExprKind::IntLiteral(_, _) => Ok(None),
             ExprKind::TypeLevelBool(_) => Ok(None),
@@ -1510,7 +1496,7 @@ impl ExprLocal for Loc<Expression> {
                         )
                     }
                     Substitution::Available(name) => Ok(Some(name.value_name())),
-                    Substitution::Port | Substitution::ZeroSized => Ok(Some(name.value_name())),
+                    Substitution::Wire | Substitution::ZeroSized => Ok(Some(name.value_name())),
                 }
             }
             ExprKind::StageReady => Ok(None),
@@ -3851,9 +3837,10 @@ pub fn generate_unit<'a>(
                     name: _,
                     ty: type_spec,
                     no_mangle,
+                    wire: _,
                     field_translator: _,
                 },
-                (name_id, _),
+                Input{wire: _, name: name_id, ty: _},
             )| {
                 let name = name_id.1.tail().to_string();
                 let val_name = name_id.value_name();

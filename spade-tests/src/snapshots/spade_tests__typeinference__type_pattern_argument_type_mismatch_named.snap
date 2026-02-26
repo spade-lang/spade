@@ -21,7 +21,7 @@ error: Argument type mismatch. Expected bool got Number<#uint>
   │        ---- Type bool inferred here
   ·
 8 │         X$(b: 0) => true,
-  │               ^ expected bool
+  │               ^ Expected bool
   │
   = note: Expected: bool
                Got: Number<_>

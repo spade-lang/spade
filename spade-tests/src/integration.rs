@@ -563,6 +563,47 @@ code_compiles! {
 }
 
 code_compiles! {
+    lambda_pipelines_can_accept_wires,
+    "
+        entity test(clk: clock) {
+            let pl = pipeline(1) |clk, wire x| {
+                reg;
+                x
+            };
+            
+            set pl.inst(1) call(clk, (port.1,)) = 1u32;
+        }
+    "
+}
+
+snapshot_error! {
+    lambda_pipelines_can_require_wire_for_args,
+    "
+        entity test(clk: clock) {
+            let pl = pipeline(1) |clk, x| {
+                reg;
+                x
+            };
+            
+            set pl.inst(1) call(clk, (port.1,)) = 1u32;
+        }
+    "
+}
+
+snapshot_error! {
+    lambdas_that_capture_non_data_are_non_data,
+    "
+        entity test(clk: clock) {
+            let w = port.1;
+            let l = fn || {
+                set w = 0u32;
+            };
+            reg(clk) r = l;
+        }
+    "
+}
+
+code_compiles! {
     zero_parameter_lambda_function_works,
     "
         entity test() {

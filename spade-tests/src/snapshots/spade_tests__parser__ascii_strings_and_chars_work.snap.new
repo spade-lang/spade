@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/parser.rs
+assertion_line: 1127
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> () {
+	const e3: uint<8> = 97
+	const e4: uint<8> = 98
+	const e5: uint<8> = 99
+	const e6: uint<8> = 34
+	let e2: [uint<8>; 4] = ConstructArray(e3, e4, e5, e6)
+	let x_n87: [uint<8>; 4] = Alias(e2)
+	const e8: uint<8> = 39
+	let y_n88: uint<8> = Alias(e8)
+	let e1: () = Nop()
+} => e1

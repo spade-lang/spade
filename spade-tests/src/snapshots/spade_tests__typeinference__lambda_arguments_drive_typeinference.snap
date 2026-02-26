@@ -18,7 +18,7 @@ error: Argument type mismatch. Expected ((_, _)) got (Number<#uint>)
   │            ^^^^
   │            ││
   │            │Type Number<_> inferred here
-  │            expected ((_, _))
+  │            Expected ((_, _))
   │
   = note: Expected: (_, _)
                 in: ((_, _))

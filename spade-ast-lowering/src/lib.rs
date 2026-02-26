@@ -1,5 +1,6 @@
 // TODO: An import of `IsInout` got removed here, we should make sure that's correct
 mod attributes;
+pub mod auto_traits;
 pub mod builtins;
 pub mod error;
 pub mod global_symbols;
@@ -9,7 +10,6 @@ pub mod pipelines;
 pub mod testutil;
 mod type_level_if;
 pub mod types;
-pub mod auto_traits;
 
 use std::sync::{Arc, Mutex};
 
@@ -46,7 +46,9 @@ pub use spade_common::id_tracker;
 use spade_common::id_tracker::{ExprIdTracker, GenericID, GenericIdTracker, ImplIdTracker};
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
-use spade_hir::{self as hir, ExprKind, Generic, ItemList, Module, TypeExpression, TypeSpec};
+use spade_hir::{
+    self as hir, ExprKind, Generic, Input, ItemList, Module, TypeExpression, TypeSpec,
+};
 
 use error::Result;
 
@@ -574,13 +576,13 @@ fn visit_parameter_list(
             diag = if l.args.is_empty() {
                 diag.span_suggest_replace(suggest_msg, l, "(self)")
             } else {
-                diag.span_suggest_insert_before(suggest_msg, &l.args[0].1, "self, ")
+                diag.span_suggest_insert_before(suggest_msg, &l.args[0].2, "self, ")
             };
             return Err(diag);
         }
     }
 
-    if let Some(ref self_) = l.self_ {
+    if let Some((ref self_, ref wire_marker)) = l.self_ {
         let mut attrs = self_.inner.clone();
         let no_mangle = attrs
             .consume_no_mangle()
@@ -601,6 +603,7 @@ fn visit_parameter_list(
                 name: Identifier::intern("self").at_loc(self_),
                 ty: spec.clone(),
                 field_translator: None,
+                wire: wire_marker.map(|w| w.loc()),
             }),
             // When visiting trait definitions, we don't need to add self to the
             // symtab at all since we won't be visiting unit bodies here.
@@ -610,11 +613,12 @@ fn visit_parameter_list(
                 name: Identifier::intern("self").at_loc(self_),
                 ty: hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
                 field_translator: None,
+                wire: wire_marker.map(|w| w.loc()),
             }),
         }
     }
 
-    for (attrs, name, input_type) in &l.args {
+    for (attrs, wire_marker, name, input_type) in &l.args {
         if let Some(prev) = arg_names.get(name) {
             return Err(
                 Diagnostic::error(name, "Multiple arguments with the same name")
@@ -637,6 +641,7 @@ fn visit_parameter_list(
             name: name.clone(),
             ty: t,
             no_mangle,
+            wire: wire_marker.map(|w| w.loc()),
             field_translator,
         });
     }
@@ -654,7 +659,7 @@ fn build_no_mangle_all_output_diagnostic(
         .inputs
         .args
         .iter()
-        .filter_map(|(_, name, _)| {
+        .filter_map(|(_, _, name, _)| {
             if name.inner.as_str().contains("out") {
                 Some(name.inner.as_str().len())
             } else {
@@ -665,17 +670,7 @@ fn build_no_mangle_all_output_diagnostic(
         .unwrap_or(2)
         - 2;
     let suggested_name = format!("out{}", "_".repeat(suffix_length));
-    let output_is_wire = output_type.to_string().starts_with("&");
-    let suggested_type = format!(
-        "inv {}{}",
-        if output_is_wire {
-            // ports shouldn't have duplicate & (thanks Astrid)
-            ""
-        } else {
-            "&"
-        },
-        output_type
-    );
+    let suggested_type = format!("inv {}", output_type);
 
     let mut diagnostic = Diagnostic::error(output_type, "Cannot apply `#[no_mangle(all)]`")
         .primary_label("Output types are always mangled");
@@ -696,7 +691,7 @@ fn build_no_mangle_all_output_diagnostic(
             format!("({}: {})", suggested_name, suggested_type),
         );
     } else {
-        let last_parameter = &head.inputs.args.last().unwrap().2;
+        let last_parameter = &head.inputs.args.last().unwrap().3;
         let (span, file) = (last_parameter.span, last_parameter.file_id);
         first_suggestion.push_part(
             (Span::new(span.end(), span.end()), file),
@@ -713,20 +708,16 @@ fn build_no_mangle_all_output_diagnostic(
     if let Some(block) = body_for_diagnostics {
         let block = block.assume_block();
         if let Some(result) = block.result.as_ref() {
-            if output_is_wire {
-                diagnostic = diagnostic.span_suggest_remove("Remember to `set` the inverted input instead of ending the block with an output", result);
-            } else {
-                let (span, file) = (result.span, result.file_id);
-                diagnostic.push_span_suggest_multipart(
-                    "...and `set` the inverted input to the return value",
-                    SuggestionParts::new()
-                        .part(
-                            (Span::new(span.start(), span.start()), file),
-                            format!("set {} = ", suggested_name),
-                        )
-                        .part((Span::new(span.end(), span.end()), file), ";"),
-                );
-            }
+            let (span, file) = (result.span, result.file_id);
+            diagnostic.push_span_suggest_multipart(
+                "...and `set` the inverted input to the return value",
+                SuggestionParts::new()
+                    .part(
+                        (Span::new(span.start(), span.start()), file),
+                        format!("set {} = ", suggested_name),
+                    )
+                    .part((Span::new(span.end(), span.end()), file), ";"),
+            );
         }
     }
 
@@ -850,7 +841,16 @@ pub fn unit_head(
     }
 
     let first_hidden_id = ctx.generic_idtracker.peek();
-    let inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
+    let mut inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
+
+    // Mark the first argument with `wire` implicitly
+    if head.unit_kind.is_pipeline() {
+        inputs
+            .0
+            .get_mut(if head.inputs.self_.is_some() { 1 } else { 0 })
+            .map(|i| i.wire = Some(().at_loc(&i.name)));
+    }
+
     let last_hidden_id = ctx.generic_idtracker.peek();
 
     // Check for ports in functions
@@ -1353,12 +1353,14 @@ pub fn visit_unit(
                  name: ident,
                  ty,
                  no_mangle: _,
+                 wire,
                  field_translator: _,
              }| {
-                (
-                    ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
-                    ty.clone(),
-                )
+                Input {
+                    wire: wire.clone(),
+                    name: ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
+                    ty: ty.clone(),
+                }
             },
         )
         .collect::<Vec<_>>();
@@ -1392,13 +1394,19 @@ pub fn visit_unit(
                 block.statements.append(
                     &mut inputs
                         .iter()
-                        .map(|(name, _)| {
-                            hir::Statement::WalSuffixed {
-                                suffix: suffix.inner.clone(),
-                                target: name.clone(),
-                            }
-                            .at_loc(&suffix)
-                        })
+                        .map(
+                            |Input {
+                                 wire: _,
+                                 name,
+                                 ty: _,
+                             }| {
+                                hir::Statement::WalSuffixed {
+                                    suffix: suffix.inner.clone(),
+                                    target: name.clone(),
+                                }
+                                .at_loc(&suffix)
+                            },
+                        )
                         .collect(),
                 );
             }
@@ -1702,10 +1710,10 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                 inner: Some(Box::new(pat.at_loc(&inner))),
                 pre_declared,
                 // TODO: Wires should be supported on bounds too
-                wire: None
+                wire: None,
             }
         }
-        ast::Pattern::Path{wire, path} => {
+        ast::Pattern::Path { wire, path } => {
             match (try_lookup_enum_variant(path, ctx), path.inner.0.as_slice()) {
                 (Ok(kind), _) => kind,
                 (_, [segment]) => {
@@ -1752,6 +1760,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                  name: ident,
                                  ty: _,
                                  no_mangle: _,
+                                 wire: _,
                                  field_translator: _,
                              }| ident.inner.clone(),
                         )
@@ -1761,8 +1770,11 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                         .iter()
                         .map(|(target, pattern)| {
                             let ast_pattern = pattern.as_ref().cloned().unwrap_or_else(|| {
-                                ast::Pattern::Path{wire: None, path: Path::ident_with_loc(target.clone())}
-                                    .at_loc(target)
+                                ast::Pattern::Path {
+                                    wire: None,
+                                    path: Path::ident_with_loc(target.clone()),
+                                }
+                                .at_loc(target)
                             });
                             let new_pattern = visit_pattern(&ast_pattern, ctx)?;
                             // Check if this is a new binding
@@ -2141,10 +2153,6 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let lhs = &lhs.visit(visit_expression, ctx);
             let rhs = &rhs.visit(visit_expression, ctx);
 
-            let wildcard =
-                ast::TypeExpression::TypeSpec(Box::new(ast::TypeSpec::Wildcard.nowhere()))
-                    .nowhere();
-
             let op = |op: BinaryOperator| {
                 hir::ExprKind::BinaryOperator(
                     Box::new(lhs.clone()),
@@ -2190,72 +2198,38 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::BinaryOperator::Mul => Ok(op(BinaryOperator::Mul)),
                 ast::BinaryOperator::Div => Ok(op(BinaryOperator::Div)),
                 ast::BinaryOperator::Mod => Ok(op(BinaryOperator::Mod)),
-                ast::BinaryOperator::Eq => {
-                    Ok(op_method("eq", "PartialEq", vec![])?)
-                }
-                ast::BinaryOperator::Neq => {
-                    Ok(op_method("ne", "PartialEq", vec![])?)
-                }
-                ast::BinaryOperator::Gt => {
-                    Ok(op_method("gt", "PartialOrd", vec![])?)
-                }
-                ast::BinaryOperator::Lt => {
-                    Ok(op_method("lt", "PartialOrd", vec![])?)
-                }
-                ast::BinaryOperator::Ge => {
-                    Ok(op_method("ge", "PartialOrd", vec![])?)
-                }
-                ast::BinaryOperator::Le => {
-                    Ok(op_method("le", "PartialOrd", vec![])?)
-                }
+                ast::BinaryOperator::Eq => Ok(op_method("eq", "PartialEq", vec![])?),
+                ast::BinaryOperator::Neq => Ok(op_method("ne", "PartialEq", vec![])?),
+                ast::BinaryOperator::Gt => Ok(op_method("gt", "PartialOrd", vec![])?),
+                ast::BinaryOperator::Lt => Ok(op_method("lt", "PartialOrd", vec![])?),
+                ast::BinaryOperator::Ge => Ok(op_method("ge", "PartialOrd", vec![])?),
+                ast::BinaryOperator::Le => Ok(op_method("le", "PartialOrd", vec![])?),
                 ast::BinaryOperator::LeftShift => Ok(op(BinaryOperator::LeftShift)),
                 ast::BinaryOperator::RightShift => Ok(op(BinaryOperator::RightShift)),
                 ast::BinaryOperator::ArithmeticRightShift => {
                     Ok(op(BinaryOperator::ArithmeticRightShift))
                 }
-                ast::BinaryOperator::WrappingAdd => Ok(op_method(
-                    "wrapping_add",
-                    "WrappingAdd",
-                    vec![],
-                )?),
-                ast::BinaryOperator::WrappingSub => Ok(op_method(
-                    "wrapping_sub",
-                    "WrappingSub",
-                    vec![],
-                )?),
-                ast::BinaryOperator::WrappingMul => Ok(op_method(
-                    "wrapping_mul",
-                    "WrappingMul",
-                    vec![],
-                )?),
-                ast::BinaryOperator::WrappingLeftShift => Ok(op_method(
-                    "wrapping_shl",
-                    "WrappingShl",
-                    vec![],
-                )?),
-                ast::BinaryOperator::WrappingRightShift => Ok(op_method(
-                    "wrapping_shr",
-                    "WrappingShr",
-                    vec![],
-                )?),
-                ast::BinaryOperator::LogicalAnd => {
-                    Ok(op_method("and", "And", vec![])?)
+                ast::BinaryOperator::WrappingAdd => {
+                    Ok(op_method("wrapping_add", "WrappingAdd", vec![])?)
                 }
-                ast::BinaryOperator::LogicalOr => {
-                    Ok(op_method("or", "Or", vec![])?)
+                ast::BinaryOperator::WrappingSub => {
+                    Ok(op_method("wrapping_sub", "WrappingSub", vec![])?)
                 }
-                ast::BinaryOperator::LogicalXor => {
-                    Ok(op_method("xor", "Xor", vec![])?)
+                ast::BinaryOperator::WrappingMul => {
+                    Ok(op_method("wrapping_mul", "WrappingMul", vec![])?)
                 }
-                ast::BinaryOperator::BitwiseOr => {
-                    Ok(op_method("bit_or", "BitOr", vec![])?)
+                ast::BinaryOperator::WrappingLeftShift => {
+                    Ok(op_method("wrapping_shl", "WrappingShl", vec![])?)
                 }
-                ast::BinaryOperator::BitwiseAnd => {
-                    Ok(op_method("bit_and", "BitAnd", vec![])?)
+                ast::BinaryOperator::WrappingRightShift => {
+                    Ok(op_method("wrapping_shr", "WrappingShr", vec![])?)
                 }
-                ast::BinaryOperator::BitwiseXor => {
-                    Ok(op_method("bit_xor", "BitXor", vec![])?)
-                }
+                ast::BinaryOperator::LogicalAnd => Ok(op_method("and", "And", vec![])?),
+                ast::BinaryOperator::LogicalOr => Ok(op_method("or", "Or", vec![])?),
+                ast::BinaryOperator::LogicalXor => Ok(op_method("xor", "Xor", vec![])?),
+                ast::BinaryOperator::BitwiseOr => Ok(op_method("bit_or", "BitOr", vec![])?),
+                ast::BinaryOperator::BitwiseAnd => Ok(op_method("bit_and", "BitAnd", vec![])?),
+                ast::BinaryOperator::BitwiseXor => Ok(op_method("bit_xor", "BitXor", vec![])?),
             }
         }
         ast::Expression::UnaryOperator(operator, operand) => {

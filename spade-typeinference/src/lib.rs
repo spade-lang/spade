@@ -38,8 +38,10 @@ use tracing::{info, trace};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path, PathSegment};
 use spade_hir::param_util::{match_args_with_params, Argument};
-use spade_hir::{self as hir, ConstGenericWithId, Generic, ImplTarget, TypeDeclaration};
 use spade_hir::symbol_table::{LangItem, Patternable, PatternableKind, SymbolTable, TypeSymbol};
+use spade_hir::{
+    self as hir, ConstGenericWithId, Generic, ImplTarget, Input, PatternKind, TypeDeclaration,
+};
 use spade_hir::{
     ArgumentList, Block, ExprKind, Expression, ItemList, Pattern, PatternArgument, Register,
     Statement, TraitName, TraitSpec, TypeParam, Unit,
@@ -360,7 +362,7 @@ impl TypeState {
 
                         let new_list = self.new_generic_with_traits(loc, traits);
                         self.unify(tv, &new_list, ctx)
-                            .into_default_diagnostic(loc, self, ctx)?;
+                            .into_default_diagnostic(loc, self)?;
                     }
                 }
 
@@ -623,8 +625,8 @@ impl TypeState {
         pp(self, entity, &generic_list, ctx)?;
 
         // Add equations for the inputs
-        for (name, t) in &entity.inputs {
-            let tvar = self.type_var_from_hir(t.loc(), t, &generic_list, ctx)?;
+        for Input { wire: _, name, ty } in &entity.inputs {
+            let tvar = self.type_var_from_hir(ty.loc(), ty, &generic_list, ctx)?;
             self.add_equation(TypedExpression::Name(name.inner.clone()), tvar)
         }
 
@@ -648,11 +650,11 @@ impl TypeState {
                 0
             };
 
-            TypedExpression::Name(entity.inputs[clock_index].0.clone().inner)
+            TypedExpression::Name(entity.inputs[clock_index].name.clone().inner)
                 .unify_with(&self.t_clock(entity.head.unit_kind.loc(), ctx.symtab), self)
                 .commit(self, ctx)
                 .into_diagnostic(
-                    entity.inputs[0].1.loc(),
+                    entity.inputs[0].ty.loc(),
                     |diag,
                      Tm {
                          g: got,
@@ -665,7 +667,6 @@ impl TypeState {
                         .primary_label("expected clock")
                     },
                     self,
-                    ctx,
                 )?;
             // In order to catch negative depth early when they are specified as literals,
             // we'll instantly check requirements here
@@ -704,7 +705,6 @@ impl TypeState {
                         .secondary_label(output_type, format!("{expected} type specified here"))
                     },
                     self,
-                    ctx,
                 )?;
         } else {
             // No output type, so unify with the unit type.
@@ -718,7 +718,7 @@ impl TypeState {
                             "The {} does not specify a return type.\nAdd a return type, or remove the return value.",
                             entity.head.unit_kind.name()
                         ))
-                }, self, ctx)?;
+                }, self)?;
         }
 
         if let Some(PipelineState {
@@ -736,7 +736,6 @@ impl TypeState {
                             .primary_label(format!("Found {e} stages in this pipeline"))
                     },
                     self,
-                    ctx,
                 )?;
         }
 
@@ -755,22 +754,57 @@ impl TypeState {
 
     /// Applies data constraints to the statements and bindings inside a unit
     fn handle_unit_data_constraints(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
-        let is_pipeline = self.owned.pipeline_state.is_some();
+        let pipeline_loc = self.owned.pipeline_state.as_ref().map(|s| s.pipeline_loc);
 
-        if is_pipeline {
-            // TODO: Handle pipelines
+        if let Some(pipeline_loc) = pipeline_loc {
+            // TODO: Wire is now duplicated, check if we can avoid that
+            for Input { wire, name, ty: _ } in &entity.inputs {
+                if wire.is_none() {
+                    TypedExpression::Name(name.inner.clone())
+                        .unify_with(&self.new_generic_data(pipeline_loc, ctx), self)
+                        .commit(self, ctx)
+                        .into_diagnostic(
+                            name,
+                            |diag, _e| {
+                                diag.secondary_label(
+                                    name,
+                                    format!(
+                                        "The type of this argument is not Data which means it cannot be stored in a register."
+                                    ),
+                                )
+                                .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
+                                .span_suggest_insert_before("Consider making the argument a wire", name, "wire ")
+                                .help("An value not being Data typically means it contains at least one `inv` type")
+                                .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                            },
+                            self,
+                        )?;
+                }
+            }
         }
 
-        self.expression_data_constraints(&entity.body, ctx)?;
+        self.expression_data_constraints(&entity.body, &pipeline_loc, ctx)?;
 
         Ok(())
     }
 
-    fn statement_data_constraints(&mut self, stmt: &Loc<Statement>, ctx: &Context) -> Result<()> {
+    fn statement_data_constraints(
+        &mut self,
+        stmt: &Loc<Statement>,
+        pipeline_loc: &Option<Loc<()>>,
+        ctx: &Context,
+    ) -> Result<()> {
         match &stmt.inner {
             Statement::Error => {}
-            Statement::Binding(_) => {}
-            Statement::Expression(e) => self.expression_data_constraints(e, ctx)?,
+            Statement::Binding(Binding {
+                pattern,
+                ty: _,
+                value: _,
+                wal_trace: _,
+            }) => {
+                self.pattern_data_constraint(pattern, pipeline_loc, ctx)?;
+            }
+            Statement::Expression(e) => self.expression_data_constraints(e, pipeline_loc, ctx)?,
             Statement::Register(reg) => {
                 TypedExpression::Id(reg.value.id)
                     .unify_with(&self.new_generic_data(reg.value.loc(), ctx), self)
@@ -788,12 +822,11 @@ impl TypeState {
                             .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
                         },
                         self,
-                        ctx,
                     )?;
             }
             Statement::Declaration(_) => {}
-            Statement::PipelineRegMarker(pipeline_reg_marker_extra) => {
-                // TODO
+            Statement::PipelineRegMarker(_) => {
+                // A pipeline register on its own is OK because it itself has no data
             }
             Statement::Label(_) => {}
             Statement::Assert(_) => {}
@@ -803,17 +836,89 @@ impl TypeState {
         Ok(())
     }
 
+    fn pattern_data_constraint(
+        &mut self,
+        pattern: &Loc<Pattern>,
+        pipeline_loc: &Option<Loc<()>>,
+        ctx: &Context,
+    ) -> Result<()> {
+        match &pattern.kind {
+            PatternKind::Integer(_) => {}
+            PatternKind::Bool(_) => {}
+            PatternKind::Bound {
+                name,
+                pre_declared: _,
+                inner,
+                wire,
+            } => {
+                if let Some(pipeline_loc) = pipeline_loc {
+                    if wire.is_none() {
+                        TypedExpression::Name(name.inner.clone())
+                            .unify_with(&self.new_generic_data(*pipeline_loc, ctx), self)
+                            .commit(self, ctx)
+                            .into_diagnostic(
+                                name,
+                                |diag, _e| {
+                                    diag.secondary_label(
+                                        name,
+                                        format!(
+                                            "The type of this expression is not Data which means it cannot be stored in a register."
+                                        ),
+                                    )
+                                    .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
+                                    .span_suggest_insert_before("Consider making the binding a wire", name, "wire ")
+                                    .help("An expression not being Data typically means it contains at least one `inv` type")
+                                    .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                                },
+                                self,
+                            )?;
+                    }
+                }
+                if let Some(inner) = inner {
+                    self.pattern_data_constraint(inner, pipeline_loc, ctx)?;
+                }
+            }
+            PatternKind::Tuple(inner) => {
+                for sub in inner {
+                    self.pattern_data_constraint(sub, pipeline_loc, ctx)?;
+                }
+            }
+            PatternKind::Array(inner) => {
+                for sub in inner {
+                    self.pattern_data_constraint(sub, pipeline_loc, ctx)?;
+                }
+            }
+            PatternKind::Type(_, args) => {
+                for PatternArgument {
+                    target: _,
+                    value,
+                    kind: _,
+                } in args
+                {
+                    self.pattern_data_constraint(value, pipeline_loc, ctx)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Relies on the ast lowering pass disallowing any statements which contains data requirements
     /// in non-root blocks.
-    fn expression_data_constraints(&mut self, expr: &Loc<Expression>, ctx: &Context) -> Result<()> {
+    fn expression_data_constraints(
+        &mut self,
+        expr: &Loc<Expression>,
+        pipeline_loc: &Option<Loc<()>>,
+        ctx: &Context,
+    ) -> Result<()> {
         match &expr.kind {
             ExprKind::Block(inner) => {
                 for stmt in &inner.statements {
-                    self.statement_data_constraints(&stmt, ctx)
+                    self.statement_data_constraints(&stmt, pipeline_loc, ctx)
                         .handle_in(&mut self.owned.diags);
                 }
                 if let Some(result) = &inner.result {
-                    self.expression_data_constraints(result, ctx)?;
+                    self.expression_data_constraints(result, pipeline_loc, ctx)?;
                 }
             }
             ExprKind::TypeLevelIf {
@@ -821,8 +926,8 @@ impl TypeState {
                 on_true,
                 on_false,
             } => {
-                self.expression_data_constraints(&on_true, ctx)?;
-                self.expression_data_constraints(&on_false, ctx)?;
+                self.expression_data_constraints(&on_true, pipeline_loc, ctx)?;
+                self.expression_data_constraints(&on_false, pipeline_loc, ctx)?;
             }
 
             ExprKind::Error
@@ -935,10 +1040,8 @@ impl TypeState {
                         d.message(format!(
                             "Argument type mismatch. Expected {expected} got {got}"
                         ))
-                        .primary_label(format!("expected {expected}"))
                     },
                     self,
-                    ctx,
                 )?;
         }
 
@@ -1024,7 +1127,7 @@ impl TypeState {
                 expression
                     .unify_with(&self.t_bool(expression.loc(), ctx.symtab), self)
                     .commit(self, ctx)
-                    .into_default_diagnostic(expression, self, ctx)?;
+                    .into_default_diagnostic(expression, self)?;
             }
 
             ExprKind::TypeLevelIf {
@@ -1046,7 +1149,6 @@ impl TypeState {
                         diag.message(format!("gen if conditions must be #bool, got {g}"))
                     },
                     self,
-                    ctx,
                 )?;
 
                 self.visit_expression(on_true, ctx, generic_list);
@@ -1074,7 +1176,7 @@ impl TypeState {
                     clock
                         .unify_with(&self.t_clock(clock.loc(), ctx.symtab), self)
                         .commit(self, ctx)
-                        .into_default_diagnostic(clock, self, ctx)?;
+                        .into_default_diagnostic(clock, self)?;
                 }
 
                 let outer_pipeline_state = self.owned.pipeline_state.take();
@@ -1158,12 +1260,12 @@ impl TypeState {
                         self,
                     )
                     .commit(self, ctx)
-                    .into_default_diagnostic(expression, self, ctx)?;
+                    .into_default_diagnostic(expression, self)?;
                 }
                 expression
                     .unify_with(&self.add_type_var(self_type), self)
                     .commit(self, ctx)
-                    .into_default_diagnostic(expression, self, ctx)?;
+                    .into_default_diagnostic(expression, self)?;
             }
             ExprKind::StaticUnreachable(_) => {}
             ExprKind::Null => {}
@@ -1260,7 +1362,6 @@ impl TypeState {
                                 .secondary_label(udepth, format!("{name} has depth {e}"))
                         },
                         self,
-                        ctx,
                     )?;
             }
             _ => {}
@@ -1381,7 +1482,7 @@ impl TypeState {
             });
 
         self.unify(expression_type, &return_type, ctx)
-            .into_default_diagnostic(expression_id.loc(), self, ctx)?;
+            .into_default_diagnostic(expression_id.loc(), self)?;
 
         Ok(())
     }
@@ -1399,11 +1500,11 @@ impl TypeState {
         let (rhs_type, rhs_size) = self.new_generic_number(expression_id.loc(), ctx);
         let (result_type, result_size) = self.new_generic_number(expression_id.loc(), ctx);
         self.unify(&source_lhs_ty, &lhs_type, ctx)
-            .into_default_diagnostic(args[0].value.loc(), self, ctx)?;
+            .into_default_diagnostic(args[0].value.loc(), self)?;
         self.unify(&source_rhs_ty, &rhs_type, ctx)
-            .into_default_diagnostic(args[1].value.loc(), self, ctx)?;
+            .into_default_diagnostic(args[1].value.loc(), self)?;
         self.unify(&source_result_ty, &result_type, ctx)
-            .into_default_diagnostic(expression_id.loc(), self, ctx)?;
+            .into_default_diagnostic(expression_id.loc(), self)?;
 
         // Result size is sum of input sizes
         self.add_constraint(
@@ -1447,9 +1548,9 @@ impl TypeState {
         let (in_ty, _) = self.new_generic_number(expression_id.loc(), ctx);
         let (result_type, _) = self.new_generic_number(expression_id.loc(), ctx);
         self.unify(&source_in_ty, &in_ty, ctx)
-            .into_default_diagnostic(args[0].value.loc(), self, ctx)?;
+            .into_default_diagnostic(args[0].value.loc(), self)?;
         self.unify(&source_result_ty, &result_type, ctx)
-            .into_default_diagnostic(expression_id.loc(), self, ctx)?;
+            .into_default_diagnostic(expression_id.loc(), self)?;
 
         self.add_requirement(Requirement::SharedBase(vec![
             in_ty.at_loc(args[0].value),
@@ -1466,7 +1567,7 @@ impl TypeState {
     ) -> Result<()> {
         let (num, _) = self.new_generic_number(args[0].value.loc(), ctx);
         self.unify(&n_ty, &num, ctx)
-            .into_default_diagnostic(args[0].value.loc(), self, ctx)?;
+            .into_default_diagnostic(args[0].value.loc(), self)?;
         Ok(())
     }
 
@@ -1693,7 +1794,7 @@ impl TypeState {
 
                     let ty = self.hir_type_expr_to_var(tf, generic_list, ctx)?;
                     self.unify(&ty, &t, ctx)
-                        .into_default_diagnostic(param, self, ctx)?;
+                        .into_default_diagnostic(param, self)?;
                 }
 
                 if !trait_bounds.is_empty() {
@@ -1991,7 +2092,7 @@ impl TypeState {
 
                 let name_expr = TypedExpression::Name(name.clone().inner);
                 self.unify(&TypedExpression::Id(pattern.id), &name_expr, ctx)
-                    .into_default_diagnostic(name.loc(), self, ctx)?;
+                    .into_default_diagnostic(name.loc(), self)?;
             }
             hir::PatternKind::Tuple(subpatterns) => {
                 for pattern in subpatterns {
@@ -2025,7 +2126,7 @@ impl TypeState {
 
                     for pattern in inner.iter().skip(1) {
                         self.unify(pattern, &inner_t, ctx)
-                            .into_default_diagnostic(pattern, self, ctx)?;
+                            .into_default_diagnostic(pattern, self)?;
                     }
 
                     pattern
@@ -2046,7 +2147,7 @@ impl TypeState {
                             self,
                         )
                         .commit(self, ctx)
-                        .into_default_diagnostic(pattern, self, ctx)?;
+                        .into_default_diagnostic(pattern, self)?;
                 }
             }
             hir::PatternKind::Type(name, args) => {
@@ -2119,6 +2220,7 @@ impl TypeState {
                         name: _,
                         ty: target_type,
                         no_mangle: _,
+                        wire: _,
                         field_translator: _,
                     },
                 ) in args.iter().zip(params.0.iter())
@@ -2142,7 +2244,6 @@ impl TypeState {
                             ))
                         },
                         self,
-                        ctx,
                     )?;
                 }
             }
@@ -2163,7 +2264,7 @@ impl TypeState {
                 self.visit_expression(x, ctx, generic_list);
                 x.unify_with(&self.t_clock(trace.loc(), ctx.symtab), self)
                     .commit(self, ctx)
-                    .into_default_diagnostic(x, self, ctx)
+                    .into_default_diagnostic(x, self)
             })
             .transpose()?;
         rst.as_ref()
@@ -2171,7 +2272,7 @@ impl TypeState {
                 self.visit_expression(x, ctx, generic_list);
                 x.unify_with(&self.t_bool(trace.loc(), ctx.symtab), self)
                     .commit(self, ctx)
-                    .into_default_diagnostic(x, self, ctx)
+                    .into_default_diagnostic(x, self)
             })
             .transpose()?;
         Ok(())
@@ -2219,14 +2320,13 @@ impl TypeState {
                             self,
                         ),
                         self,
-                        ctx,
                     )
                     .handle_in(&mut self.owned.diags);
 
                 if let Some(t) = ty {
                     let tvar = self.type_var_from_hir(t.loc(), t, generic_list, ctx)?;
                     self.unify(&TypedExpression::Id(pattern.id), &tvar, ctx)
-                        .into_default_diagnostic(value.loc(), self, ctx)
+                        .into_default_diagnostic(value.loc(), self)
                         .handle_in(&mut self.owned.diags);
                 }
 
@@ -2256,7 +2356,7 @@ impl TypeState {
                         self.visit_expression(cond, ctx, generic_list);
                         cond.unify_with(&self.t_bool(cond.loc(), ctx.symtab), self)
                             .commit(self, ctx)
-                            .into_default_diagnostic(cond, self, ctx)?;
+                            .into_default_diagnostic(cond, self)?;
                     }
                     Some(PipelineRegMarkerExtra::Count {
                         count: _,
@@ -2349,7 +2449,7 @@ impl TypeState {
 
                 expr.unify_with(&self.t_bool(stmt.loc(), ctx.symtab), self)
                     .commit(self, ctx)
-                    .into_default_diagnostic(expr, self, ctx)
+                    .into_default_diagnostic(expr, self)
                     .handle_in(&mut self.owned.diags);
                 Ok(())
             }
@@ -2405,7 +2505,6 @@ impl TypeState {
                     reg.pattern.loc(),
                     error_pattern_type_mismatch(tvar.loc(), self),
                     self,
-                    ctx,
                 )?;
         }
 
@@ -2413,11 +2512,8 @@ impl TypeState {
         self.visit_expression(&reg.value, ctx, generic_list);
 
         if let Some(tvar) = &type_spec_type {
-            self.unify(&reg.value, tvar, ctx).into_default_diagnostic(
-                reg.value.loc(),
-                self,
-                ctx,
-            )?;
+            self.unify(&reg.value, tvar, ctx)
+                .into_default_diagnostic(reg.value.loc(), self)?;
         }
 
         if let Some((rst_cond, rst_value)) = &reg.reset {
@@ -2441,7 +2537,6 @@ impl TypeState {
                         .primary_label("expected bool")
                     },
                     self,
-                    ctx,
                 )?;
 
             // Ensure the reset value has the same type as the register itself
@@ -2457,7 +2552,6 @@ impl TypeState {
                         .secondary_label(&reg.pattern, format!("because this has type {expected}"))
                     },
                     self,
-                    ctx,
                 )?;
         }
 
@@ -2476,7 +2570,6 @@ impl TypeState {
                         .secondary_label(&reg.pattern, format!("because this has type {got}"))
                     },
                     self,
-                    ctx,
                 )?;
         }
 
@@ -2497,7 +2590,6 @@ impl TypeState {
                     .primary_label("expected clock")
                 },
                 self,
-                ctx,
             )?;
 
         self.unify(&TypedExpression::Id(reg.pattern.id), &reg.value, ctx)
@@ -2505,7 +2597,6 @@ impl TypeState {
                 reg.pattern.loc(),
                 error_pattern_type_mismatch(reg.value.loc(), self),
                 self,
-                ctx,
             )?;
 
         Ok(())
@@ -3486,7 +3577,7 @@ impl TypeState {
         ctx: &Context,
     ) -> Result<TypeVarID> {
         self.unify(&expr.inner, other, ctx)
-            .into_default_diagnostic(expr.loc(), self, ctx)
+            .into_default_diagnostic(expr.loc(), self)
     }
 
     pub fn check_requirements(&mut self, is_final_check: bool, ctx: &Context) -> Result<()> {
@@ -3544,7 +3635,6 @@ impl TypeState {
                     from.loc(),
                     context,
                     self,
-                    ctx,
                 )?;
             }
         }

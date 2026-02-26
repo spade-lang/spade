@@ -10,7 +10,7 @@ fn test<T>(x: T)
 }
 
 
-error: Trait bound not satisfied. bool does not implement X<bool, bool>
+error: Argument type mismatch. Expected X<bool, bool> got bool
   ┌─ testinput:6:10
   │
 4 │     where T: X<bool, bool>

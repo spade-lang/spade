@@ -12,7 +12,7 @@ fn test1(x: A) {
 }
 
 
-error: Trait bound not satisfied. A does not implement core::Data
+error: Argument type mismatch. Expected core::Data got A
   ┌─ testinput:8:16
   │
 5 │ fn needs_data<T: Data>(x: T) {}

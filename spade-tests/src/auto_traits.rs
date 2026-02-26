@@ -1,4 +1,4 @@
-use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error! {
     type_with_inv_is_not_data,

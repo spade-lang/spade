@@ -14,7 +14,7 @@ error: Argument type mismatch. Expected uint<8> got bool
   ┌─ testinput:6:10
   │
 6 │     func(true).method()
-  │          ^^^^ expected uint<8>
+  │          ^^^^ Expected uint<8>
   │
   = note: Expected: uint<8>
                Got: bool

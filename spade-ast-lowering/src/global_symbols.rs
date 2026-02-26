@@ -627,7 +627,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .args
                     .clone()
                     .map(|l| {
-                        if let Some(ref self_) = l.self_ {
+                        if let Some((ref self_, _wire)) = l.self_ {
                             Err(Diagnostic::bug(self_, "enum member contains self"))
                         } else {
                             Ok(l.args.clone())
@@ -636,7 +636,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .unwrap_or(Ok(vec![]))?;
 
                 // Ensure that we don't have any port or inout types in the enum variants
-                for (_, _, ty) in args {
+                for (_, _, _, ty) in args {
                     let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
                     if ty.is_inout(&ctx)? {
                         return Err(Diagnostic::error(ty, "Inout in enum")
@@ -734,14 +734,14 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
             )
         }
         ast::TypeDeclKind::Struct(s) => {
-            if let Some(ref self_) = s.members.self_ {
+            if let Some((ref self_, ref _wire)) = s.members.self_ {
                 return Err(Diagnostic::bug(
                     self_,
                     "struct contains self member which was let through parser",
                 ));
             }
 
-            for (_, _f, ty) in &s.members.args {
+            for (_, _wire, _f, ty) in &s.members.args {
                 let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
                 if hir_ty.is_inout(ctx)? {
                     return Err(Diagnostic::error(ty, "Inout in struct")

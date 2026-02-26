@@ -22,9 +22,9 @@ pub enum Substitution {
     },
     /// The value is available now and the true name is `NameID`
     Available(NameID),
-    /// The value is a port, so it should not be registered and is always available.
-    Port,
-    /// The value has size0 so it should not be registered
+    /// The value is a wire, so it should not be registered and is always available.
+    Wire,
+    /// The value has size so it should not be registered
     ZeroSized,
 }
 
@@ -114,7 +114,7 @@ impl Substitutions {
                     });
                     Substitution::Available(new_name)
                 }
-                Substitution::Port => Substitution::Port,
+                Substitution::Wire => Substitution::Wire,
                 Substitution::ZeroSized => Substitution::ZeroSized,
             };
             new_subs.insert(original.inner.clone(), new_sub);
@@ -150,6 +150,11 @@ impl Substitutions {
             .last_mut()
             .unwrap()
             .insert(from.inner.clone(), availability);
+    }
+
+    pub fn set_wire(&mut self, name: Loc<NameID>) {
+        self.live_vars.push(name.clone());
+        self.inner.last_mut().unwrap().insert(name.inner, Substitution::Wire);
     }
 
     /// Return substituted name for `original` in the current pipeline stage

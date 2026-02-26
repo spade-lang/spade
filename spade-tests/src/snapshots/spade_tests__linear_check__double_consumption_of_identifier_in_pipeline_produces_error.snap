@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-pipeline(0) x(clk: clock, resource: inv &bool) -> (inv &bool, inv &bool) {
+pipeline(0) x(clk: clock, wire resource: inv &bool) -> (inv &bool, inv &bool) {
     (resource, resource)
 }
 

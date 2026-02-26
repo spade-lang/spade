@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/integration.rs
+---
+entity test(clk: clock) {
+    let w = port.1;
+    let l = fn || {
+        set w = 0u32;
+    };
+    reg(clk) r = l;
+}
+
+
+error: Trait bound not satisfied. Lambda<(), inv uint<32>> does not implement core::Data
+  ┌─ testinput:6:14
+  │
+6 │     reg(clk) r = l;
+  │              ^   -
+  │              │   │
+  │              │   Required because of the trait bound specified here
+  │              │   The type of this expression is not Data which means it cannot be stored in a register.
+  │              Lambda<(), inv uint<32>> does not implement core::Data
+  │
+  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

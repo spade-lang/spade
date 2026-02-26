@@ -10,7 +10,7 @@ fn test<T: X + Y>(x: T)
 }
 
 
-error: Trait bound not satisfied. bool does not implement Y
+error: Argument type mismatch. Expected Y got bool
   ┌─ testinput:6:10
   │
 4 │ fn test<T: X + Y>(x: T)

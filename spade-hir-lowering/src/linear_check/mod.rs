@@ -3,15 +3,12 @@ use tracing::trace;
 
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{NameID, Path},
+    name::Path,
 };
 use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{
-    expression::{NamedArgument, UnaryOperator},
-    symbol_table::SymbolTable,
-    ArgumentList, Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement,
-    TypeList, TypeSpec,
+    ArgumentList, Binding, ExprKind, Expression, Input, PipelineRegMarkerExtra, Register, Statement, TypeList, expression::{NamedArgument, UnaryOperator}, symbol_table::SymbolTable
 };
 use spade_typeinference::TypeState;
 
@@ -29,7 +26,7 @@ pub struct LinearCtx<'a> {
 /// Checks for linear type errors in a function-like. Reports errors if an linear
 /// type is not used exactly once
 pub fn check_linear_types(
-    inputs: &[(Loc<NameID>, Loc<TypeSpec>)],
+    inputs: &[Input],
     body: &Loc<Expression>,
     type_state: &TypeState,
     symtab: &SymbolTable,
@@ -43,7 +40,7 @@ pub fn check_linear_types(
 
     let mut linear_state = LinearState::new();
 
-    for (name, _) in inputs {
+    for Input{wire: _, name, ty: _} in inputs {
         linear_state.push_new_name(name, &ctx)
     }
 

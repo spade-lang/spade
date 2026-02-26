@@ -315,10 +315,11 @@ impl PrettyPrint for Parameter {
             no_mangle: _,
             field_translator: _,
             name,
+            wire,
             ty,
         } = self;
 
-        format!("{}: {}", name.pretty_print(), ty.pretty_print())
+        format!("{}{}: {}", if wire.is_some() {"wire "} else {""}, name.pretty_print(), ty.pretty_print())
     }
 }
 

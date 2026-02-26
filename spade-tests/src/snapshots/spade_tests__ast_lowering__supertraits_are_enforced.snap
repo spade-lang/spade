@@ -13,7 +13,7 @@ fn test() {
 }
 
 
-error: Trait bound not satisfied. bool does not implement B
+error: Argument type mismatch. Expected B got bool
   ┌─ testinput:9:15
   │
 1 │ trait A: B {}

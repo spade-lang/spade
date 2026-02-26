@@ -55,8 +55,8 @@ pub struct ReadPort<#uint W, D> {
 
 impl<#uint W, D> ReadPort<W, D> {
     /// Read the value stored at `addr`
-    pub pipeline(1) read(self, read_clk: clock, addr: uint<W>) -> D {
-        let ReadPort(saddr, sout) = self;
+    pub pipeline(1) read(wire self, read_clk: clock, addr: uint<W>) -> D {
+        let ReadPort(wire saddr, wire sout) = self;
         set saddr = &addr;
     reg;
         *sout
@@ -64,7 +64,7 @@ impl<#uint W, D> ReadPort<W, D> {
 }
 
 /// Read a read port. Deprecated, prefer using the `ReadPort::read()` method instead
-pub pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, p: ReadPort<W, D>) -> D {
+pub pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, wire p: ReadPort<W, D>) -> D {
     let result = p.inst(1) read(read_clk, addr);
 reg;
     result

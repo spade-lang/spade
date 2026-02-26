@@ -21,7 +21,7 @@ error: Argument type mismatch. Expected bool got int<8>
 7 │     let x: int<8> = b;
   │            ------ Type int<8> inferred here
 8 │     let X$(b) = X(true);
-  │            ^ expected bool
+  │            ^ Expected bool
   │
   = note: Expected: bool
                Got: int<8>

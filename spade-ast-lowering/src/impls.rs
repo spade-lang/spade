@@ -847,12 +847,14 @@ fn check_params_for_impl_method_and_trait_method_match(
                     name: i_name,
                     ty: i_spec,
                     no_mangle: _,
+                    wire: _,
                     field_translator: _,
                 },
                 hir::Parameter {
                     name: t_name,
                     ty: t_spec,
                     no_mangle: _,
+                    wire: _,
                     field_translator: _,
                 },
             ) => {
@@ -882,6 +884,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 name,
                 ty: _,
                 no_mangle: _,
+                wire: _,
                 field_translator: _,
             }) => {
                 return Err(
@@ -894,6 +897,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 name,
                 ty: _,
                 no_mangle: _,
+                wire: _,
                 field_translator: _,
             }) => {
                 return Err(Diagnostic::error(
@@ -977,6 +981,7 @@ fn map_trait_method_parameters(
                     name: param.name.clone(),
                     ty,
                     no_mangle: param.no_mangle,
+                    wire: param.wire,
                     field_translator: None,
                 })
             })

@@ -14,7 +14,7 @@ error: Argument type mismatch. Expected Number<#uint> got A
 3 │ fn test(a: A) -> int<8> {
   │            - Type A inferred here
 4 │     trunc(a)
-  │           ^ expected Number<#uint>
+  │           ^ Expected Number<_>
   │
   ┌─ <compiler dir>/stdlib/conv.spade:8:21
   │

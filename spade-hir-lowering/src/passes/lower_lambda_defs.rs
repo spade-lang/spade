@@ -10,8 +10,8 @@ use spade_diagnostics::{diag_anyhow, Diagnostic};
 use spade_hir::{
     expression::{CallKind, Safety},
     pretty_print::PrettyPrint,
-    ArgumentList, ExprKind, Expression, Generic, Parameter, ParameterList, Pattern, PatternKind,
-    Statement, TypeParam, TypeSpec, Unit, UnitHead,
+    ArgumentList, ExprKind, Expression, Generic, Input, Parameter, ParameterList, Pattern,
+    PatternKind, Statement, TypeParam, TypeSpec, Unit, UnitHead,
 };
 use spade_typeinference::{equation::KnownTypeVar, GenericListToken, HasType, TypeState};
 
@@ -70,7 +70,7 @@ impl LambdaReplacement {
             .enumerate()
             .map(|(i, (arg, _))| {
                 // .1, .0 is self
-                let (input, _) = old
+                let Input{wire: _, name, ty: _} = old
                     .inputs
                     .get(if self.clock.is_some() { 2 } else { 1 })
                     .ok_or_else(|| {
@@ -84,21 +84,25 @@ impl LambdaReplacement {
                     None,
                     ExprKind::TupleIndex(
                         Box::new(
-                            ExprKind::Identifier(input.clone().inner)
+                            ExprKind::Identifier(name.clone().inner)
                                 .with_id(idtracker.next())
                                 .at_loc(arg),
                         ),
                         (i as u128).at_loc(arg),
                     )
                     .with_id(idtracker.next())
-                    .at_loc(input),
+                    .at_loc(name),
                 )
                 .at_loc(arg))
             })
             .collect::<Result<Vec<_>>>()?;
 
         let clock_binding = if let Some(clock) = &self.clock {
-            let (input, _) = old.inputs.get(1).ok_or_else(|| {
+            let Input {
+                wire: _,
+                name,
+                ty: _,
+            } = old.inputs.get(1).ok_or_else(|| {
                 diag_anyhow!(
                     clock,
                     "Did not find any arguments to the generated lambda body"
@@ -111,12 +115,12 @@ impl LambdaReplacement {
                         name: clock.clone(),
                         inner: None,
                         pre_declared: false,
-                        wire: None,
+                        wire: Some(().at_loc(clock)),
                     }
                     .with_id(idtracker.next())
                     .at_loc(&clock),
                     None,
-                    ExprKind::Identifier(input.inner.clone())
+                    ExprKind::Identifier(name.inner.clone())
                         .with_id(idtracker.next())
                         .at_loc(&clock),
                 )
@@ -151,7 +155,7 @@ impl LambdaReplacement {
                                             "Did not find a self argument in lambda call"
                                         )
                                     })?
-                                    .0
+                                    .name
                                     .inner
                                     .clone(),
                             )
@@ -194,7 +198,11 @@ impl LambdaReplacement {
             inputs: unit
                 .inputs
                 .iter()
-                .map(|(n, t)| (n.clone(), self.update_type_spec(t.clone())))
+                .map(|Input { wire, name, ty }| Input {
+                    wire: wire.clone(),
+                    name: name.clone(),
+                    ty: self.update_type_spec(ty.clone()),
+                })
                 .collect(),
             head: UnitHead {
                 scope_type_params: scope_type_params.clone(),
@@ -210,6 +218,7 @@ impl LambdaReplacement {
                             no_mangle: i.no_mangle,
                             name: i.name,
                             ty: self.update_type_spec(i.ty),
+                            wire: i.wire,
                             field_translator: i.field_translator,
                         })
                         .collect(),

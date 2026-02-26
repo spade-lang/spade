@@ -17,7 +17,7 @@ error: Argument type mismatch. Expected uint<5> got uint<32>
   │                                   -- Type 32 inferred here
 5 │     let mem: Memory<int<8>, 32> = inst clocked_memory(clk, []);
 6 │     inst read_memory(mem, idx)
-  │                           ^^^ expected uint<5>
+  │                           ^^^ Expected uint<5>
   │
   = note: Expected: 5
                 in: uint<5>

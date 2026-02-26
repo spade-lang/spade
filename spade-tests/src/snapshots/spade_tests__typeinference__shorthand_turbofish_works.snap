@@ -19,7 +19,7 @@ error: Argument type mismatch. Expected uint<8> got bool
 4 │     let a: bool = false;
   │                   ----- Type bool inferred here
 5 │     func::$<A>(a)
-  │                ^ expected uint<8>
+  │                ^ Expected uint<8>
   ·
 9 │     func2::<uint<8>>()
   │             ------ Type uint<8> inferred here
