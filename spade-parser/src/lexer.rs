@@ -53,11 +53,11 @@ pub enum TokenKind {
         parse_int(lex.slice(), 10)
     })]
     Integer((BigUint, LiteralKind)),
-    #[regex(r"0x[0-9A-Fa-f][0-9_A-Fa-f]*([uUiI][0-9]+)?", |lex| {
+    #[regex(r"0x[0-9A-Fa-f][0-9_A-Fa-f]*([uUiI][0-9]*)?", |lex| {
         parse_int(&lex.slice()[2..], 16)
     })]
     HexInteger((BigUint, LiteralKind)),
-    #[regex(r"0b[0-1][0-1_]*([uUiI][0-9]+)?", |lex| {
+    #[regex(r"0b[0-1][0-1_]*([uUiI][0-9]*)?", |lex| {
         parse_int(&lex.slice()[2..], 2)
     })]
     BinInteger((BigUint, LiteralKind)),
