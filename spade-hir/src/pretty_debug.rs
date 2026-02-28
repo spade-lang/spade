@@ -198,6 +198,18 @@ impl PrettyDebug for ConstGeneric {
             ConstGeneric::NotEq(lhs, rhs) => {
                 format!("({} != {})", lhs.pretty_debug(), rhs.pretty_debug())
             }
+            ConstGeneric::Lt(lhs, rhs) => {
+                format!("({} < {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
+            ConstGeneric::Gt(lhs, rhs) => {
+                format!("({} > {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
+            ConstGeneric::Le(lhs, rhs) => {
+                format!("({} <= {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
+            ConstGeneric::Ge(lhs, rhs) => {
+                format!("({} >= {})", lhs.pretty_debug(), rhs.pretty_debug())
+            }
             ConstGeneric::LogicalNot(inner) => {
                 format!("(!{})", inner.pretty_debug())
             }

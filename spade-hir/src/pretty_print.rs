@@ -137,6 +137,18 @@ impl PrettyPrint for ConstGeneric {
             ConstGeneric::NotEq(lhs, rhs) => {
                 format!("({} != {})", lhs.pretty_print(), rhs.pretty_print())
             }
+            ConstGeneric::Lt(lhs, rhs) => {
+                format!("({} < {})", lhs.pretty_print(), rhs.pretty_print())
+            }
+            ConstGeneric::Gt(lhs, rhs) => {
+                format!("({} > {})", lhs.pretty_print(), rhs.pretty_print())
+            }
+            ConstGeneric::Le(lhs, rhs) => {
+                format!("({} <= {})", lhs.pretty_print(), rhs.pretty_print())
+            }
+            ConstGeneric::Ge(lhs, rhs) => {
+                format!("({} >= {})", lhs.pretty_print(), rhs.pretty_print())
+            }
             ConstGeneric::LogicalNot(inner) => {
                 format!("(!{})", inner.pretty_print())
             }

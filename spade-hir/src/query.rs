@@ -409,50 +409,26 @@ impl<'a> QueryCache {
             ConstGeneric::Bool(_) => {}
             ConstGeneric::Int(_) => {}
             ConstGeneric::Str(_) => {}
-            ConstGeneric::Add(lhs, rhs) => {
+            ConstGeneric::Add(lhs, rhs)
+            | ConstGeneric::Sub(lhs, rhs)
+            | ConstGeneric::Mul(lhs, rhs)
+            | ConstGeneric::Div(lhs, rhs)
+            | ConstGeneric::Mod(lhs, rhs)
+            | ConstGeneric::Eq(lhs, rhs)
+            | ConstGeneric::NotEq(lhs, rhs)
+            | ConstGeneric::Lt(lhs, rhs)
+            | ConstGeneric::Gt(lhs, rhs)
+            | ConstGeneric::Le(lhs, rhs)
+            | ConstGeneric::Ge(lhs, rhs)
+            | ConstGeneric::LogicalAnd(lhs, rhs)
+            | ConstGeneric::LogicalOr(lhs, rhs)
+            | ConstGeneric::LogicalXor(lhs, rhs) => {
                 self.visit_const_generic(lhs);
                 self.visit_const_generic(rhs);
             }
-            ConstGeneric::Sub(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
+            ConstGeneric::LogicalNot(inner) | ConstGeneric::UintBitsToFit(inner) => {
+                self.visit_const_generic(inner)
             }
-            ConstGeneric::Mul(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::Div(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::Mod(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::Eq(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::NotEq(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::LogicalNot(inner) => {
-                self.visit_const_generic(inner);
-            }
-            ConstGeneric::LogicalAnd(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::LogicalOr(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::LogicalXor(lhs, rhs) => {
-                self.visit_const_generic(lhs);
-                self.visit_const_generic(rhs);
-            }
-            ConstGeneric::UintBitsToFit(inner) => self.visit_const_generic(inner),
         }
     }
 }

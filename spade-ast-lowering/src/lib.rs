@@ -1016,6 +1016,10 @@ pub fn visit_const_generic(
                 ast::BinaryOperator::Mul => ConstGeneric::Mul(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Eq => ConstGeneric::Eq(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Neq => ConstGeneric::NotEq(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::Lt => ConstGeneric::Lt(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::Gt => ConstGeneric::Gt(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::Le => ConstGeneric::Le(Box::new(lhs), Box::new(rhs)),
+                ast::BinaryOperator::Ge => ConstGeneric::Ge(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Div => ConstGeneric::Div(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::Mod => ConstGeneric::Mod(Box::new(lhs), Box::new(rhs)),
                 ast::BinaryOperator::LogicalAnd => {

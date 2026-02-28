@@ -2491,6 +2491,10 @@ impl TypeState {
             ConstGeneric::Str(_) => self.new_generic_tlstr(gen.loc()),
             ConstGeneric::Eq(_, _)
             | ConstGeneric::NotEq(_, _)
+            | ConstGeneric::Lt(_, _)
+            | ConstGeneric::Gt(_, _)
+            | ConstGeneric::Le(_, _)
+            | ConstGeneric::Ge(_, _)
             | ConstGeneric::LogicalNot(_)
             | ConstGeneric::LogicalAnd(_, _)
             | ConstGeneric::LogicalOr(_, _)
@@ -2537,6 +2541,10 @@ impl TypeState {
             ConstGeneric::Mod(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Mod)?,
             ConstGeneric::Eq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Eq)?,
             ConstGeneric::NotEq(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::NotEq)?,
+            ConstGeneric::Lt(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Lt)?,
+            ConstGeneric::Gt(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Gt)?,
+            ConstGeneric::Le(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Le)?,
+            ConstGeneric::Ge(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Ge)?,
             ConstGeneric::LogicalNot(a) => {
                 ConstraintExpr::LogicalNot(Box::new(self.visit_const_generic(a, generic_list)?))
             }

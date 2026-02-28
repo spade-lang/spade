@@ -22,6 +22,10 @@ pub enum ConstraintExpr {
     Sub(Box<ConstraintExpr>),
     Eq(Box<ConstraintExpr>, Box<ConstraintExpr>),
     NotEq(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Lt(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Gt(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Le(Box<ConstraintExpr>, Box<ConstraintExpr>),
+    Ge(Box<ConstraintExpr>, Box<ConstraintExpr>),
     LogicalNot(Box<ConstraintExpr>),
     LogicalAnd(Box<ConstraintExpr>, Box<ConstraintExpr>),
     LogicalOr(Box<ConstraintExpr>, Box<ConstraintExpr>),
@@ -88,6 +92,34 @@ impl ConstraintExpr {
             ConstraintExpr::NotEq(lhs, rhs) => {
                 format!(
                     "({} != {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Lt(lhs, rhs) => {
+                format!(
+                    "({} < {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Gt(lhs, rhs) => {
+                format!(
+                    "({} > {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Le(lhs, rhs) => {
+                format!(
+                    "({} <= {})",
+                    lhs.debug_display(type_state),
+                    rhs.debug_display(type_state)
+                )
+            }
+            ConstraintExpr::Ge(lhs, rhs) => {
+                format!(
+                    "({} >= {})",
                     lhs.debug_display(type_state),
                     rhs.debug_display(type_state)
                 )
@@ -198,6 +230,38 @@ impl ConstraintExpr {
                     }
                     (ConstraintExpr::String(l), ConstraintExpr::String(r)) => {
                         ConstraintExpr::Bool(l != r)
+                    }
+                    _ => self.clone(),
+                }
+            }
+            ConstraintExpr::Lt(lhs, rhs) => {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l < r)
+                    }
+                    _ => self.clone(),
+                }
+            }
+            ConstraintExpr::Gt(lhs, rhs) => {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l > r)
+                    }
+                    _ => self.clone(),
+                }
+            }
+            ConstraintExpr::Le(lhs, rhs) => {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l <= r)
+                    }
+                    _ => self.clone(),
+                }
+            }
+            ConstraintExpr::Ge(lhs, rhs) => {
+                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                    (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
+                        ConstraintExpr::Bool(l >= r)
                     }
                     _ => self.clone(),
                 }
@@ -395,6 +459,10 @@ impl TypeConstraints {
                     | ConstraintExpr::Mod(_, _)
                     | ConstraintExpr::Eq(_, _)
                     | ConstraintExpr::NotEq(_, _)
+                    | ConstraintExpr::Lt(_, _)
+                    | ConstraintExpr::Gt(_, _)
+                    | ConstraintExpr::Le(_, _)
+                    | ConstraintExpr::Ge(_, _)
                     | ConstraintExpr::LogicalNot(_)
                     | ConstraintExpr::LogicalAnd(_, _)
                     | ConstraintExpr::LogicalOr(_, _)

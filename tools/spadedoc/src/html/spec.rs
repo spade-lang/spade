@@ -190,6 +190,26 @@ impl<'r> Spec<'r> {
                 op: "!=".into(),
                 rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
             },
+            ConstGeneric::Lt(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: "<".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
+            ConstGeneric::Gt(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: ">".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
+            ConstGeneric::Le(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: "<=".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
+            ConstGeneric::Ge(lhs, rhs) => Self::ConstGenericBinOp {
+                lhs: Self::mirror_constgeneric(lhs, false, true)?.into(),
+                op: ">=".into(),
+                rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
+            },
             ConstGeneric::LogicalNot(inner) => Self::ConstGenericUnOp {
                 op: "!".into(),
                 inner: Self::mirror_constgeneric(inner, false, true)?.into(),

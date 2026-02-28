@@ -10,7 +10,6 @@ use super::pass::Pass;
 
 pub struct LowerTypeLevelIf<'a> {
     pub type_state: &'a TypeState,
-    pub idtracker: &'a ExprIdTracker,
     pub items: &'a ItemList,
     pub symtab: &'a FrozenSymtab,
 

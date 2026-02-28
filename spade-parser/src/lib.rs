@@ -651,8 +651,9 @@ impl<'a> Parser<'a> {
         };
 
         if is_gen {
-            let on_false =
-                on_false.unwrap_or(Expression::Block(Box::new(Block::default())).at(self.file_id, &start.span));
+            let on_false = on_false.unwrap_or(
+                Expression::Block(Box::new(Block::default())).at(self.file_id, &start.span),
+            );
 
             Ok(Some(
                 Expression::TypeLevelIf {

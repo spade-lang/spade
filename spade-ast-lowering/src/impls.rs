@@ -1121,6 +1121,18 @@ fn map_const_generic_to_trait(
         hir::ConstGeneric::NotEq(lhs, rhs) => {
             Ok(hir::ConstGeneric::NotEq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
         }
+        hir::ConstGeneric::Lt(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Lt(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Gt(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Gt(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Le(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Le(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::Ge(lhs, rhs) => {
+            Ok(hir::ConstGeneric::Ge(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+        }
         hir::ConstGeneric::LogicalNot(inner) => {
             Ok(hir::ConstGeneric::LogicalNot(map_boilerplate(inner)?).at_loc(&cg))
         }
