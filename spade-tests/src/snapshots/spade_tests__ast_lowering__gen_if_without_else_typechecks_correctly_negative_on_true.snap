@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test() -> uint<2> {
+    gen if true {
+        0u2
+    }
+}
+
+
+error: Output type mismatch. Expected uint<2>, got ()
+  ┌─ testinput:2:9
+  │
+1 │ fn test() -> uint<2> {
+  │              ------- uint<2> type specified here
+2 │     gen if true {
+  │         ^^ Found type ()
+  │
+  = note: Expected: uint<2>
+               Got: ()

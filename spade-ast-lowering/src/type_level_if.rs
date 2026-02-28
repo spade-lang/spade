@@ -49,11 +49,15 @@ pub fn absorb_statements(
     ctx: &mut Context,
 ) -> Result<Loc<Expression>> {
     body.try_map_ref(|expr| match &expr.kind {
-        ExprKind::TypeLevelIf(cond, on_true, on_false) => Ok(ExprKind::TypeLevelIf(
-            cond.clone(),
-            Box::new(absorb_statements(on_true, outer_statements, ctx)?),
-            Box::new(absorb_statements(on_false, outer_statements, ctx)?),
-        )
+        ExprKind::TypeLevelIf {
+            cond,
+            on_true,
+            on_false,
+        } => Ok(ExprKind::TypeLevelIf {
+            cond: cond.clone(),
+            on_true: Box::new(absorb_statements(on_true, outer_statements, ctx)?),
+            on_false: Box::new(absorb_statements(on_false, outer_statements, ctx)?),
+        }
         .with_id(ctx.idtracker.next())),
         ExprKind::Block(block) => Ok(ExprKind::Block(Box::new(Block {
             statements: outer_statements
@@ -85,7 +89,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             let absorbed = absorb_statements(&new_body, &body.statements, ctx)?;
             new_unit.attributes.0.push(Attribute::Inline.at_loc(&unit));
             new_unit.body = match &absorbed.kind {
-                ExprKind::TypeLevelIf(_, _, _) => {
+                ExprKind::TypeLevelIf { .. } => {
                     let loc = absorbed.loc();
                     ExprKind::Block(Box::new(Block {
                         statements: vec![],
@@ -174,17 +178,24 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
     };
 
     match body.result.as_ref().map(|e| &e.kind) {
-        Some(ExprKind::TypeLevelIf(cond, on_true, on_false)) => {
+        Some(ExprKind::TypeLevelIf {
+            cond,
+            on_true,
+            on_false,
+        }) => {
             let on_true = expand_body(&on_true, PathSegment::IfT, ctx)?;
-            let on_false = expand_body(&on_false, PathSegment::IfF, ctx)?;
+            let on_false = expand_body(&on_false, PathSegment::IfT, ctx)?;
 
             let new_on_true = call_expanded(on_true, ctx);
             let new_on_false = call_expanded(on_false, ctx);
 
-            let new_result =
-                ExprKind::TypeLevelIf(cond.clone(), Box::new(new_on_true), Box::new(new_on_false))
-                    .with_id(ctx.idtracker.next())
-                    .at_loc(&unit.body);
+            let new_result = ExprKind::TypeLevelIf {
+                cond: cond.clone(),
+                on_true: Box::new(new_on_true),
+                on_false: Box::new(new_on_false),
+            }
+            .with_id(ctx.idtracker.next())
+            .at_loc(&unit.body);
 
             let result_name = ctx
                 .symtab

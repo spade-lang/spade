@@ -2397,27 +2397,35 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 safety: ctx.safety,
             })
         }
-        ast::Expression::If(cond, ontrue, onfalse) => {
+        ast::Expression::If {
+            cond,
+            on_true,
+            on_false,
+        } => {
             let cond = cond.visit(visit_expression, ctx);
-            let ontrue = ontrue.visit(visit_expression, ctx);
-            let onfalse = onfalse.visit(visit_expression, ctx);
+            let on_true = on_true.visit(visit_expression, ctx);
+            let on_false = on_false.visit(visit_expression, ctx);
 
-            Ok(hir::ExprKind::If(
-                Box::new(cond),
-                Box::new(ontrue),
-                Box::new(onfalse),
-            ))
+            Ok(hir::ExprKind::If {
+                cond: Box::new(cond),
+                on_true: Box::new(on_true),
+                on_false: Box::new(on_false),
+            })
         }
-        ast::Expression::TypeLevelIf(cond, ontrue, onfalse) => {
+        ast::Expression::TypeLevelIf {
+            cond,
+            on_true,
+            on_false,
+        } => {
             let cond = visit_const_generic(cond, ctx)?;
-            let ontrue = ontrue.visit(visit_expression, ctx);
-            let onfalse = onfalse.visit(visit_expression, ctx);
+            let on_true = on_true.visit(visit_expression, ctx);
+            let on_false = on_false.visit(visit_expression, ctx);
 
-            Ok(hir::ExprKind::TypeLevelIf(
-                cond.map(|cond| cond.with_id(ctx.idtracker.next())),
-                Box::new(ontrue),
-                Box::new(onfalse),
-            ))
+            Ok(hir::ExprKind::TypeLevelIf {
+                cond: cond.map(|cond| cond.with_id(ctx.idtracker.next())),
+                on_true: Box::new(on_true),
+                on_false: Box::new(on_false),
+            })
         }
         ast::Expression::Match {
             expression,
@@ -2830,8 +2838,8 @@ fn inject_verilog_attrs(
         | ExprKind::UnaryOperator(_, _)
         | ExprKind::Match(_, _)
         | ExprKind::Block(_)
-        | ExprKind::If(_, _, _)
-        | ExprKind::TypeLevelIf(_, _, _)
+        | ExprKind::If { .. }
+        | ExprKind::TypeLevelIf { .. }
         | ExprKind::PipelineRef { .. }
         | ExprKind::LambdaDef { .. }
         | ExprKind::StageValid

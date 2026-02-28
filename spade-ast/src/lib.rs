@@ -340,16 +340,16 @@ pub enum Expression {
         kind: CallKind,
         turbofish: Option<Loc<TurbofishInner>>,
     },
-    If(
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-    ),
-    TypeLevelIf(
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-    ),
+    If {
+        cond: Box<Loc<Expression>>,
+        on_true: Box<Loc<Expression>>,
+        on_false: Box<Loc<Expression>>,
+    },
+    TypeLevelIf {
+        cond: Box<Loc<Expression>>,
+        on_true: Box<Loc<Expression>>,
+        on_false: Box<Loc<Expression>>,
+    },
     Match {
         expression: Box<Loc<Expression>>,
         branches: Loc<Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>>,
@@ -430,8 +430,8 @@ impl Expression {
             Expression::TupleLiteral(_) => "tuple literal",
             Expression::TupleIndex { .. } => "tuple index",
             Expression::FieldAccess(_, _) => "field access",
-            Expression::If(_, _, _) => "if",
-            Expression::TypeLevelIf(_, _, _) => "type level if",
+            Expression::If { .. } => "if",
+            Expression::TypeLevelIf { .. } => "type level if",
             Expression::Match { if_let: false, .. } => "match",
             Expression::Match { if_let: true, .. } => "if let",
             Expression::Lambda { .. } => "lambda",
@@ -507,7 +507,7 @@ impl Display for IntLiteral {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct Block {
     pub statements: Vec<Loc<Statement>>,
     pub result: Option<Loc<Expression>>,

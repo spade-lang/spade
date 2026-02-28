@@ -708,9 +708,13 @@ impl PipelineAvailability for Expression {
                     _ => Ok(arg_availability),
                 }
             }
-            ExprKind::If(_, t, f) => try_compute_availability(&[t.as_ref(), f.as_ref()], ctx),
+            ExprKind::If {
+                cond: _,
+                on_true,
+                on_false,
+            } => try_compute_availability(&[on_true.as_ref(), on_false.as_ref()], ctx),
             ExprKind::PipelineRef { .. } => Ok(Some(0)),
-            ExprKind::TypeLevelIf(cond, _, _) => diag_bail!(
+            ExprKind::TypeLevelIf { cond, .. } => diag_bail!(
                 cond,
                 "Type level if should already have been lowered by this point"
             ),

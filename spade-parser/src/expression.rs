@@ -269,7 +269,7 @@ impl<'a> Parser<'a> {
             Ok(val)
         } else if let Some(block) = self.block(false)? {
             Ok(block.map(Box::new).map(Expression::Block))
-        } else if let Some(if_expr) = self.if_expression(false, true)? {
+        } else if let Some(if_expr) = self.if_expression(false, true, false)? {
             Ok(if_expr)
         } else if let Some(if_expr) = self.type_level_if()? {
             Ok(if_expr)
@@ -907,23 +907,23 @@ mod test {
         if a {b} else {c}
         "#;
 
-        let expected = Expression::If(
-            Box::new(Expression::Identifier(ast_path("a")).nowhere()),
-            Box::new(
+        let expected = Expression::If {
+            cond: Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+            on_true: Box::new(
                 Expression::Block(Box::new(Block {
                     statements: vec![],
                     result: Some(Expression::Identifier(ast_path("b")).nowhere()),
                 }))
                 .nowhere(),
             ),
-            Box::new(
+            on_false: Box::new(
                 Expression::Block(Box::new(Block {
                     statements: vec![],
                     result: Some(Expression::Identifier(ast_path("c")).nowhere()),
                 }))
                 .nowhere(),
             ),
-        )
+        }
         .nowhere();
 
         check_parse!(code, expression, Ok(expected));

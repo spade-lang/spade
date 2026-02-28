@@ -183,15 +183,23 @@ impl<'a> QueryCache {
                     self.visit_expression(result)
                 }
             }
-            crate::ExprKind::If(cond, lhs, rhs) => {
+            crate::ExprKind::If {
+                cond,
+                on_true,
+                on_false,
+            } => {
                 self.visit_expression(cond);
-                self.visit_expression(lhs);
-                self.visit_expression(rhs);
+                self.visit_expression(on_true);
+                self.visit_expression(on_false);
             }
-            crate::ExprKind::TypeLevelIf(_cond, lhs, rhs) => {
+            crate::ExprKind::TypeLevelIf {
+                cond: _,
+                on_true,
+                on_false,
+            } => {
                 // FIXME: Visit cond
-                self.visit_expression(lhs);
-                self.visit_expression(rhs);
+                self.visit_expression(on_true);
+                self.visit_expression(on_false);
             }
             crate::ExprKind::PipelineRef {
                 stage: _,

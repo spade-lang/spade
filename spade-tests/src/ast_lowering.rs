@@ -403,6 +403,94 @@ code_compiles! {
     "
 }
 
+snapshot_error! {
+    if_requires_else,
+    "
+    fn test() {
+        let _ = if true {
+            0u2
+        };
+    }
+    "
+}
+
+snapshot_error! {
+    if_let_requires_else,
+    "
+    fn test() {
+        let _ = if let x = true {
+            0u2
+        };
+    }
+    "
+}
+
+code_compiles! {
+    gen_if_does_not_require_else_on_true,
+    "
+    fn test() {
+        gen if true {
+            let _ = 0u2;
+        }
+    }
+    "
+}
+
+code_compiles! {
+    gen_if_does_not_require_else_on_false,
+    "
+    fn test() {
+        gen if false {
+            let _ = 0u2;
+        }
+    }
+    "
+}
+
+code_compiles! {
+    gen_if_without_else_typechecks_correctly_positive_on_true,
+    "
+    fn test() {
+        gen if true {
+            let _ = 0u2;
+        }
+    }
+    "
+}
+
+code_compiles! {
+    gen_if_without_else_typechecks_correctly_positive_on_false,
+    "
+    fn test() {
+        gen if false {
+            let _ = 0u2;
+        }
+    }
+    "
+}
+
+snapshot_error! {
+    gen_if_without_else_typechecks_correctly_negative_on_true,
+    "
+    fn test() -> uint<2> {
+        gen if true {
+            0u2
+        }
+    }
+    "
+}
+
+snapshot_error! {
+    gen_if_without_else_typechecks_correctly_negative_on_false,
+    "
+    fn test() -> uint<2> {
+        gen if false {
+            0u2
+        }
+    }
+    "
+}
+
 code_compiles! {
     match_expression_names_are_visible_inside_if_conditions,
     "

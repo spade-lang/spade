@@ -172,8 +172,8 @@ impl LocExprExt for Loc<hir::Expression> {
             }
             ExprKind::Match(_, _) => Some(self.clone()),
             ExprKind::Block(_) => Some(self.clone()),
-            ExprKind::If(_, _, _) => Some(self.clone()),
-            ExprKind::TypeLevelIf(_, _, _) => Some(self.clone()),
+            ExprKind::If { .. } => Some(self.clone()),
+            ExprKind::TypeLevelIf { .. } => Some(self.clone()),
             ExprKind::PipelineRef { .. } => Some(self.clone()),
             ExprKind::StageReady => Some(self.clone()),
             ExprKind::StageValid => Some(self.clone()),
@@ -1428,7 +1428,7 @@ impl ExprLocal for Loc<Expression> {
                     Ok(None)
                 }
             }
-            ExprKind::If(_, _, _) => Ok(None),
+            ExprKind::If { .. } => Ok(None),
             ExprKind::Match(_, _) => Ok(None),
             ExprKind::BinaryOperator(_, _, _) => Ok(None),
             ExprKind::UnaryOperator(_, _) => Ok(None),
@@ -1476,7 +1476,7 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::StageReady => Ok(None),
             ExprKind::StageValid => Ok(None),
             ExprKind::Call { .. } => Ok(None),
-            ExprKind::TypeLevelIf(_, _, _) => diag_bail!(
+            ExprKind::TypeLevelIf { .. } => diag_bail!(
                 self,
                 "Type level if should have been lowered to function by this point"
             ),
@@ -2060,7 +2060,11 @@ impl ExprLocal for Loc<Expression> {
 
                 // Empty. The block result will always be the last expression
             }
-            ExprKind::If(cond, on_true, on_false) => {
+            ExprKind::If {
+                cond,
+                on_true,
+                on_false,
+            } => {
                 result.append(cond.lower(ctx)?);
                 result.append(on_true.lower(ctx)?);
                 result.append(on_false.lower(ctx)?);
@@ -2423,7 +2427,7 @@ impl ExprLocal for Loc<Expression> {
                     ),
                 }
             }
-            ExprKind::TypeLevelIf(_, _, _) => {
+            ExprKind::TypeLevelIf { .. } => {
                 diag_bail!(
                     self,
                     "Type level if should already have been lowered at this point"

@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test() {
+    let _ = if let x = true {
+        0u2
+    };
+}
+
+
+error: `if` expression requires an `else` branch
+  ┌─ testinput:2:13
+  │  
+2 │       let _ = if let x = true {
+  │ ╭─────────────^
+3 │ │         0u2
+4 │ │     };
+  │ ╰─────^
+  │  
+  = Consider adding an `else` branch
+  │
+4 │     } else { /* ... */ };
+  │      +++++++++++++++++++

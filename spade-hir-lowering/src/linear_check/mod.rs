@@ -170,8 +170,8 @@ fn visit_expression(
         spade_hir::ExprKind::Match(_, _) => true,
         spade_hir::ExprKind::Block(_) => true,
         spade_hir::ExprKind::Call { .. } => true,
-        spade_hir::ExprKind::If(_, _, _) => true,
-        spade_hir::ExprKind::TypeLevelIf(_, _, _) => true,
+        spade_hir::ExprKind::If { .. } => true,
+        spade_hir::ExprKind::TypeLevelIf { .. } => true,
         spade_hir::ExprKind::StageValid | spade_hir::ExprKind::StageReady => true,
         spade_hir::ExprKind::PipelineRef {
             stage: _,
@@ -376,7 +376,11 @@ fn visit_expression(
                 }
             }
         }
-        spade_hir::ExprKind::If(cond, on_true, on_false) => {
+        spade_hir::ExprKind::If {
+            cond,
+            on_true,
+            on_false,
+        } => {
             visit_expression(cond, linear_state, ctx)?;
             visit_expression(on_true, linear_state, ctx)?;
             visit_expression(on_false, linear_state, ctx)?;
@@ -392,7 +396,7 @@ fn visit_expression(
             }
             linear_state.add_alias_name(expr.id.at_loc(expr), &name.clone())?
         }
-        spade_hir::ExprKind::TypeLevelIf(_, _, _) => {
+        spade_hir::ExprKind::TypeLevelIf { .. } => {
             diag_bail!(expr, "Type level if should have been lowered")
         }
         spade_hir::ExprKind::MethodCall { .. } => diag_bail!(

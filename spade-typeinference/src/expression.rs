@@ -656,7 +656,7 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::If(cond, on_true, on_false) = &expression => {
+        assuming_kind!(ExprKind::If { cond, on_true, on_false } = &expression => {
             self.visit_expression(cond, ctx, generic_list);
             self.visit_expression(on_true, ctx, generic_list);
             self.visit_expression(on_false, ctx, generic_list);

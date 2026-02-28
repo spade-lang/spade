@@ -835,7 +835,7 @@ impl TypeState {
             ExprKind::RangeIndex { .. } => self.visit_range_index(expression, ctx, generic_list)?,
             ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
             ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,
-            ExprKind::If(_, _, _) => self.visit_if(expression, ctx, generic_list)?,
+            ExprKind::If { .. } => self.visit_if(expression, ctx, generic_list)?,
             ExprKind::Match(_, _) => self.visit_match(expression, ctx, generic_list)?,
             ExprKind::BinaryOperator(_, _, _) => {
                 self.visit_binary_operator(expression, ctx, generic_list)?
@@ -877,7 +877,11 @@ impl TypeState {
                     .into_default_diagnostic(expression, self)?;
             }
 
-            ExprKind::TypeLevelIf(cond, on_true, on_false) => {
+            ExprKind::TypeLevelIf {
+                cond,
+                on_true,
+                on_false,
+            } => {
                 let cond_var = self.visit_const_generic_with_id(
                     cond,
                     generic_list,

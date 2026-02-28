@@ -241,17 +241,17 @@ pub enum ExprKind {
         Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>,
     ),
     Block(Box<Block>),
-    If(
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-    ),
-    TypeLevelIf(
+    If {
+        cond: Box<Loc<Expression>>,
+        on_true: Box<Loc<Expression>>,
+        on_false: Box<Loc<Expression>>,
+    },
+    TypeLevelIf {
         // FIXME: Having a random u64 is not great, let's make TypeExpressions always have associated ids
-        Loc<ConstGenericWithId>,
-        Box<Loc<Expression>>,
-        Box<Loc<Expression>>,
-    ),
+        cond: Loc<ConstGenericWithId>,
+        on_true: Box<Loc<Expression>>,
+        on_false: Box<Loc<Expression>>,
+    },
     PipelineRef {
         stage: Loc<PipelineRefKind>,
         name: Loc<NameID>,

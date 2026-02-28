@@ -10,6 +10,7 @@ use super::pass::Pass;
 
 pub struct LowerTypeLevelIf<'a> {
     pub type_state: &'a TypeState,
+    pub idtracker: &'a ExprIdTracker,
     pub items: &'a ItemList,
     pub symtab: &'a FrozenSymtab,
 
@@ -19,7 +20,11 @@ pub struct LowerTypeLevelIf<'a> {
 impl<'a> Pass for LowerTypeLevelIf<'a> {
     fn visit_expression(&mut self, expression: &mut Loc<spade_hir::Expression>) -> Result<()> {
         match &expression.kind {
-            ExprKind::TypeLevelIf(cond, on_true, on_false) => {
+            ExprKind::TypeLevelIf {
+                cond,
+                on_true,
+                on_false,
+            } => {
                 if !self.allowed_ids.contains(&expression.id) {
                     return Err(Diagnostic::error(
                         &*expression,
@@ -59,10 +64,14 @@ impl<'a> Pass for LowerTypeLevelIf<'a> {
 impl<'a> LowerTypeLevelIf<'a> {
     fn mark_allowed_tlifs(&mut self, expr: &Expression) {
         match &expr.kind {
-            ExprKind::TypeLevelIf(_loc, loc1, loc2) => {
+            ExprKind::TypeLevelIf {
+                cond: _,
+                on_true,
+                on_false,
+            } => {
                 self.allowed_ids.insert(expr.id);
-                self.mark_allowed_tlifs(loc1);
-                self.mark_allowed_tlifs(loc2);
+                self.mark_allowed_tlifs(on_true);
+                self.mark_allowed_tlifs(on_false);
             }
             ExprKind::Block(block) => {
                 for stmt in &block.statements {

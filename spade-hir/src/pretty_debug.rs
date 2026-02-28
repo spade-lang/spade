@@ -315,20 +315,22 @@ impl PrettyDebug for ExprKind {
                     [0] "}"
                 }.to_string()
             },
-            crate::ExprKind::If(cond, on_true, on_false) => code! {
+            crate::ExprKind::If { cond, on_true, on_false } => code! {
                 [0] format!("if {} {{", cond.pretty_debug());
                 [1]    on_true.pretty_debug();
                 [0] "} else {";
                 [1]    on_false.pretty_debug();
                 [0] "}";
             }.to_string(),
-            crate::ExprKind::TypeLevelIf(cond, on_true, on_false) => code!{
-                [0] format!("gen if {} {{", cond.pretty_debug());
-                [1]    on_true.pretty_debug();
-                [0] "} else {";
-                [1]    on_false.pretty_debug();
-                [0] "}";
-            }.to_string(),
+            crate::ExprKind::TypeLevelIf { cond, on_true, on_false } => {
+                code!{
+                    [0] format!("gen if {} {{", cond.pretty_debug());
+                    [1]    on_true.pretty_debug();
+                    [0] "} else {";
+                    [1]    on_false.pretty_debug();
+                    [0] "}";
+                }.to_string()
+            }
             crate::ExprKind::PipelineRef {
                 stage: _,
                 name: _,

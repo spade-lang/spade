@@ -24,7 +24,7 @@ use spade_ast::{
 use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_common::num_ext::{InfallibleToBigInt, InfallibleToBigUint};
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;
 
 use crate::error::{
@@ -604,6 +604,7 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_stages: bool,
         allow_let: bool,
+        is_gen: bool,
     ) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::If);
 
@@ -628,48 +629,78 @@ impl<'a> Parser<'a> {
             .primary_label("expected a block here"));
         };
 
-        self.eat(&TokenKind::Else)?;
-        let on_false = if let Some(block) = self.block(allow_stages)? {
-            block.map(Box::new).map(Expression::Block)
-        } else if let Some(expr) = self.if_expression(allow_stages, allow_let)? {
-            expr
+        let (end_span, on_false) = if self.peek_and_eat(&TokenKind::Else)?.is_some() {
+            let on_false = if let Some(block) = self.block(allow_stages)? {
+                block.map(Box::new).map(Expression::Block)
+            } else if let Some(expr) = self.if_expression(allow_stages, allow_let, is_gen)? {
+                expr
+            } else {
+                let got = self.peek()?;
+                return Err(Diagnostic::error(
+                    got.loc(),
+                    format!(
+                        "Unexpected `{}`, expected `if` or a block",
+                        got.kind.as_str()
+                    ),
+                )
+                .primary_label("expected a block here"));
+            };
+            (on_false.span, Some(on_false))
         } else {
-            let got = self.peek()?;
-            return Err(Diagnostic::error(
-                got.loc(),
-                format!(
-                    "Unexpected `{}`, expected `if` or a block",
-                    got.kind.as_str()
-                ),
-            )
-            .primary_label("expected a block here"));
+            (on_true.span, None)
         };
-        let end_span = on_false.span;
 
-        match let_pattern {
-            None => Ok(Some(
-                Expression::If(Box::new(cond), Box::new(on_true), Box::new(on_false)).between(
-                    self.file_id,
-                    &start.span,
-                    &end_span,
-                ),
-            )),
-            Some(pat) => Ok(Some(
-                Expression::Match {
-                    expression: Box::new(cond),
-                    branches: vec![
-                        (pat, None, on_true),
-                        (
-                            Pattern::Path(Path::from_strs(&["_"]).nowhere()).nowhere(),
-                            None,
-                            on_false,
-                        ),
-                    ]
-                    .nowhere(),
-                    if_let: true,
+        if is_gen {
+            let on_false =
+                on_false.unwrap_or(Expression::Block(Box::new(Block::default())).at(self.file_id, &start.span));
+
+            Ok(Some(
+                Expression::TypeLevelIf {
+                    cond: Box::new(cond),
+                    on_true: Box::new(on_true),
+                    on_false: Box::new(on_false),
                 }
                 .between(self.file_id, &start.span, &end_span),
-            )),
+            ))
+        } else {
+            let Some(on_false) = on_false else {
+                let loc = ().between(self.file_id, &start.span, &end_span);
+                return Err(
+                    Diagnostic::error(loc, "`if` expression requires an `else` branch")
+                        .span_suggest_insert_after(
+                            "Consider adding an `else` branch",
+                            loc,
+                            " else { /* ... */ }",
+                        ),
+                );
+            };
+
+            match let_pattern {
+                None => Ok(Some(
+                    Expression::If {
+                        cond: Box::new(cond),
+                        on_true: Box::new(on_true),
+                        on_false: Box::new(on_false),
+                    }
+                    .between(self.file_id, &start.span, &end_span),
+                )),
+                Some(pat) => Ok(Some(
+                    Expression::Match {
+                        expression: Box::new(cond),
+                        branches: vec![
+                            (pat, None, on_true),
+                            (
+                                Pattern::Path(Path::from_strs(&["_"]).nowhere()).nowhere(),
+                                None,
+                                on_false,
+                            ),
+                        ]
+                        .nowhere(),
+                        if_let: true,
+                    }
+                    .between(self.file_id, &start.span, &end_span),
+                )),
+            }
         }
     }
 
@@ -677,33 +708,20 @@ impl<'a> Parser<'a> {
     pub fn type_level_if(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Gen);
 
-        let Some(inner) = self.if_expression(true, false)? else {
+        let Some(inner) = self.if_expression(true, false, true)? else {
             return Err(
                 Diagnostic::error(self.peek()?, "gen must be followed by if")
                     .primary_label("Expected if")
                     .secondary_label(start, "Because of this gen"),
             );
         };
-        let end_span = inner.loc();
-        let Expression::If(cond, on_true, on_false) = inner.inner else {
-            diag_bail!(inner, "if_expression did not return an if")
-        };
 
-        let on_false = match &on_false.inner {
-            Expression::If(cond, on_true, on_false) => Box::new(
-                Expression::TypeLevelIf(cond.clone(), on_true.clone(), on_false.clone())
-                    .at_loc(&on_false),
-            ),
-            _ => on_false,
-        };
-
-        Ok(Some(
-            Expression::TypeLevelIf(cond, on_true, on_false).between(
-                self.file_id,
-                &start.span,
-                &end_span,
-            ),
-        ))
+        let end_loc = inner.loc();
+        Ok(Some(inner.inner.between(
+            self.file_id,
+            &start.span,
+            &end_loc,
+        )))
     }
 
     #[trace_parser]
