@@ -310,8 +310,8 @@ pub enum Expression {
     RangeIndex {
         target: Box<Loc<Expression>>,
         // NOTE: These are const generics
-        start: Box<Loc<Expression>>,
-        end: Box<Loc<Expression>>,
+        start: Option<Box<Loc<Expression>>>,
+        end: Option<Box<Loc<Expression>>>,
     },
     Parenthesized(Box<Loc<Expression>>),
     TupleLiteral(Vec<Loc<Expression>>),

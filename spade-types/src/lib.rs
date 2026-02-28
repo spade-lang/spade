@@ -75,6 +75,13 @@ impl ConcreteType {
         }
     }
 
+    pub fn assume_array(&self) -> (&Box<ConcreteType>, &BigInt) {
+        match self {
+            ConcreteType::Array { inner, size } => (inner, size),
+            t => unreachable!("Assumed {} was an array", t),
+        }
+    }
+
     pub fn is_error_recursively(&self) -> bool {
         match self {
             ConcreteType::Error => true,

@@ -1,4 +1,4 @@
-use num::{BigInt, One};
+use num::{BigInt, BigUint, One};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigInt;
@@ -585,19 +585,26 @@ impl TypeState {
             // Add constraints
             let inner_type = self.new_generic_type(target.loc());
 
-            let start_var = self.visit_const_generic_with_id(start, generic_list, ConstraintSource::RangeIndex, ctx)?;
-            let end_var = self.visit_const_generic_with_id(end, generic_list, ConstraintSource::RangeIndex, ctx)?;
-
             let in_array_size = self.new_generic_tluint(target.loc());
             let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone()).insert(self);
             let out_array_size = self.new_generic_tluint(target.loc());
             let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone()).insert(self);
 
+            let (start_loc, start_var) = match start {
+                Some(c) => (c.loc(), self.visit_const_generic_with_id(c, generic_list, ConstraintSource::RangeIndex, ctx)?),
+                None => (().nowhere(), self.new_concrete_int(BigUint::ZERO, ().nowhere())),
+            };
+
+            let (end_loc, end_var) = match end {
+                Some(c) => (c.loc(), self.visit_const_generic_with_id(c, generic_list, ConstraintSource::RangeIndex, ctx)?),
+                None => (().nowhere(), in_array_size),
+            };
+
             let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
             self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
 
-            Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start), end: end_var.clone().at_loc(end) }.check_or_add(self, ctx)?;
-            Requirement::RangeIndexInArray { index: end_var.at_loc(end), size: in_array_size.at_loc(&target.loc()) }.check_or_add(self, ctx)?;
+            Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start_loc), end: end_var.clone().at_loc(&end_loc) }.check_or_add(self, ctx)?;
+            Requirement::RangeIndexInArray { index: end_var.at_loc(&end_loc), size: in_array_size.at_loc(&target.loc()) }.check_or_add(self, ctx)?;
 
             self.unify(&expression.inner, &out_array_type, ctx)
                 .into_default_diagnostic(expression, self)?;

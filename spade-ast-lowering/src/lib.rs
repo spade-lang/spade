@@ -2353,8 +2353,22 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::RangeIndex {
                 target: Box::new(target),
-                start: visit_const_generic(start, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
-                end: visit_const_generic(end, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
+                start: start
+                    .as_ref()
+                    .map(|e| {
+                        Result::Ok(
+                            visit_const_generic(e, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
+                        )
+                    })
+                    .transpose()?,
+                end: end
+                    .as_ref()
+                    .map(|e| {
+                        Result::Ok(
+                            visit_const_generic(e, ctx)?.map(|c| c.with_id(ctx.idtracker.next())),
+                        )
+                    })
+                    .transpose()?,
             })
         }
         ast::Expression::TupleIndex {

@@ -479,10 +479,20 @@ snapshot_error! {
     "/*/**/"
 }
 
-snapshot_error! {
-    missing_end_of_range_index_is_error,
+code_compiles! {
+    implicit_start_of_range_index,
     "
-        fn top() -> bool {
+        fn top() -> [bool; 2] {
+            let a = [true, true, false];
+            a[..2]
+        }
+    "
+}
+
+code_compiles! {
+    implicit_end_of_range_index,
+    "
+        fn top() -> [bool; 2] {
             let a = [true, true, false];
             a[1..]
         }

@@ -208,8 +208,8 @@ pub enum ExprKind {
     Index(Box<Loc<Expression>>, Box<Loc<Expression>>),
     RangeIndex {
         target: Box<Loc<Expression>>,
-        start: Loc<ConstGenericWithId>,
-        end: Loc<ConstGenericWithId>,
+        start: Option<Loc<ConstGenericWithId>>,
+        end: Option<Loc<ConstGenericWithId>>,
     },
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),

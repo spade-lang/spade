@@ -520,22 +520,41 @@ impl<'a> Parser<'a> {
             let (inner_expr, loc) = self.surrounded(
                 &TokenKind::OpenBracket,
                 |s| {
-                    // `start` is parsed as an expression since at this point we are parsing either
-                    //
-                    // - an array index (`a[2]`) which allows an expression (`a[2+offset]`)
-                    // - a range index (`a[1..2]`) which does not allow an expression
-                    let start = s.expression()?;
-
                     if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
-                        // double dot => range index: `[1..2]`
-                        let end = s.expression()?;
+                        let end = if s.peek_kind(&TokenKind::CloseBracket)? {
+                            None
+                        } else {
+                            Some(s.expression()?)
+                        };
+
                         Ok(Expression::RangeIndex {
                             target: Box::new(expr.clone()),
-                            start: Box::new(start),
-                            end: Box::new(end),
+                            start: None,
+                            end: end.map(Box::new),
                         })
                     } else {
-                        Ok(Expression::Index(Box::new(expr.clone()), Box::new(start)))
+                        // `start` is parsed as an expression since at this point we are parsing
+                        // either:
+                        //
+                        // - an array index (`a[2]`) which allows an expression (`a[2+offset]`)
+                        // - a range index (`a[1..2]`) which does not allow an expression
+                        let start = s.expression()?;
+
+                        if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
+                            let end = if s.peek_kind(&TokenKind::CloseBracket)? {
+                                None
+                            } else {
+                                Some(s.expression()?)
+                            };
+
+                            Ok(Expression::RangeIndex {
+                                target: Box::new(expr.clone()),
+                                start: Some(Box::new(start)),
+                                end: end.map(Box::new),
+                            })
+                        } else {
+                            Ok(Expression::Index(Box::new(expr.clone()), Box::new(start)))
+                        }
                     }
                 },
                 &TokenKind::CloseBracket,

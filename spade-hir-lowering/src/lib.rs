@@ -2014,16 +2014,32 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::RangeIndex { target, start, end } => {
                 result.append(target.lower(ctx)?);
 
-                let start_val = start.resolve_int(ctx)?;
-                let start = start_val.to_biguint().ok_or_else(|| {
-                    Diagnostic::error(start, "The start of a range cannot be negative")
-                        .primary_label(format!("Inferred negative range start ({start_val})"))
-                })?;
-                let end_val = end.resolve_int(ctx)?;
-                let end = end_val.to_biguint().ok_or_else(|| {
-                    Diagnostic::error(end, "The end of a range cannot be negative")
-                        .primary_label(format!("Inferred negative range end ({end_val})"))
-                })?;
+                let start = if let Some(s) = start {
+                    let val = s.resolve_int(ctx)?;
+                    val.to_biguint().ok_or_else(|| {
+                        Diagnostic::error(s, "The start of a range cannot be negative")
+                            .primary_label(format!("Inferred negative range start ({val})"))
+                    })?
+                } else {
+                    BigUint::ZERO
+                };
+
+                let end = if let Some(e) = end {
+                    let val = e.resolve_int(ctx)?;
+                    val.to_biguint().ok_or_else(|| {
+                        Diagnostic::error(e, "The start of a range cannot be negative")
+                            .primary_label(format!("Inferred negative range start ({val})"))
+                    })?
+                } else {
+                    let ty = ctx.types.concrete_type_of(
+                        target,
+                        ctx.symtab.symtab(),
+                        &ctx.item_list.types,
+                    )?;
+
+                    let (_, size) = ty.assume_array();
+                    size.to_biguint().unwrap()
+                };
 
                 result.push_primary(
                     mir::Statement::Binding(mir::Binding {
