@@ -8,16 +8,16 @@ expression: build_items(code)
             kind: Unescaped(
                 "x",
             ),
-            source: x#45,
+            source: x#47,
         },
         inputs: [
             MirInput {
                 name: "a",
                 val_name: Named(
-                    81,
+                    85,
                     "a",
                     Name(
-                        a#81,
+                        a#85,
                     ),
                 ),
                 ty: Int(
@@ -30,10 +30,10 @@ expression: build_items(code)
             MirInput {
                 name: "b",
                 val_name: Named(
-                    82,
+                    86,
                     "b",
                     Name(
-                        b#82,
+                        b#86,
                     ),
                 ),
                 ty: Backward(
@@ -48,10 +48,10 @@ expression: build_items(code)
             MirInput {
                 name: "c",
                 val_name: Named(
-                    83,
+                    87,
                     "c",
                     Name(
-                        c#83,
+                        c#87,
                     ),
                 ),
                 ty: Bool,
@@ -62,10 +62,10 @@ expression: build_items(code)
             MirInput {
                 name: "d",
                 val_name: Named(
-                    84,
+                    88,
                     "d",
                     Name(
-                        d#84,
+                        d#88,
                     ),
                 ),
                 ty: Bool,
@@ -76,10 +76,10 @@ expression: build_items(code)
             MirInput {
                 name: "e",
                 val_name: Named(
-                    85,
+                    89,
                     "e",
                     Name(
-                        e#85,
+                        e#89,
                     ),
                 ),
                 ty: Array {
@@ -139,10 +139,10 @@ expression: build_items(code)
             ),
             Set {
                 target: Named(
-                    82,
+                    86,
                     "b",
                     Name(
-                        b#82,
+                        b#86,
                     ),
                 ),
                 value: Expr(

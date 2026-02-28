@@ -2641,6 +2641,7 @@ impl ExprLocal for Loc<Expression> {
             ["core", "ops", "intrinsics", "le"] => handle_le,
             ["core", "ops", "intrinsics", "gt"] => handle_gt,
             ["core", "ops", "intrinsics", "ge"] => handle_ge,
+            ["core", "undef", "undef"] => handle_undef,
             // std
             ["std", "mem", "clocked_memory"] => handle_clocked_memory_decl,
             ["std", "mem", "clocked_memory_init"] => handle_clocked_memory_initial_decl,
@@ -3484,6 +3485,34 @@ impl ExprLocal for Loc<Expression> {
             mir::Operator::UnsignedGe,
             ctx,
         )
+    }
+
+    fn handle_undef(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        _args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        let width = self_type.size();
+
+        result.push_primary(
+            mir::Statement::Constant(
+                ValueName::Expr(self.id),
+                self_type,
+                ConstantValue::Undef(width),
+            ),
+            self,
+        );
+
+        Ok(result)
     }
 
     fn handle_concat(

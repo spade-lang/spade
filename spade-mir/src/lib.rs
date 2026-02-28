@@ -34,6 +34,7 @@ pub enum ConstantValue {
     Int(BigInt),
     Bool(bool),
     String(String),
+    Undef(BigUint),
     HighImp,
 }
 
@@ -49,6 +50,7 @@ impl std::fmt::Display for ConstantValue {
             ConstantValue::Int(val) => write!(f, "{val}"),
             ConstantValue::Bool(val) => write!(f, "{val}"),
             ConstantValue::String(val) => write!(f, "{val:?}"),
+            ConstantValue::Undef(w) => write!(f, "UNDEF<{w}>"),
             ConstantValue::HighImp => write!(f, "HIGHIMP"),
         }
     }

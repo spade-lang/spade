@@ -160,6 +160,7 @@ fn statement_declaration(
                 }
                 ConstantValue::Bool(val) => format!("{}", if *val { 1 } else { 0 }),
                 ConstantValue::String(val) => format!("{:?}", val),
+                ConstantValue::Undef(w) => format!("{w}'bx"),
                 ConstantValue::HighImp => "'bz".to_string(),
             };
 

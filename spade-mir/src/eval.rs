@@ -352,6 +352,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     crate::ConstantValue::Bool(v) => Value::Bit(*v),
                     crate::ConstantValue::String(_) => todo!(),
                     crate::ConstantValue::HighImp => todo!(),
+                    crate::ConstantValue::Undef(_) => todo!(),
                 };
                 name_types.insert(name.clone(), ty.clone());
                 (name.clone(), val)
