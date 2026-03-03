@@ -114,11 +114,7 @@ impl<'a> InlinedStatements<'a> {
                     .chain(type_map.iter().map(|(n, _)| n))
                     .map(|k| {
                         let new_name = match k {
-                            ValueName::Named(_, name, value_name_source) => ValueName::Named(
-                                nameidtracker.next(),
-                                name.clone(),
-                                value_name_source.clone(),
-                            ),
+                            ValueName::Named(_, name, value_name_source) => ValueName::Expr(idtracker.next()),
                             ValueName::Expr(_) => ValueName::Expr(idtracker.next()),
                         };
                         (k.clone(), new_name)
