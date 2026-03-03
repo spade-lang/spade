@@ -230,6 +230,11 @@ pub fn compile(
 
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::gather_traits_and_modules(module_ast, ctx).or_report(&mut errors);
+        })
+    }
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
             global_symbols::gather_types(module_ast, ctx).or_report(&mut errors);
         })
     }

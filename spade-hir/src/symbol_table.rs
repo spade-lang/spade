@@ -247,7 +247,7 @@ impl EnumVariant {
             output_type: Some(self.output_type.clone()),
             unit_type_params: self.type_params.clone(),
             hidden_type_params: vec![],
-            scope_type_params: self.type_params.clone(),
+            scope_type_params: vec![],
             unit_kind: UnitKind::Function(FunctionKind::Enum).at_loc(&self.name),
             where_clauses: vec![],
             unsafe_marker: None,

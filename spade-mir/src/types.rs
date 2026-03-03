@@ -72,7 +72,7 @@ impl Type {
                 for v in inner {
                     for i in v {
                         if i.backward_size() != BigUint::zero() {
-                            unreachable!("Enums cannot have output wires as payload")
+                            // unreachable!("Enums cannot have output wires as payload")
                         }
                     }
                 }

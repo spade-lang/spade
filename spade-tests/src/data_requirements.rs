@@ -18,3 +18,19 @@ snapshot_error! {
     ",
     false
 }
+
+snapshot_error! {
+    enum_generics_must_be_data,
+    "
+        trait Tr {}
+        enum E<T: Tr> {
+            A{val: T},
+            B,
+        }
+
+        fn test(p: inv bool) {
+            let _ = E::A(p);
+        }
+    ",
+    false
+}

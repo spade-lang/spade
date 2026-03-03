@@ -6,9 +6,9 @@ use A;
 
 
 error: Multiple items with the same name
-  ┌─ testinput:2:5
+  ┌─ testinput:1:8
   │
 1 │ struct A {}
-  │ ----------- Previous definition here
+  │        ^ A is defined multiple times
 2 │ use A;
-  │     ^ A is defined multiple times
+  │     - Previous definition here

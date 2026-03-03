@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/data_requirements.rs
+---
+trait Tr {}
+enum E<T: Tr> {
+    A{val: T},
+    B,
+}
+
+fn test(p: inv bool) {
+    let _ = E::A(p);
+}
+
+
+error: Argument type mismatch. Expected Tr + core::Data got inv bool
+  ┌─ testinput:8:18
+  │
+2 │ enum E<T: Tr> {
+  │           -- Required because of the trait bound specified here
+  ·
+8 │     let _ = E::A(p);
+  │                  ^ inv bool does not implement Tr and core::Data

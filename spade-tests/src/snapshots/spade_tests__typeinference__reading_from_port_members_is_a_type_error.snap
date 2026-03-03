@@ -15,10 +15,10 @@ entity uut(val: inv &A) -> bool {
 }
 
 
-error: val.y is unused
+error: val.x is unused
   ┌─ testinput:8:12
   │
 8 │ entity uut(val: inv &A) -> bool {
-  │            ^^^ val.y is unused
+  │            ^^^ val.x is unused
   │
-  = note: val.y is an inverted wire (`inv &`) which must be set
+  = note: val.x is an inverted wire (`inv &`) which must be set

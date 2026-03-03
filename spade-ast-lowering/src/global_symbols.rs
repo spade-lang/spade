@@ -166,13 +166,10 @@ pub fn report_missing_mod_declarations(
         .collect()
 }
 
-#[tracing::instrument(skip_all)]
-pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
+pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
     for item in &module.members {
         match item {
-            ast::Item::Type(ref t) => {
-                visit_type_declaration(t, ctx)?;
-            }
+            ast::Item::Type(_) => {}
             ast::Item::ExternalMod(_) => {}
             ast::Item::Module(ref m) => {
                 let mut deprecation_note = None;
@@ -200,46 +197,14 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     Some(m.visibility.clone()),
                     deprecation_note,
                 )?;
-                ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
+                ctx.in_named_namespace(m.name.clone(), |ctx| {
+                    gather_traits_and_modules(&m.body, ctx)
+                })?
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
             ast::Item::TraitDef(ref r#trait) => {
-                let mut deprecation_note = None;
-                let _ = r#trait.attributes.lower(&mut |attr| match &attr.inner {
-                    ast::Attribute::Documentation { .. } => Ok(None),
-                    ast::Attribute::Deprecated { note, .. } => {
-                        deprecation_note = Some(note.clone());
-                        Ok(None)
-                    }
-                    ast::Attribute::SpadecParenSugar => Ok(None),
-                    ast::Attribute::VerilogAttrs { .. }
-                    | ast::Attribute::Optimize { .. }
-                    | ast::Attribute::SurferTranslator(_)
-                    | ast::Attribute::WalTraceable { .. }
-                    | ast::Attribute::NoMangle { .. }
-                    | ast::Attribute::Fsm { .. }
-                    | ast::Attribute::WalSuffix { .. }
-                    | ast::Attribute::Inline
-                    | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
-                })?;
-                ctx.symtab.add_unique_thing(
-                    Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
-                    Thing::Trait(
-                        TraitMarker {
-                            name: r#trait.name.clone(),
-                            paren_sugar: r#trait
-                                .inner
-                                .attributes
-                                .0
-                                .iter()
-                                .any(|attr| attr.inner == ast::Attribute::SpadecParenSugar),
-                        }
-                        .at_loc(&r#trait.name),
-                    ),
-                    Some(r#trait.visibility.clone()),
-                    deprecation_note,
-                )?;
+                visit_trait(r#trait, ctx)?;
             }
             ast::Item::Use(attributes, us) => {
                 let mut deprecation_note = None;
@@ -276,6 +241,26 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
                     )?;
                 }
             }
+        }
+    }
+    Ok(())
+}
+
+#[tracing::instrument(skip_all)]
+pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
+    for item in &module.members {
+        match item {
+            ast::Item::Type(ref t) => {
+                visit_type_declaration(t, ctx)?;
+            }
+            ast::Item::ExternalMod(_) => {}
+            ast::Item::Module(ref m) => {
+                ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
+            }
+            ast::Item::ImplBlock(_) => {}
+            ast::Item::Unit(_) => {}
+            ast::Item::TraitDef(_) => {}
+            ast::Item::Use(_, _) => {}
         }
     }
     Ok(())
@@ -429,17 +414,53 @@ fn visit_generic_args(
         .collect::<Result<_>>()
 }
 
+pub fn visit_trait(r#trait: &Loc<ast::TraitDef>, ctx: &mut Context) -> Result<()> {
+    let mut deprecation_note = None;
+    let _ = r#trait.attributes.lower(&mut |attr| match &attr.inner {
+        ast::Attribute::Documentation { .. } => Ok(None),
+        ast::Attribute::Deprecated { note, .. } => {
+            deprecation_note = Some(note.clone());
+            Ok(None)
+        }
+        ast::Attribute::SpadecParenSugar => Ok(None),
+        ast::Attribute::VerilogAttrs { .. }
+        | ast::Attribute::Optimize { .. }
+        | ast::Attribute::SurferTranslator(_)
+        | ast::Attribute::WalTraceable { .. }
+        | ast::Attribute::NoMangle { .. }
+        | ast::Attribute::Fsm { .. }
+        | ast::Attribute::WalSuffix { .. }
+        | ast::Attribute::Inline
+        | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
+    })?;
+    ctx.symtab.add_unique_thing(
+        Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
+        Thing::Trait(
+            TraitMarker {
+                name: r#trait.name.clone(),
+                paren_sugar: r#trait
+                    .inner
+                    .attributes
+                    .0
+                    .iter()
+                    .any(|attr| attr.inner == ast::Attribute::SpadecParenSugar),
+            }
+            .at_loc(&r#trait.name),
+        ),
+        Some(r#trait.visibility.clone()),
+        deprecation_note,
+    )?;
+    Ok(())
+}
+
 pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) -> Result<()> {
     validate_default_param_position(&t.generic_args)?;
 
-    let args = visit_generic_args(&t.generic_args, ctx)?;
+    let mut args = visit_generic_args(&t.generic_args, ctx)?;
 
     let (kind, attrs) = match &t.kind {
         ast::TypeDeclKind::Enum(e) => (hir::symbol_table::TypeDeclKind::Enum, &e.attributes),
-        ast::TypeDeclKind::Struct(s) => (
-            hir::symbol_table::TypeDeclKind::Struct,
-            &s.attributes,
-        ),
+        ast::TypeDeclKind::Struct(s) => (hir::symbol_table::TypeDeclKind::Struct, &s.attributes),
         ast::TypeDeclKind::Alias(a) => (hir::symbol_table::TypeDeclKind::Alias, &a.attributes),
     };
 
@@ -459,6 +480,34 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
         .flatten()
         .take_while(|d| d.default().is_none())
         .count();
+
+    // Enums require all types to be Data, we add that requirement here
+    match &t.kind {
+        spade_ast::TypeDeclKind::Enum(_) => {
+            for arg in &mut args {
+                let loc = arg.loc();
+                match &mut arg.inner {
+                    GenericArg::TypeName { name: _, traits } => traits.push(
+                        hir::TraitSpec {
+                            name: spade_hir::TraitName::Named(
+                                None,
+                                ctx.symtab
+                                    .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
+                                    .clone()
+                                    .at_loc(&loc),
+                            ),
+                            type_params: None,
+                            paren_syntax: false,
+                        }
+                        .at_loc(&loc),
+                    ),
+                    GenericArg::TypeWithMeta { .. } => {}
+                }
+            }
+        }
+        spade_ast::TypeDeclKind::Struct(_) => {}
+        spade_ast::TypeDeclKind::Alias(_) => {}
+    }
 
     let new_thing = t.name.clone();
     let name_id = ctx.symtab.add_unique_type(
@@ -514,10 +563,31 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 traits,
                 default: _,
             } => {
+                let data_requirement = if matches!(t.kind, spade_ast::TypeDeclKind::Enum(_)) {
+                    vec![hir::TraitSpec {
+                        name: spade_hir::TraitName::Named(
+                            None,
+                            ctx.symtab
+                                .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
+                                .clone()
+                                .at_loc(&n),
+                        ),
+                        type_params: None,
+                        paren_syntax: false,
+                    }
+                    .at_loc(n)]
+                } else {
+                    vec![]
+                };
+
                 let resolved_traits = traits
                     .iter()
                     .map(|t| visit_trait_spec(t, &TypeSpecKind::TraitBound, ctx))
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>>>()?
+                    .into_iter()
+                    .chain(data_requirement)
+                    .collect::<Vec<_>>();
+
                 (
                     n,
                     TypeSymbol::GenericArg {
@@ -559,7 +629,30 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 default,
             } => hir::TypeParam {
                 name: hir::Generic::Named(name_id.clone().at_loc(name)),
-                trait_bounds: visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?,
+                trait_bounds: visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?
+                    .into_iter()
+                    .chain(
+                        // Add the data trait requirement.
+                        // NOTE This code is currently duplicated in three places in this file, which should
+                        // ideally be improved
+                        if matches!(t.inner.kind, spade_ast::TypeDeclKind::Enum(_)) {
+                            vec![hir::TraitSpec {
+                                name: spade_hir::TraitName::Named(
+                                    None,
+                                    ctx.symtab
+                                        .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
+                                        .clone()
+                                        .at_loc(&name),
+                                ),
+                                type_params: None,
+                                paren_syntax: false,
+                            }
+                            .at_loc(name)]
+                        } else {
+                            vec![]
+                        },
+                    )
+                    .collect(),
                 meta: MetaType::Type,
                 default: visit_default_type_expression(default, ctx)?.map(Box::new),
             },
