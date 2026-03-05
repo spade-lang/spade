@@ -114,7 +114,11 @@ impl<'a> InlinedStatements<'a> {
                     .chain(type_map.iter().map(|(n, _)| n))
                     .map(|k| {
                         let new_name = match k {
-                            ValueName::Named(_, name, value_name_source) => ValueName::Expr(idtracker.next()),
+                            ValueName::Named(_, name, value_name_source) => ValueName::Named(
+                                nameidtracker.next(),
+                                name.clone(),
+                                value_name_source.clone(),
+                            ),
                             ValueName::Expr(_) => ValueName::Expr(idtracker.next()),
                         };
                         (k.clone(), new_name)
@@ -212,7 +216,7 @@ fn perform_inlining<'a>(
     nameidtracker: &NameIdTracker,
     cache: &'_ mut BTreeMap<UnitName, InlinedEntity<'a>>,
 ) -> Result<InlinedEntity<'a>> {
-    if let Some(cached) = cache.get(&target.mir.name) {
+    let result = if let Some(cached) = cache.get(&target.mir.name) {
         Ok(cached.clone())
     } else {
         let Some(source) = source_map.get(&target.mir.name) else {
@@ -354,7 +358,14 @@ fn perform_inlining<'a>(
             },
         );
         Ok(cache.get(&target.mir.name).unwrap().clone())
+    };
+    // 
+    // TODO Remove
+    if target.mir.name.source.1.to_strings().contains(&"compute_checksum".to_string()) || target.mir.name.source.1.to_strings().contains(&"handle_arp_icmp".to_string())  {
+        println!("===================\ninlining \n\n{}\n\ninto\n\n{}", target.mir, result.clone()?.finalize(idtracker, nameidtracker)?.mir);
     }
+
+    result
 }
 
 pub fn do_inlining(

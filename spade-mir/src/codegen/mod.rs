@@ -1208,9 +1208,18 @@ fn statement_code_and_declaration(
 pub struct Codegenable(pub Entity);
 
 pub fn prepare_codegen(mut entity: Entity, expr_idtracker: &ExprIdTracker) -> Codegenable {
+    // TODO Remove
+    if entity.name.source.1.to_strings().contains(&"compute_checksum".to_string()) || entity.name.source.1.to_strings().contains(&"handle_arp_icmp".to_string())  {
+        println!("Before flattening:\n\n{}", entity);
+    }
     flatten_aliases(&mut entity);
+    if entity.name.source.1.to_strings().contains(&"compute_checksum".to_string()) || entity.name.source.1.to_strings().contains(&"handle_arp_icmp".to_string())  {
+        println!("After flattening:\n\n{}", entity);
+    }
+
+
     make_names_predictable(&mut entity);
-    insert_wal_signals(&mut entity, expr_idtracker, &mut None);
+    // insert_wal_signals(&mut entity, expr_idtracker, &mut None);
 
     Codegenable(entity)
 }

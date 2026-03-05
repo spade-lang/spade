@@ -111,55 +111,56 @@ impl Type {
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::Int(val) => write!(f, "int<{}>", val),
-            Type::UInt(val) => write!(f, "uint<{}>", val),
-            Type::Bool => write!(f, "bool"),
-            Type::Tuple(inner) => {
-                let inner = inner
-                    .iter()
-                    .map(|p| format!("{}", p))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "({})", inner)
-            }
-            Type::Struct(inner) => {
-                let inner = inner
-                    .iter()
-                    .map(|(n, t)| format!("{n}: {t}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "{{{}}}", inner)
-            }
-            Type::Array { inner, length } => {
-                write!(f, "[{}; {}]", inner, length)
-            }
-            Type::Memory { inner, length } => {
-                write!(f, "Memory[{}; {}]", inner, length)
-            }
-            Type::Enum(inner) => {
-                let inner = inner
-                    .iter()
-                    .map(|variant| {
-                        let members = variant
-                            .iter()
-                            .map(|t| format!("{}", t))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        format!("option [{}]", members)
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
+        write!(f, "...")
+        // match self {
+        //     Type::Int(val) => write!(f, "int<{}>", val),
+        //     Type::UInt(val) => write!(f, "uint<{}>", val),
+        //     Type::Bool => write!(f, "bool"),
+        //     Type::Tuple(inner) => {
+        //         let inner = inner
+        //             .iter()
+        //             .map(|p| format!("{}", p))
+        //             .collect::<Vec<_>>()
+        //             .join(", ");
+        //         write!(f, "({})", inner)
+        //     }
+        //     Type::Struct(inner) => {
+        //         let inner = inner
+        //             .iter()
+        //             .map(|(n, t)| format!("{n}: {t}"))
+        //             .collect::<Vec<_>>()
+        //             .join(", ");
+        //         write!(f, "{{{}}}", inner)
+        //     }
+        //     Type::Array { inner, length } => {
+        //         write!(f, "[{}; {}]", inner, length)
+        //     }
+        //     Type::Memory { inner, length } => {
+        //         write!(f, "Memory[{}; {}]", inner, length)
+        //     }
+        //     Type::Enum(inner) => {
+        //         let inner = inner
+        //             .iter()
+        //             .map(|variant| {
+        //                 let members = variant
+        //                     .iter()
+        //                     .map(|t| format!("{}", t))
+        //                     .collect::<Vec<_>>()
+        //                     .join(", ");
+        //                 format!("option [{}]", members)
+        //             })
+        //             .collect::<Vec<_>>()
+        //             .join(", ");
 
-                write!(f, "enum {}", inner)
-            }
-            Type::Backward(inner) => {
-                write!(f, "&mut ({inner})")
-            }
-            Type::InOut(inner) => {
-                write!(f, "inout<{inner}>")
-            }
-        }
+        //         write!(f, "enum {}", inner)
+        //     }
+        //     Type::Backward(inner) => {
+        //         write!(f, "&mut ({inner})")
+        //     }
+        //     Type::InOut(inner) => {
+        //         write!(f, "inout<{inner}>")
+        //     }
+        // }
     }
 }
 
