@@ -9,6 +9,73 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.17.0] - 2026-03-05
+
+## Added
+- [!553][!553] Add `#[inline]` attribute
+- [!564][!564] Added `impl Trait` syntax to declare unit parameters with implicit, bounded generic types
+- [!571][!571] Added `#[deprecated = "..."]` and `#[deprecated(...)]` attributes that allow deprecating items.
+- [!573][!573] Added default value support for type parameters (e.g., `struct S<T = bool>`)
+- [!574][!574] Traits can now depend on other traits using the following syntax: `trait Supertrait: Trait1 + Trait2 ... { ... }`
+- [!576][!576] Add type aliases (`type Alias = Original`), where a name with optional type parameters is mapped to a type spec
+- [!580][!580] Added wrapping arithmetic operators (`+.`, `-.`, `*.` etc.)
+- [!580][!580] Added traits to allow overloading some operators:
+  - `Eq`: `==` and `!=`
+  - `Ord`: `<`, `<=`, `>=` and `>`
+  - `Not`: `!`
+  - `And`: `&&`
+  - `Or`: `||`
+  - `Xor`: `^^`
+  - `BitNot`: `~`
+  - `BitAnd`: `&`
+  - `BitOr`: `|`
+  - `BitXor`: `^`
+  - `WrappingAdd`: `+.`
+  - `WrappingSub`: `-.`
+  - `WrappingMul`: `*.`
+  - `WrappingUsub`: `-.`
+- [!583][!583] Added support for `#bool` generic parameters and logical operations on them inside const generics
+- [!585][!585] Added pattern-matching `if let pattern = value { ... } else { ... }` construct
+- [!586][!586] Added `name @ pattern` pattern syntax that binds subpatterns to names
+- [!597][!597] Added `inout<[T; N]>::read_write_items` to access `inout` arrays element-wise
+- [!598][!598] Allow methods to be implemented on tuples
+
+## Fixed
+- [!565][!565] Fixed incorrect behaviour when capturing a variable more than once in a lambda.
+- [!568][!568] Fixed warnings not being shown unless errors were produced too
+- [!594][!594] Reduce the chance of seeing `Number<_> has no method <x>` errors
+- [!599][!599] Fixed compiler panic when declaring variables inside pipelines using `decl` syntax
+
+## Changed
+- [!553][!553] Automatically inline `gen_if` temporary units
+- [!569][!569] `#[verilog_attrs(...)]` can annotate call statements, both standalone and as `let` bindings
+- [!593][!593] Integer literals can now specify a type suffix with no size (e.g., `120u`, `33i`)
+- [!601][!601] `gen if` expressions now can be written without an `else` block
+- [!601][!601] Integer comparison operators `<`, `>`, `<=` and `>=` now can be used at the type level
+- [!603][!603] Start and end bounds on `..` range indexing are now optional, defaulting to `0` and the target array size
+
+
+[!553]: https://gitlab.com/spade-lang/spade/-/merge_requests/553
+[!564]: https://gitlab.com/spade-lang/spade/-/merge_requests/564
+[!565]: https://gitlab.com/spade-lang/spade/-/merge_requests/565
+[!568]: https://gitlab.com/spade-lang/spade/-/merge_requests/568
+[!569]: https://gitlab.com/spade-lang/spade/-/merge_requests/569
+[!571]: https://gitlab.com/spade-lang/spade/-/merge_requests/571
+[!573]: https://gitlab.com/spade-lang/spade/-/merge_requests/573
+[!574]: https://gitlab.com/spade-lang/spade/-/merge_requests/574
+[!576]: https://gitlab.com/spade-lang/spade/-/merge_requests/576
+[!580]: https://gitlab.com/spade-lang/spade/-/merge_requests/580
+[!583]: https://gitlab.com/spade-lang/spade/-/merge_requests/583
+[!585]: https://gitlab.com/spade-lang/spade/-/merge_requests/585
+[!586]: https://gitlab.com/spade-lang/spade/-/merge_requests/586
+[!593]: https://gitlab.com/spade-lang/spade/-/merge_requests/593
+[!594]: https://gitlab.com/spade-lang/spade/-/merge_requests/594
+[!597]: https://gitlab.com/spade-lang/spade/-/merge_requests/597
+[!598]: https://gitlab.com/spade-lang/spade/-/merge_requests/598
+[!599]: https://gitlab.com/spade-lang/spade/-/merge_requests/599
+[!601]: https://gitlab.com/spade-lang/spade/-/merge_requests/601
+[!603]: https://gitlab.com/spade-lang/spade/-/merge_requests/603
+
 ## [0.16.0] - 2026-01-22
 
 ## Added
@@ -646,8 +713,9 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...main
-[0.15.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...v0.15.0
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...main
+[0.17.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...v0.16.0
+[0.16.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...v0.15.0
 [0.15.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.15.0...v0.14.0
 [0.14.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.14.0...v0.13.0
 [0.13.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.13.0...v0.12.0
