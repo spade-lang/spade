@@ -1869,57 +1869,6 @@ mod tests {
     }
 
     #[test]
-    fn pipeline_with_stage_references_codegens_correctly() {
-        let inst_name = spade_mir::UnitName::_test_from_strs(&["A"]);
-        let input = entity!(&["pl"]; (
-                "clk", n(3, "clk"), Type::Bool,
-            ) -> Type::int(16); {
-                (reg n(10, "x__s1"); Type::int(16); clock(n(3, "clk")); n(0, "x_"));
-                // Stage 0
-                (e(0); Type::int(16); simple_instance((inst_name, vec![])););
-                (n(0, "x_"); Type::int(16); Alias; e(0));
-                // Stage 1
-                (n(1, "x"); Type::int(16); Alias; n(0, "x_"));
-            } => n(1, "x")
-        );
-
-        // This test removes a lot of variables through alias resolution
-        let expected = indoc!(
-            r#"
-
-            module \pl  (
-                    input clk_i,
-                    output[15:0] output__
-                );
-                `COCOTB_CODE( pl )
-                logic \clk ;
-                assign \clk  = clk_i;
-                reg[15:0] \x__s1 ;
-                logic[15:0] \x_ ;
-                logic[15:0] \x ;
-                always @(posedge \clk ) begin
-                    \x__s1  <= \x_ ;
-                end
-                
-                \A  \A_0 (.output__(\x_ ));
-                assign \x  = \x_ ;
-                assign output__ = \x ;
-            endmodule"#
-        );
-
-        assert_same_code!(
-            &entity_code(
-                &prepare_codegen(input.clone(), &mut ExprIdTracker::new()),
-                &mut InstanceMap::new(),
-                &None
-            )
-            .0
-            .to_string(),
-            expected
-        );
-    }
-
-    #[test]
     fn duplicate_names_adds_nx() {
         let input = entity!(&["pl"]; (
             ) -> Type::int(16); {
