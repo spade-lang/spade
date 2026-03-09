@@ -70,7 +70,11 @@ impl LambdaReplacement {
             .enumerate()
             .map(|(i, (arg, _))| {
                 // .1, .0 is self
-                let Input{wire: _, name, ty: _} = old
+                let Input {
+                    wire: _,
+                    name,
+                    ty: _,
+                } = old
                     .inputs
                     .get(if self.clock.is_some() { 2 } else { 1 })
                     .ok_or_else(|| {

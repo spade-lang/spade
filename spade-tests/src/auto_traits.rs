@@ -105,7 +105,6 @@ snapshot_error! {
     "
 }
 
-
 code_compiles! {
     tuples_are_data,
     "
@@ -165,7 +164,6 @@ snapshot_error! {
         }
     "
 }
-
 
 snapshot_error! {
     registers_require_data,

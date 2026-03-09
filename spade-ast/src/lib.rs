@@ -121,7 +121,10 @@ pub enum Pattern {
     Integer(IntLiteral),
     Bool(bool),
     Bound(Loc<Identifier>, Box<Loc<Pattern>>),
-    Path{wire: Option<Loc<()>>, path: Loc<Path>},
+    Path {
+        wire: Option<Loc<()>>,
+        path: Loc<Path>,
+    },
     Tuple(Vec<Loc<Pattern>>),
     Array(Vec<Loc<Pattern>>),
     Type(Loc<Path>, Loc<ArgumentPattern>),
@@ -133,7 +136,11 @@ impl Pattern {
         Pattern::Integer(IntLiteral::Unsized(val.to_bigint()))
     }
     pub fn name(name: &str) -> Loc<Self> {
-        Pattern::Path{wire: None, path: Path::from_strs(&[name]).nowhere()}.nowhere()
+        Pattern::Path {
+            wire: None,
+            path: Path::from_strs(&[name]).nowhere(),
+        }
+        .nowhere()
     }
 }
 
@@ -692,11 +699,23 @@ pub struct WireMarker {}
 #[derive(PartialEq, Debug, Clone)]
 pub struct ParameterList {
     pub self_: Option<(Loc<AttributeList>, Option<Loc<WireMarker>>)>,
-    pub args: Vec<(AttributeList, Option<Loc<WireMarker>>, Loc<Identifier>, Loc<TypeSpec>)>,
+    pub args: Vec<(
+        AttributeList,
+        Option<Loc<WireMarker>>,
+        Loc<Identifier>,
+        Loc<TypeSpec>,
+    )>,
 }
 
 impl ParameterList {
-    pub fn without_self(args: Vec<(AttributeList, Option<Loc<WireMarker>>, Loc<Identifier>, Loc<TypeSpec>)>) -> Self {
+    pub fn without_self(
+        args: Vec<(
+            AttributeList,
+            Option<Loc<WireMarker>>,
+            Loc<Identifier>,
+            Loc<TypeSpec>,
+        )>,
+    ) -> Self {
         Self { self_: None, args }
     }
 }

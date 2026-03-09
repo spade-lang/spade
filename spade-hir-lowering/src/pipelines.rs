@@ -12,9 +12,9 @@ use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::Diagnostic;
-use spade_hir::Input;
 use spade_hir::expression::CallKind;
 use spade_hir::Binding;
+use spade_hir::Input;
 use spade_hir::{ExprKind, Expression, Pattern, Statement};
 use spade_mir as mir;
 use spade_types::ConcreteType;
@@ -230,7 +230,7 @@ pub fn lower_pipeline<'a>(
         panic!("Pipeline body was not a block");
     };
 
-    for Input{wire, name, ty: _} in hir_inputs {
+    for Input { wire, name, ty: _ } in hir_inputs {
         let ty =
             ctx.types
                 .concrete_type_of_name(name, ctx.symtab.symtab(), &ctx.item_list.types)?;
@@ -617,14 +617,12 @@ impl PipelineAvailability for Expression {
     fn available_in(&self, ctx: &Context) -> Result<Option<usize>> {
         match &self.kind {
             ExprKind::Error => Ok(None),
-            ExprKind::Identifier(name) => {
-                match ctx.subs.lookup(name) {
-                    crate::substitution::Substitution::Undefined => Ok(Some(0)),
-                    crate::substitution::Substitution::Waiting {..} => Ok(Some(0)),
-                    crate::substitution::Substitution::Available(_) => Ok(Some(0)),
-                    crate::substitution::Substitution::Wire => Ok(None),
-                    crate::substitution::Substitution::ZeroSized => Ok(None),
-                }
+            ExprKind::Identifier(name) => match ctx.subs.lookup(name) {
+                crate::substitution::Substitution::Undefined => Ok(Some(0)),
+                crate::substitution::Substitution::Waiting { .. } => Ok(Some(0)),
+                crate::substitution::Substitution::Available(_) => Ok(Some(0)),
+                crate::substitution::Substitution::Wire => Ok(None),
+                crate::substitution::Substitution::ZeroSized => Ok(None),
             },
             ExprKind::IntLiteral(_, _) => Ok(None),
             ExprKind::TypeLevelInteger(_) => Ok(None),

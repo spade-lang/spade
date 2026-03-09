@@ -122,7 +122,7 @@ impl std::fmt::Display for ConcreteType {
             }
             ConcreteType::Struct {
                 name,
-               members,
+                members,
                 field_translators: _,
             } => {
                 format!(

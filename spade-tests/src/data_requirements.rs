@@ -1,4 +1,4 @@
-use crate::{snapshot_error};
+use crate::snapshot_error;
 
 snapshot_error! {
     reg_requires_data,
@@ -30,6 +30,32 @@ snapshot_error! {
 
         fn test(p: inv bool) {
             let _ = E::A(p);
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    if_statements_require_data,
+    "
+        fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
+            if sel {
+                x
+            } else {
+                y
+            }
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    match_statement_requires_data,
+    "
+        fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
+            match sel {
+                _ => x
+            }
         }
     ",
     false

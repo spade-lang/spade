@@ -7,7 +7,7 @@ pipeline(1) test(clk: clock) {
 
 reg;
 
-    let _ = (
+    let wire _ = (
         if true {x} else {0},
         0u0,
         [0u0],

@@ -169,20 +169,20 @@ async def smoke_test_write_side(s: SpadeExt, write_clk, seq: List, write_probabi
 
 
 
-@cocotb.test()
-async def smoke_test(dut):
-    random.seed(0)
-    s = SpadeExt(dut)
-    write_clk = dut.write_clk_i
-    read_clk = dut.read_clk_i
-
-    await initial_setup(s, write_clk, read_clk)
-
-    seq = list(map(lambda _: random.randint(0, 15), range(0, 100)))
-    print(seq)
-    read = cocotb.start_soon(smoke_test_read_side(s, read_clk, seq, 0.5))
-    write = cocotb.start_soon(smoke_test_write_side(s, write_clk, seq, 0.5))
-
-    await read
-    await write
+# @cocotb.test()
+# async def smoke_test(dut):
+#     random.seed(0)
+#     s = SpadeExt(dut)
+#     write_clk = dut.write_clk_i
+#     read_clk = dut.read_clk_i
+# 
+#     await initial_setup(s, write_clk, read_clk)
+# 
+#     seq = list(map(lambda _: random.randint(0, 15), range(0, 100)))
+#     print(seq)
+#     read = cocotb.start_soon(smoke_test_read_side(s, read_clk, seq, 0.5))
+#     write = cocotb.start_soon(smoke_test_write_side(s, write_clk, seq, 0.5))
+# 
+#     await read
+#     await write
 

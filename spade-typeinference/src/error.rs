@@ -3,12 +3,7 @@ use itertools::Itertools;
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
-use crate::{
-    constraints::ConstraintSource,
-    equation::TypeVarID,
-    traits::TraitReq,
-    TypeState,
-};
+use crate::{constraints::ConstraintSource, equation::TypeVarID, traits::TraitReq, TypeState};
 
 use super::equation::TypeVar;
 
@@ -221,8 +216,7 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                 UnificationError::UnsatisfiedTraits {
                     var,
                     traits,
-                    target_loc: _, // TODO: Can we just remove this?
-                    failing_var
+                    failing_var,
                 } => {
                     let trait_bound_loc = ().at_loc(&traits[0]);
                     let impls_str = if traits.len() >= 2 {
@@ -453,7 +447,6 @@ pub enum UnificationError {
     UnsatisfiedTraits {
         var: TypeVarID,
         traits: Vec<Loc<TraitReq>>,
-        target_loc: Loc<()>,
         failing_var: UnificationTrace,
     },
     FromConstraints {

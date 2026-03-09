@@ -757,7 +757,6 @@ impl TypeState {
         let pipeline_loc = self.owned.pipeline_state.as_ref().map(|s| s.pipeline_loc);
 
         if let Some(pipeline_loc) = pipeline_loc {
-            // TODO: Wire is now duplicated, check if we can avoid that
             for Input { wire, name, ty: _ } in &entity.inputs {
                 if wire.is_none() {
                     TypedExpression::Name(name.inner.clone())
@@ -930,6 +929,52 @@ impl TypeState {
                 self.expression_data_constraints(&on_false, pipeline_loc, ctx)?;
             }
 
+            ExprKind::If {
+                cond: _,
+                on_true,
+                on_false: _,
+            } => {
+                TypedExpression::Id(on_true.id)
+                    .unify_with(&self.new_generic_data(on_true.loc(), ctx), self)
+                    .commit(self, ctx)
+                    .into_diagnostic(
+                        &on_true.loc(),
+                        |diag, _e| {
+                            diag.secondary_label(
+                                &on_true.loc(),
+                                format!(
+                                    "The type of this expression is not Data which means it cannot be the result of an if-statement."
+                                ),
+                            )
+                            .help("An expression not being Data typically means it contains at least one `inv` type")
+                            .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                        },
+                        self,
+                    )?;
+            }
+
+            ExprKind::Match(_, branches) => {
+                if let Some((_pat, _cond, value)) = branches.first() {
+                    TypedExpression::Id(value.id)
+                    .unify_with(&self.new_generic_data(value.loc(), ctx), self)
+                    .commit(self, ctx)
+                    .into_diagnostic(
+                        &value.loc(),
+                        |diag, _e| {
+                            diag.secondary_label(
+                                &value.loc(),
+                                format!(
+                                    "The type of this expression is not Data which means it cannot be the result of a match-statement."
+                                ),
+                            )
+                            .help("An expression not being Data typically means it contains at least one `inv` type")
+                            .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                        },
+                        self,
+                    )?;
+                }
+            }
+
             ExprKind::Error
             | ExprKind::Identifier(_)
             | ExprKind::IntLiteral(_, _)
@@ -949,9 +994,6 @@ impl TypeState {
             | ExprKind::Call { .. }
             | ExprKind::BinaryOperator(_, _, _)
             | ExprKind::UnaryOperator(_, _)
-            | ExprKind::Match(_, _)
-            // TODO: The on_true and on_false need to have data constraints too
-            | ExprKind::If { .. }
             | ExprKind::PipelineRef { .. }
             | ExprKind::LambdaDef { .. }
             | ExprKind::StageValid
@@ -3448,7 +3490,6 @@ impl TypeState {
                         Err(UnificationError::UnsatisfiedTraits {
                             var: *var,
                             traits: $required_traits.inner,
-                            target_loc: trait_list_loc.clone(),
                             failing_var: UnificationTrace::new(
                                 self.new_generic_with_traits(*trait_list_loc, $required_traits),
                             ),

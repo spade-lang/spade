@@ -1004,7 +1004,11 @@ mod test {
                     .nowhere(),
                 ),
                 (
-                    Pattern::Path{wire: None, path: ast_path("_")}.nowhere(),
+                    Pattern::Path {
+                        wire: None,
+                        path: ast_path("_"),
+                    }
+                    .nowhere(),
                     None,
                     Expression::Block(Box::new(Block {
                         statements: vec![],

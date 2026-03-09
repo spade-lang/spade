@@ -154,7 +154,10 @@ impl Substitutions {
 
     pub fn set_wire(&mut self, name: Loc<NameID>) {
         self.live_vars.push(name.clone());
-        self.inner.last_mut().unwrap().insert(name.inner, Substitution::Wire);
+        self.inner
+            .last_mut()
+            .unwrap()
+            .insert(name.inner, Substitution::Wire);
     }
 
     /// Return substituted name for `original` in the current pipeline stage

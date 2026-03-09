@@ -985,9 +985,7 @@ fn concrete_ty_has_field(ty: &ConcreteType, field: &str) -> bool {
             members,
             field_translators: _,
         } => members.iter().find(|(n, _)| n.as_str() == field).is_some(),
-        ConcreteType::Backward(inner) => {
-            concrete_ty_has_field(inner, field)
-        }
+        ConcreteType::Backward(inner) => concrete_ty_has_field(inner, field),
         _ => false,
     }
 }

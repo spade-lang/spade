@@ -44,7 +44,6 @@ pub enum UnaryOperator {
     Sub,
     Not,
     BitwiseNot,
-    // TODO: deprecation warning
     Dereference,
     Reference,
 }

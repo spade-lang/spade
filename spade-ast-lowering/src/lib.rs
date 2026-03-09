@@ -1,4 +1,3 @@
-// TODO: An import of `IsInout` got removed here, we should make sure that's correct
 mod attributes;
 pub mod auto_traits;
 pub mod builtins;
@@ -1709,7 +1708,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                 name: name_id.at_loc(name),
                 inner: Some(Box::new(pat.at_loc(&inner))),
                 pre_declared,
-                // TODO: Wires should be supported on bounds too
+                // FIXME: Support wires on bounds
                 wire: None,
             }
         }

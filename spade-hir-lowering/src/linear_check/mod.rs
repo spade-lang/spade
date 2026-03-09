@@ -8,7 +8,10 @@ use spade_common::{
 use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{
-    ArgumentList, Binding, ExprKind, Expression, Input, PipelineRegMarkerExtra, Register, Statement, TypeList, expression::{NamedArgument, UnaryOperator}, symbol_table::SymbolTable
+    expression::{NamedArgument, UnaryOperator},
+    symbol_table::SymbolTable,
+    ArgumentList, Binding, ExprKind, Expression, Input, PipelineRegMarkerExtra, Register,
+    Statement, TypeList,
 };
 use spade_typeinference::TypeState;
 
@@ -40,7 +43,12 @@ pub fn check_linear_types(
 
     let mut linear_state = LinearState::new();
 
-    for Input{wire: _, name, ty: _} in inputs {
+    for Input {
+        wire: _,
+        name,
+        ty: _,
+    } in inputs
+    {
         linear_state.push_new_name(name, &ctx)
     }
 

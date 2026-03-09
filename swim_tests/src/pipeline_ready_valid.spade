@@ -20,15 +20,15 @@ struct RV {
 }
 
 pipeline(4) ready_valid_pipeline(clk: clock, val: int<8>, enables: &[bool; 4]) -> Output {
-        let s0 = &RV$(valid: stage.valid, ready: stage.ready);
+        let wire s0 = &RV$(valid: stage.valid, ready: stage.ready);
     reg[(*enables)[0]];
-        let s1 = &RV$(valid: stage.valid, ready: stage.ready);
+        let wire s1 = &RV$(valid: stage.valid, ready: stage.ready);
     reg[(*enables)[1]];
-        let s2 = &RV$(valid: stage.valid, ready: stage.ready);
+        let wire s2 = &RV$(valid: stage.valid, ready: stage.ready);
     reg[(*enables)[2]];
-        let s3 = &RV$(valid: stage.valid, ready: stage.ready);
+        let wire s3 = &RV$(valid: stage.valid, ready: stage.ready);
     reg[(*enables)[3]];
-        let s4 = &RV$(valid: stage.valid, ready: stage.ready);
+        let wire s4 = &RV$(valid: stage.valid, ready: stage.ready);
         Output $(
             s0_valid: (*s0).valid,
             s1_valid: (*s1).valid,

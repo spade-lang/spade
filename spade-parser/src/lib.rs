@@ -1499,9 +1499,16 @@ impl<'a> Parser<'a> {
     pub fn parameter(
         &mut self,
         accept_impl: bool,
-    ) -> Result<(AttributeList, Option<Loc<WireMarker>>, Loc<Identifier>, Loc<TypeSpec>)> {
+    ) -> Result<(
+        AttributeList,
+        Option<Loc<WireMarker>>,
+        Loc<Identifier>,
+        Loc<TypeSpec>,
+    )> {
         let attrs = self.attributes()?;
-        let wire = self.peek_and_eat(&TokenKind::Wire)?.map(|w| WireMarker{}.at(self.file_id, &w));
+        let wire = self
+            .peek_and_eat(&TokenKind::Wire)?
+            .map(|w| WireMarker {}.at(self.file_id, &w));
         let (name, ty) = self.name_and_type(accept_impl)?;
 
         Ok((attrs, wire, name, ty))
@@ -1510,7 +1517,9 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn parameter_list(&mut self, accept_impl: bool) -> Result<ParameterList> {
         let mut first_attrs = self.attributes()?;
-        let mut first_wire = self.peek_and_eat(&TokenKind::Wire)?.map(|w| WireMarker {}.at(self.file_id, &w));
+        let mut first_wire = self
+            .peek_and_eat(&TokenKind::Wire)?
+            .map(|w| WireMarker {}.at(self.file_id, &w));
 
         let self_ = if self.peek_cond(
             |tok| matches!(tok, TokenKind::Identifier(i) if i.as_str() == "self"),
@@ -1522,10 +1531,7 @@ impl<'a> Parser<'a> {
             (first_attrs, attrs) = (AttributeList::empty(), first_attrs);
             let wire;
             (first_wire, wire) = (None, first_wire);
-            Some((
-                attrs.at(self.file_id, &self_tok),
-                wire,
-            ))
+            Some((attrs.at(self.file_id, &self_tok), wire))
         } else {
             None
         };

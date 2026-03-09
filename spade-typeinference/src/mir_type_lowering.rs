@@ -179,16 +179,12 @@ impl TypeState {
                 }
             }
             hir::TypeDeclKind::Primitive(PrimitiveType::Clock) => {
-                let concrete_type = ConcreteType::Single {
+                let leaf = ConcreteType::Single {
                     base: PrimitiveType::Clock,
                     params,
                 };
 
-                if invert {
-                    ConcreteType::Backward(Box::new(concrete_type))
-                } else {
-                    concrete_type
-                }
+                invert_leaf(leaf)
             }
             hir::TypeDeclKind::Primitive(primitive) => {
                 let leaf = ConcreteType::Single {
@@ -196,8 +192,7 @@ impl TypeState {
                     params,
                 };
                 invert_leaf(leaf)
-
-            },
+            }
             hir::TypeDeclKind::Alias(a) => {
                 Self::type_spec_to_concrete(&a.type_spec, type_list, &generic_subs, invert)
             }
@@ -316,7 +311,7 @@ impl TypeState {
             TypeVar::Known(_, KnownType::Named(t), params) => {
                 let params = params
                     .iter()
-                    .map(|v| self.inner_ungenerify_type(v, symtab, type_list, invert))
+                    .map(|v| self.inner_ungenerify_type(v, symtab, type_list, false))
                     .collect::<Option<Vec<_>>>()?;
 
                 type_list
@@ -369,7 +364,6 @@ impl TypeState {
                     .collect::<Option<Vec<_>>>()?;
                 Some(ConcreteType::Tuple(inner))
             }
-            // TODO: We have to change the inversion logic here for correct code gen
             TypeVar::Known(_, KnownType::Inverted, inner) => {
                 self.inner_ungenerify_type(&inner[0], symtab, type_list, !invert)
             }

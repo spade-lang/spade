@@ -319,7 +319,12 @@ impl PrettyPrint for Parameter {
             ty,
         } = self;
 
-        format!("{}{}: {}", if wire.is_some() {"wire "} else {""}, name.pretty_print(), ty.pretty_print())
+        format!(
+            "{}{}: {}",
+            if wire.is_some() { "wire " } else { "" },
+            name.pretty_print(),
+            ty.pretty_print()
+        )
     }
 }
 

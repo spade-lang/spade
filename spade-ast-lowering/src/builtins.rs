@@ -15,84 +15,78 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     // Add primitive data types
     let mut id = std::u64::MAX;
 
-    let mut add_type = |name: &str,
-                        args: Vec<Loc<GenericArg>>,
-                        primitive: PrimitiveType,
-                        is_inout: bool| {
-        let name = symtab
-            .add_type_with_id(
-                id,
-                Identifier::intern(name).nowhere(),
-                TypeSymbol::Declared(
-                    args.clone(),
-                    0,
-                    TypeDeclKind::Primitive { is_inout },
+    let mut add_type =
+        |name: &str, args: Vec<Loc<GenericArg>>, primitive: PrimitiveType, is_inout: bool| {
+            let name = symtab
+                .add_type_with_id(
+                    id,
+                    Identifier::intern(name).nowhere(),
+                    TypeSymbol::Declared(args.clone(), 0, TypeDeclKind::Primitive { is_inout })
+                        .nowhere(),
+                    Visibility::Public.nowhere(),
+                    None,
                 )
-                .nowhere(),
-                Visibility::Public.nowhere(),
-                None,
-            )
-            .nowhere();
-        id -= 1;
-
-        symtab.new_scope();
-        let args = args
-            .iter()
-            .map(|arg| {
-                let result = match &arg.inner {
-                    GenericArg::TypeName { name: a, traits: t } => {
-                        assert!(
-                            t.is_empty(),
-                            "Constrained generics are not supported on primitives"
-                        );
-
-                        let id = symtab.add_type_with_id(
-                            id,
-                            a.clone().nowhere(),
-                            TypeSymbol::GenericArg { traits: vec![] }.nowhere(),
-                            Visibility::Implicit.nowhere(),
-                            None,
-                        );
-                        TypeParam {
-                            name: Generic::Named(id.nowhere()),
-                            trait_bounds: vec![],
-                            meta: MetaType::Type,
-                            default: None,
-                        }
-                    }
-                    GenericArg::TypeWithMeta { name, meta } => {
-                        let id = symtab.add_type_with_id(
-                            id,
-                            name.clone().nowhere(),
-                            TypeSymbol::GenericMeta(meta.clone()).nowhere(),
-                            Visibility::Implicit.nowhere(),
-                            None,
-                        );
-                        TypeParam {
-                            name: Generic::Named(id.nowhere()),
-                            trait_bounds: vec![],
-                            meta: meta.clone(),
-                            default: None,
-                        }
-                    }
-                }
                 .nowhere();
-                id -= 1;
-                result
-            })
-            .collect();
-        symtab.close_scope();
+            id -= 1;
 
-        item_list.types.insert(
-            name.inner.clone(),
-            TypeDeclaration {
-                name,
-                kind: spade_hir::TypeDeclKind::Primitive(primitive),
-                generic_args: args,
-            }
-            .nowhere(),
-        );
-    };
+            symtab.new_scope();
+            let args = args
+                .iter()
+                .map(|arg| {
+                    let result = match &arg.inner {
+                        GenericArg::TypeName { name: a, traits: t } => {
+                            assert!(
+                                t.is_empty(),
+                                "Constrained generics are not supported on primitives"
+                            );
+
+                            let id = symtab.add_type_with_id(
+                                id,
+                                a.clone().nowhere(),
+                                TypeSymbol::GenericArg { traits: vec![] }.nowhere(),
+                                Visibility::Implicit.nowhere(),
+                                None,
+                            );
+                            TypeParam {
+                                name: Generic::Named(id.nowhere()),
+                                trait_bounds: vec![],
+                                meta: MetaType::Type,
+                                default: None,
+                            }
+                        }
+                        GenericArg::TypeWithMeta { name, meta } => {
+                            let id = symtab.add_type_with_id(
+                                id,
+                                name.clone().nowhere(),
+                                TypeSymbol::GenericMeta(meta.clone()).nowhere(),
+                                Visibility::Implicit.nowhere(),
+                                None,
+                            );
+                            TypeParam {
+                                name: Generic::Named(id.nowhere()),
+                                trait_bounds: vec![],
+                                meta: meta.clone(),
+                                default: None,
+                            }
+                        }
+                    }
+                    .nowhere();
+                    id -= 1;
+                    result
+                })
+                .collect();
+            symtab.close_scope();
+
+            item_list.types.insert(
+                name.inner.clone(),
+                TypeDeclaration {
+                    name,
+                    kind: spade_hir::TypeDeclKind::Primitive(primitive),
+                    generic_args: args,
+                }
+                .nowhere(),
+            );
+        };
     add_type(
         "uint",
         vec![GenericArg::uint(Identifier::intern("size")).nowhere()],

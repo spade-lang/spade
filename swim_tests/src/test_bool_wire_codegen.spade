@@ -1,9 +1,9 @@
-struct port Inner {
-    b: inv &bool
+struct Inner {
+    b: inv bool
 }
 
 entity harness(p: Inner) -> bool {
-    set p.b = &true;
+    set p.b = true;
     true
 }
 

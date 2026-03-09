@@ -325,7 +325,15 @@ pub fn compile(
 
                 if let Ok(()) = result {
                     if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-                        if path == u.name.name_id().1.to_named_strs().iter().filter_map(|s| *s).join("::") {
+                        if path
+                            == u.name
+                                .name_id()
+                                .1
+                                .to_named_strs()
+                                .iter()
+                                .filter_map(|s| *s)
+                                .join("::")
+                        {
                             type_state.print_equations();
                             println!("{}", format_trace_stack(&type_state));
                         }
@@ -337,7 +345,15 @@ pub fn compile(
                     }
                 } else {
                     if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-                        if path == u.name.name_id().1.to_named_strs().iter().filter_map(|s| *s).join("::") {
+                        if path
+                            == u.name
+                                .name_id()
+                                .1
+                                .to_named_strs()
+                                .iter()
+                                .filter_map(|s| *s)
+                                .join("::")
+                        {
                             type_state.print_equations();
                             println!("{}", format_trace_stack(&type_state));
                         }

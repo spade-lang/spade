@@ -421,7 +421,15 @@ fn monomorphize_item(
                 );
 
                 if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-                    if path == u.name.name_id().1.to_named_strs().iter().filter_map(|s| *s).join("::") {
+                    if path
+                        == u.name
+                            .name_id()
+                            .1
+                            .to_named_strs()
+                            .iter()
+                            .filter_map(|s| *s)
+                            .join("::")
+                    {
                         println!("After mono of {} with {:?}", u.inner.name, item.params);
                         type_state.print_equations();
                         println!("{}", format_trace_stack(&type_state));

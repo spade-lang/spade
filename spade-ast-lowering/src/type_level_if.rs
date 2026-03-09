@@ -138,11 +138,17 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
         let args = ArgumentList::Positional(
             unit.inputs
                 .iter()
-                .map(|spade_hir::Input{wire: _, name, ty: _}| {
-                    ExprKind::Identifier(name.inner.clone())
-                        .with_id(ctx.idtracker.next())
-                        .at_loc(&name)
-                })
+                .map(
+                    |spade_hir::Input {
+                         wire: _,
+                         name,
+                         ty: _,
+                     }| {
+                        ExprKind::Identifier(name.inner.clone())
+                            .with_id(ctx.idtracker.next())
+                            .at_loc(&name)
+                    },
+                )
                 .collect(),
         )
         .at_loc(&unit.head.inputs);
@@ -206,7 +212,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                     name: result_name.clone().at_loc(&unit),
                     inner: None,
                     pre_declared: false,
-                    wire: None, // TODO
+                    wire: None,
                 }
                 .with_id(ctx.idtracker.next())
                 .at_loc(&unit),

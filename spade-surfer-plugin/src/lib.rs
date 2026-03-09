@@ -473,9 +473,7 @@ fn not_present_value(ty: &ConcreteType) -> TranslationResult {
         ConcreteType::Enum { options } => not_present_enum_options(options),
         ConcreteType::Single { .. } => vec![],
         ConcreteType::Integer(_) | ConcreteType::Bool(_) | ConcreteType::String(_) => vec![],
-        ConcreteType::Backward(inner) => {
-            not_present_value(inner).subfields
-        }
+        ConcreteType::Backward(inner) => not_present_value(inner).subfields,
         ConcreteType::Error => {
             vec![]
         }

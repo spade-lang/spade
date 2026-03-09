@@ -1,25 +1,25 @@
 // On return, .fwd should be readable, .back writeable
 // `inv SimpleIO` is sufficient
-struct port SimpleIO {
-    fwd: &int<8>,
-    back: inv &int<8>,
+struct SimpleIO {
+    fwd: int<8>,
+    back: inv int<8>,
 }
 
 // On return .raw_fwd and inner.fwd should be readable, raw_back and inner.back should
 // be writable. Requires partial writes to the signal.
 // `inv SubStructs` should be sufficient for typeinference
-struct port SubStruct {
-    raw_fwd: &int<12>,
-    raw_back: inv &int<12>,
+struct SubStruct {
+    raw_fwd: int<12>,
+    raw_back: inv int<12>,
     inner: SimpleIO,
 }
 
 // On return .raw_fwd and inner.back should be readable, raw_back and inner.fwd should
 // be writable. Requires partial writes to the signal.
 // `inv SubStructs` should be sufficient for typeinference
-struct port SubStructWithInv {
-    raw_fwd: &int<12>,
-    raw_back: inv &int<12>,
+struct SubStructWithInv {
+    raw_fwd: int<12>,
+    raw_back: inv int<12>,
     inner: inv SimpleIO,
 }
 
@@ -52,12 +52,12 @@ entity fields(
 }
 
 
-struct port InvArgsOut {
-    x_inv: inv &uint<8>,
-    y_inv: inv &bool,
-    a: &uint<4>,
-    b: &uint<6>
+struct InvArgsOut {
+    x_inv: inv uint<8>,
+    y_inv: inv bool,
+    a: uint<4>,
+    b: uint<6>
 }
-entity inv_args(x_inv: inv &uint<8>, y_inv: inv &bool, a: &uint<4>, b: &uint<6>) -> InvArgsOut {
+entity inv_args(x_inv: inv uint<8>, y_inv: inv bool, a: uint<4>, b: uint<6>) -> InvArgsOut {
     InvArgsOut$(x_inv, y_inv, a, b)
 }

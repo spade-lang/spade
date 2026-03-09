@@ -196,18 +196,18 @@ mod fifo_impl {
         };
         let read_clk = false; // Unbind so we don't use it on accident later
 
-        let write_value = inst new_mut_wire();
+        let write_value = port;
 
         decl write_ptr;
         let full = trunc(write_ptr + 1) == read_ptr;
 
-        reg(write_clk) write_ptr reset(write_rst: 0) = match (inst read_mut_wire(write_value), full) {
+        reg(write_clk) write_ptr reset(write_rst: 0) = match (write_value.0, full) {
             (Some(v), false) => trunc(write_ptr + 1),
             _ => write_ptr,
         };
 
         set mem.addr = &write_ptr;
-        set mem.write =  &match (inst read_mut_wire(write_value), full) {
+        set mem.write =  &match (write_value.0, full) {
             (Some(v), false) => Some(v),
             _ => None
         };
@@ -215,7 +215,7 @@ mod fifo_impl {
         set from_w.write_ptr = &write_ptr;
         FifoWrite$(
             full: &full,
-            write: write_value
+            write: write_value.1
         )
     }
 }

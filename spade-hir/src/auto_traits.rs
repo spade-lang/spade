@@ -13,5 +13,3 @@ impl DataWitness {
         Self::Recursive(Box::new(self.at_loc(&loc)))
     }
 }
-
-

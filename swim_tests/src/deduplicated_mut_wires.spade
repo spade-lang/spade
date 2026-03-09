@@ -1,9 +1,9 @@
-struct port Inner {
-    x: inv &bool,
-    y: inv &bool
+struct Inner {
+    x: inv bool,
+    y: inv bool
 }
 
-struct port Outer {
+struct Outer {
     w: Inner
 }
 

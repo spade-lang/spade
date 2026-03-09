@@ -9,9 +9,12 @@ use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler};
 #[cfg(test)]
 mod ast_lowering;
 #[cfg(test)]
+mod auto_traits;
+#[cfg(test)]
 mod compiler_state;
 #[cfg(test)]
 mod const_generics;
+mod data_requirements;
 #[cfg(test)]
 mod hir_lowering;
 #[cfg(test)]
@@ -34,9 +37,6 @@ mod typeinference;
 mod usefulness;
 #[cfg(test)]
 mod verilator_wrapper;
-#[cfg(test)]
-mod auto_traits;
-mod data_requirements;
 
 // NOTE: word length inference tests no longer work after adding `int` and `uint`
 // #[cfg(test)]

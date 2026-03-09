@@ -467,7 +467,11 @@ impl PrettyDebug for Pattern {
                 inner: None,
                 pre_declared: _,
                 wire,
-            } => format!("{}{}", if wire.is_some() { "wire " } else { "" }, name.pretty_debug()),
+            } => format!(
+                "{}{}",
+                if wire.is_some() { "wire " } else { "" },
+                name.pretty_debug()
+            ),
             crate::PatternKind::Tuple(inner) => {
                 format!("({})", inner.iter().map(|i| i.pretty_debug()).join(", "))
             }

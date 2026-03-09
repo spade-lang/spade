@@ -59,10 +59,10 @@ use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{diag_assert, diag_bail, Diagnostic};
-use spade_hir::Input;
 use spade_hir::expression::Safety;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_hir::Generic;
+use spade_hir::Input;
 use spade_hir::UnitHead;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
@@ -3840,7 +3840,11 @@ pub fn generate_unit<'a>(
                     wire: _,
                     field_translator: _,
                 },
-                Input{wire: _, name: name_id, ty: _},
+                Input {
+                    wire: _,
+                    name: name_id,
+                    ty: _,
+                },
             )| {
                 let name = name_id.1.tail().to_string();
                 let val_name = name_id.value_name();

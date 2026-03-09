@@ -116,7 +116,7 @@ impl Requirement {
                     ResolvedNamedOrInverted::Named(inverted, type_name, params) => {
                         // Check if we're dealing with a struct
                         match ctx.symtab.type_symbol_by_id(&type_name).inner {
-                            TypeSymbol::Declared(_, _, TypeDeclKind::Struct ) => {}
+                            TypeSymbol::Declared(_, _, TypeDeclKind::Struct) => {}
                             TypeSymbol::Declared(_, _, TypeDeclKind::Enum) => {
                                 return Err(Diagnostic::error(
                                     target_type,
@@ -181,12 +181,6 @@ impl Requirement {
                         )?;
                         let field_type = if inverted {
                             match raw_field_type.resolve(type_state) {
-                                // TODO: Replicate this logic, presumably by looking at `Data` impls
-                                // for the inner type
-                                // TypeVar::Known(loc, KnownType::Wire, inner) => {
-                                //     TypeVar::backward(loc.loc(), inner[0].clone(), type_state)
-                                //         .insert(type_state)
-                                // }
                                 TypeVar::Known(_, KnownType::Inverted, inner) => inner[0].clone(),
                                 // If we were in an inverted context and we find
                                 // a type which is not a wire, we need to invert

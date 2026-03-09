@@ -6,7 +6,8 @@ use spade_common::{
 };
 use spade_diagnostics::diag_bail;
 use spade_hir::{
-    ImplBlock, Parameter, Struct, TraitName, TraitSpec, TypeAlias, TypeDeclaration, TypeExpression, TypeSpec, auto_traits::DataWitness, symbol_table::TypeSymbol
+    auto_traits::DataWitness, symbol_table::TypeSymbol, ImplBlock, Parameter, Struct, TraitName,
+    TraitSpec, TypeAlias, TypeDeclaration, TypeExpression, TypeSpec,
 };
 use spade_types::meta_types::MetaType;
 
@@ -19,7 +20,6 @@ trait TyExt {
 impl TyExt for Loc<TypeExpression> {
     fn get_data_witness(&self, ctx: &Context) -> Option<DataWitness> {
         match &self.inner {
-            // TODO: This clone is awful
             TypeExpression::TypeSpec(spec) => spec
                 .clone()
                 .at_loc(self)
@@ -45,7 +45,7 @@ impl TyExt for Loc<TypeSpec> {
             }
             TypeSpec::Declared(base, params) => {
                 let Some(ty) = ctx.item_list.types.get(base).cloned() else {
-                    unreachable!() // TODO: Decide if this is fine
+                    unreachable!()
                 };
 
                 ty.get_data_witness(ctx).or_else(|| {
@@ -55,7 +55,7 @@ impl TyExt for Loc<TypeSpec> {
                 })
             }
             TypeSpec::Generic(_) => {
-                // Generics are nto handled here, they get added as constraints to
+                // Generics are not handled here, they get added as constraints to
                 // the impl blocks we generate.
                 None
             }
@@ -78,7 +78,6 @@ impl TyExt for Loc<TypeDeclaration> {
         match &self.kind {
             // Enums never impl !Data because their members must impl data. This
             // mustbe checked later
-            // TODO
             spade_hir::TypeDeclKind::Enum(_) => None,
             spade_hir::TypeDeclKind::Primitive(inner) => match inner {
                 spade_types::PrimitiveType::Int => None,

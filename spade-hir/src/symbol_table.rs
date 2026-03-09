@@ -15,7 +15,10 @@ use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
-use crate::{FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec, UnitHead, UnitKind, auto_traits::DataWitness};
+use crate::{
+    auto_traits::DataWitness, FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec,
+    UnitHead, UnitKind,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LookupError {
@@ -419,7 +422,7 @@ impl TypeDeclKind {
 
     pub fn name(&self) -> String {
         match self {
-            TypeDeclKind::Struct  => {
+            TypeDeclKind::Struct => {
                 format!("struct")
             }
             TypeDeclKind::Enum { .. } => "enum".to_string(),
