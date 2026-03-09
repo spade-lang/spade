@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+trait Tr {}
+
+enum E<T: Tr> {
+    A{val: T},
+    B,
+}
+
+fn test() -> E<bool>{
+  let result = port;
+  set result.1 = &std::undef::undef();
+  *result.0
+}
+
+
+error: Trait bound not satisfied. bool does not implement Tr
+  ┌─ testinput:8:14
+  │
+3 │ enum E<T: Tr> {
+  │           -- Required because of the trait bound specified here
+  ·
+8 │ fn test() -> E<bool>{
+  │              ^^^^^^^ bool does not implement Tr

@@ -499,6 +499,7 @@ fn monomorphize_item(
                 &u.inner,
                 item.new_name.clone(),
                 &mut type_state,
+                type_ctx,
                 symtab,
                 &idtracker,
                 item_list,

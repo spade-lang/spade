@@ -177,7 +177,7 @@ impl Requirement {
                             expr.loc(),
                             field_spec,
                             &generic_list,
-                            ctx.items,
+                            ctx,
                         )?;
                         let field_type = if inverted {
                             match raw_field_type.resolve(type_state) {

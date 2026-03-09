@@ -1450,7 +1450,7 @@ fn in_bounds_type_level_integer_is_ok() {
 snapshot_error! {
     type_parameter_propagation_regression,
     "
-        struct ReadPort_<W> { }
+        struct ReadPort_<#uint W> { }
 
         struct port FifoRead<#uint W> { }
 
@@ -2563,4 +2563,22 @@ code_compiles! {
 
         impl<T1> Tr for (T1) {}
     "
+}
+
+snapshot_error! {
+    trait_requirements_are_checked_on_types,
+    "
+    trait Tr {}
+
+    enum E<T: Tr> {
+        A{val: T},
+        B,
+    }
+
+    fn test() -> E<bool>{
+      let result = port;
+      set result.1 = &std::undef::undef();
+      *result.0
+    }
+"
 }

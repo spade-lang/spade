@@ -129,7 +129,7 @@ impl TypeState {
                     self.unify(&depth, &var, ctx).unwrap()
                 },
                 spade_hir::expression::PipelineRefKind::Relative(expr) => {
-                    let expr_var = self.hir_type_expr_to_var(expr, generic_list, ctx.items)?;
+                    let expr_var = self.hir_type_expr_to_var(expr, generic_list, ctx)?;
                     let total_offset = self.new_generic_tlint(stage.loc());
                     self.add_constraint(
                         total_offset.clone(),
@@ -382,7 +382,7 @@ impl TypeState {
             self.visit_argument_list(&args_with_self, ctx, generic_list)?;
 
             if let Some(op_trait) = op_trait {
-                let req = self.visit_trait_spec(op_trait, generic_list, ctx.items)?;
+                let req = self.visit_trait_spec(op_trait, generic_list, ctx)?;
                 let op_trait_generic = self.new_generic_with_traits(().nowhere(), TraitList::from_vec(vec![req]));
                 self.unify_expression_generic_error(target, &op_trait_generic, ctx)?;
 

@@ -1579,7 +1579,7 @@ impl ExprLocal for Loc<Expression> {
                         self.loc(),
                         &hir::TypeSpec::Generic(Generic::Named(name.clone().nowhere())),
                         generic_list,
-                        ctx.item_list,
+                        ctx.type_ctx,
                     )?;
 
                     let value = match ctx.types.ungenerify_type(
@@ -1631,7 +1631,7 @@ impl ExprLocal for Loc<Expression> {
                         self.loc(),
                         &hir::TypeSpec::Generic(Generic::Named(name.clone().nowhere())),
                         generic_list,
-                        ctx.item_list,
+                        ctx.type_ctx,
                     )?;
 
                     let value = match ctx.types.ungenerify_type(
@@ -3881,12 +3881,14 @@ pub struct Context<'a> {
     pub pipeline_context: &'a mut MaybePipelineContext,
     pub self_mono_item: Option<MonoItem>,
     pub trait_impls: &'a TraitImplList,
+    pub type_ctx: &'a spade_typeinference::Context<'a>,
 }
 
 pub fn generate_unit<'a>(
     unit: &Unit,
     name: UnitName,
     types: &mut TypeState,
+    type_ctx: &spade_typeinference::Context,
     symtab: &FrozenSymtab,
     idtracker: &ExprIdTracker,
     item_list: &ItemList,
@@ -3955,6 +3957,7 @@ pub fn generate_unit<'a>(
         symtab,
         idtracker,
         types,
+        type_ctx,
         subs,
         item_list,
         unit_generic_list,

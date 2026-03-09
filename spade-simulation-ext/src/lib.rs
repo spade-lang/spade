@@ -360,7 +360,11 @@ impl Spade {
                 output_type.loc(),
                 &output_type,
                 &generic_list,
-                &owned_state.item_list,
+                &spade_typeinference::Context {
+                    symtab: owned_state.symtab.symtab(),
+                    items: &owned_state.item_list,
+                    trait_impls: &owned_state.trait_impls,
+                },
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
@@ -769,9 +773,14 @@ impl Spade {
                 let generic_list = self
                     .type_state
                     .create_empty_generic_list(GenericListSource::Anonymous);
+                let type_ctx = &spade_typeinference::Context {
+                    symtab: owned_state.symtab.symtab(),
+                    items: &owned_state.item_list,
+                    trait_impls: &owned_state.trait_impls,
+                };
                 let ty = self
                     .type_state
-                    .type_var_from_hir(ty.loc(), &ty, &generic_list, &owned_state.item_list)
+                    .type_var_from_hir(ty.loc(), &ty, &generic_list, &type_ctx)
                     .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
                     .resolve(&self.type_state)
                     .into_known(&self.type_state)
@@ -853,7 +862,7 @@ impl Spade {
         } = ast_ctx;
         self.handle_diags(&mut diags.lock().unwrap())?;
 
-        let mut symtab = symtab.freeze();
+        let symtab = symtab.freeze();
 
         let type_ctx = spade_typeinference::Context {
             symtab: symtab.symtab(),
@@ -893,10 +902,16 @@ impl Spade {
             )
             .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
 
+        let type_ctx = &spade_typeinference::Context {
+            symtab: symtab.symtab(),
+            items: &item_list,
+            trait_impls: &trait_impls,
+        };
         let mut hir_ctx = spade_hir_lowering::Context {
-            symtab: &mut symtab,
+            symtab: &symtab,
             idtracker: &mut idtracker,
             types: &mut self.type_state,
+            type_ctx,
             item_list: &item_list,
             unit_generic_list: &None,
             // NOTE: This requires changes if we end up wanting to write tests
