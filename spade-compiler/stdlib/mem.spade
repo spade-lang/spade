@@ -1,7 +1,4 @@
-use std::ports::new_mut_wire;
-use std::ports::read_mut_wire;
-
-use std::cdc as cdc;
+use lib::cdc as cdc;
 
 /// Define a memory where values are written on the rising edge of the clock.
 /// Reads can occur asynchronously with the `read_mem` function. If Clocked reads
@@ -73,21 +70,21 @@ reg;
 /// A dual port block RAM that supports read and write ports being in different domains.
 /// If writes and reads happen to the same address, the behaviour is undefined.
 pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>, ReadPort<W, D>) {
-    let w_addr = inst new_mut_wire();
-    let w_write = inst new_mut_wire();
-    let r_addr = inst new_mut_wire();
+    let w_addr = port;
+    let w_write = port;
+    let r_addr = port;
 
     reg(write_clk) undef = undef;
-    let w = match inst read_mut_wire(w_write) {
-        Some(w) => (true, inst read_mut_wire(w_addr), w),
-        None => (false, inst read_mut_wire(w_addr), undef),
+    let w = match w_write.0 {
+        Some(w) => (true, w_addr.0, w),
+        None => (false, w_addr.0, undef),
     };
 
     let mem: Memory<D, C> = inst clocked_memory(write_clk, [w]);
 
-    reg(read_clk) read_result = inst read_memory(mem, inst read_mut_wire(r_addr));
+    reg(read_clk) read_result = inst read_memory(mem, r_addr.0);
 
-    (WritePort$(addr: w_addr, write: w_write), ReadPort$(addr: r_addr, out: read_result))
+    (WritePort$(addr: w_addr.1, write: w_write.1), ReadPort$(addr: r_addr.1, out: read_result))
 }
 
 
@@ -109,9 +106,6 @@ pub struct FifoRead<#uint W, D> {
 }
 
 mod fifo_impl {
-    use lib::ports::new_mut_wire;
-    use lib::ports::read_mut_wire;
-
     use lib::mem::clocked_memory;
     use lib::mem::read_memory;
 
@@ -145,11 +139,11 @@ mod fifo_impl {
         };
         let write_clk = false; // Unbind write_clk so we don't use it on accident later
 
-        let ack = inst new_mut_wire();
+        let ack = port;
 
         decl read_ptr;
         let empty = write_ptr == read_ptr;
-        let read_ptr_next = match (inst read_mut_wire(ack), empty) {
+        let read_ptr_next = match (ack.0, empty) {
             (true, true) => read_ptr,
             (true, false) => trunc(read_ptr + 1),
             (false, _) => read_ptr,
@@ -175,7 +169,7 @@ mod fifo_impl {
 
         FifoRead$(
             read: if !empty { Some(out) } else { None },
-            ack,
+            ack: ack.1,
             num_elements: num_elements,
         )
     }

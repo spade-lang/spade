@@ -13,7 +13,7 @@ entity option_sliding_window_test(
     val: Option<uint<8>>,
     default: uint<8>,
 ) -> Option<[uint<8>; 3]> {
-    val.inst sliding_window(clk, rst, default)
+    val.inst padded_sliding_window(clk, rst, default)
 }
 
 entity option_chunks(

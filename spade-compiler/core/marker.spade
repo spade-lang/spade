@@ -1,8 +1,9 @@
-/// The data trait is implemented by any type whose bit representation can be interpreted as data.
-/// For now, this means that the value can be stored in a register and be passed through a multiplexer.
+/// The `Data` trait is implemented by any type whose bit representation can be interpreted as data.
 ///
-/// This data is automatically implemented by the compiler, analogous to an auto trait in Rust. It should
-/// not be implemented manually
+/// For now, this means that the value can be stored in a register and passed through a multiplexer.
+///
+/// `Data` is automatically implemented by the compiler, analogous to an auto trait in Rust. It
+/// should not be implemented manually.
 pub trait Data {}
 
 impl Data for () {}

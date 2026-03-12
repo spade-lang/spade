@@ -1,11 +1,63 @@
-/// Takes a synchronized input and pulses for only one clock cycle when it goes from low to high.
-pub entity rising_edge(clk: clock, sync1: bool) -> bool {
-    reg(clk) sync2: bool = sync1;
-    sync1 && !sync2
+/// Emits a pulse the cycle when a `bool` value changes from `true` to `false`.
+pub entity rising_edge(clk: clock, value: bool) -> bool {
+    reg(clk) old_value = value;
+    value && !old_value
 }
 
-/// Takes a synchronized input and pulses for only one clock cycle when it goes from high to low.
-pub entity falling_edge(clk: clock, sync1: bool) -> bool {
-    reg(clk) sync2: bool = sync1;
-    sync2 && !sync1
+/// Emits a pulse the cycle when a `bool` value changes from `true` to `false`.
+pub entity falling_edge(clk: clock, value: bool) -> bool {
+    reg(clk) old_value = value;
+    value && !old_value
+}
+
+impl<T> inout<T> {
+    /// Returns a pair of output/input ports to interact with an `inout` value.
+    ///
+    /// This function provides exclusive I/O access to the `inout` port, so only one of those
+    /// operations can be performed at any given moment. When the value at the input is set to
+    /// `Some(_)`, the port is driven and the output is `None`. When the value at the input is set
+    /// to `None`, the port is left in a high-impedance state and the output is the incoming value
+    /// `Some(_)`.
+    #[inline]
+    pub fn read_write(#[no_mangle] self) -> (Option<T>, inv Option<T>) {
+        intrinsics::read_write_inout(self)
+    }
+}
+
+impl<T, #uint N> inout<[T; N]> {
+    /// Returns a pair of output/input ports to interact with the items of an `inout` array.
+    ///
+    /// This function provides exclusive I/O access each of the `inout` port items, so only one of
+    /// those operations can be performed at any given moment on any given item. For every item,
+    /// when the value at its input is set to `Some(_)`, the port is driven and its output is
+    /// `None`. When the value at its input is set to `None`, the port is left in a high-impedance
+    /// state and its output is the incoming value `Some(_)`.
+    #[inline]
+    pub fn read_write_items(#[no_mangle] self) -> [(Option<T>, inv Option<T>); N] {
+        intrinsics::read_write_items_inout(self)
+    }
+}
+
+mod intrinsics {
+    /// Returns a pair of output/input ports to interact with an `inout` value.
+    ///
+    /// This function provides exclusive I/O access to the `inout` port, so only one of those
+    /// operations can be performed at any given moment. When the value at the input is set to
+    /// `Some(_)`, the port is driven and the output is `None`. When the value at the input is set
+    /// to `None`, the port is left in a high-impedance state and the output is the incoming value
+    /// `Some(_)`.
+    pub(super) extern fn read_write_inout<T>(
+        #[no_mangle] io: inout<T>,
+    ) -> (Option<T>, inv Option<T>);
+
+    /// Returns a pair of output/input ports to interact with the items of an `inout` array.
+    ///
+    /// This function provides exclusive I/O access each of the `inout` port items, so only one of
+    /// those operations can be performed at any given moment on any given item. For every item,
+    /// when the value at its input is set to `Some(_)`, the port is driven and its output is
+    /// `None`. When the value at its input is set to `None`, the port is left in a high-impedance
+    /// state and its output is the incoming value `Some(_)`.
+    pub(super) extern fn read_write_items_inout<T, #uint N>(
+        #[no_mangle] io: inout<[T; N]>,
+    ) -> [(Option<T>, inv Option<T>); N];
 }

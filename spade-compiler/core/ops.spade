@@ -79,7 +79,7 @@ impl<#uint N> WrappingNeg for int<N> {
     fn wrapping_neg(self) -> Self {
         unsafe {
             let bits: [bool; N] = lib::conv::transmute(-self);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -92,7 +92,7 @@ impl<#uint N> WrappingAdd for int<N> {
     fn wrapping_add(self, rhs: Self) -> Self {
         unsafe {
             let bits: [bool; {N + 1}] = lib::conv::transmute(self + rhs);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -101,7 +101,7 @@ impl<#uint N> WrappingAdd for uint<N> {
     fn wrapping_add(self, rhs: Self) -> Self {
         unsafe {
             let bits: [bool; {N + 1}] = lib::conv::transmute(self + rhs);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -114,7 +114,7 @@ impl<#uint N> WrappingSub for int<N> {
     fn wrapping_sub(self, rhs: Self) -> Self {
         unsafe {
             let bits: [bool; {N + 1}] = lib::conv::transmute(self - rhs);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -123,7 +123,7 @@ impl<#uint N> WrappingSub for uint<N> {
     fn wrapping_sub(self, rhs: Self) -> Self {
         unsafe {
             let bits: [bool; {N + 1}] = lib::conv::transmute(self - rhs);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -136,7 +136,7 @@ impl<#uint N> WrappingMul for int<N> {
     fn wrapping_mul(self, rhs: Self) -> Self {
         unsafe {
             let bits: [bool; {2 * N}] = lib::conv::transmute(self * rhs);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -145,7 +145,7 @@ impl<#uint N> WrappingMul for uint<N> {
     fn wrapping_mul(self, rhs: Self) -> Self {
         unsafe {
             let bits: [bool; {2 * N}] = lib::conv::transmute(self * rhs);
-            lib::conv::transmute(bits[0..N])
+            lib::conv::transmute(bits[..N])
         }
     }
 }
@@ -411,10 +411,24 @@ mod intrinsics {
     pub(super) extern fn eq<T>(lhs: T, rhs: T) -> bool;
     pub(super) extern fn ne<T>(lhs: T, rhs: T) -> bool;
 
-    pub(super) extern fn bit_not<#uint N>(val: [bool; N]) -> [bool; N];
-    pub(super) extern fn bit_and<#uint N>(lhs: [bool; N], rhs: [bool; N]) -> [bool; N];
-    pub(super) extern fn bit_or<#uint N>(lhs: [bool; N], rhs: [bool; N]) -> [bool; N];
-    pub(super) extern fn bit_xor<#uint N>(lhs: [bool; N], rhs: [bool; N]) -> [bool; N];
+    pub(super) extern fn bit_not<#uint N>(
+        val: [bool; N],
+    ) -> [bool; N];
+
+    pub(super) extern fn bit_and<#uint N>(
+        lhs: [bool; N],
+        rhs: [bool; N],
+    ) -> [bool; N];
+
+    pub(super) extern fn bit_or<#uint N>(
+        lhs: [bool; N],
+        rhs: [bool; N],
+    ) -> [bool; N];
+
+    pub(super) extern fn bit_xor<#uint N>(
+        lhs: [bool; N],
+        rhs: [bool; N],
+    ) -> [bool; N];
 
     pub(super) extern fn lt<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
     pub(super) extern fn le<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;

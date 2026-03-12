@@ -1,0 +1,386 @@
+/// Computes the absolute value of a signed integer.
+///
+/// # Examples
+///
+/// ```spade
+/// assert abs(0i8) == 0u8;
+/// assert abs(15i8) == 15u8;
+/// assert abs(-7i8) == 7u8;
+/// ```
+#[inline]
+pub fn abs<#uint N>(x: int<N>) -> uint<N> {
+    x.abs()
+}
+
+/// Creates an integer by concatenating the bits of two existing ones.
+///
+/// The result is an integer whose higher bits correspond to the first input integer, and its lower
+/// bits correspond to the second one. In other words, given two numbers `0x123` and `0x456`, the
+/// result is `0x123456`.
+///
+/// Note that when operating with signed integers, the result has the same sign as the first
+/// argument provided, as it is its most significant bit which becomes the sign bit of the
+/// concatenated whole.
+///
+/// # Examples
+///
+/// ```spade
+/// assert concat(0xABADu16, 0x1DEAu16) == 0xABAD_IDEAu32;
+/// assert concat(0x1234i16, 0x5678i16) == 0x5678_1234i32;
+/// assert concat(0i16, -1i16) == 65_535i32;
+/// assert concat(0u0, 0u0) == 0u0;
+/// ```
+// This is special cased by the compiler. If Spade was able to express its actual type, it would be:
+// `concat<#uint N, #uint M, T: Number<N>>(x: T, T::Resized<M>) -> T::Resized<{N + M}>`.
+pub extern fn concat<N, M, K>(x: N, y: M) -> K;
+
+/// Interleaves the bits of two numbers.
+///
+/// A number containing bits from both input numbers is built, with even positions occupied by bits
+/// from the first number and odd positions occupied by those from the second number. In other
+/// words, given two numbers `0bCBA` and `0b321`, the output would be `0b3C2B1A`.
+///
+/// # Examples
+///
+/// ```spade
+/// assert 0b011u3.interleave(0b101u3) == 0b100111u6;
+/// assert 0u0.interleave(0u0) == 0u0;
+/// ```
+#[inline]
+fn interleave<#uint N>(l: uint<N>, r: uint<N>) -> uint<{2 * N}> {
+    l.interleave(r)
+}
+
+/// Reduces the size of an integer by truncating away the excess highest significant bits.
+///
+/// Note that removing those highest significant bits may change the value of the integer if it
+/// cannot fit into the target bit width. In particular, negative numbers may change their sign.
+///
+/// # Examples
+///
+/// ```spade
+/// assert trunc(7u8) == 7u4;
+/// assert trunc(7u8) == 7u3;
+/// assert trunc(7u8) == 3u2;
+/// assert trunc(-8i8) == -8i4;
+/// assert trunc(-8i8) == 0i3;
+/// ```
+// This is special cased by the compiler. If Spade was able to express its actual type, it would be:
+// `trunc<#uint N, #uint M, T: Number<N>>(x: T) -> T::Resized<M>`.
+pub extern fn trunc<N, M>(x: N) -> M;
+
+/// Increases the size of a signed integer by replicating its sign bit.
+///
+/// This operation preserves the numeric value.
+///
+/// # Examples
+///
+/// ```spade
+/// assert sext(9i8) == 9i8;
+/// assert sext(9i8) == 9i12;
+/// assert sext(0i8) == 0i32;
+/// assert sext(-1i8) == -1i20;
+/// assert sext(-156i8) == -156i22;
+/// ```
+pub extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>
+where
+    M >= N else "Sign-extend result must be wider than the input value";
+
+/// Increases the size of a signed integer by extending it with zeros on the left side.
+///
+/// This operation preserves the numeric value.
+///
+/// # Examples
+///
+/// ```spade
+/// assert zext(9u8) == 9u8;
+/// assert zext(9u8) == 9u12;
+/// assert zext(0u8) == 0u32;
+/// ```
+pub extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>
+where
+    M >= N else "Zero-extend result must be wider than the input value";
+
+impl<#uint N> int<N> {
+    /// Computes the absolute value of a signed integer.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0i8.abs() == 0u8;
+    /// assert 15i8.abs() == 15u8;
+    /// assert (-7i8).abs() == 7u8;
+    /// ```
+    pub fn abs(self) -> uint<N> {
+        if self < 0 { (-.self).as_uint() } else { self.as_uint() }
+    }
+
+    /// Creates an integer by concatenating the bits of two existing ones.
+    ///
+    /// The result is an integer whose higher bits correspond to the first input integer, and its
+    /// lower bits correspond to the second one. In other words, given two numbers `0x123` and
+    /// `0x456`, the result is `0x123456`.
+    ///
+    /// Note that the result has the same sign as the first argument provided, as it is its most
+    /// significant bit which becomes the sign bit of the concatenated whole.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0x1234i16.concat(0x5678i16) == 0x5678_1234i32;
+    /// assert 0i16.concat(-1i16) == 65_535i32;
+    /// assert 0i0.concat(0i0) == 0i0;
+    /// ```
+    pub fn concat<#uint M>(self, other: int<M>) -> int<{N + M}> {
+        concat(self, other)
+    }
+
+    /// Calculates the maximum value of two integers.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 2i8.max(10i8) == 10u8;
+    /// assert 15i8.max(3i8) == 15i8;
+    /// ```
+    pub fn max(self, other: Self) -> Self {
+        if self < other { other } else { self }
+    }
+
+    /// Calculates the minimum value of two integers.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 2i8.min(10i8) == 2u8;
+    /// assert 15i8.min(3i8) == 3i8;
+    /// ```
+    pub fn min(self, other: Self) -> Self {
+        if self < other { self } else { other }
+    }
+
+    /// Reduces the size of an integer by truncating away the excess highest significant bits.
+    ///
+    /// Note that removing those highest significant bits may change the value of the integer if it
+    /// cannot fit into the target bit width. In particular, negative numbers may change their sign.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 7i8.trunc() == 7i4;
+    /// assert 7i8.trunc() == 7i3;
+    /// assert 7i8.trunc() == 3i2;
+    /// assert (-8i8).trunc() == -8i4;
+    /// assert (-8i8).trunc() == 0i3;
+    /// ```
+    pub fn trunc<#uint M>(self) -> int<M> {
+        trunc(self)
+    }
+}
+
+impl<#uint N> uint<N> {
+    /// Creates an integer by concatenating the bits of two existing ones.
+    ///
+    /// The result is an integer whose higher bits correspond to the first input integer, and its
+    /// lower bits correspond to the second one. In other words, given two numbers `0x123` and
+    /// `0x456`, the result is `0x123456`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0xABADu16.concat(0x1DEAu16) == 0xABAD_IDEAu32;
+    /// assert 0u0.concat(0u0) == 0u0;
+    /// ```
+    pub fn concat<#uint M>(self, other: uint<M>) -> uint<{N + M}> {
+        concat(self, other)
+    }
+
+    /// Interleaves the bits of two numbers.
+    ///
+    /// A number containing bits from both input numbers is built, with even positions occupied by
+    /// bits from the first number and odd positions occupied by those from the second number. In
+    /// other words, given two numbers `0bCBA` and `0b321`, the output would be `0b3C2B1A`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0b011u3.interleave(0b101u3) == 0b100111u6;
+    /// assert 0u0.interleave(0u0) == 0u0;
+    /// ```
+    pub fn interleave(self, other: Self) -> uint<{2 * N}> {
+        self.as_bits().interleave(other.as_bits()).as_uint()
+    }
+
+    /// Calculates the maximum value of two integers.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 2u8.max(10u8) == 10u8;
+    /// assert 15u8.max(3u8) == 15u8;
+    /// ```
+    pub fn max(self, other: Self) -> Self {
+        if self < other { other } else { self }
+    }
+
+    /// Calculates the minimum value of two integers.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 2u8.min(10u8) == 2u8;
+    /// assert 15u8.min(3u8) == 3u8;
+    /// ```
+    pub fn min(self, other: Self) -> Self {
+        if self < other { self } else { other }
+    }
+
+    /// Reduces the size of an integer by truncating away the excess highest significant bits.
+    ///
+    /// Note that removing those highest significant bits may change the value of the integer if it
+    /// cannot fit into the target bit width.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 7u8.trunc() == 7u4;
+    /// assert 7u8.trunc() == 7u3;
+    /// assert 7u8.trunc() == 3u2;
+    /// ```
+    pub fn trunc<#uint M>(self) -> uint<M> {
+        trunc(self)
+    }
+
+    /// Encodes the input number into Gray code.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0u2.to_gray() == Gray([false, false]);
+    /// assert 1u2.to_gray() == Gray([ true, false]);
+    /// assert 2u2.to_gray() == Gray([ true,  true]);
+    /// assert 3u2.to_gray() == Gray([false,  true]);
+    /// ```
+    pub fn to_gray(self) -> Gray<N> {
+        Gray((self >>. 1) ^ self)
+    }
+}
+
+impl<#uint N> int<N> where N > 0 {
+    // Returns the value of the most significant bit (also the sign bit).
+    //
+    // Equivalent to `int<N>::sign_bit`.
+    //
+    // # Examples
+    //
+    // ```spade
+    // assert 0i8.leftmost_bit() == false; // 0b0000_0000
+    // assert 15i8.leftmost_bit() == false; // 0b0000_1111
+    // assert (-7i8).leftmost_bit() == true; // 0b1111_1001
+    // ```
+    pub fn leftmost_bit(self) -> bool {
+        self.as_bits().last()
+    }
+
+    // Returns the value of the least significant bit.
+    //
+    // # Examples
+    //
+    // ```spade
+    // assert 0i8.rightmost_bit() == false; // 0b0000_0000
+    // assert 1i8.rightmost_bit() == true; // 0b0000_0001
+    // assert 16i8.rightmost_bit() == false; // 0b0001_0000
+    // assert (-1i8).rightmost_bit() == true; // 0b1111_1111
+    // assert (-8i8).rightmost_bit() == false; // 0b1111_1000
+    // ```
+    pub fn rightmost_bit(self) -> bool {
+        self.as_bits().first()
+    }
+
+    // Returns the value of the sign bit (also the most significant bit).
+    //
+    // Equivalent to `int<N>::leftmost_bit`.
+    //
+    // # Examples
+    //
+    // ```spade
+    // assert 0i8.sign_bit() == false; // 0b0000_0000
+    // assert 15i8.sign_bit() == false; // 0b0000_1111
+    // assert (-7i8).sign_bit() == true; // 0b1111_1001
+    // ```
+    pub fn sign_bit(self) -> bool {
+        self.leftmost_bit()
+    }
+}
+
+impl<#uint N> uint<N> where N > 0 {
+    // Returns the value of the most significant bit.
+    //
+    // See also `int<N>::sign_bit`.
+    //
+    // # Examples
+    //
+    // ```spade
+    // assert 0u8.leftmost_bit() == false; // 0b0000_0000
+    // assert 15u8.leftmost_bit() == false; // 0b0000_1111
+    // assert 192u8.leftmost_bit() == true; // 0b1100_0000
+    // ```
+    pub fn leftmost_bit(self) -> bool {
+        self.as_bits().last()
+    }
+
+    // Returns the value of the least significant bit.
+    //
+    // # Examples
+    //
+    // ```spade
+    // assert 0u8.rightmost_bit() == false; // 0b0000_0000
+    // assert 1u8.rightmost_bit() == true; // 0b0000_0001
+    // assert 16u8.rightmost_bit() == false; // 0b0001_0000
+    // ```
+    pub fn rightmost_bit(self) -> bool {
+        self.as_bits().first()
+    }
+}
+
+/// A number encoded into Gray code.
+///
+/// Gray code is notable for making adjacent values differ in a single bit. This property makes it
+/// useful in hardware for things like counters that cross clock domain boundaries.
+pub struct Gray<#uint N> {
+    inner: uint<N>,
+}
+
+impl<#uint N> Gray<N> {
+    /// Casts a Gray-coded number to an array of `bool` by reinterpreting its bits.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Gray([false, false]).as_bin() == [false, false];
+    /// assert Gray([ true, false]).as_bin() == [ true, false];
+    /// assert Gray([ true,  true]).as_bin() == [ true,  true];
+    /// assert Gray([false,  true]).as_bin() == [false,  true];
+    /// ```
+    pub fn as_bits(self) -> [bool; N] {
+        self.inner.as_bits()
+    }
+
+    /// Decodes a Gray-code number back into binary.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Gray([false, false]).to_uint() == 0u2;
+    /// assert Gray([ true, false]).to_uint() == 1u2;
+    /// assert Gray([ true,  true]).to_uint() == 2u2;
+    /// assert Gray([false,  true]).to_uint() == 3u2;
+    /// ```
+    fn to_uint(self) -> uint<N> {
+        gen if N < 2 {
+            self.inner
+        } else {
+            // TODO: omixann: implement
+        }
+    }
+}

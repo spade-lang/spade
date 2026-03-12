@@ -1,229 +1,591 @@
-pub use core::conv::transmute;
-
+/// Reinterprets a value as another value of the same size but different type.
 ///
-/// Truncate the high order bits of the supplied integer. If the result is
-/// larger than the input, an error is emitted
-// This is special cased by the compiler. The actual type, if Spade was able to express
-// it itself would be trunc<#uint N, #uint M>(x: Number<N>) -> Number<M>.
+/// This function must be used with caution. It is up to the caller to ensure that the bit
+/// representation of the source value is also a valid representation for the target value, and
+/// that no logic bugs are introduced when using it.
+///
+/// The representation of compound types is generally undefined and you should not rely on it being
+/// fixed between compiler versions. If you still want to use this function on compound types, the
+/// representation of types is described in
+/// <https://docs.spade-lang.org/internal/type_representations.html>
+pub unsafe extern fn transmute<T, O>(input: T) -> O;
+
+/// Reduces the size of an integer by truncating away the excess highest significant bits.
+///
+/// Note that removing those highest significant bits may change the value of the integer if it
+/// cannot fit into the target bit width. In particular, negative numbers may change their sign.
+///
+/// # Examples
+///
+/// ```spade
+/// assert trunc(7u8) == 7u4;
+/// assert trunc(7u8) == 7u3;
+/// assert trunc(7u8) == 3u2;
+/// assert trunc(-8i8) == -8i4;
+/// assert trunc(-8i8) == 0i3;
+/// ```
+// This is special cased by the compiler. If Spade was able to express its actual type, it would be:
+// `trunc<#uint N, #uint M, T: Number<N>>(x: T) -> T::Resized<M>`.
+#[deprecated = "Use `std::num::trunc`, `int<N>::trunc` or `uint<N>::trunc` instead"]
 pub extern fn trunc<N, M>(x: N) -> M;
 
-/// Sign extend the provided integer. Gives a compiler error if the output is smaller
-/// than the input
+/// Increases the size of a signed integer by replicating its sign bit.
+///
+/// This operation preserves the numeric value.
+///
+/// # Examples
+///
+/// ```spade
+/// assert sext(9i8) == 9i8;
+/// assert sext(9i8) == 9i12;
+/// assert sext(0i8) == 0i32;
+/// assert sext(-1i8) == -1i20;
+/// assert sext(-156i8) == -156i22;
+/// ```
+#[deprecated = "Use `std::num::sext`, `int<N>::sext` or `uint<N>::sext` instead"]
 pub extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>;
 
-/// Zero extend the provided integer. Gives a compiler error if the output is smaller
-/// than the input
+/// Increases the size of a signed integer by extending it with zeros on the left side.
+///
+/// This operation preserves the numeric value.
+///
+/// # Examples
+///
+/// ```spade
+/// assert zext(9u8) == 9u8;
+/// assert zext(9u8) == 9u12;
+/// assert zext(0u8) == 0u32;
+/// ```
+#[deprecated = "Use `std::num::zext`, `int<N>::zext` or `uint<N>::zext` instead"]
 pub extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>;
 
-/// This is special cased by the compiler. The actual type, if Spade was able to express
-/// it itself would be concat<#uint N, #uint M>(x: Number<N>, y: Number<M>) -> Number<N + M>.
+/// Creates an integer by concatenating the bits of two existing ones.
+///
+/// The result is an integer whose higher bits correspond to the first input integer, and its lower
+/// bits correspond to the second one.
+///
+/// Note that when operating with signed integers, the result has the same sign as the first
+/// argument provided, as it is its most significant bit which becomes the sign bit of the
+/// concatenated whole.
+///
+/// # Examples
+///
+/// ```spade
+/// assert concat(0xABADu16, 0x1DEAu16) == 0xABAD_IDEAu32;
+/// assert concat(0x1234i16, 0x5678i16) == 0x5678_1234i32;
+/// assert concat(0i16, -1i16) == 65_535i32;
+/// assert concat(0u0, 0u0) == 0u0;
+/// ```
+#[deprecated = "Use `std::num::concat`, `int<N>::concat` or `uint<N>::concat` instead"]
 pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 
-/// Concatenate the contents of two arrays `[l0, l1, l2...]`
-/// and `[r0, r1, r2...]` to form `[l0, l1, l2..., ln, r0, r1, r2...]`
-pub fn concat_arrays<T, #uint L, #uint R>(l: [T; L], r: [T; R]) -> [T; {L + R}] {
-    unsafe {
-        std::conv::transmute((r, l))
-    }
+/// Creates an array by concatenating the elements of two existing ones.
+///
+/// The result is an array whose lower elements correspond to the first input array, and its higher
+/// elements correspond to the second one. In other words, given two arrays `[l0, l1, ...]` and
+/// `[r0, r1, ...]`, the result is `[l0, l1, l2, ..., r0, r1, r2, ...]`.
+///
+/// # Examples
+///
+/// ```spade
+/// assert concat([], []) == [];
+/// assert concat([1u8], [2u8, 3u8]) == [1u8, 2u8, 3u8];
+/// ```
+#[deprecated = "Use `std::array::concat` or `[T; N]::concat` instead"]
+#[inline]
+pub fn concat_arrays<T, #uint L, #uint R>(
+    l: [T; L],
+    r: [T; R],
+) -> [T; {L + R}] {
+    l.concat(r)
 }
 
-/// Casts a `bit` to a `bool`. low maps to false, high maps to true, but HIGHIMP is undefined.
-/// In practice, in a simulator, it will map to Z
-pub fn tri_to_bool(b: tri) -> bool {
-    unsafe {
-        transmute(b)
-    }
-}
-
-/// Completely reverses the order of the elements in the `in` array
-/// For example, [1, 2, 3] becomes [3, 2, 1]
+/// Reverses the elements of an array.
+///
+/// # Examples
+///
+/// ```spade
+/// assert flip_array([]) == [];
+/// assert flip_array([1u8, 2u8, 3u8]) == [3u8, 2u8, 1u8];
+/// ```
+#[deprecated = "Use `[T; N]::flip` instead"]
+#[inline]
 pub fn flip_array<T, #uint N>(input: [T; N]) -> [T; N] {
-    gen if N == 0 {
-        []
-    } else {
-        input[N-1..N] `concat_arrays` flip_array(input[0..N-1])
-    }
-    // $if N {
-    //     []
-    // } $else $if N-1 {
-    //     [input[N-1:N-1]] `concat_arrays` flip_array(input[0:N-1])
-    // } $else {
-    //     [input[N-1:N-1]]
-    // }
+    input.flip()
 }
 
-/// Interpret an int as the raw bit values. output[0] is the LSB of the integer
-/// and output[N-1] is the MSB
+/// Casts a `tri` to a `bool` by reinterpreting its bit.
 ///
-/// Note that this means that 0b1100 will be [false, false, true, true] since arrays
-/// are written LSB first, while integers are written MSB first
+/// `LOW` and `HIGH` map to `true` and `false` respectively, but the result for `HIGHIMP` is
+/// undefined. In practice, in a simulator, it remains a high impedance value.
+///
+/// # Examples
+///
+/// ```spade
+/// assert tri_to_bool(LOW) == false;
+/// assert tri_to_bool(HIGH) == true;
+/// ```
+#[deprecated = "Use `tri::as_bool` instead"]
+pub fn tri_to_bool(t: tri) -> bool {
+    t.as_bool()
+}
+
+/// Casts a signed integer to an array of `bool` by reinterpreting its bits.
+///
+/// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB of
+/// the input number and the last element corresponds to its MSB.
+///
+/// Note that bits in the literal binary representation of the number are written right-to-left,
+/// while items in the literal representation of the array are written left-to-right.
+///
+/// # Examples
+///
+/// ```spade
+/// assert int_to_bits(0i0) == [];
+/// assert int_to_bits(0b0111i4) == [true, true, true, false];
+/// assert int_to_bits(-0b0001i4) == [true, true, true, true];
+/// ```
+#[deprecated = "Use `int<N>::as_bits` instead"]
+#[inline]
 pub fn int_to_bits<#uint N>(input: int<N>) -> [bool; N] {
-    unsafe {
-        transmute(input)
-    }
+    input.as_bits()
 }
 
-pub fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
-    unsafe {
-        transmute(input)
-    }
-}
-
-/// Interpret a uint as the raw bit values. output[0] is the LSB of the integer
-/// and output[N-1] is the MSB
+/// Casts a an array of `bool` to a signed integer by reinterpreting its bits.
 ///
-/// Note that this means that 0b1100 will be [false, false, true, true] since arrays
-/// are written LSB first, while integers are written MSB first
+/// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB of
+/// the input number and the last element corresponds to its MSB.
+///
+/// Note that bits in the literal binary representation of the number are written right-to-left,
+/// while items in the literal representation of the array are written left-to-right.
+///
+/// # Examples
+///
+/// ```spade
+/// assert bits_to_int([]) == int_to_bits(0i0);
+/// assert bits_to_int([true, true, true, false]) == 0b0111i4;
+/// assert bits_to_int([true, true, true, true]) == -0b0001i4;
+/// ```
+#[deprecated = "Use `[bool; N]::as_int` instead"]
+#[inline]
+pub fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
+    input.as_int()
+}
+
+/// Casts an unsigned integer to an array of `bool` by reinterpreting its bits.
+///
+/// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB of
+/// the input number and the last element corresponds to its MSB.
+///
+/// Note that bits in the literal binary representation of the number are written right-to-left,
+/// while items in the literal representation of the array are written left-to-right.
+///
+/// # Examples
+///
+/// ```spade
+/// assert uint_to_bits(0u0) == [];
+/// assert uint_to_bits(0b1101u4) == [true, false, true, true];
+/// ```
+#[deprecated = "Use `uint<N>::as_bits` instead"]
+#[inline]
 pub fn uint_to_bits<#uint N>(input: uint<N>) -> [bool; N] {
-    unsafe {
-        transmute(input)
-    }
+    input.as_bits()
 }
 
+/// Casts an array of `bool` to an unsigned integer by reinterpreting its bits.
+///
+/// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB of
+/// the input number and the last element corresponds to its MSB.
+///
+/// Note that bits in the literal binary representation of the number are written right-to-left,
+/// while items in the literal representation of the array are written left-to-right.
+///
+/// # Examples
+///
+/// ```spade
+/// assert bits_to_uint([]) == 0u0;
+/// assert bits_to_uint([true, false, true, true]) == 0b1101u4;
+/// ```
+#[deprecated = "Use `[bool; N]::as_uint` instead"]
+#[inline]
 pub fn bits_to_uint<#uint N>(input: [bool; N]) -> uint<N> {
-    unsafe {
-        transmute(input)
-    }
+    input.as_uint()
 }
 
-/// Cast an unsigned integer to a signed integer by re-interpreting the bits.
-pub fn uint_to_int <#uint N>(input: uint<N>) -> int<N> {
-    unsafe {
-        transmute(input)
-    }
-}
-/// Cast a signed integer to an unsigned integer by re-interpreting the bits.
-pub fn int_to_uint <#uint N>(input: int<N>) -> uint<N> {
-    unsafe {
-        transmute(input)
-    }
+/// Casts a signed integer to an unsigned integer by reinterpreting its bits.
+///
+/// # Examples
+///
+/// ```spade
+/// assert int_to_uint(13i8) == 13u8;
+/// assert int_to_uint(-5i8) == 251u8;
+/// ```
+#[deprecated = "Use `int<N>::as_uint` instead"]
+#[inline]
+pub fn int_to_uint<#uint N>(input: int<N>) -> uint<N> {
+    input.as_uint()
 }
 
-/// Converts a clock signal to a bool by just reinterpreting the bits. This should rarely
-/// be used but can be helpful in some situations, such as wanting to output a clock on a
-/// pin for debugging
+/// Casts an unsigned integer to a signed integer by reinterpreting its bits.
+///
+/// # Examples
+///
+/// ```spade
+/// assert uint_to_int(42u8) == 42i8;
+/// assert uint_to_int(255u8) == -1i8;
+/// ```
+#[deprecated = "Use `uint<N>::as_int` instead"]
+#[inline]
+pub fn uint_to_int<#uint N>(input: uint<N>) -> int<N> {
+    input.as_int()
+}
+
+/// Casts a clock signal to a `bool` by reinterpreting its bit.
+///
+/// This function must be used with caution. Using clock signals as part of logic expressions may
+/// lead to unexpected issues depending on the target.
+#[deprecated = "Use `clock::as_bool` instead"]
+#[inline]
 pub unsafe entity clock_to_bool(c: clock) -> bool {
-    unsafe {
-        transmute(c)
-    }
+    unsafe { c.as_bool() }
 }
 
-/// Converts a bool to a clock by just reinterpreting the bits. It is up to the caller
-/// to ensure that the result is a valid clock.
-pub unsafe entity bool_to_clock(c: bool) -> clock {
-    unsafe {
-        transmute(c)
-    }
+/// Casts a `bool` to a clock signal by reinterpreting its bit.
+///
+/// This function must be used with caution. Using clock signals as part of logic expressions may
+/// lead to unexpected issues depending on the target.
+#[deprecated = "Use `bool::to_clock` instead"]
+#[inline]
+pub unsafe entity bool_to_clock(b: bool) -> clock {
+    unsafe { b.as_clock() }
 }
 
 impl<#uint N> [bool; N] {
-    pub fn to_uint(self) -> uint<N> {
-        bits_to_uint(self)
+    /// Casts a an array of `bool` to a signed integer by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert [].as_int() == 0i0;
+    /// assert [true, true, true, false].as_int() == 0b0111i4;
+    /// assert [true, true, true, true].as_int() == -0b0001i4;
+    /// ```
+    pub fn as_int(self) -> int<N> {
+        unsafe { transmute(self) }
     }
 
+    /// Casts an array of `bool` to an unsigned integer by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert [].as_uint() == 0u0;
+    /// assert [true, false, true, true].as_uint() == 0b1101u4;
+    /// ```
+    pub fn as_uint(self) -> uint<N> {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts a an array of `bool` to a signed integer by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert [].to_int() == 0i0;
+    /// assert [true, true, true, false].to_int() == 0b0111i4;
+    /// assert [true, true, true, true].to_int() == -0b0001i4;
+    /// ```
+    #[deprecated = "Use `[bool; N]::as_int` instead"]
+    #[inline]
     pub fn to_int(self) -> int<N> {
-        bits_to_int(self)
+        self.as_int()
+    }
+
+    /// Casts an array of `bool` to an unsigned integer by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert [].to_uint() == 0u0;
+    /// assert [true, false, true, true].to_uint() == 0b1101u4;
+    /// ```
+    #[deprecated = "Use `[bool; N]::as_uint` instead"]
+    #[inline]
+    pub fn to_uint(self) -> uint<N> {
+        self.as_uint()
     }
 }
 
 impl bool {
+    /// Casts a `bool` to a clock signal by reinterpreting its bit.
+    ///
+    /// This function must be used with caution. Using clock signals as part of logic expressions
+    /// may lead to unexpected issues depending on the target.
+    pub fn as_clock(self) -> clock {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts a `bool` to an unsigned 1-bit integer by reinterpreting its bits.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert false.as_uint() == 0u1;
+    /// assert true.as_uint() == 1u1;
+    /// ```
+    pub fn as_uint(self) -> uint<1> {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts a `bool` to a clock signal by reinterpreting its bit.
+    ///
+    /// This function must be used with caution. Using clock signals as part of logic expressions
+    /// may lead to unexpected issues depending on the target.
+    #[deprecated = "Use `bool::as_clock` instead"]
+    #[inline]
+    pub fn to_clock(self) -> clock {
+        self.as_clock()
+    }
+
+    /// Casts a `bool` to an unsigned 1-bit integer by reinterpreting its bits.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert false.as_uint() == 0u1;
+    /// assert true.as_uint() == 1u1;
+    /// ```
+    #[deprecated = "Use `bool::as_uint` instead"]
+    #[inline]
     pub fn to_uint(self) -> uint<1> {
-        unsafe {
-            transmute(self)
-        }
+        self.as_uint()
+    }
+}
+
+impl clock {
+    /// Casts a clock signal to a `bool` by reinterpreting its bit.
+    ///
+    /// This function must be used with caution. Using clock signals as part of logic expressions
+    /// may lead to unexpected issues depending on the target.
+    pub unsafe fn as_bool(self) -> bool {
+        unsafe { transmute(self) }
     }
 
-    pub fn to_int(self) -> int<1> {
-        unsafe {
-            transmute(self)
-        }
+    /// Casts a clock signal to a `bool` by reinterpreting its bit.
+    ///
+    /// This function must be used with caution. Using clock signals as part of logic expressions
+    /// may lead to unexpected issues depending on the target.
+    #[deprecated = "Use `clock::as_bool` instead"]
+    #[inline]
+    pub unsafe fn to_bool(self) -> bool {
+        unsafe { self.as_bool() }
+    }
+}
+
+impl tri {
+    /// Casts a `tri` to a `bool` by reinterpreting its bit.
+    ///
+    /// `LOW` and `HIGH` map to `true` and `false` respectively, but the result for `HIGHIMP` is
+    /// undefined. In practice, in a simulator, it remains a high impedance value.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert LOW.as_bool() == false;
+    /// assert HIGH.as_bool() == true;
+    /// ```
+    pub fn as_bool(self) -> bool {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts a `tri` to a `bool` by reinterpreting its bit.
+    ///
+    /// `LOW` and `HIGH` map to `true` and `false` respectively, but the result for `HIGHIMP` is
+    /// undefined. In practice, in a simulator, it remains a high impedance value.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert LOW.to_bool() == false;
+    /// assert HIGH.to_bool() == true;
+    /// ```
+    #[deprecated = "Use `tri::as_bool` instead"]
+    #[inline]
+    pub fn to_bool(self) -> bool {
+        self.as_bool()
     }
 }
 
 impl<#uint N> int<N> {
-    pub fn to_uint(self) -> uint<N> {
-        int_to_uint(self)
-    }
-    /// Interpret a uint as the raw bit values. output[0] is the LSB of the integer
-    /// and output[N-1] is the MSB
+    /// Casts a signed integer to an unsigned integer by reinterpreting its bits.
     ///
-    /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
-    /// are written LSB first, while integers are written MSB first
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 13i8.as_uint() == 13u8;
+    /// assert (-5i8).as_uint() == 251u8;
+    /// ```
+    pub fn as_uint(self) -> uint<N> {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts a signed integer to an array of `bool` by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0i0.as_bits() == [];
+    /// assert 0b0111i4.as_bits() == [true, true, true, false];
+    /// assert (-0b0001i4).as_bits() == [true, true, true, true];
+    /// ```
+    pub fn as_bits(self) -> [bool; N] {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts a signed integer to an array of `bool` by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0i0.to_bits() == [];
+    /// assert 0b0111i4.to_bits() == [true, true, true, false];
+    /// assert (-0b0001i4).to_bits() == [true, true, true, true];
+    /// ```
+    #[deprecated = "Use `int<N>::as_bits` instead"]
+    #[inline]
     pub fn to_bits(self) -> [bool; N] {
-        int_to_bits(self)
+        self.as_bits()
     }
 }
 
 impl<#uint N> uint<N> {
-    pub fn to_int(self) -> int<N> {
-        uint_to_int(self)
-    }
-    /// Interpret a int as the raw bit values. output[0] is the LSB of the integer
-    /// and output[N-1] is the MSB
+    /// Casts an unsigned integer to a signed integer by reinterpreting its bits.
     ///
-    /// Note that this means that 0b1100 will be [false, false, true, true] since arrays
-    /// are written LSB first, while integers are written MSB first
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 42u8.as_int() == 42i8;
+    /// assert 255u8.as_int() == -1i8;
+    /// ```
+    pub fn as_int(self) -> int<N> {
+        unsafe { transmute(self) }
+    }
+
+    /// Casts an unsigned integer to an array of `bool` by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0u0.as_bits() == [];
+    /// assert 0b1101u4.as_bits() == [true, false, true, true];
+    /// ```
+    pub fn as_bits(self) -> [bool; N] {
+        unsafe { transmute(self) }
+    }
+
+    /// Convert an unsigned integer to a signed integer.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 42u8.to_int() == 42i9;
+    /// assert 255u8.to_uint() == 255i9;
+    /// ```
+    pub fn to_int(self) -> int<{N + 1}> {
+        lib::num::zext(self).as_int()
+    }
+
+    /// Casts an unsigned integer to an array of `bool` by reinterpreting its bits.
+    ///
+    /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB
+    /// of the input number and the last element corresponds to its MSB.
+    ///
+    /// Note that bits in the literal binary representation of the number are written right-to-left,
+    /// while items in the literal representation of the array are written left-to-right.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0u0.to_bits() == [];
+    /// assert 0b1101u4.to_bits() == [true, false, true, true];
+    /// ```
+    #[deprecated = "Use `uint<N>::as_bits` instead"]
+    #[inline]
     pub fn to_bits(self) -> [bool; N] {
-        uint_to_bits(self)
+        self.as_bits()
     }
 }
 
-
-impl uint<16> {
-    /// Converts `self` into an array of bytes in big-endian order. 0x1234
-    /// becomes [0x12, 0x34].
-    pub fn to_be_bytes(self) -> [uint<8>; 2] {
-        [trunc(self >> 8), trunc(self)]
+impl<#uint N> uint<N>
+where
+    N == N / 8 * 8 else "Integer cannot be divided into bytes"
+{
+    /// Converts `self` into an array of bytes in little-endian order.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let bytes = 0x12345678u32.to_le_bytes();
+    /// assert bytes == [0x78, 0x56, 0x34, 0x12];
+    /// ```
+    fn to_le_bytes(self) -> [uint<8>; {N / 8}] {
+        self
+            .as_bits()
+            .chunks::<8>()
+            .map(fn |c| c.as_uint())
     }
 
-    /// Converts `self` into an array of bytes in little-endian order. 0x1234
-    /// becomes [0x34, 0x12].
-    pub fn to_le_bytes(self) -> [uint<8>; 2] {
-        std::conv::flip_array(self.to_be_bytes())
-    }
-}
-
-impl uint<24> {
-    /// Converts `self` into an array of bytes in big-endian order. 0x123456
-    /// becomes [0x12, 0x34, 0x56].
-    pub fn to_be_bytes(self) -> [uint<8>; 3] {
-        [trunc(self >> 16), trunc(self >> 8), trunc(self)]
-    }
-
-    /// Converts `self` into an array of bytes in little-endian order. 0x123456
-    /// becomes [0x56, 0x34, 0x12].
-    pub fn to_le_bytes(self) -> [uint<8>; 3] {
-        std::conv::flip_array(self.to_be_bytes())
-    }
-}
-
-impl uint<32> {
-    /// Converts `self` into an array of bytes in big-endian order. 0x12345678
-    /// becomes [0x12, 0x34, 0x56, 0x78].
-    pub fn to_be_bytes(self) -> [uint<8>; 4] {
-        [trunc(self >> 24), trunc(self >> 16), trunc(self >> 8), trunc(self)]
-    }
-
-    /// Converts `self` into an array of bytes in little-endian order. 0x12345678
-    /// becomes [0x78, 0x56, 0x34, 0x12].
-    pub fn to_le_bytes(self) -> [uint<8>; 4] {
-        std::conv::flip_array(self.to_be_bytes())
-    }
-}
-
-
-impl<#uint N> uint<N> {
-    pub fn trunc<#uint M>(self) -> uint<M> {
-        trunc(self)
-    }
-
-    pub fn interleave(self, other: Self) -> uint<{2 * N}> {
-        self `interleave` other
-    }
-}
-
-impl<#uint N> int<N> {
-    pub fn trunc<#uint M>(self) -> int<M> {
-        trunc(self)
+    /// Converts `self` into an array of bytes in big-endian order.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let bytes = 0x12345678u32.to_be_bytes();
+    /// assert bytes == [0x12, 0x34, 0x56, 0x78];
+    /// ```
+    fn to_be_bytes(self) -> [uint<8>; {N / 8}] {
+        self.to_le_bytes().flip()
     }
 }

@@ -15,7 +15,7 @@ error: Expected type uint<8>, got clock
   │                     --- Type clock inferred here
 3 │         let clk: uint<8> = clk;
   │                  -------   ^^^ Expected uint<8>
-  │                  │          
+  │                  │
   │                  Type uint<8> inferred here
   │
   = note: Expected: uint<8>

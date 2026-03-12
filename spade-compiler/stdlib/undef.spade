@@ -1,7 +1,10 @@
-/// Returns an undefined value to use as a placeholder in a situation when a value
-/// is not going to be read. This gets compiled into an `X` value in Verilog which is
-/// up to the Verilog backend to handle. 4 valued simulators will retain the X, some simulators
-/// like Verilator may set this to 0, or a random value.
+/// Returns an undefined value of a given type.
+///
+/// Undefined values are meant to be used as explicit markers of values not intended to be used.
+/// They get compiled to a "don't care" value in Verilog.
+///
+/// While 4-valued simulators preserve them, others like Verilator may set them to 0 or a random
+/// value.
 #[inline]
 pub fn undef<T>() -> T {
     core::undef::undef()

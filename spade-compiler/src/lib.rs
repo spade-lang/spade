@@ -720,6 +720,7 @@ pub fn stdlib_files() -> Vec<(ModuleNamespace, String, String)> {
         (["std"], ["std", "conv"], "../stdlib/conv.spade"),
         (["std"], ["std", "io"], "../stdlib/io.spade"),
         (["std"], ["std", "mem"], "../stdlib/mem.spade"),
+        (["std"], ["std", "num"], "../stdlib/num.spade"),
         (["std"], ["std", "ops"], "../stdlib/ops.spade"),
         (["std"], ["std", "option"], "../stdlib/option.spade"),
         (["std"], ["std", "ports"], "../stdlib/ports.spade"),

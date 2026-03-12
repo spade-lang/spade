@@ -1,12 +1,12 @@
-//! This module contains primitives for clock domain crossing. Clock domain crossing
-//! is difficult to get right, and all of these modules come with pitfalls, for example
-//! the possibility to miss some signals if transferring between domains of similar speed.
+//! This module contains primitives for clock domain crossing.
+//!
+//! Clock domain crossing is difficult to get right, and all of these modules
+//! come with pitfalls (for example, the possibility to miss some signals if
+//! transferring between domains of similar speed).
+//!
 //! Make sure to read the docs of each individual module.
 //!
-//! NOTE that these modules are also not well tested in practice at the moment.
-
-use std::ops::gray_to_bin;
-use std::ops::bin_to_gray;
+//! Note that these modules are also not well tested in practice at the moment.
 
 /// NOTE: This function does not provide any guarantees about value
 /// integrity for / signals of more than one bit as crossing 2 domains with
@@ -22,17 +22,15 @@ pub unsafe entity sync2<T>(clk: clock, input: T) -> T {
 /// aspect is important, it must be a N bit gray counter for this to do
 /// anything useful.
 pub unsafe entity sync_uint_counter<#uint N>(source_clk: clock, dest_clk: clock, input: uint<N>) -> uint<N> {
-    reg(source_clk) gray = bin_to_gray(input);
-    gray_to_bin(unsafe { inst sync2(dest_clk, gray) })
+    reg(source_clk) gray = input.to_gray();
+    unsafe { inst sync2(dest_clk, gray) }.to_uint()
 }
 
 /// Synchronize a bool signal into another domain. This guarantees valid values, but does
 /// not guarantee that all values are transferred. If synchronizing a short pulse where
 /// seeing the pulse is important, `handshake` may be better
 pub entity sync2_bool(clk: clock, input: bool) -> bool {
-    unsafe {
-        inst sync2(clk, input)
-    }
+    unsafe { inst sync2(clk, input) }
 }
 
 

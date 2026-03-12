@@ -1,108 +1,174 @@
-/// Divide x by 2**pow rounding towards the nearest integer, with 0.5 and -0.5
-/// being rounded towards +inf.
+use lib::num::Gray;
+
+/// Divides `x` by 2 to the power of `pow`, rounding towards positive infinity.
 ///
-/// Example outputs:
+/// # Examples
 ///
-/// 2/2 = 1
-/// 3/2 = 2
-/// -3/2 = -1
-// FIXME: Implement in spade rather than as a compiler intrinsic when spade
-// supports codegen for generics
+/// ```spade
+/// assert div_pow2(2i8, 2i8) == 1i8;
+/// assert div_pow2(3i8, 2i8) == 2i8;
+/// assert div_pow2(-3i8, 2i8) == -1i8;
+/// assert div_pow2(-3i8, 2i8) == -3i8 / 2i8;
+/// ```
 // lifeguard spade#140
-// FIXME: pow and result should probably not be `N` but type inference is not good
-// enough for that yet
+// FIXME: pow and result should not be `N` but type inference is not good enough for that yet.
+#[deprecated = "Use `/` instead"]
 pub extern fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N>;
 
-
-/// Computes the absolute value of x. The result is truncated, meaning that
-/// `abs(-2^(N-1)) == -2^(N-1)`.
+/// Computes the absolute value of a signed integer, truncated to fit the output type bounds.
+///
+/// Such truncation means that the most negative value (whose absolute value cannot be represented
+/// using the same number of bits) is mapped to itself.
+///
+/// # Examples
+///
+/// ```spade
+/// assert abs_trunc(0i8) == 0i8;
+/// assert abs_trunc(15i8) == 15i8;
+/// assert abs_trunc(-7i8) == 7i8;
+/// ```
+#[deprecated = "Use `int<N>::abs` and truncate the result instead"]
 pub fn abs_trunc<#uint N>(x: int<N>) -> int<N> {
-    if x < 0 {
-        -x
-    }
-    else {
-        x
-    }
+    x.abs().as_int()
 }
 
-/// Returns the max value of two integers
+/// Calculates the maximum value of two integers.
+///
+/// # Examples
+///
+/// ```spade
+/// assert max(2i8, 10i8) == 10i8;
+/// assert max(15i8, 3i8) == 15i8;
+/// ```
+#[deprecated = "Use `int<N>::max` instead"]
+#[inline]
 pub fn max<#uint N>(x: int<N>, y: int<N>) -> int<N> {
-    if x < y {
-        y
-    } else {
-        x
-    }
+    x.max(y)
 }
 
-/// Returns the min value of two integers
+/// Calculates the minimum value of two integers.
+///
+/// # Examples
+///
+/// ```spade
+/// assert min(2i8, 10i8) == 2i8;
+/// assert min(15i8, 3i8) == 3i8;
+/// ```
+#[deprecated = "Use `int<N>::min` instead"]
+#[inline]
 pub fn min<#uint N>(x: int<N>, y: int<N>) -> int<N> {
-    if x < y {
-        x
-    } else {
-        y
-    }
+    x.min(y)
 }
 
-/// Returns the two integers in increasing order
+/// Sorts two integers in ascending order.
+///
+/// # Examples
+///
+/// ```spade
+/// assert order(2i8, 10i8) == [2i8, 10i8];
+/// assert order(15i8, 3i8) == [3i8, 15i8];
+/// ```
+#[deprecated]
+#[inline]
 pub fn order<#uint N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
-    if x < y {
-        (x, y)
-    } else {
-        (y, x)
-    }
+    if x < y { (x, y) } else { (y, x) }
 }
 
-
-/// Returns the gray code value of the given binary value
+/// Encodes the input number into Gray code.
+///
+/// # Examples
+///
+/// ```spade
+/// assert bin_to_gray(0u2) == Gray([false, false]);
+/// assert bin_to_gray(1u2) == Gray([ true, false]);
+/// assert bin_to_gray(2u2) == Gray([ true,  true]);
+/// assert bin_to_gray(3u2) == Gray([false,  true]);
+/// ```
+#[deprecated = "Use `uint<N>::to_gray` instead"]
 pub fn bin_to_gray<#uint N>(x: uint<N>) -> uint<N> {
-    (x >> 1) ^ x
+    x.to_gray().as_bits().as_uint()
 }
 
-/// Returns the binary value of the given gray code value
+/// Decodes a Gray-code number back into binary.
+///
+/// # Examples
+///
+/// ```spade
+/// assert gray_to_bin(Gray([false, false])) == 0u2;
+/// assert gray_to_bin(Gray([ true, false])) == 1u2;
+/// assert gray_to_bin(Gray([ true,  true])) == 2u2;
+/// assert gray_to_bin(Gray([false,  true])) == 3u2;
+/// ```
+#[deprecated = "Use `Gray<N>::to_uint` instead"]
 pub fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
-    gen if N == 0 {
-        gray
-    } else if N == 1 {
-        gray
-    } else {
-        let high_bit: uint<N> = gray & (1_u1 `concat` 0);
-        let lower_gray: uint<{N - 1}> = trunc(gray ^ (high_bit >> 1));
-        high_bit | zext(gray_to_bin(lower_gray))
-    }
+    Gray(gray).to_uint()
 }
 
+/// Reduces an array of `bool` into a single value by performing a AND operation on them.
+///
+/// This operation is equivalent to the Verilog AND reduction operator `&`.
+///
+/// # Examples
+///
+/// ```spade
+/// assert [true, true, true].reduce_and() == true;
+/// assert [false, false, false].reduce_and() == true;
+/// assert [false, true, true].reduce_and() == false;
+/// ```
+pub extern fn reduce_and<#uint N>(x: [bool; N]) -> bool;
 
-/// Equivalent to verilog and reduction operator &(x)
-/// Returns all bits of x joined by an and-operation
-pub extern fn reduce_and<#uint N>(x: uint<N>) -> bool;
+/// Reduces an array of `bool` into a single value by performing a OR operation on them.
+///
+/// This operation is equivalent to the Verilog OR reduction operator `|`.
+///
+/// # Examples
+///
+/// ```spade
+/// assert [true, true, true].reduce_and() == true;
+/// assert [false, false, false].reduce_and() == false;
+/// assert [false, true, true].reduce_and() == true;
+/// ```
+pub extern fn reduce_or<#uint N>(x: [bool; N]) -> bool;
 
-/// Equivalent to verilog or reduction operator |(x)
-/// Returns all bits of x joined by an or-operation
-pub extern fn reduce_or<#uint N>(x: uint<N>) -> bool;
+/// Reduces an array of `bool` into a single value by performing a XOR operation on them.
+///
+/// This operation is equivalent to the Verilog OR reduction operator `^`.
+///
+/// # Examples
+///
+/// ```spade
+/// assert [true, true, true].reduce_and() == true;
+/// assert [false, false, false].reduce_and() == false;
+/// assert [false, true, true].reduce_and() == false;
+/// ```
+pub extern fn reduce_xor<#uint N>(x: [bool; N]) -> bool;
 
-/// Equivalent to verilog xor reduction operator ^(x)
-/// Returns all bits of x joined by an xor-operation
-pub extern fn reduce_xor<#uint N>(x: uint<N>) -> bool;
+/// Evaluates to `x / y` in Verilog.
+///
+/// In general, this is going to be slow and large, so it should be avoided if you don't know what
+/// you're doing. For division by a constant power of two, use `/` instead.
+pub extern fn comb_div<#uint N, T: Number<N>>(x: T, y: T) -> T;
 
+/// Evaluates to `x % y` in Verilog.
+///
+/// In general, this is going to be slow and large, so it should be avoided if you don't know what
+/// you're doing. For modulo operations by a constant power of two, use `%` instead.
+pub extern fn comb_mod<#uint N, T: Number<N>>(x: T, y: T) -> T;
 
-/// Evaluates to x / y in verilog.
-/// In general, this is going to be slow and large, so should be avoided if you don't know
-/// what you're doing.
-/// For division by constant powers of two, use `/`
-// This is special cased by the compiler. The actual type, if Spade was able to express
-// it itself would be comb_div<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
-pub extern fn comb_div<N>(x: N, y: N) -> N;
-
-
-/// Evaluates to x % y in verilog.
-/// In general, this is going to be slow and large, so should be avoided if you don't know
-/// what you're doing.
-/// For modulo operations by constant powers of two, use `%`
-// This is special cased by the compiler. The actual type, if Spade was able to express
-// it itself would be comb_mod<#uint N>(x: Number<N>, y: Number<N>) -> Number<N>.
-pub extern fn comb_mod<N>(x: N, y: N) -> N;
-
-/// Interleave the bits of two unsigned integers
+/// Interleaves the bits of two numbers.
+///
+/// A number containing bits from both input numbers is built, with even positions occupied by bits
+/// from the first number and odd positions occupied by those from the second number. In other
+/// words, given two numbers `0bCBA` and `0b321`, the output would be `0b3C2B1A`.
+///
+/// # Examples
+///
+/// ```spade
+/// assert 0b011u3.interleave(0b101u3) == 0b100111u6;
+/// assert 0u0.interleave(0u0) == 0u0;
+/// ```
+#[deprecated = "Use `std::num::interleave` or `uint<N>::interleave` instead"]
+#[inline]
 pub fn interleave<#uint N>(l: uint<N>, r: uint<N>) -> uint<{2 * N}> {
-    (l.to_bits() `interleave_arrays` r.to_bits()).to_uint()
+    l.interleave(r)
 }

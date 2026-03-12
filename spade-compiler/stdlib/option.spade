@@ -4,10 +4,19 @@
 /// When a value is present and valid, it is `Some(value)` and when it is invalid, it is `None`.
 pub enum Option<T> {
     None,
-    Some{value: T},
+    Some { value: T },
 }
 
 impl<T> Option<T> {
+    /// Returns whether the option value is `Some(_)`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Some(8u8).is_none() == true;
+    /// assert None.is_none() == false;
+    /// ```
+    #[inline]
     pub fn is_some(self) -> bool {
         match self {
             Some(_) => true,
@@ -15,11 +24,30 @@ impl<T> Option<T> {
         }
     }
 
+    /// Returns whether the option value is `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Some(8u8).is_none() == false;
+    /// assert None.is_none() == true;
+    /// ```
+    #[inline]
     pub fn is_none(self) -> bool {
-        !self.is_some()
+        match self {
+            Some(_) => false,
+            None => true,
+        }
     }
 
-    /// Returns the inner value if it is present, otherwise None
+    /// Returns the inner value if present, or the value provided otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Some(8u8).unwrap_or(67u8) == 8u8;
+    /// assert None.unwrap_or(67u8) == 67u8;
+    /// ```
     pub fn unwrap_or(self, default: T) -> T {
         match self {
             Some(val) => val,
@@ -27,25 +55,31 @@ impl<T> Option<T> {
         }
     }
 
-    /// Returns the inner value if present, or an undefined value otherwise. The semantics
-    /// of the undefined value are described in detail in `std::undef::undef`. Importantly,
-    /// reading an undef value is undefined behaviour so this method should only be used
-    /// if you guarantee that the value is never read when the value is `None`, for example
-    /// by checking the Option type again
+    /// Returns the inner value if present, or an undefined value otherwise.
+    ///
+    /// The semantics of the undefined value are described in detail in `std::undef::undef`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Some(8u8).unwrap_or_undef() == 8u8;
+    /// assert None.unwrap_or_undef() == undef();
+    /// ```
     pub fn unwrap_or_undef(self) -> T {
         match self {
             Some(t) => t,
-            None => std::undef::undef()
+            None => undef(),
         }
     }
 
 
-    /// Transforms the contained value using the `f` function.
-    /// If the value is `Some(val)`, the result is `Some(f.call((val)))`
-    /// if the value is `None`, the result is `None`
+    /// Transforms the contained value using the provided function.
     ///
-    /// ```
-    /// let add_one = option.map(fn(x) {x + 1})
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert Some(8u8).map(fn |x| x + 1) == 9u8;
+    /// assert None == None;
     /// ```
     pub fn map<O>(self, f: impl Fn(T) -> O) -> Option<O> {
         match self {
@@ -54,23 +88,42 @@ impl<T> Option<T> {
         }
     }
 
-    pub pipeline(Depth) pmap<#int Depth, O>(self, clk: clock, f: impl Pipeline<Depth>(T) -> O) -> Option<O> {
-        let pipe_in = match self {
+    /// Transforms the contained value using the provided pipeline.
+    ///
+    /// The behavior of `pmap` replicates that of `map`, but spread over several registered stages.
+    ///
+    /// See also `Option<T>::map`.
+    pub pipeline(Depth) pmap<#int Depth, O>(
+        self,
+        clk: clock,
+        f: impl Pipeline<Depth>(T) -> O,
+    ) -> Option<O> {
+        let input = match self {
             Some(x) => x,
-            None => std::undef::undef(),
+            None => undef(),
         };
-        let pipe_out = f.inst(Depth) call(clk, (pipe_in,));
+
+        let output = f.inst(Depth) call(clk, (input,));
+
     reg * Depth;
         match self {
-            Some(_) => Some(pipe_out),
+            Some(_) => Some(output),
             None => None
         }
     }
 
-    /// If the value is `None`, returns `None`, otherwise calls `f` on the contained
-    /// value. `f` returns another Option
+    /// Returns `None` if the option value is `None`, otherwise maps its content to a new option
+    /// value.
     ///
-    /// let filtered = option.and_then(fn |x| {if x < 10 {Some(x)} else {None}
+    /// # Examples
+    ///
+    /// ```spade
+    /// let f = |x| if x > 10u8 { Some(x + 8) } else { None };
+    ///
+    /// assert Some(8u8).and_then(f) == Some(16u8);
+    /// assert Some(12u8).and_then(f) == None;
+    /// assert None.and_then(f) == None;
+    /// ```
     pub fn and_then<O>(self, f: impl Fn(T) -> Option<O>) -> Option<O> {
         match self {
             Some(val) => f.call((val,)),
@@ -89,17 +142,22 @@ impl<T> Option<T> {
     /// input:  | None | Some(1)      | Some(2)      | None | Some(3)
     /// output: | None | Some([1, 0]) | Some([2, 1]) | None | Some(3, 2])
     /// ```
-    pub entity sliding_window<#uint N>(self, clk: clock, rst: bool, default: T) -> Option<[T; N]> {
-        decl val;
+    pub entity padded_sliding_window<#uint N>(
+        self,
+        clk: clock,
+        rst: bool,
+        default: T,
+    ) -> Option<[T; N]> {
+        decl next;
+
+        reg(clk) values reset(rst: [default; N]) = next;
+
         let next = match self {
-            Some(new) => [new] `concat_arrays` val[0..N-1],
-            None => val
+            Some(v) => values.shift_front(v),
+            None => values,
         };
-        reg(clk) val reset(rst: [default; N]) = next;
-        match self {
-            Some(_) => Some(next),
-            None => None
-        }
+
+        if self.is_some() { Some(next) } else { None }
     }
 
     /// Gathers `N` values and outputs them as an array
@@ -110,32 +168,20 @@ impl<T> Option<T> {
     ///
     /// There is a one clock cycle latency between input and output
     ///
-    /// input.sliding_window::<2>(clk, rst, 0)
     /// ```
+    /// input.sliding_window::<2>(clk, rst, 0)
     /// input:  | None | Some(1) | Some(2)       | None         | Some(3) | Some(4) | -
     /// output: | None | None    | Some([1, 2])  | None         | None    | Some([3, 4])
     /// ```
     pub entity chunks<#uint N>(self, clk: clock, rst: bool) -> Option<[T; N]> {
-        reg(clk) count: uint<{uint::bits_for(N)}> reset(rst: 0) = match self {
-            Some(new) => {
-                if count + 1 == N {0} else {trunc(count + 1)}
-            },
-            None => {
-                count
-            }
+        let window = self.padded_sliding_window(clk, rst, undef());
+
+        reg(clk) count: int<{int::bits_for(N-2)}> reset(rst: N-.2) = match self {
+            Some(_) if count < 0 => N -. 2,
+            Some(_) => count -. 1,
+            None => count,
         };
 
-        decl values;
-        let next_values = match self {
-            Some(new) => values[1..N] `concat_arrays` [new],
-            None => values
-        };
-        reg(clk) values = next_values;
-
-        if count + 1 == N && self.is_some() {
-            Some(next_values)
-        } else {
-            None
-        }
+        if count < 0 { window } else { None }
     }
 }

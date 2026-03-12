@@ -3,6 +3,7 @@ pub mod cdc;
 pub mod conv;
 pub mod io;
 pub mod mem;
+pub mod num;
 pub mod ops;
 pub mod option;
 pub mod ports;
