@@ -5,7 +5,7 @@ mod submod;
 
 
 
-error: Missing `mod subfile;` for src/submod/subfile.spade
+warning: Missing `mod subfile;` for src/submod/subfile.spade
   ┌─ src/submod/main.spade:1:1
   │
 1 │ 

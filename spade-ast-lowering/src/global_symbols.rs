@@ -152,7 +152,7 @@ pub fn report_missing_mod_declarations(
             });
 
             if let Some(parent_loc) = parent_loc {
-                Diagnostic::error(parent_loc, format!("Missing `mod {ns};` for {file}"))
+                Diagnostic::warning(parent_loc, format!("Missing `mod {ns};` for {file}"))
                     .primary_label(format!("Missing `mod {ns};`"))
                     .span_suggest_insert_before(
                         format!("Consider adding `mod {ns};`"),
