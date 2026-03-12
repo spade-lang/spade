@@ -128,7 +128,10 @@ impl PrettyPrint for ConstGeneric {
             ConstGeneric::Mod(lhs, rhs) => {
                 format!("({} % {})", lhs.pretty_print(), rhs.pretty_print())
             }
-            ConstGeneric::UintBitsToFit(inner) => {
+            ConstGeneric::IntBitsFor(inner) => {
+                format!("{}", inner.pretty_print())
+            }
+            ConstGeneric::UintBitsFor(inner) => {
                 format!("{}", inner.pretty_print())
             }
             ConstGeneric::Eq(lhs, rhs) => {

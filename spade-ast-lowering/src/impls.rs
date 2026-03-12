@@ -1112,8 +1112,11 @@ fn map_const_generic_to_trait(
         hir::ConstGeneric::Mod(lhs, rhs) => {
             Ok(hir::ConstGeneric::Mod(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
         }
-        hir::ConstGeneric::UintBitsToFit(inner) => {
-            Ok(hir::ConstGeneric::UintBitsToFit(map_boilerplate(inner)?).at_loc(&cg))
+        hir::ConstGeneric::IntBitsFor(inner) => {
+            Ok(hir::ConstGeneric::IntBitsFor(map_boilerplate(inner)?).at_loc(&cg))
+        }
+        hir::ConstGeneric::UintBitsFor(inner) => {
+            Ok(hir::ConstGeneric::UintBitsFor(map_boilerplate(inner)?).at_loc(&cg))
         }
         hir::ConstGeneric::Eq(lhs, rhs) => {
             Ok(hir::ConstGeneric::Eq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))

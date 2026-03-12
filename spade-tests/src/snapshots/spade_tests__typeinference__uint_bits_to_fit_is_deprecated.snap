@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    let x: uint<{uint_bits_to_fit(256)}> = 0u9;
+}
+
+
+warning: Deprecated type-level function `uint_bits_to_fit`
+  ┌─ testinput:2:18
+  │
+2 │     let x: uint<{uint_bits_to_fit(256)}> = 0u9;
+  │                  ^^^^^^^^^^^^^^^^
+  │
+  = Use `uint::bits_for` instead
+  │
+2 │     let x: uint<{uint::bits_for(256)}> = 0u9;
+  │                  ~~~~~~~~~~~~~~

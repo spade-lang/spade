@@ -112,7 +112,7 @@ impl<T> Option<T> {
     /// output: | None | None    | Some([1, 2])  | None         | None    | Some([3, 4])
     /// ```
     pub entity chunks<#uint N>(self, clk: clock, rst: bool) -> Option<[T; N]> {
-        reg(clk) count: uint<{uint_bits_to_fit(N)}> reset(rst: 0) = match self {
+        reg(clk) count: uint<{uint::bits_for(N)}> reset(rst: 0) = match self {
             Some(new) => {
                 if count + 1 == N {0} else {trunc(count + 1)}
             },

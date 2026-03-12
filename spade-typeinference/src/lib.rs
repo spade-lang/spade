@@ -2519,7 +2519,8 @@ impl TypeState {
             | ConstGeneric::Mul(_, _)
             | ConstGeneric::Div(_, _)
             | ConstGeneric::Mod(_, _)
-            | ConstGeneric::UintBitsToFit(_) => self.new_generic_tlnumber(gen.loc()),
+            | ConstGeneric::IntBitsFor(_)
+            | ConstGeneric::UintBitsFor(_) => self.new_generic_tlnumber(gen.loc()),
             ConstGeneric::Str(_) => self.new_generic_tlstr(gen.loc()),
             ConstGeneric::Eq(_, _)
             | ConstGeneric::NotEq(_, _)
@@ -2583,7 +2584,10 @@ impl TypeState {
             ConstGeneric::LogicalAnd(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalAnd)?,
             ConstGeneric::LogicalOr(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalOr)?,
             ConstGeneric::LogicalXor(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalXor)?,
-            ConstGeneric::UintBitsToFit(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
+            ConstGeneric::IntBitsFor(a) => ConstraintExpr::IntBitsToRepresent(Box::new(
+                self.visit_const_generic(a, generic_list)?,
+            )),
+            ConstGeneric::UintBitsFor(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
                 self.visit_const_generic(a, generic_list)?,
             )),
         };

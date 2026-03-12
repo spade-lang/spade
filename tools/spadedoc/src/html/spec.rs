@@ -176,8 +176,12 @@ impl<'r> Spec<'r> {
                 op: "%".into(),
                 rhs: Self::mirror_constgeneric(rhs, false, true)?.into(),
             },
-            ConstGeneric::UintBitsToFit(arg) => Self::ConstGenericFunc {
-                name: "uint_bits_to_fit".into(),
+            ConstGeneric::IntBitsFor(arg) => Self::ConstGenericFunc {
+                name: "int::bits_for".into(),
+                args: vec![Self::mirror_constgeneric(arg, false, false)?],
+            },
+            ConstGeneric::UintBitsFor(arg) => Self::ConstGenericFunc {
+                name: "uint::bits_for".into(),
                 args: vec![Self::mirror_constgeneric(arg, false, false)?],
             },
             ConstGeneric::Eq(lhs, rhs) => Self::ConstGenericBinOp {
@@ -237,7 +241,10 @@ impl<'r> Spec<'r> {
             if needs_surround
                 && !matches!(
                     expr,
-                    ConstGeneric::Name(_) | ConstGeneric::Int(_) | ConstGeneric::UintBitsToFit(_)
+                    ConstGeneric::Name(_)
+                        | ConstGeneric::Int(_)
+                        | ConstGeneric::IntBitsFor(_)
+                        | ConstGeneric::UintBitsFor(_)
                 )
             {
                 spec = Self::Parenthesized(Box::new(spec));

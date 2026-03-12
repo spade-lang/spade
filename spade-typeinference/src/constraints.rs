@@ -1,6 +1,9 @@
-use num::BigInt;
+use num::{BigInt, Signed};
 use serde::{Deserialize, Serialize};
-use spade_common::location_info::{Loc, WithLocation};
+use spade_common::{
+    location_info::{Loc, WithLocation},
+    num_ext::InfallibleToBigInt,
+};
 use spade_types::KnownType;
 
 use crate::{
@@ -32,6 +35,7 @@ pub enum ConstraintExpr {
     LogicalXor(Box<ConstraintExpr>, Box<ConstraintExpr>),
     /// The number of bits required to represent the specified number. In practice
     /// inner.log2().floor()+1
+    IntBitsToRepresent(Box<ConstraintExpr>),
     UintBitsToRepresent(Box<ConstraintExpr>),
 }
 
@@ -148,8 +152,11 @@ impl ConstraintExpr {
                     rhs.debug_display(type_state)
                 )
             }
+            ConstraintExpr::IntBitsToRepresent(c) => {
+                format!("int::bits_for({})", c.debug_display(type_state))
+            }
             ConstraintExpr::UintBitsToRepresent(c) => {
-                format!("uint_bits_to_fit({})", c.debug_display(type_state))
+                format!("uint::bits_for({})", c.debug_display(type_state))
             }
         }
     }
@@ -273,6 +280,18 @@ impl ConstraintExpr {
             ConstraintExpr::LogicalAnd(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l && r),
             ConstraintExpr::LogicalOr(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l || r),
             ConstraintExpr::LogicalXor(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l != r),
+            ConstraintExpr::IntBitsToRepresent(inner) => match inner.evaluate(type_state) {
+                ConstraintExpr::Integer(val) => {
+                    let bits = if val.is_negative() {
+                        (-val - BigInt::from(1)).bits().to_bigint()
+                    } else {
+                        val.bits().to_bigint()
+                    };
+
+                    ConstraintExpr::Integer(bits + BigInt::from(1))
+                }
+                _ => self.clone(),
+            },
             ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate(type_state) {
                 ConstraintExpr::Integer(val) => ConstraintExpr::Integer(val.bits().into()),
                 _ => self.clone(),
@@ -469,6 +488,7 @@ impl TypeConstraints {
                     | ConstraintExpr::LogicalXor(_, _)
                     | ConstraintExpr::Difference(_, _)
                     | ConstraintExpr::Product(_, _)
+                    | ConstraintExpr::IntBitsToRepresent(_)
                     | ConstraintExpr::UintBitsToRepresent(_)
                     | ConstraintExpr::Sub(_) => Some((expr.clone(), rhs)),
                 }

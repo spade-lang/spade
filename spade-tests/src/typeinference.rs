@@ -1735,23 +1735,51 @@ snapshot_error! {
 }
 
 #[test]
-fn uint_bits_to_fit_works_borderline_under() {
+fn int_bits_for_works() {
     let code = "
         fn test() {
-            let x: uint<{uint_bits_to_fit(255)}> = 0u8;
+            let _: int<{int::bits_for(-5)}> = 0i4;
+            let _: int<{int::bits_for(-4)}> = 0i3;
+            let _: int<{int::bits_for(-3)}> = 0i3;
+            let _: int<{int::bits_for(-2)}> = 0i2;
+            let _: int<{int::bits_for(-1)}> = 0i1;
+            let _: int<{int::bits_for(0)}> = 0i1;
+            let _: int<{int::bits_for(1)}> = 0i2;
+            let _: int<{int::bits_for(2)}> = 0i3;
+            let _: int<{int::bits_for(3)}> = 0i3;
+            let _: int<{int::bits_for(4)}> = 0i4;
         }
     ";
     build_items(code);
 }
 
 #[test]
-fn uint_bits_to_fit_works_borderline_over() {
+fn uint_bits_for_works_borderline_under() {
     let code = "
         fn test() {
-            let x: uint<{uint_bits_to_fit(256)}> = 0u9;
+            let x: uint<{uint::bits_for(255)}> = 0u8;
         }
     ";
     build_items(code);
+}
+
+#[test]
+fn uint_bits_for_works_borderline_over() {
+    let code = "
+        fn test() {
+            let x: uint<{uint::bits_for(256)}> = 0u9;
+        }
+    ";
+    build_items(code);
+}
+
+snapshot_error! {
+    uint_bits_to_fit_is_deprecated,
+    "
+        fn test() {
+            let x: uint<{uint_bits_to_fit(256)}> = 0u9;
+        }
+    "
 }
 
 snapshot_error! {
@@ -1764,10 +1792,10 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    wrong_number_of_args_to_uint_bits_to_fit_error,
+    wrong_number_of_args_to_uint_bits_for_error,
     "
         fn test() {
-            let x: uint<{uint_bits_to_fit(256, 2)}> = 0u10;
+            let x: uint<{uint::bits_for(256, 2)}> = 0u10;
         }
     "
 }
@@ -2402,7 +2430,7 @@ snapshot_error! {
 
 
         entity test(clk: clock, rst: bool) {
-            reg(clk) exposure: Fp<{uint_bits_to_fit(4095) + 1}, 8> =
+            reg(clk) exposure: Fp<{uint::bits_for(4095) + 1}, 8> =
                     1i18.to_fixed();
         }
     ",

@@ -602,7 +602,8 @@ pub enum ConstGeneric {
     Mul(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     Div(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     Mod(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
-    UintBitsToFit(Box<Loc<ConstGeneric>>),
+    IntBitsFor(Box<Loc<ConstGeneric>>),
+    UintBitsFor(Box<Loc<ConstGeneric>>),
     Eq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     NotEq(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
     Lt(Box<Loc<ConstGeneric>>, Box<Loc<ConstGeneric>>),
@@ -649,7 +650,8 @@ impl std::fmt::Display for ConstGeneric {
             ConstGeneric::LogicalAnd(l, r) => write!(f, "({l} && {r})"),
             ConstGeneric::LogicalOr(l, r) => write!(f, "({l} || {r})"),
             ConstGeneric::LogicalXor(l, r) => write!(f, "({l} ^^ {r})"),
-            ConstGeneric::UintBitsToFit(a) => write!(f, "uint_bits_to_fit({a})"),
+            ConstGeneric::IntBitsFor(a) => write!(f, "int::bits_for({a})"),
+            ConstGeneric::UintBitsFor(a) => write!(f, "uint::bits_for({a})"),
         }
     }
 }

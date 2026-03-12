@@ -15,7 +15,7 @@ impl<#uint IntSize, #uint FracBits> int<IntSize> {
 
 
 entity test(clk: clock, rst: bool) {
-    reg(clk) exposure: Fp<{uint_bits_to_fit(4095) + 1}, 8> =
+    reg(clk) exposure: Fp<{uint::bits_for(4095) + 1}, 8> =
             1i18.to_fixed();
 }
 

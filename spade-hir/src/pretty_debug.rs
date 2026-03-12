@@ -189,7 +189,10 @@ impl PrettyDebug for ConstGeneric {
             ConstGeneric::Mod(lhs, rhs) => {
                 format!("({} % {})", lhs.pretty_debug(), rhs.pretty_debug())
             }
-            ConstGeneric::UintBitsToFit(inner) => {
+            ConstGeneric::IntBitsFor(inner) => {
+                format!("{}", inner.pretty_debug())
+            }
+            ConstGeneric::UintBitsFor(inner) => {
                 format!("{}", inner.pretty_debug())
             }
             ConstGeneric::Eq(lhs, rhs) => {

@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    let x: uint<{uint::bits_for(256, 2)}> = 0u10;
+}
+
+
+error: This function takes one argument, 2 provided
+  ┌─ testinput:2:32
+  │
+2 │     let x: uint<{uint::bits_for(256, 2)}> = 0u10;
+  │                                ^^^^^^^^ Expected 1 argument

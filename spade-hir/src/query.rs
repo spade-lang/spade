@@ -430,9 +430,9 @@ impl<'a> QueryCache {
                 self.visit_const_generic(lhs);
                 self.visit_const_generic(rhs);
             }
-            ConstGeneric::LogicalNot(inner) | ConstGeneric::UintBitsToFit(inner) => {
-                self.visit_const_generic(inner)
-            }
+            ConstGeneric::LogicalNot(inner)
+            | ConstGeneric::IntBitsFor(inner)
+            | ConstGeneric::UintBitsFor(inner) => self.visit_const_generic(inner),
         }
     }
 }

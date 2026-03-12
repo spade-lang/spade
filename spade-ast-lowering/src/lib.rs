@@ -1064,6 +1064,28 @@ pub fn visit_const_generic(
             args,
             turbofish: None,
         } => match callee.to_named_strs().as_slice() {
+            [Some("int"), Some("bits_for")] => match &args.inner {
+                ast::ArgumentList::Positional(a) => {
+                    if a.len() != 1 {
+                        return Err(Diagnostic::error(
+                            args,
+                            format!("This function takes one argument, {} provided", a.len()),
+                        )
+                        .primary_label("Expected 1 argument"));
+                    } else {
+                        let arg = visit_const_generic(&a[0], ctx)?;
+
+                        ConstGeneric::IntBitsFor(Box::new(arg))
+                    }
+                }
+                ast::ArgumentList::Named(_) => {
+                    return Err(Diagnostic::error(
+                        t,
+                        "Passing arguments by name is unsupported in type expressions",
+                    )
+                    .primary_label("Arguments passed by name in type expression"))
+                }
+            },
             [Some("uint_bits_to_fit")] => match &args.inner {
                 ast::ArgumentList::Positional(a) => {
                     if a.len() != 1 {
@@ -1075,7 +1097,41 @@ pub fn visit_const_generic(
                     } else {
                         let arg = visit_const_generic(&a[0], ctx)?;
 
-                        ConstGeneric::UintBitsToFit(Box::new(arg))
+                        ctx.diags.lock().unwrap().errors.push(
+                            Diagnostic::warning(
+                                callee,
+                                "Deprecated type-level function `uint_bits_to_fit`",
+                            )
+                            .span_suggest_replace(
+                                "Use `uint::bits_for` instead",
+                                callee,
+                                "uint::bits_for",
+                            ),
+                        );
+
+                        ConstGeneric::UintBitsFor(Box::new(arg))
+                    }
+                }
+                ast::ArgumentList::Named(_) => {
+                    return Err(Diagnostic::error(
+                        t,
+                        "Passing arguments by name is unsupported in type expressions",
+                    )
+                    .primary_label("Arguments passed by name in type expression"))
+                }
+            },
+            [Some("uint"), Some("bits_for")] => match &args.inner {
+                ast::ArgumentList::Positional(a) => {
+                    if a.len() != 1 {
+                        return Err(Diagnostic::error(
+                            args,
+                            format!("This function takes one argument, {} provided", a.len()),
+                        )
+                        .primary_label("Expected 1 argument"));
+                    } else {
+                        let arg = visit_const_generic(&a[0], ctx)?;
+
+                        ConstGeneric::UintBitsFor(Box::new(arg))
                     }
                 }
                 ast::ArgumentList::Named(_) => {

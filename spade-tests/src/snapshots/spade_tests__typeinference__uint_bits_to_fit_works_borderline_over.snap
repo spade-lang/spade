@@ -2,14 +2,14 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn test() {
-    let x: uint<{uint_bits_to_fit(256)}> = 0u10;
+    let x: uint<{uint::bits_for(256)}> = 0u10;
 }
 
 
 error: Expected type 10, got 9
   ┌─ testinput:2:18
   │
-2 │     let x: uint<{uint_bits_to_fit(256)}> = 0u10;
+2 │     let x: uint<{uint::bits_for(256)}> = 0u10;
   │                  ^^^^^^^^^^^^^^^^^^^^^ Expected 10, got 9
   │
   = note:
