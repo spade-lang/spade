@@ -354,6 +354,7 @@ build:wheel-manylinux:
   cache:
     - <<: *cache_wheel_linux
       policy: pull-push
+  needs: [build:linux]
   image: quay.io/pypa/manylinux_2_34_x86_64
   stage: test
   before_script:
@@ -372,16 +373,17 @@ build:static:
     - <<: *cache_static_linux
       policy: pull-push
   image: "rust:$RUST_VERSION-alpine"
-  stage: test
+  stage: setup_n_build
   before_script:
-    - apk add git musl-dev g++
+    - apk add git musl-dev g++ openssl-dev openssl-libs-static
   script:
-    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-language-server --exclude spade-surfer-plugin --target x86_64-unknown-linux-musl
+    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-surfer-plugin --exclude spade-cxx --target x86_64-unknown-linux-musl --exclude spade-simulation-ext
     - strip $CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/spade
+    - mkdir outputs
+    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade outputs
+    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade-language-server outputs
   artifacts:
     paths:
-      - ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade
-      - ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/cxxbridge/include/spade-cxx/src/spade.rs.*
-      - ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/build/spade-cxx-*/out/libspade-cxx.a
+      - outputs
 
     
