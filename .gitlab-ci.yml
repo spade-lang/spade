@@ -78,6 +78,30 @@ workflow:
       - $CARGO_HOME/git/db/
     policy: pull
 .linux:
+  cache: &cache_macos
+    key:
+      files:
+        - Cargo.lock
+      prefix: macos
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.linux:
+  cache: &cache_wheel_macos
+    key:
+      files:
+        - Cargo.lock
+      prefix: macos_wheel
+    paths:
+      - $CARGO_TARGET_DIR
+      - $CARGO_HOME/registry/index/
+      - $CARGO_HOME/registry/cache/
+      - $CARGO_HOME/git/db/
+    policy: pull
+.linux:
   cache: &cache_coverage
     key:
       files:
@@ -415,4 +439,50 @@ build:static:
   extends: [.build:static, .artifact-other]
 
 
+.build:wheel-macos:
+  cache:
+    - <<: *cache_wheel_macos
+      policy: pull-push
+  image: quay.io/pypa/manylinux_2_34_x86_64
+  stage: test
+  before_script:
+    - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - source $CARGO_HOME/env
+    - curl https://www.zvm.app/install.sh | bash
+    - source ~/.bashrc && zvm i master
+    - /opt/python/cp38-cp38/bin/pip install maturin
+  script:
+    - source ~/.bashrc && /opt/python/cp38-cp38/bin/maturin build --zig --target aarch64-apple-darwin -m spade-python/Cargo.toml
+  artifacts:
+    paths:
+      - ${CARGO_TARGET_DIR}/wheels/*.whl
 
+build:wheel-macos-main:
+  extends: [.build:wheel-macos, .artifact-main]
+build:wheel-macos:
+  extends: [.build:wheel-macos, .artifact-other]
+
+
+.build:macos:
+  cache:
+    - <<: *cache_macos
+      policy: pull-push
+  stage: setup_n_build
+  image: "rust:1.90"
+  script:
+    - curl --proto '=https' --tlsv1.2 -LsSf https://github.com/rust-cross/cargo-zigbuild/releases/download/v0.22.1/cargo-zigbuild-installer.sh | sh
+    - curl https://www.zvm.app/install.sh | bash
+    - source ~/.bashrc && zvm i master
+    - rustup target add aarch64-apple-darwin
+    - source ~/.bashrc && env RUSTFLAGS="-C opt-level=2 -C codegen-units=1" cargo zigbuild --release --workspace --locked --target aarch64-apple-darwin --bin spade -vv
+    - mkdir outputs
+    - cp ${CARGO_TARGET_DIR}/aarc64-apple-darwin/release/spade outputs/
+  artifacts:
+    paths:
+      - outputs
+
+build:macos-main:
+  extends: [.build:macos, .artifact-main]
+build:macos:
+  extends: [.build:macos, .artifact-other]
+    
