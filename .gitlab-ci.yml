@@ -364,7 +364,7 @@ build:wheel-manylinux:
     - /opt/python/cp38-cp38/bin/maturin build -i /opt/python/cp38-cp38/bin/python -m spade-python/Cargo.toml
   artifacts:
     paths:
-      - /builds/spade-lang/spade/target/wheels/*.whl
+      - ${CARGO_TARGET_DIR}/wheels/*.whl
 
 
 build:static:
