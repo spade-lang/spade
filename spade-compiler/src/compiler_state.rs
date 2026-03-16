@@ -7,6 +7,7 @@ use color_eyre::eyre::anyhow;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
+use spade_ast::MacroRules;
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::name::NameID;
 use spade_common::{id_tracker::GenericIdTracker, location_info::WithLocation};
@@ -101,6 +102,7 @@ pub struct StoredCompilerState {
     pub impl_idtracker: ImplIdTracker,
     pub generic_idtracker: GenericIdTracker,
     pub item_list: ItemList,
+    pub macros: HashMap<NameID, MacroRules>,
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, StoredMirContext>,
@@ -117,6 +119,7 @@ impl StoredCompilerState {
             impl_idtracker,
             generic_idtracker,
             item_list,
+            macros,
             name_source_map,
             instance_map,
             mir_context,
@@ -131,6 +134,7 @@ impl StoredCompilerState {
             impl_idtracker,
             generic_idtracker,
             item_list,
+            macros,
             name_source_map,
             instance_map,
             mir_context: mir_context
@@ -151,6 +155,7 @@ pub struct CompilerState {
     pub impl_idtracker: ImplIdTracker,
     pub generic_idtracker: GenericIdTracker,
     pub item_list: ItemList,
+    pub macros: HashMap<NameID, MacroRules>,
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub instance_map: InstanceMap,
     pub mir_context: HashMap<NameID, MirContext>,
@@ -167,6 +172,7 @@ impl CompilerState {
             impl_idtracker: self.impl_idtracker,
             generic_idtracker: self.generic_idtracker,
             item_list: self.item_list,
+            macros: self.macros,
             name_source_map: self.name_source_map,
             instance_map: self.instance_map,
             mir_context: self
@@ -276,6 +282,7 @@ impl SerializedSize for StoredCompilerState {
             impl_idtracker,
             generic_idtracker,
             item_list,
+            macros,
             name_source_map,
             instance_map,
             mir_context,
@@ -295,6 +302,7 @@ impl SerializedSize for StoredCompilerState {
         add_field(field, "impl_idtracker", impl_idtracker, into);
         add_field(field, "generic_idtracker", generic_idtracker, into);
         add_field(field, "item_list", item_list, into);
+        add_field(field, "macros", macros, into);
         add_field(field, "name_source_map", name_source_map, into);
         add_field(field, "instance_map", instance_map, into);
         add_field(field, "mir_context", mir_context, into);

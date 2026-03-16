@@ -15,6 +15,8 @@ mod enum_gating;
 mod flip_array;
 mod generic_impl_stuff;
 mod gray_code;
+mod include;
+mod include_bytes;
 mod inout_read_write;
 mod int_bit_conversion;
 mod match_if;

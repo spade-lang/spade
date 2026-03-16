@@ -1,4 +1,5 @@
 pub mod conv;
+pub mod macros;
 pub mod marker;
 pub mod ops;
 pub mod undef;

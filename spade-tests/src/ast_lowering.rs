@@ -2623,3 +2623,75 @@ code_compiles! {
     }
     "
 }
+
+snapshot_error! {
+    macros_without_rules_are_forbidden,
+    r#"
+    macro empty {}
+    "#
+}
+
+snapshot_error! {
+    user_defined_macros_are_not_supported_yet,
+    r#"
+    macro mac_n_cheese() {}
+
+    fn test() {
+        mac_n_cheese!();
+    }
+    "#
+}
+
+snapshot_error! {
+    include_macro_without_tokens,
+    r#"
+    fn test() -> bool {
+        include!()
+    }
+    "#
+}
+
+snapshot_error! {
+    include_macro_with_many_tokens,
+    r#"
+    fn test() -> bool {
+        include!("hello" "world", + - -)
+    }
+    "#
+}
+
+snapshot_error! {
+    include_macro_with_non_string_token,
+    r#"
+    fn test() -> bool {
+        include!(3)
+    }
+    "#
+}
+
+snapshot_error! {
+    include_bytes_macro_without_tokens,
+    r#"
+    fn test() -> bool {
+        include_bytes!()
+    }
+    "#
+}
+
+snapshot_error! {
+    include_bytes_macro_with_many_tokens,
+    r#"
+    fn test() -> bool {
+        include_bytes!("hello" "world", + - -)
+    }
+    "#
+}
+
+snapshot_error! {
+    include_bytes_macro_with_non_string_token,
+    r#"
+    fn test() -> bool {
+        include_bytes!(3)
+    }
+    "#
+}

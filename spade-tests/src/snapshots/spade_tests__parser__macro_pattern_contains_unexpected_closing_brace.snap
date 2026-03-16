@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/parser.rs
+---
+macro test(}) {}
+
+
+error: Stray closing delimiter found while parsing macro pattern
+  ┌─ testinput:1:12
+  │
+1 │ macro test(}) {}
+  │            ^
+  │            │
+  │            `}` found with no matching `{`

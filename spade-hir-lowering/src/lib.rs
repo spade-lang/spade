@@ -180,6 +180,7 @@ impl LocExprExt for Loc<hir::Expression> {
             ExprKind::StageValid => Some(self.clone()),
             ExprKind::LambdaDef { .. } => Some(self.clone()),
             ExprKind::StaticUnreachable(_) => None,
+
             ExprKind::Null => None,
         }
     }

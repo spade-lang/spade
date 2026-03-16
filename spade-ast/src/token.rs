@@ -1,9 +1,10 @@
 use logos::Logos;
 
 use num::BigUint;
+use serde::{Deserialize, Serialize};
 use spade_common::name::Identifier;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum LiteralKind {
     Unsized,
     Signed(Option<BigUint>),
@@ -31,23 +32,29 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
     )
 }
 
-fn process_ident(ident: &str) -> Identifier {
-    if ident.starts_with("r#") {
-        Identifier::intern(&ident[2..])
+fn process_ident(ident: &str) -> (Identifier, bool) {
+    let (ident, is_macro) = if ident.ends_with("!") {
+        (&ident[..ident.len() - 1], true)
     } else {
-        Identifier::intern(ident)
+        (ident, false)
+    };
+
+    if ident.starts_with("r#") {
+        (Identifier::intern(&ident[2..]), is_macro)
+    } else {
+        (Identifier::intern(ident), is_macro)
     }
 }
 
-#[derive(Logos, Debug, PartialEq, Clone)]
+#[derive(Logos, Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TokenKind {
     // Unholy regex for unicode identifiers. Stolen from Repnop who stole it from Evrey
     #[regex(r#"(r#)?(?x:
         [\p{XID_Start}_]
         \p{XID_Continue}*
-        (\u{3F} | \u{21} | (\u{3F}\u{21}) | \u{2048})? # ? ! ?! ⁈
+        (\u{3F} | \u{21} | (\u{3F}\u{21}))? # ? ! ?!
     )"#, |lex| process_ident(lex.slice()))]
-    Identifier(Identifier),
+    Identifier((Identifier, bool)),
 
     #[regex(r"[0-9][0-9_]*([uUiI][0-9]*)?", |lex| {
         parse_int(lex.slice(), 10)
@@ -112,6 +119,8 @@ pub enum TokenKind {
     Impl,
     #[token("for")]
     For,
+    #[token("macro")]
+    Macro,
     #[token("fn")]
     Function,
     #[token("enum")]
@@ -198,6 +207,8 @@ pub enum TokenKind {
     Ampersand,
     #[token("|")]
     Pipe,
+    #[token("?")]
+    QuestionMark,
     #[token("!")]
     Not,
     #[token("^")]
@@ -317,6 +328,7 @@ impl TokenKind {
             TokenKind::Impl => "impl",
             TokenKind::Trait => "trait",
             TokenKind::For => "for",
+            TokenKind::Macro => "macro",
             TokenKind::Function => "fn",
             TokenKind::Enum => "enum",
             TokenKind::Struct => "struct",
@@ -363,6 +375,7 @@ impl TokenKind {
             TokenKind::LogicalXor => "^^",
             TokenKind::Ampersand => "&",
             TokenKind::Pipe => "|",
+            TokenKind::QuestionMark => "?",
             TokenKind::Not => "!",
             TokenKind::Tilde => "~",
             TokenKind::BitwiseXor => "^",
@@ -410,6 +423,14 @@ impl TokenKind {
         }
     }
 
+    pub fn is_macro_identifier(&self) -> bool {
+        matches!(self, TokenKind::Identifier((_, true)))
+    }
+
+    pub fn is_normal_identifier(&self) -> bool {
+        matches!(self, TokenKind::Identifier((_, false)))
+    }
+
     pub fn is_identifier(&self) -> bool {
         matches!(self, TokenKind::Identifier(_))
     }
@@ -451,7 +472,10 @@ mod tests {
 
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::Identifier(Identifier::intern("abc123_"))))
+            Some(Ok(TokenKind::Identifier((
+                Identifier::intern("abc123_"),
+                false
+            ))))
         );
     }
 
@@ -552,7 +576,7 @@ mod tests {
         );
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::Identifier(Identifier::intern("xg"))))
+            Some(Ok(TokenKind::Identifier((Identifier::intern("xg"), false))))
         );
         assert_eq!(lex.next(), None);
     }

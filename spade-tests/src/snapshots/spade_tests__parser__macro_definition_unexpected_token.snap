@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/parser.rs
+---
+macro test x
+
+
+error: Unexpected `identifier`, expected `(` or `{`
+  ┌─ testinput:1:12
+  │
+1 │ macro test x
+  │            ^ expected `(` or `{`

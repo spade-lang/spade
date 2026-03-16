@@ -1,15 +1,15 @@
+use spade_ast::token::TokenKind;
 use spade_ast::{
-    AssocType, AttributeList, Enum, Expression, ExternalMod, ImplBlock, Item, Module, Struct,
-    TraitDef, TraitSpec, TypeAlias, TypeDeclKind, TypeDeclaration, TypeSpec, Unit, UseStatement,
+    AssocType, AttributeList, Enum, Expression, ExternalMod, ImplBlock, Item, MacroDef, Module,
+    Struct, TraitDef, TraitSpec, TypeAlias, TypeDeclKind, TypeDeclaration, TypeSpec, Unit,
+    UseStatement,
 };
 use spade_common::location_info::{AsLabel, Loc, WithLocation};
 use spade_common::name::Visibility;
 use spade_diagnostics::Diagnostic;
 
 use crate::error::UnexpectedToken;
-use crate::{
-    KeywordPeekingParser, Parser, Result, error::CSErrorTransformations, lexer::TokenKind,
-};
+use crate::{KeywordPeekingParser, Parser, Result, error::CSErrorTransformations};
 
 pub(crate) struct UnitParser {}
 
@@ -53,7 +53,7 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
             } else if parser.peek_kind(&TokenKind::Semi)? {
                 let tok = parser.eat_unconditional()?;
 
-                Ok((None, ().at(parser.file_id, &tok.span).span))
+                Ok((None, ().at(parser.file_id(), &tok.span).span))
             } else {
                 let next = parser.peek()?;
                 Err(Diagnostic::error(
@@ -102,7 +102,77 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
             head: head.inner.clone(),
             body: block.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
         }
-        .between(parser.file_id, &head, &block_span))
+        .between(parser.file_id(), &head, &block_span))
+    }
+}
+
+pub(crate) struct MacroDefParser {}
+
+impl KeywordPeekingParser<Loc<MacroDef>> for MacroDefParser {
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Macro
+    }
+
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<MacroDef>> {
+        let start_token = parser.eat_unconditional()?;
+
+        let name = parser.normal_identifier()?;
+
+        let next_token = parser.peek()?;
+
+        let (rules, end_token) = match next_token.kind {
+            TokenKind::OpenParen => {
+                // Single rule using function-like syntax
+                let pat = parser.macro_pattern()?;
+                let template = parser.macro_template()?;
+                let end_loc = template.loc();
+                let rules = vec![(pat, template.inner)];
+
+                (rules, end_loc)
+            }
+            TokenKind::OpenBrace => {
+                // Multiple rules using match-like syntax
+                parser.eat_unconditional()?;
+
+                let rules = parser
+                    .comma_separated(
+                        |p| {
+                            let pat = p.macro_pattern()?;
+                            p.eat(&TokenKind::FatArrow)?;
+                            let template = p.macro_template()?;
+
+                            Ok((pat, template.inner))
+                        },
+                        &TokenKind::CloseBrace,
+                    )
+                    .no_context()?;
+
+                let end_token = parser.eat(&TokenKind::CloseBrace)?;
+                let end_loc = ().at(parser.file_id(), &end_token);
+
+                (rules, end_loc)
+            }
+            _ => {
+                return Err(Diagnostic::from(UnexpectedToken {
+                    got: next_token,
+                    expected: vec![TokenKind::OpenParen.as_str(), TokenKind::OpenBrace.as_str()],
+                }));
+            }
+        };
+
+        let result = MacroDef {
+            visibility: visibility.clone(),
+            name,
+            rules,
+            attributes: attributes.clone(),
+        };
+
+        Ok(result.between(parser.file_id(), &start_token.span, &end_token.span))
     }
 }
 
@@ -121,7 +191,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
     ) -> Result<Loc<TraitDef>> {
         let start_token = parser.eat_unconditional()?;
 
-        let name = parser.identifier()?;
+        let name = parser.normal_identifier()?;
 
         let type_params = parser.generics_list()?;
 
@@ -162,7 +232,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
             let vis = Visibility::Implicit.nowhere();
 
             if let Some(start_token) = parser.peek_and_eat(&TokenKind::Type)? {
-                let name = parser.identifier()?;
+                let name = parser.normal_identifier()?;
                 let type_params = parser.generics_list()?;
                 let end_loc = match &type_params {
                     Some(tp) => tp.loc(),
@@ -171,7 +241,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
                 result
                     .assoc_types
                     .push(AssocType { name, type_params }.between(
-                        parser.file_id,
+                        parser.file_id(),
                         &start_token,
                         &end_loc,
                     ));
@@ -186,7 +256,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
         }
         let end_token = parser.eat(&TokenKind::CloseBrace)?;
 
-        Ok(result.between(parser.file_id, &start_token.span, &end_token.span))
+        Ok(result.between(parser.file_id(), &start_token.span, &end_token.span))
     }
 }
 
@@ -252,7 +322,7 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
             assoc_types,
             units,
         }
-        .between(parser.file_id, &start_token.span, &body_span.span))
+        .between(parser.file_id(), &start_token.span, &body_span.span))
     }
 }
 
@@ -272,7 +342,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
         let start_token = parser.eat_unconditional()?;
 
         if let Some(tok) = parser.peek_and_eat(&TokenKind::Port)? {
-            let tok = ().at(parser.file_id, &tok);
+            let tok = ().at(parser.file_id(), &tok);
             Diagnostic::warning(
                 &tok,
                 "The port keyword no longer has any effect on structs.",
@@ -282,7 +352,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
             .handle_in(&mut parser.diags);
         }
 
-        let name = parser.identifier()?;
+        let name = parser.normal_identifier()?;
 
         let type_params = parser.generics_list()?;
 
@@ -302,11 +372,11 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
                     members,
                     attributes: attributes.clone(),
                 }
-                .between(parser.file_id, &start_token.span, &members_loc),
+                .between(parser.file_id(), &start_token.span, &members_loc),
             ),
             generic_args: type_params,
         }
-        .between(parser.file_id, &start_token.span, &members_loc);
+        .between(parser.file_id(), &start_token.span, &members_loc);
 
         Ok(result)
     }
@@ -327,7 +397,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
 
-        let name = parser.identifier()?;
+        let name = parser.normal_identifier()?;
 
         let type_params = parser.generics_list()?;
 
@@ -349,11 +419,11 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
                     variants: options,
                     attributes: attributes.clone(),
                 }
-                .between(parser.file_id, &start_token.span, &options_loc),
+                .between(parser.file_id(), &start_token.span, &options_loc),
             ),
             generic_args: type_params,
         }
-        .between(parser.file_id, &start_token.span, &options_loc);
+        .between(parser.file_id(), &start_token.span, &options_loc);
 
         Ok(result)
     }
@@ -373,7 +443,7 @@ impl KeywordPeekingParser<Item> for ModuleParser {
         visibility: &Loc<Visibility>,
     ) -> Result<Item> {
         let start = parser.eat_unconditional()?;
-        let name = parser.identifier()?;
+        let name = parser.normal_identifier()?;
 
         if parser.peek_kind(&TokenKind::OpenBrace)? {
             let open_brace = parser.peek()?;
@@ -386,10 +456,10 @@ impl KeywordPeekingParser<Item> for ModuleParser {
                 Module {
                     visibility: visibility.clone(),
                     name,
-                    body: body.between(parser.file_id, &open_brace.span, &end.span),
+                    body: body.between(parser.file_id(), &open_brace.span, &end.span),
                     attributes: attributes.clone(),
                 }
-                .between(parser.file_id, &start, &end),
+                .between(parser.file_id(), &start, &end),
             ))
         } else if parser.peek_and_eat(&TokenKind::Semi)?.is_some() {
             let end = name.loc();
@@ -399,7 +469,7 @@ impl KeywordPeekingParser<Item> for ModuleParser {
                     name,
                     attributes: attributes.clone(),
                 }
-                .between(parser.file_id, &start, &end),
+                .between(parser.file_id(), &start, &end),
             ))
         } else {
             Err(UnexpectedToken {
@@ -425,7 +495,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
         visibility: &Loc<Visibility>,
     ) -> Result<Loc<TypeDeclaration>> {
         let start = parser.eat_unconditional()?;
-        let name = parser.identifier()?;
+        let name = parser.normal_identifier()?;
         let generic_args = parser.generics_list()?;
 
         parser.eat(&TokenKind::Assignment)?;
@@ -442,11 +512,11 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
                     name,
                     type_spec,
                 }
-                .between(parser.file_id, &start.span, &end),
+                .between(parser.file_id(), &start.span, &end),
             ),
             visibility: visibility.clone(),
         }
-        .between(parser.file_id, &start.span, &end))
+        .between(parser.file_id(), &start.span, &end))
     }
 }
 
@@ -477,7 +547,7 @@ impl KeywordPeekingParser<(AttributeList, Loc<Vec<UseStatement>>)> for UseParser
                     alias,
                 })
                 .collect::<Vec<_>>()
-                .between(parser.file_id, &start.span(), &end.span()),
+                .between(parser.file_id(), &start.span(), &end.span()),
         ))
     }
 }

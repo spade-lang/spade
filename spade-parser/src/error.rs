@@ -1,9 +1,10 @@
 use local_impl::local_impl;
+use spade_ast::token::TokenKind;
 use spade_common::location_info::Loc;
 use spade_diagnostics::Diagnostic;
 use spade_macros::{IntoDiagnostic, IntoSubdiagnostic};
 
-use crate::{Token, lexer::TokenKind};
+use crate::Token;
 
 pub type Result<T> = std::result::Result<T, Diagnostic>;
 
@@ -161,7 +162,7 @@ mod tests {
 
     #[test]
     fn unexpected_token_works_for_single_token() {
-        let got = crate::lexer::TokenKind::Assignment;
+        let got = TokenKind::Assignment;
         let expected_list = unexpected_token_list(vec!["=="]);
         let result = unexpected_token_message(&got, &expected_list);
         assert_eq!(result, "Unexpected `=`, expected `==`");
@@ -169,7 +170,7 @@ mod tests {
 
     #[test]
     fn unexpected_token_works_for_multiple_tokens() {
-        let got = crate::lexer::TokenKind::Assignment;
+        let got = TokenKind::Assignment;
         let expected_list = unexpected_token_list(vec!["x", "y", "z"]);
         let result = unexpected_token_message(&got, &expected_list);
         assert_eq!(result, "Unexpected `=`, expected `x`, `y`, or `z`");

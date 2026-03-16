@@ -1,4 +1,5 @@
 use num::ToPrimitive;
+use spade_ast::token::TokenKind;
 use spade_ast::{
     ArgumentList, BinaryOperator, Block, CallKind, Expression, IntLiteral, UnaryOperator,
 };
@@ -9,7 +10,7 @@ use spade_macros::trace_parser;
 
 use crate::error::{CSErrorTransformations, ExpectedArgumentList, Result, UnexpectedToken};
 use crate::item_type::UnitKindLocal;
-use crate::{ParseStackEntry, Parser, lexer::TokenKind};
+use crate::{ParseStackEntry, Parser};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
 enum OpBindingPower {
@@ -133,7 +134,7 @@ impl<'a> Parser<'a> {
         let lhs_val = self.expr_bp(OpBindingPower::None)?;
 
         if self.peek_kind(&TokenKind::InfixOperatorSeparator)? {
-            let (Some((callee, turbofish)), _) = self.surrounded(
+            let (Some((callee, _, turbofish)), _) = self.surrounded(
                 &TokenKind::InfixOperatorSeparator,
                 Self::path_with_turbofish,
                 &TokenKind::InfixOperatorSeparator,
@@ -151,13 +152,13 @@ impl<'a> Parser<'a> {
                 kind: CallKind::Function,
                 callee,
                 args: ArgumentList::Positional(vec![lhs_val.clone(), rhs_val.clone()]).between(
-                    self.file_id,
+                    self.file_id(),
                     &lhs_val,
                     &rhs_val,
                 ),
                 turbofish,
             }
-            .between(self.file_id, &lhs_val, &rhs_val))
+            .between(self.file_id(), &lhs_val, &rhs_val))
         } else {
             Ok(lhs_val)
         }
@@ -235,10 +236,10 @@ impl<'a> Parser<'a> {
             let rhs = self.expr_bp(op_power)?;
             lhs = Expression::BinaryOperator(
                 Box::new(lhs.clone()),
-                op.at(self.file_id, &op_tok),
+                op.at(self.file_id(), &op_tok),
                 Box::new(rhs.clone()),
             )
-            .between(self.file_id, &lhs, &rhs)
+            .between(self.file_id(), &lhs, &rhs)
         }
 
         Ok(lhs)
@@ -283,30 +284,59 @@ impl<'a> Parser<'a> {
         } else if let Some(unsafe_expr) = self.unsafe_block()? {
             Ok(unsafe_expr)
         } else if let Some(create_ports) = self.peek_and_eat(&TokenKind::Port)? {
-            Ok(Expression::CreatePorts.at(self.file_id, &create_ports))
-        } else if let Some((path, turbofish)) = self.path_with_turbofish()? {
-            let span = path.span;
-            match (turbofish, self.argument_list()?) {
-                (None, None) => Ok(Expression::Identifier(path).at(self.file_id, &span)),
-                (Some(tf), None) => {
-                    return Err(Diagnostic::error(self.peek()?, "Expected argument list")
-                        .primary_label("Expected argument list")
-                        .secondary_label(
-                            tf,
-                            "Type parameters can only be specified on function calls",
-                        ));
-                }
-                (tf, Some(args)) => {
-                    // Doing this avoids cloning result and args
-                    let span = ().between(self.file_id, &path, &args);
-
-                    Ok(Expression::Call {
-                        kind: CallKind::Function,
-                        callee: path,
-                        args,
-                        turbofish: tf,
+            Ok(Expression::CreatePorts.at(self.file_id(), &create_ports))
+        } else if let Some((path, is_macro, turbofish)) = self.path_with_turbofish()? {
+            if is_macro {
+                let opening_token = self.peek()?;
+                let closing_delimiter = match opening_token.kind {
+                    TokenKind::OpenBrace => TokenKind::CloseBrace,
+                    TokenKind::OpenBracket => TokenKind::CloseBracket,
+                    TokenKind::OpenParen => TokenKind::CloseParen,
+                    _ => {
+                        return Err(Diagnostic::from(UnexpectedToken {
+                            got: opening_token,
+                            expected: vec![
+                                TokenKind::CloseParen.as_str(),
+                                TokenKind::CloseBracket.as_str(),
+                                TokenKind::CloseBrace.as_str(),
+                            ],
+                        }));
                     }
-                    .at_loc(&span))
+                };
+
+                let tokens = self.enclosed_token_stream(&opening_token.kind, &closing_delimiter)?;
+                let end_loc = tokens.loc();
+
+                Ok(Expression::MacroCall {
+                    callee: path.clone(),
+                    tokens: tokens.inner,
+                    parse_ctx: self.parse_ctx.clone(),
+                }
+                .between(self.file_id(), &path, &end_loc))
+            } else {
+                let span = path.span;
+                match (turbofish, self.argument_list()?) {
+                    (None, None) => Ok(Expression::Identifier(path).at(self.file_id(), &span)),
+                    (Some(tf), None) => {
+                        return Err(Diagnostic::error(self.peek()?, "Expected argument list")
+                            .primary_label("Expected argument list")
+                            .secondary_label(
+                                tf,
+                                "Type parameters can only be specified on function calls",
+                            ));
+                    }
+                    (tf, Some(args)) => {
+                        // Doing this avoids cloning result and args
+                        let span = ().between(self.file_id(), &path, &args);
+
+                        Ok(Expression::Call {
+                            kind: CallKind::Function,
+                            callee: path,
+                            args,
+                            turbofish: tf,
+                        }
+                        .at_loc(&span))
+                    }
                 }
             }
         } else {
@@ -370,7 +400,7 @@ impl<'a> Parser<'a> {
             block.at_loc(&loc)
         };
 
-        let loc = ().between(self.file_id, &start_token, &body);
+        let loc = ().between(self.file_id(), &start_token, &body);
 
         Ok(Some(
             Expression::Lambda {
@@ -404,13 +434,13 @@ impl<'a> Parser<'a> {
 
                         Ok(as_u128)
                     })?
-                    .between(self.file_id, &hash, &index);
+                    .between(self.file_id(), &hash, &index);
                 Ok(Expression::TupleIndex {
                     target: Box::new(expr.clone()),
                     index: *index,
                     deprecated_syntax: true,
                 }
-                .between(self.file_id, &expr, &index))
+                .between(self.file_id(), &expr, &index))
             } else {
                 Err(
                     Diagnostic::error(self.peek()?.loc(), "expected an index after #")
@@ -437,19 +467,19 @@ impl<'a> Parser<'a> {
 
                         Ok(as_u128)
                     })?
-                    .between(self.file_id, &dot, &index);
+                    .between(self.file_id(), &dot, &index);
                 Ok(Expression::TupleIndex {
                     target: Box::new(expr.clone()),
                     index: *index,
                     deprecated_syntax: false,
                 }
-                .between(self.file_id, &expr, &index))
+                .between(self.file_id(), &expr, &index))
             } else {
                 let inst = self.peek_and_eat(&TokenKind::Instance)?;
 
                 if let Some(inst) = &inst {
                     self.unit_context
-                        .allows_inst(().at(self.file_id, inst))
+                        .allows_inst(().at(self.file_id(), inst))
                         .handle_in(&mut self.diags);
                 }
 
@@ -468,7 +498,7 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                let field = self.identifier()?;
+                let field = self.normal_identifier()?;
 
                 let turbofish = self.turbofish()?;
 
@@ -480,17 +510,17 @@ impl<'a> Parser<'a> {
                         kind: pipeline_depth
                             .map(|(depth, _)| {
                                 CallKind::Pipeline(
-                                    ().at(self.file_id, &inst.clone().unwrap()),
+                                    ().at(self.file_id(), &inst.clone().unwrap()),
                                     depth,
                                 )
                             })
-                            .or_else(|| inst.map(|i| CallKind::Entity(().at(self.file_id, &i))))
+                            .or_else(|| inst.map(|i| CallKind::Entity(().at(self.file_id(), &i))))
                             .unwrap_or(CallKind::Function),
                         turbofish,
                     }
-                    .between(self.file_id, &expr, &args))
+                    .between(self.file_id(), &expr, &args))
                 } else if let Some(inst_keyword) = inst {
-                    let base_loc = ().between(self.file_id, &inst_keyword, &field);
+                    let base_loc = ().between(self.file_id(), &inst_keyword, &field);
                     let base_expr = if let Some(turbofish) = turbofish {
                         ().between_locs(&base_loc, &turbofish)
                     } else {
@@ -504,13 +534,13 @@ impl<'a> Parser<'a> {
                 } else if let Some(turbofish) = turbofish {
                     Err(ExpectedArgumentList {
                         next_token: self.peek()?,
-                        base_expr: ().between(self.file_id, &turbofish, &field),
+                        base_expr: ().between(self.file_id(), &turbofish, &field),
                     }
                     .with_suggestions())
                 } else {
                     Ok(
                         Expression::FieldAccess(Box::new(expr.clone()), field.clone()).between(
-                            self.file_id,
+                            self.file_id(),
                             &expr,
                             &field,
                         ),
@@ -576,11 +606,9 @@ mod test {
     use spade_ast::*;
 
     use super::*;
-    use crate::lexer::TokenKind;
     use crate::{check_parse, format_parse_stack};
 
     use colored::Colorize;
-    use logos::Logos;
 
     use spade_common::location_info::WithLocation;
 

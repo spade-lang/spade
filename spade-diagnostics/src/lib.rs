@@ -293,7 +293,7 @@ pub mod diagnostic;
 pub mod emitter;
 
 /// A bundle of all the source code included in the current compilation
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CodeBundle {
     pub files: SimpleFiles<String, String>,
 }

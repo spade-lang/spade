@@ -109,6 +109,9 @@ pub(crate) fn gather_impls_n_docs(
             ast::Item::Unit(u) => {
                 impls.add_outer_doc(&ctx.symtab, &u.head.name, &u.head.attributes);
             }
+            ast::Item::MacroDef(m) => {
+                impls.add_outer_doc(&ctx.symtab, &m.name, &m.attributes);
+            }
             ast::Item::TraitDef(t) => {
                 impls.add_outer_doc(&ctx.symtab, &t.name, &t.attributes);
             }

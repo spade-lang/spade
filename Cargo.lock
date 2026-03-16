@@ -3205,8 +3205,11 @@ name = "spade-ast"
 version = "0.18.0"
 dependencies = [
  "itertools",
+ "logos",
  "num",
+ "serde",
  "spade-common",
+ "spade-diagnostics",
 ]
 
 [[package]]
@@ -3225,6 +3228,7 @@ dependencies = [
  "spade-diagnostics",
  "spade-hir",
  "spade-macros",
+ "spade-parser",
  "spade-types",
  "tracing",
 ]
@@ -3338,7 +3342,6 @@ dependencies = [
  "colored 3.1.1",
  "indoc",
  "itertools",
- "logos",
  "postcard",
  "pretty_assertions",
  "prettydiff",

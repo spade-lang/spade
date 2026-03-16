@@ -2,25 +2,27 @@ pub mod error;
 mod expression;
 pub mod item_type;
 mod items;
-pub mod lexer;
 mod statements;
 
 use std::marker::PhantomData;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use colored::*;
 use itertools::Itertools;
 use local_impl::local_impl;
-use logos::Lexer;
+use logos::{Lexer, Span};
+use spade_ast::token::{LiteralKind, TokenKind};
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterParser, SetParser};
 use tracing::{Level, debug, event};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
-    EnumVariant, Expression, Inequality, IntLiteral, Item, ModuleBody, NamedArgument,
-    NamedTurbofish, ParameterList, Pattern, PipelineStageReference, Statement, TraitSpec,
-    TurbofishInner, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind,
-    WhereClause, WireMarker,
+    EnumVariant, Expression, Inequality, IntLiteral, Item, MacroPattern, MacroRepetitions,
+    ModuleBody, NamedArgument, NamedTurbofish, ParameterList, ParseCtx, Pattern,
+    PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeDeclaration, TypeExpression,
+    TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause, WireMarker,
 };
 use spade_common::location_info::{AsLabel, FullSpan, HasCodespan, Loc, WithLocation, lspan};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
@@ -34,7 +36,6 @@ use crate::error::{
 };
 use crate::item_type::UnitKindLocal;
 use crate::items::{EnumParser, StructParser, TypeAliasParser};
-use crate::lexer::{LiteralKind, TokenKind};
 
 pub use logos;
 
@@ -47,10 +48,10 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, lexer: &Lexer<TokenKind>, file_id: usize) -> Self {
+    pub fn new(kind: TokenKind, span: logos::Span, file_id: usize) -> Self {
         Self {
             kind,
-            span: lexer.span(),
+            span,
             file_id,
         }
     }
@@ -88,16 +89,45 @@ pub enum Comment {
     Block(Token, Token),
 }
 
+#[derive(Clone)]
+pub enum TokenSource<'source> {
+    Lexer(Lexer<'source, TokenKind>),
+    Slice(&'source [Loc<TokenKind>]),
+}
+
+impl<'source> TokenSource<'source> {
+    fn next(&mut self) -> Option<std::result::Result<TokenKind, ()>> {
+        match self {
+            TokenSource::Lexer(l) => l.next(),
+            TokenSource::Slice([]) => None,
+            TokenSource::Slice(a) => {
+                let token = a[0].clone();
+                *a = &a[1..];
+                Some(Ok(token.inner))
+            }
+        }
+    }
+
+    fn span(&self) -> Span {
+        match self {
+            TokenSource::Lexer(l) => l.span(),
+            TokenSource::Slice([t, ..]) => t.span(),
+            // The actual value should not be important (fingers crossed tho)
+            TokenSource::Slice([]) => 0..0,
+        }
+    }
+}
+
 // Clone for when you want to call a parse function but maybe discard the new parser state
 // depending on some later condition.
 #[derive(Clone)]
 pub struct Parser<'a> {
-    lex: Lexer<'a, TokenKind>,
+    lex: TokenSource<'a>,
     peeked: Option<Token>,
     // The last token that was eaten. Used in eof diagnostics
     last_token: Option<Token>,
     pub parse_stack: Vec<ParseStackEntry>,
-    file_id: usize,
+    parse_ctx: Rc<ParseCtx>,
     unit_context: Option<Loc<UnitKind>>,
     pub diags: DiagList,
     recovering_tokens: Vec<fn(&TokenKind) -> bool>,
@@ -105,18 +135,35 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(lex: Lexer<'a, TokenKind>, file_id: usize) -> Self {
+    pub fn new(src: &'a str, file_id: usize, working_dir: Option<PathBuf>) -> Self {
+        let parse_ctx = Rc::new(ParseCtx {
+            file_id,
+            working_dir,
+        });
+
+        Self::from_source(TokenSource::Lexer(Lexer::new(src)), parse_ctx)
+    }
+
+    pub fn from_tokens(tokens: &'a [Loc<TokenKind>], parse_ctx: Rc<ParseCtx>) -> Self {
+        Self::from_source(TokenSource::Slice(tokens), parse_ctx)
+    }
+
+    fn from_source(src: TokenSource<'a>, parse_ctx: Rc<ParseCtx>) -> Self {
         Self {
-            lex,
+            lex: src,
             peeked: None,
             last_token: None,
             parse_stack: vec![],
-            file_id,
+            parse_ctx,
             unit_context: None,
             diags: DiagList::new(),
             recovering_tokens: vec![|tok| tok == &TokenKind::Eof],
             comments: vec![],
         }
+    }
+
+    pub fn file_id(&self) -> usize {
+        self.parse_ctx.file_id
     }
 
     pub fn comments(&self) -> &[Comment] {
@@ -141,11 +188,35 @@ macro_rules! peek_for {
 impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn identifier(&mut self) -> Result<Loc<Identifier>> {
+    pub fn macro_identifier(&mut self) -> Result<Loc<Identifier>> {
+        let token = self.eat_cond(TokenKind::is_normal_identifier, "Macro identifier")?;
+
+        if let TokenKind::Identifier((name, true)) = token.kind {
+            Ok(name.at(self.file_id(), &token.span))
+        } else {
+            unreachable!("eat_cond should have checked this");
+        }
+    }
+
+    #[trace_parser]
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn normal_identifier(&mut self) -> Result<Loc<Identifier>> {
+        let token = self.eat_cond(TokenKind::is_normal_identifier, "Identifier")?;
+
+        if let TokenKind::Identifier((name, false)) = token.kind {
+            Ok(name.at(self.file_id(), &token.span))
+        } else {
+            unreachable!("eat_cond should have checked this");
+        }
+    }
+
+    #[trace_parser]
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn identifier(&mut self) -> Result<(Loc<Identifier>, bool)> {
         let token = self.eat_cond(TokenKind::is_identifier, "Identifier")?;
 
-        if let TokenKind::Identifier(name) = token.kind {
-            Ok(name.at(self.file_id, &token.span))
+        if let TokenKind::Identifier((name, is_macro)) = token.kind {
+            Ok((name.at(self.file_id(), &token.span), is_macro))
         } else {
             unreachable!("eat_cond should have checked this");
         }
@@ -155,7 +226,7 @@ impl<'a> Parser<'a> {
     pub fn path(&mut self) -> Result<Loc<Path>> {
         let mut result = vec![];
         loop {
-            result.push(PathSegment::Named(self.identifier()?));
+            result.push(PathSegment::Named(self.normal_identifier()?));
 
             if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break;
@@ -174,8 +245,8 @@ impl<'a> Parser<'a> {
         let mut alias = None;
 
         loop {
-            if self.peek_cond(TokenKind::is_identifier, "Identifier")? {
-                let ident = self.identifier()?;
+            if self.peek_cond(TokenKind::is_normal_identifier, "Identifier")? {
+                let ident = self.normal_identifier()?;
                 prefix = prefix.push_ident(ident);
             } else if self.peek_and_eat(&TokenKind::OpenBrace)?.is_some() {
                 let result = self
@@ -201,7 +272,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_and_eat(&TokenKind::As)?.is_some() {
-                alias = Some(self.identifier()?);
+                alias = Some(self.normal_identifier()?);
                 break;
             } else if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break;
@@ -215,15 +286,15 @@ impl<'a> Parser<'a> {
 
     pub fn named_turbofish(&mut self) -> Result<Loc<NamedTurbofish>> {
         // This is a named arg
-        let name = self.identifier()?;
+        let name = self.normal_identifier()?;
         if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
             let value = self.type_expression()?;
 
             let span = name.span.merge(value.span);
 
-            Ok(NamedTurbofish::Full(name, value).at(self.file_id, &span))
+            Ok(NamedTurbofish::Full(name, value).at(self.file_id(), &span))
         } else {
-            Ok(NamedTurbofish::Short(name.clone()).at(self.file_id, &name))
+            Ok(NamedTurbofish::Short(name.clone()).at(self.file_id(), &name))
         }
     }
 
@@ -262,23 +333,25 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn path_with_turbofish(
         &mut self,
-    ) -> Result<Option<(Loc<Path>, Option<Loc<TurbofishInner>>)>> {
+    ) -> Result<Option<(Loc<Path>, bool, Option<Loc<TurbofishInner>>)>> {
         let mut result = vec![];
         if !self.peek_cond(TokenKind::is_identifier, "Identifier")? {
             return Ok(None);
         }
 
         loop {
-            result.push(PathSegment::Named(self.identifier()?));
+            let (ident, is_macro) = self.identifier()?;
+            result.push(PathSegment::Named(ident));
 
             // NOTE: (safe unwrap) The vec will have at least one element because the first thing
             // in the loop must push an identifier.
             let path_start = result.first().unwrap().loc();
             let path_end = result.last().unwrap().loc();
 
-            if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
+            if is_macro || self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break Ok(Some((
                     Path(result).between_locs(&path_start, &path_end),
+                    is_macro,
                     None,
                 )));
             } else if self.peek_kind(&TokenKind::Lt)? {
@@ -286,7 +359,8 @@ impl<'a> Parser<'a> {
                 let params = self.generic_spec_list()?.unwrap();
 
                 break Ok(Some((
-                    Path(result).between(self.file_id, &path_start, &path_end),
+                    Path(result).between(self.file_id(), &path_start, &path_end),
+                    is_macro,
                     Some(params.map(|p| TurbofishInner::Positional(p))),
                 )));
             } else if self.peek_kind(&TokenKind::Dollar)? {
@@ -301,7 +375,8 @@ impl<'a> Parser<'a> {
                 )?;
 
                 break Ok(Some((
-                    Path(result).between(self.file_id, &path_start, &path_end),
+                    Path(result).between(self.file_id(), &path_start, &path_end),
+                    is_macro,
                     Some(TurbofishInner::Named(params).at_loc(&loc)),
                 )));
             }
@@ -316,7 +391,7 @@ impl<'a> Parser<'a> {
         } = self.peek()?
         {
             self.eat_unconditional()?;
-            Ok(Some(l.at(self.file_id, tok)))
+            Ok(Some(l.at(self.file_id(), tok)))
         } else {
             Ok(None)
         }
@@ -329,7 +404,7 @@ impl<'a> Parser<'a> {
         // empty array
         if let Some(end) = self.peek_and_eat(&TokenKind::CloseBracket)? {
             return Ok(Some(Expression::ArrayLiteral(vec![]).between(
-                self.file_id,
+                self.file_id(),
                 &start,
                 &end,
             )));
@@ -359,7 +434,7 @@ impl<'a> Parser<'a> {
 
         let end = self.eat(&TokenKind::CloseBracket)?;
 
-        Ok(Some(expr.between(self.file_id, &start, &end)))
+        Ok(Some(expr.between(self.file_id(), &start, &end)))
     }
 
     fn map_escape_char(c: Loc<char>, string_delimiter: char) -> Result<char> {
@@ -390,7 +465,7 @@ impl<'a> Parser<'a> {
             .map(|(i, c)| {
                 // +1 because the token starts with b"
                 let span = (next.span.start + i + 2)..(next.span.start + i + 2 + c.len_utf8());
-                let loc = ().at(self.file_id, &span);
+                let loc = ().at(self.file_id(), &span);
                 if !c.is_ascii() {
                     return Err(Diagnostic::error(
                         loc,
@@ -430,7 +505,7 @@ impl<'a> Parser<'a> {
             })
             .collect();
         Ok(Some(
-            Expression::ArrayLiteral(elems).at(self.file_id, &next),
+            Expression::ArrayLiteral(elems).at(self.file_id(), &next),
         ))
     }
 
@@ -480,7 +555,7 @@ impl<'a> Parser<'a> {
                 val: byte[0].to_biguint(),
                 size: Some(8u32.to_biguint()),
             }
-            .at(self.file_id, &next),
+            .at(self.file_id(), &next),
         ))
     }
 
@@ -489,7 +564,7 @@ impl<'a> Parser<'a> {
         let start = peek_for!(self, &TokenKind::OpenParen);
         if self.peek_kind(&TokenKind::CloseParen)? {
             return Ok(Some(Expression::TupleLiteral(vec![]).between(
-                self.file_id,
+                self.file_id(),
                 &start,
                 &self.eat_unconditional()?,
             )));
@@ -497,7 +572,7 @@ impl<'a> Parser<'a> {
         if let Some(_) = self.peek_and_eat(&TokenKind::Comma)? {
             let closer = self.eat(&TokenKind::CloseParen)?;
             return Ok(Some(Expression::TupleLiteral(vec![]).between(
-                self.file_id,
+                self.file_id(),
                 &start,
                 &closer,
             )));
@@ -508,9 +583,9 @@ impl<'a> Parser<'a> {
 
         match &first_sep.kind {
             TokenKind::CloseParen => {
-                let inner = first.inner.between(self.file_id, &start, &first_sep);
+                let inner = first.inner.between(self.file_id(), &start, &first_sep);
                 Ok(Some(Expression::Parenthesized(Box::new(inner)).between(
-                    self.file_id,
+                    self.file_id(),
                     &start,
                     &first_sep,
                 )))
@@ -524,7 +599,7 @@ impl<'a> Parser<'a> {
 
                 Ok(Some(
                     Expression::TupleLiteral(vec![first].into_iter().chain(rest).collect())
-                        .between(self.file_id, &start, &end),
+                        .between(self.file_id(), &start, &end),
                 ))
             }
             _ => Err(UnexpectedToken {
@@ -539,11 +614,11 @@ impl<'a> Parser<'a> {
     #[tracing::instrument(skip(self))]
     fn entity_instance(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Instance);
-        let start_loc = ().at(self.file_id, &start);
+        let start_loc = ().at(self.file_id(), &start);
 
         // inst is only allowed in entity/pipeline, so check that we are in one of those
         self.unit_context
-            .allows_inst(().at(self.file_id, &start.span()))?;
+            .allows_inst(().at(self.file_id(), &start.span()))?;
 
         // Check if this is a pipeline or not
         let pipeline_depth = if self.peek_kind(&TokenKind::OpenParen)? {
@@ -557,7 +632,7 @@ impl<'a> Parser<'a> {
         };
 
         let peeked = self.peek()?;
-        let (name, turbofish) = self.path_with_turbofish()?.ok_or_else(|| {
+        let (name, _, turbofish) = self.path_with_turbofish()?.ok_or_else(|| {
             Diagnostic::from(UnexpectedToken {
                 got: peeked,
                 expected: vec!["identifier", "pipeline depth"],
@@ -568,7 +643,7 @@ impl<'a> Parser<'a> {
         let args = self.argument_list()?.ok_or_else(|| {
             ExpectedArgumentList {
                 next_token,
-                base_expr: ().between(self.file_id, &start, &name),
+                base_expr: ().between(self.file_id(), &start, &name),
             }
             .with_suggestions()
         })?;
@@ -577,14 +652,14 @@ impl<'a> Parser<'a> {
             Ok(Some(
                 Expression::Call {
                     kind: CallKind::Pipeline(
-                        ().between(self.file_id, &start_loc, &end_paren),
+                        ().between(self.file_id(), &start_loc, &end_paren),
                         depth,
                     ),
                     callee: name,
                     args: args.clone(),
                     turbofish,
                 }
-                .between(self.file_id, &start.span, &args),
+                .between(self.file_id(), &start.span, &args),
             ))
         } else {
             Ok(Some(
@@ -594,7 +669,7 @@ impl<'a> Parser<'a> {
                     args: args.clone(),
                     turbofish,
                 }
-                .between(self.file_id, &start.span, &args),
+                .between(self.file_id(), &start.span, &args),
             ))
         }
     }
@@ -654,7 +729,7 @@ impl<'a> Parser<'a> {
 
         if is_gen {
             let on_false = on_false.unwrap_or(
-                Expression::Block(Box::new(Block::default())).at(self.file_id, &start.span),
+                Expression::Block(Box::new(Block::default())).at(self.file_id(), &start.span),
             );
 
             Ok(Some(
@@ -663,11 +738,11 @@ impl<'a> Parser<'a> {
                     on_true: Box::new(on_true),
                     on_false: Box::new(on_false),
                 }
-                .between(self.file_id, &start.span, &end_span),
+                .between(self.file_id(), &start.span, &end_span),
             ))
         } else {
             let Some(on_false) = on_false else {
-                let loc = ().between(self.file_id, &start.span, &end_span);
+                let loc = ().between(self.file_id(), &start.span, &end_span);
                 return Err(
                     Diagnostic::error(loc, "`if` expression requires an `else` branch")
                         .span_suggest_insert_after(
@@ -685,7 +760,7 @@ impl<'a> Parser<'a> {
                         on_true: Box::new(on_true),
                         on_false: Box::new(on_false),
                     }
-                    .between(self.file_id, &start.span, &end_span),
+                    .between(self.file_id(), &start.span, &end_span),
                 )),
                 Some(pat) => Ok(Some(
                     Expression::Match {
@@ -705,7 +780,7 @@ impl<'a> Parser<'a> {
                         .nowhere(),
                         if_let: true,
                     }
-                    .between(self.file_id, &start.span, &end_span),
+                    .between(self.file_id(), &start.span, &end_span),
                 )),
             }
         }
@@ -725,7 +800,7 @@ impl<'a> Parser<'a> {
 
         let end_loc = inner.loc();
         Ok(Some(inner.inner.between(
-            self.file_id,
+            self.file_id(),
             &start.span,
             &end_loc,
         )))
@@ -768,7 +843,7 @@ impl<'a> Parser<'a> {
                 branches: patterns,
                 if_let: false,
             }
-            .between(self.file_id, &start.span, &body_loc),
+            .between(self.file_id(), &start.span, &body_loc),
         ))
     }
 
@@ -787,7 +862,7 @@ impl<'a> Parser<'a> {
 
         let block_loc = block.loc();
         Ok(Some(Expression::Unsafe(Box::new(block)).between(
-            self.file_id,
+            self.file_id(),
             &start.span,
             &block_loc,
         )))
@@ -829,7 +904,7 @@ impl<'a> Parser<'a> {
                         },
                     };
                     let loc = if let Some(pm) = plusminus {
-                        ().between(self.file_id, &pm, &token)
+                        ().between(self.file_id(), &pm, &token)
                     } else {
                         token.loc()
                     };
@@ -850,9 +925,9 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn bool_literal(&mut self) -> Result<Option<Loc<bool>>> {
         if let Some(tok) = self.peek_and_eat(&TokenKind::True)? {
-            Ok(Some(true.at(self.file_id, &tok.span)))
+            Ok(Some(true.at(self.file_id(), &tok.span)))
         } else if let Some(tok) = self.peek_and_eat(&TokenKind::False)? {
-            Ok(Some(false.at(self.file_id, &tok.span)))
+            Ok(Some(false.at(self.file_id(), &tok.span)))
         } else {
             Ok(None)
         }
@@ -874,11 +949,11 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn tri_literal(&mut self) -> Result<Option<Loc<BitLiteral>>> {
         if let Some(tok) = self.peek_and_eat(&TokenKind::Low)? {
-            Ok(Some(BitLiteral::Low.at(self.file_id, &tok.span)))
+            Ok(Some(BitLiteral::Low.at(self.file_id(), &tok.span)))
         } else if let Some(tok) = self.peek_and_eat(&TokenKind::High)? {
-            Ok(Some(BitLiteral::High.at(self.file_id, &tok.span)))
+            Ok(Some(BitLiteral::High.at(self.file_id(), &tok.span)))
         } else if let Some(tok) = self.peek_and_eat(&TokenKind::HighImp)? {
-            Ok(Some(BitLiteral::HighImp.at(self.file_id, &tok.span)))
+            Ok(Some(BitLiteral::HighImp.at(self.file_id(), &tok.span)))
         } else {
             Ok(None)
         }
@@ -894,7 +969,7 @@ impl<'a> Parser<'a> {
         let end = self.eat(&TokenKind::CloseBrace)?;
 
         Ok(Some(Block { statements, result }.between(
-            self.file_id,
+            self.file_id(),
             &start.span,
             &end.span,
         )))
@@ -909,12 +984,12 @@ impl<'a> Parser<'a> {
             self.eat_unconditional()?;
             self.eat(&TokenKind::Dot)?;
 
-            let field = self.identifier()?;
+            let field = self.normal_identifier()?;
 
-            let loc = ().between(self.file_id, tok, &field);
+            let loc = ().between(self.file_id(), tok, &field);
             Ok(Some(
                 Expression::LabelAccess {
-                    label: Path::ident(l.at(self.file_id, tok)).at(self.file_id, tok),
+                    label: Path::ident(l.at(self.file_id(), tok)).at(self.file_id(), tok),
                     field,
                 }
                 .at_loc(&loc),
@@ -959,7 +1034,7 @@ impl<'a> Parser<'a> {
                 let offset = self.expression()?;
                 let result = PipelineStageReference::Relative(
                     TypeExpression::ConstGeneric(Box::new(offset.clone())).between(
-                        self.file_id,
+                        self.file_id(),
                         &start,
                         &offset,
                     ),
@@ -971,15 +1046,15 @@ impl<'a> Parser<'a> {
                 let offset = self.expression()?;
                 let texpr = TypeExpression::ConstGeneric(Box::new(
                     Expression::UnaryOperator(
-                        spade_ast::UnaryOperator::Sub.at(self.file_id, &next.span),
+                        spade_ast::UnaryOperator::Sub.at(self.file_id(), &next.span),
                         Box::new(offset.clone()),
                     )
-                    .between(self.file_id, &start, &offset),
+                    .between(self.file_id(), &start, &offset),
                 ))
-                .between(self.file_id, &start, &offset);
+                .between(self.file_id(), &start, &offset);
                 PipelineStageReference::Relative(texpr)
             }
-            TokenKind::Identifier(_) => PipelineStageReference::Absolute(self.identifier()?),
+            TokenKind::Identifier(_) => PipelineStageReference::Absolute(self.normal_identifier()?),
             _ => {
                 return Err(Diagnostic::from(UnexpectedToken {
                     got: next,
@@ -992,19 +1067,19 @@ impl<'a> Parser<'a> {
 
         self.eat(&TokenKind::Dot)?;
 
-        let ident = self.identifier()?;
+        let ident = self.normal_identifier()?;
 
         Ok(Some(
             Expression::PipelineReference {
                 stage_kw_and_reference_loc: ().between(
-                    self.file_id,
+                    self.file_id(),
                     &stage_keyword.span,
                     &close_paren.span,
                 ),
                 stage: reference,
                 name: ident.clone(),
             }
-            .between(self.file_id, &stage_keyword.span, &ident),
+            .between(self.file_id(), &stage_keyword.span, &ident),
         ))
     }
 
@@ -1015,16 +1090,16 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<Loc<Expression>>> {
         peek_for!(self, &TokenKind::Dot);
 
-        let ident = self.identifier()?;
+        let ident = self.normal_identifier()?;
 
         match ident.inner.as_str() {
             "valid" => Ok(Some(Expression::StageValid.between(
-                self.file_id,
+                self.file_id(),
                 stage_keyword,
                 &ident,
             ))),
             "ready" => Ok(Some(Expression::StageReady.between(
-                self.file_id,
+                self.file_id(),
                 stage_keyword,
                 &ident,
             ))),
@@ -1076,20 +1151,20 @@ impl<'a> Parser<'a> {
         };
         let end = self.eat(&TokenKind::CloseParen)?;
         let span = lspan(opener.span).merge(lspan(end.span));
-        Ok(Some(argument_list.at(self.file_id, &span)))
+        Ok(Some(argument_list.at(self.file_id(), &span)))
     }
     #[trace_parser]
     fn named_argument(&mut self) -> Result<Loc<NamedArgument>> {
         // This is a named arg
-        let name = self.identifier()?;
+        let name = self.normal_identifier()?;
         if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
             let value = self.expression()?;
 
             let span = name.span.merge(value.span);
 
-            Ok(NamedArgument::Full(name, value).at(self.file_id, &span))
+            Ok(NamedArgument::Full(name, value).at(self.file_id(), &span))
         } else {
-            Ok(NamedArgument::Short(name.clone()).at(self.file_id, &name))
+            Ok(NamedArgument::Short(name.clone()).at(self.file_id(), &name))
         }
     }
 
@@ -1107,7 +1182,7 @@ impl<'a> Parser<'a> {
                 |s| s.expression(),
                 &TokenKind::CloseBrace,
             )?;
-            Ok(TypeExpression::ConstGeneric(Box::new(expr)).at(self.file_id, &span))
+            Ok(TypeExpression::ConstGeneric(Box::new(expr)).at(self.file_id(), &span))
         } else {
             let inner = self.type_spec(false)?;
 
@@ -1120,7 +1195,7 @@ impl<'a> Parser<'a> {
     pub fn type_spec(&mut self, accept_impl: bool) -> Result<Loc<TypeSpec>> {
         if let Some(inv) = self.peek_and_eat(&TokenKind::Inv)? {
             let rest = self.type_expression()?;
-            Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(self.file_id, &inv, &rest))
+            Ok(TypeSpec::Inverted(Box::new(rest.clone())).between(self.file_id(), &inv, &rest))
         } else if let Some(tilde) = self.peek_and_eat(&TokenKind::Tilde)? {
             return Err(Diagnostic::error(
                 tilde.clone(),
@@ -1131,28 +1206,28 @@ impl<'a> Parser<'a> {
         } else if let Some(amp) = self.peek_and_eat(&TokenKind::Ampersand)? {
             if let Some(mut_) = self.peek_and_eat(&TokenKind::Mut)? {
                 return Err(Diagnostic::error(
-                    &().at(self.file_id, &mut_),
+                    &().at(self.file_id(), &mut_),
                     "The syntax of `&mut` has changed to `inv`",
                 )
                 .primary_label("`&mut` is now written as `inv`")
                 .span_suggest_replace(
                     "Consider using `inv`",
-                    ().between(self.file_id, &amp, &mut_),
+                    ().between(self.file_id(), &amp, &mut_),
                     "inv",
                 ));
             }
 
             let rest = self.type_expression()?;
-            Ok(TypeSpec::CopyView(Box::new(rest.clone())).between(self.file_id, &amp, &rest))
+            Ok(TypeSpec::CopyView(Box::new(rest.clone())).between(self.file_id(), &amp, &rest))
         } else if let Some(amp) = self.peek_and_eat(&TokenKind::LogicalAnd)? {
             let rest = self.type_expression()?;
             Ok(TypeSpec::CopyView(Box::new(
                 TypeExpression::TypeSpec(Box::new(
-                    TypeSpec::CopyView(Box::new(rest.clone())).between(self.file_id, &amp, &rest),
+                    TypeSpec::CopyView(Box::new(rest.clone())).between(self.file_id(), &amp, &rest),
                 ))
-                .between(self.file_id, &amp, &rest),
+                .between(self.file_id(), &amp, &rest),
             ))
-            .between(self.file_id, &amp, &rest))
+            .between(self.file_id(), &amp, &rest))
         } else if let Some(r#impl) = self.peek_and_eat(&TokenKind::Impl)? {
             let traits = self
                 .token_separated(
@@ -1179,20 +1254,20 @@ impl<'a> Parser<'a> {
 
             if !accept_impl {
                 return Err(Diagnostic::error(
-                    ().between(self.file_id, &r#impl, &span_end),
+                    ().between(self.file_id(), &r#impl, &span_end),
                     "`impl Trait` syntax cannot be used in this context",
                 )
                 .primary_label("`impl Trait` type cannot be used in this context")
                 .note("`impl Trait` can only be used inside unit parameters"));
             }
 
-            Ok(TypeSpec::Impl(traits).between(self.file_id, &r#impl, &span_end))
+            Ok(TypeSpec::Impl(traits).between(self.file_id(), &r#impl, &span_end))
         } else if let Some(tuple) = self.tuple_spec()? {
             Ok(tuple)
         } else if let Some(array) = self.array_spec()? {
             Ok(array)
         } else {
-            if !self.peek_cond(TokenKind::is_identifier, "Identifier")? {
+            if !self.peek_cond(TokenKind::is_normal_identifier, "Identifier")? {
                 return Err(Diagnostic::from(UnexpectedToken {
                     got: self.peek()?,
                     expected: vec!["type"],
@@ -1202,7 +1277,7 @@ impl<'a> Parser<'a> {
             let (path, span) = self.path()?.separate();
 
             if path.to_named_strs().as_slice() == [Some("_")] {
-                return Ok(TypeSpec::Wildcard.at(self.file_id, &span));
+                return Ok(TypeSpec::Wildcard.at(self.file_id(), &span));
             }
 
             // Check if this type has generic params
@@ -1212,13 +1287,13 @@ impl<'a> Parser<'a> {
                     .comma_separated(Self::type_expression, &TokenKind::Gt)
                     .extra_expected(vec!["type expression"])?;
                 let generic_end = self.eat(&TokenKind::Gt)?;
-                Some(type_exprs.between(self.file_id, &generic_start.span, &generic_end.span))
+                Some(type_exprs.between(self.file_id(), &generic_start.span, &generic_end.span))
             } else {
                 None
             };
 
             let span_end = generics.as_ref().map(|g| g.span).unwrap_or(span);
-            Ok(TypeSpec::Named(path, generics).between(self.file_id, &span, &span_end))
+            Ok(TypeSpec::Named(path, generics).between(self.file_id(), &span, &span_end))
         }
     }
 
@@ -1228,7 +1303,7 @@ impl<'a> Parser<'a> {
         if let Some(_) = self.peek_and_eat(&TokenKind::Comma)? {
             let closer = self.eat(&TokenKind::CloseParen)?;
             return Ok(Some(TypeSpec::Tuple(vec![]).between(
-                self.file_id,
+                self.file_id(),
                 &start,
                 &closer,
             )));
@@ -1241,7 +1316,7 @@ impl<'a> Parser<'a> {
 
         let span = lspan(start.span).merge(lspan(end.span));
 
-        Ok(Some(TypeSpec::Tuple(inner).at(self.file_id, &span)))
+        Ok(Some(TypeSpec::Tuple(inner).at(self.file_id(), &span)))
     }
 
     #[trace_parser]
@@ -1271,7 +1346,7 @@ impl<'a> Parser<'a> {
                 inner: Box::new(inner),
                 size: Box::new(size),
             }
-            .between(self.file_id, &start, &end),
+            .between(self.file_id(), &start, &end),
         ))
     }
 
@@ -1281,7 +1356,7 @@ impl<'a> Parser<'a> {
     /// name: Type
     #[trace_parser]
     pub fn name_and_type(&mut self, accept_impl: bool) -> Result<(Loc<Identifier>, Loc<TypeSpec>)> {
-        let name = self.identifier()?;
+        let name = self.normal_identifier()?;
         self.eat(&TokenKind::Colon)?;
         let t = self.type_spec(accept_impl)?;
         Ok((name, t))
@@ -1298,7 +1373,7 @@ impl<'a> Parser<'a> {
                 let end = s.eat(&TokenKind::CloseParen)?;
 
                 Ok(Some(Pattern::Tuple(inner).between(
-                    s.file_id,
+                    s.file_id(),
                     &start.span,
                     &end.span,
                 )))
@@ -1310,7 +1385,7 @@ impl<'a> Parser<'a> {
                     .no_context()?;
                 let end = s.eat(&TokenKind::CloseBracket)?;
                 Ok(Some(Pattern::Array(inner).between(
-                    s.file_id,
+                    s.file_id(),
                     &start.span,
                     &end.span,
                 )))
@@ -1332,10 +1407,10 @@ impl<'a> Parser<'a> {
                 let path = s.path()?;
                 Ok(Some(
                     Pattern::Path {
-                        wire: Some(().at(s.file_id, &wire.span)),
+                        wire: Some(().at(s.file_id(), &wire.span)),
                         path: path.clone(),
                     }
-                    .at(s.file_id, &path),
+                    .at(s.file_id(), &path),
                 ))
             },
             &|s| {
@@ -1350,7 +1425,7 @@ impl<'a> Parser<'a> {
                     let inner_span = inner.span;
 
                     Ok(Some(Pattern::Bound(name, Box::new(inner)).between(
-                        s.file_id,
+                        s.file_id(),
                         &path_span,
                         &inner_span,
                     )))
@@ -1364,17 +1439,17 @@ impl<'a> Parser<'a> {
                         Pattern::Type(
                             path,
                             ArgumentPattern::Positional(inner).between(
-                                s.file_id,
+                                s.file_id(),
                                 &start_paren.span,
                                 &end_paren.span,
                             ),
                         )
-                        .between(s.file_id, &path_span, &end_paren.span),
+                        .between(s.file_id(), &path_span, &end_paren.span),
                     ))
                 } else if let Some(start_brace) = s.peek_and_eat(&TokenKind::Dollar)? {
                     s.eat(&TokenKind::OpenParen)?;
                     let inner_parser = |s: &mut Self| {
-                        let lhs = s.identifier()?;
+                        let lhs = s.normal_identifier()?;
                         let rhs = if s.peek_and_eat(&TokenKind::Colon)?.is_some() {
                             Some(s.pattern()?)
                         } else {
@@ -1392,12 +1467,12 @@ impl<'a> Parser<'a> {
                         Pattern::Type(
                             path,
                             ArgumentPattern::Named(inner).between(
-                                s.file_id,
+                                s.file_id(),
                                 &start_brace.span,
                                 &end_brace.span,
                             ),
                         )
-                        .between(s.file_id, &path_span, &end_brace.span),
+                        .between(s.file_id(), &path_span, &end_brace.span),
                     ))
                 } else {
                     Ok(Some(
@@ -1405,7 +1480,7 @@ impl<'a> Parser<'a> {
                             wire: None,
                             path: path.clone(),
                         }
-                        .at(s.file_id, &path),
+                        .at(s.file_id(), &path),
                     ))
                 }
             },
@@ -1522,7 +1597,7 @@ impl<'a> Parser<'a> {
         let attrs = self.attributes()?;
         let wire = self
             .peek_and_eat(&TokenKind::Wire)?
-            .map(|w| WireMarker {}.at(self.file_id, &w));
+            .map(|w| WireMarker {}.at(self.file_id(), &w));
         let (name, ty) = self.name_and_type(accept_impl)?;
 
         Ok((attrs, wire, name, ty))
@@ -1533,10 +1608,10 @@ impl<'a> Parser<'a> {
         let mut first_attrs = self.attributes()?;
         let mut first_wire = self
             .peek_and_eat(&TokenKind::Wire)?
-            .map(|w| WireMarker {}.at(self.file_id, &w));
+            .map(|w| WireMarker {}.at(self.file_id(), &w));
 
         let self_ = if self.peek_cond(
-            |tok| matches!(tok, TokenKind::Identifier(i) if i.as_str() == "self"),
+            |tok| matches!(tok, TokenKind::Identifier((i, false)) if i.as_str() == "self"),
             "Expected argument",
         )? {
             let self_tok = self.eat_unconditional()?;
@@ -1545,7 +1620,7 @@ impl<'a> Parser<'a> {
             (first_attrs, attrs) = (AttributeList::empty(), first_attrs);
             let wire;
             (first_wire, wire) = (None, first_wire);
-            Some((attrs.at(self.file_id, &self_tok), wire))
+            Some((attrs.at(self.file_id(), &self_tok), wire))
         } else {
             None
         };
@@ -1557,7 +1632,7 @@ impl<'a> Parser<'a> {
         if !first_attrs.is_empty() {
             let Some(first_arg) = args.first_mut() else {
                 // At this point this parser will definitely fail, we run it just for its diagnostic
-                self.eat_cond(TokenKind::is_identifier, "Identifier")?;
+                self.eat_cond(TokenKind::is_normal_identifier, "Identifier")?;
                 unreachable!();
             };
 
@@ -1567,7 +1642,7 @@ impl<'a> Parser<'a> {
         if let Some(wire) = first_wire {
             let Some(first_arg) = args.first_mut() else {
                 // At this point this parser will definitely fail, we run it just for its diagnostic
-                self.eat_cond(TokenKind::is_identifier, "Identifier")?;
+                self.eat_cond(TokenKind::is_normal_identifier, "Identifier")?;
                 unreachable!();
             };
             first_arg.1 = Some(wire);
@@ -1588,8 +1663,8 @@ impl<'a> Parser<'a> {
     pub fn type_param(&mut self) -> Result<Loc<TypeParam>> {
         // If this is a type level integer
         if let Some(_hash) = self.peek_and_eat(&TokenKind::Hash)? {
-            let meta_type = self.identifier()?;
-            let name = self.identifier()?;
+            let meta_type = self.normal_identifier()?;
+            let name = self.normal_identifier()?;
             let loc = ().between_locs(&meta_type, &name);
 
             let default = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
@@ -1605,7 +1680,7 @@ impl<'a> Parser<'a> {
             }
             .at_loc(&loc))
         } else {
-            let (id, loc) = self.identifier()?.separate();
+            let (id, loc) = self.normal_identifier()?.separate();
             let traits = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
                 self.token_separated(
                     Self::trait_spec,
@@ -1632,7 +1707,7 @@ impl<'a> Parser<'a> {
                 traits,
                 default,
             }
-            .at(self.file_id, &loc))
+            .at(self.file_id(), &loc))
         }
     }
 
@@ -1755,7 +1830,7 @@ impl<'a> Parser<'a> {
                     |s| match s.type_expression() {
                         Ok(t) => Ok(t),
                         Err(diag) => Err(diag.secondary_label(
-                            ().at(s.file_id, start_token),
+                            ().at(s.file_id(), start_token),
                             "Pipelines require a pipeline depth",
                         )),
                     },
@@ -1763,18 +1838,18 @@ impl<'a> Parser<'a> {
                 )?;
 
                 Ok(Some(UnitKind::Pipeline(depth).between(
-                    self.file_id,
+                    self.file_id(),
                     start_token,
                     &depth_span,
                 )))
             }
             TokenKind::Function => {
                 self.eat_unconditional()?;
-                Ok(Some(UnitKind::Function.at(self.file_id, start_token)))
+                Ok(Some(UnitKind::Function.at(self.file_id(), start_token)))
             }
             TokenKind::Entity => {
                 self.eat_unconditional()?;
-                Ok(Some(UnitKind::Entity.at(self.file_id, start_token)))
+                Ok(Some(UnitKind::Entity.at(self.file_id(), start_token)))
             }
             _ => Ok(None),
         }
@@ -1787,7 +1862,7 @@ impl<'a> Parser<'a> {
             if self.peek_and_eat(&TokenKind::OpenParen)?.is_some() {
                 let next_token = self.peek()?;
                 let visibility = match next_token.kind {
-                    TokenKind::Identifier(ref name) => match name.as_str() {
+                    TokenKind::Identifier((ref name, false)) => match name.as_str() {
                         "lib" => Some(Visibility::AtLib),
                         "self" => Some(Visibility::AtSelf),
                         "super" => Some(Visibility::AtSuper),
@@ -1842,7 +1917,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let name = self.identifier()?;
+        let name = self.normal_identifier()?;
 
         let type_params = self.generics_list()?;
 
@@ -1881,7 +1956,7 @@ impl<'a> Parser<'a> {
                 type_params,
                 where_clauses,
             }
-            .between(self.file_id, &start_token, &end),
+            .between(self.file_id(), &start_token, &end),
         ))
     }
 
@@ -1981,7 +2056,7 @@ impl<'a> Parser<'a> {
                             }
                         } else {
                             Err(Diagnostic::bug(
-                                ().at(s.file_id, &where_kw),
+                                ().at(s.file_id(), &where_kw),
                                 "Comma separated should not show this error",
                             ))
                         }
@@ -2027,12 +2102,12 @@ impl<'a> Parser<'a> {
     pub fn enum_variant(&mut self) -> Result<EnumVariant> {
         let attributes = self.attributes()?;
 
-        let name = self.identifier()?;
+        let name = self.normal_identifier()?;
 
         let args = if let Some(start) = self.peek_and_eat(&TokenKind::OpenBrace)? {
             let result = self.type_parameter_list()?;
             let end = self.eat(&TokenKind::CloseBrace)?;
-            Some(result.between(self.file_id, &start, &end))
+            Some(result.between(self.file_id(), &start, &end))
         } else if self.peek_kind(&TokenKind::Comma)? || self.peek_kind(&TokenKind::CloseBrace)? {
             None
         } else {
@@ -2083,13 +2158,13 @@ impl<'a> Parser<'a> {
         value: impl Fn(&mut Self) -> Result<T>,
     ) -> Result<Option<(Loc<String>, T)>> {
         let next = self.peek()?;
-        if matches!(next.kind, TokenKind::Identifier(k) if k.as_str() == key) {
+        if matches!(next.kind, TokenKind::Identifier((k, false)) if k.as_str() == key) {
             self.eat_unconditional()?;
 
             self.eat(&TokenKind::Assignment)?;
 
             Ok(Some((
-                key.to_string().at(self.file_id, &next),
+                key.to_string().at(self.file_id(), &next),
                 value(self)?,
             )))
         } else {
@@ -2100,7 +2175,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn attribute_inner(&mut self) -> Result<Attribute> {
-        let start = self.identifier()?;
+        let start = self.normal_identifier()?;
 
         macro_rules! bool_or_payload {
             ($name:ident bool) => {
@@ -2159,7 +2234,7 @@ impl<'a> Parser<'a> {
                             let next = $s.peek()?;
                             match &next.kind {
                                 $(
-                                    TokenKind::Identifier(ident) if ident.as_str() == stringify!($name) => {
+                                    TokenKind::Identifier((ident, false)) if ident.as_str() == stringify!($name) => {
                                         $s.eat_unconditional()?;
                                         rhs_or_present!($name, next, $s, $assignment);
                                     }
@@ -2235,7 +2310,7 @@ impl<'a> Parser<'a> {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (all, _) = self.surrounded(
                         &TokenKind::OpenParen,
-                        Self::identifier,
+                        Self::normal_identifier,
                         &TokenKind::CloseParen,
                     )?;
                     if all.inner.as_str() != "all" {
@@ -2253,7 +2328,7 @@ impl<'a> Parser<'a> {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (state, _) = self.surrounded(
                         &TokenKind::OpenParen,
-                        Self::identifier,
+                        Self::normal_identifier,
                         &TokenKind::CloseParen,
                     )?;
                     Ok(Attribute::Fsm { state: Some(state) })
@@ -2265,7 +2340,7 @@ impl<'a> Parser<'a> {
                 let (passes, _) = self.surrounded(
                     &TokenKind::OpenParen,
                     |s| {
-                        s.comma_separated(|s| s.identifier(), &TokenKind::CloseParen)
+                        s.comma_separated(|s| s.normal_identifier(), &TokenKind::CloseParen)
                             .no_context()
                     },
                     &TokenKind::CloseParen,
@@ -2343,13 +2418,13 @@ impl<'a> Parser<'a> {
                 self,
                 s,
                 Attribute::WalTraceable {
-                    suffix: { s.identifier() },
+                    suffix: { s.normal_identifier() },
                     uses_clk: bool,
                     uses_rst: bool
                 }
             )),
             "wal_suffix" => Ok(attribute_arg_parser!(start, self, s, Attribute::WalSuffix {
-                suffix [required]: {s.identifier()}
+                suffix [required]: {s.normal_identifier()}
             })),
             other => Err(
                 Diagnostic::error(&start, format!("Unknown attribute '{other}'"))
@@ -2360,7 +2435,7 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     fn verilog_attr(&mut self) -> Result<(Loc<Identifier>, Option<Loc<String>>)> {
-        let key = self.identifier()?;
+        let key = self.normal_identifier()?;
         let value = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
             let token = self.eat_cond(TokenKind::is_string, "string")?;
             match &token.kind {
@@ -2385,7 +2460,7 @@ impl<'a> Parser<'a> {
                     &TokenKind::CloseBracket,
                 )?;
 
-                result.0.push(inner.between(self.file_id, &start, &loc));
+                result.0.push(inner.between(self.file_id(), &start, &loc));
             } else if self.peek_cond(
                 |tk| matches!(tk, TokenKind::OutsideDocumentation(_)),
                 "Outside doc-comment",
@@ -2402,6 +2477,192 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(result)
+    }
+
+    pub fn macro_pattern(&mut self) -> Result<Loc<MacroPattern>> {
+        let token = self.peek()?;
+
+        let parse_enclosed_subpattern = |s: &mut Self, close_kind: TokenKind| {
+            let open = s.eat_unconditional()?;
+            let open_loc = open.loc();
+            let mut parts = vec![];
+
+            while s.peek()?.kind != close_kind {
+                parts.push(s.macro_pattern()?);
+            }
+
+            let close = s.eat_unconditional()?;
+            let close_loc = close.loc();
+
+            Ok(MacroPattern::EnclosedSubpattern {
+                parts,
+                open_delim: open.kind.at_loc(&open_loc),
+                close_delim: close.kind.at_loc(&close_loc),
+            }
+            .between_locs(&open_loc, &close_loc))
+        };
+
+        let error_stray_delimiter = |t: &Token, open: TokenKind| {
+            return Err(Diagnostic::error(
+                t.loc(),
+                "Stray closing delimiter found while parsing macro pattern",
+            )
+            .secondary_label(
+                t.loc(),
+                format!(
+                    "`{}` found with no matching `{}`",
+                    t.kind.as_str(),
+                    open.as_str()
+                ),
+            ));
+        };
+
+        match token.kind {
+            TokenKind::Dollar => {
+                let dollar = self.eat_unconditional()?;
+                let token = self.peek()?;
+
+                match token.kind {
+                    TokenKind::Identifier(_) => {
+                        let name = self.normal_identifier()?;
+                        self.eat(&TokenKind::Colon)?;
+                        let kind = self.normal_identifier()?;
+
+                        Ok(MacroPattern::Fragment { name, kind }.between(
+                            self.file_id(),
+                            &dollar,
+                            &kind,
+                        ))
+                    }
+                    TokenKind::OpenParen => {
+                        self.eat_unconditional()?;
+                        let mut parts = vec![];
+
+                        while self.peek()?.kind != TokenKind::CloseParen {
+                            parts.push(self.macro_pattern()?);
+                        }
+
+                        self.eat_unconditional()?;
+
+                        let delim = {
+                            let token = self.peek()?;
+                            match token.kind {
+                                TokenKind::OpenBrace
+                                | TokenKind::OpenBracket
+                                | TokenKind::OpenParen
+                                | TokenKind::CloseBrace
+                                | TokenKind::CloseBracket
+                                | TokenKind::CloseParen => {
+                                    return Err(Diagnostic::error(
+                                        token.loc(),
+                                        "Unexpected enclosing delimiter found while parsing macro pattern",
+                                    )
+                                    .secondary_label(
+                                        token.loc(),
+                                        format!("`{}` is an enclosing delimiter", token.kind.as_str()),
+                                    )
+                                    .note(format!(
+                                        "Enclosing delimiters cannot be used in this context"
+                                    )));
+                                }
+                                // These denote repetitions (with no delimiter)
+                                TokenKind::Asterisk | TokenKind::Plus | TokenKind::QuestionMark => {
+                                    None
+                                }
+                                _ => {
+                                    let token = self.eat_unconditional()?;
+                                    let loc = token.loc();
+                                    Some(token.kind.at_loc(&loc))
+                                }
+                            }
+                        };
+
+                        let reps = {
+                            let token = self.peek()?;
+                            match token.kind {
+                                TokenKind::Asterisk => MacroRepetitions::Many0
+                                    .at(self.file_id(), &self.eat_unconditional()?),
+                                TokenKind::Plus => MacroRepetitions::Many1
+                                    .at(self.file_id(), &self.eat_unconditional()?),
+                                TokenKind::QuestionMark => MacroRepetitions::Optional
+                                    .at(self.file_id(), &self.eat_unconditional()?),
+                                _ => {
+                                    return Err(Diagnostic::from(UnexpectedToken {
+                                        got: token,
+                                        expected: vec![
+                                            TokenKind::Asterisk.as_str(),
+                                            TokenKind::Plus.as_str(),
+                                            TokenKind::QuestionMark.as_str(),
+                                        ],
+                                    }));
+                                }
+                            }
+                        };
+
+                        let end_loc = reps.loc();
+
+                        Ok(
+                            MacroPattern::RepeatedSubpattern { parts, delim, reps }.between(
+                                self.file_id(),
+                                &dollar,
+                                &end_loc.span,
+                            ),
+                        )
+                    }
+                    _ => Err(Diagnostic::from(UnexpectedToken {
+                        got: token,
+                        expected: vec!["Identifier", TokenKind::OpenParen.as_str()],
+                    })),
+                }
+            }
+            TokenKind::OpenBrace => parse_enclosed_subpattern(self, TokenKind::CloseBrace),
+            TokenKind::OpenBracket => parse_enclosed_subpattern(self, TokenKind::CloseBracket),
+            TokenKind::OpenParen => parse_enclosed_subpattern(self, TokenKind::CloseParen),
+            TokenKind::CloseBrace => error_stray_delimiter(&token, TokenKind::OpenBrace),
+            TokenKind::CloseBracket => error_stray_delimiter(&token, TokenKind::OpenBracket),
+            TokenKind::CloseParen => error_stray_delimiter(&token, TokenKind::OpenParen),
+            _ => {
+                let token = self.eat_unconditional()?;
+                let loc = token.loc();
+                Ok(MacroPattern::Token(token.kind.at_loc(&loc)).at_loc(&loc))
+            }
+        }
+    }
+
+    pub fn macro_template(&mut self) -> Result<Loc<Vec<Loc<TokenKind>>>> {
+        self.enclosed_token_stream(&TokenKind::OpenBrace, &TokenKind::CloseBrace)
+    }
+
+    pub fn enclosed_token_stream(
+        &mut self,
+        open_token: &TokenKind,
+        close_token: &TokenKind,
+    ) -> Result<Loc<Vec<Loc<TokenKind>>>> {
+        let (result, loc) = self.surrounded(
+            open_token,
+            |s| {
+                let mut nesting = 0;
+                let mut tokens = vec![];
+
+                while &s.peek()?.kind != close_token || nesting > 0 {
+                    let token = s.eat_unconditional()?;
+                    let loc = token.loc();
+
+                    if &token.kind == open_token {
+                        nesting += 1;
+                    } else if &token.kind == close_token {
+                        nesting -= 1;
+                    }
+
+                    tokens.push(token.kind.at_loc(&loc));
+                }
+
+                Ok(tokens)
+            },
+            close_token,
+        )?;
+
+        Ok(result.at_loc(&loc))
     }
 
     #[trace_parser]
@@ -2422,6 +2683,7 @@ impl<'a> Parser<'a> {
         let members = self.keyword_peeking_parser_seq(
             vec![
                 Box::new(items::UnitParser {}.map(|inner| Ok(Item::Unit(inner)))),
+                Box::new(items::MacroDefParser {}.map(|inner| Ok(Item::MacroDef(inner)))),
                 Box::new(items::TraitDefParser {}.map(|inner| Ok(Item::TraitDef(inner)))),
                 Box::new(items::ImplBlockParser {}.map(|inner| Ok(Item::ImplBlock(inner)))),
                 Box::new(items::StructParser {}.map(|inner| Ok(Item::Type(inner)))),
@@ -2449,7 +2711,7 @@ impl<'a> Parser<'a> {
             let result = self.module_body()?;
             let end_token = self.peek()?;
 
-            Ok(result.between(self.file_id, &start_token, &end_token))
+            Ok(result.between(self.file_id(), &start_token, &end_token))
         })();
 
         if !self.peek_kind(&TokenKind::Eof)? {
@@ -2471,7 +2733,7 @@ impl<'a> Parser<'a> {
                     members: vec![],
                     documentation: vec![],
                 }
-                .between(self.file_id, &start_token, &self.peek()?))
+                .between(self.file_id(), &start_token, &self.peek()?))
             }
         }
     }
@@ -2534,7 +2796,11 @@ impl<'a> Parser<'a> {
 
         Ok((
             result,
-            Loc::new((), lspan(opener.span).merge(lspan(end.span)), self.file_id),
+            Loc::new(
+                (),
+                lspan(opener.span).merge(lspan(end.span)),
+                self.file_id(),
+            ),
         ))
     }
 
@@ -2860,7 +3126,7 @@ impl<'a> Parser<'a> {
                     self.comments.push(Comment::Line(Token {
                         kind: TokenKind::Comment,
                         span: self.lex.span(),
-                        file_id: self.file_id,
+                        file_id: self.file_id(),
                     }));
                 } else {
                     break_value = Some(next);
@@ -2871,9 +3137,9 @@ impl<'a> Parser<'a> {
         };
 
         let out = match lex_dot_next {
-            Some(Ok(k)) => Ok(Token::new(k, &self.lex, self.file_id)),
+            Some(Ok(k)) => Ok(Token::new(k, self.lex.span(), self.file_id())),
             Some(Err(_)) => Err(Diagnostic::error(
-                Loc::new((), lspan(self.lex.span()), self.file_id),
+                Loc::new((), lspan(self.lex.span()), self.file_id()),
                 "Lexer error, unexpected symbol",
             )),
             None => Ok(match &self.last_token {
@@ -2885,7 +3151,7 @@ impl<'a> Parser<'a> {
                 None => Token {
                     kind: TokenKind::Eof,
                     span: logos::Span { start: 0, end: 0 },
-                    file_id: self.file_id,
+                    file_id: self.file_id(),
                 },
             }),
         }?;
@@ -3147,17 +3413,14 @@ mod tests {
     use spade_ast::*;
     use spade_common::num_ext::InfallibleToBigInt;
 
-    use crate::lexer::TokenKind;
     use crate::*;
-
-    use logos::Logos;
 
     use spade_common::location_info::WithLocation;
 
     #[macro_export]
     macro_rules! check_parse {
         ($string:expr , $method:ident$(($($arg:expr),*))?, $expected:expr$(, $run_on_parser:expr)?) => {
-            let mut parser = Parser::new(TokenKind::lexer($string), 0);
+            let mut parser = Parser::new($string, 0, None);
 
             $($run_on_parser(&mut parser);)?
 
@@ -3180,7 +3443,7 @@ mod tests {
 
     #[test]
     fn parsing_identifier_works() {
-        check_parse!("abc123_", identifier, Ok(ast_ident("abc123_")));
+        check_parse!("abc123_", normal_identifier, Ok(ast_ident("abc123_")));
     }
 
     #[test]
@@ -3538,5 +3801,168 @@ mod tests {
         };
 
         check_parse!(code, module_body, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_fragment() {
+        let code = r#"$name:kind"#;
+
+        let expected = MacroPattern::Fragment {
+            name: ast_ident("name"),
+            kind: ast_ident("kind"),
+        }
+        .nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_token() {
+        let code = r#","#;
+
+        let expected = MacroPattern::Token(TokenKind::Comma.nowhere()).nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_enclosed_empty() {
+        let code = r#"()"#;
+
+        let expected = MacroPattern::EnclosedSubpattern {
+            parts: vec![],
+            open_delim: TokenKind::OpenParen.nowhere(),
+            close_delim: TokenKind::CloseParen.nowhere(),
+        }
+        .nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_enclosed_many_tokens() {
+        let code = r#"[+ - , macro]"#;
+
+        let expected = MacroPattern::EnclosedSubpattern {
+            parts: vec![
+                MacroPattern::Token(TokenKind::Plus.nowhere()).nowhere(),
+                MacroPattern::Token(TokenKind::Minus.nowhere()).nowhere(),
+                MacroPattern::Token(TokenKind::Comma.nowhere()).nowhere(),
+                MacroPattern::Token(TokenKind::Macro.nowhere()).nowhere(),
+            ],
+            open_delim: TokenKind::OpenBracket.nowhere(),
+            close_delim: TokenKind::CloseBracket.nowhere(),
+        }
+        .nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_repeated_empty_no_delimiter() {
+        let code = r#"$()*"#;
+
+        let expected = MacroPattern::RepeatedSubpattern {
+            delim: None,
+            reps: MacroRepetitions::Many0.nowhere(),
+            parts: vec![],
+        }
+        .nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_repeated_many_tokens_with_delimiter() {
+        let code = r#"$(+ - , macro),+"#;
+
+        let expected = MacroPattern::RepeatedSubpattern {
+            delim: Some(TokenKind::Comma.nowhere()),
+            reps: MacroRepetitions::Many1.nowhere(),
+            parts: vec![
+                MacroPattern::Token(TokenKind::Plus.nowhere()).nowhere(),
+                MacroPattern::Token(TokenKind::Minus.nowhere()).nowhere(),
+                MacroPattern::Token(TokenKind::Comma.nowhere()).nowhere(),
+                MacroPattern::Token(TokenKind::Macro.nowhere()).nowhere(),
+            ],
+        }
+        .nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_pattern_nested() {
+        let code = r#"(a, [b c] $d:ident = $(e $f:g macro);?)"#;
+
+        let expected = MacroPattern::EnclosedSubpattern {
+            parts: vec![
+                MacroPattern::Token(
+                    TokenKind::Identifier((Identifier::intern("a"), false)).nowhere(),
+                )
+                .nowhere(),
+                MacroPattern::Token(TokenKind::Comma.nowhere()).nowhere(),
+                MacroPattern::EnclosedSubpattern {
+                    parts: vec![
+                        MacroPattern::Token(
+                            TokenKind::Identifier((Identifier::intern("b"), false)).nowhere(),
+                        )
+                        .nowhere(),
+                        MacroPattern::Token(
+                            TokenKind::Identifier((Identifier::intern("c"), false)).nowhere(),
+                        )
+                        .nowhere(),
+                    ],
+                    open_delim: TokenKind::OpenBracket.nowhere(),
+                    close_delim: TokenKind::CloseBracket.nowhere(),
+                }
+                .nowhere(),
+                MacroPattern::Fragment {
+                    name: ast_ident("d"),
+                    kind: ast_ident("ident"),
+                }
+                .nowhere(),
+                MacroPattern::Token(TokenKind::Assignment.nowhere()).nowhere(),
+                MacroPattern::RepeatedSubpattern {
+                    parts: vec![
+                        MacroPattern::Token(
+                            TokenKind::Identifier((Identifier::intern("e"), false)).nowhere(),
+                        )
+                        .nowhere(),
+                        MacroPattern::Fragment {
+                            name: ast_ident("f"),
+                            kind: ast_ident("g"),
+                        }
+                        .nowhere(),
+                        MacroPattern::Token(TokenKind::Macro.nowhere()).nowhere(),
+                    ],
+                    delim: Some(TokenKind::Semi.nowhere()),
+                    reps: MacroRepetitions::Optional.nowhere(),
+                }
+                .nowhere(),
+            ],
+            open_delim: TokenKind::OpenParen.nowhere(),
+            close_delim: TokenKind::CloseParen.nowhere(),
+        }
+        .nowhere();
+
+        check_parse!(code, macro_pattern, Ok(expected));
+    }
+
+    #[test]
+    fn macro_template_nested_braces() {
+        let code = r#"{+ - {} - +}"#;
+
+        let expected = vec![
+            TokenKind::Plus.nowhere(),
+            TokenKind::Minus.nowhere(),
+            TokenKind::OpenBrace.nowhere(),
+            TokenKind::CloseBrace.nowhere(),
+            TokenKind::Minus.nowhere(),
+            TokenKind::Plus.nowhere(),
+        ]
+        .nowhere();
+
+        check_parse!(code, macro_template, Ok(expected));
     }
 }

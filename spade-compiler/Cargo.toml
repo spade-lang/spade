@@ -28,7 +28,6 @@ color-eyre.workspace = true
 colored.workspace = true
 indoc.workspace = true
 itertools.workspace = true
-logos.workspace = true
 postcard.workspace = true
 ron.workspace = true
 rustc-hash.workspace = true

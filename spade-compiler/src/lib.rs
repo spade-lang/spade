@@ -6,7 +6,6 @@ pub mod namespaced_file;
 use compiler_state::{CompilerState, MirContext};
 use error_handling::{ErrorHandler, Reportable};
 use itertools::Itertools;
-use logos::Logos;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 use spade_ast_lowering::id_tracker::ExprIdTracker;
@@ -38,10 +37,8 @@ use spade_common::name::{NameID, Path as SpadePath, Visibility};
 use spade_diagnostics::{CodeBundle, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::SymbolTable;
 use spade_hir::{ExecutableItem, ItemList};
-use spade_hir_lowering::NameSourceMap;
-use spade_hir_lowering::monomorphisation::MirOutput;
+use spade_hir_lowering::{NameSourceMap, monomorphisation::MirOutput};
 use spade_parser::Parser;
-pub use spade_parser::lexer;
 use spade_typeinference::{self as typeinference, SharedTypeState};
 
 pub struct Opt<'b> {
@@ -161,6 +158,8 @@ pub fn compile(
     let mut ctx = AstLoweringCtx {
         symtab,
         item_list,
+        macros: HashMap::default(),
+        code,
         idtracker: Arc::new(ExprIdTracker::new()),
         impl_idtracker: ImplIdTracker::new(),
         generic_idtracker: GenericIdTracker::new(),
@@ -195,6 +194,12 @@ pub fn compile(
                 },
             );
         }
+    }
+
+    for (namespace, module_ast) in &module_asts {
+        do_in_namespace(namespace, &mut ctx, &mut |ctx| {
+            global_symbols::gather_macro_rules(module_ast, ctx).or_report(&mut errors);
+        })
     }
 
     let mut missing_namespace_set = module_asts
@@ -273,6 +278,8 @@ pub fn compile(
     let AstLoweringCtx {
         symtab,
         mut item_list,
+        macros,
+        code,
         idtracker,
         impl_idtracker,
         generic_idtracker,
@@ -391,6 +398,7 @@ pub fn compile(
         impl_idtracker,
         generic_idtracker,
         item_list: item_list.clone(),
+        macros: macros.clone(),
         name_source_map,
         instance_map,
         mir_context,
@@ -501,7 +509,7 @@ pub fn parse(
     for (namespace, name, content) in sources {
         let _span = tracing::span!(Level::TRACE, "source", ?name).entered();
         let file_id = code.write().unwrap().add_file(name, content.clone());
-        let mut parser = Parser::new(lexer::TokenKind::lexer(&content), file_id);
+        let mut parser = Parser::new(&content, file_id, namespace.working_dir.clone());
 
         let result = parser
             .top_level_module_body()
@@ -686,7 +694,8 @@ macro_rules! sources {
                     ModuleNamespace {
                         namespace: SpadePath::from_strs(&$namespace),
                         base_namespace: SpadePath::from_strs(&$base_namespace),
-                        file: String::from($filename).replace("../", "<compiler dir>/")
+                        file: String::from($filename).replace("../", "<compiler dir>/"),
+                        working_dir: None
                     },
                     String::from($filename).replace("../", "<compiler dir>/"),
                     String::from(include_str!($filename))
@@ -704,6 +713,7 @@ pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
         (["core"], ["core", "conv"], "../core/conv.spade"),
         (["core"], ["core", "marker"], "../core/marker.spade"),
         (["core"], ["core", "ops"], "../core/ops.spade"),
+        (["core"], ["core", "macros"], "../core/macros.spade"),
         (["core"], ["core", "undef"], "../core/undef.spade")
     }
 }

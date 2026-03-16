@@ -1,0 +1,11 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+macro empty {}
+
+
+error: Macros must contain at least one rule
+  ┌─ testinput:1:1
+  │
+1 │ macro empty {}
+  │ ^^^^^^^^^^^^^^

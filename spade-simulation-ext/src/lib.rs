@@ -2,12 +2,10 @@ pub mod error;
 pub mod field_ref;
 pub mod range;
 
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 
 use color_eyre::eyre::{Context, anyhow};
 use field_ref::{FieldRef, FieldSource};
-use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
@@ -16,11 +14,12 @@ use spade::compiler_state::StoredCompilerState;
 use spade_codespan_reporting::term::termcolor::Buffer;
 
 use range::UptoRange;
+use spade_ast::MacroRules;
 use spade_ast_lowering::SelfContext;
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::id_tracker::GenericIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
-use spade_common::name::{Identifier, Path as SpadePath};
+use spade_common::name::{Identifier, NameID, Path as SpadePath};
 use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, Diagnostic};
@@ -35,7 +34,6 @@ use spade_hir_lowering::{MirLowerable, expr_to_mir};
 use spade_mir::codegen::{mangle_input, mangle_output};
 use spade_mir::eval::{Value, eval_statements};
 use spade_parser::Parser;
-use spade_parser::lexer;
 use spade_typeinference::equation::{KnownTypeVar, TypedExpression};
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::traits::TraitImplList;
@@ -132,6 +130,7 @@ pub struct SpadeType(pub ConcreteType);
 pub struct OwnedState {
     symtab: FrozenSymtab,
     item_list: ItemList,
+    macros: HashMap<NameID, MacroRules>,
     trait_impls: TraitImplList,
     idtracker: Arc<ExprIdTracker>,
     impl_idtracker: ImplIdTracker,
@@ -179,7 +178,7 @@ impl ComparisonResult {
 #[cfg_attr(feature = "python", pyclass(subclass))]
 pub struct Spade {
     // state: CompilerState,
-    code: CodeBundle,
+    code: Arc<RwLock<CodeBundle>>,
     error_buffer: Buffer,
     diag_handler: DiagHandler,
     owned: Option<OwnedState>,
@@ -200,7 +199,7 @@ impl Spade {
             .map_err(|e| anyhow!("Failed to deserialize compiler state {e}"))?
             .into_compiler_state();
 
-        let code = Rc::new(RwLock::new(CodeBundle::from_files(&state.code)));
+        let code = Arc::new(RwLock::new(CodeBundle::from_files(&state.code)));
         let mut error_buffer = Buffer::ansi();
         let mut diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
 
@@ -208,7 +207,7 @@ impl Spade {
             .write()
             .unwrap()
             .add_file("dut".to_string(), uut_name.clone());
-        let mut parser = Parser::new(lexer::TokenKind::lexer(&uut_name), file_id);
+        let mut parser = Parser::new(&uut_name, file_id, None);
         let uut = parser.path().report_and_convert(
             &mut error_buffer,
             &code.read().unwrap(),
@@ -250,7 +249,6 @@ impl Spade {
             .get(&uut_name)
             .ok_or_else(|| anyhow!("Did not find a mir context for unit"))?;
 
-        let code = code.read().unwrap().clone();
         Ok(Self {
             uut,
             code,
@@ -260,6 +258,7 @@ impl Spade {
             owned: Some(OwnedState {
                 symtab,
                 item_list: state.item_list,
+                macros: state.macros,
                 trait_impls: state.trait_impl_list,
                 idtracker: state.idtracker,
                 impl_idtracker: state.impl_idtracker,
@@ -353,6 +352,7 @@ impl Spade {
             .create_empty_generic_list(GenericListSource::Anonymous);
 
         let owned_state = self.owned.as_ref().unwrap();
+        let code = self.code.write().unwrap();
 
         let ty = self
             .type_state
@@ -366,7 +366,7 @@ impl Spade {
                     trait_impls: &owned_state.trait_impls,
                 },
             )
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?;
 
         let concrete = self
             .type_state
@@ -424,6 +424,7 @@ impl Spade {
 
         // Create a new variable which is guaranteed to have the output type
         let owned_state = self.take_owned();
+        let mut code = self.code.write().unwrap();
         let mut symtab = owned_state.symtab.unfreeze();
 
         symtab.new_scope();
@@ -465,24 +466,28 @@ impl Spade {
                 },
             )
             .into_default_diagnostic(().nowhere(), &self.type_state)
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?;
 
         // Now that we have a type which we can work with, we can create a virtual expression
         // which accesses the field in order to learn the type of the field
         let expr = format!("o.{}", next);
-        let file_id = self.code.add_file("py".to_string(), expr.clone());
-        let mut parser = Parser::new(lexer::TokenKind::lexer(&expr), file_id);
+        let file_id = code.add_file("py".to_string(), expr.clone());
+        let mut parser = Parser::new(&expr, file_id, None);
 
         // Parse the expression
         let ast = parser.expression().report_and_convert(
             &mut self.error_buffer,
-            &self.code,
+            &code,
             &mut self.diag_handler,
         )?;
+
+        drop(code);
 
         let mut ast_ctx = spade_ast_lowering::Context {
             symtab,
             item_list: owned_state.item_list,
+            macros: owned_state.macros,
+            code: self.code.clone(),
             idtracker: owned_state.idtracker,
             impl_idtracker: owned_state.impl_idtracker,
             generic_idtracker: owned_state.generic_idtracker,
@@ -523,7 +528,11 @@ impl Spade {
                     trait_impls: &owned_state.trait_impls,
                 },
             )
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .report_and_convert(
+                &mut self.error_buffer,
+                &self.code.read().unwrap(),
+                &mut self.diag_handler,
+            )?;
 
         ast_ctx.symtab.close_scope();
 
@@ -580,6 +589,8 @@ impl Spade {
         let spade_ast_lowering::Context {
             symtab,
             item_list,
+            macros,
+            code: _,
             idtracker,
             impl_idtracker,
             generic_idtracker,
@@ -595,6 +606,7 @@ impl Spade {
         self.return_owned(OwnedState {
             symtab: symtab.freeze(),
             item_list,
+            macros,
             trait_impls: owned_state.trait_impls,
             idtracker,
             impl_idtracker,
@@ -752,9 +764,10 @@ impl Spade {
     fn get_arg(&mut self, arg: &str) -> Result<(FieldSource, KnownTypeVar)> {
         let owned_state = self.owned.as_ref().unwrap();
         let symtab = owned_state.symtab.symtab();
+        let code = self.code.read().unwrap();
         let head = Self::lookup_function_like(&self.uut, symtab)
             .map_err(Diagnostic::from)
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?;
 
         for Parameter {
             name,
@@ -781,7 +794,7 @@ impl Spade {
                 let ty = self
                     .type_state
                     .type_var_from_hir(ty.loc(), &ty, &generic_list, &type_ctx)
-                    .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?
+                    .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?
                     .resolve(&self.type_state)
                     .into_known(&self.type_state)
                     .ok_or_else(|| anyhow!("Expression had generic type"))?;
@@ -809,19 +822,21 @@ impl Spade {
             return Ok(cached.clone());
         }
 
-        let file_id = self.code.add_file("py".to_string(), expr.into());
-        let mut parser = Parser::new(lexer::TokenKind::lexer(expr), file_id);
+        let mut code = self.code.write().unwrap();
+        let file_id = code.add_file("py".to_string(), expr.into());
+        let mut parser = Parser::new(expr, file_id, None);
 
         // Parse the expression
         let ast = parser.expression().report_and_convert(
             &mut self.error_buffer,
-            &self.code,
+            &code,
             &mut self.diag_handler,
         )?;
 
         let OwnedState {
             symtab,
             item_list,
+            macros,
             trait_impls,
             idtracker,
             impl_idtracker,
@@ -836,6 +851,8 @@ impl Spade {
         let mut ast_ctx = spade_ast_lowering::Context {
             symtab,
             item_list,
+            macros,
+            code: self.code.clone(),
             idtracker,
             impl_idtracker,
             generic_idtracker,
@@ -847,10 +864,13 @@ impl Spade {
         };
 
         let hir = spade_ast_lowering::visit_expression(&ast, &mut ast_ctx).at_loc(&ast);
+        drop(code);
 
         let spade_ast_lowering::Context {
             symtab,
             item_list,
+            macros,
+            code,
             mut idtracker,
             impl_idtracker,
             generic_idtracker,
@@ -862,6 +882,7 @@ impl Spade {
         } = ast_ctx;
         self.handle_diags(&mut diags.lock().unwrap())?;
 
+        let code = code.read().unwrap();
         let symtab = symtab.freeze();
 
         let type_ctx = spade_typeinference::Context {
@@ -890,7 +911,7 @@ impl Spade {
                     trait_impls: &trait_impls,
                 },
             )
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?;
         self.type_state
             .check_requirements(
                 true,
@@ -900,7 +921,7 @@ impl Spade {
                     trait_impls: &trait_impls,
                 },
             )
-            .report_and_convert(&mut self.error_buffer, &self.code, &mut self.diag_handler)?;
+            .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?;
 
         let type_ctx = &spade_typeinference::Context {
             symtab: symtab.symtab(),
@@ -925,13 +946,14 @@ impl Spade {
 
         let mir = expr_to_mir(hir, &mut hir_ctx).report_and_convert(
             &mut self.error_buffer,
-            &self.code,
+            &code,
             &mut self.diag_handler,
         )?;
 
         self.return_owned(OwnedState {
             symtab,
             item_list,
+            macros,
             trait_impls,
             idtracker,
             impl_idtracker,
@@ -963,7 +985,7 @@ impl Spade {
         for diag in diags.drain() {
             Err(diag).report_and_convert(
                 &mut self.error_buffer,
-                &self.code,
+                &self.code.read().unwrap(),
                 &mut self.diag_handler,
             )?
         }

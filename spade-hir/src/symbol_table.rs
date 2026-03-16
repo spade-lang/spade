@@ -29,6 +29,7 @@ pub enum LookupError {
     NotAStruct(Loc<Path>, Thing),
     NotAValue(Loc<Path>, Thing),
     NotAComptimeValue(Loc<Path>, Thing),
+    NotAMacro(Loc<Path>, Thing),
     NotATrait(Loc<Path>, Thing),
     IsAType(Loc<Path>, Loc<()>),
     BarrierError(Diagnostic),
@@ -79,6 +80,7 @@ impl From<LookupError> for Diagnostic {
             | LookupError::NotAPatternableType(path, got)
             | LookupError::NotAStruct(path, got)
             | LookupError::NotAValue(path, got)
+            | LookupError::NotAMacro(path, got)
             | LookupError::NotATrait(path, got)
             | LookupError::NotAComptimeValue(path, got) => {
                 let expected = match lookup_error {
@@ -90,6 +92,7 @@ impl From<LookupError> for Diagnostic {
                     LookupError::NotAStruct(_, _) => "a struct",
                     LookupError::NotAValue(_, _) => "a value",
                     LookupError::NotAComptimeValue(_, _) => "a compile time value",
+                    LookupError::NotAMacro(_, _) => "a macro",
                     LookupError::NotATrait(_, _) => "a trait",
                     LookupError::NoSuchSymbol(_)
                     | LookupError::IsAType(_, _)
@@ -337,6 +340,7 @@ pub enum Thing {
     },
     ArrayLabel(Loc<usize>),
     Module(Loc<()>, Loc<Identifier>),
+    Macro(Loc<()>, Loc<Identifier>),
     /// Actual trait definition is present in the item list. This is only a marker
     /// for there being a trait with the item name.
     Trait(Loc<TraitMarker>),
@@ -357,6 +361,7 @@ impl Thing {
             Thing::ArrayLabel(_) => "array label",
             Thing::Trait(_) => "trait",
             Thing::Module(_, _) => "module",
+            Thing::Macro(_, _) => "macro",
             Thing::Dummy => "dummy (implementation detail)",
         }
     }
@@ -376,6 +381,7 @@ impl Thing {
             Thing::ArrayLabel(v) => v.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(loc, _name) => loc.loc(),
+            Thing::Macro(loc, _name) => loc.loc(),
             Thing::Dummy => ().nowhere(),
         }
     }
@@ -395,6 +401,7 @@ impl Thing {
             } => path.loc(),
             Thing::Trait(loc) => loc.loc(),
             Thing::Module(_loc, name) => name.loc(),
+            Thing::Macro(_loc, name) => name.loc(),
             Thing::Dummy => ().nowhere(),
         }
     }
@@ -1061,6 +1068,9 @@ impl SymbolTable {
         struct_by_id, lookup_struct, lookup_struct_in_namespace, StructCallable, NotAStruct {
             Thing::Struct(s) => s.clone()
         },
+        macro_by_id, lookup_macro, lookup_macro_in_namespace, Identifier, NotAMacro {
+            Thing::Macro(_, m) => m.clone()
+        },
         trait_by_id, lookup_trait, lookup_trait_in_namespace, TraitMarker, NotATrait {
             Thing::Trait(t) => t.clone()
         }
@@ -1110,6 +1120,7 @@ impl SymbolTable {
             Err(LookupError::NotAStruct(_, _)) => unreachable!(),
             Err(LookupError::NotAValue(_, _)) => unreachable!(),
             Err(LookupError::NotAComptimeValue(_, _)) => unreachable!(),
+            Err(LookupError::NotAMacro(_, _)) => unreachable!(),
             Err(LookupError::NotATrait(_, _)) => unreachable!(),
             Err(LookupError::IsAType(_, _)) => unreachable!(),
             Err(LookupError::NotAThing(_)) => unreachable!(),
@@ -1551,6 +1562,7 @@ impl SymbolTable {
                 }
                 Thing::Trait(t) => println!("trait {}", t.name),
                 Thing::Module(_, name) => println!("mod {name}"),
+                Thing::Macro(_, name) => println!("macro {name}"),
                 Thing::Dummy => println!("dummy"),
             }
         }

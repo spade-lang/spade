@@ -17,5 +17,8 @@ doctest = false
 [dependencies]
 num.workspace = true
 itertools.workspace = true
+logos.workspace = true
+serde.workspace = true
 
 spade-common.workspace = true
+spade-diagnostics.workspace = true

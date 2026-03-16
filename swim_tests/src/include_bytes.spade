@@ -1,0 +1,3 @@
+entity test() -> [uint<8>; 14] {
+    include_bytes!("../res/hello_world.txt")
+}

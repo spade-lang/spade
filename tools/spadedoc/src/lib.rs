@@ -53,11 +53,8 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
                 let mut file_content = String::new();
                 file.read_to_string(&mut file_content)?;
                 Ok((
-                    ModuleNamespace {
-                        namespace,
-                        base_namespace,
-                        file: infile.to_string_lossy().to_string(),
-                    },
+                    ModuleNamespace::new(namespace, base_namespace, infile.as_path())
+                        .with_context(|| format!("Failed to open {}", &infile.to_string_lossy()))?,
                     infile.to_string_lossy().to_string(),
                     file_content,
                 ))
@@ -102,6 +99,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
             namespace: SpadePath::from_strs(&["core"]),
             base_namespace: SpadePath::from_strs(&["core"]),
             file: String::from("<spadedoc dir>/primitives.spade"),
+            working_dir: None,
         },
         String::from("<spadedoc dir>/primitives.spade"),
         String::from(include_str!("../primitives.spade")),
@@ -137,6 +135,8 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
     let mut ctx = spade_ast_lowering::Context {
         symtab,
         item_list,
+        macros: HashMap::default(),
+        code,
         idtracker: Arc::new(ExprIdTracker::new()),
         impl_idtracker: ImplIdTracker::new(),
         generic_idtracker: GenericIdTracker::new(),

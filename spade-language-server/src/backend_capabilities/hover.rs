@@ -123,6 +123,9 @@ impl ServerBackend {
                 symbol_table::Thing::Module(_, _) => {
                     format!("(module)")
                 }
+                symbol_table::Thing::Macro(_, _) => {
+                    format!("(macro)")
+                }
                 symbol_table::Thing::Trait(_) => {
                     format!("(trait)")
                 }

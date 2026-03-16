@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/parser.rs
+---
+macro test($()}) {}
+
+
+error: Unexpected enclosing delimiter found while parsing macro pattern
+  ┌─ testinput:1:15
+  │
+1 │ macro test($()}) {}
+  │               ^
+  │               │
+  │               `}` is an enclosing delimiter
+  │
+  = note: Enclosing delimiters cannot be used in this context

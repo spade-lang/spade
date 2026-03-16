@@ -1,12 +1,23 @@
 use itertools::Itertools;
 use num::{BigInt, BigUint, Signed, Zero};
+use serde::{Deserialize, Serialize};
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, Path, Visibility},
     num_ext::InfallibleToBigInt,
 };
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf, rc::Rc};
+
+pub use crate::token::TokenKind;
+
 pub mod testutil;
+pub mod token;
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct ParseCtx {
+    pub file_id: usize,
+    pub working_dir: Option<PathBuf>,
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeExpression {
@@ -146,6 +157,47 @@ impl Pattern {
         }
         .nowhere()
     }
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub enum MacroFragment {
+    Block,
+    Expr,
+    Ident,
+    Item,
+    Literal,
+    Pattern,
+    Path,
+    Statement,
+    Tokens,
+    Type,
+    Visibility,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub enum MacroRepetitions {
+    Optional,
+    Many0,
+    Many1,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub enum MacroPattern {
+    Token(Loc<TokenKind>),
+    RepeatedSubpattern {
+        parts: Vec<Loc<MacroPattern>>,
+        delim: Option<Loc<TokenKind>>,
+        reps: Loc<MacroRepetitions>,
+    },
+    EnclosedSubpattern {
+        parts: Vec<Loc<MacroPattern>>,
+        open_delim: Loc<TokenKind>,
+        close_delim: Loc<TokenKind>,
+    },
+    Fragment {
+        name: Loc<Identifier>,
+        kind: Loc<Identifier>,
+    },
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -354,6 +406,11 @@ pub enum Expression {
         kind: CallKind,
         turbofish: Option<Loc<TurbofishInner>>,
     },
+    MacroCall {
+        callee: Loc<Path>,
+        tokens: Vec<Loc<TokenKind>>,
+        parse_ctx: Rc<ParseCtx>,
+    },
     If {
         cond: Box<Loc<Expression>>,
         on_true: Box<Loc<Expression>>,
@@ -451,6 +508,7 @@ impl Expression {
             Expression::Lambda { .. } => "lambda",
             Expression::Call { .. } => "call",
             Expression::MethodCall { .. } => "method call",
+            Expression::MacroCall { .. } => "macro call",
             Expression::UnaryOperator(_, _) => "unary operator",
             Expression::BinaryOperator(_, _, _) => "binary operator",
             Expression::Block(_) => "block",
@@ -805,6 +863,17 @@ pub struct Register {
     pub attributes: AttributeList,
 }
 
+pub type MacroRules = Vec<(Loc<MacroPattern>, Vec<Loc<TokenKind>>)>;
+
+/// A definition of a macro
+#[derive(PartialEq, Debug, Clone)]
+pub struct MacroDef {
+    pub visibility: Loc<Visibility>,
+    pub name: Loc<Identifier>,
+    pub rules: MacroRules,
+    pub attributes: AttributeList,
+}
+
 /// A definition of a trait
 #[derive(PartialEq, Debug, Clone)]
 pub struct TraitDef {
@@ -933,6 +1002,7 @@ pub struct UseStatement {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Item {
     Unit(Loc<Unit>),
+    MacroDef(Loc<MacroDef>),
     TraitDef(Loc<TraitDef>),
     Type(Loc<TypeDeclaration>),
     ExternalMod(Loc<ExternalMod>),
@@ -945,6 +1015,7 @@ impl Item {
     pub fn name(&self) -> Option<&Identifier> {
         match self {
             Item::Unit(u) => Some(&u.head.name.inner),
+            Item::MacroDef(m) => Some(&m.name.inner),
             Item::TraitDef(t) => Some(&t.name.inner),
             Item::Type(t) => Some(&t.name.inner),
             Item::Module(m) => Some(&m.name.inner),
@@ -957,6 +1028,7 @@ impl Item {
     pub fn variant_str(&self) -> &'static str {
         match self {
             Item::Unit(_) => "unit",
+            Item::MacroDef(_) => "macro definition",
             Item::TraitDef(_) => "trait definition",
             Item::Type(_) => "type",
             Item::Module(_) => "module",

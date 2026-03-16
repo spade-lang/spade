@@ -156,35 +156,33 @@ fn visit_expression(
     ctx: &LinearCtx,
 ) -> Result<()> {
     let produces_new_resource = match &expr.kind {
+        spade_hir::ExprKind::Identifier(_)
+        | spade_hir::ExprKind::TupleIndex(_, _)
+        | spade_hir::ExprKind::FieldAccess(_, _)
+        | spade_hir::ExprKind::PipelineRef { .. }
+        | spade_hir::ExprKind::Null
+        | spade_hir::ExprKind::StaticUnreachable(_) => false,
         spade_hir::ExprKind::Error => true,
-        spade_hir::ExprKind::Identifier(_) => false,
-        spade_hir::ExprKind::IntLiteral(_, _) => true,
-        spade_hir::ExprKind::TypeLevelInteger(_) => true,
-        spade_hir::ExprKind::BoolLiteral(_) => true,
-        spade_hir::ExprKind::TypeLevelBool(_) => true,
-        spade_hir::ExprKind::TriLiteral(_) => true,
-        spade_hir::ExprKind::TupleLiteral(_) => true,
-        spade_hir::ExprKind::ArrayLiteral(_) => true,
-        spade_hir::ExprKind::ArrayShorthandLiteral(_, _) => true,
-        spade_hir::ExprKind::CreatePorts => true,
-        spade_hir::ExprKind::Index(_, _) => true,
-        spade_hir::ExprKind::RangeIndex { .. } => true,
-        spade_hir::ExprKind::TupleIndex(_, _) => false,
-        spade_hir::ExprKind::FieldAccess(_, _) => false,
-        spade_hir::ExprKind::BinaryOperator(_, _, _) => true,
-        spade_hir::ExprKind::UnaryOperator(_, _) => true,
-        spade_hir::ExprKind::Match(_, _) => true,
-        spade_hir::ExprKind::Block(_) => true,
-        spade_hir::ExprKind::Call { .. } => true,
-        spade_hir::ExprKind::If { .. } => true,
-        spade_hir::ExprKind::TypeLevelIf { .. } => true,
-        spade_hir::ExprKind::StageValid | spade_hir::ExprKind::StageReady => true,
-        spade_hir::ExprKind::PipelineRef {
-            stage: _,
-            name: _,
-            declares_name: _,
-            depth_typeexpr_id: _,
-        } => false,
+        spade_hir::ExprKind::IntLiteral(_, _)
+        | spade_hir::ExprKind::TypeLevelInteger(_)
+        | spade_hir::ExprKind::BoolLiteral(_)
+        | spade_hir::ExprKind::TypeLevelBool(_)
+        | spade_hir::ExprKind::TriLiteral(_)
+        | spade_hir::ExprKind::TupleLiteral(_)
+        | spade_hir::ExprKind::ArrayLiteral(_)
+        | spade_hir::ExprKind::ArrayShorthandLiteral(_, _)
+        | spade_hir::ExprKind::CreatePorts
+        | spade_hir::ExprKind::Index(_, _)
+        | spade_hir::ExprKind::RangeIndex { .. }
+        | spade_hir::ExprKind::BinaryOperator(_, _, _)
+        | spade_hir::ExprKind::UnaryOperator(_, _)
+        | spade_hir::ExprKind::Match(_, _)
+        | spade_hir::ExprKind::Block(_)
+        | spade_hir::ExprKind::Call { .. }
+        | spade_hir::ExprKind::If { .. }
+        | spade_hir::ExprKind::TypeLevelIf { .. }
+        | spade_hir::ExprKind::StageValid
+        | spade_hir::ExprKind::StageReady => true,
         spade_hir::ExprKind::LambdaDef { .. } => diag_bail!(
             expr,
             "Lambda def should have been lowered to function by this point"
@@ -193,7 +191,6 @@ fn visit_expression(
             expr,
             "method call should have been lowered to function by this point"
         ),
-        spade_hir::ExprKind::Null | ExprKind::StaticUnreachable(_) => false,
     };
 
     if produces_new_resource {

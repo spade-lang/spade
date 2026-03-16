@@ -1,0 +1,3 @@
+entity test() -> bool {
+    include!("../res/true_and_false.spade")
+}

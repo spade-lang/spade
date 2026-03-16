@@ -131,11 +131,8 @@ fn main() -> Result<()> {
                 let mut file_content = String::new();
                 file.read_to_string(&mut file_content)?;
                 Ok((
-                    ModuleNamespace {
-                        namespace,
-                        base_namespace,
-                        file: infile.to_string_lossy().to_string(),
-                    },
+                    ModuleNamespace::new(namespace, base_namespace, infile.as_path())
+                        .with_context(|| format!("Failed to open {}", &infile.to_string_lossy()))?,
                     infile.to_string_lossy().to_string(),
                     file_content,
                 ))

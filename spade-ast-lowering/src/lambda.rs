@@ -115,6 +115,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 }
                 | spade_hir::symbol_table::Thing::ArrayLabel(_)
                 | spade_hir::symbol_table::Thing::Module(_, _)
+                | spade_hir::symbol_table::Thing::Macro(_, _)
                 | spade_hir::symbol_table::Thing::Dummy
                 | spade_hir::symbol_table::Thing::Trait(_) => Ok(()),
             }))

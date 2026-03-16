@@ -26,6 +26,59 @@ use crate::{
 };
 use spade_hir::symbol_table::{GenericArg, Thing, TypeSymbol};
 
+pub fn gather_macro_rules(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
+    for item in &module.members {
+        match item {
+            ast::Item::ExternalMod(_) => {}
+            ast::Item::Module(m) => {
+                ctx.in_named_namespace(m.name.clone(), |ctx| gather_macro_rules(&m.body, ctx))?
+            }
+            ast::Item::Type(_) => {}
+            ast::Item::ImplBlock(_) => {}
+            ast::Item::Unit(_) => {}
+            ast::Item::MacroDef(m) => {
+                if m.rules.is_empty() {
+                    return Err(Diagnostic::error(
+                        m,
+                        "Macros must contain at least one rule",
+                    ));
+                }
+
+                let mut deprecation_note = None;
+                m.attributes.lower(&mut |attr| match &attr.inner {
+                    ast::Attribute::Deprecated { note, .. } => {
+                        deprecation_note = Some(note.clone());
+                        Ok(None)
+                    }
+                    ast::Attribute::SpadecParenSugar
+                    | ast::Attribute::VerilogAttrs { .. }
+                    | ast::Attribute::Optimize { .. }
+                    | ast::Attribute::NoMangle { .. }
+                    | ast::Attribute::Fsm { .. }
+                    | ast::Attribute::WalTraceable { .. }
+                    | ast::Attribute::WalTrace { .. }
+                    | ast::Attribute::WalSuffix { .. }
+                    | ast::Attribute::Documentation { .. }
+                    | ast::Attribute::Inline
+                    | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("macro")),
+                })?;
+
+                let name_id = ctx.symtab.add_unique_thing(
+                    Path::ident_with_loc(m.name),
+                    Thing::Macro(m.loc(), m.name),
+                    Some(m.visibility.clone()),
+                    deprecation_note,
+                )?;
+
+                ctx.macros.insert(name_id, m.rules.clone());
+            }
+            ast::Item::TraitDef(_) => {}
+            ast::Item::Use(_, _) => {}
+        }
+    }
+    Ok(())
+}
+
 pub fn handle_external_modules(
     this_file: &str,
     inner_module: Option<&Loc<Module>>,
@@ -115,6 +168,7 @@ pub fn handle_external_modules(
             ast::Item::Type(_) => {}
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
+            ast::Item::MacroDef(_) => {}
             ast::Item::TraitDef(_) => {}
             ast::Item::Use(_, _) => {}
         }
@@ -205,6 +259,7 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
+            ast::Item::MacroDef(_) => {}
             ast::Item::TraitDef(r#trait) => {
                 visit_trait(r#trait, ctx)?;
             }
@@ -261,6 +316,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
+            ast::Item::MacroDef(_) => {}
             ast::Item::TraitDef(_) => {}
             ast::Item::Use(_, _) => {}
         }
@@ -283,6 +339,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::Unit(e) => {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
+        ast::Item::MacroDef(_) => {}
         ast::Item::TraitDef(def) => {
             validate_default_param_position(&def.type_params)?;
 

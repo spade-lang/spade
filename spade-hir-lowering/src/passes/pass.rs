@@ -34,15 +34,6 @@ impl Passable for Loc<Expression> {
         }
 
         match &mut self.inner.kind {
-            ExprKind::Error => {}
-            ExprKind::Identifier(_) => {}
-            ExprKind::IntLiteral(_, _) => {}
-            ExprKind::TypeLevelInteger(_) => {}
-            ExprKind::BoolLiteral(_) => {}
-            ExprKind::TypeLevelBool(_) => {}
-            ExprKind::TriLiteral(_) => {}
-            ExprKind::CreatePorts => {}
-            ExprKind::StageReady | ExprKind::StageValid => {}
             ExprKind::TupleLiteral(inner) => {
                 for i in inner {
                     i.apply(pass)?
@@ -200,13 +191,19 @@ impl Passable for Loc<Expression> {
                 on_true,
                 on_false,
             } => subnodes!(on_true, on_false),
-            ExprKind::PipelineRef {
-                stage: _,
-                name: _,
-                declares_name: _,
-                depth_typeexpr_id: _,
-            } => {}
-            ExprKind::Null | ExprKind::StaticUnreachable(_) => {}
+            ExprKind::Error
+            | ExprKind::Identifier(_)
+            | ExprKind::IntLiteral(_, _)
+            | ExprKind::TypeLevelInteger(_)
+            | ExprKind::BoolLiteral(_)
+            | ExprKind::TypeLevelBool(_)
+            | ExprKind::TriLiteral(_)
+            | ExprKind::CreatePorts
+            | ExprKind::PipelineRef { .. }
+            | ExprKind::StageReady
+            | ExprKind::StageValid
+            | ExprKind::Null
+            | ExprKind::StaticUnreachable(_) => {}
         };
 
         pass.visit_expression(self)

@@ -1,6 +1,5 @@
 use std::sync::{Arc, RwLock};
 
-use logos::Logos;
 use spade_codespan_reporting::{files::SimpleFiles, term::termcolor::Buffer};
 use spade_diagnostics::{CodeBundle, DiagHandler, emitter::CodespanEmitter};
 
@@ -1052,8 +1051,7 @@ fn test() {
         code_bundle.clone(),
     );
 
-    let mut parser =
-        spade_parser::Parser::new(spade_parser::lexer::TokenKind::lexer(&code), FILE_ID);
+    let mut parser = spade_parser::Parser::new(&code, FILE_ID, None);
 
     let _ = match parser.top_level_module_body() {
         Ok(root) => root,
@@ -1123,4 +1121,60 @@ snapshot_mir! {
             let y = b'\'';
         }
     "#
+}
+
+snapshot_error! {
+    macro_pattern_contains_unexpected_closing_bracket,
+    "
+        macro test(]) {}
+    "
+}
+
+snapshot_error! {
+    macro_pattern_contains_unexpected_closing_brace,
+    "
+        macro test(}) {}
+    "
+}
+
+snapshot_error! {
+    macro_pattern_repetition_unexpected_closing_parens,
+    "
+        macro test($())) {}
+    "
+}
+
+snapshot_error! {
+    macro_pattern_repetition_unexpected_closing_bracket,
+    "
+        macro test($()]) {}
+    "
+}
+
+snapshot_error! {
+    macro_pattern_repetition_unexpected_closing_brace,
+    "
+        macro test($()}) {}
+    "
+}
+
+snapshot_error! {
+    macro_pattern_fragment_unexpected_token,
+    "
+        macro test($.) {}
+    "
+}
+
+snapshot_error! {
+    macro_definition_unexpected_token,
+    "
+        macro test x
+    "
+}
+
+snapshot_error! {
+    macro_definition_must_use_parens,
+    "
+        macro test[] {}
+    "
 }

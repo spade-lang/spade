@@ -393,6 +393,7 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::StaticUnreachable(_) => {
                 format!("<STATIC_UNREACHABLE>")
             },
+
             crate::ExprKind::Null => format!("<NULL>"),
         }
     }

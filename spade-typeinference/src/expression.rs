@@ -495,7 +495,6 @@ impl TypeState {
         assuming_kind!(ExprKind::ArrayShorthandLiteral(expr, amount) = &expression => {
             self.visit_expression(expr, ctx, generic_list);
 
-
             let inner_type = expr.get_type(self);
             let size_type = self.visit_const_generic_with_id(amount, generic_list, ConstraintSource::ArraySize, ctx)?;
             // Force the type to be a uint

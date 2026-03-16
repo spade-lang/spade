@@ -205,11 +205,12 @@ impl ServerBackend {
             .map(|SpadeFile { namespace, path }| {
                 let file_contents = std::fs::read_to_string(path)?;
                 Ok((
-                    ModuleNamespace {
-                        namespace: spade_path(&namespace.namespace),
-                        base_namespace: spade_path(&namespace.base_namespace),
-                        file: path.to_string(),
-                    },
+                    ModuleNamespace::new(
+                        spade_path(&namespace.namespace),
+                        spade_path(&namespace.base_namespace),
+                        path.clone().into_std_path_buf().as_path(),
+                    )
+                    .with_context(|| format!("Failed to open {}", &path.to_string()))?,
                     path.to_string(),
                     file_contents,
                 ))

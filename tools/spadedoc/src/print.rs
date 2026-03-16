@@ -5,8 +5,8 @@ use crate::{
     html::Node,
 };
 use spade_ast::{
-    BinaryOperator, Enum, Expression, ParameterList, Struct, TraitDef, TraitSpec, TypeExpression,
-    TypeParam, TypeSpec, UnaryOperator, UnitHead, WhereClause,
+    BinaryOperator, Enum, Expression, MacroDef, ParameterList, Struct, TraitDef, TraitSpec,
+    TypeExpression, TypeParam, TypeSpec, UnaryOperator, UnitHead, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -178,6 +178,22 @@ impl Generator {
         }
 
         self.print_where_clauses(b, &unit.where_clauses)?;
+
+        Ok(())
+    }
+
+    pub fn print_macro(&self, b: &mut Node<'_>, m: &MacroDef) -> DResult<()> {
+        self.print_visibility(b, &m.visibility)?;
+
+        let kind = ItemKind::Macro;
+        fwrite!(b, "macro ");
+
+        b.styled_tag("span", &[kind.color_class()], |b| {
+            fwrite!(b, m.name.as_str());
+            Ok(())
+        })?;
+
+        // NOTE: add a more sophisticated description (do something with macro rules)?
 
         Ok(())
     }

@@ -209,7 +209,8 @@ impl<'a> QueryCache {
             } => {}
             crate::ExprKind::StageValid => {}
             crate::ExprKind::StageReady => {}
-            crate::ExprKind::StaticUnreachable(_) | crate::ExprKind::Null => {}
+            crate::ExprKind::StaticUnreachable(_) => {}
+            crate::ExprKind::Null => {}
         }
     }
 

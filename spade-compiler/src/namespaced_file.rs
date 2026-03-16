@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
-use logos::Logos;
 use spade_common::name::Path as SpadePath;
-use spade_parser::{Parser, lexer};
+use spade_parser::Parser;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamespacedFile {
@@ -30,7 +29,7 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
             let root_namespace = if parts[0].is_empty() {
                 SpadePath(vec![])
             } else {
-                let mut root_parser = Parser::new(lexer::TokenKind::lexer(parts[0]), 0);
+                let mut root_parser = Parser::new(parts[0], 0, None);
                 root_parser
                     .path()
                     .map_err(|e| {
@@ -47,7 +46,7 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
                 SpadePath(vec![])
             } else {
                 // NOTE: could be a bit smarter here and look for keywords manually
-                let mut namespace_parser = Parser::new(lexer::TokenKind::lexer(parts[1]), 0);
+                let mut namespace_parser = Parser::new(parts[1], 0, None);
                 namespace_parser
                     .path()
                     .map_err(|e| {

@@ -1,8 +1,8 @@
 use std::{borrow::Cow, collections::VecDeque};
 
 use jotdown::{Attributes, Container, Event, Parser, Render as _, html::Renderer};
-use logos::Logos as _;
-use spade::lexer::TokenKind;
+use logos::Logos;
+use spade_ast::TokenKind;
 
 use crate::{error::DResult, html::Node};
 

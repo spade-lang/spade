@@ -1,0 +1,2 @@
+pub macro include($file:literal) { /* compiler built-in */ }
+pub macro include_bytes($file:literal) { /* compiler built-in */ }

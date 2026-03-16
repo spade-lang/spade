@@ -1,4 +1,4 @@
-use spade_ast::{AttributeList, Binding, Expression, Register, Statement};
+use spade_ast::{AttributeList, Binding, Expression, Register, Statement, token::TokenKind};
 use spade_common::{
     location_info::{AsLabel, Loc, WithLocation, lspan},
     name::Visibility,
@@ -8,7 +8,7 @@ use spade_macros::trace_parser;
 
 use crate::{
     KeywordPeekingParser, ParseStackEntry, Parser, Token, error::Result, item_type::UnitKindLocal,
-    lexer::TokenKind, peek_for,
+    peek_for,
 };
 
 pub(crate) struct BindingParser {}
@@ -44,7 +44,7 @@ impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
             value,
             attrs: attributes.clone(),
         })
-        .between(parser.file_id, &start_span, &end_span))
+        .between(parser.file_id(), &start_span, &end_span))
     }
 }
 
@@ -96,9 +96,9 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
             };
 
             let full_loc = if let Some(c) = &count {
-                ().between(parser.file_id, &start_token, &c.loc())
+                ().between(parser.file_id(), &start_token, &c.loc())
             } else {
-                ().at(parser.file_id, &start_token)
+                ().at(parser.file_id(), &start_token)
             };
 
             return Ok(Statement::PipelineRegMarker(count, cond).at_loc(&full_loc));
@@ -106,7 +106,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
 
         parser
             .unit_context
-            .allows_reg(().at(parser.file_id, &start_token.span()))?;
+            .allows_reg(().at(parser.file_id(), &start_token.span()))?;
 
         // Clock selection
         let (clock, _clock_paren_span) = parser.surrounded(
@@ -154,7 +154,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
         let span = lspan(start_token.span.clone()).merge(end_span);
         let result = Statement::Register(
             Register {
-                keyword: ().at(parser.file_id, &start_token),
+                keyword: ().at(parser.file_id(), &start_token),
                 pattern,
                 clock,
                 reset,
@@ -163,9 +163,9 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
                 value_type,
                 attributes: attributes.clone(),
             }
-            .at(parser.file_id, &span),
+            .at(parser.file_id(), &span),
         )
-        .at(parser.file_id, &span);
+        .at(parser.file_id(), &span);
         Ok(result)
     }
 }
@@ -222,8 +222,8 @@ impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
         parser.disallow_visibility(visibility, &start_token)?;
 
         let mut identifiers = vec![];
-        while parser.peek_cond(|t| t.is_identifier(), "expected identifier")? {
-            identifiers.push(parser.identifier()?);
+        while parser.peek_cond(|t| t.is_normal_identifier(), "expected identifier")? {
+            identifiers.push(parser.normal_identifier()?);
 
             if parser.peek_and_eat(&TokenKind::Comma)?.is_none() {
                 break;
@@ -238,7 +238,7 @@ impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
         let last_ident = identifiers.last().unwrap().clone();
 
         Ok(Statement::Declaration(identifiers).between(
-            parser.file_id,
+            parser.file_id(),
             &start_token.span,
             &last_ident,
         ))
@@ -271,7 +271,8 @@ impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
         parser.disallow_attributes(attributes, &tok)?;
         parser.disallow_visibility(visibility, &tok)?;
 
-        Ok(Statement::Label(l.clone().at(parser.file_id, &tok.span)).at(parser.file_id, &tok.span))
+        Ok(Statement::Label(l.clone().at(parser.file_id(), &tok.span))
+            .at(parser.file_id(), &tok.span))
     }
 }
 
@@ -294,7 +295,7 @@ impl KeywordPeekingParser<Loc<Statement>> for AssertParser {
 
         let expr = parser.expression()?;
 
-        Ok(Statement::Assert(expr.clone()).between(parser.file_id, &tok.span, &expr))
+        Ok(Statement::Assert(expr.clone()).between(parser.file_id(), &tok.span, &expr))
     }
 }
 
@@ -325,6 +326,6 @@ impl KeywordPeekingParser<Loc<Statement>> for SetParser {
             target,
             value: value.clone(),
         }
-        .between(parser.file_id, &tok.span, &value))
+        .between(parser.file_id(), &tok.span, &value))
     }
 }

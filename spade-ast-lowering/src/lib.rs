@@ -11,22 +11,25 @@ pub mod testutil;
 mod type_level_if;
 pub mod types;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    fs::File,
+    io::Read,
+    sync::{Arc, Mutex, RwLock},
+};
 
 use attributes::LocAttributeExt;
 use global_symbols::visit_meta_type;
 use impls::visit_impl;
 use itertools::Itertools;
 use lambda::visit_lambda;
-use num::{BigInt, FromPrimitive, Zero};
+use num::{BigInt, BigUint, FromPrimitive, Zero};
 use pipelines::PipelineContext;
 use recursive::recursive;
-use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
-use spade_diagnostics::{Diagnostic, diag_anyhow, diag_bail};
-use spade_hir::expression::Safety;
-use spade_hir::symbol_table::TypeDeclKind;
+use spade_diagnostics::{CodeBundle, Diagnostic, codespan::Span, diag_anyhow, diag_bail};
+use spade_hir::{expression::Safety, symbol_table::TypeDeclKind};
+use spade_parser::Parser;
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
 use type_level_if::expand_type_level_if;
@@ -44,12 +47,15 @@ use hir::param_util::ArgumentError;
 use hir::symbol_table::DeclarationState;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
 use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
-use rustc_hash::FxHashSet as HashSet;
-use spade_ast::{self as ast, Attribute, Expression, TypeParam, WhereClause};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use spade_ast::{self as ast, Attribute, Expression, MacroRules, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
-use spade_common::id_tracker::{ExprIdTracker, GenericID, GenericIdTracker, ImplIdTracker};
-use spade_common::location_info::{FullSpan, Loc, WithLocation};
-use spade_common::name::{Identifier, Path, PathSegment};
+use spade_common::{
+    id_tracker::{ExprIdTracker, GenericID, GenericIdTracker, ImplIdTracker},
+    location_info::{FullSpan, Loc, WithLocation},
+    name::{Identifier, NameID, Path, PathSegment},
+    num_ext::InfallibleToBigInt,
+};
 use spade_hir::{
     self as hir, ExprKind, Generic, Input, ItemList, Module, TypeExpression, TypeSpec,
 };
@@ -60,6 +66,8 @@ use error::Result;
 pub struct Context {
     pub symtab: SymbolTable,
     pub item_list: ItemList,
+    pub macros: HashMap<NameID, MacroRules>,
+    pub code: Arc<RwLock<CodeBundle>>,
     pub idtracker: Arc<ExprIdTracker>,
     pub impl_idtracker: ImplIdTracker,
     pub generic_idtracker: GenericIdTracker,
@@ -79,6 +87,8 @@ impl Context {
             let Context {
                 symtab: _,
                 item_list: _,
+                macros: _,
+                code: _,
                 idtracker: _,
                 impl_idtracker: _,
                 generic_idtracker: _,
@@ -97,6 +107,8 @@ impl Context {
             let Context {
                 symtab: _,
                 item_list: _,
+                macros: _,
+                code: _,
                 idtracker: _,
                 impl_idtracker: _,
                 generic_idtracker: _,
@@ -1591,6 +1603,11 @@ pub fn visit_trait_spec(
 pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<Vec<hir::Item>> {
     match item {
         ast::Item::Unit(u) => Ok(vec![visit_unit(None, u, &None, ctx)?]),
+        ast::Item::MacroDef(_) => {
+            // Global symbol lowering already visits traits
+            event!(Level::INFO, "Macro definition");
+            Ok(vec![])
+        }
         ast::Item::TraitDef(_) => {
             // Global symbol lowering already visits traits
             event!(Level::INFO, "Trait definition");
@@ -2443,6 +2460,41 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 safety: ctx.safety,
             })
         }
+        ast::Expression::MacroCall {
+            callee,
+            tokens,
+            parse_ctx,
+        } => {
+            let (name, _) = ctx.symtab.lookup_macro(callee, false)?;
+
+            // Check if this is a standard library macro which we are supposed to
+            // handle
+            macro_rules! handle_special_macros {
+                ($([$($path:expr),*] => $handler:ident),*) => {
+                    $({
+                        let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
+                        let final_id = ctx.symtab.try_lookup_id(&path, false);
+                        if final_id
+                            .map(|n| &n == &name)
+                            .unwrap_or(false)
+                        {
+                            return $handler(&name.at_loc(callee), tokens, parse_ctx.as_ref(), ctx);
+                        };
+                    })*
+                };
+            }
+
+            handle_special_macros! {
+                // core
+                ["core", "macros", "include"] => handle_include,
+                ["core", "macros", "include_bytes"] => handle_include_bytes
+            }
+
+            Err(
+                Diagnostic::error(callee, "User-defined macros are not supported yet")
+                    .note("Only built-in macros are supported at the moment"),
+            )
+        }
         ast::Expression::If {
             cond,
             on_true,
@@ -2897,4 +2949,109 @@ fn inject_verilog_attrs(
         | ExprKind::StaticUnreachable(_)
         | ExprKind::Null => false,
     }
+}
+
+fn handle_include(
+    name: &Loc<NameID>,
+    tokens: &[Loc<ast::TokenKind>],
+    parse_ctx: &ast::ParseCtx,
+    ctx: &mut Context,
+) -> Result<hir::ExprKind> {
+    let [token] = tokens else {
+        return Err(
+            Diagnostic::error(name, "Incorrect number of tokens passed to `include!`")
+                .note("A single string literal containing the path to include must be passed"),
+        );
+    };
+
+    let (ast::TokenKind::String(path), loc) = token.split_loc_ref() else {
+        return Err(
+            Diagnostic::error(name, "Incorrect token passed to `include!`")
+                .note("A single string literal containing the path to include must be passed"),
+        );
+    };
+
+    let Some(base) = parse_ctx.working_dir.as_deref() else {
+        return Err(Diagnostic::bug(
+            loc,
+            "`include!` used inside a compiler built-in file",
+        ));
+    };
+    let file_path = base.join(&path);
+    let mut src = String::new();
+
+    let new_working_dir = file_path
+        .canonicalize()
+        .map_err(|e| Diagnostic::error(loc, format!("Error finding {path:?}: {e}")))?
+        .parent()
+        // Safe unwrap (canonicalize ensures it is valid)
+        .unwrap()
+        .to_path_buf();
+
+    File::open(file_path)
+        .map_err(|e| Diagnostic::error(loc, format!("Error opening {path:?}: {e}")))?
+        .read_to_string(&mut src)
+        .map_err(|e| Diagnostic::error(loc, format!("Error reading {path:?}: {e}")))?;
+
+    let file_id = ctx
+        .code
+        .write()
+        .unwrap()
+        .add_file(path.clone(), src.clone());
+    let mut parser = Parser::new(&src, file_id, Some(new_working_dir));
+    let expr = parser.expression()?;
+
+    visit_expression_result(&expr, ctx)
+}
+
+fn handle_include_bytes(
+    name: &Loc<NameID>,
+    tokens: &[Loc<ast::TokenKind>],
+    parse_ctx: &ast::ParseCtx,
+    ctx: &mut Context,
+) -> Result<hir::ExprKind> {
+    let [token] = tokens else {
+        return Err(Diagnostic::error(
+            name,
+            "Incorrect number of tokens passed to `include_bytes!`",
+        )
+        .note("A single string literal containing the path to include must be passed"));
+    };
+
+    let (ast::TokenKind::String(path), loc) = token.split_loc_ref() else {
+        return Err(
+            Diagnostic::error(name, "Incorrect token passed to `include_bytes!`")
+                .note("A single string literal containing the path to include must be passed"),
+        );
+    };
+
+    let Some(base) = parse_ctx.working_dir.as_deref() else {
+        return Err(Diagnostic::bug(
+            loc,
+            "`include_bytes!` used inside a compiler built-in file",
+        ));
+    };
+    let file_path = base.join(&path);
+    let mut bytes = vec![];
+
+    File::open(file_path)
+        .map_err(|e| Diagnostic::error(loc, format!("Error opening {path:?}: {e}")))?
+        .read_to_end(&mut bytes)
+        .map_err(|e| Diagnostic::error(loc, format!("Error reading {path:?}: {e}")))?;
+
+    let elems = bytes
+        .into_iter()
+        .map(|b| {
+            hir::Expression {
+                kind: hir::ExprKind::IntLiteral(
+                    b.to_bigint(),
+                    IntLiteralKind::Unsigned(Some(BigUint::from(8usize))),
+                ),
+                id: ctx.idtracker.next(),
+            }
+            .nowhere()
+        })
+        .collect::<Vec<_>>();
+
+    Ok(hir::ExprKind::ArrayLiteral(elems))
 }
