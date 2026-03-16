@@ -25,6 +25,19 @@ workflow:
     on_new_commit: interruptible
 
 
+.artifact-main:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  artifacts:
+    expire_in: 6 months
+
+.artifact-other:
+  rules:
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+  artifacts:
+    expire_in: 2 weeks
+
+
 # Caches
 #   They are designed to be pull by default so it's easy to use them in test tasks
 #   Build jobs should explicitly specify a pull-push policy
@@ -143,22 +156,6 @@ build:tools:
   script:
     - cargo install --locked gitlab_clippy
 
-build:surfer-plugin:
-  stage: setup_n_build
-  image: "rust:$RUST_VERSION"
-  cache:
-    - <<: *cache_surfer
-      policy: pull-push
-  script:
-    - rustup target add wasm32-unknown-unknown
-    - cargo build --locked --target wasm32-unknown-unknown -p spade-surfer-plugin --release
-    - cp $CARGO_TARGET_DIR/wasm32-unknown-unknown/release/spade_surfer_plugin.wasm .
-  artifacts:
-    paths:
-      - spade_surfer_plugin.wasm
-    # These things are pretty small, and by doing this we can avoid having to rebuild
-    # this on user devices a lot of the time
-    expire_in: 3 months
 
 # Check jobs
 check:cargo-fmt:
@@ -348,9 +345,29 @@ trawler:
       UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
       UPSTREAM_URL: $CI_MERGE_REQUEST_SOURCE_PROJECT_URL
     trigger: spade-lang/trawler
+
+
+.build:surfer-plugin:
+  stage: setup_n_build
+  image: "rust:$RUST_VERSION"
+  cache:
+    - <<: *cache_surfer
+      policy: pull-push
+  script:
+    - rustup target add wasm32-unknown-unknown
+    - cargo build --locked --target wasm32-unknown-unknown -p spade-surfer-plugin --release
+    - cp $CARGO_TARGET_DIR/wasm32-unknown-unknown/release/spade_surfer_plugin.wasm .
+  artifacts:
+    paths:
+      - spade_surfer_plugin.wasm
+
+build:surfer-plugin-main:
+  extends: [.build:surfer-plugin, .artifact-main]
+build:surfer-plugin:
+  extends: [.build:surfer-plugin, .artifact-other]
     
 
-build:wheel-manylinux:
+.build:wheel-manylinux:
   cache:
     - <<: *cache_wheel_linux
       policy: pull-push
@@ -367,8 +384,13 @@ build:wheel-manylinux:
     paths:
       - ${CARGO_TARGET_DIR}/wheels/*.whl
 
+build:wheel-manylinux-main:
+  extends: [.build:wheel-manylinux, .artifact-main]
+build:wheel-manylinux:
+  extends: [.build:wheel-manylinux, .artifact-other]
 
-build:static:
+
+.build:static:
   cache:
     - <<: *cache_static_linux
       policy: pull-push
@@ -379,11 +401,18 @@ build:static:
   script:
     - cargo build --locked --release --workspace --exclude spade-python --exclude spade-surfer-plugin --exclude spade-cxx --target x86_64-unknown-linux-musl --exclude spade-simulation-ext
     - strip $CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/spade
-    - mkdir outputs
-    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade outputs
-    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade-language-server outputs
+    - mkdir -p spade/bin
+    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade spade/bin
+    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade-language-server spade/bin
   artifacts:
     paths:
-      - outputs
-
+      - spade/bin/spade
+      - spade/bin/spade-language-server
     
+build:static-main:
+  extends: [.build:static, .artifact-main]
+build:static:
+  extends: [.build:static, .artifact-other]
+
+
+
