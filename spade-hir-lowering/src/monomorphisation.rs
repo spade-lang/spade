@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::atomic::AtomicU64;
+use std::panic::{self, set_hook};
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex, RwLock};
 
 use itertools::Itertools;
@@ -16,7 +17,6 @@ use spade_hir::{symbol_table::FrozenSymtab, ExecutableItem, ItemList, UnitName};
 use spade_mir as mir;
 use spade_typeinference::equation::KnownTypeVar;
 use spade_typeinference::error::UnificationErrorExt;
-use spade_typeinference::trace_stack::format_trace_stack;
 use spade_typeinference::traits::TraitImplList;
 use spade_typeinference::{GenericListToken, HasType, TypeState};
 
@@ -156,7 +156,7 @@ impl MonoState {
         }
     }
 
-    fn next_target(&self) -> Option<MonoItem> {
+    fn next_target(&self, panic_marker: &AtomicBool) -> Option<MonoItem> {
         loop {
             let next = self.inner.lock().unwrap().to_compile.pop_front();
             if let Some(result) = next {
@@ -168,6 +168,7 @@ impl MonoState {
                             .remaining_units
                             .load(std::sync::atomic::Ordering::SeqCst)
                             == 0
+                            || panic_marker.load(std::sync::atomic::Ordering::SeqCst)
                         {
                             break None;
                         }
@@ -251,8 +252,21 @@ pub fn compile_items(
     {
         let result = Arc::clone(&result);
         let state = Arc::clone(&state);
+        let panic_marker = Arc::new(AtomicBool::new(false));
+
+        // Because we're doing DIY multithreading with rayon here, and because rayon only
+        // panics once all threads have executed, we have to do some panic hook wrangling here, yeehaw
+        let old_hook = panic::take_hook();
+        {
+            let panic_marker = Arc::clone(&panic_marker);
+            set_hook(Box::new(move |p| {
+                panic_marker.store(true, std::sync::atomic::Ordering::SeqCst);
+                old_hook(p)
+            }));
+        }
+
         rayon::scope_fifo(move |s| {
-            while let Some(item) = state.next_target() {
+            while let Some(item) = state.next_target(&panic_marker) {
                 let state = Arc::clone(&state);
                 let name_source_map = Arc::clone(&name_source_map);
                 let result = Arc::clone(&result);
@@ -261,6 +275,7 @@ pub fn compile_items(
 
                 s.spawn_fifo(move |_s| {
                     let key = item.key();
+
                     let local = monomorphize_item(
                         item,
                         items,
@@ -420,21 +435,12 @@ fn monomorphize_item(
                     type_ctx,
                 );
 
-                if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-                    if path
-                        == u.name
-                            .name_id()
-                            .1
-                            .to_named_strs()
-                            .iter()
-                            .filter_map(|s| *s)
-                            .join("::")
-                    {
+                type_state.emit_trace_if_enabled(
+                    || {
                         println!("After mono of {} with {:?}", u.inner.name, item.params);
-                        type_state.print_equations();
-                        println!("{}", format_trace_stack(&type_state));
-                    }
-                }
+                    },
+                    &u.name,
+                );
 
                 let mut errors = vec![];
                 for diag in type_state.owned.diags.drain() {

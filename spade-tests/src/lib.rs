@@ -14,6 +14,7 @@ mod auto_traits;
 mod compiler_state;
 #[cfg(test)]
 mod const_generics;
+#[cfg(test)]
 mod data_requirements;
 #[cfg(test)]
 mod hir_lowering;

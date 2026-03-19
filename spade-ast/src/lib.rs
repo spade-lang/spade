@@ -771,6 +771,7 @@ pub struct Unit {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Register {
+    pub keyword: Loc<()>,
     pub pattern: Loc<Pattern>,
     pub clock: Loc<Expression>,
     pub reset: Option<(Loc<Expression>, Loc<Expression>)>,

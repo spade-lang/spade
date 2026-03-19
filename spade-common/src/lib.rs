@@ -1,4 +1,5 @@
 pub mod cloning_rwlock;
+pub mod doc_links;
 pub mod id_tracker;
 pub mod interning;
 pub mod loc_map;

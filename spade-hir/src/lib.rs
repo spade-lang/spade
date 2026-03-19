@@ -258,6 +258,7 @@ impl Statement {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Register {
+    pub keyword: Loc<()>,
     pub pattern: Loc<Pattern>,
     pub clock: Loc<Expression>,
     pub reset: Option<(Loc<Expression>, Loc<Expression>)>,

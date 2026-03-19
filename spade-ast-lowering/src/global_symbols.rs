@@ -17,6 +17,7 @@ use spade_types::meta_types::MetaType;
 
 use crate::{
     attributes::{AttributeListExt, LocAttributeExt},
+    data_requirements::new_data_trait_spec,
     impls::create_trait_from_unit_heads,
     types::IsInOut,
     validate_default_param_position, visit_default_type_expression, visit_parameter_list,
@@ -487,20 +488,9 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
             for arg in &mut args {
                 let loc = arg.loc();
                 match &mut arg.inner {
-                    GenericArg::TypeName { name: _, traits } => traits.push(
-                        hir::TraitSpec {
-                            name: spade_hir::TraitName::Named(
-                                None,
-                                ctx.symtab
-                                    .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
-                                    .clone()
-                                    .at_loc(&loc),
-                            ),
-                            type_params: None,
-                            paren_syntax: false,
-                        }
-                        .at_loc(&loc),
-                    ),
+                    GenericArg::TypeName { name: _, traits } => {
+                        traits.push(new_data_trait_spec(&loc, ctx))
+                    }
                     GenericArg::TypeWithMeta { .. } => {}
                 }
             }
@@ -564,18 +554,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 default: _,
             } => {
                 let data_requirement = if matches!(t.kind, spade_ast::TypeDeclKind::Enum(_)) {
-                    vec![hir::TraitSpec {
-                        name: spade_hir::TraitName::Named(
-                            None,
-                            ctx.symtab
-                                .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
-                                .clone()
-                                .at_loc(&n),
-                        ),
-                        type_params: None,
-                        paren_syntax: false,
-                    }
-                    .at_loc(n)]
+                    vec![new_data_trait_spec(&n.loc(), ctx)]
                 } else {
                     vec![]
                 };
@@ -636,18 +615,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                         // NOTE This code is currently duplicated in three places in this file, which should
                         // ideally be improved
                         if matches!(t.inner.kind, spade_ast::TypeDeclKind::Enum(_)) {
-                            vec![hir::TraitSpec {
-                                name: spade_hir::TraitName::Named(
-                                    None,
-                                    ctx.symtab
-                                        .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
-                                        .clone()
-                                        .at_loc(&name),
-                                ),
-                                type_params: None,
-                                paren_syntax: false,
-                            }
-                            .at_loc(name)]
+                            vec![new_data_trait_spec(&name.loc(), ctx)]
                         } else {
                             vec![]
                         },
@@ -728,14 +696,17 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     })
                     .unwrap_or(Ok(vec![]))?;
 
-                // Ensure that we don't have any port or inout types in the enum variants
-                for (_, _, _, ty) in args {
-                    let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
-                    if ty.is_inout(&ctx)? {
-                        return Err(Diagnostic::error(ty, "Inout in enum")
-                            .primary_label("This is an inout")
-                            .secondary_label(&e.name, "This is an enum"));
+                for (_, wire, _, ty) in args {
+                    if let Some(wire) = wire {
+                        return Err(Diagnostic::error(
+                            wire,
+                            "Wire can only be used on variables and function parameters",
+                        )
+                        .primary_label("Wire in type"));
                     }
+
+                    let ty = visit_type_spec(&ty, &TypeSpecKind::EnumMember, ctx)?;
+
                     add_type_spec_name_ids_to_graph(
                         &ty.inner,
                         &declaration_id,
@@ -834,7 +805,14 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 ));
             }
 
-            for (_, _wire, _f, ty) in &s.members.args {
+            for (_, wire, _f, ty) in &s.members.args {
+                if let Some(wire) = wire {
+                    return Err(Diagnostic::error(
+                        wire,
+                        "Wire can only be used on variables and function parameters",
+                    )
+                    .primary_label("Wire in type"));
+                }
                 let hir_ty = visit_type_spec(ty, &TypeSpecKind::StructMember, ctx)?;
                 if hir_ty.is_inout(ctx)? {
                     return Err(Diagnostic::error(ty, "Inout in struct")

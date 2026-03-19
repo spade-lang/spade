@@ -69,7 +69,6 @@ impl LambdaReplacement {
             .iter()
             .enumerate()
             .map(|(i, (arg, _))| {
-                // .1, .0 is self
                 let Input {
                     wire: _,
                     name,
@@ -102,11 +101,7 @@ impl LambdaReplacement {
             .collect::<Result<Vec<_>>>()?;
 
         let clock_binding = if let Some(clock) = &self.clock {
-            let Input {
-                wire: _,
-                name,
-                ty: _,
-            } = old.inputs.get(1).ok_or_else(|| {
+            let Input { wire, name, ty: _ } = old.inputs.get(1).ok_or_else(|| {
                 diag_anyhow!(
                     clock,
                     "Did not find any arguments to the generated lambda body"
@@ -119,7 +114,7 @@ impl LambdaReplacement {
                         name: clock.clone(),
                         inner: None,
                         pre_declared: false,
-                        wire: Some(().at_loc(clock)),
+                        wire: wire.clone(),
                     }
                     .with_id(idtracker.next())
                     .at_loc(&clock),
@@ -143,7 +138,11 @@ impl LambdaReplacement {
                         name: cap_name.clone(),
                         inner: None,
                         pre_declared: false,
-                        wire: None,
+                        wire: if old.head.unit_kind.is_pipeline() {
+                            Some(().nowhere())
+                        } else {
+                            None
+                        },
                     }
                     .with_id(idtracker.next())
                     .at_loc(cap_name),

@@ -151,9 +151,10 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
         parser.eat(&TokenKind::Assignment)?;
         let (value, end_span) = parser.expression()?.separate();
 
-        let span = lspan(start_token.span).merge(end_span);
+        let span = lspan(start_token.span.clone()).merge(end_span);
         let result = Statement::Register(
             Register {
+                keyword: ().at(parser.file_id, &start_token),
                 pattern,
                 clock,
                 reset,

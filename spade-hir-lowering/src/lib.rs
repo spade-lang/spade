@@ -50,6 +50,7 @@ use num::{BigUint, One, Zero};
 use pattern::DeconstructedPattern;
 use pipelines::lower_pipeline;
 use pipelines::MaybePipelineContext;
+use spade_common::doc_links::GENERIC_PARAM_INTRO;
 use spade_common::id_tracker::ExprIdTracker;
 use spade_common::location_info::WithLocation;
 use spade_common::name::{Identifier, Path, PathSegment};
@@ -1265,6 +1266,7 @@ impl StatementLocal for Statement {
             }
             Statement::Register(register) => {
                 let hir::Register {
+                    keyword: _,
                     clock,
                     reset,
                     initial,
@@ -2519,9 +2521,14 @@ impl ExprLocal for Loc<Expression> {
                     self,
                     format!("The type of {param_name} is not fully known in this call"),
                 )
-                .primary_label(format!("Type of type parameter {param_name} is not fully known"))
+                .primary_label(format!(
+                    "Type of type parameter {param_name} is not fully known"
+                ))
                 .secondary_label(param, format!("{param_name} is defined here"))
-                .help("Consider specifying the type parameters explicitly https://docs.spade-lang.org/units.html#brief-intro-to-generic-parameters"));
+                .help(format!(
+                    "Consider specifying the type parameters explicitly {}",
+                    GENERIC_PARAM_INTRO
+                )));
             };
         }
 

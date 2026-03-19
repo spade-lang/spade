@@ -1,6 +1,7 @@
 mod attributes;
 pub mod auto_traits;
 pub mod builtins;
+mod data_requirements;
 pub mod error;
 pub mod global_symbols;
 mod impls;
@@ -842,7 +843,7 @@ pub fn unit_head(
     let first_hidden_id = ctx.generic_idtracker.peek();
     let mut inputs = visit_parameter_list(&head.inputs, ctx, no_mangle_all)?;
 
-    // Mark the first argument with `wire` implicitly
+    // Mark the clock argument with `wire` implicitly
     if head.unit_kind.is_pipeline() {
         inputs
             .0
@@ -2794,6 +2795,7 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
 
     stmts.push(
         hir::Statement::Register(hir::Register {
+            keyword: reg.keyword,
             pattern,
             clock,
             reset,

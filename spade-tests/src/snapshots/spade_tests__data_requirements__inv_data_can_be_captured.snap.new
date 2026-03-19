@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/data_requirements.rs
+assertion_line: 109
+---
+entity test(clk: clock) {
+    let x: inv bool = port.1;
+
+    let lambda = entity |clk| {
+        set x = false;
+    };
+
+    lambda.inst call(clk, ());
+}

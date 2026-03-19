@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/data_requirements.rs
+---
+enum Type {
+    V0,
+    V1{x: inout<bool>}
+}
+
+fn test() -> Type {
+    Type::V0
+}
+
+
+error: Enum members must be Data
+  ┌─ testinput:3:11
+  │
+3 │     V1{x: inout<bool>}
+  │           ^^^^^^^^^^^ Non-data enum member
+  │
+  ┌─ <str>:1:1
+  │
+1 │ 
+  │ - This type is not Data
+  │
+  = help: Typically, a type not being Data means it has an `inv` part
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html

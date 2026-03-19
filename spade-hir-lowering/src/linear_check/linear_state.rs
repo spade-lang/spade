@@ -42,7 +42,7 @@ impl MutWireWitness {
         match self {
             MutWireWitness::This => String::new(),
             MutWireWitness::Field(ident, rest) => format!(".{}{}", ident, rest.motivation()),
-            MutWireWitness::TupleIndex(idx, rest) => format!("#{}{}", idx, rest.motivation()),
+            MutWireWitness::TupleIndex(idx, rest) => format!(".{}{}", idx, rest.motivation()),
             MutWireWitness::ArrayIndex(idx, rest) => format!("[{}]{}", idx, rest.motivation()),
         }
     }
@@ -541,7 +541,7 @@ impl LinearState {
         Ok(())
     }
 
-    /// Adds `from` as an alias to the tree at `base_expr#tuple_member`. Panics if base_expr is not
+    /// Adds `from` as an alias to the tree at `base_expr.tuple_member`. Panics if base_expr is not
     /// a tuple with at least idx elements
     pub fn alias_tuple_member(
         &mut self,

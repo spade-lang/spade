@@ -10,13 +10,13 @@ fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
 
 error: Trait bound not satisfied. inv bool does not implement core::Data
   ┌─ testinput:3:14
-  │
-3 │         _ => x
-  │              ^
-  │              │
-  │              inv bool does not implement core::Data
-  │              The type of this expression is not Data which means it cannot be the result of a match-statement.
-  │              Required because of the trait bound specified here
-  │
+  │    
+2 │ ╭ ╭     match sel {
+3 │ │ │         _ => x
+  │ │ │              ^ inv bool does not implement core::Data
+4 │ │ │     }
+  │ ╰─│─────' Required because of the trait bound specified here
+  │   ╰─────' The result of a match-expression must be Data.
+  │    
   = help: An expression not being Data typically means it contains at least one `inv` type
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html

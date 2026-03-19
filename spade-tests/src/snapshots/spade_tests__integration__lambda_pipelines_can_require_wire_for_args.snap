@@ -28,7 +28,7 @@ error: Trait bound not satisfied. inv uint<32> does not implement core::Data
   │   ╰─────' The value needs to be in a register because it is in this pipeline
   │    
   = help: An expression not being Data typically means it contains at least one `inv` type
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html
   = The error is in a generic unit instantiated at
     ╰ testinput:7 impl#15::call<inv uint<32>, inv uint<32>>
   = Consider making the binding a wire

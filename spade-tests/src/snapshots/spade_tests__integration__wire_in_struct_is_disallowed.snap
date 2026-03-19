@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct Test {
+    wire x: bool,
+}
+
+
+error: Wire can only be used on variables and function parameters
+  ┌─ testinput:2:5
+  │
+2 │     wire x: bool,
+  │     ^^^^ Wire in type

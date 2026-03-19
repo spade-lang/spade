@@ -506,6 +506,7 @@ impl PrettyDebug for Statement {
             }
             Statement::Expression(expr) => format!("{};", expr.pretty_debug()),
             Statement::Register(Register {
+                keyword: _,
                 pattern,
                 clock,
                 reset,

@@ -16,11 +16,3 @@ error: Could not find referenced variable
   │
 2 │         let a = stage(+2).d;
   │                           ^ This variable could not be found
-
-error: Type of a is not fully known
-  ┌─ testinput:2:13
-  │
-2 │         let a = stage(+2).d;
-  │             ^ The type of a is not fully known
-  │
-  = note: Found incomplete type: core::Data

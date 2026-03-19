@@ -15,4 +15,4 @@ error: b.x is unused
 4 │     let (a, b) = port;
   │             ^ b.x is unused
   │
-  = note: b.x is an inverted wire (`inv &`) which must be set
+  = note: b.x is an inverted wire (`inv`) which must be set

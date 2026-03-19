@@ -1,10 +1,11 @@
 use crate::Result;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
+    doc_links::WIRE_DOCS,
     location_info::{Loc, WithLocation},
     name::Visibility,
 };
-use spade_diagnostics::diag_bail;
+use spade_diagnostics::{diag_bail, Diagnostic};
 use spade_hir::{
     auto_traits::DataWitness, symbol_table::TypeSymbol, ImplBlock, Parameter, Struct, TraitName,
     TraitSpec, TypeAlias, TypeDeclaration, TypeExpression, TypeSpec,
@@ -34,6 +35,7 @@ impl TyExt for Loc<TypeExpression> {
         }
     }
 }
+
 impl TyExt for Loc<TypeSpec> {
     fn get_data_witness(&self, ctx: &Context) -> Option<DataWitness> {
         match &self.inner {
@@ -76,8 +78,7 @@ impl TyExt for Loc<TypeSpec> {
 impl TyExt for Loc<TypeDeclaration> {
     fn get_data_witness(&self, ctx: &Context) -> Option<DataWitness> {
         match &self.kind {
-            // Enums never impl !Data because their members must impl data. This
-            // mustbe checked later
+            // Enums never impl !Data because their members must impl data.
             spade_hir::TypeDeclKind::Enum(_) => None,
             spade_hir::TypeDeclKind::Primitive(inner) => match inner {
                 spade_types::PrimitiveType::Int => None,
@@ -122,6 +123,33 @@ impl TyExt for Loc<TypeDeclaration> {
     }
 }
 
+pub fn enforce_enum_data(ctx: &mut Context) {
+    for (_, ty) in &ctx.item_list.types {
+        match &ty.kind {
+            spade_hir::TypeDeclKind::Enum(e) => {
+                for (_, parameters) in &e.options {
+                    for param in &parameters.0 {
+                        if let Some(witness) = param.ty.get_data_witness(ctx) {
+                            Diagnostic::error(&param.ty, "Enum members must be Data")
+                                .primary_label("Non-data enum member")
+                                .secondary_label(witness.loc(), "This type is not Data")
+                                .help("Typically, a type not being Data means it has an `inv` part")
+                                .help(format!(
+                                    "You can learn more about `Data` here: {}",
+                                    WIRE_DOCS
+                                ))
+                                .handle_in(&mut ctx.diags.lock().unwrap());
+                        }
+                    }
+                }
+            }
+            spade_hir::TypeDeclKind::Primitive(_)
+            | spade_hir::TypeDeclKind::Struct(_)
+            | spade_hir::TypeDeclKind::Alias(_) => {}
+        }
+    }
+}
+
 /// This performs blanket implementations of the `Data` trait for all types which do not
 pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
     // We'll add a few things to the symtab here, let's do that in a scope
@@ -131,11 +159,11 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
             .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
             .clone()
             .nowhere();
+
         let data_trait_name = TraitName::Named(None, data);
+
         for (name, ty) in &ctx.item_list.types {
-            if let Some(witness) = ty.get_data_witness(ctx) {
-                ctx.symtab.data_witnesses.insert(name.clone(), witness);
-            } else {
+            if ty.get_data_witness(ctx).is_none() {
                 let (type_params, target_args): (Vec<_>, Vec<_>) = ty
                     .inner
                     .generic_args
@@ -207,6 +235,8 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
                 )?;
             }
         }
+
+        enforce_enum_data(ctx);
 
         Ok(())
     })

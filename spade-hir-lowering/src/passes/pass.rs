@@ -130,6 +130,7 @@ impl Passable for Loc<Expression> {
                         Statement::Expression(expr) => expr.apply(pass)?,
                         Statement::Register(reg) => {
                             let Register {
+                                keyword: _,
                                 pattern: _,
                                 clock,
                                 reset,

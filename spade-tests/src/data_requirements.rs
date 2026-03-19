@@ -1,4 +1,4 @@
-use crate::snapshot_error;
+use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error! {
     reg_requires_data,
@@ -59,4 +59,80 @@ snapshot_error! {
         }
     ",
     false
+}
+
+snapshot_error! {
+    enum_cannot_contain_inv,
+    "
+        enum Type {
+            V0,
+            V1{x: inv bool}
+        }
+
+        fn test() -> Type {
+            Type::V0
+        }
+    "
+}
+
+snapshot_error! {
+    enum_cannot_contain_inv_recursive,
+    "
+        struct RecursivelyInv {
+            x: inv bool
+        }
+        enum Type {
+            V0,
+            V1{x: RecursivelyInv}
+        }
+
+        fn test() -> Type {
+            Type::V0
+        }
+    "
+}
+
+snapshot_error! {
+    enum_cannot_contain_inout,
+    "
+        enum Type {
+            V0,
+            V1{x: inout<bool>}
+        }
+
+        fn test() -> Type {
+            Type::V0
+        }
+    "
+}
+
+code_compiles! {
+    inv_data_can_be_captured,
+    "
+        entity test(clk: clock) {
+            let x: inv bool = port.1;
+
+            let lambda = entity |clk| {
+                set x = false;
+            };
+
+            lambda.inst call(clk, ());
+        }
+    "
+}
+
+code_compiles! {
+    inv_data_can_be_captured_in_pipelines,
+    "
+        entity test(clk: clock) {
+            let x: inv bool = port.1;
+
+            let lambda = pipeline(1) |clk| {
+            reg;
+                set x = false;
+            };
+
+            lambda.inst(1) call(clk, ());
+        }
+    "
 }

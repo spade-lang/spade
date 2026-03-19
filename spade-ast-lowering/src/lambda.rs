@@ -250,8 +250,6 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             )
                             .at_loc(name_id);
 
-                            // TODO: We probably need to set wire here. I'm not sure if we can safely
-                            // blanket set wire (we can if code gen always generates an intermediate).
                             (ast::AttributeList::empty(), None, name_ident.clone(), ty)
                         })
                         .collect(),
@@ -330,14 +328,22 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 inputs: ast::ParameterList {
                     self_: Some((
                         ast::AttributeList::empty().nowhere(),
-                        Some(WireMarker {}.nowhere()),
+                        if unit_kind.is_pipeline() {
+                            Some(WireMarker {}.nowhere())
+                        } else {
+                            None
+                        },
                     )),
                     args: clock_arg
                         .clone()
                         .into_iter()
                         .chain([(
                             ast::AttributeList(vec![]),
-                            Some(WireMarker {}.nowhere()),
+                            if unit_kind.is_pipeline() {
+                                Some(WireMarker {}.nowhere())
+                            } else {
+                                None
+                            },
                             ast_ident("args"),
                             args_spec,
                         )])
@@ -497,7 +503,11 @@ fn handle_unit_kind(
                     [Some("clk")] => (
                         Some((
                             ast::AttributeList(vec![]),
-                            Some(WireMarker {}.nowhere()),
+                            if unit_kind.is_pipeline() {
+                                Some(WireMarker {}.nowhere())
+                            } else {
+                                None
+                            },
                             p.0.last().unwrap().unwrap_named().clone(),
                             ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
                                 .at_loc(clock),

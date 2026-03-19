@@ -1822,7 +1822,7 @@ snapshot_error! {
 snapshot_error! {
     wire_targets_must_be_types,
     "
-        fn test(x: &2) {}
+        fn test(x: inv 2) {}
     "
 }
 

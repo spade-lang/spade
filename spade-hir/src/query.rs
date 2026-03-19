@@ -276,6 +276,7 @@ impl<'a> QueryCache {
                 self.visit_expression(value)
             }
             Statement::Register(Register {
+                keyword: _,
                 pattern,
                 clock,
                 reset,

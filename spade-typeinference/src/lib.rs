@@ -25,6 +25,7 @@ use num::{BigInt, BigUint, Zero};
 use replacement::ReplacementStack;
 use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
+use spade_common::doc_links::WIRE_DOCS;
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
@@ -756,9 +757,9 @@ impl TypeState {
     fn handle_unit_data_constraints(&mut self, entity: &Loc<Unit>, ctx: &Context) -> Result<()> {
         let pipeline_loc = self.owned.pipeline_state.as_ref().map(|s| s.pipeline_loc);
 
-        if let Some(pipeline_loc) = pipeline_loc {
-            for Input { wire, name, ty: _ } in &entity.inputs {
-                if wire.is_none() {
+        for Input { wire, name, ty: _ } in &entity.inputs {
+            match (pipeline_loc, wire) {
+                (Some(pipeline_loc), None) => {
                     TypedExpression::Name(name.inner.clone())
                         .unify_with(&self.new_generic_data(pipeline_loc, ctx), self)
                         .commit(self, ctx)
@@ -774,11 +775,18 @@ impl TypeState {
                                 .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
                                 .span_suggest_insert_before("Consider making the argument a wire", name, "wire ")
                                 .help("An value not being Data typically means it contains at least one `inv` type")
-                                .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                                .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                             },
                             self,
                         )?;
                 }
+                (Some(_), Some(_)) => {}
+                (None, Some(wire)) => {
+                    Diagnostic::warning(wire, "Wire can only be used inside pipelines")
+                        .primary_label("Wire outside pipeline")
+                        .handle_in(&mut self.owned.diags);
+                }
+                (None, None) => {}
             }
         }
 
@@ -806,7 +814,7 @@ impl TypeState {
             Statement::Expression(e) => self.expression_data_constraints(e, pipeline_loc, ctx)?,
             Statement::Register(reg) => {
                 TypedExpression::Id(reg.value.id)
-                    .unify_with(&self.new_generic_data(reg.value.loc(), ctx), self)
+                    .unify_with(&self.new_generic_data(reg.keyword, ctx), self)
                     .commit(self, ctx)
                     .into_diagnostic(
                         &reg.pattern,
@@ -818,7 +826,7 @@ impl TypeState {
                                 ),
                             )
                             .help("An expression not being Data typically means it contains at least one `inv` type")
-                            .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                                .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                         },
                         self,
                     )?;
@@ -850,8 +858,8 @@ impl TypeState {
                 inner,
                 wire,
             } => {
-                if let Some(pipeline_loc) = pipeline_loc {
-                    if wire.is_none() {
+                match (pipeline_loc, wire) {
+                    (Some(pipeline_loc), None) => {
                         TypedExpression::Name(name.inner.clone())
                             .unify_with(&self.new_generic_data(*pipeline_loc, ctx), self)
                             .commit(self, ctx)
@@ -867,12 +875,20 @@ impl TypeState {
                                     .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
                                     .span_suggest_insert_before("Consider making the binding a wire", name, "wire ")
                                     .help("An expression not being Data typically means it contains at least one `inv` type")
-                                    .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                                    .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                                 },
                                 self,
                             )?;
                     }
+                    (Some(_), Some(_)) => {}
+                    (None, Some(wire)) => {
+                        Diagnostic::warning(wire, "Wire has no effect outside pipelines")
+                            .primary_label("Wire outside pipeline")
+                            .handle_in(&mut self.owned.diags);
+                    }
+                    (None, None) => {}
                 }
+
                 if let Some(inner) = inner {
                     self.pattern_data_constraint(inner, pipeline_loc, ctx)?;
                 }
@@ -941,13 +957,13 @@ impl TypeState {
                         &on_true.loc(),
                         |diag, _e| {
                             diag.secondary_label(
-                                &on_true.loc(),
+                                &expr.loc(),
                                 format!(
-                                    "The type of this expression is not Data which means it cannot be the result of an if-statement."
+                                    "The result of an if-expression must be Data."
                                 ),
                             )
                             .help("An expression not being Data typically means it contains at least one `inv` type")
-                            .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                                .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                         },
                         self,
                     )?;
@@ -956,19 +972,19 @@ impl TypeState {
             ExprKind::Match(_, branches) => {
                 if let Some((_pat, _cond, value)) = branches.first() {
                     TypedExpression::Id(value.id)
-                    .unify_with(&self.new_generic_data(value.loc(), ctx), self)
+                    .unify_with(&self.new_generic_data(expr.loc(), ctx), self)
                     .commit(self, ctx)
                     .into_diagnostic(
                         &value.loc(),
                         |diag, _e| {
                             diag.secondary_label(
-                                &value.loc(),
+                                &expr.loc(),
                                 format!(
-                                    "The type of this expression is not Data which means it cannot be the result of a match-statement."
+                                    "The result of a match-expression must be Data."
                                 ),
                             )
                             .help("An expression not being Data typically means it contains at least one `inv` type")
-                            .help("You can learn more about `Data` here: https://docs.spade-lang.org/wires.html")
+                            .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                         },
                         self,
                     )?;

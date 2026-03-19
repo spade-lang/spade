@@ -14,6 +14,6 @@ error: x is unused
 1 │ entity takes_generic<T>(x: T) -> bool {true}
   │                         ^ x is unused
   │
-  = note: x is an inverted wire (`inv &`) which must be set
+  = note: x is an inverted wire (`inv`) which must be set
   = The error is in a generic unit instantiated at
     ╰ testinput:4 takes_generic<inv bool>

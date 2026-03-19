@@ -848,6 +848,24 @@ snapshot_mir! {
     "
 }
 
+snapshot_error! {
+    wire_in_struct_is_disallowed,
+    "
+        struct Test {
+            wire x: bool,
+        }
+    "
+}
+
+snapshot_error! {
+    wire_in_enum_is_disallowed,
+    "
+        enum Test {
+            V1{wire x: bool},
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

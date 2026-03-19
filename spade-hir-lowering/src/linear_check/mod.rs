@@ -66,7 +66,7 @@ pub fn check_linear_types(
         Diagnostic::error(&alias, format!("{self_description} is unused"))
             .primary_label(format!("{self_description} is unused"))
             .note(format!(
-                "{self_description} is an inverted wire (`inv &`) which must be set"
+                "{self_description} is an inverted wire (`inv`) which must be set"
             ))
     })?;
 
@@ -95,6 +95,7 @@ pub fn visit_statement(
         }
         Statement::Register(reg) => {
             let Register {
+                keyword: _,
                 pattern,
                 clock,
                 reset,

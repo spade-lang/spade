@@ -2,7 +2,7 @@ use colored::*;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{cloning_rwlock::CloningRWLock, name::NameID};
-use spade_hir::{pretty_print::PrettyPrint, Generic};
+use spade_hir::{pretty_print::PrettyPrint, Generic, UnitName};
 use spade_types::KnownType;
 
 use crate::{
@@ -12,6 +12,26 @@ use crate::{
     traits::TraitList,
     TypeState,
 };
+
+impl TypeState {
+    pub fn emit_trace_if_enabled(&self, before: impl Fn(), current_uint: &UnitName) {
+        if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
+            before();
+            if path
+                == current_uint
+                    .name_id()
+                    .1
+                    .to_named_strs()
+                    .iter()
+                    .filter_map(|s| *s)
+                    .join("::")
+            {
+                self.print_equations();
+                println!("{}", format_trace_stack(&self));
+            }
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct TraceStack {

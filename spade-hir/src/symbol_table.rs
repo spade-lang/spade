@@ -15,10 +15,7 @@ use spade_diagnostics::diag_list::DiagList;
 use spade_diagnostics::diagnostic::{Diagnostic, Subdiagnostic};
 use spade_types::meta_types::MetaType;
 
-use crate::{
-    auto_traits::DataWitness, FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec,
-    UnitHead, UnitKind,
-};
+use crate::{FunctionKind, ParameterList, TraitSpec, TypeParam, TypeSpec, UnitHead, UnitKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LookupError {
@@ -499,9 +496,6 @@ pub struct SymbolTable {
     pub visibilities: HashMap<NameID, Loc<Visibility>>,
     pub deprecation_notes: HashMap<NameID, Option<Loc<String>>>,
 
-    /// A lookup table for the source of a a named type not being `Data`
-    pub data_witnesses: HashMap<NameID, DataWitness>,
-
     pub lang_items: HashMap<LangItem, NameID>,
 
     /// The namespace which we are currently in. When looking up and adding symbols, this namespace
@@ -527,7 +521,6 @@ impl SymbolTable {
             things: HashMap::default(),
             visibilities: HashMap::default(),
             deprecation_notes: HashMap::default(),
-            data_witnesses: HashMap::default(),
             lang_items: HashMap::default(),
             namespace: Path(vec![]),
             base_namespace: Path(vec![]),

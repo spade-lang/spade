@@ -20,4 +20,4 @@ error: x is unused
 1 │ entity test(x: inv &bool) {
   │             ^ x is unused
   │
-  = note: x is an inverted wire (`inv &`) which must be set
+  = note: x is an inverted wire (`inv`) which must be set

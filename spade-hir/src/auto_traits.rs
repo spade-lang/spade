@@ -12,4 +12,11 @@ impl DataWitness {
     pub fn recurse(self, loc: &Loc<()>) -> Self {
         Self::Recursive(Box::new(self.at_loc(&loc)))
     }
+
+    pub fn loc(&self) -> Loc<()> {
+        match self {
+            DataWitness::Here(here) => here.clone(),
+            DataWitness::Recursive(inner) => inner.loc(),
+        }
+    }
 }

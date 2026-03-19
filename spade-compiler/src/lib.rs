@@ -42,7 +42,6 @@ use spade_hir_lowering::monomorphisation::MirOutput;
 use spade_hir_lowering::NameSourceMap;
 pub use spade_parser::lexer;
 use spade_parser::Parser;
-use spade_typeinference::trace_stack::format_trace_stack;
 use spade_typeinference::{self as typeinference, SharedTypeState};
 
 pub struct Opt<'b> {
@@ -240,7 +239,6 @@ pub fn compile(
     }
 
     errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
-
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
@@ -259,12 +257,18 @@ pub fn compile(
         unfinished_artefacts.symtab = Some(ctx.symtab);
         return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
     }
-    // Let's prevent using this thing again
-    let _unfinished_artefacts = unfinished_artefacts;
 
     lower_ast(&module_asts, &mut ctx, &mut errors);
 
     auto_traits::impl_auto_traits(&mut ctx).handle_in(&mut diags.lock().unwrap());
+
+    errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
+    if errors.failed_now() {
+        unfinished_artefacts.symtab = Some(ctx.symtab);
+        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
+    }
+    // Let's prevent using this thing again
+    let _unfinished_artefacts = unfinished_artefacts;
 
     let AstLoweringCtx {
         symtab,
@@ -324,40 +328,14 @@ pub fn compile(
                 type_states.insert(name.clone(), type_state.clone());
 
                 if let Ok(()) = result {
-                    if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-                        if path
-                            == u.name
-                                .name_id()
-                                .1
-                                .to_named_strs()
-                                .iter()
-                                .filter_map(|s| *s)
-                                .join("::")
-                        {
-                            type_state.print_equations();
-                            println!("{}", format_trace_stack(&type_state));
-                        }
-                    }
+                    type_state.emit_trace_if_enabled(|| {}, &u.name);
                     if !failures {
                         Some((name, (item, type_state)))
                     } else {
                         None
                     }
                 } else {
-                    if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-                        if path
-                            == u.name
-                                .name_id()
-                                .1
-                                .to_named_strs()
-                                .iter()
-                                .filter_map(|s| *s)
-                                .join("::")
-                        {
-                            type_state.print_equations();
-                            println!("{}", format_trace_stack(&type_state));
-                        }
-                    }
+                    type_state.emit_trace_if_enabled(|| {}, &u.name);
                     None
                 }
             }

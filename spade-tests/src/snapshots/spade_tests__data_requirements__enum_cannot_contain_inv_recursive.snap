@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/data_requirements.rs
+---
+struct RecursivelyInv {
+    x: inv bool
+}
+enum Type {
+    V0,
+    V1{x: RecursivelyInv}
+}
+
+fn test() -> Type {
+    Type::V0
+}
+
+
+error: Enum members must be Data
+  ┌─ testinput:6:11
+  │
+2 │     x: inv bool
+  │        -------- This type is not Data
+  ·
+6 │     V1{x: RecursivelyInv}
+  │           ^^^^^^^^^^^^^^ Non-data enum member
+  │
+  = help: Typically, a type not being Data means it has an `inv` part
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html
