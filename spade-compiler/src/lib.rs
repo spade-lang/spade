@@ -301,8 +301,14 @@ pub fn compile(
     };
 
     // NOTE: feels hacky but does the job
-    let mapped_trait_impls = impl_type_state.visit_impl_blocks(&item_list, &type_inference_ctx);
+    let (mapped_trait_impls, obligations) = impl_type_state
+        .visit_impl_blocks(&item_list, &type_inference_ctx)
+        .split();
     type_inference_ctx.trait_impls = &mapped_trait_impls;
+
+    obligations
+        .resolve_obligations(&mut impl_type_state, &type_inference_ctx)
+        .handle_in(&mut impl_type_state.owned.diags);
 
     errors.drain_diag_list(&mut impl_type_state.owned.diags);
 

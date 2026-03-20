@@ -1,6 +1,5 @@
 ---
 source: spade-tests/src/data_requirements.rs
-assertion_line: 109
 ---
 entity test(clk: clock) {
     let x: inv bool = port.1;

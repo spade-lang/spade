@@ -61,6 +61,7 @@ use trace_stack::{format_trace_stack, TraceStackEntry};
 use traits::{TraitList, TraitReq};
 
 use crate::error::TypeMismatch as Tm;
+use crate::obligations::{WithObligations, WithoutObligations};
 use crate::requirements::ConstantInt;
 pub use crate::shared::SharedTypeState;
 use crate::traits::{TraitImpl, TraitImplList};
@@ -73,6 +74,7 @@ pub mod expression;
 pub mod fixed_types;
 pub mod method_resolution;
 pub mod mir_type_lowering;
+mod obligations;
 mod replacement;
 mod requirements;
 mod shared;
@@ -279,30 +281,49 @@ impl TypeState {
         }
     }
 
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn hir_type_expr_to_var<'a>(
+    pub fn hir_type_expr_to_var<'a>(
         &'a mut self,
         e: &Loc<hir::TypeExpression>,
         generic_list_token: &GenericListToken,
         ctx: &Context,
     ) -> Result<TypeVarID> {
+        self.hir_type_expr_to_var_with_obligations(e, generic_list_token, ctx)?
+            .resolve_obligations(self, ctx)
+    }
+
+    /// See [type_var_from_hir_with_obligations] for explanation of obligations
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn hir_type_expr_to_var_with_obligations<'a>(
+        &'a mut self,
+        e: &Loc<hir::TypeExpression>,
+        generic_list_token: &GenericListToken,
+        ctx: &Context,
+    ) -> Result<WithObligations<TypeVarID>> {
         let id = match &e.inner {
-            hir::TypeExpression::Bool(b) => {
-                self.add_type_var(TypeVar::Known(e.loc(), KnownType::Bool(*b), vec![]))
-            }
-            hir::TypeExpression::Integer(i) => self.add_type_var(TypeVar::Known(
+            hir::TypeExpression::Bool(b) => self
+                .add_type_var(TypeVar::Known(e.loc(), KnownType::Bool(*b), vec![]))
+                .no_obligations(),
+            hir::TypeExpression::Integer(i) => self
+                .add_type_var(TypeVar::Known(
+                    e.loc(),
+                    KnownType::Integer(i.clone()),
+                    vec![],
+                ))
+                .no_obligations(),
+
+            hir::TypeExpression::String(s) => self
+                .add_type_var(TypeVar::Known(
+                    e.loc(),
+                    KnownType::String(s.clone()),
+                    vec![],
+                ))
+                .no_obligations(),
+            hir::TypeExpression::TypeSpec(spec) => self.type_var_from_hir_with_obligations(
                 e.loc(),
-                KnownType::Integer(i.clone()),
-                vec![],
-            )),
-            hir::TypeExpression::String(s) => self.add_type_var(TypeVar::Known(
-                e.loc(),
-                KnownType::String(s.clone()),
-                vec![],
-            )),
-            hir::TypeExpression::TypeSpec(spec) => {
-                self.type_var_from_hir(e.loc(), &spec.clone(), generic_list_token, ctx)?
-            }
+                &spec.clone(),
+                generic_list_token,
+                ctx,
+            )?,
             hir::TypeExpression::ConstGeneric(g) => {
                 let constraint = self.visit_const_generic(g, generic_list_token)?;
 
@@ -315,26 +336,37 @@ impl TypeState {
                     ConstraintSource::Where,
                 );
 
-                tvar
+                tvar.no_obligations()
             }
         };
         Ok(id)
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(%hir_type))]
-    pub fn type_var_from_hir<'a>(
+    /// Creates a type var from a HIR type. Also returns a list of unifications that
+    /// have to be performed eventually for correctness. Normally, it is better
+    /// to use `type_var_from_hir` which resolves these obligations directly, but
+    /// during initial impl block visiting there is no impl information present which
+    /// means that these obligations can only be resolved once all impl blocks have
+    /// been visited
+    pub fn type_var_from_hir_with_obligations<'a>(
         &'a mut self,
         loc: Loc<()>,
         hir_type: &crate::hir::TypeSpec,
         generic_list_token: &GenericListToken,
         ctx: &Context,
-    ) -> Result<TypeVarID> {
+    ) -> Result<WithObligations<TypeVarID>> {
+        let mut obligations = WithObligations::empty();
+
         let generic_list = self.get_generic_list(generic_list_token);
         let var = match &hir_type {
             hir::TypeSpec::Declared(base, params) => {
                 let params = params
                     .iter()
-                    .map(|e| self.hir_type_expr_to_var(e, generic_list_token, ctx))
+                    .map(|e| {
+                        Ok(self
+                            .hir_type_expr_to_var_with_obligations(e, generic_list_token, ctx)?
+                            .absorb_obligations(&mut obligations))
+                    })
                     .collect::<Result<Vec<_>>>()?;
 
                 let TypeDeclaration {
@@ -362,8 +394,7 @@ impl TypeState {
                         );
 
                         let new_list = self.new_generic_with_traits(loc, traits);
-                        self.unify(tv, &new_list, ctx)
-                            .into_default_diagnostic(loc, self)?;
+                        obligations.push((*tv, new_list).at_loc(&loc));
                     }
                 }
 
@@ -377,7 +408,12 @@ impl TypeState {
                         gl.extend(mappings);
                     });
 
-                    return self.type_var_from_hir(loc, &a.type_spec, &generic_list_token, ctx);
+                    return self.type_var_from_hir_with_obligations(
+                        loc,
+                        &a.type_spec,
+                        &generic_list_token,
+                        ctx,
+                    );
                 }
 
                 self.add_type_var(TypeVar::Known(
@@ -407,8 +443,12 @@ impl TypeState {
                 self.add_type_var(TypeVar::tuple(loc, inner))
             }
             hir::TypeSpec::Array { inner, size } => {
-                let inner = self.type_var_from_hir(loc, inner, generic_list_token, ctx)?;
-                let size = self.hir_type_expr_to_var(size, generic_list_token, ctx)?;
+                let inner = self
+                    .type_var_from_hir_with_obligations(loc, inner, generic_list_token, ctx)?
+                    .absorb_obligations(&mut obligations);
+                let size = self
+                    .hir_type_expr_to_var_with_obligations(size, generic_list_token, ctx)?
+                    .absorb_obligations(&mut obligations);
 
                 self.add_type_var(TypeVar::array(loc, inner, size))
             }
@@ -426,7 +466,19 @@ impl TypeState {
             }
         };
 
-        Ok(var)
+        Ok(obligations.with_val(var))
+    }
+
+    #[tracing::instrument(level = "trace", skip_all, fields(%hir_type))]
+    pub fn type_var_from_hir<'a>(
+        &'a mut self,
+        loc: Loc<()>,
+        hir_type: &crate::hir::TypeSpec,
+        generic_list_token: &GenericListToken,
+        ctx: &Context,
+    ) -> Result<TypeVarID> {
+        self.type_var_from_hir_with_obligations(loc, hir_type, generic_list_token, ctx)?
+            .resolve_obligations(self, ctx)
     }
 
     /// Returns the type of the expression with the specified id. Error if no equation
@@ -2025,8 +2077,15 @@ impl TypeState {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_impl_blocks(&mut self, item_list: &ItemList, ctx: &Context) -> TraitImplList {
+    pub fn visit_impl_blocks(
+        &mut self,
+        item_list: &ItemList,
+        ctx: &Context,
+    ) -> WithObligations<TraitImplList> {
         let mut trait_impls = TraitImplList::new();
+
+        let mut obligations = WithObligations::empty();
+
         for (target, impls) in &item_list.impls.inner {
             for (trait_name, impls) in impls {
                 for (target_args, impls) in impls {
@@ -2056,22 +2115,28 @@ impl TypeState {
                                 let trait_type_params = trait_args
                                     .iter()
                                     .map(|param| {
-                                        Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
-                                            &param.clone().at_loc(&loc),
-                                            &generic_list,
-                                            ctx,
-                                        )?))
+                                        Ok(TemplateTypeVarID::new(
+                                            self.hir_type_expr_to_var_with_obligations(
+                                                &param.clone().at_loc(&loc),
+                                                &generic_list,
+                                                ctx,
+                                            )?
+                                            .absorb_obligations(&mut obligations),
+                                        ))
                                     })
                                     .collect::<Result<_>>()?;
 
                                 let target_type_params = target_args
                                     .iter()
                                     .map(|param| {
-                                        Ok(TemplateTypeVarID::new(self.hir_type_expr_to_var(
-                                            &param.clone().at_loc(&loc),
-                                            &generic_list,
-                                            ctx,
-                                        )?))
+                                        let var = self
+                                            .hir_type_expr_to_var_with_obligations(
+                                                &param.clone().at_loc(&loc),
+                                                &generic_list,
+                                                ctx,
+                                            )?
+                                            .absorb_obligations(&mut obligations);
+                                        Ok(TemplateTypeVarID::new(var))
                                     })
                                     .collect::<Result<_>>()?;
 
@@ -2097,7 +2162,7 @@ impl TypeState {
             }
         }
 
-        trait_impls
+        obligations.with_val(trait_impls)
     }
 
     #[trace_typechecker]

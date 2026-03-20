@@ -1,0 +1,33 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+trait SomeTrait {}
+
+struct Escaped<T: SomeTrait> {}
+
+struct Outer<T> {}
+
+impl Outer<Escaped<bool>> {
+    fn test(self) {}
+}
+
+
+error: Trait bound not satisfied. bool does not implement SomeTrait
+  ┌─ testinput:7:1
+  │  
+3 │   struct Escaped<T: SomeTrait> {}
+  │                     --------- Required because of the trait bound specified here
+  ·  
+7 │ ╭ impl Outer<Escaped<bool>> {
+8 │ │     fn test(self) {}
+9 │ │ }
+  │ ╰─^ bool does not implement SomeTrait
+
+error: Trait bound not satisfied. bool does not implement SomeTrait
+  ┌─ testinput:7:12
+  │
+3 │ struct Escaped<T: SomeTrait> {}
+  │                   --------- Required because of the trait bound specified here
+  ·
+7 │ impl Outer<Escaped<bool>> {
+  │            ^^^^^^^^^^^^ bool does not implement SomeTrait

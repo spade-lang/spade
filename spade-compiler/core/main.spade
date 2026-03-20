@@ -20,3 +20,4 @@ impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data> Data 
 impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data, T7: Data> Data for (T0, T1, T2, T3, T4, T5, T6, T7) {}
 
 impl<T: Data, #uint N> Data for [T; N] {}
+

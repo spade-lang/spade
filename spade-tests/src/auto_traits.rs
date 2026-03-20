@@ -173,3 +173,16 @@ snapshot_error! {
         }
     "
 }
+
+code_compiles! {
+    impl_enum_data_requirement_works,
+    "
+        struct Escaped<T> {}
+
+        struct Outer<T> {}
+
+        impl Outer<Escaped<bool>> {
+            fn test(self) {}
+        }
+    "
+}

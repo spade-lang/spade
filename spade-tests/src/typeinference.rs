@@ -2592,3 +2592,35 @@ snapshot_error! {
     }
 "
 }
+
+code_compiles! {
+    impl_enum_data_requirement_works,
+    "
+        trait SomeTrait {}
+
+        struct Escaped<T: SomeTrait> {}
+
+        struct Outer<T> {}
+
+        impl Outer<Escaped<bool>> {
+            fn test(self) {}
+        }
+
+        impl SomeTrait for bool {}
+    "
+}
+
+snapshot_error! {
+    impl_requirements_are_enforced,
+    "
+        trait SomeTrait {}
+
+        struct Escaped<T: SomeTrait> {}
+
+        struct Outer<T> {}
+
+        impl Outer<Escaped<bool>> {
+            fn test(self) {}
+        }
+    "
+}
