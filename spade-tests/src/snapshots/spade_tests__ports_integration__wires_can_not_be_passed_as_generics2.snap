@@ -3,7 +3,7 @@ source: spade-tests/src/ports_integration.rs
 ---
 entity identity<T>(x: T) -> T {x}
 
-entity x(p: &bool) -> &bool {
-    let x: &bool = inst identity(p);
+entity x(p: bool) -> bool {
+    let x: bool = inst identity(p);
     x
 }

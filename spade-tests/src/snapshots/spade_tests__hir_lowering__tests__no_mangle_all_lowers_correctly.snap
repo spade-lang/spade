@@ -104,7 +104,7 @@ expression: build_items(code)
             Constant(
                 Expr(
                     ExprID(
-                        4,
+                        3,
                     ),
                 ),
                 UInt(
@@ -113,29 +113,6 @@ expression: build_items(code)
                 Int(
                     137,
                 ),
-            ),
-            Binding(
-                Binding {
-                    name: Expr(
-                        ExprID(
-                            3,
-                        ),
-                    ),
-                    operator: Alias,
-                    operands: [
-                        Expr(
-                            ExprID(
-                                4,
-                            ),
-                        ),
-                    ],
-                    ty: UInt(
-                        8,
-                    ),
-                    loc: Some(
-                        (),
-                    ),
-                },
             ),
             Set {
                 target: Named(

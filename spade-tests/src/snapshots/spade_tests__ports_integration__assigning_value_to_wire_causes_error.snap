@@ -1,6 +1,6 @@
 ---
 source: spade-tests/src/ports_integration.rs
 ---
-entity x(x: bool) -> &bool {
+entity x(x: bool) -> bool {
     x
 }

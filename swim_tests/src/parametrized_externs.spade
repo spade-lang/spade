@@ -4,7 +4,7 @@ mod verilog {
     #[no_mangle(all)]
     pub extern entity add_constant<#uint N, #uint M>(
         in: int<8>,
-        out: inv &int<8>
+        out: inv int<8>
     );
 }
 

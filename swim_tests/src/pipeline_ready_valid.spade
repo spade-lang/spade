@@ -19,28 +19,28 @@ struct RV {
     valid: bool,
 }
 
-pipeline(4) ready_valid_pipeline(clk: clock, val: int<8>, enables: &[bool; 4]) -> Output {
-        let wire s0 = &RV$(valid: stage.valid, ready: stage.ready);
-    reg[(*enables)[0]];
-        let wire s1 = &RV$(valid: stage.valid, ready: stage.ready);
-    reg[(*enables)[1]];
-        let wire s2 = &RV$(valid: stage.valid, ready: stage.ready);
-    reg[(*enables)[2]];
-        let wire s3 = &RV$(valid: stage.valid, ready: stage.ready);
-    reg[(*enables)[3]];
-        let wire s4 = &RV$(valid: stage.valid, ready: stage.ready);
+pipeline(4) ready_valid_pipeline(clk: clock, val: int<8>, enables: [bool; 4]) -> Output {
+        let wire s0 = RV$(valid: stage.valid, ready: stage.ready);
+    reg[enables[0]];
+        let wire s1 = RV$(valid: stage.valid, ready: stage.ready);
+    reg[enables[1]];
+        let wire s2 = RV$(valid: stage.valid, ready: stage.ready);
+    reg[enables[2]];
+        let wire s3 = RV$(valid: stage.valid, ready: stage.ready);
+    reg[enables[3]];
+        let wire s4 = RV$(valid: stage.valid, ready: stage.ready);
         Output $(
-            s0_valid: (*s0).valid,
-            s1_valid: (*s1).valid,
-            s2_valid: (*s2).valid,
-            s3_valid: (*s3).valid,
-            s4_valid: (*s4).valid,
+            s0_valid: s0.valid,
+            s1_valid: s1.valid,
+            s2_valid: s2.valid,
+            s3_valid: s3.valid,
+            s4_valid: s4.valid,
 
-            s0_ready: (*s0).ready,
-            s1_ready: (*s1).ready,
-            s2_ready: (*s2).ready,
-            s3_ready: (*s3).ready,
-            s4_ready: (*s4).ready,
+            s0_ready: s0.ready,
+            s1_ready: s1.ready,
+            s2_ready: s2.ready,
+            s3_ready: s3.ready,
+            s4_ready: s4.ready,
 
             val 
         )
@@ -51,13 +51,13 @@ struct StalledOut {
     valid: bool,
     val: int<8>
 }
-pipeline(4) stalled_integer_producer(clk: clock, rst: bool, enables: &[bool; 4]) -> StalledOut {
+pipeline(4) stalled_integer_producer(clk: clock, rst: bool, enables: [bool; 4]) -> StalledOut {
         reg(clk) out_reg reset (rst: 0) = if stage.ready {trunc(out_reg + 1)} else {out_reg};
         let out = if stage.ready {out_reg} else {0};
-    reg[(*enables)[0]];
-    reg[(*enables)[1]];
-    reg[(*enables)[2]];
-    reg[(*enables)[3]];
+    reg[enables[0]];
+    reg[enables[1]];
+    reg[enables[2]];
+    reg[enables[3]];
         StalledOut $(
             valid: stage.valid && !rst,
             val: out

@@ -51,7 +51,7 @@ mod handshake_impl {
 
 
     pub(super) entity transmitter<T>(clk: clock, rst: bool, data: Option<T>, out: TxOutRxIn<T>) {
-        let ack = inst std::cdc::sync2_bool(clk, *out.ack);
+        let ack = inst std::cdc::sync2_bool(clk, out.ack);
 
         reg(clk) state reset(rst: TxState::WaitData) = match (state, data, ack) {
             (TxState::WaitData, None, _) => TxState::WaitData,
@@ -65,9 +65,9 @@ mod handshake_impl {
             (Some(d), TxState::WaitData) => d,
             _ => data_held,
         };
-        set out.data = &data_held;
+        set out.data = data_held;
 
-        set out.data_valid = &match state {
+        set out.data_valid = match state {
             TxState::WaitData => false,
             TxState::HoldData => false,
             TxState::WaitAck => true,
@@ -80,16 +80,16 @@ mod handshake_impl {
     }
 
     pub(super) entity receiver<T>(clk: clock, rst: bool, input: inv TxOutRxIn<T>) -> Option<T> {
-        let data_valid = inst std::cdc::sync2_bool(clk, *input.data_valid);
+        let data_valid = inst std::cdc::sync2_bool(clk, input.data_valid);
 
         reg(clk) (state, data_out) reset(rst: (RxState::WaitValid, None)) = match (state, data_valid) {
             (RxState::WaitValid, false) => (state, None),
-            (RxState::WaitValid, true) => (RxState::WaitInvalid, Some(*input.data)),
+            (RxState::WaitValid, true) => (RxState::WaitInvalid, Some(input.data)),
             (RxState::WaitInvalid, true) => (RxState::WaitInvalid, None),
             (RxState::WaitInvalid, false) => (RxState::WaitValid, None),
         };
 
-        set input.ack = &match state {
+        set input.ack = match state {
             RxState::WaitValid => false,
             RxState::WaitInvalid => true,
         };
@@ -126,7 +126,7 @@ mod sync_wide_impl {
     }
 
     pub(super) entity sender<T>(source_clk: clock, rst: bool, data_in: T, to_tx: inv FromSender<T>) {
-        let ack = inst sync2_bool(source_clk, *to_tx.ack);
+        let ack = inst sync2_bool(source_clk, to_tx.ack);
 
         reg(source_clk) state reset(rst: TxState::Init) = match state {
             TxState::Init => TxState::Setup(data_in),
@@ -142,8 +142,8 @@ mod sync_wide_impl {
             TxState::Hold(data) => (true, data),
             TxState::WaitRelease => (false, UNDEF)
         };
-        set to_tx.valid = &valid;
-        set to_tx.data = &data;
+        set to_tx.valid = valid;
+        set to_tx.data = data;
     }
 
     enum RxState {
@@ -151,11 +151,11 @@ mod sync_wide_impl {
         SendAck,
     }
     pub(super) entity receiver<T>(dest_clk: clock, rst: bool, init: T, from_tx: FromSender<T>) -> T {
-        let valid = inst sync2_bool(dest_clk, *from_tx.valid);
+        let valid = inst sync2_bool(dest_clk, from_tx.valid);
         // We don't have synchronization primitives here because we ensure that
         // by the time valid is set, this is stable. However, we're only allowed to read
         // it while valid is high, and before replying with ack
-        let data = *from_tx.data;
+        let data = from_tx.data;
 
         reg(dest_clk) state reset(rst: RxState::WaitReceive) = match state {
             RxState::WaitReceive => if valid {RxState::SendAck} else {state},
@@ -167,7 +167,7 @@ mod sync_wide_impl {
             _ => out
         };
 
-        set from_tx.ack = &match state {
+        set from_tx.ack = match state {
             RxState::WaitReceive => false,
             RxState::SendAck => true,
         };

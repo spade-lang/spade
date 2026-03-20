@@ -4,4 +4,4 @@ source: spade-tests/src/ast_lowering.rs
 struct A {}
 
 
-extern entity x(a: &A) -> bool;
+extern entity x(a: A) -> bool;

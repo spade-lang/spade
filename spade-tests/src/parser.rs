@@ -332,7 +332,7 @@ snapshot_error! {
 #[test]
 fn inverted_port_type() {
     let code = r#"
-    extern entity square_wave(clk: clock, x: inv inv & bool) -> bool;
+    extern entity square_wave(clk: clock, x: inv inv bool) -> bool;
     "#;
 
     build_items(code);
@@ -829,7 +829,7 @@ snapshot_error! {
         fn test() {
             let x = ;
             let y ;
-            set z = &true;
+            set z = true;
         }
     "
 }
@@ -1019,8 +1019,8 @@ snapshot_error! {
 snapshot_error! {
     visibility_disallowed_before_set,
     "
-    entity test(x: inv &bool) {
-        pub set x = &true;
+    entity test(x: inv bool) {
+        pub set x = true;
     }
     "
 }

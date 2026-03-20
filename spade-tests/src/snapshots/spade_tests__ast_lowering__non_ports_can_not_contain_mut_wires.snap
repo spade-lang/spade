@@ -2,5 +2,5 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 struct A {
-    x: inv &int<32>
+    x: inv int<32>
 }

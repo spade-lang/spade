@@ -162,7 +162,7 @@ snapshot_error!(
 
 snapshot_error!(
     backward_tuple_indexing_with_type_error_errors_nicely,
-    "entity name(x: inv &(bool, bool)) -> int<32> {
+    "entity name(x: inv (bool, bool)) -> int<32> {
         x.0
     }"
 );
@@ -177,7 +177,7 @@ snapshot_error!(
 snapshot_error!(
     useful_error_if_indexing_backward_array,
     "
-    entity name(x: inv &[bool; 10]) -> int<32> {
+    entity name(x: inv [bool; 10]) -> int<32> {
         x[0]
     }
     "
@@ -194,8 +194,8 @@ snapshot_error! {
     type_error_on_port_set_mismatch,
     "
     // NOTE: returning bool because we don't support unit types
-    entity set_port(p: inv &int<10>, v: int<9>) -> bool {
-        set p = &v;
+    entity set_port(p: inv int<10>, v: int<9>) -> bool {
+        set p = v;
         false
     }
     "
@@ -205,7 +205,7 @@ snapshot_error! {
     type_error_on_port_set_to_port,
     "
     // NOTE: returning bool because we don't support unit types
-    entity set_port(p: inv &int<10>, v: inv &int<10>) -> bool {
+    entity set_port(p: inv int<10>, v: inv int<10>) -> bool {
         set p = v;
         false
     }
@@ -499,7 +499,7 @@ snapshot_error! {
     "
     entity takes_generic<T>(x: T) -> bool {true}
 
-    entity x(b: inv &bool) -> bool {
+    entity x(b: inv bool) -> bool {
         inst takes_generic(b)
     }
     "
@@ -550,7 +550,7 @@ snapshot_error! {
     "
     extern fn takes_normal(x: bool, y: int<3>) -> bool;
 
-    entity uut(val: inv &(bool, int<3>)) -> bool {
+    entity uut(val: inv (bool, int<3>)) -> bool {
         let x = inst read_mut_wire(val.0);
         let y = inst read_mut_wire(val.1);
         takes_normal(x, y)
@@ -561,8 +561,8 @@ snapshot_error! {
 snapshot_error! {
     dereference_requires_target_type,
     "
-    entity x(a: &bool) -> int<8> {
-        *a
+    entity x(a: bool) -> int<8> {
+        a
     }
     "
 }
@@ -741,7 +741,7 @@ fn accessing_fields_of_structs_in_inverted_ports_works() {
             inner: Inner
         }
 
-        entity test(p: inv Outer) -> inv &bool {
+        entity test(p: inv Outer) -> inv bool {
             p.inner.x
         }
     ";
@@ -1439,7 +1439,7 @@ snapshot_error! {
         entity fifo_read_side<#uint W>(
             write_ptr_w: uint<W>,
             ram_read: ReadPort_<W>,
-            read_ptr_wire: inv &uint<W>,
+            read_ptr_wire: inv uint<W>,
         ) -> FifoRead<W> {
             FifoRead$()
         }
@@ -2371,8 +2371,8 @@ snapshot_error! {
     transmute_from_inv_wire_container_is_disallowed,
     "
         struct Container {
-            m: inv &bool,
-            r: &bool
+            m: inv bool,
+            r: bool
         }
 
         fn test(a: Container) -> bool {
@@ -2385,8 +2385,8 @@ snapshot_error! {
     transmute_to_inv_wire_container_is_disallowed,
     "
         struct Container {
-            m: inv &bool,
-            r: &bool
+            m: inv bool,
+            r: bool
         }
 
         entity test(a: bool) -> Container {
@@ -2587,8 +2587,8 @@ snapshot_error! {
 
     fn test() -> E<bool>{
       let result = port;
-      set result.1 = &std::undef::undef();
-      *result.0
+      set result.1 = std::undef::undef();
+      result.0
     }
 "
 }

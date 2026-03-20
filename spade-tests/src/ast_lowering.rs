@@ -1018,21 +1018,21 @@ snapshot_error! {
 snapshot_error! {
     non_ports_can_not_contain_ports,
     "struct A {
-        x: &int<32>
+        x: int<32>
     }"
 }
 
 snapshot_error! {
     non_ports_can_not_contain_tuple_ports,
     "struct A {
-        x: (&int<32>, &bool)
+        x: (int<32>, bool)
     }"
 }
 
 snapshot_error! {
     non_ports_can_not_contain_mut_wires,
     "struct A {
-        x: inv &int<32>
+        x: inv int<32>
     }"
 }
 
@@ -1050,7 +1050,7 @@ snapshot_error! {
 snapshot_error! {
     tuple_type_specs_can_not_contain_ports_and_values,
     "
-    extern entity x(a: (int<32>, &int<32>)) -> bool;"
+    extern entity x(a: (int<32>, int<32>)) -> bool;"
 }
 
 snapshot_error! {
@@ -1065,7 +1065,7 @@ snapshot_error! {
 snapshot_error! {
     enums_can_not_have_ports,
     "enum X {
-        A{x: &int<32>}
+        A{x: int<32>}
     }"
 }
 
@@ -1084,7 +1084,7 @@ snapshot_error! {
     struct A {}
 
 
-    extern entity x(a: &A) -> bool;
+    extern entity x(a: A) -> bool;
     "
 }
 
@@ -1094,7 +1094,7 @@ snapshot_error! {
     struct A {}
 
 
-    extern entity x(a: inv &A) -> bool;
+    extern entity x(a: inv A) -> bool;
     "
 }
 
@@ -1572,7 +1572,7 @@ snapshot_error! {
 snapshot_error! {
     no_mangle_all_error_correctly_formats_suggested_inverted_type_for_wire,
     "#[no_mangle(all)]
-    entity foo() -> &int<8> {
+    entity foo() -> int<8> {
         let (a, a_inv) = port;
         a
     }"
@@ -1881,7 +1881,7 @@ code_compiles! {
 snapshot_error! {
     type_aliases_cannot_alias_ports,
     "
-    type A = &bool;
+    type A = bool;
     "
 }
 

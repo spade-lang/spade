@@ -2,7 +2,7 @@
 source: spade-tests/src/linear_check.rs
 ---
 struct A {
-    x: inv &bool,
+    x: inv bool,
 }
 
 extern entity consumer(a: inv bool) -> bool;

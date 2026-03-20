@@ -2,5 +2,5 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 enum X {
-    A{x: &int<32>}
+    A{x: int<32>}
 }

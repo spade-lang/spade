@@ -1,8 +1,8 @@
 ---
 source: spade-tests/src/hir_lowering.rs
 ---
-entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
-    set t.1 = &false;
+entity x(#[no_mangle] t: (bool, inv bool)) -> bool {
+    set t.1 = false;
     true
 }
 
@@ -10,7 +10,7 @@ entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
 error: Ports with both & and inv & cannot be #[no_mangle]
   ┌─ testinput:1:10
   │
-1 │ entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
-  │          ^^^^^^^^^^^^    ------------------ This has both & and inv & components
+1 │ entity x(#[no_mangle] t: (bool, inv bool)) -> bool {
+  │          ^^^^^^^^^^^^    ---------------- This has both & and inv & components
   │          │                
   │          Not allowed on mixed-direction ports

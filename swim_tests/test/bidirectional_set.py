@@ -8,8 +8,8 @@ from cocotb.triggers import Timer
 async def test(dut):
     s = SpadeExt(dut)
 
-    s.i.fwd.fwd = "&5"
-    s.i.back.back = "&6";
+    s.i.fwd.fwd = "5"
+    s.i.back.back = "6";
     await Timer(1, units="ns")
-    s.i.back.fwd.assert_eq("&5")
-    s.i.fwd.back.assert_eq("&6")
+    s.i.back.fwd.assert_eq("5")
+    s.i.fwd.back.assert_eq("6")

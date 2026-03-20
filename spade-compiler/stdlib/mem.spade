@@ -40,8 +40,8 @@ pub struct WritePort<#uint W, D> {
 impl<#uint W, D> WritePort<W, D> {
     pub fn write(self, addr: uint<W>, write: Option<D>) {
         let WritePort$(addr: saddr, write: swrite) = self;
-        set saddr = &addr;
-        set swrite = &write;
+        set saddr = addr;
+        set swrite = write;
     }
 }
 
@@ -57,9 +57,9 @@ impl<#uint W, D> ReadPort<W, D> {
     /// Read the value stored at `addr`
     pub pipeline(1) read(wire self, read_clk: clock, addr: uint<W>) -> D {
         let ReadPort(wire saddr, wire sout) = self;
-        set saddr = &addr;
+        set saddr = addr;
     reg;
-        *sout
+        sout
     }
 }
 
@@ -87,7 +87,7 @@ pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (W
 
     reg(read_clk) read_result = inst read_memory(mem, inst read_mut_wire(r_addr));
 
-    (WritePort$(addr: w_addr, write: w_write), ReadPort$(addr: r_addr, out: &read_result))
+    (WritePort$(addr: w_addr, write: w_write), ReadPort$(addr: r_addr, out: read_result))
 }
 
 
@@ -140,7 +140,7 @@ mod fifo_impl {
             inst lib::cdc::sync_uint_counter$(
                 source_clk: write_clk,
                 dest_clk: read_clk,
-                input: *to_w.write_ptr,
+                input: to_w.write_ptr,
             )
         };
         let write_clk = false; // Unbind write_clk so we don't use it on accident later
@@ -171,12 +171,12 @@ mod fifo_impl {
             trunc((write_ptr_abs - zext(read_ptr)))
         };
 
-        set to_w.read_ptr = &read_ptr;
+        set to_w.read_ptr = read_ptr;
 
         FifoRead$(
-            read: &if !empty { Some(out) } else { None },
+            read: if !empty { Some(out) } else { None },
             ack,
-            num_elements: &num_elements,
+            num_elements: num_elements,
         )
     }
 
@@ -191,7 +191,7 @@ mod fifo_impl {
             inst cdc::sync_uint_counter$(
                 source_clk: read_clk,
                 dest_clk: write_clk,
-                input: *from_w.read_ptr,
+                input: from_w.read_ptr,
             )
         };
         let read_clk = false; // Unbind so we don't use it on accident later
@@ -206,15 +206,15 @@ mod fifo_impl {
             _ => write_ptr,
         };
 
-        set mem.addr = &write_ptr;
-        set mem.write =  &match (write_value.0, full) {
+        set mem.addr = write_ptr;
+        set mem.write =  match (write_value.0, full) {
             (Some(v), false) => Some(v),
             _ => None
         };
 
-        set from_w.write_ptr = &write_ptr;
+        set from_w.write_ptr = write_ptr;
         FifoWrite$(
-            full: &full,
+            full: full,
             write: write_value.1
         )
     }

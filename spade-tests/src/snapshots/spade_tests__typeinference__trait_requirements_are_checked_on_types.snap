@@ -10,8 +10,8 @@ enum E<T: Tr> {
 
 fn test() -> E<bool>{
   let result = port;
-  set result.1 = &std::undef::undef();
-  *result.0
+  set result.1 = std::undef::undef();
+  result.0
 }
 
 

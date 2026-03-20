@@ -1,20 +1,20 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-entity x(a: &bool) -> int<8> {
-    *a
+entity x(a: bool) -> int<8> {
+    a
 }
 
 
 error: Output type mismatch. Expected int<8>, got bool
-  ┌─ testinput:1:30
+  ┌─ testinput:1:29
   │  
-1 │   entity x(a: &bool) -> int<8> {
-  │               -----     ------ int<8> type specified here
-  │               │          
+1 │   entity x(a: bool) -> int<8> {
+  │               ----     ------ int<8> type specified here
+  │               │         
   │               Type bool inferred here
-  │ ╭──────────────────────────────^
-2 │ │     *a
+  │ ╭─────────────────────────────^
+2 │ │     a
 3 │ │ }
   │ ╰─^ Found type bool
   │  

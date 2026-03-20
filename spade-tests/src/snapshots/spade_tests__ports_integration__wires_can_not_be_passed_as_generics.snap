@@ -3,6 +3,6 @@ source: spade-tests/src/ports_integration.rs
 ---
 entity identity<T>(x: T) -> T {x}
 
-entity x(p: &bool) -> &bool {
+entity x(p: bool) -> bool {
     inst identity(p)
 }

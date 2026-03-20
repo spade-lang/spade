@@ -1,8 +1,8 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-extern entity producer() -> (inv &bool, inv &bool);
-extern entity consumer(x: inv &bool) -> bool;
+extern entity producer() -> (inv bool, inv bool);
+extern entity consumer(x: inv bool) -> bool;
 
 entity x() -> bool {
     inst consumer(inst producer().0)

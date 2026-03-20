@@ -1,4 +1,4 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-extern entity x(a: (int<32>, &int<32>)) -> bool;
+extern entity x(a: (int<32>, int<32>)) -> bool;

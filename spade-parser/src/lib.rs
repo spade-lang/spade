@@ -1140,6 +1140,14 @@ impl<'a> Parser<'a> {
                 ));
             }
 
+            Diagnostic::warning(
+                &().at(self.file_id, &wire_sign),
+                "The & modifier on types no longer has any effect",
+            )
+            .primary_label("Useless &")
+            .help("Spade no longer differentiates types from ports at the individual type level")
+            .handle_in(&mut self.diags);
+
             let rest = self.type_spec(accept_impl)?;
             Ok(rest.clone().inner.between(self.file_id, &wire_sign, &rest))
         } else if let Some(r#impl) = self.peek_and_eat(&TokenKind::Impl)? {

@@ -8,7 +8,7 @@ from cocotb.triggers import Timer
 async def test(dut):
     s = SpadeExt(dut)
     # This only checks for compilation errors
-    s.i.x = "&10"
+    s.i.x = "10"
     await Timer(1, units="ps")
     s.o.assert_eq(10)
     

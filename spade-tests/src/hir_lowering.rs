@@ -1773,8 +1773,8 @@ mod tests {
     snapshot_error! {
         bidirectional_ports_cannot_be_no_mangle,
         "
-            entity x(#[no_mangle] t: (&bool, inv &bool)) -> bool {
-                set t.1 = &false;
+            entity x(#[no_mangle] t: (bool, inv bool)) -> bool {
+                set t.1 = false;
                 true
             }
         "
@@ -1793,8 +1793,8 @@ mod tests {
     #[test]
     fn output_only_port_can_be_no_mangle() {
         let code = "
-            entity x(#[no_mangle] t: inv &bool) -> bool {
-                set t = &true;
+            entity x(#[no_mangle] t: inv bool) -> bool {
+                set t = true;
                 true
             }
         ";
@@ -1805,8 +1805,8 @@ mod tests {
     fn no_mangle_all_lowers_correctly() {
         let code = "
             #[no_mangle(all)]
-            entity x(a: int<8>, b: inv &uint<8>, c: clock, d: bool, e: [bool; 8]) {
-                set b = &137; // ty Astrid
+            entity x(a: int<8>, b: inv uint<8>, c: clock, d: bool, e: [bool; 8]) {
+                set b = 137; // ty Astrid
             }
         ";
         assert_debug_snapshot!(build_items(code));
@@ -2256,7 +2256,7 @@ mod tests {
         "
             #[wal_traceable()]
             struct T {
-                a: (&bool, inv &bool)
+                a: (bool, inv bool)
             }
 
             entity test(t: T) -> T {

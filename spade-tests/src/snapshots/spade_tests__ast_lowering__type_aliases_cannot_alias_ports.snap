@@ -1,4 +1,4 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-type A = &bool;
+type A = bool;

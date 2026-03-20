@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/linear_check.rs
 ---
-entity x(resource: inv &bool) -> bool {
+entity x(resource: inv bool) -> bool {
     true
 }
 
@@ -9,7 +9,7 @@ entity x(resource: inv &bool) -> bool {
 error: resource is unused
   ┌─ testinput:1:10
   │
-1 │ entity x(resource: inv &bool) -> bool {
+1 │ entity x(resource: inv bool) -> bool {
   │          ^^^^^^^^ resource is unused
   │
   = note: resource is an inverted wire (`inv`) which must be set

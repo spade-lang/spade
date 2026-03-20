@@ -2,5 +2,5 @@
 source: spade-tests/src/ast_lowering.rs
 ---
 struct A {
-    x: (&int<32>, &bool)
+    x: (int<32>, bool)
 }

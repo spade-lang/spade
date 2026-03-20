@@ -2,8 +2,8 @@
 source: spade-tests/src/typeinference.rs
 ---
 struct Container {
-    m: inv &bool,
-    r: &bool
+    m: inv bool,
+    r: bool
 }
 
 entity test(a: bool) -> Container {

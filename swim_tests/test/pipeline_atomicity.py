@@ -15,7 +15,7 @@ async def test_sequence(dut, seq: Sequence):
 
     await cocotb.start(Clock(clk, 1, units="ns").start())
 
-    s.i.enables = "&[true, true, true, true]"
+    s.i.enables = "[true, true, true, true]"
     s.i.rst = "true"
 
     # Let the enables propagate through the pipeline until the enabled
@@ -29,7 +29,7 @@ async def test_sequence(dut, seq: Sequence):
     # Test all combinations of enables a few times
     for v in seq:
         await FallingEdge(clk)
-        s.i.enables = f"""&[
+        s.i.enables = f"""[
             {"true" if v & 1 == 1 else "false"},
             {"true" if v & 2 == 2 else "false"},
             {"true" if v & 4 == 4 else "false"},

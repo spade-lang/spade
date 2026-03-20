@@ -2276,9 +2276,22 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     Ok(unop_method("wrapping_neg", "WrappingNeg", vec![])?)
                 }
                 ast::UnaryOperator::Dereference => {
+                    Diagnostic::warning(
+                        operator,
+                        "The dereference operator no longer has any effect.",
+                    )
+                    .primary_label("Useless operator")
+                    .handle_in(&mut ctx.diags.lock().unwrap());
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }
                 ast::UnaryOperator::Reference => {
+                    Diagnostic::warning(
+                        operator,
+                        "The reference operator no longer has any effect.",
+                    )
+                    .primary_label("Useless operator")
+                    .handle_in(&mut ctx.diags.lock().unwrap());
+
                     Ok(unop(hir::expression::UnaryOperator::Reference))
                 }
             }

@@ -1,7 +1,7 @@
 ---
 source: spade-tests/src/typeinference.rs
 ---
-entity name(x: inv &[bool; 10]) -> int<32> {
+entity name(x: inv [bool; 10]) -> int<32> {
     x[0]
 }
 
@@ -9,8 +9,8 @@ entity name(x: inv &[bool; 10]) -> int<32> {
 error: Index target must be an array, got inv [bool; 10]
   ┌─ testinput:2:5
   │
-1 │ entity name(x: inv &[bool; 10]) -> int<32> {
-  │                --------------- Type inv [bool; 10] inferred here
+1 │ entity name(x: inv [bool; 10]) -> int<32> {
+  │                -------------- Type inv [bool; 10] inferred here
 2 │     x[0]
   │     ^---
   │     │
