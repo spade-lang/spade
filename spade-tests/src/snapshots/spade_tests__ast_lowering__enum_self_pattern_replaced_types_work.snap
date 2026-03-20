@@ -26,11 +26,11 @@ error: Match branches have incompatible type
    │                                 ---------------
    │                                 │      │
    │                                 │      Type () inferred here
-   │                                 But this one has type ([core::Data; 2], [bool; 2])
+   │                                 But this one has type ([core::marker::Data; 2], [bool; 2])
 10 │             Self::Right$(val) => ([t, t], val),
-   │                                  ^^^^^^^^^^^^^ This branch has type ([core::Data; 2], [(); 2])
+   │                                  ^^^^^^^^^^^^^ This branch has type ([core::marker::Data; 2], [(); 2])
    │
    = note: Expected: bool
-                 in: ([core::Data; 2], [bool; 2])
+                 in: ([core::marker::Data; 2], [bool; 2])
                 Got: ()
-                 in: ([core::Data; 2], [(); 2])
+                 in: ([core::marker::Data; 2], [(); 2])

@@ -6,7 +6,7 @@ pipeline(0) test(clk: clock) {
 }
 
 
-error: Trait bound not satisfied. (_, inv _) does not implement core::Data
+error: Trait bound not satisfied. (_, inv _) does not implement core::marker::Data
   ┌─ testinput:2:9
   │    
 1 │     pipeline(0) test(clk: clock) {
@@ -15,7 +15,7 @@ error: Trait bound not satisfied. (_, inv _) does not implement core::Data
 2 │ │ │     let r = port;
   │ │ │         ^
   │ │ │         │
-  │ │ │         (_, inv _) does not implement core::Data
+  │ │ │         (_, inv _) does not implement core::marker::Data
   │ │ │         The type of this expression is not Data which means it cannot be stored in a register.
 3 │ │ │ }
   │ ╰─│─' Required because of the trait bound specified here

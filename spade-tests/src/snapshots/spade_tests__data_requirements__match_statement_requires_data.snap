@@ -8,12 +8,12 @@ fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
 }
 
 
-error: Trait bound not satisfied. inv bool does not implement core::Data
+error: Trait bound not satisfied. inv bool does not implement core::marker::Data
   ┌─ testinput:3:14
   │    
 2 │ ╭ ╭     match sel {
 3 │ │ │         _ => x
-  │ │ │              ^ inv bool does not implement core::Data
+  │ │ │              ^ inv bool does not implement core::marker::Data
 4 │ │ │     }
   │ ╰─│─────' Required because of the trait bound specified here
   │   ╰─────' The result of a match-expression must be Data.

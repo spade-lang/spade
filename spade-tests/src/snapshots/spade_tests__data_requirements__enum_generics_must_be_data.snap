@@ -12,11 +12,11 @@ fn test(p: inv bool) {
 }
 
 
-error: Argument type mismatch. Expected Tr + core::Data got inv bool
+error: Argument type mismatch. Expected Tr + core::marker::Data got inv bool
   ┌─ testinput:8:18
   │
 2 │ enum E<T: Tr> {
   │           -- Required because of the trait bound specified here
   ·
 8 │     let _ = E::A(p);
-  │                  ^ inv bool does not implement Tr and core::Data
+  │                  ^ inv bool does not implement Tr and core::marker::Data

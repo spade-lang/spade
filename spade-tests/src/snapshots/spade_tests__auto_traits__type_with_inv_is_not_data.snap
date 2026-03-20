@@ -13,11 +13,11 @@ fn test(x: A) {
 }
 
 
-error: Argument type mismatch. Expected core::Data got A
+error: Argument type mismatch. Expected core::marker::Data got A
   ┌─ testinput:9:16
   │
 6 │ fn needs_data<T: Data>(x: T) {}
   │                  ---- Required because of the trait bound specified here
   ·
 9 │     needs_data(x)
-  │                ^ A does not implement core::Data
+  │                ^ A does not implement core::marker::Data

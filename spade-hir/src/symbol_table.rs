@@ -598,7 +598,7 @@ impl SymbolTable {
         let full_name = self.namespace.join(name);
         let name_id = NameID(id, full_name.clone());
 
-        if full_name.to_named_strs() == [Some("core"), Some("Data")] {
+        if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Data")] {
             self.lang_items.insert(LangItem::DataTrait, name_id.clone());
         }
 
@@ -688,7 +688,7 @@ impl SymbolTable {
         let full_name = self.namespace.push_ident(name);
         let name_id = NameID(id, full_name.clone());
 
-        if full_name.to_named_strs() == [Some("core"), Some("Data")] {
+        if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Data")] {
             self.lang_items.insert(LangItem::DataTrait, name_id.clone());
         }
 

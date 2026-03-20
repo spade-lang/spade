@@ -12,11 +12,11 @@ fn test1(x: A<(inv bool, bool)>) {
 }
 
 
-error: Argument type mismatch. Expected core::Data got A<(inv bool, bool)>
+error: Argument type mismatch. Expected core::marker::Data got A<(inv bool, bool)>
   ┌─ testinput:8:16
   │
 5 │ fn needs_data<T: Data>(x: T) {}
   │                  ---- Required because of the trait bound specified here
   ·
 8 │     needs_data(x)
-  │                ^ A<(inv bool, bool)> does not implement core::Data
+  │                ^ A<(inv bool, bool)> does not implement core::marker::Data

@@ -5,10 +5,10 @@ entity main() -> uint<8> {
     ~None
 }
 
-error: Trait bound not satisfied. std::option::Option<core::Data> does not implement core::ops::BitNot
+error: Trait bound not satisfied. std::option::Option<core::marker::Data> does not implement core::ops::BitNot
   ┌─ testinput:2:6
   │
 2 │     ~None
-  │     -^^^^ std::option::Option<core::Data> does not implement core::ops::BitNot
+  │     -^^^^ std::option::Option<core::marker::Data> does not implement core::ops::BitNot
   │     │ 
   │     Required because of the trait bound specified here

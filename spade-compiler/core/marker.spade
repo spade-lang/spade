@@ -1,0 +1,18 @@
+/// The data trait is implemented by any type whose bit representation can be interpreted as data.
+/// For now, this means that the value can be stored in a register and be passed through a multiplexer.
+///
+/// This data is automatically implemented by the compiler, analogous to an auto trait in Rust. It should
+/// not be implemented manually
+pub trait Data {}
+
+impl Data for () {}
+impl<T0: Data> Data for (T0) {}
+impl<T0: Data, T1: Data> Data for (T0, T1) {}
+impl<T0: Data, T1: Data, T2: Data> Data for (T0, T1, T2) {}
+impl<T0: Data, T1: Data, T2: Data, T3: Data> Data for (T0, T1, T2, T3) {}
+impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data> Data for (T0, T1, T2, T3, T4) {}
+impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data> Data for (T0, T1, T2, T3, T4, T5) {}
+impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data> Data for (T0, T1, T2, T3, T4, T5, T6) {}
+impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data, T7: Data> Data for (T0, T1, T2, T3, T4, T5, T6, T7) {}
+
+impl<T: Data, #uint N> Data for [T; N] {}

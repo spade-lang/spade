@@ -1,4 +1,4 @@
-use core::Data;
+use core::marker::Data;
 use core::ops::Number;
 use core::ops::{Entity, Fn, Pipeline};
 use core::ops::{PartialEq, PartialOrd};

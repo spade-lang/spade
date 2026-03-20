@@ -10,7 +10,7 @@ fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
 }
 
 
-error: Trait bound not satisfied. inv bool does not implement core::Data
+error: Trait bound not satisfied. inv bool does not implement core::marker::Data
   ┌─ testinput:2:12
   │      
 2 │     ╭     if sel {
@@ -18,7 +18,7 @@ error: Trait bound not satisfied. inv bool does not implement core::Data
   │ │ ╭──────────────'
 3 │ │ │ │         x
 4 │ │ │ │     } else {
-  │ ╰─│─│─────^ inv bool does not implement core::Data
+  │ ╰─│─│─────^ inv bool does not implement core::marker::Data
   │   ╰─│─────' Required because of the trait bound specified here
 5 │     │         y
 6 │     │     }

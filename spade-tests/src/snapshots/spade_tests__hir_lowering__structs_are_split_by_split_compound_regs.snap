@@ -2,10 +2,10 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
-entity \test ((clk, clk_n88, bool), (x, x_n89, {a: uint<8>, b: uint<8>})) -> {a: uint<8>, b: uint<8>} {
-	let e300: uint<8> = IndexTuple(0)(x_n89)
-	reg(clk_n88) e301: uint<8> = e300
-	let e302: uint<8> = IndexTuple(1)(x_n89)
-	reg(clk_n88) e303: uint<8> = e302
-	let s1_x_n394: {a: uint<8>, b: uint<8>} = ConstructTuple(e301, e303)
-} => s1_x_n394
+entity \test ((clk, clk_n89, bool), (x, x_n90, {a: uint<8>, b: uint<8>})) -> {a: uint<8>, b: uint<8>} {
+	let e300: uint<8> = IndexTuple(0)(x_n90)
+	reg(clk_n89) e301: uint<8> = e300
+	let e302: uint<8> = IndexTuple(1)(x_n90)
+	reg(clk_n89) e303: uint<8> = e302
+	let s1_x_n395: {a: uint<8>, b: uint<8>} = ConstructTuple(e301, e303)
+} => s1_x_n395

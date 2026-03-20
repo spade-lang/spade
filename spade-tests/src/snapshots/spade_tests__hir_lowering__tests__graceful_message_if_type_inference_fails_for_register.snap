@@ -13,4 +13,4 @@ error: Type of expression is not fully known
 2 │     reg(clk) x = 0;
   │                  ^ The type of this expression is not fully known
   │
-  = note: Found incomplete type: core::Data + Number<_>
+  = note: Found incomplete type: core::marker::Data + Number<_>

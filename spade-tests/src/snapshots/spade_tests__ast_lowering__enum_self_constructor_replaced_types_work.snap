@@ -13,19 +13,19 @@ impl<T> Maybe<T, bool, 2> {
 }
 
 
-error: Output type mismatch. Expected [Maybe<core::Data, bool, 2>; 2], got [Maybe<core::Data, (), 2>; 2]
+error: Output type mismatch. Expected [Maybe<core::marker::Data, bool, 2>; 2], got [Maybe<core::marker::Data, (), 2>; 2]
   ┌─ testinput:7:44
   │  
 7 │       fn foo(self, t: T, u: ()) -> [Self; 2] {
-  │                             --     --------- [Maybe<core::Data, bool, 2>; 2] type specified here
+  │                             --     --------- [Maybe<core::marker::Data, bool, 2>; 2] type specified here
   │                             │       
   │                             Type () inferred here
   │ ╭────────────────────────────────────────────^
 8 │ │         [Self::Left([t, t]), Self::Right([u, u])]
 9 │ │     }
-  │ ╰─────^ Found type [Maybe<core::Data, (), 2>; 2]
+  │ ╰─────^ Found type [Maybe<core::marker::Data, (), 2>; 2]
   │  
   = note: Expected: bool
-                in: [Maybe<core::Data, bool, 2>; 2]
+                in: [Maybe<core::marker::Data, bool, 2>; 2]
                Got: ()
-                in: [Maybe<core::Data, (), 2>; 2]
+                in: [Maybe<core::marker::Data, (), 2>; 2]

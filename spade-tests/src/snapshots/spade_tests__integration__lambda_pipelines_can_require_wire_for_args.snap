@@ -11,13 +11,13 @@ entity test(clk: clock) {
 }
 
 
-error: Trait bound not satisfied. inv uint<32> does not implement core::Data
+error: Trait bound not satisfied. inv uint<32> does not implement core::marker::Data
   ┌─ testinput:2:32
   │    
 2 │         let pl = pipeline(1) |clk, x| {
   │                                    ^
   │                                    │
-  │                                    inv uint<32> does not implement core::Data
+  │                                    inv uint<32> does not implement core::marker::Data
   │                                    The type of this expression is not Data which means it cannot be stored in a register.
   │ ╭─────────────────────────────────────'
   │ │ ╭───────────────────────────────────'

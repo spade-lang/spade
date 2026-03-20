@@ -10,13 +10,13 @@ entity test(clk: clock) {
 }
 
 
-error: Trait bound not satisfied. Lambda<(), inv uint<32>> does not implement core::Data
+error: Trait bound not satisfied. Lambda<(), inv uint<32>> does not implement core::marker::Data
   ┌─ testinput:6:14
   │
 6 │     reg(clk) r = l;
   │     ---      ^   - The type of this expression is not Data which means it cannot be stored in a register.
   │     │        │    
-  │     │        Lambda<(), inv uint<32>> does not implement core::Data
+  │     │        Lambda<(), inv uint<32>> does not implement core::marker::Data
   │     Required because of the trait bound specified here
   │
   = help: An expression not being Data typically means it contains at least one `inv` type
