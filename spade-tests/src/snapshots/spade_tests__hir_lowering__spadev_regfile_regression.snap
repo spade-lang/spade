@@ -1,0 +1,10 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \use_regfile ((clk, clk_n92, bool), (regfile, regfile_n93, {write: &mut (enum option [], option [uint<5>])})) -> () {
+	let e2: &mut (enum option [], option [uint<5>]) = IndexTuple(0)(regfile_n93)
+	let e4: enum option [], option [uint<5>] = ConstructEnum(0)()
+	set e2 = e4
+	let e1: () = Nop()
+} => e1

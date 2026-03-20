@@ -104,6 +104,51 @@ impl ConcreteType {
             ConcreteType::Backward(inner) => inner.is_error_recursively(),
         }
     }
+
+    pub fn resolve_recursive_inversions(self, invert: bool) -> Self {
+        match self {
+            ConcreteType::Error => ConcreteType::Error,
+            ConcreteType::Tuple(inner) => ConcreteType::Tuple(
+                inner
+                    .into_iter()
+                    .map(|ty| ty.resolve_recursive_inversions(invert))
+                    .collect(),
+            ),
+            ConcreteType::Struct {
+                name,
+                members,
+                field_translators,
+            } => Self::Struct {
+                name,
+                members: members
+                    .into_iter()
+                    .map(|(ident, ty)| (ident, ty.resolve_recursive_inversions(invert)))
+                    .collect(),
+                field_translators,
+            },
+            ConcreteType::Array { inner, size } => ConcreteType::Array {
+                inner: Box::new(inner.resolve_recursive_inversions(invert)),
+                size: size,
+            },
+            s @ ConcreteType::Enum { .. } | s @ ConcreteType::Single { .. } => {
+                if invert {
+                    ConcreteType::Backward(Box::new(s))
+                } else {
+                    s
+                }
+            }
+            s @ ConcreteType::Bool(_)
+            | s @ ConcreteType::String(_)
+            | s @ ConcreteType::Integer(_) => {
+                if invert {
+                    panic!("Cannot invert type level value")
+                } else {
+                    s
+                }
+            }
+            ConcreteType::Backward(inner) => inner.resolve_recursive_inversions(!invert),
+        }
+    }
 }
 
 impl std::fmt::Display for ConcreteType {
