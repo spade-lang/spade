@@ -108,6 +108,7 @@ impl<'a> Parser<'a> {
     fn unop_from_kind(kind: &TokenKind) -> Option<UnaryOperator> {
         match kind {
             TokenKind::Minus => Some(UnaryOperator::Sub),
+            TokenKind::MinusDot => Some(UnaryOperator::WrappingSub),
             TokenKind::Not => Some(UnaryOperator::Not),
             TokenKind::Tilde => Some(UnaryOperator::BitwiseNot),
             TokenKind::Ampersand => Some(UnaryOperator::Reference),

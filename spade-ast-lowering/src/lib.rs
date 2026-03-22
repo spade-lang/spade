@@ -2235,10 +2235,6 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         ast::Expression::UnaryOperator(operator, operand) => {
             let operand = &operand.visit(visit_expression, ctx);
 
-            let wildcard =
-                ast::TypeExpression::TypeSpec(Box::new(ast::TypeSpec::Wildcard.nowhere()))
-                    .nowhere();
-
             let unop = |op: hir::expression::UnaryOperator| {
                 hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand.clone()))
             };
@@ -2276,11 +2272,9 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::UnaryOperator::Sub => Ok(unop(hir::expression::UnaryOperator::Sub)),
                 ast::UnaryOperator::Not => Ok(unop_method("not", "Not", vec![])?),
                 ast::UnaryOperator::BitwiseNot => Ok(unop_method("bit_not", "BitNot", vec![])?),
-                ast::UnaryOperator::WrappingSub => Ok(unop_method(
-                    "wrapping_neg",
-                    "WrappingNeg",
-                    vec![wildcard.clone()],
-                )?),
+                ast::UnaryOperator::WrappingSub => {
+                    Ok(unop_method("wrapping_neg", "WrappingNeg", vec![])?)
+                }
                 ast::UnaryOperator::Dereference => {
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }
