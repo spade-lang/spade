@@ -44,7 +44,7 @@ pub struct Opt {
     /// Do not include the standard library nor the prelude before compilation
     #[structopt(long)]
     #[serde(default)]
-    pub omit_stdlib_and_prelude: bool,
+    pub omit_stdlib: bool,
 
     /// Do not include color in the error report
     #[structopt(long = "no-color")]
@@ -161,12 +161,7 @@ fn main() -> Result<()> {
     };
 
     let diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
-    let result = spade::compile(
-        sources?,
-        !opts.omit_stdlib_and_prelude,
-        spade_opts,
-        diag_handler,
-    );
+    let result = spade::compile(sources?, !opts.omit_stdlib, spade_opts, diag_handler);
     std::io::stderr().write_all(buffer.as_slice())?;
 
     match result {

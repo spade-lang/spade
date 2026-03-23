@@ -93,7 +93,7 @@ struct CodegenArtefacts {
 #[tracing::instrument(skip_all)]
 pub fn compile(
     mut sources: Vec<(ModuleNamespace, String, String)>,
-    include_stdlib_and_prelude: bool,
+    include_stdlib: bool,
     opts: Opt,
     diag_handler: DiagHandler,
 ) -> Result<Artefacts, CompilationResult> {
@@ -101,11 +101,11 @@ pub fn compile(
     let mut symtab = SymbolTable::new(diags.clone());
     let mut item_list = ItemList::new();
 
-    let mut sources = if include_stdlib_and_prelude {
+    let mut sources = if include_stdlib {
         // We want to build stdlib and prelude before building user code,
         // to give `previously defined <here>` pointing into user code, instead
         // of stdlib code
-        let mut all_sources = stdlib_and_prelude();
+        let mut all_sources = stdlib_files();
         all_sources.append(&mut sources);
         all_sources
     } else {
@@ -710,7 +710,7 @@ pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
 
 /// The spade source files which are included statically in the binary, rather
 /// than being passed on the command line. This includes the stdlib and prelude
-pub fn stdlib_and_prelude() -> Vec<(ModuleNamespace, String, String)> {
+pub fn stdlib_files() -> Vec<(ModuleNamespace, String, String)> {
     sources! {
         ([], [], "../stdlib/prelude.spade"),
 
@@ -735,7 +735,7 @@ mod tests {
     /// here to verify that all files in stdlib/<file>.spade
     #[test]
     fn sanity_check_static_sources_stdlib_included() {
-        let included = super::stdlib_and_prelude()
+        let included = super::stdlib_files()
             .into_iter()
             .filter_map(|(_, file, _)| {
                 Some(

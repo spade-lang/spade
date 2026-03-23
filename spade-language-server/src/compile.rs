@@ -3,9 +3,7 @@ use std::sync::{Arc, Mutex};
 use camino::Utf8Path;
 use color_eyre::eyre::{bail, Context};
 use rustc_hash::FxHashMap as HashMap;
-use spade::{
-    stdlib_and_prelude, Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts,
-};
+use spade::{stdlib_files, Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, PathSegment};
@@ -218,7 +216,7 @@ impl ServerBackend {
             })
             .collect::<color_eyre::Result<Vec<_>>>()?
             .into_iter()
-            .chain(stdlib_and_prelude())
+            .chain(stdlib_files())
             .collect::<Vec<_>>();
         let opts = spade::Opt {
             error_buffer: &mut buffer,
