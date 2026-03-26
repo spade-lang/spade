@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use crate::{Entity, MirInput, Operator, Statement, ValueName};
+use crate::{Entity, MirInput, Operator, Register, Statement, ValueName};
 use itertools::Itertools;
 use num::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -133,9 +133,26 @@ pub fn flatten_aliases(entity: &mut Entity) {
                     try_rename(op, &final_aliases);
                 }
             }
-            Statement::Register(reg) => {
-                try_rename(&mut reg.name, &final_aliases);
-                try_rename(&mut reg.value, &final_aliases);
+            Statement::Register(Register {
+                name,
+                ty: _,
+                clock,
+                reset,
+                // Initial values are not runtime values so they do not go
+                // through the aliasing process
+                initial: _,
+                value,
+                loc: _,
+                traced: _,
+            }) => {
+                try_rename(clock, &final_aliases);
+                try_rename(name, &final_aliases);
+                try_rename(value, &final_aliases);
+
+                if let Some((rst, value)) = reset {
+                    try_rename(rst, &final_aliases);
+                    try_rename(value, &final_aliases);
+                }
             }
             Statement::Constant(name, _, _) => {
                 try_rename(name, &final_aliases);
