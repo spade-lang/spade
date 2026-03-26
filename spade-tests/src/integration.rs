@@ -866,6 +866,34 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    units_can_contain_types,
+    "
+        fn test() {
+            struct S {}
+            enum E {V1{v: S}}
+            type A = E;
+
+            let x: A = E::V1(S());
+        }
+    "
+}
+
+snapshot_error! {
+    units_can_contain_types_but_they_are_in_a_scope,
+    "
+        fn test() {
+            struct S {}
+            enum E {V1{v: S}}
+            type A = E;
+
+            let x: A = E::V1(S());
+        }
+
+        struct Y {x: S}
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

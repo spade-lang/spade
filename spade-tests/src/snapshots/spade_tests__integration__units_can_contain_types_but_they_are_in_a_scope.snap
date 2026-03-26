@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/integration.rs
+---
+fn test() {
+    struct S {}
+    enum E {V1{v: S}}
+    type A = E;
+
+    let x: A = E::V1(S());
+}
+
+struct Y {x: S}
+
+
+error: Use of undeclared name S
+  ┌─ testinput:9:14
+  │
+9 │ struct Y {x: S}
+  │              ^ Undeclared name

@@ -33,6 +33,7 @@ use crate::error::{
     Result, SuggestBraceEnumVariant, TokenSeparatedError, UnexpectedToken,
 };
 use crate::item_type::UnitKindLocal;
+use crate::items::{EnumParser, StructParser, TypeAliasParser};
 use crate::lexer::{LiteralKind, TokenKind};
 
 pub use logos;
@@ -1478,6 +1479,9 @@ impl<'a> Parser<'a> {
                 Box::new(LabelParser {}),
                 Box::new(AssertParser {}.then(semi_continuation)),
                 Box::new(SetParser {}.then(semi_continuation)),
+                Box::new(EnumParser {}.map(|s| Ok(Statement::Type(s.clone()).at_loc(&s)))),
+                Box::new(StructParser {}.map(|s| Ok(Statement::Type(s.clone()).at_loc(&s)))),
+                Box::new(TypeAliasParser {}.map(|s| Ok(Statement::Type(s.clone()).at_loc(&s)))),
             ],
             true,
             vec![|tok| tok == &TokenKind::CloseBrace],

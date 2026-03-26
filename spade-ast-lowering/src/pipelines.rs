@@ -32,6 +32,7 @@ fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Re
         ast::Statement::Register(_) => {}
         ast::Statement::Assert(_) => {}
         ast::Statement::Set { .. } => {}
+        ast::Statement::Type(_) => {}
     };
     Ok(())
 }

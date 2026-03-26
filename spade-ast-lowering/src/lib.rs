@@ -31,6 +31,7 @@ use tracing::{event, Level};
 use type_level_if::expand_type_level_if;
 
 use crate::attributes::AttributeListExt;
+use crate::global_symbols::{re_visit_type_declaration, visit_type_declaration};
 pub use crate::impls::ensure_unique_anonymous_traits;
 use crate::pipelines::maybe_perform_pipelining_tasks;
 use crate::types::IsSelf;
@@ -2009,6 +2010,11 @@ fn try_visit_statement(
             let value = value.visit(visit_expression, ctx);
 
             Ok(vec![hir::Statement::Set { target, value }.at_loc(s)])
+        }
+        ast::Statement::Type(ty) => {
+            visit_type_declaration(ty, ctx)?;
+            re_visit_type_declaration(ty, ctx)?;
+            Ok(vec![])
         }
     }
 }

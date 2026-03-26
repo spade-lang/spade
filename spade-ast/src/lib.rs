@@ -540,6 +540,7 @@ pub enum Statement {
         value: Loc<Expression>,
     },
     Assert(Loc<Expression>),
+    Type(Loc<TypeDeclaration>),
 }
 
 impl Statement {
