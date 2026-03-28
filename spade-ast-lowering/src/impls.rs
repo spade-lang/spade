@@ -50,7 +50,8 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             name: alias_id.clone().nowhere(),
             kind: hir::TypeDeclKind::Alias(
                 hir::TypeAlias {
-                    type_spec: target_type.clone(),
+                    type_expr: TypeExpression::TypeSpec(target_type.inner.clone())
+                        .at_loc(&target_type),
                     wal_traceable: None,
                     documentation: String::new(),
                 }
@@ -273,8 +274,8 @@ pub fn get_impl_target(
         spade_ast::TypeSpec::Array { inner, size } => Ok((
             hir::ImplTarget::Array,
             vec![
-                visit_type_expression(inner, &TypeSpecKind::ImplTarget, ctx)?,
-                visit_type_expression(size, &TypeSpecKind::ImplTarget, ctx)?,
+                visit_type_expression(inner, &TypeSpecKind::ImplTarget, ctx)?.inner,
+                visit_type_expression(size, &TypeSpecKind::ImplTarget, ctx)?.inner,
             ],
         )),
         spade_ast::TypeSpec::Named(name, args) => {
@@ -296,7 +297,7 @@ pub fn get_impl_target(
                     .map(|t| t.inner.clone())
                     .unwrap_or_default()
                     .iter()
-                    .map(|expr| visit_type_expression(expr, &TypeSpecKind::ImplTarget, ctx))
+                    .map(|expr| Ok(visit_type_expression(expr, &TypeSpecKind::ImplTarget, ctx)?.inner))
                     .collect::<Result<_>>()?,
             ))
         }
@@ -306,13 +307,13 @@ pub fn get_impl_target(
                 inner,
                 &TypeSpecKind::ImplTarget,
                 ctx,
-            )?],
+            )?.inner],
         )),
         ast::TypeSpec::Tuple(inner) => Ok((
             hir::ImplTarget::Tuple,
             inner
                 .iter()
-                .map(|t| visit_type_expression(t, &TypeSpecKind::ImplTarget, ctx))
+                .map(|t| Ok(visit_type_expression(t, &TypeSpecKind::ImplTarget, ctx)?.inner))
                 .collect::<Result<_>>()?,
         )),
         ast::TypeSpec::Impl(_) => {

@@ -877,7 +877,7 @@ pub struct Struct {
 pub struct TypeAlias {
     pub attributes: AttributeList,
     pub name: Loc<Identifier>,
-    pub type_spec: Loc<TypeSpec>,
+    pub type_alias: Loc<TypeExpression>,
 }
 
 #[derive(PartialEq, Debug, Clone)]

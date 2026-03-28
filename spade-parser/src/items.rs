@@ -413,7 +413,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
 
         parser.eat(&TokenKind::Assignment)?;
 
-        let type_spec = parser.type_spec(false)?;
+        let type_spec = parser.type_expression()?;
         let end = parser.eat(&TokenKind::Semi)?;
 
         Ok(TypeDeclaration {
@@ -423,7 +423,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
                 TypeAlias {
                     attributes: attributes.clone(),
                     name,
-                    type_spec,
+                    type_alias: type_spec,
                 }
                 .between(parser.file_id, &start.span, &end),
             ),

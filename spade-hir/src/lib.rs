@@ -585,7 +585,7 @@ pub struct Struct {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TypeAlias {
-    pub type_spec: Loc<TypeSpec>,
+    pub type_expr: Loc<TypeExpression>,
     pub wal_traceable: Option<Loc<WalTraceable>>,
     pub documentation: String,
 }

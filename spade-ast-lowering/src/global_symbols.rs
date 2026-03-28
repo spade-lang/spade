@@ -21,7 +21,8 @@ use crate::{
     impls::create_trait_from_unit_heads,
     types::IsInOut,
     validate_default_param_position, visit_default_type_expression, visit_parameter_list,
-    visit_trait_spec, visit_trait_specs, visit_type_spec, Context, Result, TypeSpecKind,
+    visit_trait_spec, visit_trait_specs, visit_type_expression, visit_type_spec, Context, Result,
+    TypeSpecKind,
 };
 use spade_hir::symbol_table::{GenericArg, Thing, TypeSymbol};
 
@@ -508,17 +509,19 @@ pub fn visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Context) 
     )?;
 
     if let ast::TypeDeclKind::Alias(a) = &t.kind {
-        if let ast::TypeSpec::Named(target_path, _) = &a.type_spec.inner {
-            ctx.symtab.add_thing_with_name_id(
-                name_id,
-                Thing::Alias {
-                    loc: t.loc(),
-                    path: target_path.clone(),
-                    in_namespace: ctx.symtab.current_namespace().clone(),
-                },
-                Some(t.visibility.clone()),
-                deprecation_note,
-            );
+        if let ast::TypeExpression::TypeSpec(spec) = &a.type_alias.inner {
+            if let ast::TypeSpec::Named(target_path, _) = &spec.inner {
+                ctx.symtab.add_thing_with_name_id(
+                    name_id,
+                    Thing::Alias {
+                        loc: t.loc(),
+                        path: target_path.clone(),
+                        in_namespace: ctx.symtab.current_namespace().clone(),
+                    },
+                    Some(t.visibility.clone()),
+                    deprecation_note,
+                );
+            }
         }
     }
 
@@ -943,7 +946,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                 | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("type alias")),
             })?;
 
-            let type_spec = visit_type_spec(&a.type_spec, &TypeSpecKind::Alias, ctx)?;
+            let type_spec = visit_type_expression(&a.type_alias, &TypeSpecKind::Alias, ctx)?;
 
             if type_spec.is_inout(&ctx)? {
                 return Err(Diagnostic::error(type_spec, "Inout in alias")
@@ -951,16 +954,22 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     .secondary_label(&a.name, "This is an alias"));
             }
 
-            add_type_spec_name_ids_to_graph(
-                &type_spec.inner,
-                &declaration_id,
-                &mut pending_names,
-                &mut visited_edges,
-            );
+            // TODO: Can we do this, or do we also need to add things inside const
+            // generics to the graph? Presumably yes, since I think that will prevent
+            // things like
+            // `type A = A + 1;`
+            if let hir::TypeExpression::TypeSpec(spec) = &type_spec.inner {
+                add_type_spec_name_ids_to_graph(
+                    &spec,
+                    &declaration_id,
+                    &mut pending_names,
+                    &mut visited_edges,
+                );
+            }
 
             hir::TypeDeclKind::Alias(
                 hir::TypeAlias {
-                    type_spec,
+                    type_expr: type_spec,
                     wal_traceable,
                     documentation,
                 }
@@ -1026,8 +1035,8 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                         );
                     }
                 }
-                hir::TypeDeclKind::Alias(a) => add_type_spec_name_ids_to_graph(
-                    &a.type_spec,
+                hir::TypeDeclKind::Alias(a) => add_type_expr_name_ids_to_graph(
+                    &a.type_expr,
                     &decl.name,
                     &mut pending_names,
                     &mut visited_edges,
@@ -1084,5 +1093,24 @@ fn add_type_spec_name_ids_to_graph(
             add_type_spec_name_ids_to_graph(inner, prev_name, names, edges);
         }
         hir::TypeSpec::Generic(_) | hir::TypeSpec::TraitSelf(_) | hir::TypeSpec::Wildcard(_) => {}
+    }
+}
+
+fn add_type_expr_name_ids_to_graph(
+    ty: &hir::TypeExpression,
+    prev_name: &Loc<NameID>,
+    names: &mut HashSet<NameID>,
+    edges: &mut HashMap<NameID, Loc<NameID>>,
+) {
+    match ty {
+        TypeExpression::Bool(_) => {},
+        TypeExpression::Integer(_) => {},
+        TypeExpression::String(_) => {},
+        TypeExpression::TypeSpec(spec) => {
+            add_type_spec_name_ids_to_graph(spec, prev_name, names, edges);
+        },
+        TypeExpression::ConstGeneric(cg) => {
+            // TODO: What do we do here
+        },
     }
 }

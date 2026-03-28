@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/parser.rs
+assertion_line: 305
+---
+entity x() -> uint<8> {
+    !(false)
+}
+
+
+error: Output type mismatch. Expected uint<8>, got bool
+    ┌─ testinput:1:23
+    │  
+  1 │   entity x() -> uint<8> {
+    │                 ------- uint<8> type specified here
+    │ ╭───────────────────────^
+  2 │ │     !(false)
+  3 │ │ }
+    │ ╰─^ Found type bool
+    │  
+    ┌─ <compiler dir>/core/ops.spade:189:14
+    │
+189 │ impl Not for bool {
+    │              ---- Type bool inferred here
+    │
+    = note: Expected: uint<8>
+                 Got: bool

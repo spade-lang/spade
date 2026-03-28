@@ -408,9 +408,8 @@ impl TypeState {
                         gl.extend(mappings);
                     });
 
-                    return self.type_var_from_hir_with_obligations(
-                        loc,
-                        &a.type_spec,
+                    return self.hir_type_expr_to_var_with_obligations(
+                        &a.type_expr,
                         &generic_list_token,
                         ctx,
                     );

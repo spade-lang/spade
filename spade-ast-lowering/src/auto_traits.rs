@@ -112,7 +112,7 @@ impl TyExt for Loc<TypeDeclaration> {
             }
             spade_hir::TypeDeclKind::Alias(alias) => {
                 let TypeAlias {
-                    type_spec,
+                    type_expr: type_spec,
                     wal_traceable: _,
                     documentation: _,
                 } = &alias.inner;

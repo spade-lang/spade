@@ -894,6 +894,19 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    type_aliases_can_be_constants,
+    "
+        type X = 5;
+
+        fn unit(x: uint<X>) {}
+
+        fn test() {
+            uint(5u8)
+        }
+    "
+}
+
 #[cfg(test)]
 mod trait_tests {
     use crate::{build_items, build_items_with_stdlib, code_compiles, snapshot_error};

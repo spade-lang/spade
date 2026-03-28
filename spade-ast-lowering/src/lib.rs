@@ -288,17 +288,17 @@ fn visit_default_type_expression(
 ) -> Result<Option<Loc<hir::TypeExpression>>> {
     default
         .as_ref()
-        .map(|d| Ok(visit_type_expression(d, &TypeSpecKind::TraitBound, ctx)?.at_loc(d)))
+        .map(|d| Ok(visit_type_expression(d, &TypeSpecKind::TraitBound, ctx)?))
         .transpose()
 }
 
 #[recursive]
 pub fn visit_type_expression(
-    expr: &ast::TypeExpression,
+    expr: &Loc<ast::TypeExpression>,
     kind: &TypeSpecKind,
     ctx: &mut Context,
-) -> Result<hir::TypeExpression> {
-    match expr {
+) -> Result<Loc<hir::TypeExpression>> {
+    let result = match &expr.inner {
         ast::TypeExpression::TypeSpec(spec) => {
             let inner = visit_type_spec(spec, kind, ctx)?;
             // Look up the type. For now, we'll panic if we don't find a concrete type
@@ -336,7 +336,8 @@ pub fn visit_type_expression(
                 }
             }
         }
-    }
+    };
+    Ok(result?.at_loc(expr))
 }
 
 pub fn visit_type_spec(
@@ -370,7 +371,7 @@ pub fn visit_type_spec(
                         .map(|o| &o.inner)
                         .into_iter()
                         .flatten()
-                        .map(|p| p.try_map_ref(|p| visit_type_expression(p, kind, ctx)))
+                        .map(|p| visit_type_expression(p, kind, ctx))
                         .collect::<Result<Vec<_>>>()?;
 
                     if visited_params.len() >= *min_required_params
@@ -438,7 +439,7 @@ pub fn visit_type_spec(
             }
         }
         ast::TypeSpec::Array { inner, size } => {
-            let inner = match visit_type_expression(inner, kind, ctx)? {
+            let inner = match visit_type_expression(inner, kind, ctx)?.inner {
                 hir::TypeExpression::TypeSpec(t) => Box::new(t.at_loc(inner)),
                 _ => {
                     return Err(Diagnostic::error(
@@ -448,14 +449,14 @@ pub fn visit_type_spec(
                     .primary_label("Non-type array element"))
                 }
             };
-            let size = Box::new(visit_type_expression(size, kind, ctx)?.at_loc(size));
+            let size = Box::new(visit_type_expression(size, kind, ctx)?);
 
             Ok(hir::TypeSpec::Array { inner, size })
         }
         ast::TypeSpec::Tuple(inner) => {
             let inner = inner
                 .iter()
-                .map(|p| match visit_type_expression(p, kind, ctx)? {
+                .map(|p| match visit_type_expression(p, kind, ctx)?.inner {
                     hir::TypeExpression::TypeSpec(t) => match &t {
                         TypeSpec::Generic(Generic::Hidden(_))
                         | TypeSpec::Tuple(_)
@@ -491,7 +492,7 @@ pub fn visit_type_spec(
             Ok(hir::TypeSpec::Tuple(inner))
         }
         ast::TypeSpec::Inverted(inner) => {
-            let inner = match visit_type_expression(inner, kind, ctx)? {
+            let inner = match visit_type_expression(inner, kind, ctx)?.inner {
                 hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
                 _ => {
                     return Err(Diagnostic::error(
@@ -730,8 +731,7 @@ pub fn visit_unit_kind(kind: &ast::UnitKind, ctx: &mut Context) -> Result<hir::U
         ast::UnitKind::Function => hir::UnitKind::Function(hir::FunctionKind::Fn),
         ast::UnitKind::Entity => hir::UnitKind::Entity,
         ast::UnitKind::Pipeline(depth) => hir::UnitKind::Pipeline {
-            depth: depth
-                .try_map_ref(|t| visit_type_expression(t, &TypeSpecKind::PipelineHeadDepth, ctx))?,
+            depth: visit_type_expression(depth, &TypeSpecKind::PipelineHeadDepth, ctx)?,
             depth_typeexpr_id: ctx.idtracker.next(),
         },
     };
@@ -1531,7 +1531,7 @@ pub fn visit_trait_spec(
         Some(params) => Some(params.try_map_ref(|params| {
             params
                 .iter()
-                .map(|param| param.try_map_ref(|te| visit_type_expression(te, type_spec_kind, ctx)))
+                .map(|param| visit_type_expression(param, type_spec_kind, ctx))
                 .collect::<Result<_>>()
         })?),
         None => None,
@@ -1974,9 +1974,7 @@ fn try_visit_statement(
             let extra = match (count, cond) {
                 (None, None) => None,
                 (Some(count), None) => Some(hir::PipelineRegMarkerExtra::Count {
-                    count: count.try_map_ref(|c| {
-                        visit_type_expression(c, &TypeSpecKind::PipelineRegCount, ctx)
-                    })?,
+                    count: visit_type_expression(count, &TypeSpecKind::PipelineRegCount, ctx)?,
                     count_typeexpr_id: ctx.idtracker.next(),
                 }),
                 (None, Some(cond)) => Some(hir::PipelineRegMarkerExtra::Condition(cond)),
@@ -2078,8 +2076,7 @@ pub fn visit_call_kind(
         ast::CallKind::Function => hir::expression::CallKind::Function,
         ast::CallKind::Entity(loc) => hir::expression::CallKind::Entity(*loc),
         ast::CallKind::Pipeline(loc, depth) => {
-            let depth = depth
-                .try_map_ref(|e| visit_type_expression(e, &TypeSpecKind::PipelineInstDepth, ctx))?;
+            let depth = visit_type_expression(depth, &TypeSpecKind::PipelineInstDepth, ctx)?;
             hir::expression::CallKind::Pipeline {
                 inst_loc: *loc,
                 depth,
@@ -2090,25 +2087,26 @@ pub fn visit_call_kind(
 }
 
 pub fn visit_turbofish(
-    t: &Loc<ast::TurbofishInner>,
+    args: &Loc<ast::TurbofishInner>,
     ctx: &mut Context,
 ) -> Result<Loc<hir::ArgumentList<TypeExpression>>> {
-    t.try_map_ref(|args| match args {
+    let result = match &args.inner {
         ast::TurbofishInner::Named(fishes) => fishes
             .iter()
             .map(|fish| match &fish.inner {
                 ast::NamedTurbofish::Short(name) => {
                     let arg = ast::TypeExpression::TypeSpec(Box::new(
                         ast::TypeSpec::Named(Path::ident_with_loc(name.clone()), None).at_loc(name),
-                    ));
+                    ))
+                    .at_loc(name);
 
                     let arg =
-                        visit_type_expression(&arg, &TypeSpecKind::Turbofish, ctx)?.at_loc(name);
+                        visit_type_expression(&arg, &TypeSpecKind::Turbofish, ctx)?;
                     Ok(hir::expression::NamedArgument::Short(name.clone(), arg))
                 }
                 ast::NamedTurbofish::Full(name, arg) => {
                     let arg =
-                        visit_type_expression(arg, &TypeSpecKind::Turbofish, ctx)?.at_loc(arg);
+                        visit_type_expression(arg, &TypeSpecKind::Turbofish, ctx)?;
                     Ok(hir::expression::NamedArgument::Full(name.clone(), arg))
                 }
             })
@@ -2116,12 +2114,12 @@ pub fn visit_turbofish(
             .map(|params| hir::ArgumentList::Named(params)),
         ast::TurbofishInner::Positional(args) => args
             .iter()
-            .map(|arg| {
-                arg.try_map_ref(|arg| visit_type_expression(arg, &TypeSpecKind::Turbofish, ctx))
-            })
+            .map(|arg| visit_type_expression(arg, &TypeSpecKind::Turbofish, ctx))
             .collect::<Result<_>>()
             .map(hir::ArgumentList::Positional),
-    })
+    };
+    
+    Ok(result?.at_loc(args))
 }
 
 fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprKind> {
@@ -2596,9 +2594,11 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         } => {
             let stage = match stage {
                 ast::PipelineStageReference::Relative(offset) => {
-                    hir::expression::PipelineRefKind::Relative(offset.try_map_ref(|t| {
-                        visit_type_expression(t, &TypeSpecKind::PipelineInstDepth, ctx)
-                    })?)
+                    hir::expression::PipelineRefKind::Relative(visit_type_expression(
+                        offset,
+                        &TypeSpecKind::PipelineInstDepth,
+                        ctx,
+                    )?)
                 }
                 ast::PipelineStageReference::Absolute(name) => {
                     hir::expression::PipelineRefKind::Absolute(

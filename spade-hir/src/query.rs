@@ -368,7 +368,7 @@ impl<'a> QueryCache {
     }
 
     fn visit_type_alias(&mut self, a: &Loc<TypeAlias>) {
-        self.visit_type_spec(&a.type_spec);
+        self.visit_type_expr(&a.type_expr);
     }
 
     fn visit_type_spec(&mut self, ts: &Loc<TypeSpec>) {

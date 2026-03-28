@@ -180,7 +180,7 @@ impl TypeState {
                 leaf
             }
             hir::TypeDeclKind::Alias(a) => {
-                Self::type_spec_to_concrete(&a.type_spec, type_list, &generic_subs)
+                Self::type_expr_to_concrete(&a.type_expr, type_list, &generic_subs)
             }
         }
     }
