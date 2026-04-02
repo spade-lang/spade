@@ -1,9 +1,9 @@
 use rustc_hash::FxHashMap as HashMap;
 
-use spade_hir::{symbol_table::SymbolTable, TypeList};
+use spade_hir::{TypeList, symbol_table::SymbolTable};
 use spade_types::ConcreteType;
 
-use crate::{equation::TypedExpression, TypeState};
+use crate::{TypeState, equation::TypedExpression};
 
 // lifeguard spade#254
 // FIXME: Remove this since we dump the whole type statem

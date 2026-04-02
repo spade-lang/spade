@@ -1,8 +1,8 @@
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use hir::{
-    symbol_table::{EnumVariant, StructCallable},
     TypeExpression, WalTraceable,
+    symbol_table::{EnumVariant, StructCallable},
 };
 use spade_ast::{self as ast, Module, ModuleBody};
 use spade_common::{
@@ -10,18 +10,19 @@ use spade_common::{
     name::{Identifier, NameID, Path, Visibility},
     namespace::ModuleNamespace,
 };
-use spade_diagnostics::{diag_anyhow, diagnostic::Subdiagnostic, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_anyhow, diagnostic::Subdiagnostic};
 use spade_hir::WhereClause;
 use spade_hir::{self as hir, symbol_table::TraitMarker};
 use spade_types::meta_types::MetaType;
 
 use crate::{
+    Context, Result, TypeSpecKind,
     attributes::{AttributeListExt, LocAttributeExt},
     data_requirements::new_data_trait_spec,
     impls::create_trait_from_unit_heads,
     types::IsInOut,
     validate_default_param_position, visit_default_type_expression, visit_parameter_list,
-    visit_trait_spec, visit_trait_specs, visit_type_spec, Context, Result, TypeSpecKind,
+    visit_trait_spec, visit_trait_specs, visit_type_spec,
 };
 use spade_hir::symbol_table::{GenericArg, Thing, TypeSymbol};
 
@@ -34,7 +35,7 @@ pub fn handle_external_modules(
 ) -> Result<()> {
     for item in &module.members {
         match item {
-            ast::Item::ExternalMod(ref em) => {
+            ast::Item::ExternalMod(em) => {
                 let name = &em.name;
                 if let Some(inner) = inner_module {
                     return Err(Diagnostic::error(
@@ -129,7 +130,7 @@ pub fn report_missing_mod_declarations(
     // those
     let missing_namespace_set = missing_namespace_set
         .iter()
-        .filter(|ns| !ns.0 .0.is_empty() && !(ns.1.ends_with("main.spade")))
+        .filter(|ns| !ns.0.0.is_empty() && !(ns.1.ends_with("main.spade")))
         .collect::<Vec<_>>();
 
     missing_namespace_set
@@ -172,7 +173,7 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
         match item {
             ast::Item::Type(_) => {}
             ast::Item::ExternalMod(_) => {}
-            ast::Item::Module(ref m) => {
+            ast::Item::Module(m) => {
                 let mut deprecation_note = None;
                 m.attributes.lower(&mut |attr| match &attr.inner {
                     ast::Attribute::Deprecated { note, .. } => {
@@ -204,7 +205,7 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
-            ast::Item::TraitDef(ref r#trait) => {
+            ast::Item::TraitDef(r#trait) => {
                 visit_trait(r#trait, ctx)?;
             }
             ast::Item::Use(attributes, us) => {
@@ -251,11 +252,11 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
 pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
     for item in &module.members {
         match item {
-            ast::Item::Type(ref t) => {
+            ast::Item::Type(t) => {
                 visit_type_declaration(t, ctx)?;
             }
             ast::Item::ExternalMod(_) => {}
-            ast::Item::Module(ref m) => {
+            ast::Item::Module(m) => {
                 ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
             }
             ast::Item::ImplBlock(_) => {}
@@ -279,10 +280,10 @@ pub fn gather_symbols(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()>
 #[tracing::instrument(skip_all)]
 pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
     match item {
-        ast::Item::Unit(ref e) => {
+        ast::Item::Unit(e) => {
             visit_unit(&None, e, &None, &vec![], ctx)?;
         }
-        ast::Item::TraitDef(ref def) => {
+        ast::Item::TraitDef(def) => {
             validate_default_param_position(&def.type_params)?;
 
             let path = Path::ident_with_loc(def.name.clone());
@@ -320,7 +321,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
             )?;
         }
         ast::Item::ImplBlock(_) => {}
-        ast::Item::Type(ref t) => {
+        ast::Item::Type(t) => {
             re_visit_type_declaration(t, ctx)?;
         }
         ast::Item::ExternalMod(_) => {}
@@ -376,7 +377,7 @@ pub fn visit_meta_type(meta: &Loc<Identifier>) -> Result<MetaType> {
         _ => {
             return Err(Diagnostic::error(meta, "{meta} is not a valid meta-type")
                 .primary_label("Invalid meta-type")
-                .help("Expected #int, #uint or #type"))
+                .help("Expected #int, #uint or #type"));
         }
     };
     Ok(meta)
@@ -663,7 +664,7 @@ pub fn re_visit_type_declaration(t: &Loc<ast::TypeDeclaration>, ctx: &mut Contex
                     return Err(Diagnostic::bug(
                         t.loc(),
                         "Impossible visibility found while setting enum variant visibility",
-                    ))
+                    ));
                 }
             };
 

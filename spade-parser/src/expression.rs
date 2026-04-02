@@ -3,13 +3,13 @@ use spade_ast::{
     ArgumentList, BinaryOperator, Block, CallKind, Expression, IntLiteral, UnaryOperator,
 };
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::diag_list::ResultExt;
 use spade_diagnostics::Diagnostic;
+use spade_diagnostics::diag_list::ResultExt;
 use spade_macros::trace_parser;
 
 use crate::error::{CSErrorTransformations, ExpectedArgumentList, Result, UnexpectedToken};
 use crate::item_type::UnitKindLocal;
-use crate::{lexer::TokenKind, ParseStackEntry, Parser};
+use crate::{ParseStackEntry, Parser, lexer::TokenKind};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
 enum OpBindingPower {
@@ -294,7 +294,7 @@ impl<'a> Parser<'a> {
                         .secondary_label(
                             tf,
                             "Type parameters can only be specified on function calls",
-                        ))
+                        ));
                 }
                 (tf, Some(args)) => {
                     // Doing this avoids cloning result and args
@@ -1036,12 +1036,14 @@ mod test {
             "#;
 
         let expected = Block {
-            statements: vec![Statement::binding(
-                Pattern::name("a"),
-                None,
-                Expression::int_literal_signed(0).nowhere(),
-            )
-            .nowhere()],
+            statements: vec![
+                Statement::binding(
+                    Pattern::name("a"),
+                    None,
+                    Expression::int_literal_signed(0).nowhere(),
+                )
+                .nowhere(),
+            ],
             result: Some(Expression::int_literal_signed(1).nowhere()),
         }
         .nowhere();
@@ -1059,12 +1061,14 @@ mod test {
             "#;
 
         let expected = Expression::Block(Box::new(Block {
-            statements: vec![Statement::binding(
-                Pattern::name("a"),
-                None,
-                Expression::int_literal_signed(0).nowhere(),
-            )
-            .nowhere()],
+            statements: vec![
+                Statement::binding(
+                    Pattern::name("a"),
+                    None,
+                    Expression::int_literal_signed(0).nowhere(),
+                )
+                .nowhere(),
+            ],
             result: Some(Expression::int_literal_signed(1).nowhere()),
         }))
         .nowhere();

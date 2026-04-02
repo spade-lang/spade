@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_diagnostics::{
-    diag_list::DiagList, CodeBundle, CompilationError, DiagHandler, Diagnostic,
+    CodeBundle, CompilationError, DiagHandler, Diagnostic, diag_list::DiagList,
 };
 
 pub struct ErrorHandler<'a> {

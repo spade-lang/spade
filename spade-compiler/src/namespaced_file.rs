@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use logos::Logos;
 use spade_common::name::Path as SpadePath;
-use spade_parser::{lexer, Parser};
+use spade_parser::{Parser, lexer};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamespacedFile {

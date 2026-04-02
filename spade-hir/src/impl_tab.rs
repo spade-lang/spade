@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::Loc;
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_bail};
 
 use crate::{ImplBlock, ImplTarget, TraitName, TraitSpec, TypeExpression, TypeSpec};
 

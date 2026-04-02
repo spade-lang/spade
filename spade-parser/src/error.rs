@@ -3,7 +3,7 @@ use spade_common::location_info::Loc;
 use spade_diagnostics::Diagnostic;
 use spade_macros::{IntoDiagnostic, IntoSubdiagnostic};
 
-use crate::{lexer::TokenKind, Token};
+use crate::{Token, lexer::TokenKind};
 
 pub type Result<T> = std::result::Result<T, Diagnostic>;
 

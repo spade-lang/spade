@@ -6,8 +6,8 @@ use spade_common::{
 use spade_types::meta_types::MetaType;
 
 use crate::{
-    symbol_table::GenericArg, ConstGeneric, Generic, Parameter, ParameterList, TraitName,
-    TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead, UnitKind,
+    ConstGeneric, Generic, Parameter, ParameterList, TraitName, TraitSpec, TypeExpression,
+    TypeParam, TypeSpec, UnitHead, UnitKind, symbol_table::GenericArg,
 };
 
 pub trait MaybePrettyPrint {

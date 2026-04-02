@@ -10,7 +10,7 @@ mod tests {
     use insta::assert_debug_snapshot;
     use spade_common::num_ext::InfallibleToBigUint;
     use spade_mir::assert_same_mir;
-    use spade_mir::{self, entity, types::Type, ConstantValue};
+    use spade_mir::{self, ConstantValue, entity, types::Type};
 
     #[test]
     fn entity_definitions_are_correct() {

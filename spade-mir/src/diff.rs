@@ -298,7 +298,7 @@ pub fn compare_entity(e1: &Entity, e2: &Entity, var_map: &mut VarMap) -> bool {
 mod statement_comparison_tests {
     use super::*;
 
-    use crate::{statement, types::Type, ConstantValue};
+    use crate::{ConstantValue, statement, types::Type};
 
     use crate as spade_mir;
 
@@ -669,7 +669,7 @@ mod entity_comparison_tests {
     use super::*;
 
     use crate as spade_mir;
-    use crate::{entity, Type};
+    use crate::{Type, entity};
 
     #[test]
     fn identical_entities_have_no_diff() {

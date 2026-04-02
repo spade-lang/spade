@@ -10,8 +10,8 @@ use spade_mir::{Binding, Operator, Register, Statement, UnitName, ValueName};
 use spade_typeinference::equation::{KnownTypeVar, TypedExpression};
 use spade_typeinference::{HasType, TypeState};
 
-use crate::monomorphisation::MirOutput;
 use crate::Result;
+use crate::monomorphisation::MirOutput;
 
 #[derive(Clone)]
 enum InlinedStatements<'a> {
@@ -151,15 +151,17 @@ impl<'a> InlinedStatements<'a> {
                         .unwrap_or(&outer_output_name)
                         .clone(),
                     operator: Operator::Alias,
-                    operands: vec![new_name_map
-                        .get(&inner_output_name)
-                        .ok_or_else(|| {
-                            diag_anyhow!(
-                                loc.unwrap_or(().nowhere()),
-                                "Did not find the output in an entity being inlined"
-                            )
-                        })?
-                        .clone()],
+                    operands: vec![
+                        new_name_map
+                            .get(&inner_output_name)
+                            .ok_or_else(|| {
+                                diag_anyhow!(
+                                    loc.unwrap_or(().nowhere()),
+                                    "Did not find the output in an entity being inlined"
+                                )
+                            })?
+                            .clone(),
+                    ],
                     ty: (*ty).clone(),
                     loc: (*loc).clone(),
                 });

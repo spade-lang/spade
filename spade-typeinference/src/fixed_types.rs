@@ -6,8 +6,8 @@ use spade_hir::symbol_table::SymbolTable;
 use spade_types::KnownType;
 
 use crate::{
-    equation::{TypeVar, TypeVarID},
     TypeState,
+    equation::{TypeVar, TypeVarID},
 };
 
 fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {

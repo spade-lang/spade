@@ -33,7 +33,7 @@ pub fn list_names(item_list: &ItemList) -> HashMap<Vec<String>, ItemKind> {
             None => ItemKind::Type,
         };
 
-        let path = name.1 .0.iter().map(|ident| format!("{ident}")).collect();
+        let path = name.1.0.iter().map(|ident| format!("{ident}")).collect();
 
         result.insert(path, item);
     }

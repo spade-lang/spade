@@ -16,7 +16,7 @@ pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
-use spade_mir::codegen::{cocotb_code, prepare_codegen, Codegenable};
+use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
@@ -30,18 +30,18 @@ use typeinference::TypeState;
 
 use spade_ast::ModuleBody;
 use spade_ast_lowering::{
-    auto_traits, ensure_unique_anonymous_traits, global_symbols, visit_module_body,
-    Context as AstLoweringCtx, SelfContext,
+    Context as AstLoweringCtx, SelfContext, auto_traits, ensure_unique_anonymous_traits,
+    global_symbols, visit_module_body,
 };
 use spade_common::id_tracker::{GenericIdTracker, ImplIdTracker};
 use spade_common::name::{NameID, Path as SpadePath, Visibility};
 use spade_diagnostics::{CodeBundle, DiagHandler, Diagnostic};
 use spade_hir::symbol_table::SymbolTable;
 use spade_hir::{ExecutableItem, ItemList};
-use spade_hir_lowering::monomorphisation::MirOutput;
 use spade_hir_lowering::NameSourceMap;
-pub use spade_parser::lexer;
+use spade_hir_lowering::monomorphisation::MirOutput;
 use spade_parser::Parser;
+pub use spade_parser::lexer;
 use spade_typeinference::{self as typeinference, SharedTypeState};
 
 pub struct Opt<'b> {

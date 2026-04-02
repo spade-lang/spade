@@ -3,14 +3,14 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diagnostic::DiagnosticLevel;
-use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_anyhow};
 use spade_hir::expression::{BinaryOperator, IntLiteralKind, NamedArgument, UnaryOperator};
 use spade_hir::{ExprKind, Expression, Generic};
 use spade_macros::trace_typechecker;
-use spade_types::meta_types::MetaType;
 use spade_types::KnownType;
+use spade_types::meta_types::MetaType;
 
-use crate::constraints::{bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintSource};
+use crate::constraints::{ConstraintExpr, ConstraintSource, bits_to_store, ce_int, ce_var};
 use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{TypeMismatch as Tm, UnificationErrorExt};
 use crate::requirements::{ConstantInt, Requirement};
@@ -578,8 +578,8 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::RangeIndex{
             target,
-            ref start,
-            ref end,
+            start,
+            end,
         } = &expression => {
             self.visit_expression(target, ctx, generic_list);
             // Add constraints

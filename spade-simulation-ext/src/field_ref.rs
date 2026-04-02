@@ -4,10 +4,10 @@ use spade_typeinference::equation::KnownTypeVar;
 use spade_types::KnownType;
 
 use crate::error::{Result, SourceCodeError};
-use crate::{maybe_pyclass, UptoRange};
+use crate::{UptoRange, maybe_pyclass};
 use color_eyre::eyre::anyhow;
 
-#[cfg_attr(feature = "python", pyclass)]
+#[cfg_attr(feature = "python", pyclass(from_py_object))]
 #[derive(Clone, Debug)]
 pub enum FieldSource {
     Input {
@@ -46,7 +46,7 @@ maybe_pyclass! {
     /// field originates from.
     /// fwd and back are in reference to *inputs*, so fwd is the non-inverted ports and back
     /// is the inverted ports.
-    #[cfg_attr(feature = "python", pyclass)]
+    #[cfg_attr(feature = "python", pyclass(from_py_object))]
     #[derive(Clone, Debug)]
     pub struct FieldRef {
         #[pyo3(get)]

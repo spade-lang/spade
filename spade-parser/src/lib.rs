@@ -13,7 +13,7 @@ use local_impl::local_impl;
 use logos::Lexer;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterParser, SetParser};
-use tracing::{debug, event, Level};
+use tracing::{Level, debug, event};
 
 use spade_ast::{
     ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
@@ -22,15 +22,15 @@ use spade_ast::{
     TurbofishInner, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause,
     WireMarker,
 };
-use spade_common::location_info::{lspan, AsLabel, FullSpan, HasCodespan, Loc, WithLocation};
+use spade_common::location_info::{AsLabel, FullSpan, HasCodespan, Loc, WithLocation, lspan};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
 use spade_common::num_ext::{InfallibleToBigInt, InfallibleToBigUint};
 use spade_diagnostics::Diagnostic;
 use spade_macros::trace_parser;
 
 use crate::error::{
-    unexpected_token_message, CSErrorTransformations, CommaSeparatedResult, ExpectedArgumentList,
-    Result, SuggestBraceEnumVariant, TokenSeparatedError, UnexpectedToken,
+    CSErrorTransformations, CommaSeparatedResult, ExpectedArgumentList, Result,
+    SuggestBraceEnumVariant, TokenSeparatedError, UnexpectedToken, unexpected_token_message,
 };
 use crate::item_type::UnitKindLocal;
 use crate::items::{EnumParser, StructParser, TypeAliasParser};
@@ -1948,7 +1948,7 @@ impl<'a> Parser<'a> {
                                             got: next,
                                             expected: vec![":", "==", "!=", ">", ">=", "<=", "<"],
                                         })
-                                        .into())
+                                        .into());
                                     }
                                 };
 
@@ -1963,7 +1963,7 @@ impl<'a> Parser<'a> {
                                                 return Err(Diagnostic::from(UnexpectedToken {
                                                     got: message,
                                                     expected: vec!["\""],
-                                                }))
+                                                }));
                                             }
                                         }
                                     } else {
@@ -2654,13 +2654,14 @@ impl<'a> Parser<'a> {
 
             match inner {
                 RecoveryResult::Ok(Some(stmt)) => result.push(stmt),
-                RecoveryResult::Ok(None) => {
-                    if let Some(other_res) = (other)(self, attributes)? {
+                RecoveryResult::Ok(None) => match (other)(self, attributes)? {
+                    Some(other_res) => {
                         result.push(other_res);
-                    } else {
+                    }
+                    _ => {
                         break;
                     }
-                }
+                },
                 RecoveryResult::Recovered => continue,
             }
         }
@@ -2891,7 +2892,7 @@ impl<'a> Parser<'a> {
                     TokenKind::Eof => {
                         break Err(Diagnostic::error(next, "Unterminated block comment")
                             .primary_label("Expected */")
-                            .secondary_label(out, "to close this block comment"))
+                            .secondary_label(out, "to close this block comment"));
                     }
                     _ => {}
                 }
@@ -3198,14 +3199,18 @@ mod tests {
         let expected = TypeSpec::Named(
             ast_path("Option"),
             Some(
-                vec![TypeExpression::TypeSpec(Box::new(
-                    TypeSpec::Named(
-                        ast_path("int"),
-                        Some(vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere()),
-                    )
+                vec![
+                    TypeExpression::TypeSpec(Box::new(
+                        TypeSpec::Named(
+                            ast_path("int"),
+                            Some(
+                                vec![TypeExpression::Integer(5u32.to_bigint()).nowhere()].nowhere(),
+                            ),
+                        )
+                        .nowhere(),
+                    ))
                     .nowhere(),
-                ))
-                .nowhere()]
+                ]
                 .nowhere(),
             ),
         )

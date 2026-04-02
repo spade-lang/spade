@@ -1,13 +1,13 @@
 use std::fs::File;
-use std::io::{prelude::*, stderr, IsTerminal};
+use std::io::{IsTerminal, prelude::*, stderr};
 use std::path::PathBuf;
 
 use clap::Parser;
-use color_eyre::eyre::{anyhow, bail, Context, Result};
+use color_eyre::eyre::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 use spade_codespan_reporting::term::termcolor::Buffer;
-use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::DiagHandler;
+use spade_diagnostics::emitter::CodespanEmitter;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
@@ -20,8 +20,8 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 use spade::{
-    namespaced_file::{dummy_file, namespaced_file, NamespacedFile},
     ModuleNamespace,
+    namespaced_file::{NamespacedFile, dummy_file, namespaced_file},
 };
 
 #[derive(Deserialize, Parser)]

@@ -1,10 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::{Nothing, Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, parse_quote};
 use syn::{Error, Expr, Fields, FieldsNamed, Ident, ImplItemFn, ItemStruct, Token};
+use syn::{parse_macro_input, parse_quote};
 
 // Thanks to discord user Yandros(MemeOverloard) for doing the bulk of the work with this
 // macro
@@ -309,7 +309,7 @@ fn actual_derive_subdiagnostic(input: ItemStruct) -> Result<TokenStream, Error> 
             return Err(Error::new_spanned(
                 subdiag_kind,
                 "unknown subdiagnostic kind",
-            ))
+            ));
         }
     };
     Ok(tokens.into())

@@ -1,6 +1,6 @@
 use spade_common::id_tracker::{ExprIdTracker, NameIdTracker};
 
-use crate::{types::Type, Binding, ConstantValue, Entity, Operator, Statement, ValueName};
+use crate::{Binding, ConstantValue, Entity, Operator, Statement, ValueName, types::Type};
 
 pub fn wal_alias(
     source: &ValueName,
@@ -110,7 +110,7 @@ pub fn insert_wal_signals(
 mod test {
     use spade_common::id_tracker::{ExprIdTracker, NameIdTracker};
 
-    use crate::{self as spade_mir, assert_same_mir, ConstantValue};
+    use crate::{self as spade_mir, ConstantValue, assert_same_mir};
     use crate::{entity, types::Type};
 
     use super::insert_wal_signals;

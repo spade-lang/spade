@@ -21,26 +21,26 @@ use const_generic::ConstGenericExt;
 use error::format_witnesses;
 use error::refutable_pattern_diagnostic;
 use error::undefined_variable;
-use hir::expression::CallKind;
-use hir::expression::TriLiteral;
 use hir::ArgumentList;
 use hir::Attribute;
 use hir::Parameter;
 use hir::TypeDeclKind;
 use hir::TypeSpec;
 use hir::WalTrace;
+use hir::expression::CallKind;
+use hir::expression::TriLiteral;
 use itertools::Itertools;
 use local_impl::local_impl;
 use mir::passes::MirPass;
 use num::BigInt;
 use num::ToPrimitive;
 
-use hir::param_util::{match_args_with_params, Argument};
+use hir::param_util::{Argument, match_args_with_params};
 use hir::symbol_table::{FrozenSymtab, PatternableKind};
 use hir::{ItemList, Pattern, PatternArgument, UnitKind, UnitName};
-use mir::types::Type as MirType;
 use mir::MirInput;
 use mir::ValueNameSource;
+use mir::types::Type as MirType;
 use mir::{ConstantValue, ValueName};
 use monomorphisation::MonoItem;
 use monomorphisation::MonoState;
@@ -48,8 +48,8 @@ use name_map::NameSource;
 pub use name_map::NameSourceMap;
 use num::{BigUint, One, Zero};
 use pattern::DeconstructedPattern;
-use pipelines::lower_pipeline;
 use pipelines::MaybePipelineContext;
+use pipelines::lower_pipeline;
 use spade_common::doc_links::GENERIC_PARAM_INTRO;
 use spade_common::id_tracker::ExprIdTracker;
 use spade_common::location_info::WithLocation;
@@ -59,28 +59,28 @@ use spade_common::num_ext::InfallibleToBigUint;
 use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diagnostic::SuggestionParts;
-use spade_diagnostics::{diag_assert, diag_bail, Diagnostic};
-use spade_hir::expression::Safety;
-use spade_hir::pretty_print::PrettyPrint;
+use spade_diagnostics::{Diagnostic, diag_assert, diag_bail};
 use spade_hir::Generic;
 use spade_hir::Input;
 use spade_hir::UnitHead;
+use spade_hir::expression::Safety;
+use spade_hir::pretty_print::PrettyPrint;
+use spade_typeinference::GenericListToken;
+use spade_typeinference::HasType;
 use spade_typeinference::equation::TypeVar;
 use spade_typeinference::equation::TypedExpression;
 use spade_typeinference::traits::TraitImplList;
-use spade_typeinference::GenericListToken;
-use spade_typeinference::HasType;
 use spade_types::meta_types::MetaType;
 use statement_list::StatementList;
 use substitution::Substitution;
 use substitution::Substitutions;
-use usefulness::{is_useful, PatStack, Usefulness};
+use usefulness::{PatStack, Usefulness, is_useful};
 
 use crate::error::Result;
 use spade_common::{location_info::Loc, name::NameID};
 use spade_hir as hir;
 use spade_hir::{
-    expression::BinaryOperator, expression::UnaryOperator, ExprKind, Expression, Statement, Unit,
+    ExprKind, Expression, Statement, Unit, expression::BinaryOperator, expression::UnaryOperator,
 };
 use spade_mir as mir;
 use spade_typeinference::TypeState;
@@ -230,8 +230,8 @@ pub trait MirLowerable {
 
 impl MirLowerable for ConcreteType {
     fn to_mir_type(&self) -> mir::types::Type {
-        use mir::types::Type;
         use ConcreteType as CType;
+        use mir::types::Type;
 
         match self {
             CType::Error => {
@@ -915,7 +915,7 @@ pub fn do_wal_trace_lowering(
                     return Err(Diagnostic::error(
                         wal_trace,
                         format!("The {name} signal for this trace must be provided"),
-                    ))
+                    ));
                 }
                 (Some(signal), false) => {
                     return Err(
@@ -925,7 +925,7 @@ pub fn do_wal_trace_lowering(
                                 wal_traceable,
                                 format!("This struct does not need a {name} signal for tracing"),
                             ),
-                    )
+                    );
                 }
                 (Some(signal), true) => result.push_anonymous(mir::Statement::WalTrace {
                     name: main_value_name.clone(),
@@ -1059,20 +1059,22 @@ pub fn do_wal_trace_lowering(
                             .expect("did not find std::ports::read_mut_wire in symtab")
                             .0
                             .nowhere(),
-                        args: ArgumentList::Positional(vec![hir::Expression {
-                            kind: ExprKind::FieldAccess(
-                                Box::new(
-                                    hir::Expression {
-                                        kind: ExprKind::Null,
-                                        id: dummy_expr_id,
-                                    }
-                                    .nowhere(),
+                        args: ArgumentList::Positional(vec![
+                            hir::Expression {
+                                kind: ExprKind::FieldAccess(
+                                    Box::new(
+                                        hir::Expression {
+                                            kind: ExprKind::Null,
+                                            id: dummy_expr_id,
+                                        }
+                                        .nowhere(),
+                                    ),
+                                    n.clone().nowhere(),
                                 ),
-                                n.clone().nowhere(),
-                            ),
-                            id: ctx.idtracker.next(),
-                        }
-                        .nowhere()])
+                                id: ctx.idtracker.next(),
+                            }
+                            .nowhere(),
+                        ])
                         .nowhere(),
                         turbofish: None,
                         safety: Safety::Default,
@@ -1179,7 +1181,7 @@ pub fn lower_wal_trace(
                             other.name()
                         ),
                     )
-                    .into())
+                    .into());
                 }
                 None => {
                     diag_bail!(wal_trace, "wal_trace on non-declared type")
@@ -1195,7 +1197,7 @@ pub fn lower_wal_trace(
             .secondary_label(
                 pattern,
                 format!("This has type {}", other.display(ctx.types)),
-            ))
+            ));
         }
     }
     Ok(())
@@ -1578,7 +1580,7 @@ impl ExprLocal for Loc<Expression> {
                                 self,
                                 "This type level value is not fully known",
                             )
-                            .primary_label("Unknown type level value"))
+                            .primary_label("Unknown type level value"));
                         }
                     };
 
@@ -1630,7 +1632,7 @@ impl ExprLocal for Loc<Expression> {
                                 self,
                                 "This type level value is not fully known",
                             )
-                            .primary_label("Unknown type level value"))
+                            .primary_label("Unknown type level value"));
                         }
                     };
 
@@ -1915,11 +1917,7 @@ impl ExprLocal for Loc<Expression> {
                         .enumerate()
                         .filter_map(
                             |(i, (name, _))| {
-                                if name == &field.inner {
-                                    Some(i)
-                                } else {
-                                    None
-                                }
+                                if name == &field.inner { Some(i) } else { None }
                             },
                         )
                         .collect::<Vec<_>>();
@@ -2157,7 +2155,9 @@ impl ExprLocal for Loc<Expression> {
                                 if !witness_useful.is_useful() {
                                     diagnostics = diagnostics.secondary_label(
                                         pat,
-                                        format!("This provides {witness} but the branch has a predicate"),
+                                        format!(
+                                            "This provides {witness} but the branch has a predicate"
+                                        ),
                                     );
                                     predicated_branch_diagnosed = true;
                                 }
@@ -2313,7 +2313,7 @@ impl ExprLocal for Loc<Expression> {
                             "Consider adding `inst`",
                             callee,
                             "inst ",
-                        ))
+                        ));
                     }
                     (UnitKind::Entity, CallKind::Pipeline { inst_loc, .. }) => {
                         return Err(Diagnostic::error(
@@ -2330,7 +2330,7 @@ impl ExprLocal for Loc<Expression> {
                             "Consider removing the pipeline depth",
                             inst_loc,
                             "inst",
-                        ))
+                        ));
                     }
                     (UnitKind::Pipeline { .. }, CallKind::Function) => {
                         return Err(Diagnostic::error(
@@ -2347,7 +2347,7 @@ impl ExprLocal for Loc<Expression> {
                             "Consider instantiating the pipeline with a depth",
                             callee,
                             "inst(/*depth*/) ",
-                        ))
+                        ));
                     }
                     (UnitKind::Pipeline { .. }, CallKind::Entity(loc)) => {
                         return Err(Diagnostic::error(loc, "Expected pipeline depth")
@@ -2361,7 +2361,7 @@ impl ExprLocal for Loc<Expression> {
                                 "Consider specifying the pipeline depth",
                                 loc,
                                 "(/*depth*/)",
-                            ))
+                            ));
                     }
                 }
             }
@@ -2462,7 +2462,7 @@ impl ExprLocal for Loc<Expression> {
                     message,
                     format!("Reached unreachable code '{message}'"),
                 )
-                .primary_label(message.inner.clone()))
+                .primary_label(message.inner.clone()));
             }
         }
 
@@ -3626,7 +3626,7 @@ impl ExprLocal for Loc<Expression> {
                 return Err(Diagnostic::bug(
                     self,
                     format!("Inferred non-integer type ({other}) for division operand"),
-                ))
+                ));
             }
         };
 
@@ -3665,7 +3665,7 @@ impl ExprLocal for Loc<Expression> {
                 return Err(Diagnostic::bug(
                     self,
                     format!("Inferred non-integer type ({other}) for modulo operand"),
-                ))
+                ));
             }
         };
 
@@ -3777,7 +3777,7 @@ impl ExprLocal for Loc<Expression> {
                 return Err(Diagnostic::bug(
                     self,
                     format!("Inferred non-integer type ({other}) for `read_write_items_inout`"),
-                ))
+                ));
             }
         };
 

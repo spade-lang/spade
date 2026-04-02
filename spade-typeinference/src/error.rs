@@ -3,7 +3,7 @@ use itertools::Itertools;
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
-use crate::{constraints::ConstraintSource, equation::TypeVarID, traits::TraitReq, TypeState};
+use crate::{TypeState, constraints::ConstraintSource, equation::TypeVarID, traits::TraitReq};
 
 use super::equation::TypeVar;
 

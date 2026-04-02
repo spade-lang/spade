@@ -6,17 +6,17 @@ use std::{
     io::{Read, Write},
 };
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{Result, eyre::Context};
 use item::Item;
-use spade::{namespaced_file::NamespacedFile, ModuleNamespace};
+use spade::{ModuleNamespace, namespaced_file::NamespacedFile};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::{
     location_info::WithLocation,
     name::{Identifier, NameID, Path as SpadePath},
 };
-use spade_diagnostics::{emitter::CodespanEmitter, DiagHandler};
+use spade_diagnostics::{DiagHandler, emitter::CodespanEmitter};
 use spade_hir::{
-    symbol_table::FrozenSymtab, ExecutableItem, ImplBlock, ImplTarget, ItemList, Module, TraitName,
+    ExecutableItem, ImplBlock, ImplTarget, ItemList, Module, TraitName, symbol_table::FrozenSymtab,
 };
 
 pub mod html;

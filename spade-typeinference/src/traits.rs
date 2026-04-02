@@ -1,6 +1,6 @@
 use crate::{
-    equation::{TemplateTypeVarID, TypeVarID},
     TypeState,
+    equation::{TemplateTypeVarID, TypeVarID},
 };
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;

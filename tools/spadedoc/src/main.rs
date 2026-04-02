@@ -3,11 +3,11 @@ use std::str::FromStr;
 use argh::FromArgs;
 use camino::Utf8PathBuf;
 use color_eyre::eyre::bail;
-use spade::namespaced_file::namespaced_file;
 use spade::namespaced_file::NamespacedFile;
+use spade::namespaced_file::namespaced_file;
 use tracing::metadata::LevelFilter;
-use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 
 struct NamespacedFileLocal(NamespacedFile);

@@ -3,9 +3,9 @@ use std::sync::{Arc, Mutex};
 use crate::{Context, SelfContext};
 use spade_common::id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker};
 use spade_diagnostics::diag_list::DiagList;
+use spade_hir::ItemList;
 use spade_hir::expression::Safety;
 use spade_hir::symbol_table::SymbolTable;
-use spade_hir::ItemList;
 
 pub fn test_context() -> Context {
     let diags = Arc::new(Mutex::new(DiagList::new()));

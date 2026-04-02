@@ -8,15 +8,15 @@ use spade_common::{
     location_info::WithLocation,
     name::{Identifier, Path as SpadePath},
 };
-use spade_hir::{symbol_table::Thing, TraitName, TypeDeclKind, TypeDeclaration, UnitHead};
+use spade_hir::{TraitName, TypeDeclKind, TypeDeclaration, UnitHead, symbol_table::Thing};
 
 use crate::{
-    html::{
-        self, spec::Spec, GenericTypeParam, ImplementationMember, ItemContent, ItemKind,
-        ItemListing, ListedEntry, RenderedMarkdown, Signature, StructSignature, UnitSignature,
-        WhereClause,
-    },
     Documentation, Item,
+    html::{
+        self, GenericTypeParam, ImplementationMember, ItemContent, ItemKind, ItemListing,
+        ListedEntry, RenderedMarkdown, Signature, StructSignature, UnitSignature, WhereClause,
+        spec::Spec,
+    },
 };
 
 #[derive(Debug, Clone, Copy)]

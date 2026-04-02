@@ -7,8 +7,8 @@ use spade_common::{
 use spade_types::KnownType;
 
 use crate::{
-    equation::{TypeVar, TypeVarID},
     TypeState,
+    equation::{TypeVar, TypeVarID},
 };
 
 #[derive(Debug, Clone)]

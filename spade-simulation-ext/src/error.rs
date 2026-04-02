@@ -76,9 +76,8 @@ pub enum Error {
 #[cfg(feature = "python")]
 pub mod pyerr {
     use pyo3::{
-        create_exception,
+        PyErr, create_exception,
         exceptions::{PyException, PyRuntimeError},
-        PyErr,
     };
 
     use super::Error;

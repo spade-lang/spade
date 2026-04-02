@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use ecolor::Color32;
-use extism_pdk::{plugin_fn, FnResult, Json, WithReturnCode};
+use extism_pdk::{FnResult, Json, WithReturnCode, plugin_fn};
 use rustc_hash::FxHashMap as HashMap;
 
 use itertools::Itertools;
@@ -12,21 +12,18 @@ use serde::Deserialize;
 use spade::compiler_state::{CompilerState, StoredCompilerState};
 
 use color_eyre::{
-    eyre::{anyhow, bail, Context, ContextCompat},
     Result,
+    eyre::{Context, ContextCompat, anyhow, bail},
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID, Path, PathSegment},
 };
-use spade_hir::{expression::CallKind, query::QueryCache, Expression};
-use spade_hir_lowering::{name_map::NameSource, MirLowerable};
+use spade_hir::{Expression, expression::CallKind, query::QueryCache};
+use spade_hir_lowering::{MirLowerable, name_map::NameSource};
 use spade_types::{ConcreteType, PrimitiveType};
 use std::sync::Mutex;
 use surfer_translation_types::{
-    // translator::{TrueName, VariableNameInfo},
-    plugin_types::TranslateParams,
-    translator::TrueName,
     SubFieldTranslationResult,
     TranslationResult,
     ValueRepr,
@@ -34,6 +31,9 @@ use surfer_translation_types::{
     VariableNameInfo,
     VariableRef,
     WaveSource,
+    // translator::{TrueName, VariableNameInfo},
+    plugin_types::TranslateParams,
+    translator::TrueName,
 };
 
 use surfer_translation_types::{TranslationPreference, ValueKind, VariableInfo, VariableValue};
@@ -518,11 +518,7 @@ fn translate_concrete(
 ) -> Result<TranslationResult> {
     macro_rules! handle_problematic {
         ($kind:expr) => {
-            if *problematic {
-                ValueKind::Warn
-            } else {
-                $kind
-            }
+            if *problematic { ValueKind::Warn } else { $kind }
         };
         () => {
             handle_problematic!(ValueKind::Normal)
@@ -697,7 +693,7 @@ fn translate_concrete(
                     TranslationResult {
                         val: ValueRepr::Enum {
                             idx: tag,
-                            name: options[tag].0 .1.tail().to_string(),
+                            name: options[tag].0.1.tail().to_string(),
                         },
                         kind,
                         subfields,

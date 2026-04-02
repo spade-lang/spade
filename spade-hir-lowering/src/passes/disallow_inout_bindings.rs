@@ -1,6 +1,6 @@
 use spade_common::location_info::Loc;
 use spade_diagnostics::Diagnostic;
-use spade_hir::{symbol_table::FrozenSymtab, Binding, Input, ItemList, Parameter, Register};
+use spade_hir::{Binding, Input, ItemList, Parameter, Register, symbol_table::FrozenSymtab};
 use spade_typeinference::TypeState;
 use spade_types::PrimitiveType;
 
@@ -32,7 +32,7 @@ impl<'a> Pass for InOutChecks<'a> {
                     "Values of inout type cannot be returned",
                 )
                 .primary_label("returning inout value")
-                .help("inout values can only be passed along to other modules as inputs"))
+                .help("inout values can only be passed along to other modules as inputs"));
             }
             _ => {}
         }
@@ -73,7 +73,7 @@ impl<'a> Pass for InOutChecks<'a> {
                         "Consider making the input #[no_mangle]",
                         name,
                         "#[no_mangle] ",
-                    ))
+                    ));
                 }
                 _ => {}
             }
@@ -115,7 +115,7 @@ impl<'a> Pass for InOutChecks<'a> {
                                     .primary_label("inout type bound to name")
                                     .help(
                                         "inout values can only be passed along to other modules",
-                                    ))
+                                    ));
                                 }
                                 _ => {}
                             }

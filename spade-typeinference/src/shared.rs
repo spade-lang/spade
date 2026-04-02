@@ -1,8 +1,8 @@
-use std::sync::{atomic::AtomicU64, RwLock};
+use std::sync::{RwLock, atomic::AtomicU64};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{equation::TypeVar, GenericLists, HashMap};
+use crate::{GenericLists, HashMap, equation::TypeVar};
 
 #[derive(Serialize, Deserialize)]
 pub struct SharedTypeStateInner {

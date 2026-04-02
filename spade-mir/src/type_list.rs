@@ -1,4 +1,4 @@
-use crate::{types::Type, Entity, MirInput, Statement, ValueName};
+use crate::{Entity, MirInput, Statement, ValueName, types::Type};
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug)]

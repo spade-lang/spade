@@ -201,7 +201,7 @@ mod tests {
     use spade_mir::unit_name::UnitNameKind;
 
     use crate::{self as spade_mir, MirInput, UnitName};
-    use crate::{types::Type, Binding, ConstantValue, Operator, Register, Statement, ValueName};
+    use crate::{Binding, ConstantValue, Operator, Register, Statement, ValueName, types::Type};
 
     #[test]
     fn value_name_parsing_works() {

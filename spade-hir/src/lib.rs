@@ -23,7 +23,7 @@ use spade_common::{
     num_ext::InfallibleToBigInt,
 };
 use spade_diagnostics::Diagnostic;
-use spade_types::{meta_types::MetaType, PrimitiveType};
+use spade_types::{PrimitiveType, meta_types::MetaType};
 
 use crate::impl_tab::ImplTab;
 use crate::pretty_print::PrettyPrint;
@@ -356,7 +356,7 @@ impl Generic {
 
     pub fn ident(&self) -> Option<&Loc<Identifier>> {
         match self.name_id() {
-            Some(id) => id.1 .0.last().map(PathSegment::unwrap_named),
+            Some(id) => id.1.0.last().map(PathSegment::unwrap_named),
             None => None,
         }
     }
@@ -857,13 +857,7 @@ impl ParameterList {
                         no_mangle: _,
                         field_translator: _,
                     },
-                )| {
-                    if &name.inner == target {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                },
+                )| { if &name.inner == target { Some(i) } else { None } },
             )
             .collect::<Vec<_>>();
 

@@ -1,8 +1,8 @@
 use num::ToPrimitive;
 
 use spade_common::location_info::{Loc, WithLocation};
-use spade_diagnostics::{diag_anyhow, Diagnostic};
-use spade_hir::{symbol_table::FrozenSymtab, ItemList, PipelineRegMarkerExtra, Statement};
+use spade_diagnostics::{Diagnostic, diag_anyhow};
+use spade_hir::{ItemList, PipelineRegMarkerExtra, Statement, symbol_table::FrozenSymtab};
 use spade_typeinference::TypeState;
 use spade_types::ConcreteType;
 

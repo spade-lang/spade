@@ -119,7 +119,7 @@ impl Emitter for CodespanEmitter {
                 }
                 Subdiagnostic::Suggestion { parts, message } => {
                     subdiagnostics.push(CodespanSubdiagnostic::Suggestion(Suggestion {
-                        file_id: parts[0].0 .1,
+                        file_id: parts[0].0.1,
                         message: message.as_str().to_string(),
                         parts: parts
                             .iter()

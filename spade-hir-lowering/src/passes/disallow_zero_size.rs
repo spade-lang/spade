@@ -1,7 +1,7 @@
 use num::BigUint;
 use spade_common::location_info::Loc;
-use spade_diagnostics::{diag_bail, Diagnostic};
-use spade_hir::{symbol_table::FrozenSymtab, Expression, ItemList};
+use spade_diagnostics::{Diagnostic, diag_bail};
+use spade_hir::{Expression, ItemList, symbol_table::FrozenSymtab};
 use spade_typeinference::TypeState;
 
 use crate::MirLowerable;

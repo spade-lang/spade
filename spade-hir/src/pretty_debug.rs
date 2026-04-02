@@ -1,15 +1,15 @@
 use itertools::Itertools;
-use nesty::{code, Code};
+use nesty::{Code, code};
 use spade_common::{
     location_info::Loc,
     name::{Identifier, NameID},
 };
 
 use crate::{
-    expression::{NamedArgument, OuterLambdaParam, Safety},
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
     Generic, Input, Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression,
     TypeParam, TypeSpec, Unit, UnitHead, WhereClause,
+    expression::{NamedArgument, OuterLambdaParam, Safety},
 };
 
 pub trait PrettyDebug {

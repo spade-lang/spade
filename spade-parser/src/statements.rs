@@ -1,14 +1,14 @@
 use spade_ast::{AttributeList, Binding, Expression, Register, Statement};
 use spade_common::{
-    location_info::{lspan, AsLabel, Loc, WithLocation},
+    location_info::{AsLabel, Loc, WithLocation, lspan},
     name::Visibility,
 };
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_macros::trace_parser;
 
 use crate::{
-    error::Result, item_type::UnitKindLocal, lexer::TokenKind, peek_for, KeywordPeekingParser,
-    ParseStackEntry, Parser, Token,
+    KeywordPeekingParser, ParseStackEntry, Parser, Token, error::Result, item_type::UnitKindLocal,
+    lexer::TokenKind, peek_for,
 };
 
 pub(crate) struct BindingParser {}
@@ -88,7 +88,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
                     Err(diag) => {
                         return Err(
                             diag.secondary_label(ast, "* is used to specify a register count")
-                        )
+                        );
                     }
                 }
             } else {
@@ -142,7 +142,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
                     "Multiple resets specified",
                 )
                 .primary_label("Second reset")
-                .secondary_label(().between_locs(&first.0, &first.1), "First reset"))
+                .secondary_label(().between_locs(&first.0, &first.1), "First reset"));
             }
             (None, None) => None,
         };

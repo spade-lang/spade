@@ -2,11 +2,11 @@
 //! with spade-cxx to feed values to and from verilated units
 
 use itertools::Itertools;
-use nesty::{code, Code};
+use nesty::{Code, code};
 use num::ToPrimitive;
 use spade_common::num_ext::InfallibleToBigUint;
 
-use crate::{codegen::mangle_input, types::Type, unit_name::UnitNameKind, Entity};
+use crate::{Entity, codegen::mangle_input, types::Type, unit_name::UnitNameKind};
 
 impl Type {
     fn output_wrappers(

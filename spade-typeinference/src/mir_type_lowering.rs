@@ -11,8 +11,8 @@ use spade_hir::{self as hir, ConstGenericWithId, Generic};
 use spade_hir::{TypeDeclaration, TypeList};
 use spade_types::{ConcreteType, KnownType, PrimitiveType};
 
-use crate::equation::{TypeVar, TypeVarID, TypedExpression};
 use crate::TypeState;
+use crate::equation::{TypeVar, TypeVarID, TypedExpression};
 
 pub trait HasConcreteType {
     fn into_typed_expression(&self) -> Loc<TypedExpression>;

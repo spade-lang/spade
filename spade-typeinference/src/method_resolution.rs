@@ -2,14 +2,14 @@ use itertools::Itertools;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID};
 
-use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::Diagnostic;
+use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_hir::{ImplTarget, TraitName, TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
+use crate::TypeState;
 use crate::equation::{TypeVar, TypeVarID};
 use crate::traits::{TraitImpl, TraitImplList};
-use crate::TypeState;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FunctionLikeName {

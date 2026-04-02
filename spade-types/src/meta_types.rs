@@ -59,11 +59,7 @@ impl MetaType {
     /// A type which can be converted into another type is less concrete than the
     /// other type. Ordering of nnn-unifiable types is undefined
     pub fn is_more_concrete_than(&self, other: &Self) -> bool {
-        if self > other {
-            false
-        } else {
-            true
-        }
+        if self > other { false } else { true }
     }
 }
 

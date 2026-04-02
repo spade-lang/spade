@@ -1,7 +1,7 @@
 use rustc_hash::FxHashSet as HashSet;
 use spade_common::{id_tracker::ExprID, location_info::Loc};
-use spade_diagnostics::{diag_bail, Diagnostic};
-use spade_hir::{symbol_table::FrozenSymtab, ExprKind, Expression, ItemList};
+use spade_diagnostics::{Diagnostic, diag_bail};
+use spade_hir::{ExprKind, Expression, ItemList, symbol_table::FrozenSymtab};
 use spade_typeinference::TypeState;
 
 use crate::error::Result;

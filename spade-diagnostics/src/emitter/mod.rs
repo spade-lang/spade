@@ -1,9 +1,9 @@
 use spade_codespan_reporting::term::termcolor::Buffer;
 
-use crate::diagnostic::Diagnostic;
 use crate::CodeBundle;
+use crate::diagnostic::Diagnostic;
 
-pub use codespan_emitter::{codespan_config, CodespanEmitter};
+pub use codespan_emitter::{CodespanEmitter, codespan_config};
 
 pub mod codespan_emitter;
 mod panik;

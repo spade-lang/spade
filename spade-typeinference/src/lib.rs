@@ -14,8 +14,8 @@ use colored::Colorize;
 use fixed_types::{t_int, t_uint};
 use hir::expression::CallKind;
 use hir::{
-    param_util, Binding, ConstGeneric, Parameter, PipelineRegMarkerExtra, TypeExpression, TypeSpec,
-    UnitHead, UnitKind, WalTrace, WhereClause,
+    Binding, ConstGeneric, Parameter, PipelineRegMarkerExtra, TypeExpression, TypeSpec, UnitHead,
+    UnitKind, WalTrace, WhereClause, param_util,
 };
 type HashMap<K, V> = imbl::GenericHashMap<K, V, rustc_hash::FxBuildHasher, DefaultSharedPtr>;
 use imbl::shared_ptr::DefaultSharedPtr;
@@ -29,16 +29,16 @@ use spade_common::doc_links::WIRE_DOCS;
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
-use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_anyhow, diag_bail};
 use spade_hir::pretty_print::PrettyPrint;
 use spade_macros::trace_typechecker;
-use spade_types::meta_types::{unify_meta, MetaType};
+use spade_types::meta_types::{MetaType, unify_meta};
 use trace_stack::TraceStack;
 use tracing::{info, trace};
 
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path, PathSegment};
-use spade_hir::param_util::{match_args_with_params, Argument};
+use spade_hir::param_util::{Argument, match_args_with_params};
 use spade_hir::symbol_table::{LangItem, Patternable, PatternableKind, SymbolTable, TypeSymbol};
 use spade_hir::{
     self as hir, ConstGenericWithId, Generic, ImplTarget, Input, PatternKind, TypeDeclaration,
@@ -50,14 +50,14 @@ use spade_hir::{
 use spade_types::KnownType;
 
 use constraints::{
-    bits_to_store, ce_int, ce_var, ConstraintExpr, ConstraintSource, TypeConstraints,
+    ConstraintExpr, ConstraintSource, TypeConstraints, bits_to_store, ce_int, ce_var,
 };
 use equation::{TemplateTypeVarID, TypeEquations, TypeVar, TypeVarID, TypedExpression};
 use error::{
-    error_pattern_type_mismatch, Result, UnificationError, UnificationErrorExt, UnificationTrace,
+    Result, UnificationError, UnificationErrorExt, UnificationTrace, error_pattern_type_mismatch,
 };
 use requirements::{Replacement, Requirement};
-use trace_stack::{format_trace_stack, TraceStackEntry};
+use trace_stack::{TraceStackEntry, format_trace_stack};
 use traits::{TraitList, TraitReq};
 
 use crate::error::TypeMismatch as Tm;
@@ -2823,12 +2823,12 @@ impl TypeState {
 
     pub fn visit_const_generic_with_id(
         &mut self,
-        gen: &Loc<ConstGenericWithId>,
+        generic: &Loc<ConstGenericWithId>,
         generic_list_token: &GenericListToken,
         constraint_source: ConstraintSource,
         ctx: &Context,
     ) -> Result<TypeVarID> {
-        let var = match &gen.inner.inner {
+        let var = match &generic.inner.inner {
             ConstGeneric::Name(name) => {
                 let ty = &ctx.symtab.type_symbol_by_id(&name);
                 match &ty.inner {
@@ -2838,7 +2838,7 @@ impl TypeState {
                             "{type_decl_kind} cannot be used in a const generic expression",
                         )
                         .primary_label("Type in  const generic")
-                        .secondary_label(ty, "{name} is declared here"))
+                        .secondary_label(ty, "{name} is declared here"));
                     }
                     TypeSymbol::GenericArg { .. } | TypeSymbol::GenericMeta(MetaType::Type) => {
                         return Err(Diagnostic::error(
@@ -2851,21 +2851,25 @@ impl TypeState {
                             "Consider making this a value",
                             ty.loc(),
                             "#uint ",
-                        ))
+                        ));
                     }
                     TypeSymbol::GenericMeta(MetaType::Number) => {
-                        self.new_generic_tlnumber(gen.loc())
+                        self.new_generic_tlnumber(generic.loc())
                     }
-                    TypeSymbol::GenericMeta(MetaType::Int) => self.new_generic_tlint(gen.loc()),
-                    TypeSymbol::GenericMeta(MetaType::Uint) => self.new_generic_tluint(gen.loc()),
-                    TypeSymbol::GenericMeta(MetaType::Bool) => self.new_generic_tlbool(gen.loc()),
-                    TypeSymbol::GenericMeta(MetaType::Str) => self.new_generic_tlstr(gen.loc()),
+                    TypeSymbol::GenericMeta(MetaType::Int) => self.new_generic_tlint(generic.loc()),
+                    TypeSymbol::GenericMeta(MetaType::Uint) => {
+                        self.new_generic_tluint(generic.loc())
+                    }
+                    TypeSymbol::GenericMeta(MetaType::Bool) => {
+                        self.new_generic_tlbool(generic.loc())
+                    }
+                    TypeSymbol::GenericMeta(MetaType::Str) => self.new_generic_tlstr(generic.loc()),
                     TypeSymbol::GenericMeta(MetaType::Any) => {
-                        diag_bail!(gen, "Found any meta type")
+                        diag_bail!(generic, "Found any meta type")
                     }
                 }
             }
-            ConstGeneric::Bool(_) => self.new_generic_tlbool(gen.loc()),
+            ConstGeneric::Bool(_) => self.new_generic_tlbool(generic.loc()),
             ConstGeneric::Int(_)
             | ConstGeneric::Add(_, _)
             | ConstGeneric::Sub(_, _)
@@ -2873,8 +2877,8 @@ impl TypeState {
             | ConstGeneric::Div(_, _)
             | ConstGeneric::Mod(_, _)
             | ConstGeneric::IntBitsFor(_)
-            | ConstGeneric::UintBitsFor(_) => self.new_generic_tlnumber(gen.loc()),
-            ConstGeneric::Str(_) => self.new_generic_tlstr(gen.loc()),
+            | ConstGeneric::UintBitsFor(_) => self.new_generic_tlnumber(generic.loc()),
+            ConstGeneric::Str(_) => self.new_generic_tlstr(generic.loc()),
             ConstGeneric::Eq(_, _)
             | ConstGeneric::NotEq(_, _)
             | ConstGeneric::Lt(_, _)
@@ -2884,11 +2888,17 @@ impl TypeState {
             | ConstGeneric::LogicalNot(_)
             | ConstGeneric::LogicalAnd(_, _)
             | ConstGeneric::LogicalOr(_, _)
-            | ConstGeneric::LogicalXor(_, _) => self.new_generic_tlbool(gen.loc()),
+            | ConstGeneric::LogicalXor(_, _) => self.new_generic_tlbool(generic.loc()),
         };
-        let constraint = self.visit_const_generic(&gen.inner.inner, generic_list_token)?;
-        self.add_equation(TypedExpression::Id(gen.id), var.clone());
-        self.add_constraint(var.clone(), constraint, gen.loc(), &var, constraint_source);
+        let constraint = self.visit_const_generic(&generic.inner.inner, generic_list_token)?;
+        self.add_equation(TypedExpression::Id(generic.id), var.clone());
+        self.add_constraint(
+            var.clone(),
+            constraint,
+            generic.loc(),
+            &var,
+            constraint_source,
+        );
         Ok(var)
     }
 
@@ -2996,7 +3006,12 @@ impl TypeState {
             let var = var.clone();
             let expr = expression.clone();
             println!("{}", format_trace_stack(self));
-            panic!("Adding equation for {} == {} but a previous eq exists.\n\tIt was previously bound to {}", expr, var.debug_resolve(self), prev.debug_resolve(self))
+            panic!(
+                "Adding equation for {} == {} but a previous eq exists.\n\tIt was previously bound to {}",
+                expr,
+                var.debug_resolve(self),
+                prev.debug_resolve(self)
+            )
         }
     }
 

@@ -7,7 +7,7 @@ use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 use spade_types::meta_types::MetaType;
 
-use crate::{error::Result, Context};
+use crate::{Context, error::Result};
 
 #[derive(Debug)]
 pub struct PipelineContext {

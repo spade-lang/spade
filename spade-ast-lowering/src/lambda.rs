@@ -4,30 +4,30 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use spade_ast as ast;
-use spade_ast::testutil::ast_ident;
 use spade_ast::UnitKind;
+use spade_ast::testutil::ast_ident;
 use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::Path;
 use spade_common::name::Visibility;
+use spade_diagnostics::Diagnostic;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
-use spade_diagnostics::Diagnostic;
 use spade_hir as hir;
 use spade_hir::expression::LambdaTypeParams;
 use spade_hir::expression::OuterLambdaParam;
 use spade_types::meta_types::MetaType;
 
+use crate::Context;
+use crate::LocExt;
+use crate::Result;
 use crate::global_symbols::re_visit_type_declaration;
 use crate::global_symbols::visit_type_declaration;
 use crate::impls::visit_impl;
 use crate::visit_block;
 use crate::visit_pattern;
 use crate::visit_unit_kind;
-use crate::Context;
-use crate::LocExt;
-use crate::Result;
 
 /*
 
@@ -265,59 +265,60 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     ctx.in_fresh_unit(|ctx| visit_type_declaration(&type_decl, ctx))?;
     ctx.in_fresh_unit(|ctx| re_visit_type_declaration(&type_decl, ctx))?;
 
-    let impl_block = ast::ImplBlock {
-        r#trait: Some(
-            ast::TraitSpec {
-                path: match &unit_kind.inner {
-                    UnitKind::Function => Path::from_strs(&["Fn"]).at_loc(unit_kind),
-                    UnitKind::Entity => Path::from_strs(&["Entity"]).at_loc(unit_kind),
-                    UnitKind::Pipeline(_) => Path::from_strs(&["Pipeline"]).at_loc(unit_kind),
-                },
-                type_params: Some(
-                    match &unit_kind.inner {
-                        UnitKind::Function => vec![],
-                        UnitKind::Entity => vec![],
-                        UnitKind::Pipeline(depth) => vec![depth.clone()],
-                    }
-                    .into_iter()
-                    .chain([
-                        ast::TypeExpression::TypeSpec(Box::new(args_spec.clone())).nowhere(),
-                        ast::TypeExpression::TypeSpec(Box::new(
-                            ast::TypeSpec::Named(
-                                Path::ident(output_type_name.clone().nowhere()).nowhere(),
-                                None,
-                            )
+    let impl_block =
+        ast::ImplBlock {
+            r#trait: Some(
+                ast::TraitSpec {
+                    path: match &unit_kind.inner {
+                        UnitKind::Function => Path::from_strs(&["Fn"]).at_loc(unit_kind),
+                        UnitKind::Entity => Path::from_strs(&["Entity"]).at_loc(unit_kind),
+                        UnitKind::Pipeline(_) => Path::from_strs(&["Pipeline"]).at_loc(unit_kind),
+                    },
+                    type_params: Some(
+                        match &unit_kind.inner {
+                            UnitKind::Function => vec![],
+                            UnitKind::Entity => vec![],
+                            UnitKind::Pipeline(depth) => vec![depth.clone()],
+                        }
+                        .into_iter()
+                        .chain([
+                            ast::TypeExpression::TypeSpec(Box::new(args_spec.clone())).nowhere(),
+                            ast::TypeExpression::TypeSpec(Box::new(
+                                ast::TypeSpec::Named(
+                                    Path::ident(output_type_name.clone().nowhere()).nowhere(),
+                                    None,
+                                )
+                                .nowhere(),
+                            ))
                             .nowhere(),
-                        ))
+                        ])
+                        .collect::<Vec<_>>()
                         .nowhere(),
-                    ])
-                    .collect::<Vec<_>>()
-                    .nowhere(),
-                ),
-                paren_syntax: true,
-            }
-            .at_loc(&debug_loc),
-        ),
-        type_params: Some(type_params),
-        where_clauses: vec![],
-        target: ast::TypeSpec::Named(
-            Path::ident(type_name.clone().nowhere()).nowhere(),
-            Some(
-                all_generic_param_names
-                    .iter()
-                    .map(|name| {
-                        ast::TypeExpression::TypeSpec(Box::new(
-                            ast::TypeSpec::Named(Path::ident(name.clone()).at_loc(name), None)
-                                .at_loc(name),
-                        ))
-                        .at_loc(name)
-                    })
-                    .collect::<Vec<_>>()
-                    .nowhere(),
+                    ),
+                    paren_syntax: true,
+                }
+                .at_loc(&debug_loc),
             ),
-        )
-        .nowhere(),
-        units: vec![ast::Unit {
+            type_params: Some(type_params),
+            where_clauses: vec![],
+            target: ast::TypeSpec::Named(
+                Path::ident(type_name.clone().nowhere()).nowhere(),
+                Some(
+                    all_generic_param_names
+                        .iter()
+                        .map(|name| {
+                            ast::TypeExpression::TypeSpec(Box::new(
+                                ast::TypeSpec::Named(Path::ident(name.clone()).at_loc(name), None)
+                                    .at_loc(name),
+                            ))
+                            .at_loc(name)
+                        })
+                        .collect::<Vec<_>>()
+                        .nowhere(),
+                ),
+            )
+            .nowhere(),
+            units: vec![ast::Unit {
             head: ast::UnitHead {
                 visibility: Visibility::Implicit.nowhere(),
                 unsafe_token: None,
@@ -381,7 +382,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             ),
         }
         .at_loc(&debug_loc)],
-    };
+        };
 
     let lambda_unit = ctx.in_fresh_unit(|ctx| {
         match &unit_kind.inner {
@@ -492,7 +493,7 @@ fn handle_unit_kind(
                         .primary_label("Expected a clock")
                         .secondary_label(unit_kind, "Required because this is not a `fn`")
                         .span_suggest_replace("Consider adding a clock", args, "(clk)"),
-                )
+                );
             }
             [clock, rest @ ..] => match &clock.inner {
                 spade_ast::Pattern::Path { wire: _, path: p } => match p
@@ -525,7 +526,7 @@ fn handle_unit_kind(
                             "Or adding a adding a clock",
                             clock,
                             "clk, ",
-                        ))
+                        ));
                     }
                     _ => {
                         return Err(Diagnostic::error(
@@ -537,7 +538,7 @@ fn handle_unit_kind(
                             "Consider adding a clock",
                             clock,
                             "clk, ",
-                        ))
+                        ));
                     }
                 },
                 _ => {
@@ -550,7 +551,7 @@ fn handle_unit_kind(
                         "Consider adding a clock",
                         clock,
                         "clk, ",
-                    ))
+                    ));
                 }
             },
         },

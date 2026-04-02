@@ -140,7 +140,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
             Statement::Constant(name, _, _) => {
                 try_rename(name, &final_aliases);
             }
-            Statement::Assert(ref mut name) => try_rename(name, &final_aliases),
+            Statement::Assert(name) => try_rename(name, &final_aliases),
             Statement::Set { target, value } => {
                 try_rename(target, &final_aliases);
                 try_rename(value, &final_aliases);
@@ -179,9 +179,9 @@ pub fn flatten_aliases(entity: &mut Entity) {
 mod tests {
     use super::*;
 
+    use crate::Type;
     use crate::assert_same_mir;
     use crate::entity;
-    use crate::Type;
     use crate::{self as spade_mir};
     use colored::Colorize;
 

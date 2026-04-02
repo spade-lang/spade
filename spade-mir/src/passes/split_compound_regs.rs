@@ -2,7 +2,7 @@ use num::ToPrimitive;
 
 use spade_common::id_tracker::ExprIdTracker;
 
-use crate::{types::Type, Binding, Operator, Register, Statement, ValueName};
+use crate::{Binding, Operator, Register, Statement, ValueName, types::Type};
 
 use super::MirPass;
 

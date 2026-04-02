@@ -24,10 +24,10 @@ use recursive::recursive;
 use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
-use spade_diagnostics::{diag_anyhow, diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_anyhow, diag_bail};
 use spade_hir::expression::Safety;
 use spade_types::meta_types::MetaType;
-use tracing::{event, Level};
+use tracing::{Level, event};
 use type_level_if::expand_type_level_if;
 
 use crate::attributes::AttributeListExt;
@@ -227,12 +227,14 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<
 
             let trait_bounds = match &tsym.inner {
                 TypeSymbol::GenericArg { traits } => traits.clone(),
-                _ => return Err(Diagnostic::bug(
-                    ident,
-                    format!(
-                        "Trait bound on {ident} on non-generic argument, which should've been caught by the first pass"
-                    ),
-                ))
+                _ => {
+                    return Err(Diagnostic::bug(
+                        ident,
+                        format!(
+                            "Trait bound on {ident} on non-generic argument, which should've been caught by the first pass"
+                        ),
+                    ));
+                }
             };
 
             let default = visit_default_type_expression(default, ctx)?;
@@ -445,7 +447,7 @@ pub fn visit_type_spec(
                         inner.as_ref(),
                         "Arrays elements must be types, not type level integers",
                     )
-                    .primary_label("Non-type array element"))
+                    .primary_label("Non-type array element"));
                 }
             };
             let size = Box::new(visit_type_expression(size, kind, ctx)?.at_loc(size));
@@ -498,7 +500,7 @@ pub fn visit_type_spec(
                         inner.as_ref(),
                         "Inverted inner types must be types, not type level integers",
                     )
-                    .primary_label("Non-type cannot be inverted"))
+                    .primary_label("Non-type cannot be inverted"));
                 }
             };
 
@@ -597,7 +599,7 @@ fn visit_parameter_list(
                     self_,
                     "'self' cannot be used in free standing units",
                 )
-                .primary_label("not allowed here"))
+                .primary_label("not allowed here"));
             }
             SelfContext::ImplBlock(spec) => result.push(hir::Parameter {
                 no_mangle,
@@ -973,7 +975,7 @@ pub fn visit_const_generic(
                         op,
                         format!("Operator `{other}` is not supported in a type expression"),
                     )
-                    .primary_label("Not supported in a type expression"))
+                    .primary_label("Not supported in a type expression"));
                 }
             }
         }
@@ -991,7 +993,7 @@ pub fn visit_const_generic(
                         t,
                         format!("Operator `{other}` is not supported in a type expression"),
                     )
-                    .primary_label("Not supported in a type expression"))
+                    .primary_label("Not supported in a type expression"));
                 }
             }
         }
@@ -1020,7 +1022,7 @@ pub fn visit_const_generic(
                         t,
                         "Passing arguments by name is unsupported in type expressions",
                     )
-                    .primary_label("Arguments passed by name in type expression"))
+                    .primary_label("Arguments passed by name in type expression"));
                 }
             },
             [Some("uint_bits_to_fit")] => match &args.inner {
@@ -1054,7 +1056,7 @@ pub fn visit_const_generic(
                         t,
                         "Passing arguments by name is unsupported in type expressions",
                     )
-                    .primary_label("Arguments passed by name in type expression"))
+                    .primary_label("Arguments passed by name in type expression"));
                 }
             },
             [Some("uint"), Some("bits_for")] => match &args.inner {
@@ -1076,7 +1078,7 @@ pub fn visit_const_generic(
                         t,
                         "Passing arguments by name is unsupported in type expressions",
                     )
-                    .primary_label("Arguments passed by name in type expression"))
+                    .primary_label("Arguments passed by name in type expression"));
                 }
             },
             _ => {
@@ -1084,7 +1086,7 @@ pub fn visit_const_generic(
                     callee,
                     format!("{callee} cannot be evaluated in a type expression"),
                 )
-                .primary_label("Not supported in a type expression"))
+                .primary_label("Not supported in a type expression"));
             }
         },
         ast::Expression::Parenthesized(inner) => visit_const_generic(inner, ctx)?.inner,
@@ -1093,7 +1095,7 @@ pub fn visit_const_generic(
                 t,
                 format!("This expression is not supported in a type expression"),
             )
-            .primary_label("Not supported in a type expression"))
+            .primary_label("Not supported in a type expression"));
         }
     };
 
@@ -1128,7 +1130,7 @@ pub fn visit_where_clauses(
                             .secondary_label(
                                 thing.loc(),
                                 format!("`{}` is a {} declared here", target, thing.kind_string()),
-                            ))
+                            ));
                     }
                     Err(e) => return Err(e.into()),
                 };
@@ -1495,8 +1497,8 @@ pub fn visit_trait_spec(
 
         let (rest_tys, param_ty, return_ty) = match type_params {
             [] => (&[][..], None, None),
-            [ref arg] => (&[][..], Some(&arg.inner), None),
-            [ref rest @ .., ref arg, ref ret] => (rest, Some(&arg.inner), Some(&ret.inner)),
+            [arg] => (&[][..], Some(&arg.inner), None),
+            [rest @ .., arg, ret] => (rest, Some(&arg.inner), Some(&ret.inner)),
         };
 
         let rest_str = match rest_tys {

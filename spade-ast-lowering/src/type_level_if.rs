@@ -2,11 +2,8 @@ use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::PathSegment;
-use spade_diagnostics::diag_bail;
 use spade_diagnostics::Diagnostic;
-use spade_hir::expression::CallKind;
-use spade_hir::expression::Safety;
-use spade_hir::symbol_table::Thing;
+use spade_diagnostics::diag_bail;
 use spade_hir::ArgumentList;
 use spade_hir::Attribute;
 use spade_hir::Binding;
@@ -18,6 +15,9 @@ use spade_hir::Statement;
 use spade_hir::TypeExpression;
 use spade_hir::UnitKind;
 use spade_hir::UnitName;
+use spade_hir::expression::CallKind;
+use spade_hir::expression::Safety;
+use spade_hir::symbol_table::Thing;
 use spade_hir::{ExprKind, Unit};
 
 use crate::Context;
@@ -232,13 +232,15 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             };
             let pipeline_reg = pipeline_depth
                 .map(|depth| {
-                    vec![Statement::PipelineRegMarker(Some(
-                        spade_hir::PipelineRegMarkerExtra::Count {
-                            count: depth.clone(),
-                            count_typeexpr_id: ctx.idtracker.next(),
-                        },
-                    ))
-                    .at_loc(&depth)]
+                    vec![
+                        Statement::PipelineRegMarker(Some(
+                            spade_hir::PipelineRegMarkerExtra::Count {
+                                count: depth.clone(),
+                                count_typeexpr_id: ctx.idtracker.next(),
+                            },
+                        ))
+                        .at_loc(&depth),
+                    ]
                 })
                 .unwrap_or_default();
 

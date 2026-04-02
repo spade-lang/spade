@@ -159,7 +159,7 @@ impl ServerBackend {
 
                     let generics = match generics.as_slice() {
                         [] => format!(""),
-                        gen => gen.iter().map(|g| g.pretty_print()).join("{}"),
+                        r#gen => r#gen.iter().map(|g| g.pretty_print()).join("{}"),
                     };
 
                     formatdoc!(

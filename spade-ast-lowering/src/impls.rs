@@ -6,7 +6,7 @@ use spade_common::id_tracker::ImplID;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID, Path, PathSegment, Visibility};
 use spade_diagnostics::diagnostic::Subdiagnostic;
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::pretty_debug::PrettyDebug;
 use spade_hir::symbol_table::{Thing, TypeDeclKind, TypeSymbol};
@@ -16,9 +16,9 @@ use spade_types::meta_types::MetaType;
 use crate::error::Result;
 use crate::global_symbols::{self, visit_meta_type};
 use crate::{
-    unit_head, visit_default_type_expression, visit_trait_spec, visit_trait_specs,
-    visit_type_expression, visit_type_params, visit_type_spec, visit_unit, visit_where_clauses,
-    Context, SelfContext, TypeSpecKind,
+    Context, SelfContext, TypeSpecKind, unit_head, visit_default_type_expression, visit_trait_spec,
+    visit_trait_specs, visit_type_expression, visit_type_params, visit_type_spec, visit_unit,
+    visit_where_clauses,
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
@@ -155,7 +155,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             }
             hir::Item::ExternUnit(_, head) => {
                 return Err(Diagnostic::error(head, "Methods cannot be `extern`")
-                    .help("Consider defining a free-standing function"))
+                    .help("Consider defining a free-standing function"));
             }
         }
 
@@ -560,23 +560,16 @@ fn check_generic_params_match_trait_def(
     } = &trait_spec.inner
     {
         match name {
-            name @ TraitName::Named(_, loc) => {
-                Err(Diagnostic::error(
-                    generic_spec,
-                    "Generic type parameters specified for non-generic trait",
-                )
-                .primary_label(
-                    "Generic type parameters specified here",
-                )
-                .secondary_label(
-                    loc,
-                    format!("Trait {} is not generic", name),
-                ))
-            },
+            name @ TraitName::Named(_, loc) => Err(Diagnostic::error(
+                generic_spec,
+                "Generic type parameters specified for non-generic trait",
+            )
+            .primary_label("Generic type parameters specified here")
+            .secondary_label(loc, format!("Trait {} is not generic", name))),
             TraitName::Anonymous(_) => Err(Diagnostic::bug(
                 generic_spec,
                 "Generic type parameters specified for anonymous trait, which should not be possible",
-            ))
+            )),
         }
     } else {
         Ok(())
@@ -891,7 +884,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                     Diagnostic::error(name, "Trait method does not have this argument")
                         .primary_label("Extra argument")
                         .secondary_label(&trait_method.name, "Method defined here"),
-                )
+                );
             }
             EitherOrBoth::Right(hir::Parameter {
                 name,

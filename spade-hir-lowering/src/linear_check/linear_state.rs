@@ -287,7 +287,7 @@ impl LinearTree {
                     match sub.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(MutWireWitness::Field(name.clone(), Box::new(witness)))
+                            return Err(MutWireWitness::Field(name.clone(), Box::new(witness)));
                         }
                     }
                 }
@@ -298,7 +298,7 @@ impl LinearTree {
                     match member.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(MutWireWitness::TupleIndex(i, Box::new(witness)))
+                            return Err(MutWireWitness::TupleIndex(i, Box::new(witness)));
                         }
                     }
                 }
@@ -309,7 +309,7 @@ impl LinearTree {
                     match member.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(MutWireWitness::ArrayIndex(i, Box::new(witness)))
+                            return Err(MutWireWitness::ArrayIndex(i, Box::new(witness)));
                         }
                     }
                 }

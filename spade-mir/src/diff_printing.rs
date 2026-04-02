@@ -8,8 +8,8 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::id_tracker::ExprID;
 
-use crate::{diff::VarMap, Entity};
 use crate::{Binding, MirInput, Register, Statement, ValueName};
+use crate::{Entity, diff::VarMap};
 
 pub fn translate_expr(
     name: ExprID,
@@ -50,8 +50,8 @@ where
     name: G,
 }
 
-pub fn identity_name_translator(
-) -> NameTranslator<impl Fn(ExprID) -> Option<ExprID>, impl Fn(u64) -> Option<u64>> {
+pub fn identity_name_translator()
+-> NameTranslator<impl Fn(ExprID) -> Option<ExprID>, impl Fn(u64) -> Option<u64>> {
     NameTranslator {
         expr: Some,
         name: Some,

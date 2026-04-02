@@ -1,7 +1,7 @@
 use num::BigUint;
 use spade_common::{id_tracker::ExprIdTracker, location_info::Loc, num_ext::InfallibleToBigUint};
 
-use crate::{types::Type, Binding, Operator, Register, Statement, ValueName};
+use crate::{Binding, Operator, Register, Statement, ValueName, types::Type};
 
 use super::MirPass;
 

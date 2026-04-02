@@ -1,13 +1,13 @@
 use itertools::Itertools;
-use num::range;
 use num::BigInt;
 use num::BigUint;
 use num::ToPrimitive;
 use num::Zero;
+use num::range;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::num_ext::InfallibleToBigUint;
 
-use crate::{enum_util, types::Type, Binding, Operator, Statement, ValueName};
+use crate::{Binding, Operator, Statement, ValueName, enum_util, types::Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
@@ -431,7 +431,7 @@ mod string_value_tests {
 #[cfg(test)]
 mod test {
     use crate as spade_mir;
-    use crate::{statement, types::Type, ConstantValue};
+    use crate::{ConstantValue, statement, types::Type};
     use pretty_assertions::assert_eq;
     use spade_common::num_ext::InfallibleToBigInt;
 

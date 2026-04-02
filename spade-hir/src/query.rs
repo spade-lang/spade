@@ -9,9 +9,9 @@ use spade_common::{
 };
 
 use crate::{
-    expression::NamedArgument, ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind,
-    Expression, Generic, ItemList, Pattern, PatternArgument, PatternKind, Register, Statement,
-    Struct, TypeAlias, TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
+    ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind, Expression, Generic,
+    ItemList, Pattern, PatternArgument, PatternKind, Register, Statement, Struct, TypeAlias,
+    TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec, expression::NamedArgument,
 };
 
 #[derive(Debug, Serialize, Deserialize)]

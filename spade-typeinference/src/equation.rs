@@ -7,11 +7,11 @@ type HashMap<K, V> =
 use num::BigInt;
 use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
-use spade_types::{meta_types::MetaType, KnownType};
+use spade_types::{KnownType, meta_types::MetaType};
 
 use crate::{
-    traits::{TraitList, TraitReq},
     HasType, TypeState,
+    traits::{TraitList, TraitReq},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -26,7 +26,9 @@ impl TypeVarID {
     pub fn resolve(self, state: &TypeState) -> TypeVar {
         assert!(
             state.owned.keys.contains(&self.type_state_key),
-            "Type var key mismatch. Type states are being mixed incorrectly. Type state has {:?}, var has {}", state.owned.keys, self.type_state_key
+            "Type var key mismatch. Type states are being mixed incorrectly. Type state has {:?}, var has {}",
+            state.owned.keys,
+            self.type_state_key
         );
         // In case our ID is stale, we'll need to look up the final ID
         let final_id = self.get_type(state);

@@ -11,25 +11,25 @@ use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::name::NameID;
 use spade_common::{id_tracker::GenericIdTracker, location_info::WithLocation};
 use spade_hir::{
+    ItemList,
     query::QueryCache,
     symbol_table::{FrozenSymtab, SymbolTable},
-    ItemList,
 };
 use spade_hir_lowering::{
-    name_map::{NameSource, NamedValue},
     NameSourceMap,
+    name_map::{NameSource, NamedValue},
 };
 use spade_mir::{
     renaming::{VerilogNameMap, VerilogNameSource},
     unit_name::InstanceMap,
 };
 use spade_typeinference::{
-    equation::TypedExpression, traits::TraitImplList, HasType, OwnedTypeState, SharedTypeState,
-    TypeState,
+    HasType, OwnedTypeState, SharedTypeState, TypeState, equation::TypedExpression,
+    traits::TraitImplList,
 };
 use spade_types::ConcreteType;
 
-use spade_common::sizes::{add_field, SerializedSize};
+use spade_common::sizes::{SerializedSize, add_field};
 
 #[derive(Serialize, Deserialize)]
 pub struct StoredMirContext {
@@ -392,7 +392,7 @@ pub fn type_of_hierarchical_value(
         VerilogNameSource::ForwardName(n) => TypedExpression::Name(n.clone()),
         VerilogNameSource::ForwardExpr(id) => TypedExpression::Id(*id),
         VerilogNameSource::BackwardName(_) | VerilogNameSource::BackwardExpr(_) => {
-            return Err(anyhow!("Translation of backward port types is unsupported"))
+            return Err(anyhow!("Translation of backward port types is unsupported"));
         }
     };
 

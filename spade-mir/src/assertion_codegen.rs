@@ -13,10 +13,11 @@ impl CompilationError for AssertedExpression {
     fn report(&self, buffer: &mut Buffer, code: &CodeBundle, _diag_handler: &mut DiagHandler) {
         let diag = Diagnostic::error()
             .with_message("Assertion failed")
-            .with_labels(vec![self
-                .0
-                .primary_label()
-                .with_message("This expression is false")]);
+            .with_labels(vec![
+                self.0
+                    .primary_label()
+                    .with_message("This expression is false"),
+            ]);
 
         term::emit(buffer, &codespan_config(), &code.files, &diag).unwrap();
     }

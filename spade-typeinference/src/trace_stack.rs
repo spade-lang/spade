@@ -2,15 +2,15 @@ use colored::*;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{cloning_rwlock::CloningRWLock, name::NameID};
-use spade_hir::{pretty_print::PrettyPrint, Generic, UnitName};
+use spade_hir::{Generic, UnitName, pretty_print::PrettyPrint};
 use spade_types::KnownType;
 
 use crate::{
+    TypeState,
     constraints::ConstraintRhs,
     equation::{TypeVarString, TypedExpression},
     requirements::Requirement,
     traits::TraitList,
-    TypeState,
 };
 
 impl TypeState {

@@ -6,7 +6,7 @@ use spade_common::location_info::WithLocation;
 use spade_common::name::Path;
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_common::{location_info::Loc, name::Identifier};
-use spade_diagnostics::{diag_anyhow, diag_assert, diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_anyhow, diag_assert, diag_bail};
 use spade_hir::expression::CallKind;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_hir::symbol_table::{TypeDeclKind, TypeSymbol};
@@ -15,7 +15,7 @@ use spade_types::KnownType;
 
 use crate::equation::{ResolvedNamedOrInverted, TypeVar, TypeVarID};
 use crate::error::{Result, TypeMismatch, UnificationErrorExt};
-use crate::method_resolution::{select_method, FunctionLikeName};
+use crate::method_resolution::{FunctionLikeName, select_method};
 use crate::trace_stack::TraceStackEntry;
 use crate::{Context, GenericListSource, GenericListToken, TypeState};
 
@@ -143,7 +143,7 @@ impl Requirement {
                                     "Expected struct found {}",
                                     target_type.display(type_state)
                                 ))
-                                .note("Field access is only allowed on structs"))
+                                .note("Field access is only allowed on structs"));
                             }
                         }
 
@@ -225,7 +225,7 @@ impl Requirement {
                 call_kind,
             } => match &target_type.inner.resolve(type_state) {
                 TypeVar::Known(_, KnownType::Error, _) => {
-                    return Ok(RequirementResult::Satisfied(vec![]))
+                    return Ok(RequirementResult::Satisfied(vec![]));
                 }
                 TypeVar::Known(_, _, _) => {
                     let Some(implementor) = select_method(
@@ -276,7 +276,7 @@ impl Requirement {
                                     "{target_type} has no method `{method}`",
                                     target_type = target_type.display(type_state)
                                 ),
-                            )))
+                            )));
                         }
                         // NOTE: We need to wait until we've unified with a known type
                         // before dropping this requirement in order to create a generic list

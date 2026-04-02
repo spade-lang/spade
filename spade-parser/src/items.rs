@@ -8,7 +8,7 @@ use spade_diagnostics::Diagnostic;
 
 use crate::error::UnexpectedToken;
 use crate::{
-    error::CSErrorTransformations, lexer::TokenKind, KeywordPeekingParser, Parser, Result,
+    KeywordPeekingParser, Parser, Result, error::CSErrorTransformations, lexer::TokenKind,
 };
 
 pub(crate) struct UnitParser {}
@@ -202,7 +202,7 @@ impl KeywordPeekingParser<Loc<ImplBlock>> for ImplBlockParser {
                     return Err(Diagnostic::error(
                         trait_or_target_path,
                         format!("{other} is not a trait"),
-                    ))
+                    ));
                 }
             };
             let r#trait = TraitSpec {

@@ -1,6 +1,6 @@
 use spade_common::location_info::Loc;
 
-use crate::{equation::TypeVarID, error::UnificationErrorExt, Context, Result, TypeState};
+use crate::{Context, Result, TypeState, equation::TypeVarID, error::UnificationErrorExt};
 
 #[must_use]
 pub struct WithObligations<T> {

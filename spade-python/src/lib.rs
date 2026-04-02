@@ -1,8 +1,12 @@
-use pyo3::{pymodule, types::PyModule, Bound, PyResult, Python};
+use pyo3::{
+    Bound, PyResult, Python, pymodule,
+    types::PyModule,
+    types::{PyModuleMethods, PyType},
+};
 use spade_simulation_ext::{
+    BitString, ComparisonResult, SpadeType,
     error::pyerr::{CompilationError, SourceCodeError},
     field_ref::FieldRef,
-    BitString, ComparisonResult, SpadeType,
 };
 
 /// A Python module implemented in Rust.
@@ -13,7 +17,7 @@ fn spade(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SpadeType>()?;
     m.add_class::<ComparisonResult>()?;
     m.add_class::<FieldRef>()?;
-    m.add("SourceCodeError", py.get_type_bound::<SourceCodeError>())?;
-    m.add("CompilationError", py.get_type_bound::<CompilationError>())?;
+    m.add("SourceCodeError", PyType::new::<SourceCodeError>(py))?;
+    m.add("CompilationError", PyType::new::<CompilationError>(py))?;
     Ok(())
 }

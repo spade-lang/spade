@@ -32,7 +32,7 @@ impl IsInOut for hir::TypeSpec {
                     TypeSymbol::Declared(_, _, kind) => match kind {
                         TypeDeclKind::Struct { .. } => false,
                         TypeDeclKind::Enum { .. } => false,
-                        TypeDeclKind::Primitive { ref is_inout, .. } => *is_inout,
+                        TypeDeclKind::Primitive { is_inout, .. } => *is_inout,
                         TypeDeclKind::Alias => false,
                     },
                     TypeSymbol::GenericArg { .. } => false,

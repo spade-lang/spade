@@ -3,11 +3,11 @@ use spade_common::{
     name::{Identifier, Visibility},
 };
 use spade_hir::{
-    symbol_table::{GenericArg, SymbolTable, TypeDeclKind, TypeSymbol},
     Generic, TypeDeclaration,
+    symbol_table::{GenericArg, SymbolTable, TypeDeclKind, TypeSymbol},
 };
 use spade_hir::{ItemList, TypeParam};
-use spade_types::{meta_types::MetaType, PrimitiveType};
+use spade_types::{PrimitiveType, meta_types::MetaType};
 
 /// Add built in symbols like types to the symtab. The symbols are added with very high NameIDs to
 /// not interfere with tests with hardcoded NameIDs

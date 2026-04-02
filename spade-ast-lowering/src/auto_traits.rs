@@ -5,10 +5,10 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::Visibility,
 };
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::{
-    auto_traits::DataWitness, symbol_table::TypeSymbol, ImplBlock, Parameter, Struct, TraitName,
-    TraitSpec, TypeAlias, TypeDeclaration, TypeExpression, TypeSpec,
+    ImplBlock, Parameter, Struct, TraitName, TraitSpec, TypeAlias, TypeDeclaration, TypeExpression,
+    TypeSpec, auto_traits::DataWitness, symbol_table::TypeSymbol,
 };
 use spade_types::meta_types::MetaType;
 
@@ -175,12 +175,14 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
                         let name = ctx.symtab.add_type(
                             name.1.tail().unwrap_named().clone(),
                             TypeSymbol::GenericArg {
-                                traits: vec![TraitSpec {
-                                    name: data_trait_name.clone(),
-                                    type_params: None,
-                                    paren_syntax: false,
-                                }
-                                .nowhere()],
+                                traits: vec![
+                                    TraitSpec {
+                                        name: data_trait_name.clone(),
+                                        type_params: None,
+                                        paren_syntax: false,
+                                    }
+                                    .nowhere(),
+                                ],
                             }
                             .nowhere(),
                             Visibility::Public.nowhere(),

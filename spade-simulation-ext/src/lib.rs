@@ -5,7 +5,7 @@ pub mod range;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 
-use color_eyre::eyre::{anyhow, Context};
+use color_eyre::eyre::{Context, anyhow};
 use field_ref::{FieldRef, FieldSource};
 use logos::Logos;
 use num::{BigUint, ToPrimitive, Zero};
@@ -16,8 +16,8 @@ use spade::compiler_state::StoredCompilerState;
 use spade_codespan_reporting::term::termcolor::Buffer;
 
 use range::UptoRange;
-use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_ast_lowering::SelfContext;
+use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::id_tracker::GenericIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, Path as SpadePath};
@@ -26,16 +26,16 @@ use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, Diagnostic};
 use spade_hir::expression::Safety;
 use spade_hir::symbol_table::{LookupError, SymbolTable};
-use spade_hir::{symbol_table::FrozenSymtab, ItemList};
+use spade_hir::{ItemList, symbol_table::FrozenSymtab};
 use spade_hir::{Parameter, TypeSpec, UnitHead};
 use spade_hir_lowering::monomorphisation::MonoState;
 use spade_hir_lowering::pipelines::MaybePipelineContext;
 use spade_hir_lowering::substitution::Substitutions;
-use spade_hir_lowering::{expr_to_mir, MirLowerable};
+use spade_hir_lowering::{MirLowerable, expr_to_mir};
 use spade_mir::codegen::{mangle_input, mangle_output};
-use spade_mir::eval::{eval_statements, Value};
-use spade_parser::lexer;
+use spade_mir::eval::{Value, eval_statements};
 use spade_parser::Parser;
+use spade_parser::lexer;
 use spade_typeinference::equation::{KnownTypeVar, TypedExpression};
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::traits::TraitImplList;
@@ -102,7 +102,7 @@ macro_rules! maybe_pyclass {
     }
 }
 
-#[cfg_attr(feature = "python", pyclass)]
+#[cfg_attr(feature = "python", pyclass(from_py_object))]
 #[derive(Clone, Debug)]
 pub struct BitString(pub String);
 
@@ -123,7 +123,7 @@ impl BitString {
     }
 }
 
-#[cfg_attr(feature = "python", pyclass)]
+#[cfg_attr(feature = "python", pyclass(from_py_object))]
 #[derive(Clone)]
 pub struct SpadeType(pub ConcreteType);
 

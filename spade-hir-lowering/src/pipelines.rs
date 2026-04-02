@@ -8,20 +8,20 @@ use mir::ValueNameSource;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Path;
 use spade_common::{location_info::Loc, name::NameID};
+use spade_diagnostics::Diagnostic;
 use spade_diagnostics::diag_anyhow;
 use spade_diagnostics::diag_bail;
 use spade_diagnostics::diagnostic::SuggestionParts;
-use spade_diagnostics::Diagnostic;
-use spade_hir::expression::CallKind;
 use spade_hir::Binding;
 use spade_hir::Input;
+use spade_hir::expression::CallKind;
 use spade_hir::{ExprKind, Expression, Pattern, Statement};
 use spade_mir as mir;
 use spade_types::ConcreteType;
 
 use crate::Context;
 use crate::ExprLocal;
-use crate::{statement_list::StatementList, MirLowerable, NameIDExt, Result};
+use crate::{MirLowerable, NameIDExt, Result, statement_list::StatementList};
 
 pub struct PipelineContext {
     /// Mapping from stage index to the corresponding enable signal, i.e. what

@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use nesty::{code, Code};
+use nesty::{Code, code};
 use spade_codespan_reporting::term::termcolor;
 
 use num::{BigInt, BigUint, One, Signed, ToPrimitive, Zero};
@@ -13,19 +13,19 @@ use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler};
 use crate::aliasing::flatten_aliases;
 use crate::assertion_codegen::AssertedExpression;
 use crate::eval::eval_statements;
-use crate::renaming::{make_names_predictable, VerilogNameMap};
+use crate::renaming::{VerilogNameMap, make_names_predictable};
 use crate::type_list::MirTypeList;
 use crate::types::Type;
 use crate::unit_name::{InstanceMap, InstanceNameTracker};
 use crate::verilog::{self, assign, localparam_size_spec, logic, size_spec};
 use crate::wal::insert_wal_signals;
 use crate::{
-    enum_util, Binding, ConstantValue, Entity, MirInput, Operator, ParamName, Statement, ValueName,
+    Binding, ConstantValue, Entity, MirInput, Operator, ParamName, Statement, ValueName, enum_util,
 };
 
 pub mod util;
 
-pub use util::{escape_path, mangle_entity, mangle_input, mangle_output, TupleIndex};
+pub use util::{TupleIndex, escape_path, mangle_entity, mangle_input, mangle_output};
 
 struct Context<'a> {
     types: &'a MirTypeList,
@@ -2143,7 +2143,7 @@ mod expression_tests {
     use spade_common::location_info::WithLocation;
     use spade_common::num_ext::InfallibleToBigInt;
 
-    use crate::{self as spade_mir, value_name, UnitName};
+    use crate::{self as spade_mir, UnitName, value_name};
     use crate::{statement, types::Type};
 
     use indoc::{formatdoc, indoc};

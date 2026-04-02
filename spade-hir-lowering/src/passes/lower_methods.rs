@@ -5,10 +5,10 @@ use spade_common::{
 };
 use spade_diagnostics::Diagnostic;
 use spade_hir::{
-    expression::NamedArgument, symbol_table::FrozenSymtab, ArgumentList, Expression, ItemList,
+    ArgumentList, Expression, ItemList, expression::NamedArgument, symbol_table::FrozenSymtab,
 };
 use spade_typeinference::{
-    method_resolution::select_method, traits::TraitImplList, HasType, TypeState,
+    HasType, TypeState, method_resolution::select_method, traits::TraitImplList,
 };
 
 pub struct LowerMethods<'a> {
@@ -46,7 +46,10 @@ impl<'a> Pass for LowerMethods<'a> {
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
-                        format!("Incorrect method call. None or Multiple candidates exist for {self_type}", self_type=self_type.display(&self.type_state)),
+                        format!(
+                            "Incorrect method call. None or Multiple candidates exist for {self_type}",
+                            self_type = self_type.display(&self.type_state)
+                        ),
                     ));
                 };
 

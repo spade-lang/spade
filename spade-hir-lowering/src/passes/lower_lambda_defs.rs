@@ -6,14 +6,14 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID},
 };
-use spade_diagnostics::{diag_anyhow, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_anyhow};
 use spade_hir::{
-    expression::{CallKind, Safety},
-    pretty_print::PrettyPrint,
     ArgumentList, ExprKind, Expression, Generic, Input, Parameter, ParameterList, Pattern,
     PatternKind, Statement, TypeParam, TypeSpec, Unit, UnitHead,
+    expression::{CallKind, Safety},
+    pretty_print::PrettyPrint,
 };
-use spade_typeinference::{equation::KnownTypeVar, GenericListToken, HasType, TypeState};
+use spade_typeinference::{GenericListToken, HasType, TypeState, equation::KnownTypeVar};
 
 use crate::error::Result;
 

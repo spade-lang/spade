@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use logos::Logos;
 use spade_codespan_reporting::{files::SimpleFiles, term::termcolor::Buffer};
-use spade_diagnostics::{emitter::CodespanEmitter, CodeBundle, DiagHandler};
+use spade_diagnostics::{CodeBundle, DiagHandler, emitter::CodespanEmitter};
 
 use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 

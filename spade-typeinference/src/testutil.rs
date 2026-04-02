@@ -3,12 +3,12 @@ use spade_common::num_ext::InfallibleToBigInt;
 use spade_hir::symbol_table::SymbolTable;
 use spade_types::KnownType;
 
-use crate::fixed_types::t_int;
 use crate::TypeVar as TVar;
+use crate::fixed_types::t_int;
 
+use crate::TypeState;
 #[cfg(test)]
 use crate::traits::TraitList;
-use crate::TypeState;
 #[cfg(test)]
 use spade_types::meta_types::MetaType;
 

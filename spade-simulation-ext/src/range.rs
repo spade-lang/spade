@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 /// Represents a range of bits. These are stored using [x upto y] which is what we use here
 /// when indexing strings. However, cocotb indexing uses `x downto y` since we declare all our
 /// signals as `N:0`. Use `.as_downto` to perform this translation.
-#[cfg_attr(feature = "python", pyclass)]
+#[cfg_attr(feature = "python", pyclass(from_py_object))]
 #[derive(Clone, Copy, Debug)]
 pub struct UptoRange {
     pub from: u64,

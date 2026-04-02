@@ -6,16 +6,16 @@ use spade_common::{
     name::Path,
 };
 use spade_diagnostics::diagnostic::Subdiagnostic;
-use spade_diagnostics::{diag_bail, Diagnostic};
+use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::{
-    expression::{NamedArgument, UnaryOperator},
-    symbol_table::SymbolTable,
     ArgumentList, Binding, ExprKind, Expression, Input, PipelineRegMarkerExtra, Register,
     Statement, TypeList,
+    expression::{NamedArgument, UnaryOperator},
+    symbol_table::SymbolTable,
 };
 use spade_typeinference::TypeState;
 
-use self::linear_state::{is_linear, LinearState};
+use self::linear_state::{LinearState, is_linear};
 use crate::error::Result;
 
 mod linear_state;
@@ -256,7 +256,7 @@ fn visit_expression(
                             "Array with mutable wires cannot be indexed by non-constant values",
                         )
                         .primary_label("Array with mutable wires indexed by non-constant")
-                        .secondary_label(idx_expr.loc(), "Expected constant"))
+                        .secondary_label(idx_expr.loc(), "Expected constant"));
                     }
                 };
 
