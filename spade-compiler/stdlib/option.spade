@@ -1,3 +1,7 @@
+/// The option type represents a value which may or may not be present, essentially a
+/// valid/invalid signal that comes bundled with the data that signal validates.
+///
+/// When a value is present and valid, it is `Some(value)` and when it is invalid, it is `None`.
 pub enum Option<T> {
     None,
     Some{value: T},

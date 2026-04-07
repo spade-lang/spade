@@ -17,7 +17,9 @@
 
 body {
     margin: 0;
+    font-size: 16px;
     line-height: 1.5;
+    font-family: "Fira Sans",Arial,NanumBarunGothic,sans-serif;
 }
 
 main {
@@ -31,6 +33,11 @@ main {
 
 .item-heading {
     margin-top: 0;
+}
+
+h2 {
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #ddd;
 }
 
 h3 {
@@ -49,7 +56,7 @@ section {
 }
 
 .impl-unit-head {
-    font-size: 1.1em;
+    font-size: 1.0em;
     font-weight: var(--heading-like-weight);
     font-family: var(--font-code);
 }
@@ -69,25 +76,19 @@ section {
     margin-bottom: 1em;
 }
 
-pre {
-    overflow: scroll;
-    width: 100%;
-}
-
-code {
-    font-family: var(--font-code);
-}
-
 pre > code {
     display: inline-block;
     padding: 8pt 10pt;
     font-size: 12pt;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: scroll;
 }
 code {
+    font-family: var(--font-code);
     background-color: var(--code-background);
     border-radius: 5pt;
     padding: 2pt 4pt;
-    overflow-x: scroll;
 }
 
 a { text-decoration: none; }

@@ -293,11 +293,40 @@ impl Generator {
 
             // (Trait) implementation blocks
             if let Some((direct, traits)) = self.impls.for_type.get(&nameid).cloned() {
-                for d in direct {
-                    self.impl_block(body, &d.type_params, None, &d.target, &d.units, &d.where_clauses)?;
+                if !direct.is_empty() {
+                    body.tag("h2", |b| {
+                        fwrite!(b, "Implementations");
+                        Ok(())
+                    })?;
                 }
+
+                for d in direct {
+                    self.impl_block(
+                        body,
+                        &d.type_params,
+                        None,
+                        &d.target,
+                        &d.units,
+                        &d.where_clauses,
+                    )?;
+                }
+
+                if !traits.is_empty() {
+                    body.tag("h2", |b| {
+                        fwrite!(b, "Trait Implementations");
+                        Ok(())
+                    })?;
+                }
+
                 for t in traits {
-                    self.impl_block(body, &t.type_params, Some(&t.r#trait), &t.target, &t.units, &t.where_clauses)?;
+                    self.impl_block(
+                        body,
+                        &t.type_params,
+                        Some(&t.r#trait),
+                        &t.target,
+                        &t.units,
+                        &t.where_clauses,
+                    )?;
                 }
             }
 
@@ -312,7 +341,7 @@ impl Generator {
         r#trait: Option<&TraitSpec>,
         target: &TypeSpec,
         units: &[Loc<Unit>],
-        where_clauses: &[WhereClause]
+        where_clauses: &[WhereClause],
     ) -> DResult<()> {
         body.open_details(
             |body| {
