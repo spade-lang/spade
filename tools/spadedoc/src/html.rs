@@ -4,7 +4,7 @@ use std::{
     io::{self, BufWriter, Write},
 };
 
-use crate::errors::{DResult, DocError};
+use crate::error::{DResult, DocError};
 
 #[macro_export]
 macro_rules! fwrite {
@@ -58,7 +58,7 @@ impl<'b> Node<'b> {
         Ok(())
     }
 
-    pub fn stag(
+    pub fn styled_tag(
         &mut self,
         tag: impl FastWrite,
         styles: &[&str],

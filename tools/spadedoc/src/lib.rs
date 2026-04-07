@@ -27,10 +27,12 @@ use spade_hir::{ItemList, expression::Safety, symbol_table::SymbolTable};
 
 use crate::impls::Impls;
 
-mod errors;
+mod error;
+/// Holds all methods to emit most of the describing elements.
 mod generate;
 mod html;
 mod impls;
+/// Holds all methods to emit code from ast.
 mod print;
 
 pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buffer> {
@@ -216,6 +218,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         current_dir: gen_dir.clone(),
         impls,
         diags: ctx.diags,
+        is_module: true, // this is irrelevant as it is always set before creating a file
     };
 
     std::fs::create_dir_all(&gen_dir).or_report(&mut errors);
@@ -253,8 +256,6 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         errors.drain_diag_list(&mut generator.diags.lock().unwrap());
         return Err(buffer);
     }
-
-    //ctx.symtab.print_symbols();
 
     Ok(())
 }

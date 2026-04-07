@@ -15,7 +15,7 @@ use std::{
 };
 
 use crate::{
-    errors::{DResult, DocError},
+    error::{DResult, DocError},
     fwrite,
     html::Node,
     impls::Impls,
@@ -64,7 +64,7 @@ impl ItemKind {
         }
     }
 
-    pub fn scolor(&self) -> &'static str {
+    pub fn color_class(&self) -> &'static str {
         match self {
             ItemKind::Module => "color-mod",
             ItemKind::Struct => "color-struct",
@@ -78,33 +78,40 @@ impl ItemKind {
         }
     }
 
-    pub(crate) fn from_id(nid: &NameID, symtab: &SymbolTable) -> ItemKind {
+    /// Converts a [`NameID`] to an [`ItemKind`].
+    ///
+    /// This will result in [`None`] for e.g. generics, where we don't want to link to.
+    pub(crate) fn from_name_id(nid: &NameID, symtab: &SymbolTable) -> Option<ItemKind> {
         if let Some(thing) = symtab.thing_by_id(nid) {
             match thing {
-                Thing::Struct(_) => ItemKind::Struct,
+                Thing::Struct(_) => Some(ItemKind::Struct),
                 Thing::EnumVariant(_) => todo!(),
                 Thing::Unit(loc) => match loc.inner.unit_kind.inner {
-                    spade_hir::UnitKind::Function(_) => ItemKind::Function,
-                    spade_hir::UnitKind::Entity => ItemKind::Entity,
-                    spade_hir::UnitKind::Pipeline { .. } => ItemKind::Pipeline,
+                    spade_hir::UnitKind::Function(_) => Some(ItemKind::Function),
+                    spade_hir::UnitKind::Entity => Some(ItemKind::Entity),
+                    spade_hir::UnitKind::Pipeline { .. } => Some(ItemKind::Pipeline),
                 },
                 Thing::Variable(_) => todo!(),
-                Thing::Alias { .. } => unreachable!(),
+                a @ Thing::Alias { .. } => {
+                    panic!("{a:?}");
+                }
                 Thing::ArrayLabel(_) => todo!(),
-                Thing::Module(_, _) => ItemKind::Module,
-                Thing::Trait(_) => ItemKind::Trait,
+                Thing::Module(_, _) => Some(ItemKind::Module),
+                Thing::Trait(_) => Some(ItemKind::Trait),
                 Thing::Dummy => todo!(),
             }
         } else {
             match symtab.type_symbol_by_id(nid).inner {
-                TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Struct) => ItemKind::Struct,
-                TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Enum) => ItemKind::Enum,
+                TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Struct) => Some(ItemKind::Struct),
+                TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Enum) => Some(ItemKind::Enum),
                 TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Primitive { .. }) => {
-                    ItemKind::Primitive
+                    Some(ItemKind::Primitive)
                 }
-                TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Alias) => unreachable!(),
-                TypeSymbol::GenericArg { .. } => todo!(),
-                TypeSymbol::GenericMeta(_) => todo!(),
+                TypeSymbol::Declared(_, _, symtab::TypeDeclKind::Alias) => {
+                    Some(ItemKind::TypeAlias)
+                }
+                TypeSymbol::GenericArg { .. } => None,
+                TypeSymbol::GenericMeta(_) => None,
             }
         }
     }
@@ -115,14 +122,19 @@ pub(crate) struct Generator {
     pub(crate) current_dir: Utf8PathBuf,
     pub(crate) impls: Impls,
     pub(crate) diags: Arc<Mutex<DiagList>>,
+    /// Used to determine if we need an additional ../ in a path.
+    ///
+    /// `a::b::c` would result in `a/b/c/index.html` for a module but
+    /// `a/b/item.c.html` for a non-module.
+    pub(crate) is_module: bool,
 }
 
 impl Generator {
     pub fn doc_mod(&mut self, module: &ast::ModuleBody) -> DResult<()> {
-        println!("{}", self.current_dir);
-
         let mut contents: BTreeMap<ItemKind, Vec<&'static str>> = BTreeMap::new();
 
+        // We collect all items in this module body for its description and generate
+        // the item pages along the way.
         for item in &module.members {
             match item {
                 ast::Item::Type(t) => {
@@ -137,14 +149,15 @@ impl Generator {
                     self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t))?;
                 }
                 ast::Item::ExternalMod(m) => {
-                    contents
-                        .entry(ItemKind::Module)
-                        .or_default()
-                        .push(m.name.as_str());
+                    let name = m.name.as_str();
+                    contents.entry(ItemKind::Module).or_default().push(name);
+                    // Don't need to generate stuff here as external mods have their own file and
+                    // will thus be documented by the spadedoc main file iterator
                 }
                 ast::Item::Module(m) => {
                     let name = m.name.as_str();
                     contents.entry(ItemKind::Module).or_default().push(name);
+
                     self.symtab.push_namespace(PathSegment::Named(m.name));
                     self.current_dir.push(name);
                     std::fs::create_dir_all(self.current_dir.as_path()).map_err(|_| {
@@ -189,10 +202,10 @@ impl Generator {
 
         self.describe(FileName::Module, |g, b| {
             main(b, |b| {
-                g.path_breadcrumbs(b, true)?;
+                g.path_breadcrumbs(b)?;
                 write_title(b, ItemKind::Module, name)?;
                 write_markdown(&module.documentation.join("\n"), |md| {
-                    collapsable(b, &["main_desc"], md.write())
+                    collapsible(b, &["main_desc"], md.write())
                 })?;
                 for (kind, mut entries) in contents {
                     entries.sort();
@@ -201,14 +214,14 @@ impl Generator {
                             fwrite!(b, kind.plural());
                             Ok(())
                         })?;
-                        b.stag("ul", &["clean_ul"], |b| {
+                        b.styled_tag("ul", &["clean_ul"], |b| {
                             if kind == ItemKind::Module {
                                 for name in entries {
                                     b.tag("li", |b| {
                                         fwrite!(
                                             b,
                                             "<a class=\"",
-                                            ItemKind::Module.scolor(),
+                                            ItemKind::Module.color_class(),
                                             "\" href=\"",
                                             &name,
                                             "/index.html\">",
@@ -225,7 +238,7 @@ impl Generator {
                                         fwrite!(
                                             b,
                                             "<a class=\"",
-                                            kind.scolor(),
+                                            kind.color_class(),
                                             "\" href=\"item.",
                                             &name,
                                             ".html\">",
@@ -268,43 +281,59 @@ impl Generator {
             .unwrap();
 
         main(body, |body| {
-            self.path_breadcrumbs(body, false)?;
+            self.path_breadcrumbs(body)?;
             write_title(body, kind, t.inner.name.as_str())?;
-            write_markdown(&doc, |md| collapsable(body, &["main_desc"], md.write()))?;
+            self.in_codeblock(body, |b| match &t.inner.kind {
+                TypeDeclKind::Enum(e) => self.print_enum(b, e, &t.visibility, &t.generic_args),
+                TypeDeclKind::Struct(s) => self.print_struct(b, s, &t.visibility, &t.generic_args),
+                TypeDeclKind::Alias(_) => Ok(()),
+            })?;
+            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
+            // (Trait) implementation blocks
             if let Some((direct, traits)) = self.impls.for_type.get(&nameid) {
                 for d in direct {
-                    if let Some(params) = &d.type_params {
-                        fwrite!(body, "impl&lt;");
-                        print::seperated(body, ", ", params.iter(), |b, p| {
-                            self.print_type_param(b, &p.inner)
-                        })?;
-                        fwrite!(body, "&gt; ");
-                    } else {
-                        fwrite!(body, "impl ");
-                    }
-                    self.print_type_spec(body, &d.target)?;
+                    body.tag("h3", |h| {
+                        if let Some(params) = &d.type_params {
+                            fwrite!(h, "impl&lt;");
+                            print::separated(h, ", ", params.iter(), |b, p| {
+                                self.print_type_param(b, &p.inner)
+                            })?;
+                            fwrite!(h, "&gt; ");
+                        } else {
+                            fwrite!(h, "impl ");
+                        }
+                        self.print_type_spec(h, &d.target)
+                    })?;
+
+                    // Impl members
                     for unit in &d.units {
-                        self.in_codeblock(body, |b| self.print_unithead(b, &unit.head))?;
+                        body.tag("section", |body| self.print_unit_head(body, &unit.head))?;
                     }
+
                     fwrite!(body, "<br>");
                 }
                 for t in traits {
-                    if let Some(params) = &t.type_params {
-                        fwrite!(body, "impl&lt;");
-                        print::seperated(body, ", ", params.iter(), |b, p| {
-                            self.print_type_param(b, &p.inner)
-                        })?;
-                        fwrite!(body, "&gt; ");
-                    } else {
-                        fwrite!(body, "impl ");
-                    }
-                    self.print_trait_spec(body, &t.r#trait)?;
-                    fwrite!(body, " for ");
-                    self.print_type_spec(body, &t.target)?;
+                    body.tag("h3", |h| {
+                        if let Some(params) = &t.type_params {
+                            fwrite!(h, "impl&lt;");
+                            print::separated(h, ", ", params.iter(), |b, p| {
+                                self.print_type_param(b, &p.inner)
+                            })?;
+                            fwrite!(h, "&gt; ");
+                        } else {
+                            fwrite!(h, "impl ");
+                        }
+                        self.print_trait_spec(h, &t.r#trait)?;
+                        fwrite!(h, " for ");
+                        self.print_type_spec(h, &t.target)
+                    })?;
+
+                    // Trait members
                     for unit in &t.units {
-                        self.in_codeblock(body, |b| self.print_unithead(b, &unit.head))?;
+                        body.tag("section", |body| self.print_unit_head(body, &unit.head))?;
                     }
+
                     fwrite!(body, "<br>");
                 }
             }
@@ -323,10 +352,10 @@ impl Generator {
         };
 
         main(body, |body| {
-            self.path_breadcrumbs(body, false)?;
+            self.path_breadcrumbs(body)?;
             write_title(body, kind, u.head.name.as_str())?;
-            self.in_codeblock(body, |b| self.print_unithead(b, &u.head))?;
-            write_markdown(&doc, |md| collapsable(body, &["main_desc"], md.write()))?;
+            self.in_codeblock(body, |b| self.print_unit_head(b, &u.head))?;
+            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
         })
@@ -334,22 +363,22 @@ impl Generator {
 
     fn doc_trait(&mut self, body: &mut Node<'_>, t: &Loc<TraitDef>) -> DResult<()> {
         main(body, |body| {
-            self.path_breadcrumbs(body, false)?;
+            self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Trait, t.name.as_str())?;
 
             for unit in &t.methods {
-                self.in_codeblock(body, |b| self.print_unithead(b, &unit))?;
+                body.tag("section", |body| self.print_unit_head(body, &unit))?;
             }
 
             Ok(())
         })
     }
 
-    fn path_breadcrumbs(&mut self, body: &mut Node<'_>, from_mod: bool) -> DResult<()> {
+    fn path_breadcrumbs(&mut self, body: &mut Node<'_>) -> DResult<()> {
         let from = self.symtab.current_namespace().0.as_slice();
 
         body.tag("div", |d| {
-            self.link_to(d, &[], ItemKind::Module, from_mod, true, |a| {
+            self.link_to(d, &[], true, ItemKind::Module, |a| {
                 fwrite!(a, "::");
                 Ok(())
             })?;
@@ -358,7 +387,7 @@ impl Generator {
                 let seg = seg
                     .to_named_str()
                     .expect("Breadcrumb to non-named path segment");
-                self.link_to(d, &from[..(i + 1)], ItemKind::Module, from_mod, true, |a| {
+                self.link_to(d, &from[..(i + 1)], true, ItemKind::Module, |a| {
                     fwrite!(a, seg, "::");
                     Ok(())
                 })?;
@@ -376,20 +405,22 @@ impl Generator {
         &self,
         n: &mut Node<'_>,
         to: &[PathSegment],
-        kind: ItemKind,
-        from_mod: bool,
         to_mod: bool,
+        kind: ItemKind,
         f: impl FnOnce(&mut Node<'_>) -> DResult<()>,
     ) -> DResult<()> {
-        fwrite!(n, "<a class=\"", kind.scolor(), "\" href=\"");
-
         #[inline(always)]
         fn name(s: &PathSegment) -> &str {
             s.to_named_str()
                 .expect("Tried to create file in non-named path segment")
         }
 
+        fwrite!(n, "<a class=\"", kind.color_class(), "\" href=\"");
+
         let mut from = self.symtab.current_namespace().0.iter();
+
+        // Determine path end to `to/item.end.html` or `to/end/index.html` based on
+        // whether it is targeting a module or not.
         let (mut to, end) = match to_mod {
             false => {
                 let (end, rest) = to.split_last().expect("No segment in path to Item");
@@ -398,10 +429,13 @@ impl Generator {
             true => (to.iter(), String::from("index.html")),
         };
 
-        if from_mod {
+        // When we describe a module, we are one hierarchy level deeper,
+        // e.g. `a/b/c/index.html` instead of `a/b/item.c.html`.
+        if self.is_module {
             fwrite!(n, "../");
         }
 
+        // Check at which point the given paths diverge
         let mut to_next = to.next();
         'diverge: while let Some(seg_from) = from.next() {
             if to_next == Some(seg_from) {
@@ -411,29 +445,42 @@ impl Generator {
                 break 'diverge;
             }
         }
+        // Go up from `from` to the common root
         while let Some(_) = from.next() {
             fwrite!(n, "../");
         }
+        // Append to path and then the path end based on whether it's targeting a module or not from above
         if let Some(seg) = to_next {
             fwrite!(n, name(seg), "/");
         }
         for seg in to {
             fwrite!(n, name(seg), "/");
         }
+
         fwrite!(n, &end, "\">");
         f(n)?;
         fwrite!(n, "</a>");
+
         Ok(())
     }
 
+    /// Describes an item or module by providing a html node inside the common wrapper.
+    ///
+    /// Also sets the `is_module` flag.
     fn describe(
         &mut self,
         name: FileName<'_>,
         f: impl FnOnce(&mut Generator, &mut Node<'_>) -> DResult<()>,
     ) -> DResult<()> {
         match name {
-            FileName::Module => self.current_dir.push("index.html"),
-            FileName::Item(name) => self.current_dir.push(format!("item.{name}.html")),
+            FileName::Module => {
+                self.current_dir.push("index.html");
+                self.is_module = true;
+            }
+            FileName::Item(name) => {
+                self.current_dir.push(format!("item.{name}.html"));
+                self.is_module = false;
+            }
         }
         let file = File::create(self.current_dir.as_path()).unwrap();
         self.current_dir.pop();
@@ -467,7 +514,7 @@ fn main(b: &mut Node<'_>, f: impl FnOnce(&mut Node<'_>) -> DResult<()>) -> DResu
     b.tag("main", f)
 }
 
-fn collapsable(
+fn collapsible(
     b: &mut Node<'_>,
     styles: &[&str],
     f: impl FnOnce(&mut Node<'_>) -> DResult<()>,
@@ -489,9 +536,9 @@ fn collapsable(
 }
 
 fn write_title(node: &mut Node<'_>, kind: ItemKind, name: &str) -> DResult<()> {
-    node.stag("h1", &["item-heading"], |h| {
+    node.styled_tag("h1", &["item-heading"], |h| {
         fwrite!(h, kind.singular(), " ");
-        h.stag("span", &[kind.scolor()], |s| {
+        h.styled_tag("span", &[kind.color_class()], |s| {
             fwrite!(s, name);
             Ok(())
         })

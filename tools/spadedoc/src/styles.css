@@ -25,6 +25,14 @@ main {
     margin-top: 0;
 }
 
+h3 {
+    border-bottom: 1px solid #ddd;
+}
+
+section {
+    padding-bottom: 10pt;
+}
+
 pre > code {
     display: inline-block;
     width: 100%;

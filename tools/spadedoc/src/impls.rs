@@ -1,10 +1,11 @@
 use rustc_hash::FxHashMap as HashMap;
 use spade_ast as ast;
 use spade_common::{
-    location_info::Loc,
-    name::{NameID, Path, PathSegment},
+    location_info::{Loc, WithLocation as _},
+    name::{Identifier, NameID, Path, PathSegment},
 };
 use spade_diagnostics::Diagnostic;
+use spade_hir::symbol_table as symtab;
 
 pub(crate) struct Impls {
     pub(crate) for_type: HashMap<NameID, (Vec<DirectImpl>, Vec<TraitImpl>)>,
@@ -36,18 +37,46 @@ pub(crate) fn gather_impls(
         match item {
             ast::Item::Unit(_) => {}
             ast::Item::TraitDef(_) => {}
-            ast::Item::ImplBlock(i) => {
-                if let Some(trt) = i.r#trait.clone() {
+            ast::Item::ImplBlock(block) => {
+                // Parts of this are stolen from `spade_ast_lowering::visit_impl_inner`
+
+                // This adds the generics to the symtab
+                let _ = spade_ast_lowering::visit_type_params(&block.type_params, ctx)?;
+
+                // let self_name = Identifier::intern("Self").nowhere();
+                // let alias_id = ctx.symtab.add_type(
+                //     self_name,
+                //     symtab::TypeSymbol::Declared(vec![], 0, symtab::TypeDeclKind::Alias)
+                //         .at_loc(&block.target),
+                //     spade_common::name::Visibility::Implicit.nowhere(),
+                //     None,
+                // );
+
+                // if let ast::TypeSpec::Named(path, _) = &block.target.inner {
+                //     ctx.symtab.add_thing_with_name_id(
+                //         alias_id.clone(),
+                //         symtab::Thing::Alias {
+                //             loc: block.target.loc(),
+                //             path: path.clone(),
+                //             in_namespace: ctx.symtab.current_namespace().clone(),
+                //         },
+                //         None,
+                //         None,
+                //     );
+                // }
+
+                if let Some(trt) = block.r#trait.clone() {
                     let timpl = TraitImpl {
                         r#trait: trt.inner,
-                        type_params: i.type_params.clone(),
-                        where_clauses: i.where_clauses.clone(),
-                        target: i.target.inner.clone(),
-                        units: i.units.clone(),
+                        type_params: block.type_params.clone(),
+                        where_clauses: block.where_clauses.clone(),
+                        target: block.target.inner.clone(),
+                        units: block.units.clone(),
                     };
 
-                    for_all_targets(&i.target, &mut |t| {
+                    for_all_targets(&block.target, &mut |t| {
                         let Ok(target) = ctx.symtab.lookup_id(t, true) else {
+                            println!("Couldn't find {t}");
                             return; /* Generics */
                         };
                         impls
@@ -59,14 +88,15 @@ pub(crate) fn gather_impls(
                     });
                 } else {
                     let dimpl = DirectImpl {
-                        type_params: i.type_params.clone(),
-                        where_clauses: i.where_clauses.clone(),
-                        target: i.target.inner.clone(),
-                        units: i.units.clone(),
+                        type_params: block.type_params.clone(),
+                        where_clauses: block.where_clauses.clone(),
+                        target: block.target.inner.clone(),
+                        units: block.units.clone(),
                     };
 
-                    for_all_targets(&i.target, &mut |t| {
+                    for_all_targets(&block.target, &mut |t| {
                         let Ok(target) = ctx.symtab.lookup_id(t, true) else {
+                            println!("Couldn't find {t}");
                             return; /* Generics */
                         };
                         impls
@@ -102,6 +132,7 @@ fn for_all_targets(target_spec: &ast::TypeSpec, f: &mut impl FnMut(&Loc<Path>)) 
         ast::TypeSpec::Array { inner, size: _ } => for_all_expr(&inner, f),
         ast::TypeSpec::Named(path, _params) => f(path),
         ast::TypeSpec::Inverted(inner) => for_all_expr(&inner, f),
+        // Following `spade_ast_lowering::get_impl_target`, those are illegal in target position.
         ast::TypeSpec::Impl(_) => todo!(),
         ast::TypeSpec::Wildcard => todo!(),
     }
