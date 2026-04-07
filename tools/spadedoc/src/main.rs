@@ -54,9 +54,7 @@ fn main() -> color_eyre::Result<()> {
         .collect::<Vec<_>>();
 
     match spadedoc::doc(files, opts.output) {
-        Ok(doc) => {
-            //spadedoc::renderer::Renderer::new(opts.output, &doc).render()?;
-        }
+        Ok(()) => {}
         Err(buffer) => {
             eprintln!("{}", String::from_utf8_lossy(buffer.as_slice()));
             bail!("spade file failed to compile");

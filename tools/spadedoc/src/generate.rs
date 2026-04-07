@@ -85,20 +85,18 @@ impl ItemKind {
         if let Some(thing) = symtab.thing_by_id(nid) {
             match thing {
                 Thing::Struct(_) => Some(ItemKind::Struct),
-                Thing::EnumVariant(_) => todo!(),
+                Thing::EnumVariant(_) => None, // shouldn't happen
                 Thing::Unit(loc) => match loc.inner.unit_kind.inner {
                     spade_hir::UnitKind::Function(_) => Some(ItemKind::Function),
                     spade_hir::UnitKind::Entity => Some(ItemKind::Entity),
                     spade_hir::UnitKind::Pipeline { .. } => Some(ItemKind::Pipeline),
                 },
-                Thing::Variable(_) => todo!(),
-                a @ Thing::Alias { .. } => {
-                    panic!("{a:?}");
-                }
-                Thing::ArrayLabel(_) => todo!(),
+                Thing::Variable(_) => None,   // shouldn't happen
+                Thing::Alias { .. } => None,  // shouldn't happen, revisit for `Self`
+                Thing::ArrayLabel(_) => None, // shouldn't happen
                 Thing::Module(_, _) => Some(ItemKind::Module),
                 Thing::Trait(_) => Some(ItemKind::Trait),
-                Thing::Dummy => todo!(),
+                Thing::Dummy => None, // shouldn't happen
             }
         } else {
             match symtab.type_symbol_by_id(nid).inner {
@@ -162,7 +160,7 @@ impl Generator {
                     self.current_dir.push(name);
                     std::fs::create_dir_all(self.current_dir.as_path()).map_err(|_| {
                         DocError::FWriteError
-                        // TODO:
+                        // FIXME:
                         // Diagnostic::error(m, format!("Couldn't create folder at {dir} : {e}"))
                     })?;
                     let res = self.doc_mod(&m.body);
@@ -200,7 +198,7 @@ impl Generator {
 
         self.symtab.pop_namespace();
 
-        self.describe(FileName::Module, |g, b| {
+        self.describe(FileName::Module(name), |g, b| {
             main(b, |b| {
                 g.path_breadcrumbs(b)?;
                 write_title(b, ItemKind::Module, name)?;
@@ -303,7 +301,8 @@ impl Generator {
                         } else {
                             fwrite!(h, "impl ");
                         }
-                        self.print_type_spec(h, &d.target)
+                        self.print_type_spec(h, &d.target)?;
+                        self.print_where_clauses(h, &d.where_clauses)
                     })?;
 
                     // Impl members
@@ -326,7 +325,8 @@ impl Generator {
                         }
                         self.print_trait_spec(h, &t.r#trait)?;
                         fwrite!(h, " for ");
-                        self.print_type_spec(h, &t.target)
+                        self.print_type_spec(h, &t.target)?;
+                        self.print_where_clauses(h, &t.where_clauses)
                     })?;
 
                     // Trait members
@@ -472,16 +472,18 @@ impl Generator {
         name: FileName<'_>,
         f: impl FnOnce(&mut Generator, &mut Node<'_>) -> DResult<()>,
     ) -> DResult<()> {
-        match name {
-            FileName::Module => {
+        let name = match name {
+            FileName::Module(name) => {
                 self.current_dir.push("index.html");
                 self.is_module = true;
+                name
             }
             FileName::Item(name) => {
                 self.current_dir.push(format!("item.{name}.html"));
                 self.is_module = false;
+                name
             }
-        }
+        };
         let file = File::create(self.current_dir.as_path()).unwrap();
         self.current_dir.pop();
         let mut buf = BufWriter::new(file);
@@ -493,7 +495,16 @@ impl Generator {
                 fwrite!(head, r#"<meta charset="utf-8">"#);
                 fwrite!(head, r#"<link rel="stylesheet" href="/styles.css">"#);
                 head.tag("title", |t| {
-                    fwrite!(t, "Some file - Spadedoc");
+                    let ns = &self.symtab.current_namespace().0;
+                    if ns.is_empty() {
+                        fwrite!(t, name, " - Spadedoc");
+                    } else {
+                        fwrite!(t, name, " in ");
+                        for seg in ns {
+                            fwrite!(t, "::", seg.unwrap_named().as_str());
+                        }
+                        fwrite!(t, " - Spadedoc");
+                    }
                     Ok(())
                 })
             })?;
@@ -507,7 +518,7 @@ impl Generator {
 }
 
 enum FileName<'s> {
-    Module,
+    Module(&'s str),
     Item(&'s str),
 }
 fn main(b: &mut Node<'_>, f: impl FnOnce(&mut Node<'_>) -> DResult<()>) -> DResult<()> {

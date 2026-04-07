@@ -20,12 +20,12 @@ entity top() {}
 /// A very cool pipeline
 pipeline(2) my_pipeline<T>(clk: clock, _: T)
 where
-    T: SuperCool,
+    T: SuperCool<0>,
 {
     reg*2;
 }
 
-trait SuperCool {}
+trait SuperCool<#uint N> {}
 
 mod inner {
     //! This is my inner module :3
@@ -34,7 +34,10 @@ mod inner {
     /// now work with multiple lines
     struct S {}
 
-    impl lib::SuperCool for S {}
+    impl<#uint N> lib::SuperCool<N> for S
+    where
+         N != 7,
+    {}
 
     /// This is a simple enum.
     enum Heh {

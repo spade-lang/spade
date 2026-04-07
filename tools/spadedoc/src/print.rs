@@ -5,7 +5,8 @@ use crate::{
     html::Node,
 };
 use spade_ast::{
-    Enum, ParameterList, Struct, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitHead,
+    BinaryOperator, Enum, Expression, ParameterList, Struct, TraitSpec, TypeExpression, TypeParam,
+    TypeSpec, UnaryOperator, UnitHead, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -153,16 +154,40 @@ impl Generator {
             self.print_type_spec(b, &out.inner)?;
         }
 
-        if !unit.where_clauses.is_empty() {
+        self.print_where_clauses(b, &unit.where_clauses)?;
+
+        Ok(())
+    }
+
+    pub(crate) fn print_where_clauses(
+        &self,
+        b: &mut Node<'_>,
+        clauses: &[WhereClause],
+    ) -> DResult<()> {
+        if !clauses.is_empty() {
             fwrite!(b, "<br>where");
-            for clause in &unit.where_clauses {
+            for clause in clauses {
                 fwrite!(b, "<br>&emsp;");
                 match clause {
                     spade_ast::WhereClause::GenericInt {
-                        target, .. // TODO
+                        target,
+                        kind,
+                        expression,
+                        if_unsatisfied,
                     } => {
                         self.print_path(b, target)?;
-                        fwrite!(b, ": ");
+                        match kind {
+                            spade_ast::Inequality::Eq => fwrite!(b, " == "),
+                            spade_ast::Inequality::Neq => fwrite!(b, " != "),
+                            spade_ast::Inequality::Lt => fwrite!(b, " < "),
+                            spade_ast::Inequality::Leq => fwrite!(b, " <= "),
+                            spade_ast::Inequality::Gt => fwrite!(b, " > "),
+                            spade_ast::Inequality::Geq => fwrite!(b, " >= "),
+                        };
+                        self.print_expr(b, expression)?;
+                        if let Some(unsat) = if_unsatisfied {
+                            fwrite!(b, " else \"", unsat.as_str(), "\"");
+                        }
                     }
                     spade_ast::WhereClause::TraitBounds { target, traits } => {
                         self.print_path(b, target)?;
@@ -189,7 +214,7 @@ impl Generator {
             Visibility::AtSelf => fwrite!(b, "pub(self) "),
             Visibility::AtSuper => fwrite!(b, "pub(super) "),
             // Only used for enum variants, and there we don't print visibility as it's
-            // not reproducable from ast either
+            // not reproducible from ast either
             Visibility::AtSuperSuper => unreachable!(),
         }
         Ok(())
@@ -310,7 +335,12 @@ impl Generator {
                 write!(b.io(), "{}", big_int).map_err(|_| DocError::FWriteError)
             }
             TypeExpression::String(_) => Ok(()),
-            TypeExpression::ConstGeneric(_) => Ok(()),
+            TypeExpression::ConstGeneric(expr) => {
+                fwrite!(b, "{ ");
+                self.print_expr(b, expr)?;
+                fwrite!(b, " }");
+                Ok(())
+            }
         }
     }
 
@@ -324,6 +354,81 @@ impl Generator {
             fwrite!(b, "&gt;");
         }
         Ok(())
+    }
+
+    fn print_expr(&self, b: &mut Node<'_>, expr: &Expression) -> DResult<()> {
+        match expr {
+            Expression::BinaryOperator(lhs, op, rhs) => {
+                self.print_expr(b, lhs)?;
+                match op.inner {
+                    BinaryOperator::Add => fwrite!(b, " + "),
+                    BinaryOperator::Sub => fwrite!(b, " - "),
+                    BinaryOperator::Mul => fwrite!(b, " * "),
+                    BinaryOperator::Div => fwrite!(b, " / "),
+                    BinaryOperator::Mod => fwrite!(b, " % "),
+                    BinaryOperator::Eq => fwrite!(b, " == "),
+                    BinaryOperator::Neq => fwrite!(b, " != "),
+                    BinaryOperator::Lt => fwrite!(b, " < "),
+                    BinaryOperator::Gt => fwrite!(b, " > "),
+                    BinaryOperator::Le => fwrite!(b, " <= "),
+                    BinaryOperator::Ge => fwrite!(b, " >= "),
+                    BinaryOperator::LogicalAnd => fwrite!(b, " & "),
+                    BinaryOperator::LogicalOr => fwrite!(b, " | "),
+                    BinaryOperator::LogicalXor => fwrite!(b, " ^ "),
+                    BinaryOperator::LeftShift => fwrite!(b, " << "),
+                    BinaryOperator::RightShift => fwrite!(b, " >> "),
+                    BinaryOperator::ArithmeticRightShift => fwrite!(b, " >>> "),
+                    BinaryOperator::BitwiseAnd => fwrite!(b, " && "),
+                    BinaryOperator::BitwiseOr => fwrite!(b, " || "),
+                    BinaryOperator::BitwiseXor => fwrite!(b, " ^^ "),
+                    BinaryOperator::WrappingAdd => fwrite!(b, " +. "),
+                    BinaryOperator::WrappingSub => fwrite!(b, " -. "),
+                    BinaryOperator::WrappingMul => fwrite!(b, " *. "),
+                    BinaryOperator::WrappingLeftShift => fwrite!(b, " <<. "),
+                    BinaryOperator::WrappingRightShift => fwrite!(b, " >>. "),
+                }
+                self.print_expr(b, rhs)
+            }
+            Expression::UnaryOperator(op, inner) => {
+                match op.inner {
+                    UnaryOperator::Sub => fwrite!(b, " - "),
+                    UnaryOperator::Not => fwrite!(b, " ! "),
+                    UnaryOperator::BitwiseNot => fwrite!(b, " ~ "),
+                    UnaryOperator::WrappingSub => fwrite!(b, " -. "),
+                    UnaryOperator::Dereference => fwrite!(b, " * "),
+                    UnaryOperator::Reference => fwrite!(b, " & "),
+                };
+                self.print_expr(b, inner)
+            }
+            Expression::Identifier(path) => self.print_path(b, path),
+            Expression::IntLiteral(i) => match &i.inner {
+                spade_ast::IntLiteral::Unsized(big_int) => {
+                    write!(b.io(), "{}", big_int).map_err(|_| DocError::FWriteError)
+                }
+                spade_ast::IntLiteral::Signed { val, size: _ } => {
+                    write!(b.io(), "{}", val).map_err(|_| DocError::FWriteError)
+                }
+                spade_ast::IntLiteral::Unsigned { val, size: _ } => {
+                    write!(b.io(), "{}", val).map_err(|_| DocError::FWriteError)
+                }
+            },
+            Expression::BoolLiteral(val) => {
+                match val.inner {
+                    true => fwrite!(b, "true"),
+                    false => fwrite!(b, "false"),
+                };
+                Ok(())
+            }
+            Expression::TriLiteral(tri) => {
+                match tri.inner {
+                    spade_ast::BitLiteral::Low => fwrite!(b, "LOW"),
+                    spade_ast::BitLiteral::High => fwrite!(b, "HIGH"),
+                    spade_ast::BitLiteral::HighImp => fwrite!(b, "HIGHIMP"),
+                };
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     fn print_parameter_list(&self, b: &mut Node<'_>, list: &ParameterList) -> DResult<()> {

@@ -245,7 +245,9 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         generator
             .symtab
             .set_base_namespace(namespace.base_namespace.clone());
-        generator.doc_mod(module_ast).unwrap(); // TODO: error handling
+        generator
+            .doc_mod(module_ast)
+            .expect("Couldn't generate documentations"); // FIXME:
         generator.symtab.set_base_namespace(Path(vec![]));
         for _ in &namespace.namespace.0 {
             generator.symtab.pop_namespace();

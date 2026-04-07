@@ -1,11 +1,10 @@
 use rustc_hash::FxHashMap as HashMap;
 use spade_ast as ast;
 use spade_common::{
-    location_info::{Loc, WithLocation as _},
-    name::{Identifier, NameID, Path, PathSegment},
+    location_info::Loc,
+    name::{NameID, Path, PathSegment},
 };
 use spade_diagnostics::Diagnostic;
-use spade_hir::symbol_table as symtab;
 
 pub(crate) struct Impls {
     pub(crate) for_type: HashMap<NameID, (Vec<DirectImpl>, Vec<TraitImpl>)>,
@@ -43,6 +42,7 @@ pub(crate) fn gather_impls(
                 // This adds the generics to the symtab
                 let _ = spade_ast_lowering::visit_type_params(&block.type_params, ctx)?;
 
+                // FIXME: introducing `Self` makes problems down the symtab resolving
                 // let self_name = Identifier::intern("Self").nowhere();
                 // let alias_id = ctx.symtab.add_type(
                 //     self_name,
