@@ -1,6 +1,9 @@
 use camino::Utf8PathBuf;
 use pulldown_cmark::{Options, Parser};
-use spade_ast::{self as ast, TraitDef, TypeDeclKind, TypeDeclaration, Unit, UnitKind};
+use spade_ast::{
+    self as ast, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration, TypeParam, TypeSpec, Unit,
+    UnitKind, WhereClause,
+};
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{NameID, Path, PathSegment},
@@ -19,7 +22,7 @@ use crate::{
     fwrite,
     html::Node,
     impls::Impls,
-    print,
+    print::{self},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -289,57 +292,77 @@ impl Generator {
             write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             // (Trait) implementation blocks
-            if let Some((direct, traits)) = self.impls.for_type.get(&nameid) {
+            if let Some((direct, traits)) = self.impls.for_type.get(&nameid).cloned() {
                 for d in direct {
-                    body.tag("h3", |h| {
-                        if let Some(params) = &d.type_params {
-                            fwrite!(h, "impl&lt;");
-                            print::separated(h, ", ", params.iter(), |b, p| {
-                                self.print_type_param(b, &p.inner)
-                            })?;
-                            fwrite!(h, "&gt; ");
-                        } else {
-                            fwrite!(h, "impl ");
-                        }
-                        self.print_type_spec(h, &d.target)?;
-                        self.print_where_clauses(h, &d.where_clauses)
-                    })?;
-
-                    // Impl members
-                    for unit in &d.units {
-                        body.tag("section", |body| self.print_unit_head(body, &unit.head))?;
-                    }
-
-                    fwrite!(body, "<br>");
+                    self.impl_block(body, &d.type_params, None, &d.target, &d.units, &d.where_clauses)?;
                 }
                 for t in traits {
-                    body.tag("h3", |h| {
-                        if let Some(params) = &t.type_params {
-                            fwrite!(h, "impl&lt;");
-                            print::separated(h, ", ", params.iter(), |b, p| {
-                                self.print_type_param(b, &p.inner)
-                            })?;
-                            fwrite!(h, "&gt; ");
-                        } else {
-                            fwrite!(h, "impl ");
-                        }
-                        self.print_trait_spec(h, &t.r#trait)?;
-                        fwrite!(h, " for ");
-                        self.print_type_spec(h, &t.target)?;
-                        self.print_where_clauses(h, &t.where_clauses)
-                    })?;
-
-                    // Trait members
-                    for unit in &t.units {
-                        body.tag("section", |body| self.print_unit_head(body, &unit.head))?;
-                    }
-
-                    fwrite!(body, "<br>");
+                    self.impl_block(body, &t.type_params, Some(&t.r#trait), &t.target, &t.units, &t.where_clauses)?;
                 }
             }
 
             Ok(())
         })
+    }
+
+    fn impl_block(
+        &mut self,
+        body: &mut Node<'_>,
+        generics: &Option<Loc<Vec<Loc<TypeParam>>>>,
+        r#trait: Option<&TraitSpec>,
+        target: &TypeSpec,
+        units: &[Loc<Unit>],
+        where_clauses: &[WhereClause]
+    ) -> DResult<()> {
+        body.open_details(
+            |body| {
+                body.styled_tag("span", &["impl-heading"], |body| {
+                    if let Some(params) = &generics {
+                        fwrite!(body, "impl&lt;");
+
+                        print::separated(body, ", ", params.iter(), |b, p| {
+                            self.print_type_param(b, &p.inner)
+                        })?;
+
+                        fwrite!(body, "&gt; ");
+                    } else {
+                        fwrite!(body, "impl ");
+                    }
+                    if let Some(r#trait) = r#trait {
+                        self.print_trait_spec(body, r#trait)?;
+                        fwrite!(body, " for ");
+                    }
+                    self.print_type_spec(body, target)?;
+                    self.print_where_clauses(body, &where_clauses)?;
+                    Ok(())
+                })
+            },
+            |body| {
+                body.styled_tag("div", &["impl-items"], |body| {
+                    for u in units {
+                        let doc = u.head.attributes.merge_docs();
+
+                        if !doc.is_empty() {
+                            body.open_details(
+                                |body| {
+                                    body.styled_tag("span", &["impl-unit-head"], |body| {
+                                        self.print_unit_head(body, &u.head)
+                                    })
+                                },
+                                |body| write_markdown(&doc, |md| (md.write())(body)),
+                            )?;
+                        } else {
+                            body.tag("div", |body| {
+                                body.styled_tag("span", &["impl-unit-head"], |body| {
+                                    self.print_unit_head(body, &u.head)
+                                })
+                            })?;
+                        }
+                    }
+                    Ok(())
+                })
+            },
+        )
     }
 
     fn doc_unit(&mut self, body: &mut Node<'_>, u: &Loc<Unit>) -> DResult<()> {
@@ -543,7 +566,7 @@ fn collapsible(
         fwrite!(b, s, " ");
     }
     fwrite!(b, "\">");
-    b.tag("summary", |b| {
+    b.styled_tag("summary", &["hidden-open-summary"], |b| {
         b.tag("span", |b| {
             fwrite!(b, "Expand");
             Ok(())

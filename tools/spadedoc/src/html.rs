@@ -77,6 +77,36 @@ impl<'b> Node<'b> {
         Ok(())
     }
 
+    pub fn tag_with_values(
+        &mut self,
+        tag: impl FastWrite,
+        values: &[&str],
+        inner: impl FnOnce(&mut Node<'_>) -> DResult<()>,
+    ) -> DResult<()> {
+        fwrite!(self, "<", &tag, " ");
+        for s in values {
+            fwrite!(self, s, " ");
+        }
+        fwrite!(self, ">");
+
+        inner(self)?;
+
+        fwrite!(self, "</", &tag, ">");
+
+        Ok(())
+    }
+
+    pub fn open_details(
+        &mut self,
+        summary: impl FnOnce(&mut Node<'_>) -> DResult<()>,
+        body: impl FnOnce(&mut Node<'_>) -> DResult<()>,
+    ) -> DResult<()> {
+        self.tag_with_values("details", &["open"], |b| {
+            b.tag_with_values("summary", &[], summary)?;
+            body(b)
+        })
+    }
+
     pub fn io(&mut self) -> &mut impl io::Write {
         self.buf
     }

@@ -1,24 +1,32 @@
 :root {
-    --color-mod: #3297db;
-    --color-fn: #9b70b8;
-    --color-entity: #fc5fa3;
-    --color-pipeline: #51e8ae;
-    --color-struct: #f9d140;
-    --color-enum: #9ac621;
-    --color-primitive: #f9793e;
-    --color-type-alias: #e02d1d;
-    --color-trait: #db5dd1;
+    --color-mod: rgb(56, 115, 173);
+    --color-fn: rgb(173, 124, 55);
+    --color-entity: rgb(173, 124, 55);
+    --color-pipeline: rgb(173, 124, 55);
+    --color-struct: rgb(173, 55, 138);
+    --color-enum: rgb(173, 55, 138);
+    --color-primitive: rgb(173, 55, 138);
+    --color-type-alias: rgb(173, 55, 138);
+    --color-trait: rgb(110, 79, 201);
 
     --code-background: #f5f5f5;
+
+    --heading-like-weight: 600;
+    --font-code: "Source Code Pro",monospace;
 }
 
 body {
     margin: 0;
+    line-height: 1.5;
 }
 
 main {
-    padding-left: 1em;
+    padding-left: 2em;
+    padding-right: 1em;
     padding-top: 1em;
+
+    margin: 0px auto;
+    max-width: 960px;
 }
 
 .item-heading {
@@ -33,9 +41,45 @@ section {
     padding-bottom: 10pt;
 }
 
+.impl-heading {
+    font-weight: "bold";
+    font-weight: var(--heading-like-weight);
+    font-family: var(--font-code);
+    font-size: 1.2em;
+}
+
+.impl-unit-head {
+    font-size: 1.1em;
+    font-weight: var(--heading-like-weight);
+    font-family: var(--font-code);
+}
+.impl-items {
+    padding-left: 0.5em
+}
+.impl-items > details > * {
+    margin-top: 0.5em;
+    margin-left: 1em;
+}
+.impl-items > details > summary {
+    margin: 0;
+}
+
+.impl-items > * {
+    margin-top: 0.5em;
+    margin-bottom: 1em;
+}
+
+pre {
+    overflow: scroll;
+    width: 100%;
+}
+
+code {
+    font-family: var(--font-code);
+}
+
 pre > code {
     display: inline-block;
-    width: 100%;
     padding: 8pt 10pt;
     font-size: 12pt;
 }
@@ -64,33 +108,40 @@ summary::-webkit-details-marker {
     display: none;
 }
 
-details > summary::before {
-    position: absolute;
-    content: "+";
-    left: -1em;
+details > summary.hideme::before {
+  position:relative;
 }
-details[open] > summary::before {
-    content: "-";
+details > summary:not(.hideme)::before {
+  position:absolute;
+  left:-24px;
+  top:4px;
 }
 
-details[open] > summary > span {
+details > summary {
+    cursor: pointer;
+}
+
+/* These are taken straight from rustdoc */
+details > summary::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    display: inline-block;
+    position: absolute;
+    left: -1em;
+    background: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 12 12" \ enable-background="new 0 0 12 12" xmlns="http://www.w3.org/2000/svg">\ <path d="M4,2l4,4l-4,4" stroke="black" fill="none" stroke-width="1px"/></svg>');
+}
+details[open] > summary.hidden-open-summary > span {
     display: none;
+}
+
+details[open] > summary::before {
+    background: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 12 12" \ enable-background="new 0 0 12 12" xmlns="http://www.w3.org/2000/svg">\ <path d="M2,4l4,4l4,-4" stroke="black" fill="none" stroke-width="1px"/></svg>');
 }
 
 .main_desc {
     margin-left: 1.5em;
-}
-
-@media (min-width: 768px) {
-    main {
-        width: 50vw;
-    }
-}
-
-@media (max-width: 767px) {
-    main {
-        width: 100vw;
-    }
 }
 
 .color-mod {
@@ -122,5 +173,6 @@ details[open] > summary > span {
 }
 
 .clean_ul {
+    padding: 0;
     list-style-type: none;
 }
