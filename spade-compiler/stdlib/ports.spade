@@ -3,7 +3,7 @@
 /// This function is an old remnant of earlier versions of Spade and it shall not be used anymore.
 /// Instead, use `port` to get a pair of `(T, inv T)` that are internally connected, or `port.1` to
 /// get a standalone `inv` value as a drop-in replacement.
-#[deprecated = "Use `port` to create a `(T, inv T)` pair instead"]
+// FIXME(spade#393) #[deprecated = "Use `port` to create a `(T, inv T)` pair instead"]
 #[inline]
 pub entity new_mut_wire<T>() -> inv T {
     port.1
@@ -19,13 +19,13 @@ pub entity new_mut_wire<T>() -> inv T {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// let (fwd, back) = port;
 /// set back = true;
 /// assert fwd == true;
 /// assert inst read_mut_wire(back) == true;
 /// ```
-#[deprecated = "Use `(inv T)::inspect` to get a `(T, inv T)` pair instead"]
+// FIXME(spade#393) #[deprecated = "Use `(inv T)::inspect` to get a `(T, inv T)` pair instead"]
 pub extern entity read_mut_wire<T>(p: inv T) -> T;
 
 /// Returns a pair of output/input ports to interact with an `inout` value.

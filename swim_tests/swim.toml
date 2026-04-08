@@ -2,7 +2,7 @@ name = "proj"
 
 verilog.sources = ["src/parametrized.sv"]
 
-preprocessing = ["./extract_stdlib_asserts.py > src/stdlib_asserts.spade"]
+preprocessing = ["./extract_stdlib_asserts.py src/stdlib_asserts.spade"]
 
 [compiler]
 path = ".."

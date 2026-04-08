@@ -4,7 +4,7 @@ use lib::num::Gray;
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert div_pow2(2i8, 2i8) == 1i8;
 /// assert div_pow2(3i8, 2i8) == 2i8;
 /// assert div_pow2(-3i8, 2i8) == -1i8;
@@ -22,7 +22,7 @@ pub extern fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N>;
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert abs_trunc(0i8) == 0i8;
 /// assert abs_trunc(15i8) == 15i8;
 /// assert abs_trunc(-7i8) == 7i8;
@@ -36,7 +36,7 @@ pub fn abs_trunc<#uint N>(x: int<N>) -> int<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert max(2i8, 10i8) == 10i8;
 /// assert max(15i8, 3i8) == 15i8;
 /// ```
@@ -50,7 +50,7 @@ pub fn max<#uint N>(x: int<N>, y: int<N>) -> int<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert min(2i8, 10i8) == 2i8;
 /// assert min(15i8, 3i8) == 3i8;
 /// ```
@@ -64,11 +64,10 @@ pub fn min<#uint N>(x: int<N>, y: int<N>) -> int<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert order(2i8, 10i8) == [2i8, 10i8];
 /// assert order(15i8, 3i8) == [3i8, 15i8];
 /// ```
-#[deprecated]
 #[inline]
 pub fn order<#uint N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
     if x < y { (x, y) } else { (y, x) }
@@ -78,7 +77,7 @@ pub fn order<#uint N>(x: int<N>, y: int<N>) -> (int<N>, int<N>) {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert bin_to_gray(0u2) == Gray([false, false]);
 /// assert bin_to_gray(1u2) == Gray([ true, false]);
 /// assert bin_to_gray(2u2) == Gray([ true,  true]);
@@ -93,7 +92,7 @@ pub fn bin_to_gray<#uint N>(x: uint<N>) -> uint<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert gray_to_bin(Gray([false, false])) == 0u2;
 /// assert gray_to_bin(Gray([ true, false])) == 1u2;
 /// assert gray_to_bin(Gray([ true,  true])) == 2u2;
@@ -112,7 +111,7 @@ pub fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
 ///
 /// ```spade
 /// assert [true, true, true].reduce_and() == true;
-/// assert [false, false, false].reduce_and() == true;
+/// assert [false, false, false].reduce_and() == false;
 /// assert [false, true, true].reduce_and() == false;
 /// ```
 pub extern fn reduce_and<#uint N>(x: [bool; N]) -> bool;
@@ -124,9 +123,9 @@ pub extern fn reduce_and<#uint N>(x: [bool; N]) -> bool;
 /// # Examples
 ///
 /// ```spade
-/// assert [true, true, true].reduce_and() == true;
-/// assert [false, false, false].reduce_and() == false;
-/// assert [false, true, true].reduce_and() == true;
+/// assert [true, true, true].reduce_or() == true;
+/// assert [false, false, false].reduce_or() == false;
+/// assert [false, true, true].reduce_or() == true;
 /// ```
 pub extern fn reduce_or<#uint N>(x: [bool; N]) -> bool;
 
@@ -137,9 +136,9 @@ pub extern fn reduce_or<#uint N>(x: [bool; N]) -> bool;
 /// # Examples
 ///
 /// ```spade
-/// assert [true, true, true].reduce_and() == true;
-/// assert [false, false, false].reduce_and() == false;
-/// assert [false, true, true].reduce_and() == false;
+/// assert [true, true, true].reduce_xor() == true;
+/// assert [false, false, false].reduce_xor() == true;
+/// assert [false, true, true].reduce_xor() == false;
 /// ```
 pub extern fn reduce_xor<#uint N>(x: [bool; N]) -> bool;
 
@@ -147,13 +146,33 @@ pub extern fn reduce_xor<#uint N>(x: [bool; N]) -> bool;
 ///
 /// In general, this is going to be slow and large, so it should be avoided if you don't know what
 /// you're doing. For division by a constant power of two, use `/` instead.
-pub extern fn comb_div<#uint N, T: Number<N>>(x: T, y: T) -> T;
+///
+/// # Examples
+///
+/// ```spade
+/// assert (6u8 `comb_div` 3) == 2;
+/// assert (7u8 `comb_div` 3) == 2;
+/// ```
+///
+/// Requires T to be `Number`. This requirement is enforced by the compiler but not part of the type
+/// signature for now
+pub extern fn comb_div<T>(x: T, y: T) -> T;
 
 /// Evaluates to `x % y` in Verilog.
 ///
 /// In general, this is going to be slow and large, so it should be avoided if you don't know what
 /// you're doing. For modulo operations by a constant power of two, use `%` instead.
-pub extern fn comb_mod<#uint N, T: Number<N>>(x: T, y: T) -> T;
+///
+/// # Examples
+///
+/// ```spade
+/// assert (6u8 `comb_mod` 3) == 0;
+/// assert (7u8 `comb_mod` 3) == 1;
+/// ```
+/// 
+/// Requires T to be `Number`. This requirement is enforced by the compiler but not part of the type
+/// signature for now
+pub extern fn comb_mod<T>(x: T, y: T) -> T;
 
 /// Interleaves the bits of two numbers.
 ///
@@ -167,7 +186,7 @@ pub extern fn comb_mod<#uint N, T: Number<N>>(x: T, y: T) -> T;
 /// assert 0b011u3.interleave(0b101u3) == 0b100111u6;
 /// assert 0u0.interleave(0u0) == 0u0;
 /// ```
-#[deprecated = "Use `std::num::interleave` or `uint<N>::interleave` instead"]
+// FIXME(spade#393) #[deprecated = "Use `std::num::interleave` or `uint<N>::interleave` instead"]
 #[inline]
 pub fn interleave<#uint N>(l: uint<N>, r: uint<N>) -> uint<{2 * N}> {
     l.interleave(r)

@@ -23,6 +23,18 @@ pub trait PartialEq {
     fn ne(self, rhs: Self) -> bool;
 }
 
+impl PartialEq for () {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
+
 impl PartialEq for bool {
     #[inline]
     fn eq(self, rhs: Self) -> bool {

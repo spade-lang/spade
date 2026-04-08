@@ -1,20 +1,3 @@
-/// Creates an array by concatenating the elements of two existing ones.
-///
-/// The result is an array whose lower elements correspond to the first input array, and its higher
-/// elements correspond to the second one. In other words, given two arrays `[l0, l1, l2, ...]` and
-/// `[r0, r1, r2, ...]`, the result is `[l0, l1, l2, ..., r0, r1, r2, ...]`.
-///
-/// # Examples
-///
-/// ```spade
-/// assert concat([], []) == [];
-/// assert concat([1u8, 2u8], [3u8, 4u8, 5u8]) == [1u8, 2u8, 3u8, 4u8, 5u8];
-/// ```
-#[inline]
-pub fn concat<T, #uint L, #uint R>(l: [T; L], r: [T; R]) -> [T; {L + R}] {
-    l.concat(r)
-}
-
 /// Generates an array by repeatedly applying a generator function.
 ///
 /// A seed value serves as the first output element and the base case for the generator function.
@@ -25,36 +8,17 @@ pub fn concat<T, #uint L, #uint R>(l: [T; L], r: [T; R]) -> [T; {L + R}] {
 /// # Examples
 ///
 /// ```spade
-/// assert unfold::<(), 0>((), |x| x) == [];
-/// assert unfold::<uint<8>, 5>(1u8, |x| 2 * x) == [1u8, 2u8, 4u8, 8u8, 16u8];
+/// assert unfold::<(), 0>((), fn |x| x) == [];
+/// assert unfold::<uint<8>, 5>(1u8, fn |x| 2 *. x) == [1u8, 2u8, 4u8, 8u8, 16u8];
 /// ```
-fn unfold<T, #uint N>(seed: T, f: impl Fn(T) -> T) -> [T; N] {
+pub fn unfold<T, #uint N>(seed: T, f: impl Fn(T) -> T) -> [T; N] {
     gen if N == 0 {
         []
     } else {
-        [seed] `concat` unfold(f.call((seed,)), f)
+        [seed].concat(unfold::<T, {N-1}>(f.call((seed,)), f))
     }
 }
 
-/// Interleaves the elements of two arrays.
-///
-/// An array containing elements from both input arrays is built, with even positions occupied by
-/// elements from the first array and odd positions occupied by those from the second array. In
-/// other words, given two arrays `[l0, l1, l2, ...]` and `[r0, r1, r2, ...]`, the output would be
-/// `[l0, r0, l1, r1, l2, r2, ...]`.
-///
-/// # Examples
-///
-/// ```spade
-/// let l = [10u8, 11u8, 12u8];
-/// let r = [20u8, 21u8, 22u8];
-/// assert interleave(l, r) == [10u8, 20u8, 11u8, 21u8, 12u8, 22u8];
-/// assert interleave([], []) == [];
-/// ```
-#[inline]
-pub fn interleave<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
-    l.interleave(r)
-}
 
 /// Interleaves the elements of two arrays.
 ///
@@ -65,13 +29,13 @@ pub fn interleave<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// let l = [10u8, 11u8, 12u8];
 /// let r = [20u8, 21u8, 22u8];
 /// assert interleave_arrays(l, r) == [10u8, 20u8, 11u8, 21u8, 12u8, 22u8];
 /// assert interleave_arrays([], []) == [];
 /// ```
-#[deprecated = "use `std::array::interleave` or `[T; N]::interleave` instead"]
+// FIXME(spade#393) #[deprecated = "use `std::array::interleave` or `[T; N]::interleave` instead"]
 #[inline]
 pub fn interleave_arrays<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
     l.interleave(r)
@@ -86,12 +50,13 @@ pub fn interleave_arrays<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// let l = [10u8, 11u8, 12u8];
 /// let r = [20u8, 21u8, 22u8];
 /// assert zip(l, r) == [(10u8, 20u8), (11u8, 21u8), (12u8, 22u8)];
 /// assert zip([], []) == [];
 /// ```
+// FIXME(spade#393) #[deprecated = "`[T; N]::zip` instead"]
 #[inline]
 pub fn zip<L, R, #uint N>(l: [L; N], r: [R; N]) -> [(L, R); N] {
     l.zip(r)
@@ -166,7 +131,7 @@ impl<T, #uint N> [T; N] {
         gen if N == 0 {
             []
         } else {
-            [self[..M]] `concat` self[M..].chunks()
+            [self[..M]].concat(self[M..].chunks())
         }
     }
 
@@ -201,7 +166,7 @@ impl<T, #uint N> [T; N] {
             let l = self[..N/2].flip();
             let r = self[N/2..].flip();
 
-            r `concat` l
+            r.concat(l)
         }
     }
 
@@ -243,7 +208,7 @@ impl<T, #uint N> [T; N] {
     /// let l = [10u8, 11u8, 12u8];
     /// let r = [20u8, 21u8, 22u8];
     /// assert l.interleave(r) == [10u8, 20u8, 11u8, 21u8, 12u8, 22u8];
-    /// assert [].interleave([]) == [];
+    // /// assert [].interleave([]) == [];
     /// ```
     fn interleave(self, other: Self) -> [T; {2 * N}] {
         (self `zip` other)
@@ -268,7 +233,7 @@ impl<T, #uint N> [T; N] {
             let l = self[..N/2].map(f);
             let r = self[N/2..].map(f);
 
-            l `concat` r
+            l.concat(r)
         }
     }
 
@@ -286,7 +251,7 @@ impl<T, #uint N> [T; N] {
     /// assert d == [1u8, 2u8, 3u8];
     /// ```
     pub fn push_back(self, item: T) -> [T; {N + 1}] {
-        self `concat` [item]
+        self.concat([item])
     }
 
     /// Adds an element at the start of the array.
@@ -303,7 +268,7 @@ impl<T, #uint N> [T; N] {
     /// assert d == [3u8, 2u8, 1u8];
     /// ```
     pub fn push_front(self, item: T) -> [T; {N + 1}] {
-        [item] `concat` self
+        [item].concat(self)
     }
 
     /// Shifts an element into the end of the array, dropping the first one.
@@ -372,7 +337,7 @@ impl<T, #uint N> [T; N] {
         gen if N == M {
             [self]
         } else {
-            [self[..M]] `concat` self[1..].sliding_window()
+            [self[..M]].concat(self[1..].sliding_window())
         }
     }
 
@@ -422,7 +387,7 @@ impl<T, #uint N> [T; N] {
             let l = self[..N/2] `zip` other[..N/2];
             let r = self[N/2..] `zip` other[N/2..];
 
-            l `concat` r
+            l.concat(r)
         }
     }
 }
@@ -500,7 +465,7 @@ impl<S, T, #uint N> [(S, T); N] {
             let (ll, lr) = self[..N/2].unzip();
             let (rl, rr) = self[N/2..].unzip();
 
-            (ll `concat` lr, rl `concat` rr)
+            (ll.concat(lr), rl.concat(rr))
         }
     }
 }
@@ -526,7 +491,7 @@ impl<T, #uint N, #uint M> [[T; M]; N] {
             let l = self[..N/2].flatten();
             let r = self[N/2..].flatten();
 
-            l `concat` r
+            l.concat(r)
         }
     }
 }

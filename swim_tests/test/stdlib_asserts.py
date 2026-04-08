@@ -1,4 +1,4 @@
-# top = stdlib_asserts
+# top = stdlib_asserts::stdlib_asserts
 
 
 import cocotb

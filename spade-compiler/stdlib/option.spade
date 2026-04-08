@@ -174,14 +174,26 @@ impl<T> Option<T> {
     /// output: | None | None    | Some([1, 2])  | None         | None    | Some([3, 4])
     /// ```
     pub entity chunks<#uint N>(self, clk: clock, rst: bool) -> Option<[T; N]> {
-        let window = self.padded_sliding_window(clk, rst, undef());
-
-        reg(clk) count: int<{int::bits_for(N-2)}> reset(rst: N-.2) = match self {
-            Some(_) if count < 0 => N -. 2,
-            Some(_) => count -. 1,
-            None => count,
+        reg(clk) count: uint<{uint::bits_for(N)}> reset(rst: 0) = match self {
+            Some(new) => {
+                if count + 1 == N {0} else {trunc(count + 1)}
+            },
+            None => {
+                count
+            }
         };
 
-        if count < 0 { window } else { None }
+        decl values;
+        let next_values = match self {
+            Some(new) => values[1..N].concat([new]),
+            None => values
+        };
+        reg(clk) values = next_values;
+
+        if count + 1 == N && self.is_some() {
+            Some(next_values)
+        } else {
+            None
+        }
     }
 }

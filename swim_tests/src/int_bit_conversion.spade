@@ -1,5 +1,5 @@
 fn index_int(val: int<8>, idx: uint<3>) -> bool {
-    let bits = std::conv::int_to_bits(val);
+    let bits = val.as_bits();
     bits[idx]
 }
 

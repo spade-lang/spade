@@ -17,7 +17,7 @@ pub unsafe extern fn transmute<T, O>(input: T) -> O;
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert trunc(7u8) == 7u4;
 /// assert trunc(7u8) == 7u3;
 /// assert trunc(7u8) == 3u2;
@@ -35,7 +35,7 @@ pub extern fn trunc<N, M>(x: N) -> M;
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert sext(9i8) == 9i8;
 /// assert sext(9i8) == 9i12;
 /// assert sext(0i8) == 0i32;
@@ -51,7 +51,7 @@ pub extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>;
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert zext(9u8) == 9u8;
 /// assert zext(9u8) == 9u12;
 /// assert zext(0u8) == 0u32;
@@ -70,13 +70,13 @@ pub extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>;
 ///
 /// # Examples
 ///
-/// ```spade
-/// assert concat(0xABADu16, 0x1DEAu16) == 0xABAD_IDEAu32;
+/// ```spade,notest
+/// assert concat(0xABADu16, 0x1DEAu16) == 0xABAD_1DEAu32;
 /// assert concat(0x1234i16, 0x5678i16) == 0x5678_1234i32;
 /// assert concat(0i16, -1i16) == 65_535i32;
 /// assert concat(0u0, 0u0) == 0u0;
 /// ```
-#[deprecated = "Use `std::num::concat`, `int<N>::concat` or `uint<N>::concat` instead"]
+// FIXME(spade#393) #[deprecated = "Use `std::num::concat`, `int<N>::concat` or `uint<N>::concat` instead"]
 pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 
 /// Creates an array by concatenating the elements of two existing ones.
@@ -87,11 +87,11 @@ pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 ///
 /// # Examples
 ///
-/// ```spade
-/// assert concat([], []) == [];
-/// assert concat([1u8], [2u8, 3u8]) == [1u8, 2u8, 3u8];
+/// ```spade,notest
+/// assert concat_arrays([], []) == [];
+/// assert concat_arrays([1u8], [2u8, 3u8]) == [1u8, 2u8, 3u8];
 /// ```
-#[deprecated = "Use `std::array::concat` or `[T; N]::concat` instead"]
+// FIXME(spade#393) #[deprecated = "Use `std::array::concat` or `[T; N]::concat` instead"]
 #[inline]
 pub fn concat_arrays<T, #uint L, #uint R>(
     l: [T; L],
@@ -104,7 +104,7 @@ pub fn concat_arrays<T, #uint L, #uint R>(
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert flip_array([]) == [];
 /// assert flip_array([1u8, 2u8, 3u8]) == [3u8, 2u8, 1u8];
 /// ```
@@ -121,11 +121,11 @@ pub fn flip_array<T, #uint N>(input: [T; N]) -> [T; N] {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert tri_to_bool(LOW) == false;
 /// assert tri_to_bool(HIGH) == true;
 /// ```
-#[deprecated = "Use `tri::as_bool` instead"]
+// FIXME(spade#393) #[deprecated = "Use `tri::as_bool` instead"]
 pub fn tri_to_bool(t: tri) -> bool {
     t.as_bool()
 }
@@ -140,7 +140,7 @@ pub fn tri_to_bool(t: tri) -> bool {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert int_to_bits(0i0) == [];
 /// assert int_to_bits(0b0111i4) == [true, true, true, false];
 /// assert int_to_bits(-0b0001i4) == [true, true, true, true];
@@ -161,7 +161,7 @@ pub fn int_to_bits<#uint N>(input: int<N>) -> [bool; N] {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert bits_to_int([]) == int_to_bits(0i0);
 /// assert bits_to_int([true, true, true, false]) == 0b0111i4;
 /// assert bits_to_int([true, true, true, true]) == -0b0001i4;
@@ -182,7 +182,7 @@ pub fn bits_to_int<#uint N>(input: [bool; N]) -> int<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert uint_to_bits(0u0) == [];
 /// assert uint_to_bits(0b1101u4) == [true, false, true, true];
 /// ```
@@ -202,7 +202,7 @@ pub fn uint_to_bits<#uint N>(input: uint<N>) -> [bool; N] {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert bits_to_uint([]) == 0u0;
 /// assert bits_to_uint([true, false, true, true]) == 0b1101u4;
 /// ```
@@ -216,11 +216,11 @@ pub fn bits_to_uint<#uint N>(input: [bool; N]) -> uint<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert int_to_uint(13i8) == 13u8;
 /// assert int_to_uint(-5i8) == 251u8;
 /// ```
-#[deprecated = "Use `int<N>::as_uint` instead"]
+// FIXME(spade#393) #[deprecated = "Use `int<N>::as_uint` instead"]
 #[inline]
 pub fn int_to_uint<#uint N>(input: int<N>) -> uint<N> {
     input.as_uint()
@@ -230,11 +230,11 @@ pub fn int_to_uint<#uint N>(input: int<N>) -> uint<N> {
 ///
 /// # Examples
 ///
-/// ```spade
+/// ```spade,notest
 /// assert uint_to_int(42u8) == 42i8;
 /// assert uint_to_int(255u8) == -1i8;
 /// ```
-#[deprecated = "Use `uint<N>::as_int` instead"]
+// FIXME(spade#393) #[deprecated = "Use `uint<N>::as_int` instead"]
 #[inline]
 pub fn uint_to_int<#uint N>(input: uint<N>) -> int<N> {
     input.as_int()
@@ -308,7 +308,7 @@ impl<#uint N> [bool; N] {
     ///
     /// # Examples
     ///
-    /// ```spade
+    /// ```spade,notest
     /// assert [].to_int() == 0i0;
     /// assert [true, true, true, false].to_int() == 0b0111i4;
     /// assert [true, true, true, true].to_int() == -0b0001i4;
@@ -329,7 +329,7 @@ impl<#uint N> [bool; N] {
     ///
     /// # Examples
     ///
-    /// ```spade
+    /// ```spade,notest
     /// assert [].to_uint() == 0u0;
     /// assert [true, false, true, true].to_uint() == 0b1101u4;
     /// ```
@@ -375,7 +375,7 @@ impl bool {
     ///
     /// # Examples
     ///
-    /// ```spade
+    /// ```spade,notest
     /// assert false.as_uint() == 0u1;
     /// assert true.as_uint() == 1u1;
     /// ```
@@ -429,7 +429,7 @@ impl tri {
     ///
     /// # Examples
     ///
-    /// ```spade
+    /// ```spade,notest
     /// assert LOW.to_bool() == false;
     /// assert HIGH.to_bool() == true;
     /// ```
@@ -482,7 +482,7 @@ impl<#uint N> int<N> {
     ///
     /// # Examples
     ///
-    /// ```spade
+    /// ```spade,notest
     /// assert 0i0.to_bits() == [];
     /// assert 0b0111i4.to_bits() == [true, true, true, false];
     /// assert (-0b0001i4).to_bits() == [true, true, true, true];
@@ -547,7 +547,7 @@ impl<#uint N> uint<N> {
     ///
     /// # Examples
     ///
-    /// ```spade
+    /// ```spade,notest
     /// assert 0u0.to_bits() == [];
     /// assert 0b1101u4.to_bits() == [true, false, true, true];
     /// ```

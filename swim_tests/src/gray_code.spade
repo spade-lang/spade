@@ -1,9 +1,6 @@
-use std::ops::bin_to_gray;
-use std::ops::gray_to_bin;
-
 entity to_gray4(x: uint<4>) -> uint<4> {
-    bin_to_gray(x)
+    x.to_gray().inner
 }
 entity from_gray4(x: uint<4>) -> uint<4> {
-    gray_to_bin(x)
+    std::num::Gray(x).to_uint()
 }

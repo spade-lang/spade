@@ -5,7 +5,7 @@ fn add(a: int<8>, b: int<8>) -> int<9> {
 
 #[no_mangle]
 fn large_output(a: uint<32>, b: uint<32>, c: uint<32>, d: uint<8>) -> uint<104> {
-    a `concat` b `concat` c `concat` d
+    a.concat(b).concat(c).concat(d)
 }
 
 #[no_mangle]
