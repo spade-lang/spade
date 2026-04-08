@@ -15,6 +15,29 @@
     --font-code: "Source Code Pro",monospace;
 }
 
+@media (prefers-color-scheme: dark) {
+    :root {
+        background-color: black;
+        color: rgb(230, 225, 207);
+
+        --code-background: #0f1419;
+
+        --color-mod: rgb(56, 115, 173);
+        --color-fn: rgb(253, 214, 135);
+        --color-entity: rgb(253, 214, 135);
+        --color-pipeline: rgb(253, 214, 135);
+        --color-struct: rgb(255, 160, 165);
+        --color-enum: rgb(255, 160, 165);
+        --color-primitive: rgb(255, 160, 165);
+        --color-type-alias: rgb(255, 160, 165);
+        --color-trait: rgb(57, 175, 215);
+    }
+
+    h1, h2, h3, h4 {
+        color: rgb(255, 255, 255);
+    }
+}
+
 body {
     margin: 0;
     font-size: 16px;
