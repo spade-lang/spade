@@ -222,8 +222,6 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
     };
 
     std::fs::create_dir_all(&gen_dir).or_report(&mut errors);
-    std::fs::write(&gen_dir.join("styles.css"), include_str!("./styles.css"))
-        .or_report(&mut errors);
     for (namespace, module_ast) in &module_asts {
         generator.current_dir = gen_dir.clone();
         for seg in &namespace.namespace.0 {
