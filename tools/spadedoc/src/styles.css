@@ -173,7 +173,19 @@ details[open] > summary::before {
     color: var(--color-trait);
 }
 
-.clean_ul {
+.item-table {
     padding: 0;
     list-style-type: none;
+}
+.item-table > dt > a {
+    font-family: var(--font-code)
+}
+.item-table > dd {
+    overflow-wrap: anywhere;
+}
+@media (min-width: 701px) {
+    .item-table {
+        display: grid;
+        grid-template-columns: 25% 75%;
+    }
 }

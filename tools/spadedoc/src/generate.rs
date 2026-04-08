@@ -1,8 +1,9 @@
 use camino::Utf8PathBuf;
+use itertools::Itertools;
 use pulldown_cmark::{Options, Parser};
 use spade_ast::{
-    self as ast, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration, TypeParam, TypeSpec, Unit,
-    UnitKind, WhereClause,
+    self as ast, AttributeList, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration, TypeParam,
+    TypeSpec, Unit, UnitKind, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -118,6 +119,30 @@ impl ItemKind {
     }
 }
 
+struct ItemListEntry<'a> {
+    name: &'a str,
+    short_description: String,
+}
+
+impl<'a> ItemListEntry<'a> {
+    pub fn new_without_doc(name: &'a str) -> Self {
+        ItemListEntry {
+            name: name,
+            short_description: String::new(),
+        }
+    }
+    pub fn new_with_doc(name: &'a str, attributes: &AttributeList) -> Self {
+        ItemListEntry {
+            name,
+            short_description: attributes
+                .merge_docs()
+                .lines()
+                .take_while(|line| !line.is_empty())
+                .join("\n"),
+        }
+    }
+}
+
 pub(crate) struct Generator {
     pub(crate) symtab: SymbolTable,
     pub(crate) current_dir: Utf8PathBuf,
@@ -132,7 +157,7 @@ pub(crate) struct Generator {
 
 impl Generator {
     pub fn doc_mod(&mut self, module: &ast::ModuleBody) -> DResult<()> {
-        let mut contents: BTreeMap<ItemKind, Vec<&'static str>> = BTreeMap::new();
+        let mut contents: BTreeMap<ItemKind, Vec<ItemListEntry>> = BTreeMap::new();
 
         // We collect all items in this module body for its description and generate
         // the item pages along the way.
@@ -145,19 +170,29 @@ impl Generator {
                         TypeDeclKind::Alias(_) => ItemKind::TypeAlias,
                     };
                     let name = t.name.as_str();
-                    contents.entry(kind).or_default().push(name);
+                    contents
+                        .entry(kind)
+                        .or_default()
+                        .push(ItemListEntry::new_without_doc(name));
 
                     self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t))?;
                 }
                 ast::Item::ExternalMod(m) => {
                     let name = m.name.as_str();
-                    contents.entry(ItemKind::Module).or_default().push(name);
+                    contents
+                        .entry(ItemKind::Module)
+                        .or_default()
+                        .push(ItemListEntry::new_with_doc(name, &m.attributes));
+
                     // Don't need to generate stuff here as external mods have their own file and
                     // will thus be documented by the spadedoc main file iterator
                 }
                 ast::Item::Module(m) => {
                     let name = m.name.as_str();
-                    contents.entry(ItemKind::Module).or_default().push(name);
+                    contents
+                        .entry(ItemKind::Module)
+                        .or_default()
+                        .push(ItemListEntry::new_with_doc(name, &m.attributes));
 
                     self.symtab.push_namespace(PathSegment::Named(m.name));
                     self.current_dir.push(name);
@@ -179,12 +214,20 @@ impl Generator {
                         UnitKind::Pipeline(_) => ItemKind::Pipeline,
                     };
                     let name = u.head.name.as_str();
-                    contents.entry(kind).or_default().push(name);
+                    contents
+                        .entry(kind)
+                        .or_default()
+                        .push(ItemListEntry::new_with_doc(name, &u.head.attributes));
+
                     self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u))?;
                 }
                 ast::Item::TraitDef(t) => {
                     let name = t.name.as_str();
-                    contents.entry(ItemKind::Trait).or_default().push(name);
+                    contents
+                        .entry(ItemKind::Trait)
+                        .or_default()
+                        .push(ItemListEntry::new_with_doc(name, &t.attributes));
+
                     self.describe(FileName::Item(name), |g, b| g.doc_trait(b, &t))?;
                 }
                 ast::Item::Use(_, _) => {}
@@ -209,44 +252,54 @@ impl Generator {
                     collapsible(b, &["main_desc"], md.write())
                 })?;
                 for (kind, mut entries) in contents {
-                    entries.sort();
+                    entries.sort_by_key(|e| e.name);
                     b.tag("section", |b| {
                         b.tag("h3", |b| {
                             fwrite!(b, kind.plural());
                             Ok(())
                         })?;
-                        b.styled_tag("ul", &["clean_ul"], |b| {
+                        b.styled_tag("dl", &["item-table"], |b| {
                             if kind == ItemKind::Module {
-                                for name in entries {
-                                    b.tag("li", |b| {
+                                for entry in entries {
+                                    b.tag("dt", |b| {
                                         fwrite!(
                                             b,
                                             "<a class=\"",
                                             ItemKind::Module.color_class(),
                                             "\" href=\"",
-                                            &name,
+                                            &entry.name,
                                             "/index.html\">",
-                                            &name,
+                                            &entry.name,
                                             "</a>"
                                         );
                                         Ok(())
                                     })?;
+                                    b.tag("dd", |b| {
+                                        write_markdown(&entry.short_description, |md| {
+                                            (md.write())(b)
+                                        })
+                                    })?;
                                 }
                                 Ok(())
                             } else {
-                                for name in entries {
-                                    b.tag("li", |b| {
+                                for entry in entries {
+                                    b.tag("dt", |b| {
                                         fwrite!(
                                             b,
                                             "<a class=\"",
                                             kind.color_class(),
                                             "\" href=\"item.",
-                                            &name,
+                                            &entry.name,
                                             ".html\">",
-                                            &name,
+                                            &entry.name,
                                             "</a>"
                                         );
                                         Ok(())
+                                    })?;
+                                    b.tag("dd", |b| {
+                                        write_markdown(&entry.short_description, |md| {
+                                            (md.write())(b)
+                                        })
                                     })?;
                                 }
                                 Ok(())
@@ -553,6 +606,10 @@ impl Generator {
         node.tag("html", |html| {
             html.tag("head", |head| {
                 fwrite!(head, r#"<meta charset="utf-8">"#);
+                fwrite!(
+                    head,
+                    r#"<meta name="viewport" content="width=device-width,initial-scale=1">"#
+                );
                 fwrite!(head, r#"<link rel="stylesheet" href="styles.css">"#);
                 head.tag("title", |t| {
                     let ns = &self.symtab.current_namespace().0;
