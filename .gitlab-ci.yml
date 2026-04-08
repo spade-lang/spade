@@ -404,10 +404,12 @@ build:wheel-manylinux:
     - mkdir -p spade/bin
     - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade spade/bin
     - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade-language-server spade/bin
+    - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spadedoc spade/bin
   artifacts:
     paths:
       - spade/bin/spade
       - spade/bin/spade-language-server
+      - spade/bin/spadedoc
     
 build:static-main:
   extends: [.build:static, .artifact-main]
