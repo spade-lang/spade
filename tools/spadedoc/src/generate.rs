@@ -125,6 +125,7 @@ struct ItemListEntry<'a> {
 }
 
 impl<'a> ItemListEntry<'a> {
+    #[allow(dead_code)]
     pub fn new_without_doc(name: &'a str) -> Self {
         ItemListEntry {
             name: name,
@@ -165,16 +166,16 @@ impl Generator {
         for item in &module.members {
             match item {
                 ast::Item::Type(t) => {
-                    let kind = match &t.kind {
-                        TypeDeclKind::Enum(_) => ItemKind::Enum,
-                        TypeDeclKind::Struct(_) => ItemKind::Struct,
-                        TypeDeclKind::Alias(_) => ItemKind::TypeAlias,
+                    let (kind, attrs) = match &t.kind {
+                        TypeDeclKind::Enum(e) => (ItemKind::Enum, &e.attributes),
+                        TypeDeclKind::Struct(s) => (ItemKind::Struct, &s.attributes),
+                        TypeDeclKind::Alias(a) => (ItemKind::TypeAlias, &a.attributes),
                     };
                     let name = t.name.as_str();
                     contents
                         .entry(kind)
                         .or_default()
-                        .push(ItemListEntry::new_without_doc(name));
+                        .push(ItemListEntry::new_with_doc(name, attrs));
 
                     self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t))?;
                 }
