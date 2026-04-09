@@ -50,7 +50,7 @@ impl Generator {
         fwrite!(b, " {");
 
         for variant in &e.variants {
-            fwrite!(b, "<br>&emsp;", variant.name.as_str());
+            fwrite!(b, "<br>    ", variant.name.as_str());
             if let Some(fields) = &variant.args {
                 fwrite!(b, " { ");
                 self.print_parameter_list(b, fields)?;
@@ -92,7 +92,7 @@ impl Generator {
         fwrite!(b, " {");
 
         for (_attrs, _wire, name, ty) in &s.members.args {
-            fwrite!(b, "<br>&emsp;");
+            fwrite!(b, "<br>    ");
             fwrite!(b, name.as_str(), ": ");
             self.print_type_spec(b, &ty.inner)?;
             fwrite!(b, ",");
@@ -167,7 +167,7 @@ impl Generator {
         if !clauses.is_empty() {
             fwrite!(b, "<br>where");
             for clause in clauses {
-                fwrite!(b, "<br>&emsp;");
+                fwrite!(b, "<br>    ");
                 match clause {
                     spade_ast::WhereClause::GenericInt {
                         target,
@@ -347,11 +347,30 @@ impl Generator {
     pub(crate) fn print_trait_spec(&self, b: &mut Node<'_>, spec: &TraitSpec) -> DResult<()> {
         self.print_path(b, &spec.path)?;
         if let Some(args) = &spec.type_params {
-            fwrite!(b, "&lt;");
-            separated(b, ", ", args.inner.iter(), |b, expr| {
-                self.print_type_expr(b, &expr.inner)
-            })?;
-            fwrite!(b, "&gt;");
+            if spec.paren_syntax {
+                // In paren syntax, the last two entries are written as (A) -> B
+                let [other @ .., args, ret] = args.as_slice() else {
+                    panic!("traitspec paren syntax but not >= 2 type args"); // FIXME: better error handling
+                };
+
+                if !other.is_empty() {
+                    fwrite!(b, "&lt;");
+                    separated(b, ", ", other.iter(), |b, expr| {
+                        self.print_type_expr(b, &expr.inner)
+                    })?;
+                    fwrite!(b, "&gt;");
+                }
+
+                self.print_type_expr(b, &args)?;
+                fwrite!(b, " -&gt; ");
+                self.print_type_expr(b, &ret)?;
+            } else {
+                fwrite!(b, "&lt;");
+                separated(b, ", ", args.inner.iter(), |b, expr| {
+                    self.print_type_expr(b, &expr.inner)
+                })?;
+                fwrite!(b, "&gt;");
+            }
         }
         Ok(())
     }
