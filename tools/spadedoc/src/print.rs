@@ -5,8 +5,8 @@ use crate::{
     html::Node,
 };
 use spade_ast::{
-    BinaryOperator, Enum, Expression, ParameterList, Struct, TraitSpec, TypeExpression, TypeParam,
-    TypeSpec, UnaryOperator, UnitHead, WhereClause,
+    BinaryOperator, Enum, Expression, ParameterList, Struct, TraitDef, TraitSpec, TypeExpression,
+    TypeParam, TypeSpec, UnaryOperator, UnitHead, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -39,13 +39,7 @@ impl Generator {
 
         fwrite!(b, e.name.as_str());
 
-        if let Some(params) = generic_args {
-            fwrite!(b, "&lt;");
-            separated(b, ", ", params.iter(), |b, p| {
-                self.print_type_param(b, &p.inner)
-            })?;
-            fwrite!(b, "&gt;");
-        }
+        self.print_type_params(b, generic_args)?;
 
         fwrite!(b, " {");
 
@@ -81,13 +75,7 @@ impl Generator {
 
         fwrite!(b, s.name.as_str());
 
-        if let Some(params) = generic_args {
-            fwrite!(b, "&lt;");
-            separated(b, ", ", params.iter(), |b, p| {
-                self.print_type_param(b, &p.inner)
-            })?;
-            fwrite!(b, "&gt;");
-        }
+        self.print_type_params(b, generic_args)?;
 
         fwrite!(b, " {");
 
@@ -99,6 +87,47 @@ impl Generator {
         }
 
         if s.members.args.is_empty() {
+            fwrite!(b, "}");
+        } else {
+            fwrite!(b, "<br>}");
+        }
+
+        Ok(())
+    }
+
+    pub fn print_trait_def(&self, b: &mut Node<'_>, def: &TraitDef) -> DResult<()> {
+        self.print_visibility(b, &def.visibility)?;
+
+        fwrite!(b, "trait ");
+
+        fwrite!(b, def.name.as_str());
+
+        self.print_type_params(b, &def.type_params)?;
+
+        if !def.subtraits.is_empty() {
+            fwrite!(b, ": ");
+            separated(b, " + ", def.subtraits.iter(), |b, sub_spec| {
+                self.print_trait_spec(b, sub_spec)
+            })?;
+        }
+
+        self.print_where_clauses(b, &def.where_clauses)?;
+
+        fwrite!(b, " {");
+
+        for assoc in &def.assoc_types {
+            fwrite!(b, "<br>    type ", assoc.name.as_str());
+            self.print_type_params(b, &assoc.type_params)?;
+            fwrite!(b, ";");
+        }
+
+        for method in &def.methods {
+            fwrite!(b, "<br>    ");
+            self.print_unit_head(b, method)?;
+            fwrite!(b, ";");
+        }
+
+        if def.assoc_types.is_empty() && def.methods.is_empty() {
             fwrite!(b, "}");
         } else {
             fwrite!(b, "<br>}");
@@ -138,13 +167,7 @@ impl Generator {
             fwrite!(b, unit.name.as_str());
             Ok(())
         })?;
-        if let Some(params) = &unit.type_params {
-            fwrite!(b, "&lt;");
-            separated(b, ", ", params.iter(), |b, p| {
-                self.print_type_param(b, &p.inner)
-            })?;
-            fwrite!(b, "&gt;");
-        }
+        self.print_type_params(b, &unit.type_params)?;
         fwrite!(b, "(");
         self.print_parameter_list(b, &unit.inputs)?;
         fwrite!(b, ")");
@@ -217,6 +240,22 @@ impl Generator {
             // not reproducible from ast either
             Visibility::AtSuperSuper => unreachable!(),
         }
+        Ok(())
+    }
+
+    pub(crate) fn print_type_params(
+        &self,
+        b: &mut Node<'_>,
+        inner: &Option<Loc<Vec<Loc<TypeParam>>>>,
+    ) -> DResult<()> {
+        if let Some(params) = inner {
+            fwrite!(b, "&lt;");
+            separated(b, ", ", params.iter(), |b, p| {
+                self.print_type_param(b, &p.inner)
+            })?;
+            fwrite!(b, "&gt;");
+        }
+
         Ok(())
     }
 

@@ -470,13 +470,13 @@ impl Generator {
     }
 
     fn doc_trait(&mut self, body: &mut Node<'_>, t: &Loc<TraitDef>) -> DResult<()> {
+        let doc = t.attributes.merge_docs();
+
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Trait, t.name.as_str())?;
-
-            for unit in &t.methods {
-                body.tag("section", |body| self.print_unit_head(body, &unit))?;
-            }
+            self.in_codeblock(body, |b| self.print_trait_def(b, &t))?;
+            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
         })
