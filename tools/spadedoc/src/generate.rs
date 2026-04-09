@@ -491,6 +491,72 @@ impl Generator {
             write_title(body, ItemKind::Primitive, m.name.as_str())?;
             write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
+            enum ImplSearch {
+                Named(&'static str),
+                None,
+            }
+            let search = match m.name.as_str() {
+                "bool" => ImplSearch::Named("bool"),
+                "clock" => ImplSearch::Named("clock"),
+                "inout" => ImplSearch::Named("inout"),
+                "int" => ImplSearch::Named("int"),
+                "tri" => ImplSearch::Named("tri"),
+                "uint" => ImplSearch::Named("uint"),
+                _ => ImplSearch::None,
+            };
+            let impls = match search {
+                ImplSearch::Named(s) => {
+                    let nameid = self
+                        .symtab
+                        .lookup_id_in_namespace(
+                            &Path::from_strs(&[s]).nowhere(),
+                            &Path::from_strs(&[]),
+                            false,
+                        )
+                        .unwrap();
+                    self.impls.for_type.get(&nameid).cloned()
+                }
+                ImplSearch::None => None,
+            };
+            // (Trait) implementation blocks
+            if let Some((direct, traits)) = impls {
+                if !direct.is_empty() {
+                    body.tag("h2", |b| {
+                        fwrite!(b, "Implementations");
+                        Ok(())
+                    })?;
+                }
+
+                for d in direct {
+                    self.impl_block(
+                        body,
+                        &d.type_params,
+                        None,
+                        &d.target,
+                        &d.units,
+                        &d.where_clauses,
+                    )?;
+                }
+
+                if !traits.is_empty() {
+                    body.tag("h2", |b| {
+                        fwrite!(b, "Trait Implementations");
+                        Ok(())
+                    })?;
+                }
+
+                for t in traits {
+                    self.impl_block(
+                        body,
+                        &t.type_params,
+                        Some(&t.r#trait),
+                        &t.target,
+                        &t.units,
+                        &t.where_clauses,
+                    )?;
+                }
+            }
+
             Ok(())
         })
     }
