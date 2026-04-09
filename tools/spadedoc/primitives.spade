@@ -27,7 +27,7 @@ mod inout;
 
 
 /// Inverted version of a type where the `T` and `inv T` fields of a non-`Data`/port struct are changed.
-mod inv;
+mod r#inv;
 
 mod array;
 
