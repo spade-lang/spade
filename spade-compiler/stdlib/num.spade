@@ -12,7 +12,6 @@ pub fn abs<#uint N>(x: int<N>) -> uint<N> {
     x.abs()
 }
 
-// TODO: Fix codegen bugs
 /// Creates an integer by concatenating the bits of two existing ones.
 ///
 /// The result is an integer whose higher bits correspond to the first input integer, and its lower
@@ -29,7 +28,7 @@ pub fn abs<#uint N>(x: int<N>) -> uint<N> {
 /// assert std::num::concat(0xABADu16, 0x1DEAu16) == 0xABAD_1DEAu32;
 /// assert std::num::concat(0x1234i16, 0x5678i16) == 0x1234_5678i32;
 /// assert std::num::concat(0i16, -1i16) == 65_535i32;
-/// // assert std::num::concat(0u0, 0u0) == 0u0;
+/// assert std::num::concat(0u0, 0u0) == 0u0;
 /// ```
 // This is special cased by the compiler. If Spade was able to express its actual type, it would be:
 // `concat<#uint N, #uint M, T: Number<N>>(x: T, T::Resized<M>) -> T::Resized<{N + M}>`.
@@ -179,7 +178,6 @@ impl<#uint N> uint<N> {
         concat(self, other)
     }
 
-    // TODO: Re-enable the tests here and root cause them
     /// Interleaves the bits of two numbers.
     ///
     /// A number containing bits from both input numbers is built, with even positions occupied by
@@ -189,7 +187,7 @@ impl<#uint N> uint<N> {
     /// # Examples
     ///
     /// ```spade
-    /// // assert 0b011u3.interleave(0b101u3) == 0b100111u6;
+    /// assert 0b011u3.interleave(0b101u3) == 0b100111u6;
     /// ```
     pub fn interleave(self, other: Self) -> uint<{2 * N}> {
         self.as_bits().interleave(other.as_bits()).as_uint()
@@ -350,7 +348,6 @@ impl<#uint N> Gray<N> {
         self.inner.as_bits()
     }
 
-    // TODO: Test more than these two levels
     /// Decodes a Gray-code number back into binary.
     ///
     /// # Examples
@@ -360,6 +357,8 @@ impl<#uint N> Gray<N> {
     /// assert Gray([ true, false]).to_uint() == 1u2;
     /// assert Gray([ true,  true]).to_uint() == 2u2;
     /// assert Gray([false,  true]).to_uint() == 3u2;
+    ///
+    /// assert 20u8.to_gray().to_uint() == 20u8;
     /// ```
     fn to_uint(self) -> uint<N> {
         gray_to_bin_impl(self.inner)
@@ -376,7 +375,6 @@ fn gray_to_bin_impl<#uint N>(gray: uint<N>) -> uint<N> {
     } else {
         // FIXME: This type inference is a bit weird, We should be able to infer the
         // width of the zero
-        // TODO: Investigate if this is a regression
         let zeros: uint<{N-1}> = 0;
         let high_bit: uint<N> = gray & (1_u1 `concat` zeros);
         let lower_gray: uint<{N - 1}> = trunc(gray ^ (high_bit >> 1));

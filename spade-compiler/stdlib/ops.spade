@@ -174,7 +174,6 @@ pub extern fn comb_div<T>(x: T, y: T) -> T;
 /// signature for now
 pub extern fn comb_mod<T>(x: T, y: T) -> T;
 
-// TODO: Fix codegen bug
 /// Interleaves the bits of two numbers.
 ///
 /// A number containing bits from both input numbers is built, with even positions occupied by bits
@@ -185,7 +184,7 @@ pub extern fn comb_mod<T>(x: T, y: T) -> T;
 ///
 /// ```spade
 /// assert 0b011u3.interleave(0b101u3) == 0b100111u6;
-/// // assert 0u0.interleave(0u0) == 0u0;
+/// assert 0u0.interleave(0u0) == 0u0;
 /// ```
 // FIXME(spade#393) #[deprecated = "Use `std::num::interleave` or `uint<N>::interleave` instead"]
 #[inline]
