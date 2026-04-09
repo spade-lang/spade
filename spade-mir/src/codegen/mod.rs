@@ -229,25 +229,41 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
     let name = binding.name.var_name();
 
     macro_rules! binop {
-        ($verilog:expr) => {{
+        ($verilog:expr $(; zst => $on_zero:expr)?) => {{
             assert!(
                 binding.operands.len() == 2,
                 "expected 2 operands to binary operator"
             );
-            format!("{} {} {}", op_names[0], $verilog, op_names[1])
+            #[allow(unused_mut)]
+            let mut result = format!("{} {} {}", op_names[0], $verilog, op_names[1]);
+
+            $(
+                if types[&ops[0]].size() == BigUint::ZERO {
+                    result = $on_zero.to_string();
+                }
+            )?
+            result
         }};
     }
 
     macro_rules! signed_binop {
-        ($verilog:expr) => {{
+        ($verilog:expr $(; zst => $on_zero:expr)?) => {{
             assert!(
                 binding.operands.len() == 2,
                 "expected 2 operands to binary operator"
             );
-            format!(
+            #[allow(unused_mut)]
+            let mut result = format!(
                 "$signed({}) {} $signed({})",
                 op_names[0], $verilog, op_names[1]
-            )
+            );
+
+            $(
+                if types[&ops[0]].size() == BigUint::ZERO {
+                    result = $on_zero.to_string();
+                }
+            )?
+            result
         }};
     }
 
@@ -272,16 +288,16 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
         Operator::UnsignedDiv => binop!("/"),
         Operator::Mod => signed_binop!("%"),
         Operator::UnsignedMod => binop!("%"),
-        Operator::Eq => binop!("=="),
-        Operator::NotEq => binop!("!="),
-        Operator::Gt => signed_binop!(">"),
-        Operator::UnsignedGt => binop!(">"),
-        Operator::Lt => signed_binop!("<"),
-        Operator::UnsignedLt => binop!("<"),
-        Operator::Ge => signed_binop!(">="),
-        Operator::UnsignedGe => binop!(">="),
-        Operator::Le => signed_binop!("<="),
-        Operator::UnsignedLe => binop!("<="),
+        Operator::Eq => binop!("=="; zst => "1'b1"), // Zero size types are equal
+        Operator::NotEq => binop!("!="; zst => "1'b0"),
+        Operator::Gt => signed_binop!(">"; zst => "1'b0"),
+        Operator::UnsignedGt => binop!(">"; zst => "1'b0"),
+        Operator::Lt => signed_binop!("<"; zst => "1'b0"),
+        Operator::UnsignedLt => binop!("<"; zst => "1'b0"),
+        Operator::Ge => signed_binop!(">="; zst => "1'b1"),
+        Operator::UnsignedGe => binop!(">="; zst => "1'b1"),
+        Operator::Le => signed_binop!("<="; zst => "1'b1"),
+        Operator::UnsignedLe => binop!("<="; zst => "1'b1"),
         Operator::LeftShift => binop!("<<"),
         Operator::RightShift => binop!(">>"),
         Operator::ArithmeticRightShift => signed_binop!(">>>"),

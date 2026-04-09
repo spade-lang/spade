@@ -1,4 +1,4 @@
-// TODO: Fix codegen bug
+// TODO: Make this a method on arrays instead of a free standing function
 /// Generates an array by repeatedly applying a generator function.
 ///
 /// A seed value serves as the first output element and the base case for the generator function.
@@ -9,7 +9,7 @@
 /// # Examples
 ///
 /// ```spade
-/// // assert unfold::<(), 0>((), fn |x| x) == [];
+/// assert unfold::<(), 0>((), fn |x| x) == [];
 /// assert unfold::<uint<8>, 5>(1u8, fn |x| 2 *. x) == [1u8, 2u8, 4u8, 8u8, 16u8];
 /// ```
 pub fn unfold<T, #uint N>(seed: T, f: impl Fn(T) -> T) -> [T; N] {
