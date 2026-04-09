@@ -1,10 +1,28 @@
-/// Emits a pulse the cycle when a `bool` value changes from `true` to `false`.
+/// Emits a single cycle pulse the cycle a `bool` value changes from `false` to `true`.
+///
+/// ```
+///          ____  ____  ____  ____  ____  ____  ____  ____    
+/// clk    __|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__
+///                ___________________     _______
+/// value  ________|                 |_____|     |___________
+///                _______                 _______
+/// result ________|     |_________________|     |___________
+/// ```
 pub entity rising_edge(clk: clock, value: bool) -> bool {
     reg(clk) old_value = value;
     value && !old_value
 }
 
-/// Emits a pulse the cycle when a `bool` value changes from `true` to `false`.
+/// Emits a single cycle pulse the cycle a `bool` value changes from `true` to `false`.
+///
+/// ```
+///          ____  ____  ____  ____  ____  ____  ____  ____    
+/// clk    __|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__
+///        _________                 _______     ____________
+/// value          |_________________|     |_____|
+///                _______                 _______
+/// result ________|     |_________________|     |__________
+/// ```
 pub entity falling_edge(clk: clock, value: bool) -> bool {
     reg(clk) old_value = value;
     value && !old_value

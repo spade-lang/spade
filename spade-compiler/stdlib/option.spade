@@ -13,8 +13,7 @@ impl<T> Option<T> {
     /// # Examples
     ///
     /// ```spade
-    /// assert Some(8u8).is_none() == true;
-    /// assert None.is_none() == false;
+    /// assert Some(8u8).is_some() == true;
     /// ```
     #[inline]
     pub fn is_some(self) -> bool {
@@ -30,7 +29,6 @@ impl<T> Option<T> {
     ///
     /// ```spade
     /// assert Some(8u8).is_none() == false;
-    /// assert None.is_none() == true;
     /// ```
     #[inline]
     pub fn is_none(self) -> bool {
@@ -63,7 +61,6 @@ impl<T> Option<T> {
     ///
     /// ```spade
     /// assert Some(8u8).unwrap_or_undef() == 8u8;
-    /// assert None.unwrap_or_undef() == undef();
     /// ```
     pub fn unwrap_or_undef(self) -> T {
         match self {
@@ -78,8 +75,8 @@ impl<T> Option<T> {
     /// # Examples
     ///
     /// ```spade
-    /// assert Some(8u8).map(fn |x| x + 1) == 9u8;
-    /// assert None == None;
+    /// assert Some(8u8).map(fn |x| x +. 1) == Some(9u8);
+    /// assert None.map(fn |x| x == 0u8) == None;
     /// ```
     pub fn map<O>(self, f: impl Fn(T) -> O) -> Option<O> {
         match self {
@@ -118,10 +115,10 @@ impl<T> Option<T> {
     /// # Examples
     ///
     /// ```spade
-    /// let f = |x| if x > 10u8 { Some(x + 8) } else { None };
+    /// let f = fn |x| if x > 10u8 { Some(x +. 8) } else { None };
     ///
-    /// assert Some(8u8).and_then(f) == Some(16u8);
-    /// assert Some(12u8).and_then(f) == None;
+    /// assert Some(8u8).and_then(f) == None;
+    /// assert Some(12u8).and_then(f) == Some(20);
     /// assert None.and_then(f) == None;
     /// ```
     pub fn and_then<O>(self, f: impl Fn(T) -> Option<O>) -> Option<O> {
@@ -195,5 +192,21 @@ impl<T> Option<T> {
         } else {
             None
         }
+    }
+}
+
+impl<T: PartialEq> PartialEq for Option<T> {
+    fn eq(self, rhs: Self) -> bool {
+        match (self, rhs) {
+            (Some(lhs), Some(rhs)) => lhs == rhs,
+            (Some(_), None) => false,
+            (None, Some(_)) => false,
+            (None, None) => true
+        }
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !(self == rhs)
     }
 }

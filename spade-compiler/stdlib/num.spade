@@ -110,7 +110,7 @@ impl<#uint N> int<N> {
     /// # Examples
     ///
     /// ```spade
-    /// assert 0x1234i16.concat(0x5678i16) == 0x5678_1234i32;
+    /// assert 0x1234i16.concat(0x5678i16) == 0x1234_5678i32;
     /// assert 0i16.concat(-1i16) == 65_535i32;
     /// assert 0i0.concat(0i0) == 0i0;
     /// ```
@@ -123,7 +123,7 @@ impl<#uint N> int<N> {
     /// # Examples
     ///
     /// ```spade
-    /// assert 2i8.max(10i8) == 10u8;
+    /// assert 2i8.max(10i8) == 10i8;
     /// assert 15i8.max(3i8) == 15i8;
     /// ```
     pub fn max(self, other: Self) -> Self {
@@ -135,7 +135,7 @@ impl<#uint N> int<N> {
     /// # Examples
     ///
     /// ```spade
-    /// assert 2i8.min(10i8) == 2u8;
+    /// assert 2i8.min(10i8) == 2i8;
     /// assert 15i8.min(3i8) == 3i8;
     /// ```
     pub fn min(self, other: Self) -> Self {
@@ -151,8 +151,8 @@ impl<#uint N> int<N> {
     ///
     /// ```spade
     /// assert 7i8.trunc() == 7i4;
-    /// assert 7i8.trunc() == 7i3;
-    /// assert 7i8.trunc() == 3i2;
+    /// assert 7i8.trunc() == -1i3;
+    /// assert 7i8.trunc() == -1i2;
     /// assert (-8i8).trunc() == -8i4;
     /// assert (-8i8).trunc() == 0i3;
     /// ```
@@ -171,7 +171,7 @@ impl<#uint N> uint<N> {
     /// # Examples
     ///
     /// ```spade
-    /// assert 0xABADu16.concat(0x1DEAu16) == 0xABAD_IDEAu32;
+    /// assert 0xABADu16.concat(0x1DEAu16) == 0xABAD_1DEAu32;
     /// assert 0u0.concat(0u0) == 0u0;
     /// ```
     pub fn concat<#uint M>(self, other: uint<M>) -> uint<{N + M}> {
@@ -238,10 +238,10 @@ impl<#uint N> uint<N> {
     /// # Examples
     ///
     /// ```spade
-    /// assert 0u2.to_gray() == Gray([false, false]);
-    /// assert 1u2.to_gray() == Gray([ true, false]);
-    /// assert 2u2.to_gray() == Gray([ true,  true]);
-    /// assert 3u2.to_gray() == Gray([false,  true]);
+    /// assert 0u2.to_gray() == std::num::Gray(0b00);
+    /// assert 1u2.to_gray() == std::num::Gray(0b01);
+    /// assert 2u2.to_gray() == std::num::Gray(0b11);
+    /// assert 3u2.to_gray() == std::num::Gray(0b10);
     /// ```
     pub fn to_gray(self) -> Gray<N> {
         Gray((self >>. 1) ^ self)
@@ -249,78 +249,78 @@ impl<#uint N> uint<N> {
 }
 
 impl<#uint N> int<N> where N > 0 {
-    // Returns the value of the most significant bit (also the sign bit).
-    //
-    // Equivalent to `int<N>::sign_bit`.
-    //
-    // # Examples
-    //
-    // ```spade
-    // assert 0i8.leftmost_bit() == false; // 0b0000_0000
-    // assert 15i8.leftmost_bit() == false; // 0b0000_1111
-    // assert (-7i8).leftmost_bit() == true; // 0b1111_1001
-    // ```
-    pub fn leftmost_bit(self) -> bool {
+    /// Returns the value of the most significant bit (also the sign bit).
+    ///
+    /// Equivalent to `int<N>::sign_bit`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0i8.msb() == false; // 0b0000_0000
+    /// assert 15i8.msb() == false; // 0b0000_1111
+    /// assert (-7i8).msb() == true; // 0b1111_1001
+    /// ```
+    pub fn msb(self) -> bool {
         self.as_bits().last()
     }
 
-    // Returns the value of the least significant bit.
-    //
-    // # Examples
-    //
-    // ```spade
-    // assert 0i8.rightmost_bit() == false; // 0b0000_0000
-    // assert 1i8.rightmost_bit() == true; // 0b0000_0001
-    // assert 16i8.rightmost_bit() == false; // 0b0001_0000
-    // assert (-1i8).rightmost_bit() == true; // 0b1111_1111
-    // assert (-8i8).rightmost_bit() == false; // 0b1111_1000
-    // ```
-    pub fn rightmost_bit(self) -> bool {
+    /// Returns the value of the least significant bit.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0i8.lsb() == false; // 0b0000_0000
+    /// assert 1i8.lsb() == true; // 0b0000_0001
+    /// assert 16i8.lsb() == false; // 0b0001_0000
+    /// assert (-1i8).lsb() == true; // 0b1111_1111
+    /// assert (-8i8).lsb() == false; // 0b1111_1000
+    /// ```
+    pub fn lsb(self) -> bool {
         self.as_bits().first()
     }
 
-    // Returns the value of the sign bit (also the most significant bit).
-    //
-    // Equivalent to `int<N>::leftmost_bit`.
-    //
-    // # Examples
-    //
-    // ```spade
-    // assert 0i8.sign_bit() == false; // 0b0000_0000
-    // assert 15i8.sign_bit() == false; // 0b0000_1111
-    // assert (-7i8).sign_bit() == true; // 0b1111_1001
-    // ```
+    /// Returns the value of the sign bit (also the most significant bit).
+    ///
+    /// Equivalent to `int<N>::leftmost_bit`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0i8.sign_bit() == false; // 0b0000_0000
+    /// assert 15i8.sign_bit() == false; // 0b0000_1111
+    /// assert (-7i8).sign_bit() == true; // 0b1111_1001
+    /// ```
     pub fn sign_bit(self) -> bool {
-        self.leftmost_bit()
+        self.msb()
     }
 }
 
 impl<#uint N> uint<N> where N > 0 {
-    // Returns the value of the most significant bit.
-    //
-    // See also `int<N>::sign_bit`.
-    //
-    // # Examples
-    //
-    // ```spade
-    // assert 0u8.leftmost_bit() == false; // 0b0000_0000
-    // assert 15u8.leftmost_bit() == false; // 0b0000_1111
-    // assert 192u8.leftmost_bit() == true; // 0b1100_0000
-    // ```
-    pub fn leftmost_bit(self) -> bool {
+    /// Returns the value of the most significant bit.
+    ///
+    /// See also `int<N>::sign_bit`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0u8.msb() == false; // 0b0000_0000
+    /// assert 15u8.msb() == false; // 0b0000_1111
+    /// assert 192u8.msb() == true; // 0b1100_0000
+    /// ```
+    pub fn msb(self) -> bool {
         self.as_bits().last()
     }
 
-    // Returns the value of the least significant bit.
-    //
-    // # Examples
-    //
-    // ```spade
-    // assert 0u8.rightmost_bit() == false; // 0b0000_0000
-    // assert 1u8.rightmost_bit() == true; // 0b0000_0001
-    // assert 16u8.rightmost_bit() == false; // 0b0001_0000
-    // ```
-    pub fn rightmost_bit(self) -> bool {
+    /// Returns the value of the least significant bit.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0u8.lsb() == false; // 0b0000_0000
+    /// assert 1u8.lsb() == true; // 0b0000_0001
+    /// assert 16u8.lsb() == false; // 0b0001_0000
+    /// ```
+    pub fn lsb(self) -> bool {
         self.as_bits().first()
     }
 }
@@ -333,16 +333,27 @@ pub struct Gray<#uint N> {
     inner: uint<N>,
 }
 
+impl<#uint N> PartialEq for Gray<N> {
+    fn eq(self, rhs: Self) -> bool {
+        self.inner == rhs.inner
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
+
 impl<#uint N> Gray<N> {
     /// Casts a Gray-coded number to an array of `bool` by reinterpreting its bits.
     ///
     /// # Examples
     ///
     /// ```spade
-    /// assert Gray([false, false]).as_bin() == [false, false];
-    /// assert Gray([ true, false]).as_bin() == [ true, false];
-    /// assert Gray([ true,  true]).as_bin() == [ true,  true];
-    /// assert Gray([false,  true]).as_bin() == [false,  true];
+    /// assert std::num::Gray(0b00).as_bits() == [false, false];
+    /// assert std::num::Gray(0b01).as_bits() == [ true, false];
+    /// assert std::num::Gray(0b11).as_bits() == [ true,  true];
+    /// assert std::num::Gray(0b10).as_bits() == [false,  true];
     /// ```
     pub fn as_bits(self) -> [bool; N] {
         self.inner.as_bits()
@@ -353,10 +364,10 @@ impl<#uint N> Gray<N> {
     /// # Examples
     ///
     /// ```spade
-    /// assert Gray([false, false]).to_uint() == 0u2;
-    /// assert Gray([ true, false]).to_uint() == 1u2;
-    /// assert Gray([ true,  true]).to_uint() == 2u2;
-    /// assert Gray([false,  true]).to_uint() == 3u2;
+    /// assert std::num::Gray(0b00).to_uint() == 0u2;
+    /// assert std::num::Gray(0b01).to_uint() == 1u2;
+    /// assert std::num::Gray(0b11).to_uint() == 2u2;
+    /// assert std::num::Gray(0b10).to_uint() == 3u2;
     ///
     /// assert 20u8.to_gray().to_uint() == 20u8;
     /// ```

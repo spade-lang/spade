@@ -22,7 +22,7 @@ def handle_code_block(file: Path, lines: List[Tuple[int, str]]) -> str:
     # result = f"entity {str(relevant_path).replace("/", "__")}_{line_num}(clk: clock, rst: bool) {{\n"
     while len(lines) != 0 and (line := lines.pop(0)):
         (num, line) = line
-        if line.startswith("/// ```"):
+        if line.lstrip().startswith("/// ```"):
             break
         else:
             clean_line = line.replace("///", "").strip()
@@ -44,9 +44,9 @@ def extract_tests(file: Path) -> str:
         while len(lines) != 0 and (line := lines.pop(0)):
             (_line_num, line) = line
 
-            if line.startswith("/// ```"):
+            if line.lstrip().startswith("/// ```"):
                 block = handle_code_block(file, lines)
-                if "notest" not in line:
+                if "spade" in line and "notest" not in line:
                     code_blocks += block
 
         return code_blocks

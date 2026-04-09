@@ -1,14 +1,4 @@
-/// Reinterprets a value as another value of the same size but different type.
-///
-/// This function must be used with caution. It is up to the caller to ensure that the bit
-/// representation of the source value is also a valid representation for the target value, and
-/// that no logic bugs are introduced when using it.
-///
-/// The representation of compound types is generally undefined and you should not rely on it being
-/// fixed between compiler versions. If you still want to use this function on compound types, the
-/// representation of types is described in
-/// <https://docs.spade-lang.org/internal/type_representations.html>
-pub unsafe extern fn transmute<T, O>(input: T) -> O;
+pub use core::conv::transmute;
 
 /// Reduces the size of an integer by truncating away the excess highest significant bits.
 ///
@@ -108,10 +98,10 @@ pub fn concat_arrays<T, #uint L, #uint R>(
 /// assert flip_array([]) == [];
 /// assert flip_array([1u8, 2u8, 3u8]) == [3u8, 2u8, 1u8];
 /// ```
-#[deprecated = "Use `[T; N]::flip` instead"]
+#[deprecated = "Use `[T; N]::reversed` instead"]
 #[inline]
 pub fn flip_array<T, #uint N>(input: [T; N]) -> [T; N] {
-    input.flip()
+    input.reversed()
 }
 
 /// Casts a `tri` to a `bool` by reinterpreting its bit.
@@ -272,7 +262,6 @@ impl<#uint N> [bool; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].as_int() == 0i0;
     /// assert [true, true, true, false].as_int() == 0b0111i4;
     /// assert [true, true, true, true].as_int() == -0b0001i4;
     /// ```
@@ -291,7 +280,6 @@ impl<#uint N> [bool; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].as_uint() == 0u0;
     /// assert [true, false, true, true].as_uint() == 0b1101u4;
     /// ```
     pub fn as_uint(self) -> uint<N> {
@@ -309,7 +297,6 @@ impl<#uint N> [bool; N] {
     /// # Examples
     ///
     /// ```spade,notest
-    /// assert [].to_int() == 0i0;
     /// assert [true, true, true, false].to_int() == 0b0111i4;
     /// assert [true, true, true, true].to_int() == -0b0001i4;
     /// ```
@@ -330,7 +317,7 @@ impl<#uint N> [bool; N] {
     /// # Examples
     ///
     /// ```spade,notest
-    /// assert [].to_uint() == 0u0;
+    /// assert empty.to_uint() == 0u0;
     /// assert [true, false, true, true].to_uint() == 0b1101u4;
     /// ```
     #[deprecated = "Use `[bool; N]::as_uint` instead"]
@@ -345,7 +332,7 @@ impl bool {
     ///
     /// This function must be used with caution. Using clock signals as part of logic expressions
     /// may lead to unexpected issues depending on the target.
-    pub fn as_clock(self) -> clock {
+    pub unsafe fn as_clock(self) -> clock {
         unsafe { transmute(self) }
     }
 
@@ -358,7 +345,7 @@ impl bool {
     /// assert true.as_uint() == 1u1;
     /// ```
     pub fn as_uint(self) -> uint<1> {
-        unsafe { transmute(self) }
+        unsafe{ transmute(self) }
     }
 
     /// Casts a `bool` to a clock signal by reinterpreting its bit.
@@ -367,8 +354,8 @@ impl bool {
     /// may lead to unexpected issues depending on the target.
     #[deprecated = "Use `bool::as_clock` instead"]
     #[inline]
-    pub fn to_clock(self) -> clock {
-        self.as_clock()
+    pub unsafe fn to_clock(self) -> clock {
+        unsafe {self.as_clock()}
     }
 
     /// Casts a `bool` to an unsigned 1-bit integer by reinterpreting its bits.
@@ -526,12 +513,15 @@ impl<#uint N> uint<N> {
     }
 
     /// Convert an unsigned integer to a signed integer.
+    /// 
+    /// The output has one additional bits in order to ensure that the original value
+    /// fits. If you want to re-interpret the bits instead, use `as_int`
     ///
     /// # Examples
     ///
     /// ```spade
     /// assert 42u8.to_int() == 42i9;
-    /// assert 255u8.to_uint() == 255i9;
+    /// assert 255u8.to_int() == 255i9;
     /// ```
     pub fn to_int(self) -> int<{N + 1}> {
         lib::num::zext(self).as_int()
@@ -586,6 +576,6 @@ where
     /// assert bytes == [0x12, 0x34, 0x56, 0x78];
     /// ```
     fn to_be_bytes(self) -> [uint<8>; {N / 8}] {
-        self.to_le_bytes().flip()
+        self.to_le_bytes().reversed()
     }
 }

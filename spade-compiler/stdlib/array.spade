@@ -9,7 +9,8 @@
 /// # Examples
 ///
 /// ```spade
-/// assert unfold::<(), 0>((), fn |x| x) == [];
+/// let empty: [(); 0] = [];
+/// assert unfold::<(), 0>((), fn |x| x) == empty;
 /// assert unfold::<uint<8>, 5>(1u8, fn |x| 2 *. x) == [1u8, 2u8, 4u8, 8u8, 16u8];
 /// ```
 pub fn unfold<T, #uint N>(seed: T, f: impl Fn(T) -> T) -> [T; N] {
@@ -34,7 +35,8 @@ pub fn unfold<T, #uint N>(seed: T, f: impl Fn(T) -> T) -> [T; N] {
 /// let l = [10u8, 11u8, 12u8];
 /// let r = [20u8, 21u8, 22u8];
 /// assert interleave_arrays(l, r) == [10u8, 20u8, 11u8, 21u8, 12u8, 22u8];
-/// assert interleave_arrays([], []) == [];
+/// let empty: [uint<8>; 0] = [];
+/// assert interleave_arrays([], []) == empty;
 /// ```
 // FIXME(spade#393) #[deprecated = "use `std::array::interleave` or `[T; N]::interleave` instead"]
 #[inline]
@@ -55,7 +57,8 @@ pub fn interleave_arrays<T, #uint N>(l: [T; N], r: [T; N]) -> [T; {2 * N}] {
 /// let l = [10u8, 11u8, 12u8];
 /// let r = [20u8, 21u8, 22u8];
 /// assert zip(l, r) == [(10u8, 20u8), (11u8, 21u8), (12u8, 22u8)];
-/// assert zip([], []) == [];
+/// let empty: [uint<8>; 0] = [];
+/// assert zip([], []) == empty;
 /// ```
 // FIXME(spade#393) #[deprecated = "`[T; N]::zip` instead"]
 #[inline]
@@ -72,7 +75,7 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].any(fn |x| true) == false;
+    /// assert [].any(fn |x| x == 0u8) == false;
     /// assert [7u8, 10u8, 13u8].all(fn |x| x > 5) == true;
     /// assert [7u8, 10u8, 13u8].all(fn |x| x > 12) == false;
     /// assert [7u8, 10u8, 13u8].all(fn |x| x > 20) == false;
@@ -93,7 +96,7 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].any(fn |x| true) == false;
+    /// assert [].any(fn |x| x == 0u8) == false;
     /// assert [7u8, 10u8, 13u8].any(fn |x| x > 5) == true;
     /// assert [7u8, 10u8, 13u8].any(fn |x| x > 12) == true;
     /// assert [7u8, 10u8, 13u8].any(fn |x| x > 20) == false;
@@ -116,12 +119,12 @@ impl<T, #uint N> [T; N] {
     /// ```spade
     /// let array = [1u8, 2u8, 3u8, 4u8, 5u8, 6u8];
     ///
-    /// let two_item_chunks = array.sliding_window::<2>();
+    /// let two_item_chunks = array.chunks::<2>();
     /// assert two_item_chunks[0] == [1u8, 2u8];
     /// assert two_item_chunks[1] == [3u8, 4u8];
     /// assert two_item_chunks[2] == [5u8, 6u8];
     ///
-    /// let three_item_chunks = array.sliding_window::<3>();
+    /// let three_item_chunks = array.chunks::<3>();
     /// assert three_item_chunks[0] == [1u8, 2u8, 3u8];
     /// assert three_item_chunks[1] == [4u8, 5u8, 6u8];
     /// ```
@@ -145,8 +148,9 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert concat([], []) == [];
-    /// assert concat([1u8], [2u8, 3u8]) == [1u8, 2u8, 3u8];
+    /// let empty: [uint<8>; 0] = [];
+    /// assert [].concat([]) == empty;
+    /// assert [1u8].concat([2u8, 3u8]) == [1u8, 2u8, 3u8];
     /// ```
     pub fn concat<#uint M>(self, other: [T; M]) -> [T; {M + N}] {
         unsafe { lib::conv::transmute((other, self)) }
@@ -157,15 +161,16 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].flip() == [];
-    /// assert [1u8, 2u8, 3u8].flip() == [3u8, 2u8, 1u8];
+    /// let empty: [uint<8>; 0] = [];
+    /// assert [].reversed() == empty;
+    /// assert [1u8, 2u8, 3u8].reversed() == [3u8, 2u8, 1u8];
     /// ```
-    fn flip(self) -> Self {
+    fn reversed(self) -> Self {
         gen if N < 2 {
             self
         } else {
-            let l = self[..N/2].flip();
-            let r = self[N/2..].flip();
+            let l = self[..N/2].reversed();
+            let r = self[N/2..].reversed();
 
             r.concat(l)
         }
@@ -185,7 +190,7 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [1u8, 2u8, 3u8, 4u8].reduce(fn |a, b| a + b) == 10u8;
+    /// assert [1u8, 2u8, 3u8, 4u8].reduce(fn |a, b| a +. b) == 10u8;
     /// ```
     fn fold<B>(self, init: B, f: impl Fn(B, T) -> B) -> B {
         gen if N == 0 {
@@ -209,7 +214,8 @@ impl<T, #uint N> [T; N] {
     /// let l = [10u8, 11u8, 12u8];
     /// let r = [20u8, 21u8, 22u8];
     /// assert l.interleave(r) == [10u8, 20u8, 11u8, 21u8, 12u8, 22u8];
-    // /// assert [].interleave([]) == [];
+    /// let empty: [uint<8>; 0] = [];
+    /// assert [].interleave([]) == empty;
     /// ```
     fn interleave(self, other: Self) -> [T; {2 * N}] {
         (self `zip` other)
@@ -238,7 +244,7 @@ impl<T, #uint N> [T; N] {
         }
     }
 
-    /// Adds an element at the end of the array.
+    /// Creates a new array with `item` added at the end of the original array
     ///
     /// # Examples
     ///
@@ -272,42 +278,6 @@ impl<T, #uint N> [T; N] {
         [item].concat(self)
     }
 
-    /// Shifts an element into the end of the array, dropping the first one.
-    ///
-    /// # Examples
-    ///
-    /// ```spade
-    /// let a = [1u8, 2u8, 3u8];
-    /// let b = a.shift_back(4u8);
-    /// let c = b.shift_back(5u8);
-    /// let d = c.shift_back(6u8);
-    /// assert b == [2u8, 3u8, 4u8];
-    /// assert c == [3u8, 4u8, 5u8];
-    /// assert d == [4u8, 5u8, 6u8];
-    /// assert [].shift_back(0u8) == [];
-    /// ```
-    pub fn shift_back(self, item: T) -> Self {
-        self[1..].push_back(item)
-    }
-
-    /// Shifts an element into the start of the array, dropping the last one.
-    ///
-    /// # Examples
-    ///
-    /// ```spade
-    /// let a = [3u8, 2u8, 1u8];
-    /// let b = a.shift_front(4u8);
-    /// let c = b.shift_front(5u8);
-    /// let d = c.shift_front(6u8);
-    /// assert b == [4u8, 3u8, 2u8];
-    /// assert c == [5u8, 4u8, 3u8];
-    /// assert d == [6u8, 5u8, 4u8];
-    /// assert [].shift_front(0u8) == [];
-    /// ```
-    pub fn shift_front(self, item: T) -> Self {
-        self.push_front(item)[..N]
-    }
-
     /// Generates an array with the intermediate values of an sliding window over the input array.
     ///
     /// The window size is provided at compile time as a type parameter. This means that it cannot
@@ -316,8 +286,6 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].sliding_window::<0>() == [];
-    ///
     /// let array = [1u8, 2u8, 3u8, 4u8, 5u8];
     ///
     /// let two_item_windows = array.sliding_window::<2>();
@@ -333,7 +301,7 @@ impl<T, #uint N> [T; N] {
     /// ```
     fn sliding_window<#uint M>(self) -> [[T; M]; {N - M + 1}]
     where
-        N <= M else "Window size is larger than array size"
+        M <= N else "Window size is larger than array size"
     {
         gen if N == M {
             [self]
@@ -350,8 +318,10 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [].split_at::<0>() == ([], []);
+    /// let empty: [uint<8>; 0] = [];
+    /// assert empty.split_at::<0>() == ([], []);
     /// assert [1u8, 2u8, 3u8].split_at::<0>() == ([], [1u8, 2u8, 3u8]);
+    /// assert [1u8, 2u8, 3u8].split_at::<1>() == ([1u8], [2u8, 3u8]);
     /// assert [1u8, 2u8, 3u8].split_at::<2>() == ([1u8, 2u8], [3u8]);
     /// assert [1u8, 2u8, 3u8].split_at::<3>() == ([1u8, 2u8, 3u8], []);
     /// assert [1u8, 2u8, 3u8].split_at() == ([1u8, 2u8], [3u8]);
@@ -359,7 +329,7 @@ impl<T, #uint N> [T; N] {
     /// ```
     fn split_at<#uint K>(self) -> ([T; K], [T; {N - K}])
     where
-        K < N else "Split point is outside array bounds"
+        K <= N else "Split point is outside array bounds"
     {
         (self[..K], self[K..])
     }
@@ -377,7 +347,8 @@ impl<T, #uint N> [T; N] {
     /// let l = [10u8, 11u8, 12u8];
     /// let r = [20u8, 21u8, 22u8];
     /// assert l.zip(r) == [(10u8, 20u8), (11u8, 21u8), (12u8, 22u8)];
-    /// assert [].zip([]) == [];
+    /// let empty: [(uint<8>, uint<8>); 0] = [];
+    /// assert [].zip([]) == empty;
     /// ```
     fn zip<O>(self, other: [O; N]) -> [(T, O); N] {
         gen if N == 0 {
@@ -423,7 +394,7 @@ impl<T, #uint N> [T; N] where N > 0 {
     /// Reduces an array to a single value using a function to assimilate elements.
     ///
     /// Given an input array `[a0, a1, a2, ...]` and a function `f`, the output would be
-    /// `f(a0, f(a1, f(a2, ...))))`.
+    /// `f(a0, f(a1, f(a2, ...)))`.
     ///
     /// As opposed to `fold`, this function operates without an initial value for the accumulator by
     /// taking the first element of the array instead. This requires the accumulator and the array
@@ -434,28 +405,68 @@ impl<T, #uint N> [T; N] where N > 0 {
     /// # Examples
     ///
     /// ```spade
-    /// assert [1u8, 2u8, 3u8, 4u8].reduce(fn |a, b| a + b) == 10u8;
+    /// assert [1u8, 2u8, 3u8, 4u8].reduce(fn |a, b| a +. b) == 10u8;
     /// ```
     fn reduce(self, f: impl Fn(T, T) -> T) -> T {
         self[1..].fold(self[0], f)
     }
+
+    /// Shifts an element into the end of the array, dropping the first one.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let a = [1u8, 2u8, 3u8];
+    /// let b = a.shift_back(4u8);
+    /// let c = b.shift_back(5u8);
+    /// let d = c.shift_back(6u8);
+    /// assert b == [2u8, 3u8, 4u8];
+    /// assert c == [3u8, 4u8, 5u8];
+    /// assert d == [4u8, 5u8, 6u8];
+    /// ```
+    pub fn shift_back(self, item: T) -> Self {
+        self[1..].push_back(item)
+    }
+
+    /// Shifts an element into the start of the array, dropping the last one.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let a = [3u8, 2u8, 1u8];
+    /// let b = a.shift_front(4u8);
+    /// let c = b.shift_front(5u8);
+    /// let d = c.shift_front(6u8);
+    /// assert b == [4u8, 3u8, 2u8];
+    /// assert c == [5u8, 4u8, 3u8];
+    /// assert d == [6u8, 5u8, 4u8];
+    /// ```
+    pub fn shift_front(self, item: T) -> Self {
+        self.push_front(item)[..N]
+    }
+
+    
 }
 
 impl<S, T, #uint N> [(S, T); N] {
     /// Splits pairs inside an array into two arrays containing elements from each side.
     ///
-    /// Both arrays produced have the same length as the input provided. For each array position,
-    /// the elements from both arrays are paired as a tuple and stored in the result array. In other
-    /// words, given two arrays `[l0, l1, l2, ...]` and `[r0, r1, r2, ...]`, the output would be
-    /// `[(l0, r0), (l1, r1), (l2, r2), ...]`.
+    /// Both arrays produced have the same length as the input array. The
+    /// first element of the left array is the first element of the first
+    /// tuple, the second element the first element of the second tuple, and so
+    /// on. In other
+    /// words, the array `[(l0, r0), (l1, r1), (l2, r2), ...]` is split into `[l0, l1, l2, ...]` and `[r0, r1, r2, ...]`
+    /// ``.
     ///
     /// # Examples
     ///
     /// ```spade
-    /// let l = [10u8, 11u8, 12u8];
-    /// let r = [20u8, 21u8, 22u8];
-    /// assert l.zip(r) == [(10u8, 20u8), (11u8, 21u8), (12u8, 22u8)];
-    /// assert [].zip([]) == [];
+    /// 
+    /// let (l, r) = [(10u8, 20u8), (11u8, 21u8), (12u8, 22u8)].unzip();
+    /// assert l == [10u8, 11u8, 12u8];
+    /// assert r == [20u8, 21u8, 22u8];
+    /// let empty: [(uint<8>, uint<8>); 0] = [];
+    /// assert empty.unzip() == ([], []);
     /// ```
     fn unzip(self) -> ([S; N], [T; N]) {
         gen if N == 0 {
@@ -466,7 +477,7 @@ impl<S, T, #uint N> [(S, T); N] {
             let (ll, lr) = self[..N/2].unzip();
             let (rl, rr) = self[N/2..].unzip();
 
-            (ll.concat(lr), rl.concat(rr))
+            (ll.concat(rl), lr.concat(rr))
         }
     }
 }
@@ -478,8 +489,8 @@ impl<T, #uint N, #uint M> [[T; M]; N] {
     /// deeply-nested array value.
     ///
     /// ```spade
-    /// assert [].flatten() == [];
-    /// assert [1u8, 2u8, 3u8, 4u8].flatten() == [1u8, 2u8, 3u8, 4u8];
+    /// let empty: [[uint<8>; 0]; 0] = [];
+    /// assert empty.flatten() == [];
     /// assert [[1u8], [2u8], [3u8], [4u8]].flatten() == [1u8, 2u8, 3u8, 4u8];
     /// assert [[[1u8], [2u8]], [[3u8], [4u8]]].flatten() == [[1u8], [2u8], [3u8], [4u8]];
     /// ```
@@ -498,47 +509,47 @@ impl<T, #uint N, #uint M> [[T; M]; N] {
 }
 
 impl<#uint N> [bool; N] where N > 0 {
-    /// Reduces an array of `bool` into a single value by performing a AND operation on them.
-    ///
-    /// This operation is equivalent to the Verilog AND reduction operator `&`.
+    /// Reduces an array of `bool` into a single value by performing AND on all elements.
     ///
     /// # Examples
     ///
     /// ```spade
     /// assert [true, true, true].reduce_and() == true;
-    /// assert [false, false, false].reduce_and() == true;
+    /// assert [false, false, false].reduce_and() == false;
     /// assert [false, true, true].reduce_and() == false;
     /// ```
+    ///
+    /// This operation is equivalent to the Verilog AND reduction operator `&`.
     fn reduce_and(self) -> bool {
         std::ops::reduce_and(self)
     }
 
-    /// Reduces an array of `bool` into a single value by performing a OR operation on them.
-    ///
-    /// This operation is equivalent to the Verilog OR reduction operator `|`.
+    /// Reduces an array of `bool` into a single value by performing OR on all elements.
     ///
     /// # Examples
     ///
     /// ```spade
-    /// assert [true, true, true].reduce_and() == true;
-    /// assert [false, false, false].reduce_and() == false;
-    /// assert [false, true, true].reduce_and() == true;
+    /// assert [true, true, true].reduce_or() == true;
+    /// assert [false, false, false].reduce_or() == false;
+    /// assert [false, true, true].reduce_or() == true;
     /// ```
+    /// 
+    /// This operation is equivalent to the Verilog OR reduction operator `|`.
     fn reduce_or(self) -> bool {
         std::ops::reduce_or(self)
     }
 
-    /// Reduces an array of `bool` into a single value by performing a XOR operation on them.
-    ///
-    /// This operation is equivalent to the Verilog OR reduction operator `^`.
+    /// Reduces an array of `bool` into a single value by performing XOR on all elements.
     ///
     /// # Examples
     ///
     /// ```spade
-    /// assert [true, true, true].reduce_and() == true;
-    /// assert [false, false, false].reduce_and() == false;
-    /// assert [false, true, true].reduce_and() == false;
+    /// assert [true, true, true].reduce_xor() == true ^^ true ^^ true;
+    /// assert [false, false, false].reduce_and() == false ^^ false ^^ false;
+    /// assert [false, true, true].reduce_and() == false ^^ true ^^ true;
     /// ```
+    ///
+    /// This operation is equivalent to the Verilog OR reduction operator `^`.
     fn reduce_xor(self) -> bool {
         std::ops::reduce_xor(self)
     }
