@@ -1,7 +1,11 @@
 /// An unsigned number
+///
+/// Also: `#uint` Type Generic
 mod uint;
 
 /// A signed number
+///
+/// Also: `#int` Type Generic
 mod int;
 
 mod Memory;
@@ -10,9 +14,24 @@ mod Memory;
 mod clock;
 
 /// `true` or `false`
+///
+/// Also: `#bool` Type Generic
 mod bool;
 
 /// `LOW`, `HIGH` or `HIGHIMP`
 mod tri;
 
 mod inout;
+
+
+
+
+/// Inverted version of a type where the `T` and `inv T` fields of a non-`Data`/port struct are changed.
+mod inv;
+
+mod array;
+
+mod tuple;
+
+/// `#str` Type Generic
+mod str;
