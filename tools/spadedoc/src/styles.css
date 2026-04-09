@@ -90,6 +90,9 @@ section {
     margin-top: 0.5em;
     margin-left: 1em;
 }
+.impl-items > details > :last-child {
+    margin-bottom: 0;
+}
 .impl-items > details > summary {
     margin: 0;
 }
@@ -205,6 +208,9 @@ details[open] > summary::before {
 }
 .item-table > dd {
     overflow-wrap: anywhere;
+}
+.item-table > dd > :last-child {
+    margin-bottom: 0;
 }
 @media (min-width: 701px) {
     .item-table {
