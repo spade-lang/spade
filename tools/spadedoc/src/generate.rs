@@ -2,12 +2,12 @@ use camino::Utf8PathBuf;
 use itertools::Itertools;
 use pulldown_cmark::{Options, Parser};
 use spade_ast::{
-    self as ast, AttributeList, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration, TypeParam,
-    TypeSpec, Unit, UnitKind, WhereClause,
+    self as ast, AttributeList, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind,
+    TypeDeclaration, TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
-    name::{NameID, Path, PathSegment},
+    name::{Identifier, NameID, Path, PathSegment},
 };
 use spade_diagnostics::diag_list::DiagList;
 use spade_hir::symbol_table::{self as symtab, SymbolTable, Thing, TypeSymbol};
@@ -28,13 +28,13 @@ use crate::{
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemKind {
+    Primitive,
     Module,
     Struct,
     Enum,
     Function,
     Entity,
     Pipeline,
-    Primitive,
     TypeAlias,
     Trait,
 }
@@ -42,13 +42,13 @@ pub(crate) enum ItemKind {
 impl ItemKind {
     pub fn singular(&self) -> &'static str {
         match self {
+            ItemKind::Primitive => "Primitive",
             ItemKind::Module => "Module",
             ItemKind::Struct => "Struct",
             ItemKind::Enum => "Enum",
             ItemKind::Function => "Function",
             ItemKind::Entity => "Entity",
             ItemKind::Pipeline => "Pipeline",
-            ItemKind::Primitive => "Primitive",
             ItemKind::TypeAlias => "Type Alias",
             ItemKind::Trait => "Trait",
         }
@@ -56,13 +56,13 @@ impl ItemKind {
 
     pub fn plural(&self) -> &'static str {
         match self {
+            ItemKind::Primitive => "Primitives",
             ItemKind::Module => "Modules",
             ItemKind::Struct => "Structs",
             ItemKind::Enum => "Enums",
             ItemKind::Function => "Functions",
             ItemKind::Entity => "Entities",
             ItemKind::Pipeline => "Pipelines",
-            ItemKind::Primitive => "Primitives",
             ItemKind::TypeAlias => "Type Aliases",
             ItemKind::Trait => "Traits",
         }
@@ -70,13 +70,13 @@ impl ItemKind {
 
     pub fn color_class(&self) -> &'static str {
         match self {
+            ItemKind::Primitive => "color-primitive",
             ItemKind::Module => "color-mod",
             ItemKind::Struct => "color-struct",
             ItemKind::Enum => "color-enum",
             ItemKind::Function => "color-fn",
             ItemKind::Entity => "color-entity",
             ItemKind::Pipeline => "color-pipeline",
-            ItemKind::Primitive => "color-primitive",
             ItemKind::TypeAlias => "color-type-alias",
             ItemKind::Trait => "color-trait",
         }
@@ -153,6 +153,7 @@ pub(crate) struct Generator {
     /// `a::b::c` would result in `a/b/c/index.html` for a module but
     /// `a/b/item.c.html` for a non-module.
     pub(crate) is_module: bool,
+    pub(crate) primitives: ModuleBody,
 }
 
 impl Generator {
@@ -234,6 +235,26 @@ impl Generator {
             }
         }
 
+        // Add primitives to core
+        if self.symtab.current_namespace() == &Path::from_strs(&["core"]) {
+            // Need to take them as we need to also borrow self for describe later on
+            let primitives = std::mem::replace(&mut self.primitives.members, vec![]);
+            for item in &primitives {
+                match item {
+                    ast::Item::ExternalMod(m) => {
+                        let name = m.name.as_str();
+                        contents
+                            .entry(ItemKind::Primitive)
+                            .or_default()
+                            .push(ItemListEntry::new_with_doc(name, &m.attributes));
+
+                        self.describe(FileName::Primitive(name), |g, b| g.doc_primitive(b, &m))?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         let Some(seg) = self.symtab.current_namespace().0.last().cloned() else {
             // root
             return Ok(());
@@ -259,51 +280,33 @@ impl Generator {
                             Ok(())
                         })?;
                         b.styled_tag("dl", &["item-table"], |b| {
-                            if kind == ItemKind::Module {
-                                for entry in entries {
-                                    b.tag("dt", |b| {
-                                        fwrite!(
-                                            b,
-                                            "<a class=\"",
-                                            ItemKind::Module.color_class(),
-                                            "\" href=\"",
-                                            &entry.name,
-                                            "/index.html\">",
-                                            &entry.name,
-                                            "</a>"
-                                        );
-                                        Ok(())
-                                    })?;
-                                    b.tag("dd", |b| {
-                                        write_markdown(&entry.short_description, |md| {
-                                            (md.write())(b)
-                                        })
-                                    })?;
-                                }
-                                Ok(())
-                            } else {
-                                for entry in entries {
-                                    b.tag("dt", |b| {
-                                        fwrite!(
-                                            b,
-                                            "<a class=\"",
-                                            kind.color_class(),
-                                            "\" href=\"item.",
-                                            &entry.name,
-                                            ".html\">",
-                                            &entry.name,
-                                            "</a>"
-                                        );
-                                        Ok(())
-                                    })?;
-                                    b.tag("dd", |b| {
-                                        write_markdown(&entry.short_description, |md| {
-                                            (md.write())(b)
-                                        })
-                                    })?;
-                                }
-                                Ok(())
+                            let href: fn(&mut Node<'_>, &ItemListEntry) -> DResult<()> = match kind
+                            {
+                                ItemKind::Module => |b, e| {
+                                    fwrite!(b, e.name, "/index.html");
+                                    Ok(())
+                                },
+                                ItemKind::Primitive => |b, e| {
+                                    fwrite!(b, "primitive.", e.name, ".html");
+                                    Ok(())
+                                },
+                                _ => |b, e| {
+                                    fwrite!(b, "item.", e.name, ".html");
+                                    Ok(())
+                                },
+                            };
+                            for entry in entries {
+                                b.tag("dt", |b| {
+                                    fwrite!(b, "<a class=\"", kind.color_class(), "\" href=\"");
+                                    href(b, &entry)?;
+                                    fwrite!(b, "\">", &entry.name, "</a>");
+                                    Ok(())
+                                })?;
+                                b.tag("dd", |b| {
+                                    write_markdown(&entry.short_description, |md| (md.write())(b))
+                                })?;
                             }
+                            Ok(())
                         })
                     })?;
                 }
@@ -479,11 +482,23 @@ impl Generator {
         })
     }
 
+    fn doc_primitive(&mut self, body: &mut Node<'_>, m: &Loc<ExternalMod>) -> DResult<()> {
+        let doc = m.attributes.merge_docs();
+
+        main(body, |body| {
+            self.path_breadcrumbs(body)?;
+            write_title(body, ItemKind::Primitive, m.name.as_str())?;
+            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
+
+            Ok(())
+        })
+    }
+
     fn path_breadcrumbs(&mut self, body: &mut Node<'_>) -> DResult<()> {
         let from = self.symtab.current_namespace().0.as_slice();
 
         body.tag("div", |d| {
-            self.link_to(d, &[], true, ItemKind::Module, |a| {
+            self.link_to(d, &[], ItemKind::Module, |a| {
                 fwrite!(a, "::");
                 Ok(())
             })?;
@@ -492,7 +507,7 @@ impl Generator {
                 let seg = seg
                     .to_named_str()
                     .expect("Breadcrumb to non-named path segment");
-                self.link_to(d, &from[..(i + 1)], true, ItemKind::Module, |a| {
+                self.link_to(d, &from[..(i + 1)], ItemKind::Module, |a| {
                     fwrite!(a, seg, "::");
                     Ok(())
                 })?;
@@ -510,7 +525,6 @@ impl Generator {
         &self,
         n: &mut Node<'_>,
         to: &[PathSegment],
-        to_mod: bool,
         kind: ItemKind,
         f: impl FnOnce(&mut Node<'_>) -> DResult<()>,
     ) -> DResult<()> {
@@ -526,12 +540,18 @@ impl Generator {
 
         // Determine path end to `to/item.end.html` or `to/end/index.html` based on
         // whether it is targeting a module or not.
-        let (mut to, end) = match to_mod {
-            false => {
+        let core;
+        let (mut to, end) = match kind {
+            ItemKind::Module => (to.iter(), String::from("index.html")),
+            ItemKind::Primitive => {
+                let (end, _) = to.split_last().expect("No segment in path to Item");
+                core = [PathSegment::Named(Identifier::intern("core").nowhere())];
+                (core.iter(), format!("primitive.{}.html", name(end)))
+            }
+            _ => {
                 let (end, rest) = to.split_last().expect("No segment in path to Item");
                 (rest.iter(), format!("item.{}.html", name(end)))
             }
-            true => (to.iter(), String::from("index.html")),
         };
 
         // When we describe a module, we are one hierarchy level deeper,
@@ -588,6 +608,11 @@ impl Generator {
                 self.is_module = false;
                 name
             }
+            FileName::Primitive(name) => {
+                self.current_dir.push(format!("primitive.{name}.html"));
+                self.is_module = false;
+                name
+            }
         };
         let file = File::create(self.current_dir.as_path()).unwrap();
         self.current_dir.pop();
@@ -637,6 +662,7 @@ impl Generator {
 enum FileName<'s> {
     Module(&'s str),
     Item(&'s str),
+    Primitive(&'s str),
 }
 fn main(b: &mut Node<'_>, f: impl FnOnce(&mut Node<'_>) -> DResult<()>) -> DResult<()> {
     b.tag("main", f)

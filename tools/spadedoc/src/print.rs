@@ -262,9 +262,7 @@ impl Generator {
             match lookup {
                 Ok(nid) => {
                     if let Some(kind) = ItemKind::from_name_id(&nid, &self.symtab) {
-                        // This probably is only be possible when reexporting modules, which we don't print yet, but alas.
-                        let is_module = matches!(kind, ItemKind::Module);
-                        self.link_to(b, &nid.1.0, is_module, kind, |b| {
+                        self.link_to(b, &nid.1.0, kind, |b| {
                             fwrite!(b, seg);
                             Ok(())
                         })?;

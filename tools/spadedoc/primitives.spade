@@ -1,0 +1,18 @@
+/// An unsigned number
+mod uint;
+
+/// A signed number
+mod int;
+
+mod Memory;
+
+/// A clock.
+mod clock;
+
+/// `true` or `false`
+mod bool;
+
+/// `LOW`, `HIGH` or `HIGHIMP`
+mod tri;
+
+mod inout;

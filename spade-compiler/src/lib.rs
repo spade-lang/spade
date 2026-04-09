@@ -678,6 +678,7 @@ fn codegen(
     }
 }
 
+#[macro_export]
 macro_rules! sources {
     ($(($base_namespace:expr, $namespace:expr, $filename:expr)),*$(,)?) => {
         vec! [

@@ -17,6 +17,7 @@ use spade::{
 };
 use spade_ast_lowering::{SelfContext, global_symbols};
 use spade_codespan_reporting::term::termcolor::Buffer;
+use spade_common::name::Path as SpadePath;
 use spade_common::{
     id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker},
     location_info::WithLocation as _,
@@ -95,6 +96,15 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         sources
     };
     sources.append(&mut core_files());
+    sources.push((
+        ModuleNamespace {
+            namespace: SpadePath::from_strs(&["core"]),
+            base_namespace: SpadePath::from_strs(&["core"]),
+            file: String::from("<spadedoc dir>/primitives.spade"),
+        },
+        String::from("<spadedoc dir>/primitives.spade"),
+        String::from(include_str!("../primitives.spade")),
+    ));
 
     spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
 
@@ -109,6 +119,15 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         &mut errors,
     );
     errors.errors_are_recoverable();
+
+    let (mut primitives, module_asts): (Vec<_>, Vec<_>) = module_asts
+        .into_iter()
+        .partition(|(m, _)| m.file == "<spadedoc dir>/primitives.spade");
+    let primitives = primitives
+        .pop()
+        .expect("No primitive docs supplied")
+        .1
+        .inner;
 
     let mut ctx = spade_ast_lowering::Context {
         symtab,
@@ -219,6 +238,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         impls,
         diags: ctx.diags,
         is_module: true, // this is irrelevant as it is always set before creating a file
+        primitives,
     };
 
     std::fs::create_dir_all(&gen_dir).or_report(&mut errors);
