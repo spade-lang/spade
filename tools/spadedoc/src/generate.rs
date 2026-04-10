@@ -2,8 +2,8 @@ use camino::Utf8PathBuf;
 use itertools::Itertools;
 use pulldown_cmark::{Options, Parser};
 use spade_ast::{
-    self as ast, AttributeList, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind,
-    TypeDeclaration, TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
+    self as ast, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration,
+    TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -22,7 +22,7 @@ use crate::{
     error::{DResult, DocError},
     fwrite,
     html::Node,
-    impls::Impls,
+    impls_n_docs::ImplsNDocs,
     print::{self},
 };
 
@@ -125,14 +125,10 @@ struct ItemListEntry<'a> {
 }
 
 impl<'a> ItemListEntry<'a> {
-    pub fn from_attrs(name: &'a str, attributes: &AttributeList) -> Self {
+    pub fn new(name: &'a str, docs: &str) -> Self {
         ItemListEntry {
             name,
-            short_description: attributes
-                .merge_docs()
-                .lines()
-                .take_while(|line| !line.is_empty())
-                .join("\n"),
+            short_description: docs.lines().take_while(|line| !line.is_empty()).join("\n"),
         }
     }
 }
@@ -140,7 +136,7 @@ impl<'a> ItemListEntry<'a> {
 pub(crate) struct Generator {
     pub(crate) symtab: SymbolTable,
     pub(crate) current_dir: Utf8PathBuf,
-    pub(crate) impls: Impls,
+    pub(crate) impls: ImplsNDocs,
     pub(crate) diags: Arc<Mutex<DiagList>>,
     /// Used to determine if we need an additional ../ in a path.
     ///
@@ -151,6 +147,15 @@ pub(crate) struct Generator {
 }
 
 impl Generator {
+    fn lookup_docs(&self, name: &Loc<Identifier>) -> String {
+        let nameid = self
+            .symtab
+            .lookup_id(&Path::ident(*name).nowhere(), false)
+            .expect("Couldn't lookup type for documentation");
+
+        self.impls.docs.get(&nameid).cloned().unwrap_or_default()
+    }
+
     pub fn doc_mod(&mut self, module: &ast::ModuleBody) -> DResult<()> {
         let mut contents: BTreeMap<ItemKind, Vec<ItemListEntry>> = BTreeMap::new();
 
@@ -159,35 +164,38 @@ impl Generator {
         for item in &module.members {
             match item {
                 ast::Item::Type(t) => {
-                    let (kind, attrs) = match &t.kind {
-                        TypeDeclKind::Enum(e) => (ItemKind::Enum, &e.attributes),
-                        TypeDeclKind::Struct(s) => (ItemKind::Struct, &s.attributes),
-                        TypeDeclKind::Alias(a) => (ItemKind::TypeAlias, &a.attributes),
+                    let kind = match &t.kind {
+                        TypeDeclKind::Enum(_) => ItemKind::Enum,
+                        TypeDeclKind::Struct(_) => ItemKind::Struct,
+                        TypeDeclKind::Alias(_) => ItemKind::TypeAlias,
                     };
                     let name = t.name.as_str();
+                    let docs = self.lookup_docs(&t.name);
                     contents
                         .entry(kind)
                         .or_default()
-                        .push(ItemListEntry::from_attrs(name, attrs));
+                        .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t, &docs))?;
                 }
                 ast::Item::ExternalMod(m) => {
                     let name = m.name.as_str();
+                    let docs = self.lookup_docs(&m.name);
                     contents
                         .entry(ItemKind::Module)
                         .or_default()
-                        .push(ItemListEntry::from_attrs(name, &m.attributes));
+                        .push(ItemListEntry::new(name, &docs));
 
                     // Don't need to generate stuff here as external mods have their own file and
                     // will thus be documented by the spadedoc main file iterator
                 }
                 ast::Item::Module(m) => {
                     let name = m.name.as_str();
+                    let docs = self.lookup_docs(&m.name);
                     contents
                         .entry(ItemKind::Module)
                         .or_default()
-                        .push(ItemListEntry::from_attrs(name, &m.attributes));
+                        .push(ItemListEntry::new(name, &docs));
 
                     self.symtab.push_namespace(PathSegment::Named(m.name));
                     self.current_dir.push(name);
@@ -209,21 +217,23 @@ impl Generator {
                         UnitKind::Pipeline(_) => ItemKind::Pipeline,
                     };
                     let name = u.head.name.as_str();
+                    let docs = self.lookup_docs(&u.head.name);
                     contents
                         .entry(kind)
                         .or_default()
-                        .push(ItemListEntry::from_attrs(name, &u.head.attributes));
+                        .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u, &docs))?;
                 }
                 ast::Item::TraitDef(t) => {
                     let name = t.name.as_str();
+                    let docs = self.lookup_docs(&t.name);
                     contents
                         .entry(ItemKind::Trait)
                         .or_default()
-                        .push(ItemListEntry::from_attrs(name, &t.attributes));
+                        .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_trait(b, &t))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_trait(b, &t, &docs))?;
                 }
                 ast::Item::Use(_, _) => {}
             }
@@ -237,10 +247,11 @@ impl Generator {
                 match item {
                     ast::Item::ExternalMod(m) => {
                         let name = m.name.as_str();
+                        let docs = m.attributes.merge_docs();
                         contents
                             .entry(ItemKind::Primitive)
                             .or_default()
-                            .push(ItemListEntry::from_attrs(name, &m.attributes));
+                            .push(ItemListEntry::new(name, &docs));
 
                         self.describe(FileName::Primitive(name), |g, b| g.doc_primitive(b, &m))?;
                     }
@@ -259,13 +270,13 @@ impl Generator {
 
         self.symtab.pop_namespace();
 
+        let docs = self.lookup_docs(seg.unwrap_named());
+
         self.describe(FileName::Module(name), |g, b| {
             main(b, |b| {
                 g.path_breadcrumbs(b)?;
                 write_title(b, ItemKind::Module, name)?;
-                write_markdown(&module.documentation.join("\n"), |md| {
-                    collapsible(b, &["main_desc"], md.write())
-                })?;
+                write_markdown(&docs, |md| collapsible(b, &["main_desc"], md.write()))?;
                 for (kind, mut entries) in contents {
                     entries.sort_by_key(|e| e.name);
                     b.tag("section", |b| {
@@ -313,13 +324,12 @@ impl Generator {
         Ok(())
     }
 
-    fn doc_type(&mut self, body: &mut Node<'_>, t: &Loc<TypeDeclaration>) -> DResult<()> {
-        let doc = match &t.inner.kind {
-            TypeDeclKind::Enum(e) => e.attributes.merge_docs(),
-            TypeDeclKind::Struct(s) => s.attributes.merge_docs(),
-            TypeDeclKind::Alias(a) => a.attributes.merge_docs(),
-        };
-
+    fn doc_type(
+        &mut self,
+        body: &mut Node<'_>,
+        t: &Loc<TypeDeclaration>,
+        docs: &str,
+    ) -> DResult<()> {
         let kind = match &t.inner.kind {
             TypeDeclKind::Enum(_) => ItemKind::Enum,
             TypeDeclKind::Struct(_) => ItemKind::Struct,
@@ -339,7 +349,7 @@ impl Generator {
                 TypeDeclKind::Struct(s) => self.print_struct(b, s, &t.visibility, &t.generic_args),
                 TypeDeclKind::Alias(_) => Ok(()),
             })?;
-            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_markdown(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             // (Trait) implementation blocks
             if let Some((direct, traits)) = self.impls.for_type.get(&nameid).cloned() {
@@ -444,9 +454,7 @@ impl Generator {
         )
     }
 
-    fn doc_unit(&mut self, body: &mut Node<'_>, u: &Loc<Unit>) -> DResult<()> {
-        let doc = u.head.attributes.merge_docs();
-
+    fn doc_unit(&mut self, body: &mut Node<'_>, u: &Loc<Unit>, docs: &str) -> DResult<()> {
         let kind = match &u.head.unit_kind.inner {
             UnitKind::Function => ItemKind::Function,
             UnitKind::Entity => ItemKind::Entity,
@@ -457,20 +465,18 @@ impl Generator {
             self.path_breadcrumbs(body)?;
             write_title(body, kind, u.head.name.as_str())?;
             self.in_codeblock(body, |b| self.print_unit_head(b, &u.head))?;
-            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_markdown(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
         })
     }
 
-    fn doc_trait(&mut self, body: &mut Node<'_>, t: &Loc<TraitDef>) -> DResult<()> {
-        let doc = t.attributes.merge_docs();
-
+    fn doc_trait(&mut self, body: &mut Node<'_>, t: &Loc<TraitDef>, docs: &str) -> DResult<()> {
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Trait, t.name.as_str())?;
             self.in_codeblock(body, |b| self.print_trait_def(b, &t))?;
-            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_markdown(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
         })

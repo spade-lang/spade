@@ -26,13 +26,13 @@ use spade_common::{
 use spade_diagnostics::{CodeBundle, DiagHandler, diag_list::DiagList, emitter::CodespanEmitter};
 use spade_hir::{ItemList, expression::Safety, symbol_table::SymbolTable};
 
-use crate::impls::Impls;
+use crate::impls_n_docs::ImplsNDocs;
 
 mod error;
 /// Holds all methods to emit most of the describing elements.
 mod generate;
 mod html;
-mod impls;
+mod impls_n_docs;
 /// Holds all methods to emit code from ast.
 mod print;
 
@@ -217,13 +217,14 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         return Err(buffer);
     }
 
-    let mut impls = Impls {
+    let mut impls = ImplsNDocs {
         for_type: HashMap::default(),
+        docs: HashMap::default(),
     };
 
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
-            impls::gather_impls(module_ast, &mut impls, ctx).or_report(&mut errors);
+            impls_n_docs::gather_impls_n_docs(module_ast, &mut impls, ctx).or_report(&mut errors);
         })
     }
 

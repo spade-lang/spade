@@ -1,13 +1,15 @@
 use rustc_hash::FxHashMap as HashMap;
-use spade_ast as ast;
+use spade_ast::{self as ast, AttributeList};
 use spade_common::{
-    location_info::Loc,
-    name::{NameID, Path, PathSegment},
+    location_info::{Loc, WithLocation},
+    name::{Identifier, NameID, Path, PathSegment},
 };
 use spade_diagnostics::Diagnostic;
+use spade_hir::symbol_table::SymbolTable;
 
-pub(crate) struct Impls {
+pub(crate) struct ImplsNDocs {
     pub(crate) for_type: HashMap<NameID, (Vec<DirectImpl>, Vec<TraitImpl>)>,
+    pub(crate) docs: HashMap<NameID, String>,
 }
 
 #[derive(Clone)]
@@ -27,15 +29,56 @@ pub(crate) struct TraitImpl {
     pub(crate) units: Vec<Loc<ast::Unit>>,
 }
 
-pub(crate) fn gather_impls(
+impl ImplsNDocs {
+    fn add_outer_doc(
+        &mut self,
+        symtab: &SymbolTable,
+        name: &Loc<Identifier>,
+        attrs: &AttributeList,
+    ) {
+        let nameid = symtab
+            .lookup_id(&Path::ident(*name).nowhere(), false)
+            .expect("Couldn't lookup own type for documentation?");
+
+        let merged = attrs.merge_docs();
+        // Maybe append with double newline seperator
+        if let Some(pre) = self.docs.get_mut(&nameid) {
+            pre.extend(["\n\n", &merged]);
+        } else {
+            self.docs.insert(nameid, merged);
+        }
+    }
+    fn add_inner_doc(&mut self, symtab: &SymbolTable, docs: &[String]) {
+        let nameid = symtab
+            .lookup_id(&Path::from_idents(&[]).nowhere(), false)
+            .expect("Couldn't lookup own type for documentation?");
+
+        let mut merged = docs.join("\n");
+        // Maybe prepend with double newline seperator
+        if let Some(post) = self.docs.get_mut(&nameid) {
+            merged.extend(["\n\n", post]);
+            *post = merged;
+        } else {
+            self.docs.insert(nameid, merged);
+        }
+    }
+}
+
+pub(crate) fn gather_impls_n_docs(
     module_ast: &Loc<ast::ModuleBody>,
-    impls: &mut Impls,
+    impls: &mut ImplsNDocs,
     ctx: &mut spade_ast_lowering::Context,
 ) -> Result<(), Diagnostic> {
+    impls.add_inner_doc(&ctx.symtab, &module_ast.documentation);
+
     for item in &module_ast.members {
         match item {
-            ast::Item::Unit(_) => {}
-            ast::Item::TraitDef(_) => {}
+            ast::Item::Unit(u) => {
+                impls.add_outer_doc(&ctx.symtab, &u.head.name, &u.head.attributes);
+            }
+            ast::Item::TraitDef(t) => {
+                impls.add_outer_doc(&ctx.symtab, &t.name, &t.attributes);
+            }
             ast::Item::ImplBlock(block) => {
                 // Parts of this are stolen from `spade_ast_lowering::visit_impl_inner`
 
@@ -108,12 +151,23 @@ pub(crate) fn gather_impls(
                     });
                 }
             }
-            ast::Item::Type(_) => {}
-            ast::Item::ExternalMod(_) => {}
+            ast::Item::Type(t) => {
+                let attrs = match &t.kind {
+                    spade_ast::TypeDeclKind::Enum(e) => &e.attributes,
+                    spade_ast::TypeDeclKind::Struct(s) => &s.attributes,
+                    spade_ast::TypeDeclKind::Alias(a) => &a.attributes,
+                };
+                impls.add_outer_doc(&ctx.symtab, &t.name, attrs);
+            }
+            ast::Item::ExternalMod(m) => {
+                impls.add_outer_doc(&ctx.symtab, &m.name, &m.attributes);
+            }
             ast::Item::Module(m) => {
+                impls.add_outer_doc(&ctx.symtab, &m.name, &m.attributes);
+
                 ctx.symtab
                     .push_namespace(PathSegment::Named(m.name.clone()));
-                if let Err(e) = gather_impls(&m.body, impls, ctx) {
+                if let Err(e) = gather_impls_n_docs(&m.body, impls, ctx) {
                     ctx.symtab.pop_namespace();
                     return Err(e);
                 }
