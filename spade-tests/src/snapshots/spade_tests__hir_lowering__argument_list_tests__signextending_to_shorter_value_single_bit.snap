@@ -3,22 +3,15 @@ source: spade-tests/src/hir_lowering.rs
 ---
 fn main() -> int<1> {
     let a: int<2> = 0;
-    let b: int<1> = std::conv::sext(a);
+    let b: int<1> = std::num::sext(a);
     b
 }
 
 
-error: Sign-extending to a shorter value
+error: Expected M >= 2 but M is 1 
   ┌─ testinput:3:21
   │
-3 │     let b: int<1> = std::conv::sext(a);
-  │                     ^^^^^^^^^^^^^^^^^^
-  │                     │               │
-  │                     │               This value is 2 bits
-  │                     The value is sign-extended to 1 bit here
+3 │     let b: int<1> = std::num::sext(a);
+  │                     ^^^^^^^^^^^^^^^^^ Expected M >= 2, but M is 1
   │
-  = note: 
-  = Sign-extension cannot decrease width, use trunc instead
-  │
-3 │     let b: int<1> = trunc(a);
-  │                     ~~~~~
+  = note: Sign-extend result must be wider than the input value

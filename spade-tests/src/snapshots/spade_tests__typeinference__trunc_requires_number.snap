@@ -8,18 +8,13 @@ fn test(a: A) -> int<8> {
 }
 
 
-error: Argument type mismatch. Expected Number<#uint> got A
+error: Truncating to a larger value
   ┌─ testinput:4:11
   │
-3 │ fn test(a: A) -> int<8> {
-  │            - Type A inferred here
 4 │     trunc(a)
-  │           ^ Expected Number<_>
+  │     ------^-
+  │     │     │
+  │     │     This value is 0 bits
+  │     The value is truncated to 8 bits here
   │
-  ┌─ <compiler dir>/stdlib/conv.spade:8:21
-  │
-8 │ pub extern fn trunc<N, M>(x: N) -> M;
-  │                     - Type Number<_> inferred here
-  │
-  = note: Expected: Number<_>
-               Got: A
+  = note: Truncation can only remove bits

@@ -12,9 +12,9 @@ error: Argument type mismatch. Expected Number<#uint> got bool
   2 │     true `std::ops::comb_mod` true
     │     ^^^^ Expected Number<_>
     │
-    ┌─ <compiler dir>/stdlib/ops.spade:103:24
+    ┌─ <compiler dir>/stdlib/ops.spade:175:24
     │
-103 │ pub extern fn comb_mod<N>(x: N, y: N) -> N;
+175 │ pub extern fn comb_mod<T>(x: T, y: T) -> T;
     │                        - Type Number<_> inferred here
     │
     = note: Expected: Number<_>

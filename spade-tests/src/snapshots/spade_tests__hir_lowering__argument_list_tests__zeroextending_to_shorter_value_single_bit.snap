@@ -3,21 +3,15 @@ source: spade-tests/src/hir_lowering.rs
 ---
 fn main() -> uint<1> {
     let a: uint<2> = 0;
-    let b: uint<1> = std::conv::zext(a);
+    let b: uint<1> = std::num::zext(a);
     b
 }
 
 
-error: Zero-extending to a shorter value
+error: Expected M >= 2 but M is 1 
   ┌─ testinput:3:22
   │
-3 │     let b: uint<1> = std::conv::zext(a);
-  │                      ^^^^^^^^^^^^^^^^^^
-  │                      │               │
-  │                      │               This value is 2 bits
-  │                      The value is zero-extended to 1 bit here
+3 │     let b: uint<1> = std::num::zext(a);
+  │                      ^^^^^^^^^^^^^^^^^ Expected M >= 2, but M is 1
   │
-  = Zero-extension cannot decrease width, use trunc instead
-  │
-3 │     let b: uint<1> = trunc(a);
-  │                      ~~~~~
+  = note: Zero-extend result must be wider than the input value

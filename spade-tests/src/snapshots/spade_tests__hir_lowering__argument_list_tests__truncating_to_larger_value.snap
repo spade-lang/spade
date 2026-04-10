@@ -3,18 +3,18 @@ source: spade-tests/src/hir_lowering.rs
 ---
 fn main() -> int<8> {
     let a: int<4> = 0;
-    let b: int<8> = std::conv::trunc(a);
+    let b: int<8> = std::num::trunc(a);
     b
 }
 
 
 error: Truncating to a larger value
-  ┌─ testinput:3:38
+  ┌─ testinput:3:37
   │
-3 │     let b: int<8> = std::conv::trunc(a);
-  │                     -----------------^-
-  │                     │                │
-  │                     │                This value is 4 bits
+3 │     let b: int<8> = std::num::trunc(a);
+  │                     ----------------^-
+  │                     │               │
+  │                     │               This value is 4 bits
   │                     The value is truncated to 8 bits here
   │
   = note: Truncation can only remove bits

@@ -2698,7 +2698,7 @@ mod argument_list_tests {
         "
         fn main() -> int<8> {
             let a: int<4> = 0;
-            let b: int<8> = std::conv::trunc(a);
+            let b: int<8> = std::num::trunc(a);
             b
         }
         "
@@ -2709,7 +2709,7 @@ mod argument_list_tests {
         "
         fn main() -> int<2> {
             let a: int<1> = 0;
-            let b: int<2> = std::conv::trunc(a);
+            let b: int<2> = std::num::trunc(a);
             b
         }
         "
@@ -2720,7 +2720,7 @@ mod argument_list_tests {
         "
         fn main() -> int<4> {
             let a: int<8> = 0;
-            let b: int<4> = std::conv::sext(a);
+            let b: int<4> = std::num::sext(a);
             b
         }
         "
@@ -2731,7 +2731,7 @@ mod argument_list_tests {
         "
         fn main() -> int<1> {
             let a: int<2> = 0;
-            let b: int<1> = std::conv::sext(a);
+            let b: int<1> = std::num::sext(a);
             b
         }
         "
@@ -2742,7 +2742,7 @@ mod argument_list_tests {
         "
         fn main() -> uint<4> {
             let a: uint<8> = 0;
-            let b: uint<4> = std::conv::zext(a);
+            let b: uint<4> = std::num::zext(a);
             b
         }
         "
@@ -2753,7 +2753,7 @@ mod argument_list_tests {
         "
         fn main() -> uint<1> {
             let a: uint<2> = 0;
-            let b: uint<1> = std::conv::zext(a);
+            let b: uint<1> = std::num::zext(a);
             b
         }
         "

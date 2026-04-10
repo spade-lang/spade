@@ -2176,7 +2176,13 @@ mod expression_tests {
                     assign _e_0 = _e_1 {} _e_2;"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
+                let mut types = MirTypeList::empty();
+                types.add_statements(&[
+                    statement!(e(1); Type::Int(8u8.to_biguint()); Alias; e(0)),
+                    statement!(e(2); Type::Int(8u8.to_biguint()); Alias; e(0))
+                ]);
+
+                assert_same_code!(&statement_code_and_declaration(&stmt, &types, &CodeBundle::new("".to_string())).to_string(), &expected)
             }
         }
     }
@@ -2187,13 +2193,19 @@ mod expression_tests {
             fn $name() {
                 let stmt = statement!(e(0); $ty; $op; e(1), e(2));
 
+                let mut types = MirTypeList::empty();
+                types.add_statements(&[
+                    statement!(e(1); Type::Int(8u8.to_biguint()); Alias; e(0)),
+                    statement!(e(2); Type::Int(8u8.to_biguint()); Alias; e(0))
+                ]);
+
                 let expected = formatdoc!(
                     r#"
                     logic{} _e_0;
                     assign _e_0 = $signed(_e_1) {} $signed(_e_2);"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &types, &CodeBundle::new("".to_string())).to_string(), &expected)
             }
         }
     }

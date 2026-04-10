@@ -31,7 +31,7 @@ impl MirTypeList {
         result
     }
 
-    fn add_statements(&mut self, stmts: &[Statement]) {
+    pub(crate) fn add_statements(&mut self, stmts: &[Statement]) {
         for stmt in stmts {
             match stmt {
                 Statement::Binding(b) => {
