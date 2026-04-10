@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 use itertools::Itertools;
-use pulldown_cmark::{Options, Parser};
+use jotdown::{Parser, Render, html::Renderer};
 use spade_ast::{
     self as ast, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration,
     TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
@@ -785,16 +785,14 @@ fn write_markdown<'n>(
     markdown: &str,
     f: impl FnOnce(MarkdownContent) -> DResult<()>,
 ) -> DResult<()> {
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_SMART_PUNCTUATION);
-    options.insert(Options::ENABLE_MATH);
-    options.insert(Options::ENABLE_GFM);
-    let parser = Parser::new_ext(markdown, options);
+    let parser = Parser::new(markdown);
 
     let mut html_output = String::new();
-    pulldown_cmark::html::push_html(&mut html_output, parser);
+    let renderer = Renderer::minified();
+    renderer
+        .push(parser, &mut html_output)
+        .expect("Error emitting djot");
+
     if !html_output.is_empty() {
         f(MarkdownContent { html_output })?;
     }

@@ -6,12 +6,14 @@ struct S {}
 /// As the name suggests, it does nothing.
 fn do_nothing() { }
 
-/// This is **the** documentation of an _amazing_ ~~pipeline~~ entity.
+/// This is *the* documentation of an _amazing_ {-pipeline-} entity.
 ///
 /// # Heading O.o
+/// 
 /// we can write <script>alert()</script> but it get's sanitized :3
 ///
 /// Oh! and `this` and 
+///
 /// ```
 /// code blocks!
 /// ```

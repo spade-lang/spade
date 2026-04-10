@@ -10,7 +10,6 @@ camino = "1.1.2"
 spade-codespan-reporting.workspace = true
 color-eyre = "0.6.1"
 itertools = "0.14.0"
-pulldown-cmark = "0.13.0"
 rustc-hash.workspace = true
 spade-lang = { path = "../../spade-compiler/" }
 spade-common.workspace = true
@@ -24,3 +23,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-tree.workspace = true
 local-impl = "0.1.2"
 argh = "0.1.13"
+jotdown = "0.9.1"
