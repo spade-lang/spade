@@ -125,14 +125,7 @@ struct ItemListEntry<'a> {
 }
 
 impl<'a> ItemListEntry<'a> {
-    #[allow(dead_code)]
-    pub fn new_without_doc(name: &'a str) -> Self {
-        ItemListEntry {
-            name: name,
-            short_description: String::new(),
-        }
-    }
-    pub fn new_with_doc(name: &'a str, attributes: &AttributeList) -> Self {
+    pub fn from_attrs(name: &'a str, attributes: &AttributeList) -> Self {
         ItemListEntry {
             name,
             short_description: attributes
@@ -175,7 +168,7 @@ impl Generator {
                     contents
                         .entry(kind)
                         .or_default()
-                        .push(ItemListEntry::new_with_doc(name, attrs));
+                        .push(ItemListEntry::from_attrs(name, attrs));
 
                     self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t))?;
                 }
@@ -184,7 +177,7 @@ impl Generator {
                     contents
                         .entry(ItemKind::Module)
                         .or_default()
-                        .push(ItemListEntry::new_with_doc(name, &m.attributes));
+                        .push(ItemListEntry::from_attrs(name, &m.attributes));
 
                     // Don't need to generate stuff here as external mods have their own file and
                     // will thus be documented by the spadedoc main file iterator
@@ -194,7 +187,7 @@ impl Generator {
                     contents
                         .entry(ItemKind::Module)
                         .or_default()
-                        .push(ItemListEntry::new_with_doc(name, &m.attributes));
+                        .push(ItemListEntry::from_attrs(name, &m.attributes));
 
                     self.symtab.push_namespace(PathSegment::Named(m.name));
                     self.current_dir.push(name);
@@ -219,7 +212,7 @@ impl Generator {
                     contents
                         .entry(kind)
                         .or_default()
-                        .push(ItemListEntry::new_with_doc(name, &u.head.attributes));
+                        .push(ItemListEntry::from_attrs(name, &u.head.attributes));
 
                     self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u))?;
                 }
@@ -228,7 +221,7 @@ impl Generator {
                     contents
                         .entry(ItemKind::Trait)
                         .or_default()
-                        .push(ItemListEntry::new_with_doc(name, &t.attributes));
+                        .push(ItemListEntry::from_attrs(name, &t.attributes));
 
                     self.describe(FileName::Item(name), |g, b| g.doc_trait(b, &t))?;
                 }
@@ -247,7 +240,7 @@ impl Generator {
                         contents
                             .entry(ItemKind::Primitive)
                             .or_default()
-                            .push(ItemListEntry::new_with_doc(name, &m.attributes));
+                            .push(ItemListEntry::from_attrs(name, &m.attributes));
 
                         self.describe(FileName::Primitive(name), |g, b| g.doc_primitive(b, &m))?;
                     }
