@@ -41,7 +41,7 @@ impl ImplsNDocs {
             .expect("Couldn't lookup own type for documentation?");
 
         let merged = attrs.merge_docs();
-        // Maybe append with double newline seperator
+        // Maybe append with double newline separator
         if let Some(pre) = self.docs.get_mut(&nameid) {
             pre.extend(["\n\n", &merged]);
         } else {
@@ -54,7 +54,7 @@ impl ImplsNDocs {
             .expect("Couldn't lookup own type for documentation?");
 
         let mut merged = docs.join("\n");
-        // Maybe prepend with double newline seperator
+        // Maybe prepend with double newline separator
         if let Some(post) = self.docs.get_mut(&nameid) {
             merged.extend(["\n\n", post]);
             *post = merged;
