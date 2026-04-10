@@ -14,8 +14,10 @@ fn do_nothing() { }
 ///
 /// Oh! and `this` and 
 ///
-/// ```
-/// code blocks!
+/// ```spade
+/// entity we() {
+///     let have_some = 42; // cool blocks :3
+/// }
 /// ```
 entity top() {}
 

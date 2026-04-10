@@ -28,6 +28,7 @@ use spade_hir::{ItemList, expression::Safety, symbol_table::SymbolTable};
 
 use crate::impls_n_docs::ImplsNDocs;
 
+mod djot;
 mod error;
 /// Holds all methods to emit most of the describing elements.
 mod generate;

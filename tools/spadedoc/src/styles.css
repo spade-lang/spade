@@ -38,6 +38,19 @@
     }
 }
 
+.kw1 {
+    color: #8e908c;
+}
+.kw2 {
+    color: #718c00;
+}
+.kw3 {
+    color: #718c00;
+}
+.kw4 {
+    color: #8959a8;
+}
+
 body {
     margin: 0;
     font-size: 16px;

@@ -1,6 +1,5 @@
 use camino::Utf8PathBuf;
 use itertools::Itertools;
-use jotdown::{Parser, Render, html::Renderer};
 use spade_ast::{
     self as ast, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration,
     TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
@@ -19,6 +18,7 @@ use std::{
 };
 
 use crate::{
+    djot::write_djot,
     error::{DResult, DocError},
     fwrite,
     html::Node,
@@ -276,7 +276,7 @@ impl Generator {
             main(b, |b| {
                 g.path_breadcrumbs(b)?;
                 write_title(b, ItemKind::Module, name)?;
-                write_markdown(&docs, |md| collapsible(b, &["main_desc"], md.write()))?;
+                write_djot(&docs, |md| collapsible(b, &["main_desc"], md.write()))?;
                 for (kind, mut entries) in contents {
                     entries.sort_by_key(|e| e.name);
                     b.tag("section", |b| {
@@ -308,7 +308,7 @@ impl Generator {
                                     Ok(())
                                 })?;
                                 b.tag("dd", |b| {
-                                    write_markdown(&entry.short_description, |md| (md.write())(b))
+                                    write_djot(&entry.short_description, |md| (md.write())(b))
                                 })?;
                             }
                             Ok(())
@@ -349,7 +349,7 @@ impl Generator {
                 TypeDeclKind::Struct(s) => self.print_struct(b, s, &t.visibility, &t.generic_args),
                 TypeDeclKind::Alias(_) => Ok(()),
             })?;
-            write_markdown(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             // (Trait) implementation blocks
             if let Some((direct, traits)) = self.impls.for_type.get(&nameid).cloned() {
@@ -438,7 +438,7 @@ impl Generator {
                                         self.print_unit_head(body, &u.head)
                                     })
                                 },
-                                |body| write_markdown(&doc, |md| (md.write())(body)),
+                                |body| write_djot(&doc, |md| (md.write())(body)),
                             )?;
                         } else {
                             body.tag("div", |body| {
@@ -465,7 +465,7 @@ impl Generator {
             self.path_breadcrumbs(body)?;
             write_title(body, kind, u.head.name.as_str())?;
             self.in_codeblock(body, |b| self.print_unit_head(b, &u.head))?;
-            write_markdown(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
         })
@@ -476,7 +476,7 @@ impl Generator {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Trait, t.name.as_str())?;
             self.in_codeblock(body, |b| self.print_trait_def(b, &t))?;
-            write_markdown(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
         })
@@ -488,7 +488,7 @@ impl Generator {
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Primitive, m.name.as_str())?;
-            write_markdown(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
+            write_djot(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             enum ImplSearch {
                 Named(&'static str),
@@ -763,39 +763,4 @@ fn write_title(node: &mut Node<'_>, kind: ItemKind, name: &str) -> DResult<()> {
             Ok(())
         })
     })
-}
-
-struct MarkdownContent {
-    html_output: String,
-}
-
-impl MarkdownContent {
-    fn write(self) -> impl FnOnce(&mut Node<'_>) -> DResult<()> {
-        move |n| {
-            ammonia::Builder::new()
-                .clean(&self.html_output)
-                .write_to(n.io())
-                .unwrap();
-            Ok(())
-        }
-    }
-}
-
-fn write_markdown<'n>(
-    markdown: &str,
-    f: impl FnOnce(MarkdownContent) -> DResult<()>,
-) -> DResult<()> {
-    let parser = Parser::new(markdown);
-
-    let mut html_output = String::new();
-    let renderer = Renderer::minified();
-    renderer
-        .push(parser, &mut html_output)
-        .expect("Error emitting djot");
-
-    if !html_output.is_empty() {
-        f(MarkdownContent { html_output })?;
-    }
-
-    Ok(())
 }

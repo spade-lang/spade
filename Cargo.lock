@@ -3600,6 +3600,7 @@ dependencies = [
  "itertools",
  "jotdown",
  "local-impl",
+ "logos",
  "rustc-hash",
  "spade-ast",
  "spade-ast-lowering",
