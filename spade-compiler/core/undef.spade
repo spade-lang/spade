@@ -3,6 +3,6 @@
 /// Undefined values are meant to be used as explicit markers of values not intended to be used.
 /// They get compiled to a "don't care" value in Verilog.
 ///
-/// While 4-valued simulators preserve them, others like Verilator may set them to 0 or a random
-/// value.
-pub extern fn undef<T>() -> T;
+/// While 4-valued simulators preserve them, synthesis tools and 2-valued
+/// simulators like Verilator may set them to 0 or a random value.
+pub extern fn undef<T: Data>() -> T;

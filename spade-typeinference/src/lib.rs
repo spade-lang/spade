@@ -1520,7 +1520,7 @@ impl TypeState {
             })?;
 
         handle_special_functions! {
-            ["std", "conv", "concat"] => {
+            ["std", "num", "concat"] => {
                 self.handle_concat(
                     expression_id,
                     generic_arg!(0),
@@ -1530,7 +1530,7 @@ impl TypeState {
                     ctx
                 )?
             },
-            ["std", "conv", "trunc"] => {
+            ["std", "num", "trunc"] => {
                 self.handle_trunc(
                     expression_id,
                     generic_arg!(0),

@@ -4,11 +4,11 @@ pub use std::option::Option::None;
 
 #[deprecated = "Use `[T; N]::interleave` instead"]
 pub use std::array::interleave_arrays;
-#[deprecated = "Use `std::array::zip` or `[T; N]::zip` instead"]
+#[deprecated = "Use `[T; N]::zip` instead"]
 pub use std::array::zip;
 
 #[deprecated = "Use `int<N>::concat` or `uint<N>::concat` instead"]
-pub use std::conv::concat;
+pub use std::num::concat;
 #[deprecated = "Use `std::array::concat` `[T; N]::concat` instead"]
 pub use std::conv::concat_arrays;
 #[deprecated = "Use `tri::as_bool` instead"]

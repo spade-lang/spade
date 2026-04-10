@@ -1,73 +1,15 @@
 pub use core::conv::transmute;
 
-/// Reduces the size of an integer by truncating away the excess highest significant bits.
-///
-/// Note that removing those highest significant bits may change the value of the integer if it
-/// cannot fit into the target bit width. In particular, negative numbers may change their sign.
-///
-/// # Examples
-///
-/// ```spade,notest
-/// assert trunc(7u8) == 7u4;
-/// assert trunc(7u8) == 7u3;
-/// assert trunc(7u8) == 3u2;
-/// assert trunc(-8i8) == -8i4;
-/// assert trunc(-8i8) == 0i3;
-/// ```
 // This is special cased by the compiler. If Spade was able to express its actual type, it would be:
 // `trunc<#uint N, #uint M, T: Number<N>>(x: T) -> T::Resized<M>`.
 #[deprecated = "Use `std::num::trunc`, `int<N>::trunc` or `uint<N>::trunc` instead"]
-pub extern fn trunc<N, M>(x: N) -> M;
-
-/// Increases the size of a signed integer by replicating its sign bit.
-///
-/// This operation preserves the numeric value.
-///
-/// # Examples
-///
-/// ```spade,notest
-/// assert sext(9i8) == 9i8;
-/// assert sext(9i8) == 9i12;
-/// assert sext(0i8) == 0i32;
-/// assert sext(-1i8) == -1i20;
-/// assert sext(-156i8) == -156i22;
-/// ```
+pub use std::num::trunc;
 #[deprecated = "Use `std::num::sext`, `int<N>::sext` or `uint<N>::sext` instead"]
-pub extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>;
-
-/// Increases the size of a signed integer by extending it with zeros on the left side.
-///
-/// This operation preserves the numeric value.
-///
-/// # Examples
-///
-/// ```spade,notest
-/// assert zext(9u8) == 9u8;
-/// assert zext(9u8) == 9u12;
-/// assert zext(0u8) == 0u32;
-/// ```
+pub use std::num::sext;
 #[deprecated = "Use `std::num::zext`, `int<N>::zext` or `uint<N>::zext` instead"]
-pub extern fn zext<#uint N, #uint M>(x: uint<N>) -> uint<M>;
-
-/// Creates an integer by concatenating the bits of two existing ones.
-///
-/// The result is an integer whose higher bits correspond to the first input integer, and its lower
-/// bits correspond to the second one.
-///
-/// Note that when operating with signed integers, the result has the same sign as the first
-/// argument provided, as it is its most significant bit which becomes the sign bit of the
-/// concatenated whole.
-///
-/// # Examples
-///
-/// ```spade,notest
-/// assert concat(0xABADu16, 0x1DEAu16) == 0xABAD_1DEAu32;
-/// assert concat(0x1234i16, 0x5678i16) == 0x5678_1234i32;
-/// assert concat(0i16, -1i16) == 65_535i32;
-/// assert concat(0u0, 0u0) == 0u0;
-/// ```
-// FIXME(spade#393) #[deprecated = "Use `std::num::concat`, `int<N>::concat` or `uint<N>::concat` instead"]
-pub extern fn concat<N, M, K>(x: N, y: M) -> K;
+pub use std::num::zext;
+#[deprecated = "Use `std::num::concat`, `int<N>::concat` or `uint<N>::concat` instead"]
+pub use std::num::concat;
 
 /// Creates an array by concatenating the elements of two existing ones.
 ///
@@ -125,7 +67,7 @@ pub fn tri_to_bool(t: tri) -> bool {
 /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB of
 /// the input number and the last element corresponds to its MSB.
 ///
-/// Note that bits in the literal binary representation of the number are written right-to-left,
+/// Note that bits in the literal binary representation are written right-to-left,
 /// while items in the literal representation of the array are written left-to-right.
 ///
 /// # Examples
@@ -146,7 +88,7 @@ pub fn int_to_bits<#uint N>(input: int<N>) -> [bool; N] {
 /// Bits are laid out from LSB to MSB, so the first element of the array corresponds to the LSB of
 /// the input number and the last element corresponds to its MSB.
 ///
-/// Note that bits in the literal binary representation of the number are written right-to-left,
+/// Note that bits in the literal binary representation are written right-to-left,
 /// while items in the literal representation of the array are written left-to-right.
 ///
 /// # Examples
@@ -430,6 +372,8 @@ impl tri {
 impl<#uint N> int<N> {
     /// Casts a signed integer to an unsigned integer by reinterpreting its bits.
     ///
+    /// This does not preserve the original numeric value if the value is negative.
+    ///
     /// # Examples
     ///
     /// ```spade
@@ -484,6 +428,9 @@ impl<#uint N> int<N> {
 impl<#uint N> uint<N> {
     /// Casts an unsigned integer to a signed integer by reinterpreting its bits.
     ///
+    /// Note that the numeric value is not preserved. A value that is greater than 2^N will
+    /// result in a negative value. To preserve the numeric representation, use `to_int`.
+    ///
     /// # Examples
     ///
     /// ```spade
@@ -515,7 +462,7 @@ impl<#uint N> uint<N> {
     /// Convert an unsigned integer to a signed integer.
     /// 
     /// The output has one additional bits in order to ensure that the original value
-    /// fits. If you want to re-interpret the bits instead, use `as_int`
+    /// fits. If you want to re-interpret the bits instead, use `as_int`.
     ///
     /// # Examples
     ///
@@ -577,5 +524,24 @@ where
     /// ```
     fn to_be_bytes(self) -> [uint<8>; {N / 8}] {
         self.to_le_bytes().reversed()
+    }
+
+    /// Converts `self` into an array of bytes in the order that germans say digits.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// assert 0x12u8.to_german_endian_bytes() == [0x12];
+    /// assert 0x1234u16.to_german_endian_bytes() == [0x34, 0x12];
+    /// assert 0x12345678u32.to_german_endian_bytes() == [0x12, 0x34, 0x78, 0x56];
+    /// ```
+    fn to_german_endian_bytes(self) -> [uint<8>; {N / 8}] {
+        gen if N <= 16 {
+            self.to_le_bytes()
+        } else {
+            let normal_value = self.to_be_bytes();
+
+            normal_value[..N/8-2].concat(normal_value[N/8-2..].reversed())
+        }
     }
 }

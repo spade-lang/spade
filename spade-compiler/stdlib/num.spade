@@ -30,6 +30,8 @@ pub fn abs<#uint N>(x: int<N>) -> uint<N> {
 /// assert std::num::concat(0i16, -1i16) == 65_535i32;
 /// assert std::num::concat(0u0, 0u0) == 0u0;
 /// ```
+// FIXME: We should deprecate this function but that requires a new intrinsic
+// #[deprecated = "Use `int<N>.concat` or `uint<N>.concat` instead"]
 // This is special cased by the compiler. If Spade was able to express its actual type, it would be:
 // `concat<#uint N, #uint M, T: Number<N>>(x: T, T::Resized<M>) -> T::Resized<{N + M}>`.
 pub extern fn concat<N, M, K>(x: N, y: M) -> K;
@@ -37,7 +39,8 @@ pub extern fn concat<N, M, K>(x: N, y: M) -> K;
 /// Reduces the size of an integer by truncating away the excess highest significant bits.
 ///
 /// Note that removing those highest significant bits may change the value of the integer if it
-/// cannot fit into the target bit width. In particular, negative numbers may change their sign.
+/// cannot fit into the target bit width. In particular, numbers may change their sign
+/// and values which do not fit in the new representation wrap around.
 ///
 /// # Examples
 ///
@@ -69,7 +72,7 @@ pub extern fn sext<#uint N, #uint M>(x: int<N>) -> int<M>
 where
     M >= N else "Sign-extend result must be wider than the input value";
 
-/// Increases the size of a signed integer by extending it with zeros on the left side.
+/// Increases the size of an unsigned integer by extending it with zeros on the most significant side.
 ///
 /// This operation preserves the numeric value.
 ///
@@ -144,8 +147,9 @@ impl<#uint N> int<N> {
 
     /// Reduces the size of an integer by truncating away the excess highest significant bits.
     ///
-    /// Note that removing those highest significant bits may change the value of the integer if it
-    /// cannot fit into the target bit width. In particular, negative numbers may change their sign.
+    /// Note that removing those highest significant bits will change the numeric value of the integer if it
+    /// cannot fit into the target bit width. In particular, negative numbers may change their sign and
+    /// values whose numeric value does not fit in the result will wrap around.
     ///
     /// # Examples
     ///
@@ -182,7 +186,7 @@ impl<#uint N> uint<N> {
     ///
     /// A number containing bits from both input numbers is built, with even positions occupied by
     /// bits from the first number and odd positions occupied by those from the second number. In
-    /// other words, given two numbers `0bCBA` and `0b321`, the output would be `0b3C2B1A`.
+    /// other words, given two numbers `0b011` and `0b101`, the output would be `0b100111`.
     ///
     /// # Examples
     ///
@@ -219,7 +223,7 @@ impl<#uint N> uint<N> {
 
     /// Reduces the size of an integer by truncating away the excess highest significant bits.
     ///
-    /// Note that removing those highest significant bits may change the value of the integer if it
+    /// Note that removing those highest significant bits will change the numeric value of the integer if it
     /// cannot fit into the target bit width.
     ///
     /// # Examples
@@ -249,7 +253,7 @@ impl<#uint N> uint<N> {
 }
 
 impl<#uint N> int<N> where N > 0 {
-    /// Returns the value of the most significant bit (also the sign bit).
+    /// Returns the value of the most significant bit i.e. the sign bit.
     ///
     /// Equivalent to `int<N>::sign_bit`.
     ///
@@ -281,7 +285,7 @@ impl<#uint N> int<N> where N > 0 {
 
     /// Returns the value of the sign bit (also the most significant bit).
     ///
-    /// Equivalent to `int<N>::leftmost_bit`.
+    /// Equivalent to `int<N>::msb`.
     ///
     /// # Examples
     ///
@@ -297,8 +301,6 @@ impl<#uint N> int<N> where N > 0 {
 
 impl<#uint N> uint<N> where N > 0 {
     /// Returns the value of the most significant bit.
-    ///
-    /// See also `int<N>::sign_bit`.
     ///
     /// # Examples
     ///

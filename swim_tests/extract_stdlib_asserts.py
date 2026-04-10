@@ -1,7 +1,6 @@
-#!/bin/env python
+#!/usr/bin/env python3
 
-# A quick and dirty script to extract "doctests" from the stdlib. These doctests are
-# restricted to `assert <thing>` for now
+# A quick and dirty script to extract "doctests" from the stdlib.
 
 import sys
 from pathlib import Path

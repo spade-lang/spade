@@ -135,9 +135,9 @@ impl<T> Option<T> {
     /// of the array
     ///
     /// ```
-    /// input.sliding_window::<2>(clk, rst, 0)
+    /// input.padded_sliding_window::<2>(clk, rst, 0)
     /// input:  | None | Some(1)      | Some(2)      | None | Some(3)
-    /// output: | None | Some([1, 0]) | Some([2, 1]) | None | Some(3, 2])
+    /// output: | None | Some([1, 0]) | Some([2, 1]) | None | Some([3, 2])
     /// ```
     pub entity padded_sliding_window<#uint N>(
         self,
@@ -166,7 +166,7 @@ impl<T> Option<T> {
     /// There is a one clock cycle latency between input and output
     ///
     /// ```
-    /// input.sliding_window::<2>(clk, rst, 0)
+    /// input.chunks::<2>(clk, rst, 0)
     /// input:  | None | Some(1) | Some(2)       | None         | Some(3) | Some(4) | -
     /// output: | None | None    | Some([1, 2])  | None         | None    | Some([3, 4])
     /// ```

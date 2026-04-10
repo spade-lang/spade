@@ -1,4 +1,3 @@
-// TODO: Make this a method on arrays instead of a free standing function
 /// Generates an array by repeatedly applying a generator function.
 ///
 /// A seed value serves as the first output element and the base case for the generator function.
@@ -128,14 +127,14 @@ impl<T, #uint N> [T; N] {
     /// assert three_item_chunks[0] == [1u8, 2u8, 3u8];
     /// assert three_item_chunks[1] == [4u8, 5u8, 6u8];
     /// ```
-    fn chunks<#uint M>(self) -> [[T; M]; {N / M}]
+    fn chunks<#uint ChunkSize>(self) -> [[T; ChunkSize]; {N / ChunkSize}]
     where
-        N == N / M * M else "Array cannot be divided into chunks"
+        N == N / ChunkSize * ChunkSize else "The size of the input array must be a multiple of the chunk size"
     {
         gen if N == 0 {
             []
         } else {
-            [self[..M]].concat(self[M..].chunks())
+            [self[..ChunkSize]].concat(self[ChunkSize..].chunks())
         }
     }
 
@@ -190,7 +189,8 @@ impl<T, #uint N> [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// assert [1u8, 2u8, 3u8, 4u8].reduce(fn |a, b| a +. b) == 10u8;
+    /// assert [1u8, 2u8, 3u8, 4u8].fold(0, fn |acc, val| acc +. val) == 10u8;
+    /// assert [1u8, 2u8, 3u8, 4u8].fold(true, fn |acc, val| acc && val != 4) == false;
     /// ```
     fn fold<B>(self, init: B, f: impl Fn(B, T) -> B) -> B {
         gen if N == 0 {
@@ -449,7 +449,7 @@ impl<T, #uint N> [T; N] where N > 0 {
 }
 
 impl<S, T, #uint N> [(S, T); N] {
-    /// Splits pairs inside an array into two arrays containing elements from each side.
+    /// Splits an array of pairs into a pair of arrays.
     ///
     /// Both arrays produced have the same length as the input array. The
     /// first element of the left array is the first element of the first
@@ -545,8 +545,8 @@ impl<#uint N> [bool; N] where N > 0 {
     ///
     /// ```spade
     /// assert [true, true, true].reduce_xor() == true ^^ true ^^ true;
-    /// assert [false, false, false].reduce_and() == false ^^ false ^^ false;
-    /// assert [false, true, true].reduce_and() == false ^^ true ^^ true;
+    /// assert [false, false, false].reduce_xor() == false ^^ false ^^ false;
+    /// assert [false, true, true].reduce_xor() == false ^^ true ^^ true;
     /// ```
     ///
     /// This operation is equivalent to the Verilog OR reduction operator `^`.

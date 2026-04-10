@@ -103,7 +103,7 @@ pub fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
     Gray(gray).to_uint()
 }
 
-/// Reduces an array of `bool` into a single value by performing a AND operation on them.
+/// Reduces an array of `bool` into a single value by performing an AND operation on them.
 ///
 /// This operation is equivalent to the Verilog AND reduction operator `&`.
 ///
@@ -116,7 +116,7 @@ pub fn gray_to_bin<#uint N>(gray: uint<N>) -> uint<N> {
 /// ```
 pub extern fn reduce_and<#uint N>(x: [bool; N]) -> bool;
 
-/// Reduces an array of `bool` into a single value by performing a OR operation on them.
+/// Reduces an array of `bool` into a single value by performing an OR operation on them.
 ///
 /// This operation is equivalent to the Verilog OR reduction operator `|`.
 ///

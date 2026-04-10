@@ -5,8 +5,6 @@
 //! transferring between domains of similar speed).
 //!
 //! Make sure to read the docs of each individual module.
-//!
-//! Note that these modules are also not well tested in practice at the moment.
 
 /// NOTE: This function does not provide any guarantees about value
 /// integrity for / signals of more than one bit as crossing 2 domains with

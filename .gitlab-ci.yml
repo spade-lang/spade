@@ -182,6 +182,7 @@ check:typos-and-todos:
     - ./typos
     # invert exit code of grep while still printing all matches
     - set -e; find . -name "*.rs" | xargs grep -Ei "// *TODO" || exit 0 && exit 1
+    - set -e; find . -name "*.spade" | xargs grep -Ei "// *TODO" || exit 0 && exit 1
   after_script:
     - >
       if [ $CI_JOB_STATUS == 'success' ]; then
@@ -248,7 +249,7 @@ test:swim-tests:
       policy: pull-push
   script:
     - apt update
-    - apt install -y iverilog python3-dev python3-venv
+    - apt install -y iverilog python3-dev python3-venv python3
     - cargo install --git https://gitlab.com/spade-lang/swim --locked
     - cd swim_tests
     - $CARGO_HOME/bin/swim test

@@ -2575,7 +2575,6 @@ impl ExprLocal for Loc<Expression> {
             ["core", "ops", "intrinsics", "ge"] => handle_ge,
             ["core", "undef", "undef"] => handle_undef,
             // std
-            ["std", "conv", "transmute"] => handle_transmute {allow_port},
             ["std", "mem", "clocked_memory"] => handle_clocked_memory_decl,
             ["std", "mem", "clocked_memory_init"] => handle_clocked_memory_initial_decl,
             ["std", "mem", "read_memory"] => handle_read_memory,
