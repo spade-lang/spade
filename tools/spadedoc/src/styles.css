@@ -38,16 +38,19 @@
     }
 }
 
-.kw1 {
+.lex-comment {
     color: #8e908c;
 }
-.kw2 {
+.lex-number {
     color: #718c00;
 }
-.kw3 {
+.lex-string {
     color: #718c00;
 }
-.kw4 {
+.lex-bool {
+    color: #c82829;
+}
+.lex-kw {
     color: #8959a8;
 }
 

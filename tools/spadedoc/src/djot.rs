@@ -169,20 +169,28 @@ enum SyntaxColor {
     Comment,
     Number,
     String,
+    Bool,
     Keyword,
 }
 
 impl SyntaxColor {
     /// Classes to be allowed on spans for ammonia
-    const CLASSES: &[&'static str] = &["kw1", "kw2", "kw3", "kw4"];
+    const CLASSES: &[&'static str] = &[
+        "lex-comment",
+        "lex-number",
+        "lex-string",
+        "lex-bool",
+        "lex-kw",
+    ];
 
     fn class(&self) -> &'static str {
         match self {
             SyntaxColor::None => "",
-            SyntaxColor::Comment => "kw1",
-            SyntaxColor::Number => "kw2",
-            SyntaxColor::String => "kw3",
-            SyntaxColor::Keyword => "kw4",
+            SyntaxColor::Comment => "lex-comment",
+            SyntaxColor::Number => "lex-number",
+            SyntaxColor::String => "lex-string",
+            SyntaxColor::Bool => "lex-bool",
+            SyntaxColor::Keyword => "lex-kw",
         }
     }
 
@@ -192,11 +200,11 @@ impl SyntaxColor {
             TokenKind::Integer(_) => SyntaxColor::Number,
             TokenKind::HexInteger(_) => SyntaxColor::Number,
             TokenKind::BinInteger(_) => SyntaxColor::Number,
-            // TokenKind::True => todo!(),
-            // TokenKind::False => todo!(),
-            // TokenKind::Low => todo!(),
-            // TokenKind::High => todo!(),
-            // TokenKind::HighImp => todo!(),
+            TokenKind::True
+            | TokenKind::False
+            | TokenKind::Low
+            | TokenKind::High
+            | TokenKind::HighImp => SyntaxColor::Bool,
             TokenKind::Reg => SyntaxColor::Keyword,
             TokenKind::Let => SyntaxColor::Keyword,
             TokenKind::Decl => SyntaxColor::Keyword,
