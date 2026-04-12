@@ -138,9 +138,6 @@ impl TypeSpecExt for TypeSpec {
                 // TODO: This is just flat out wrong, but needed for the prototype to compile
                 inner.mirror_impl(primitive_map, turbofish)
             }
-            // Wires are irrelevant to the testing system, we can just treat them as their non-wire
-            // counterpart
-            TypeSpec::Wire(w) => w.mirror_impl(primitive_map, turbofish),
 
             TypeSpec::TraitSelf(_) => {
                 quote!()
@@ -352,6 +349,7 @@ impl TypeDeclarationExt for TypeDeclaration {
                              name,
                              ty,
                              field_translator: _,
+                             wire: _,
                          }| {
                             let name = format_ident!("{}", &name.as_str());
                             let ty = ty.mirror(primitive_map);

@@ -9,7 +9,7 @@ mod types;
 use std::env;
 
 use camino::Utf8PathBuf;
-use marlin_verilator::{mangle, PortDirection};
+use marlin_verilator::{mangle_verilator_name, PortDirection};
 use marlin_verilog_macro_builder::build_verilated_struct;
 use num::ToPrimitive;
 use proc_macro::TokenStream;
@@ -18,6 +18,7 @@ use quote::{format_ident, quote};
 use proc_macro_error::{abort_call_site, proc_macro_error};
 use spade::{self as spade_compiler, compiler_state::StoredCompilerState};
 use spade_compiler::compiler_state::CompilerState;
+use spade_hir::Input;
 use spade_hir_lowering::{MirLowerable, UnitNameExt};
 use syn::LitStr;
 use types::mirror_types;
@@ -188,7 +189,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let mut extra_init = vec![];
     let mut pre_hooks = vec![];
     let mut post_hooks = vec![];
-    for ((name, hir_type), param) in top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone()) {
+    for (Input{name, ty: hir_type, wire: _}, param) in top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone()) {
         let ty = type_state
             .concrete_type_of_name(
                 &name,
@@ -267,11 +268,9 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let top_name = top_name.without_escapes();
     let verilator = build_verilated_struct(
         "spade",
-        syn::LitStr::new(&mangle(&top_name).unwrap(), args.top.span()),
+        syn::LitStr::new(&mangle_verilator_name(&top_name).unwrap(), args.top.span()),
         verilog_source_path,
         ports,
-        None,
-        None,
         item.clone().into(),
     );
 
