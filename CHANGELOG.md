@@ -9,6 +9,39 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.18.0] - 2026-04-16
+
+## Added
+
+- [!637][!637] Refine standard library
+- [!577][!577] Added trait associated types
+- [!612][!612] Added `int::bits_for` and `uint::bits_for` type-level functions
+- [!624][!624] Types can now be defined inside units
+
+## Fixed
+- [!609][!609] Fix alias flattening system to avoid codegen bugs with inlining enabled
+- [!610][!610] Enforce trait requirements on types even if they are not explicitly instantiated
+- [!622][!622] Fixed handling of `-.` by the compiler, now it can be used in code
+- [!629][!629] Fix codegen bug with aliases and resets
+
+## Changed
+- [!607][!607] Remove the `port` type distinction. This is superseded by a `Data` trait.
+- [!611][!611] Missing `mod name;` extern module declarations now produce warnings instead of errors
+- [!612][!612] `uint_bits_to_fit` type-level functions emit a deprecation warning
+- [!623][!623] Renamed `--omit-stdlib-and-prelude` to `--omit-stdlib`
+
+
+[!577]: https://gitlab.com/spade-lang/spade/-/merge_requests/577
+[!607]: https://gitlab.com/spade-lang/spade/-/merge_requests/607
+[!609]: https://gitlab.com/spade-lang/spade/-/merge_requests/609
+[!610]: https://gitlab.com/spade-lang/spade/-/merge_requests/610
+[!611]: https://gitlab.com/spade-lang/spade/-/merge_requests/611
+[!612]: https://gitlab.com/spade-lang/spade/-/merge_requests/612
+[!622]: https://gitlab.com/spade-lang/spade/-/merge_requests/622
+[!623]: https://gitlab.com/spade-lang/spade/-/merge_requests/623
+[!624]: https://gitlab.com/spade-lang/spade/-/merge_requests/624
+[!629]: https://gitlab.com/spade-lang/spade/-/merge_requests/629
+
 ## [0.17.0] - 2026-03-05
 
 ## Added
@@ -714,6 +747,8 @@ Initial numbered version
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
 [Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.18.0...main
+[0.18.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.18.0...v0.17.0
 [0.17.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...v0.16.0
 [0.16.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...v0.15.0
 [0.15.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.15.0...v0.14.0
