@@ -68,6 +68,7 @@ impl<'s, I: Iterator<Item = Event<'s>>> Iterator for SyntaxProcessor<'s, I> {
         match self.state {
             State::Await => {
                 let next = self.inner.next();
+
                 match &next {
                     Some(Event::Start(Container::CodeBlock { language }, _))
                         if language.split(",").next() == Some("spade") =>
@@ -76,7 +77,25 @@ impl<'s, I: Iterator<Item = Event<'s>>> Iterator for SyntaxProcessor<'s, I> {
                     }
                     _ => {}
                 }
-                next
+
+                match next {
+                    Some(Event::Start(
+                        Container::Heading {
+                            level,
+                            has_section,
+                            id,
+                        },
+                        attrs,
+                    )) => Some(Event::Start(
+                        Container::Heading {
+                            level: level + 3,
+                            has_section,
+                            id,
+                        },
+                        attrs,
+                    )),
+                    other => other,
+                }
             }
             State::Start => {
                 self.state = State::Color;
