@@ -128,7 +128,10 @@ impl<'a> ItemListEntry<'a> {
     pub fn new(name: &'a str, docs: &str) -> Self {
         ItemListEntry {
             name,
-            short_description: docs.lines().take_while(|line| !line.is_empty()).join("\n"),
+            short_description: docs
+                .lines()
+                .take_while(|line| !line.trim().is_empty())
+                .join("\n"),
         }
     }
 }
