@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::VecDeque};
 
 use jotdown::{Attributes, Container, Event, Parser, Render as _, html::Renderer};
 use logos::Logos as _;
@@ -32,7 +32,7 @@ pub fn write_djot<'n>(markdown: &str, f: impl FnOnce(DjotContent) -> DResult<()>
         .push(
             SyntaxProcessor {
                 inner: parser,
-                state: State::Await,
+                queued_events: VecDeque::new(),
             },
             &mut html_output,
         )
@@ -45,115 +45,124 @@ pub fn write_djot<'n>(markdown: &str, f: impl FnOnce(DjotContent) -> DResult<()>
     Ok(())
 }
 
-#[derive(Clone, Copy)]
-enum State {
-    /// Wait for a codeblock with spade as language
-    Await,
-    /// Emit raw start tag
-    Start,
-    /// Emit raw html stuff
-    Color,
-    /// Emit raw end tag
-    End,
-}
 struct SyntaxProcessor<'s, I: Iterator<Item = Event<'s>>> {
     inner: I,
-    state: State,
+    queued_events: VecDeque<Event<'s>>,
 }
 
 impl<'s, I: Iterator<Item = Event<'s>>> Iterator for SyntaxProcessor<'s, I> {
     type Item = Event<'s>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.state {
-            State::Await => {
-                let next = self.inner.next();
+        if let Some(queued) = self.queued_events.pop_front() {
+            Some(queued)
+        } else {
+            let next = self.inner.next();
 
-                match &next {
-                    Some(Event::Start(Container::CodeBlock { language }, _))
-                        if language.split(",").next() == Some("spade") =>
-                    {
-                        self.state = State::Start;
+            // Syntax highlight code blocks. This pushes several events to the
+            // queue and early exits with the first newly pushed event
+            match &next {
+                Some(event @ Event::Start(Container::CodeBlock { language }, _))
+                    if language.split(",").next() == Some("spade") =>
+                {
+                    // Push the start of a code block, then the start of raw HTML
+                    self.queued_events.push_back(event.clone());
+                    self.queued_events.push_back(Event::Start(
+                        Container::RawBlock {
+                            format: Cow::Borrowed("html"),
+                        },
+                        Attributes::default(),
+                    ));
+
+                    // Accumulate the source code of the code block into a string, then
+                    // remember the end event
+                    let mut source = String::new();
+                    let end_event = 'end_iterator: loop {
+                        match self.inner.next() {
+                            None => break None,
+                            Some(event @ Event::End(Container::CodeBlock { .. })) => {
+                                break 'end_iterator Some(event);
+                            }
+                            Some(Event::Str(s)) => {
+                                source.push_str(&s);
+                            }
+                            _ => {}
+                        }
+                    };
+
+                    // Run the code through the Spade lexer for syntax highlighting
+                    let mut highlighted = String::new();
+                    let mut lexer = TokenKind::lexer(&source);
+                    let mut current = (0, SyntaxColor::None);
+
+                    while let Some(tok) = lexer.next() {
+                        let tok = tok.unwrap();
+                        // Update color
+                        let color = SyntaxColor::for_token(&tok);
+                        if color != current.1 {
+                            if current.1 != SyntaxColor::None {
+                                highlighted.push_str("</span>");
+                            }
+                            if color != SyntaxColor::None {
+                                highlighted.extend(["<span class=\"", color.class(), "\">"]);
+                            }
+                            current.1 = color;
+                        }
+
+                        let until = lexer.span().end;
+                        let to_write = &source[current.0..until];
+                        write_escape(to_write, &mut highlighted);
+                        current.0 = until;
                     }
-                    _ => {}
-                }
+                    if current.1 != SyntaxColor::None {
+                        highlighted.push_str("</span>");
+                    }
 
-                match next {
-                    Some(Event::Start(
-                        Container::Heading {
-                            level,
-                            has_section,
-                            id,
-                        },
-                        attrs,
-                    )) => Some(Event::Start(
-                        Container::Heading {
-                            level: level + 3,
-                            has_section,
-                            id,
-                        },
-                        attrs,
-                    )),
-                    other => other,
+                    // Pus the highlighted raw html, followed by the raw block end and finally
+                    // the end of the code block unless we found the end of the document
+                    self.queued_events
+                        .push_back(Event::Str(Cow::Owned(highlighted)));
+                    self.queued_events
+                        .push_back(Event::End(Container::RawBlock {
+                            format: Cow::Borrowed("html"),
+                        }));
+                    if let Some(end_event) = end_event {
+                        self.queued_events.push_back(end_event)
+                    }
+
+                    return self.queued_events.pop_front();
                 }
+                _ => {}
             }
-            State::Start => {
-                self.state = State::Color;
+
+            // Lower the level of headings since the code blocks we emit
+            // are internal to a page
+            match next {
                 Some(Event::Start(
-                    Container::RawBlock {
-                        format: Cow::Borrowed("html"),
+                    Container::Heading {
+                        level,
+                        has_section,
+                        id,
                     },
-                    Attributes::default(),
-                ))
-            }
-            State::Color => {
-                let mut source = String::new();
-                loop {
-                    match self.inner.next() {
-                        None => break,
-                        Some(Event::End(Container::CodeBlock { .. })) => break,
-                        Some(Event::Str(s)) => {
-                            source.push_str(&s);
-                        }
-                        _ => {}
-                    }
-                }
-
-                let mut highlighted = String::new();
-                let mut lexer = TokenKind::lexer(&source);
-                let mut current = (0, SyntaxColor::None);
-
-                while let Some(tok) = lexer.next() {
-                    let tok = tok.unwrap();
-                    // Update color
-                    let color = SyntaxColor::for_token(&tok);
-                    if color != current.1 {
-                        if current.1 != SyntaxColor::None {
-                            highlighted.push_str("</span>");
-                        }
-                        if color != SyntaxColor::None {
-                            highlighted.extend(["<span class=\"", color.class(), "\">"]);
-                        }
-                        current.1 = color;
-                    }
-
-                    let until = lexer.span().end;
-                    let to_write = &source[current.0..until];
-                    write_escape(to_write, &mut highlighted);
-                    current.0 = until;
-                }
-                if current.1 != SyntaxColor::None {
-                    highlighted.push_str("</span>");
-                }
-
-                self.state = State::End;
-                Some(Event::Str(Cow::Owned(highlighted)))
-            }
-            State::End => {
-                self.state = State::Await;
-                Some(Event::End(Container::RawBlock {
-                    format: Cow::Borrowed("html"),
-                }))
+                    attrs,
+                )) => Some(Event::Start(
+                    Container::Heading {
+                        level: level + 3,
+                        has_section,
+                        id,
+                    },
+                    attrs,
+                )),
+                Some(Event::End(Container::Heading {
+                    level,
+                    has_section,
+                    id,
+                })) => Some(Event::End(Container::Heading {
+                    level: level + 3,
+                    has_section,
+                    id,
+                })),
+                other => other,
             }
         }
     }
