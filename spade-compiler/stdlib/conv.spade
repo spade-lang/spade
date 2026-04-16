@@ -1,3 +1,19 @@
+//! Conversions between types
+//!
+//! This module implements various conversions between types in the language. Most conversions
+//! are done using `to_xx` or `as_xx` methods on the source types.
+//!
+//! # `to_xx`
+//! `to_xx` is used for conversions that preserve the underlying value. For example,
+//! casting an unsigned integer to a signed integer requires adding an additional bit
+//! to ensure the original value is still representable. Therefore `uint::to_int`
+//! outputs a value with one more bit than the input.
+//!
+//! # `as_xx`
+//! `as_xx` on the other hand is used to re-interpret the original bits as a value of the new
+//! type. `uint::as_int` when used on a value which does not fit in in an integer of the same
+//! size results in a negative number.
+
 pub use core::conv::transmute;
 
 // This is special cased by the compiler. If Spade was able to express its actual type, it would be:
