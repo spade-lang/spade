@@ -9,7 +9,7 @@ mod uint;
 mod int;
 
 /// Represents a memory. See the documentation for `std::mem` for details
-mod Memory
+mod Memory;
 
 /// A clock.
 mod clock;

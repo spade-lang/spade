@@ -119,6 +119,10 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         opts.print_parse_traceback,
         &mut errors,
     );
+    errors.drain_diag_list(&mut diags.lock().unwrap());
+    if errors.failed_now() {
+        return Err(buffer);
+    }
     errors.errors_are_recoverable();
 
     let (mut primitives, module_asts): (Vec<_>, Vec<_>) = module_asts
