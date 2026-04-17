@@ -22,7 +22,7 @@ use crate::{
     error::{DResult, DocError},
     fwrite,
     html::Node,
-    impls_n_docs::ImplsNDocs,
+    impls_n_docs::{ImplTargetBase, ImplsNDocs},
     print::{self},
 };
 
@@ -243,10 +243,10 @@ impl Generator {
         }
 
         // Add primitives to core
-        if self.symtab.current_namespace() == &Path::from_strs(&["core"]) {
-            // Need to take them as we need to also borrow self for describe later on
-            let primitives = std::mem::replace(&mut self.primitives.members, vec![]);
-            for item in &primitives {
+        if self.symtab.current_namespace() == &Path::from_strs(&["core"])
+            || self.symtab.current_namespace() == &Path::from_strs(&["std"])
+        {
+            for item in &self.primitives.members.clone() {
                 match item {
                     ast::Item::ExternalMod(m) => {
                         let name = m.name.as_str();
@@ -355,7 +355,12 @@ impl Generator {
             write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             // (Trait) implementation blocks
-            if let Some((direct, traits)) = self.impls.for_type.get(&nameid).cloned() {
+            if let Some((direct, traits)) = self
+                .impls
+                .for_type
+                .get(&ImplTargetBase::Named(nameid))
+                .cloned()
+            {
                 if !direct.is_empty() {
                     body.tag("h2", |b| {
                         fwrite!(b, "Implementations");
@@ -493,33 +498,25 @@ impl Generator {
             write_title(body, ItemKind::Primitive, m.name.as_str())?;
             write_djot(&doc, |md| collapsible(body, &["main_desc"], md.write()))?;
 
-            enum ImplSearch {
-                Named(&'static str),
-                None,
-            }
-            let search = match m.name.as_str() {
-                "bool" => ImplSearch::Named("bool"),
-                "clock" => ImplSearch::Named("clock"),
-                "inout" => ImplSearch::Named("inout"),
-                "int" => ImplSearch::Named("int"),
-                "tri" => ImplSearch::Named("tri"),
-                "uint" => ImplSearch::Named("uint"),
-                _ => ImplSearch::None,
-            };
-            let impls = match search {
-                ImplSearch::Named(s) => {
+            let target = match m.name.as_str() {
+                "array" => ImplTargetBase::Array,
+                "inv" => ImplTargetBase::Inv,
+                "tuple" => ImplTargetBase::Tuple,
+                "str" => ImplTargetBase::Str,
+                name => {
                     let nameid = self
                         .symtab
                         .lookup_id_in_namespace(
-                            &Path::from_strs(&[s]).nowhere(),
+                            &Path::from_strs(&[name]).nowhere(),
                             &Path::from_strs(&[]),
                             false,
                         )
-                        .unwrap();
-                    self.impls.for_type.get(&nameid).cloned()
+                        .expect(&format!("Did not find a primitive named {name}"));
+
+                    ImplTargetBase::Named(nameid)
                 }
-                ImplSearch::None => None,
             };
+            let impls = self.impls.for_type.get(&target).cloned();
             // (Trait) implementation blocks
             if let Some((direct, traits)) = impls {
                 if !direct.is_empty() {

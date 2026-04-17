@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap as HashMap;
-use spade_ast::{self as ast, AttributeList};
+use spade_ast::{self as ast, AttributeList, TypeSpec};
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID, Path, PathSegment},
@@ -7,8 +7,39 @@ use spade_common::{
 use spade_diagnostics::Diagnostic;
 use spade_hir::symbol_table::SymbolTable;
 
+#[derive(Hash, PartialEq, Eq)]
+pub enum ImplTargetBase {
+    Named(NameID),
+    Tuple,
+    Array,
+    Inv,
+    Str,
+}
+
+impl ImplTargetBase {
+    fn from_type_spec(spec: &TypeSpec, symtab: &SymbolTable) -> Option<Self> {
+        match spec {
+            TypeSpec::Tuple(_) => Some(Self::Tuple),
+            TypeSpec::Array { .. } => Some(Self::Array),
+            TypeSpec::Named(name, _) => {
+                if let Ok(target) = symtab.lookup_id(name, true) {
+                    Some(Self::Named(target))
+                } else {
+                    println!("Couldn't find {name}");
+                    None
+                }
+            }
+            TypeSpec::Inverted(_) => Some(ImplTargetBase::Inv),
+
+            // These cannot occur on impl blocks
+            TypeSpec::Impl(_) => todo!(),
+            TypeSpec::Wildcard => todo!(),
+        }
+    }
+}
+
 pub(crate) struct ImplsNDocs {
-    pub(crate) for_type: HashMap<NameID, (Vec<DirectImpl>, Vec<TraitImpl>)>,
+    pub(crate) for_type: HashMap<ImplTargetBase, (Vec<DirectImpl>, Vec<TraitImpl>)>,
     pub(crate) docs: HashMap<NameID, String>,
 }
 
@@ -117,18 +148,15 @@ pub(crate) fn gather_impls_n_docs(
                         units: block.units.clone(),
                     };
 
-                    for_all_targets(&block.target, &mut |t| {
-                        let Ok(target) = ctx.symtab.lookup_id(t, true) else {
-                            println!("Couldn't find {t}");
-                            return; /* Generics */
-                        };
+                    if let Some(target) = ImplTargetBase::from_type_spec(&block.target, &ctx.symtab)
+                    {
                         impls
                             .for_type
                             .entry(target)
                             .or_default()
                             .1
                             .push(timpl.clone());
-                    });
+                    }
                 } else {
                     let dimpl = DirectImpl {
                         type_params: block.type_params.clone(),
@@ -137,18 +165,15 @@ pub(crate) fn gather_impls_n_docs(
                         units: block.units.clone(),
                     };
 
-                    for_all_targets(&block.target, &mut |t| {
-                        let Ok(target) = ctx.symtab.lookup_id(t, true) else {
-                            println!("Couldn't find {t}");
-                            return; /* Generics */
-                        };
+                    if let Some(target) = ImplTargetBase::from_type_spec(&block.target, &ctx.symtab)
+                    {
                         impls
                             .for_type
                             .entry(target)
                             .or_default()
                             .0
                             .push(dimpl.clone());
-                    });
+                    }
                 }
             }
             ast::Item::Type(t) => {
@@ -178,26 +203,4 @@ pub(crate) fn gather_impls_n_docs(
     }
 
     Ok(())
-}
-
-fn for_all_targets(target_spec: &ast::TypeSpec, f: &mut impl FnMut(&Loc<Path>)) {
-    match target_spec {
-        ast::TypeSpec::Tuple(exprs) => exprs.into_iter().for_each(|expr| for_all_expr(expr, f)),
-        ast::TypeSpec::Array { inner, size: _ } => for_all_expr(&inner, f),
-        ast::TypeSpec::Named(path, _params) => f(path),
-        ast::TypeSpec::Inverted(inner) => for_all_expr(&inner, f),
-        // Following `spade_ast_lowering::get_impl_target`, those are illegal in target position.
-        ast::TypeSpec::Impl(_) => todo!(),
-        ast::TypeSpec::Wildcard => todo!(),
-    }
-}
-
-fn for_all_expr(expr: &ast::TypeExpression, f: &mut impl FnMut(&Loc<Path>)) {
-    match expr {
-        ast::TypeExpression::TypeSpec(inner) => for_all_targets(inner, f),
-        ast::TypeExpression::Bool(_) => todo!(),
-        ast::TypeExpression::Integer(_big_int) => todo!(),
-        ast::TypeExpression::String(_) => todo!(),
-        ast::TypeExpression::ConstGeneric(_loc) => todo!(),
-    }
 }
