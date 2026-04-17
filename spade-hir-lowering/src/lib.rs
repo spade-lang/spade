@@ -3120,21 +3120,6 @@ impl ExprLocal for Loc<Expression> {
                 .concrete_type_of(args[0].value, ctx.symtab.symtab(), &ctx.item_list.types)?;
         let input_type = input_type_hir.to_mir_type();
 
-        if self_type.backward_size() != BigUint::zero() {
-            return Err(Diagnostic::error(
-                self,
-                format!("Attempting to transmute to type containing inv & value"),
-            )
-            .primary_label(format!("{self_type_hir} has an inv & wire")));
-        }
-        if input_type.backward_size() != BigUint::zero() {
-            return Err(Diagnostic::error(
-                args[0].value,
-                format!("Attempting to transmute from type containing inv & value"),
-            )
-            .primary_label(format!("{input_type_hir} has an inv & wire")));
-        }
-
         if self_type.size() != input_type.size() {
             let input_loc = args[0].value.loc();
             return Err(Diagnostic::error(
@@ -3156,10 +3141,34 @@ impl ExprLocal for Loc<Expression> {
             .note("transmute can only convert between types of identical size"));
         }
 
+        if self_type.backward_size() != input_type.backward_size() {
+            let input_loc = args[0].value.loc();
+            return Err(Diagnostic::error(
+                self,
+                format!(
+                    "Type inv size mismatch. Attempting to transmute {} to {}",
+                    bits_str(input_type.backward_size()),
+                    bits_str(self_type.backward_size())
+                ),
+            )
+            .primary_label(format!(
+                "The output type has {} inverted bits",
+                bits_str(self_type.backward_size())
+            ))
+            .secondary_label(
+                input_loc,
+                format!(
+                    "The source has {} inverted bits",
+                    bits_str(input_type.backward_size()),
+                ),
+            )
+            .note("transmute can only convert between types of identical size"));
+        }
+
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::ZeroExtend,
+                operator: mir::Operator::BlackBoxAlias,
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,

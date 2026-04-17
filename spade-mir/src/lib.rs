@@ -297,6 +297,8 @@ pub enum Operator {
     },
     /// Alias another named value
     Alias,
+    /// Like `Alias`, but don't attempt to replace the aliased name with another
+    BlackBoxAlias,
     /// Define a variable for the value but don't do anything with it. Useful for creating ports
     Nop,
 }
@@ -401,6 +403,7 @@ impl std::fmt::Display for Operator {
             Operator::IndexMemory => write!(f, "IndexMemory"),
             Operator::Instance { name, .. } => write!(f, "Instance({})", name.as_verilog()),
             Operator::Alias => write!(f, "Alias"),
+            Operator::BlackBoxAlias => write!(f, "BlackBoxAlias"),
             Operator::FlipPort => write!(f, "FlipPort"),
             Operator::ReadMutWires => write!(f, "ReadMutWires"),
             Operator::Nop => write!(f, "Nop"),

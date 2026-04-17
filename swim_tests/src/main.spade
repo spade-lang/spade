@@ -42,3 +42,4 @@ mod zero_size_exprs;
 mod zero_size_pattern_binding;
 mod zero_sized_struct;
 mod zero_sized_value_in_pipeline;
+mod inv_transmute;

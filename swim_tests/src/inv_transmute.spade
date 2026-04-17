@@ -1,0 +1,33 @@
+fn inv_transmute_works() {
+    let (a, a_inv) = port;
+    let (b, b_inv) = port;
+
+    let x: (uint<8>, inv uint<8>, uint<8>, inv uint<8>) = (0, a_inv, 2, b_inv);
+    let y: [(uint<8>, inv uint<8>); 2] = unsafe { core::conv::transmute(x) };
+
+    // Array packing is inverted compared to tuple packing
+    let [second, first] = y;
+
+    assert first.0 == 0;
+    assert second.0 == 2;
+    set first.1 = 1;
+    set second.1 = 3;
+    assert a == 1;
+    assert b == 3;
+
+    // Concats are also implemented as transmutes now
+    inv_concat_works();
+}
+
+fn inv_concat_works() {
+    let (a, a_inv) = port;
+    let (b, b_inv) = port;
+
+    let c = [a_inv].concat([b_inv]);
+
+    set c[0] = 0u32;
+    set c[1] = 1u32;
+
+    assert a == 0;
+    assert b == 1;
+}

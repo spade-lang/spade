@@ -96,6 +96,7 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::FlipPort
         | Operator::ReadMutWires
         | Operator::Instance { .. }
+        | Operator::BlackBoxAlias
         | Operator::Nop => false,
     }
 }

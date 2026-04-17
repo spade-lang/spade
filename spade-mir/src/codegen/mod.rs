@@ -739,7 +739,7 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
             // NOTE: dummy. Set in the next match statement
             String::new()
         }
-        Operator::Alias => {
+        Operator::Alias | Operator::BlackBoxAlias => {
             // NOTE Dummy. Set in the next match statement
             String::new()
         }
@@ -901,7 +901,7 @@ fn backward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[Value
             String::new()
         }
         Operator::Instance { .. } => String::new(),
-        Operator::Alias => {
+        Operator::Alias | Operator::BlackBoxAlias => {
             // NOTE: Set in statement_code
             String::new()
         }
@@ -1008,7 +1008,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                         )
                     }.to_string()
                 }
-                Operator::Alias => match binding.ty {
+                Operator::Alias | Operator::BlackBoxAlias => match binding.ty {
                     crate::types::Type::Memory { .. } => {
                         // Aliasing of memories happens at definition
                         "".to_string()

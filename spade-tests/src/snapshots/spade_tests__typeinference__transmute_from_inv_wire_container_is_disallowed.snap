@@ -11,8 +11,13 @@ fn test(a: Container) -> bool {
 }
 
 
-error: Attempting to transmute from type containing inv & value
-  ┌─ testinput:7:35
+error: Type inv size mismatch. Attempting to transmute 1 bit to 0 bits
+  ┌─ testinput:7:14
   │
 7 │     unsafe { std::conv::transmute(a) }
-  │                                   ^ struct Container {m: inv &bool, r: bool} has an inv & wire
+  │              ^^^^^^^^^^^^^^^^^^^^^^^
+  │              │                    │
+  │              │                    The source has 1 bit inverted bits
+  │              The output type has 0 bits inverted bits
+  │
+  = note: transmute can only convert between types of identical size
