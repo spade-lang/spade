@@ -8,7 +8,8 @@ mod uint;
 /// Also: `#int` Type Generic
 mod int;
 
-mod Memory;
+/// Represents a memory. See the documentation for `std::mem` for details
+mod Memory
 
 /// A clock.
 mod clock;
@@ -24,11 +25,23 @@ mod tri;
 mod inout;
 
 
-
-
-/// Inverted version of a type where the `T` and `inv T` fields of a non-`Data`/port struct are changed.
+/// Values which flow in the opposite direction to normal values.
+///
+/// Spade code is "linear": units take inputs and produce outputs. However, sometimes
+/// one wants to return a wire to which another module can assign a value, or accept an input
+/// where a value can be assigned.
+///
+/// This is what `inv` is used for. Accepting an `inv T` as an input lets the unit assign a value
+/// to the wires being passed in, while returning an `inv T` returns a wire to which another unit
+/// can assign a value.
+///
+/// `inv` is also more general, it flips the direction of any signals it is applied to. `inv inv T`
+/// is the same as `T`, and `inv (inv T, T) is the same as `(T, inv T)`.
+///
+/// For more details in inverted wires, refer to the [book](https://docs.spade-lang.org/typst/wires.html).
 mod r#inv;
 
+/// Fixed size arrays, written `[T; N]`
 mod array;
 
 mod tuple;
