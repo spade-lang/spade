@@ -22,7 +22,7 @@ use crate::{
     error::{DResult, DocError},
     fwrite,
     html::Node,
-    impls_n_docs::{ImplTargetBase, ImplsNDocs},
+    impls_n_docs::{DirectImpl, ImplTargetBase, ImplsNDocs, TraitImpl},
     print::{self},
 };
 
@@ -164,6 +164,18 @@ impl Generator {
         self.impls.docs.get(&nameid).cloned().unwrap_or_default()
     }
 
+    fn lookup_wild_impls(
+        &self,
+        name: &Loc<Identifier>,
+    ) -> Option<rustc_hash::FxHashMap<ImplTargetBase, (Vec<DirectImpl>, Vec<TraitImpl>)>> {
+        let nameid = self
+            .symtab
+            .lookup_id(&Path::ident(*name).nowhere(), false)
+            .expect("Couldn't lookup type for documentation");
+
+        self.impls.wild_impls.get(&nameid).cloned()
+    }
+
     pub fn doc_mod(&mut self, module: &ast::ModuleBody) -> DResult<()> {
         let mut contents: BTreeMap<ItemKind, Vec<ItemListEntry>> = BTreeMap::new();
 
@@ -282,6 +294,7 @@ impl Generator {
         self.symtab.pop_namespace();
 
         let docs = self.lookup_docs(seg.unwrap_named());
+        let wild_impls = self.lookup_wild_impls(seg.unwrap_named());
 
         self.describe(FileName::Module(name), |g, b| {
             main(b, |b| {
@@ -291,7 +304,7 @@ impl Generator {
                 for (kind, mut entries) in contents {
                     entries.sort_by_key(|e| e.name);
                     b.tag("section", |b| {
-                        b.tag("h3", |b| {
+                        b.tag("h2", |b| {
                             fwrite!(b, kind.plural());
                             Ok(())
                         })?;
@@ -325,6 +338,35 @@ impl Generator {
                             Ok(())
                         })
                     })?;
+                }
+
+                if let Some(wild_impls) = wild_impls {
+                    b.tag("h2", |b| {
+                        fwrite!(b, "Implementations");
+                        Ok(())
+                    })?;
+                    for (_, (direct, tr)) in wild_impls {
+                        for d in direct {
+                            g.impl_block(
+                                b,
+                                &d.type_params,
+                                None,
+                                &d.target,
+                                &d.units,
+                                &d.where_clauses,
+                            )?;
+                        }
+                        for t in tr {
+                            g.impl_block(
+                                b,
+                                &t.type_params,
+                                Some(&t.r#trait),
+                                &t.target,
+                                &t.units,
+                                &t.where_clauses,
+                            )?;
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -411,7 +453,7 @@ impl Generator {
     }
 
     fn impl_block(
-        &mut self,
+        &self,
         body: &mut Node<'_>,
         generics: &Option<Loc<Vec<Loc<TypeParam>>>>,
         r#trait: Option<&TraitSpec>,

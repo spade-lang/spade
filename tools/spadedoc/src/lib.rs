@@ -225,6 +225,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
     let mut impls = ImplsNDocs {
         for_type: HashMap::default(),
         docs: HashMap::default(),
+        wild_impls: HashMap::default(),
     };
 
     for (namespace, module_ast) in &module_asts {

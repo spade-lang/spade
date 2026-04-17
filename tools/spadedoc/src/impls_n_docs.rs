@@ -7,7 +7,7 @@ use spade_common::{
 use spade_diagnostics::Diagnostic;
 use spade_hir::symbol_table::SymbolTable;
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub enum ImplTargetBase {
     Named(NameID),
     Tuple,
@@ -40,9 +40,16 @@ impl ImplTargetBase {
     }
 }
 
+pub type ImplList = HashMap<ImplTargetBase, (Vec<DirectImpl>, Vec<TraitImpl>)>;
+
 pub(crate) struct ImplsNDocs {
-    pub(crate) for_type: HashMap<ImplTargetBase, (Vec<DirectImpl>, Vec<TraitImpl>)>,
+    pub(crate) for_type: ImplList,
     pub(crate) docs: HashMap<NameID, String>,
+
+    /// Impl blocks which appear in a module but which are not impl blocks for types
+    /// defined in that module. These are rendered in the docs for the module in addition
+    /// to on the type they impl for.
+    pub(crate) wild_impls: HashMap<NameID, ImplList>,
 }
 
 #[derive(Clone)]
@@ -144,6 +151,28 @@ pub(crate) fn gather_impls_n_docs(
                 //     );
                 // }
 
+                let maybe_wild_impl_target = |target: &ImplTargetBase| {
+                    if let Ok((module_name, _)) = ctx
+                        .symtab
+                        .lookup_thing(&ctx.symtab.current_namespace().clone().nowhere(), true)
+                    {
+                        let is_wild = match &target {
+                            ImplTargetBase::Named(name_id) => {
+                                !name_id.1.starts_with(ctx.symtab.current_namespace())
+                            }
+                            // Foreign types do not belong to any module, so they are always
+                            // wild
+                            ImplTargetBase::Tuple
+                            | ImplTargetBase::Array
+                            | ImplTargetBase::Inv
+                            | ImplTargetBase::Str => true,
+                        };
+                        if is_wild { Some(module_name) } else { None }
+                    } else {
+                        None
+                    }
+                };
+
                 if let Some(trt) = block.r#trait.clone() {
                     let timpl = TraitImpl {
                         r#trait: trt.inner,
@@ -157,10 +186,21 @@ pub(crate) fn gather_impls_n_docs(
                     {
                         impls
                             .for_type
-                            .entry(target)
+                            .entry(target.clone())
                             .or_default()
                             .1
                             .push(timpl.clone());
+
+                        if let Some(module) = maybe_wild_impl_target(&target) {
+                            impls
+                                .wild_impls
+                                .entry(module)
+                                .or_default()
+                                .entry(target)
+                                .or_default()
+                                .1
+                                .push(timpl.clone());
+                        }
                     }
                 } else {
                     let dimpl = DirectImpl {
@@ -174,10 +214,21 @@ pub(crate) fn gather_impls_n_docs(
                     {
                         impls
                             .for_type
-                            .entry(target)
+                            .entry(target.clone())
                             .or_default()
                             .0
                             .push(dimpl.clone());
+
+                        if let Some(module) = maybe_wild_impl_target(&target) {
+                            impls
+                                .wild_impls
+                                .entry(module)
+                                .or_default()
+                                .entry(target)
+                                .or_default()
+                                .0
+                                .push(dimpl.clone());
+                        }
                     }
                 }
             }
