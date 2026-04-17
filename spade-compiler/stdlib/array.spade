@@ -458,24 +458,19 @@ impl<T, #uint N> [T; N] where N > 0 {
     pub fn shift_front(self, item: T) -> Self {
         self.push_front(item)[..N]
     }
-
-    
 }
 
 impl<S, T, #uint N> [(S, T); N] {
     /// Splits an array of pairs into a pair of arrays.
     ///
-    /// Both arrays produced have the same length as the input array. The
-    /// first element of the left array is the first element of the first
-    /// tuple, the second element the first element of the second tuple, and so
-    /// on. In other
-    /// words, the array `[(l0, r0), (l1, r1), (l2, r2), ...]` is split into `[l0, l1, l2, ...]` and `[r0, r1, r2, ...]`
-    /// ``.
+    /// Both arrays produced have the same length as the input array. The first element of the left
+    /// array is the first element of the first tuple, the second element the first element of the
+    /// second tuple, and so on. In other words, the array `[(l0, r0), (l1, r1), (l2, r2), ...]` is
+    /// split into `[l0, l1, l2, ...]` and `[r0, r1, r2, ...]`.
     ///
     /// # Examples
     ///
     /// ```spade
-    /// 
     /// let (l, r) = [(10u8, 20u8), (11u8, 21u8), (12u8, 22u8)].unzip();
     /// assert l == [10u8, 11u8, 12u8];
     /// assert r == [20u8, 21u8, 22u8];
@@ -496,11 +491,56 @@ impl<S, T, #uint N> [(S, T); N] {
     }
 }
 
+impl<T, #uint N> [inv T; N] {
+    /// Transposes an array of `inv` values into an `inv` array.
+    ///
+    /// This transformation preserves the low level signals behind the value, but presents them in
+    /// a new format that is easier to `set`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x = port;
+    /// let y = port;
+    /// let array_of_invs: [inv bool; 2] = [x.1, y.1];
+    /// let inv_array: inv [bool; 2] = array_of_invs.transpose();
+    /// set inv_array = [true, false];
+    /// assert x.0 == true;
+    /// assert y.0 == false;
+    /// ```
+    fn transpose(self) -> inv [T; N] {
+        unsafe { core::conv::transmute(self) }
+    }
+}
+
+impl<T, #uint N> inv [T; N] {
+    /// Transposes an `inv` array into an array of `inv` values.
+    ///
+    /// This transformation preserves the low level signals behind the value, but presents them in
+    /// a new format that is easier to destructure.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let a = port;
+    /// let inv_array: inv [bool; 2] = a.1;
+    /// let array_of_invs: [inv bool; 2] = inv_array.transpose();
+    /// set array_of_invs[0] = true;
+    /// set array_of_invs[1] = false;
+    /// assert a.0 == [true, false];
+    /// ```
+    fn transpose(self) -> [inv T; N] {
+        unsafe { core::conv::transmute(self) }
+    }
+}
+
 impl<T, #uint N, #uint M> [[T; M]; N] {
     /// Turns an array of arrays into a single array containing the same elements in the same order.
     ///
     /// This operation only flattens one level of nesting, requiring multiple calls to flatten a
     /// deeply-nested array value.
+    ///
+    /// # Examples
     ///
     /// ```spade
     /// let empty: [[uint<8>; 0]; 0] = [];
@@ -547,7 +587,7 @@ impl<#uint N> [bool; N] where N > 0 {
     /// assert [false, false, false].reduce_or() == false;
     /// assert [false, true, true].reduce_or() == true;
     /// ```
-    /// 
+    ///
     /// This operation is equivalent to the Verilog OR reduction operator `|`.
     fn reduce_or(self) -> bool {
         std::ops::reduce_or(self)
