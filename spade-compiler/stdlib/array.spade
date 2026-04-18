@@ -362,6 +362,20 @@ impl<T, #uint N> [T; N] {
             l.concat(r)
         }
     }
+
+    /// Returns the length of the array.
+    ///
+    /// Since arrays are static, this simply returns a constant value.
+    ///
+    /// ```spade
+    /// let empty: [uint<8>; 0] = [];
+    /// assert empty.len() == 0;
+    /// assert [true].len() == 1;
+    /// assert [true, false].len() == 2;
+    /// ```
+    fn len(self) -> uint<{uint::bits_for(N)}> {
+        N
+    }
 }
 
 impl<T, #uint N> [T; N] where N > 0 {
