@@ -1049,26 +1049,42 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     let payload_size = binding.ty.size() / num_items - BigUint::one();
                     let mut snippets = vec![];
 
-                    for i in 0..num_items.to_usize().unwrap() {
-                        let item_offset = i * item_size.clone();
-                        let payload_offset = i * payload_size.clone();
-                        let discriminant_offset = item_offset.clone() + item_size.clone() - BigUint::one();
-
+                    if num_items == &1u32.to_biguint() && payload_size == 1u32.to_biguint() {
                         snippets.push(code! {
-                            [0] format!("assign {}[{}+:{}] = {}[{}] ? {}[{}+:{}] : {}'bZ;",
-                                    ops[0], payload_offset, payload_size,
-                                    back_name, discriminant_offset,
-                                    back_name, item_offset, payload_size,
-                                    payload_size);
-                            [0] format!("assign {}[{}+:{}] = {}[{}] ? {{ 1'b0, {}'bX }} : {{ 1'b1, {}[{}+:{}] }};",
-                                    name, item_offset, item_size,
-                                    back_name, discriminant_offset,
-                                    payload_size,
-                                    ops[0], payload_offset, payload_size)
+                            [0] format!("assign {} = {}[1] ? {}[0] : {}'bZ;",
+                                    ops[0],
+                                    back_name,
+                                    back_name,
+                                    payload_size
+                                );
+                            [0] format!("assign {} = {}[1] ? {{ 1'b0, 1'bX }} : {{ 1'b1, {} }};",
+                                    name,
+                                    back_name,
+                                    ops[0]
+                                )
                         }
                         .to_string());
-                    }
+                    } else {
+                        for i in 0..num_items.to_usize().unwrap() {
+                            let item_offset = i * item_size.clone();
+                            let payload_offset = i * payload_size.clone();
+                            let discriminant_offset = item_offset.clone() + item_size.clone() - BigUint::one();
 
+                            snippets.push(code! {
+                                [0] format!("assign {}[{}+:{}] = {}[{}] ? {}[{}+:{}] : {}'bZ;",
+                                        ops[0], payload_offset, payload_size,
+                                        back_name, discriminant_offset,
+                                        back_name, item_offset, payload_size,
+                                        payload_size);
+                                [0] format!("assign {}[{}+:{}] = {}[{}] ? {{ 1'b0, {}'bX }} : {{ 1'b1, {}[{}+:{}] }};",
+                                        name, item_offset, item_size,
+                                        back_name, discriminant_offset,
+                                        payload_size,
+                                        ops[0], payload_offset, payload_size)
+                            }
+                            .to_string());
+                        }
+                    }
                     snippets.join("\n")
                 }
                 _ => code! {

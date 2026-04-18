@@ -2,21 +2,27 @@
 fn test(
     single: inout<uint<8>>,
     array: inout<[uint<8>; 2]>,
+    onebit: inout<bool>,
     i0: Option<uint<8>>,
     i1: Option<uint<8>>,
     i2: Option<uint<8>>,
+    i3: Option<bool>,
     o0: inv Option<uint<8>>,
     o1: inv Option<uint<8>>,
     o2: inv Option<uint<8>>,
+    o3: inv Option<bool>,
 ) {
     let (sr, sw) = single.read_write();
     let [(a0r, a0w), (a1r, a1w)] = array.read_write_items();
+    let (br, bw) = onebit.read_write();
 
     set sw = i0;
     set a0w = i1;
     set a1w = i2;
+    set bw = i3;
 
     set o0 = sr;
     set o1 = a0r;
     set o2 = a1r;
+    set o3 = br;
 }
