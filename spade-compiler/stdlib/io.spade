@@ -25,7 +25,7 @@ pub entity rising_edge(clk: clock, value: bool) -> bool {
 /// ```
 pub entity falling_edge(clk: clock, value: bool) -> bool {
     reg(clk) old_value = value;
-    value && !old_value
+    !value && old_value
 }
 
 impl<T> inout<T> {
