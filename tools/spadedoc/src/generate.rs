@@ -22,7 +22,7 @@ use crate::{
     error::{DResult, DocError},
     fwrite,
     html::Node,
-    impls_n_docs::{DirectImpl, ImplTargetBase, ImplsNDocs, TraitImpl},
+    impls_n_docs::{ImplList, ImplTargetBase, ImplsNDocs},
     print::{self},
 };
 
@@ -164,10 +164,7 @@ impl Generator {
         self.impls.docs.get(&nameid).cloned().unwrap_or_default()
     }
 
-    fn lookup_wild_impls(
-        &self,
-        name: &Loc<Identifier>,
-    ) -> Option<rustc_hash::FxHashMap<ImplTargetBase, (Vec<DirectImpl>, Vec<TraitImpl>)>> {
+    fn lookup_wild_impls(&self, name: &Loc<Identifier>) -> Option<ImplList> {
         let nameid = self
             .symtab
             .lookup_id(&Path::ident(*name).nowhere(), false)
