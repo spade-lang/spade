@@ -207,7 +207,7 @@ pub(crate) fn gather_impls_n_docs(
                         ImplTargetBase::Named(name_id) => {
                             !name_id.1.starts_with(ctx.symtab.current_namespace())
                         }
-                        // Foreign types do not belong to any module, so they are always
+                        // Builtin types do not belong to any module, so they are always
                         // wild
                         ImplTargetBase::Tuple
                         | ImplTargetBase::Array

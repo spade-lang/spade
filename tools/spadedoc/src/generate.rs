@@ -301,7 +301,7 @@ impl Generator {
                 for (kind, mut entries) in contents {
                     entries.sort_by_key(|e| e.name);
                     b.tag("section", |b| {
-                        b.tag("h2", |b| {
+                        b.tag("h3", |b| {
                             fwrite!(b, kind.plural());
                             Ok(())
                         })?;
