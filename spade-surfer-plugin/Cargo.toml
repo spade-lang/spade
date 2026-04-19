@@ -14,14 +14,13 @@ crate-type = ["cdylib"]
 [dependencies]
 extism-pdk = "1.4.1"
 surfer-translation-types.git = "https://gitlab.com/surfer-project/surfer.git"
-surfer-translation-types.branch = "subtranslators"
 spade-lang.path = "../spade-compiler"
 spade-common.path = "../spade-common"
 spade-hir-lowering.path = "../spade-hir-lowering"
 spade-types.path = "../spade-types"
 spade-codespan.workspace = true
 camino = { version = "1.1.10", features = ["serde1"] }
-ecolor = { version = "0.31.1", features = ["serde"] }
+ecolor = { version = "0.34.1", features = ["serde"] }
 log = "0.4.27"
 num.workspace = true
 serde.workspace = true

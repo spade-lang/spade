@@ -318,6 +318,13 @@ pub fn variable_name_info(
     };
     let state = ctx.state.lock().unwrap();
 
+    // TODO: Decide if this hack is fine.
+    // We assume that our top module is one level into the hierarchy. However, some things,
+    // in particular sby puts variables inside the root of the vcd
+    if variable.var.full_path().len() <= 1 {
+        return Ok(None)
+    }
+
     let Some(info) = state
         .name_source_of_hierarchical_value(
             &ctx.top,
@@ -457,7 +464,7 @@ fn not_present_value(ty: &ConcreteType) -> TranslationResult {
         ConcreteType::Tuple(inner) => inner
             .iter()
             .enumerate()
-            .map(|(i, t)| SubFieldTranslationResult::new(i, not_present_value(t)))
+            .map(|(i, t)| SubFieldTranslationResult::new(&i, not_present_value(t)))
             .collect(),
         ConcreteType::Struct {
             name: _,
@@ -468,7 +475,7 @@ fn not_present_value(ty: &ConcreteType) -> TranslationResult {
             .map(|(n, t)| SubFieldTranslationResult::new(n, not_present_value(t)))
             .collect(),
         ConcreteType::Array { inner, size } => (0..(size.to_u64().unwrap()))
-            .map(|i| SubFieldTranslationResult::new(i, not_present_value(inner)))
+            .map(|i| SubFieldTranslationResult::new(&i, not_present_value(inner)))
             .collect(),
         ConcreteType::Enum { options } => not_present_enum_options(options),
         ConcreteType::Single { .. } => vec![],
@@ -491,7 +498,7 @@ fn not_present_enum_fields(
 ) -> Vec<SubFieldTranslationResult> {
     fields
         .iter()
-        .map(|(name, ty)| SubFieldTranslationResult::new(name.as_str(), not_present_value(ty)))
+        .map(|(name, ty)| SubFieldTranslationResult::new(&name.as_str(), not_present_value(ty)))
         .collect()
 }
 
@@ -538,7 +545,7 @@ fn translate_concrete(
                         .context(format!("Value is wider than {} bits", usize::MAX))?;
                 let new = translate_concrete(&val[offset..end], t, &mut local_problematic)?;
                 offset = end;
-                subfields.push(SubFieldTranslationResult::new(i, new));
+                subfields.push(SubFieldTranslationResult::new(&i, new));
                 *problematic |= local_problematic;
             }
 
@@ -565,7 +572,7 @@ fn translate_concrete(
                 let new = translate_concrete(&val[offset..end], t, &mut local_problematic)?;
                 *problematic |= local_problematic;
                 offset = end;
-                subfields.push(SubFieldTranslationResult::new(n.as_str(), new));
+                subfields.push(SubFieldTranslationResult::new(&n.as_str(), new));
             }
 
             TranslationResult {
@@ -591,7 +598,7 @@ fn translate_concrete(
                 let new = translate_concrete(&val[offset..end], inner, &mut local_problematic)?;
                 *problematic |= local_problematic;
                 offset = end;
-                subfields.push(SubFieldTranslationResult::new(n, new));
+                subfields.push(SubFieldTranslationResult::new(&n, new));
             }
 
             TranslationResult {
@@ -655,7 +662,7 @@ fn translate_concrete(
 
                                     *problematic |= local_problematic;
 
-                                    Ok(SubFieldTranslationResult::new(f_name.as_str(), new))
+                                    Ok(SubFieldTranslationResult::new(&f_name.as_str(), new))
                                 })
                                 .collect::<Result<_>>()?;
 
@@ -714,7 +721,7 @@ fn translate_concrete(
         | ConcreteType::Integer(_)
         | ConcreteType::Bool(_) => TranslationResult {
             val: ValueRepr::Bits(
-                mir_ty.size().to_u64().context("Size did not fit in u64")?,
+                mir_ty.size().to_u32().context("Size did not fit in u64")?,
                 val.to_string(),
             ),
             kind: ValueKind::Normal,
@@ -752,21 +759,9 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
                 .iter()
                 .map(|(f, inner)| {
                     let inner = info_from_concrete(&inner)?;
-                    let inner = if let Some(translator) = field_translators.get(f) {
-                        match inner {
-                            VariableInfo::Bits => {
-                                VariableInfo::SuggestedSubtranslator(translator.clone())
-                            },
-                            VariableInfo::Compound { ..} |
-                            VariableInfo::Bool |
-                            VariableInfo::Clock |
-                            VariableInfo::String |
-                            VariableInfo::Real |
-                            VariableInfo::SuggestedSubtranslator(_) => {
-                                info!("Got a #[surfer_translator] attribute on a {f}, but it is not a primitive type, ignoring");
-                                inner
-                            }
-                        }
+                    let inner = if let Some(_translator) = field_translators.get(f) {
+                        info!("Got a #[surfer_translator] attribute but this is not currently supported");
+                        inner
                     } else {
                         inner
                     };
