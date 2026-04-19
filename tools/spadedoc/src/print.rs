@@ -190,7 +190,7 @@ impl Generator {
         if !clauses.is_empty() {
             fwrite!(b, "<br>where");
             for clause in clauses {
-                fwrite!(b, "<br>    ");
+                fwrite!(b, "<br>&emsp;&emsp;&emsp;&emsp;");
                 match clause {
                     spade_ast::WhereClause::GenericInt {
                         target,
