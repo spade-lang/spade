@@ -90,10 +90,11 @@ impl ImplTargetBase {
     }
 }
 
-pub type ImplList = HashMap<ImplTargetBase, (Vec<DirectImpl>, Vec<TraitImpl>)>;
+pub type ImplList = (Vec<DirectImpl>, Vec<TraitImpl>);
+pub type ImplMap = HashMap<ImplTargetBase, ImplList>;
 
 pub(crate) struct ImplsNDocs {
-    pub(crate) for_type: ImplList,
+    pub(crate) for_type: ImplMap,
     pub(crate) docs: HashMap<NameID, String>,
 
     /// Impl blocks which appear in a module but which are not impl blocks for types
@@ -201,26 +202,18 @@ pub(crate) fn gather_impls_n_docs(
                 //     );
                 // }
 
-                let maybe_wild_impl_target = |target: &ImplTargetBase| {
-                    if let Ok((module_name, _)) = ctx
-                        .symtab
-                        .lookup_thing(&ctx.symtab.current_namespace().clone().nowhere(), true)
-                    {
-                        let is_wild = match &target {
-                            ImplTargetBase::Named(name_id) => {
-                                !name_id.1.starts_with(ctx.symtab.current_namespace())
-                            }
-                            // Foreign types do not belong to any module, so they are always
-                            // wild
-                            ImplTargetBase::Tuple
-                            | ImplTargetBase::Array
-                            | ImplTargetBase::Inv
-                            | ImplTargetBase::CopyView
-                            | ImplTargetBase::Str => true,
-                        };
-                        if is_wild { Some(module_name) } else { None }
-                    } else {
-                        None
+                let is_wild_target = |target: &ImplTargetBase| {
+                    match &target {
+                        ImplTargetBase::Named(name_id) => {
+                            !name_id.1.starts_with(ctx.symtab.current_namespace())
+                        }
+                        // Foreign types do not belong to any module, so they are always
+                        // wild
+                        ImplTargetBase::Tuple
+                        | ImplTargetBase::Array
+                        | ImplTargetBase::Inv
+                        | ImplTargetBase::CopyView
+                        | ImplTargetBase::Str => true,
                     }
                 };
 
@@ -233,6 +226,7 @@ pub(crate) fn gather_impls_n_docs(
                         units: block.units.clone(),
                     };
 
+                    let mut is_wild = true;
                     ImplTargetBase::for_type_spec(&block.target, &ctx.symtab, &mut |target| {
                         impls
                             .for_type
@@ -241,17 +235,25 @@ pub(crate) fn gather_impls_n_docs(
                             .1
                             .push(timpl.clone());
 
-                        if let Some(module) = maybe_wild_impl_target(&target) {
+                        if !is_wild_target(&target) {
+                            // At least one of the most inner named targets are in this module,
+                            // so no need to also document it in the wild in the module.
+                            is_wild = false;
+                        }
+                    });
+                    if is_wild {
+                        if let Ok((module_name, _)) = ctx
+                            .symtab
+                            .lookup_thing(&ctx.symtab.current_namespace().clone().nowhere(), true)
+                        {
                             impls
                                 .wild_impls
-                                .entry(module)
-                                .or_default()
-                                .entry(target)
+                                .entry(module_name)
                                 .or_default()
                                 .1
                                 .push(timpl.clone());
                         }
-                    });
+                    }
                 } else {
                     let dimpl = DirectImpl {
                         type_params: block.type_params.clone(),
@@ -260,6 +262,7 @@ pub(crate) fn gather_impls_n_docs(
                         units: block.units.clone(),
                     };
 
+                    let mut is_wild = true;
                     ImplTargetBase::for_type_spec(&block.target, &ctx.symtab, &mut |target| {
                         impls
                             .for_type
@@ -268,17 +271,25 @@ pub(crate) fn gather_impls_n_docs(
                             .0
                             .push(dimpl.clone());
 
-                        if let Some(module) = maybe_wild_impl_target(&target) {
+                        if !is_wild_target(&target) {
+                            // At least one of the most inner named targets are in this module,
+                            // so no need to also document it in the wild in the module.
+                            is_wild = false;
+                        }
+                    });
+                    if is_wild {
+                        if let Ok((module_name, _)) = ctx
+                            .symtab
+                            .lookup_thing(&ctx.symtab.current_namespace().clone().nowhere(), true)
+                        {
                             impls
                                 .wild_impls
-                                .entry(module)
-                                .or_default()
-                                .entry(target)
+                                .entry(module_name)
                                 .or_default()
                                 .0
                                 .push(dimpl.clone());
                         }
-                    });
+                    }
                 }
             }
             ast::Item::Type(t) => {

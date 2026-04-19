@@ -342,27 +342,25 @@ impl Generator {
                         fwrite!(b, "Implementations");
                         Ok(())
                     })?;
-                    for (_, (direct, tr)) in wild_impls {
-                        for d in direct {
-                            g.impl_block(
-                                b,
-                                &d.type_params,
-                                None,
-                                &d.target,
-                                &d.units,
-                                &d.where_clauses,
-                            )?;
-                        }
-                        for t in tr {
-                            g.impl_block(
-                                b,
-                                &t.type_params,
-                                Some(&t.r#trait),
-                                &t.target,
-                                &t.units,
-                                &t.where_clauses,
-                            )?;
-                        }
+                    for d in wild_impls.0 {
+                        g.impl_block(
+                            b,
+                            &d.type_params,
+                            None,
+                            &d.target,
+                            &d.units,
+                            &d.where_clauses,
+                        )?;
+                    }
+                    for t in wild_impls.1 {
+                        g.impl_block(
+                            b,
+                            &t.type_params,
+                            Some(&t.r#trait),
+                            &t.target,
+                            &t.units,
+                            &t.where_clauses,
+                        )?;
                     }
                 }
                 Ok(())
