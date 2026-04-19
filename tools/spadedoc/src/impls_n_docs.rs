@@ -5,7 +5,7 @@ use spade_common::{
     name::{Identifier, NameID, Path, PathSegment},
 };
 use spade_diagnostics::Diagnostic;
-use spade_hir::symbol_table::SymbolTable;
+use spade_hir::symbol_table::{SymbolTable, TypeSymbol};
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub enum ImplTargetBase {
@@ -18,24 +18,74 @@ pub enum ImplTargetBase {
 }
 
 impl ImplTargetBase {
-    fn from_type_spec(spec: &TypeSpec, symtab: &SymbolTable) -> Option<Self> {
+    /// Calls `f` for the inner most specialized type specs and returns `false` if there were none.
+    fn for_type_spec(
+        spec: &TypeSpec,
+        symtab: &SymbolTable,
+        f: &mut impl FnMut(ImplTargetBase),
+    ) -> bool {
         match spec {
-            TypeSpec::Tuple(_) => Some(Self::Tuple),
-            TypeSpec::Array { .. } => Some(Self::Array),
+            TypeSpec::Tuple(exprs) => {
+                let not_specialized = !exprs.into_iter().any(|e| Self::for_type_expr(e, symtab, f));
+                if not_specialized {
+                    f(ImplTargetBase::Tuple);
+                }
+                true
+            }
+            TypeSpec::Array { inner, .. } => {
+                let not_specialized = !Self::for_type_expr(inner, symtab, f);
+                if not_specialized {
+                    f(ImplTargetBase::Array);
+                }
+                true
+            }
             TypeSpec::Named(name, _) => {
-                if let Ok(target) = symtab.lookup_id(name, true) {
-                    Some(Self::Named(target))
+                if let Ok((target, ty)) = symtab.lookup_type_symbol(name, true) {
+                    match ty.inner {
+                        TypeSymbol::Declared(_, _, _) => {
+                            f(ImplTargetBase::Named(target));
+                            true
+                        }
+                        TypeSymbol::GenericArg { .. } | TypeSymbol::GenericMeta(_) => false,
+                    }
                 } else {
                     println!("Couldn't find {name}");
-                    None
+                    false
                 }
             }
-            TypeSpec::Inverted(_) => Some(ImplTargetBase::Inv),
-            TypeSpec::CopyView(_) => Some(ImplTargetBase::CopyView),
+            TypeSpec::Inverted(inner) => {
+                let not_specialized = !Self::for_type_expr(inner, symtab, f);
+                if not_specialized {
+                    f(ImplTargetBase::Inv);
+                }
+                true
+            }
+            TypeSpec::CopyView(inner) => {
+                let not_specialized = !Self::for_type_expr(inner, symtab, f);
+                if not_specialized {
+                    f(ImplTargetBase::CopyView);
+                }
+                true
+            }
 
             // These cannot occur on impl blocks
-            TypeSpec::Impl(_) => todo!(),
-            TypeSpec::Wildcard => todo!(),
+            TypeSpec::Impl(_) => unreachable!(),
+            TypeSpec::Wildcard => unreachable!(),
+        }
+    }
+
+    fn for_type_expr(
+        expr: &ast::TypeExpression,
+        symtab: &SymbolTable,
+        f: &mut impl FnMut(ImplTargetBase),
+    ) -> bool {
+        match expr {
+            ast::TypeExpression::TypeSpec(inner) => Self::for_type_spec(inner, symtab, f),
+            // Those are all unreachable as for e.g. uint<8>, it would only go until uint and then stop, we don't iterate over any real exprs
+            ast::TypeExpression::Bool(_) => unreachable!(),
+            ast::TypeExpression::Integer(_big_int) => unreachable!(),
+            ast::TypeExpression::String(_) => unreachable!(),
+            ast::TypeExpression::ConstGeneric(_loc) => unreachable!(),
         }
     }
 }
@@ -165,6 +215,7 @@ pub(crate) fn gather_impls_n_docs(
                             ImplTargetBase::Tuple
                             | ImplTargetBase::Array
                             | ImplTargetBase::Inv
+                            | ImplTargetBase::CopyView
                             | ImplTargetBase::Str => true,
                         };
                         if is_wild { Some(module_name) } else { None }
@@ -182,8 +233,7 @@ pub(crate) fn gather_impls_n_docs(
                         units: block.units.clone(),
                     };
 
-                    if let Some(target) = ImplTargetBase::from_type_spec(&block.target, &ctx.symtab)
-                    {
+                    ImplTargetBase::for_type_spec(&block.target, &ctx.symtab, &mut |target| {
                         impls
                             .for_type
                             .entry(target.clone())
@@ -201,7 +251,7 @@ pub(crate) fn gather_impls_n_docs(
                                 .1
                                 .push(timpl.clone());
                         }
-                    }
+                    });
                 } else {
                     let dimpl = DirectImpl {
                         type_params: block.type_params.clone(),
@@ -210,8 +260,7 @@ pub(crate) fn gather_impls_n_docs(
                         units: block.units.clone(),
                     };
 
-                    if let Some(target) = ImplTargetBase::from_type_spec(&block.target, &ctx.symtab)
-                    {
+                    ImplTargetBase::for_type_spec(&block.target, &ctx.symtab, &mut |target| {
                         impls
                             .for_type
                             .entry(target.clone())
@@ -229,7 +278,7 @@ pub(crate) fn gather_impls_n_docs(
                                 .0
                                 .push(dimpl.clone());
                         }
-                    }
+                    });
                 }
             }
             ast::Item::Type(t) => {

@@ -29,6 +29,10 @@ where
     reg*2;
 }
 
+impl<#uint N> uint<{ N * N }> {
+    fn weird() { }
+}
+
 trait SuperCool<#uint N> {}
 
 mod inner {
