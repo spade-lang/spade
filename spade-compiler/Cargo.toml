@@ -52,8 +52,10 @@ spade-parser.workspace = true
 spade-typeinference.workspace = true
 spade-types.workspace = true
 
-[target.'cfg(all(any(target_os = "linux", target_os = "macos"), target_env = "gnu"))'.dependencies]
+[target.'cfg(all(any(target_os = "linux", target_os = "macos")))'.dependencies]
 tikv-jemallocator = "0.6.1"
+
+
 
 [dev-dependencies]
 prettydiff.workspace = true

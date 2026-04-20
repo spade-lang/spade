@@ -398,7 +398,7 @@ build:wheel-manylinux:
   image: "rust:$RUST_VERSION-alpine"
   stage: setup_n_build
   before_script:
-    - apk add git musl-dev g++ openssl-dev openssl-libs-static
+    - apk add git musl-dev g++ openssl-dev openssl-libs-static jemalloc-static make
   script:
     - cargo build --locked --release --workspace --exclude spade-python --exclude spade-surfer-plugin --exclude spade-cxx --target x86_64-unknown-linux-musl --exclude spade-simulation-ext
     - strip $CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/spade
