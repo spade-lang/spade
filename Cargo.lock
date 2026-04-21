@@ -3392,6 +3392,7 @@ dependencies = [
  "spade-types",
  "swim",
  "tap",
+ "tikv-jemallocator",
  "tokio",
  "tower-lsp",
 ]

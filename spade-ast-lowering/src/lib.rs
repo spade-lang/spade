@@ -2047,6 +2047,7 @@ fn try_visit_statement(
     }
 }
 
+#[recursive]
 fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Vec<Loc<hir::Statement>> {
     match try_visit_statement(s, ctx) {
         Ok(result) => result,
@@ -2057,6 +2058,7 @@ fn visit_statement(s: &Loc<ast::Statement>, ctx: &mut Context) -> Vec<Loc<hir::S
     }
 }
 
+#[recursive]
 #[tracing::instrument(skip_all)]
 fn visit_argument_list(
     arguments: &ast::ArgumentList,
@@ -2152,6 +2154,7 @@ pub fn visit_turbofish(
     })
 }
 
+#[recursive]
 fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprKind> {
     match e {
         ast::Expression::IntLiteral(val) => {

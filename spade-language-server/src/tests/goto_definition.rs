@@ -322,8 +322,8 @@ async fn hairy_nested_fn_call() {
         //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[2] goto-target
 
             fn rec_call() -> int<8> {
-                rec(1 ^ rec( 1 & rec( 5 | rec( 3 & rec( 3 % rec( 1 / rec( 2 ^rec(5 & rec(1 ^ rec(1*1*1*1*rec((1 + 2 * 1 - 1))))))))))))
-                                                                                                    //   ^[1] goto
+                rec( 3 % rec( 1 / rec( 2 ^rec(5 & rec(1 ^ rec(1*1*1*1*rec((1 + 2 * 1 - 1))))))))
+                                                                  //   ^[1] goto
             }
     "#,
         InitFileOpt::default(),
@@ -394,8 +394,8 @@ async fn multiline_def_works() {
         //  ^[3] goto-target-end
 
             fn rec_call() -> int<8> {
-                rec( 3 & rec( 3 % rec( 1 / rec( 2 ^rec(5 & rec(1 ^ rec(1*1*1*1*rec(rec(rec(1 + 2 * 1 - 1))))))))))
-                                                                                  //   ^[1] goto
+                rec( 2 ^rec(5 & rec(1 ^ rec(1*1*1*1*rec(rec(rec(1 + 2 * 1 - 1)))))))
+                                                        //   ^[1] goto
             }
     "#,
         InitFileOpt::default(),

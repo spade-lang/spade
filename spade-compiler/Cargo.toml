@@ -53,7 +53,7 @@ spade-typeinference.workspace = true
 spade-types.workspace = true
 
 [target.'cfg(all(any(target_os = "linux", target_os = "macos")))'.dependencies]
-tikv-jemallocator = "0.6.1"
+tikv-jemallocator.workspace = true
 
 
 

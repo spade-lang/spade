@@ -7,6 +7,13 @@ mod language_server;
 #[cfg(all(test, not(target_os = "macos")))]
 mod tests;
 
+#[cfg(all(any(target_os = "linux", target_os = "macos")))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(all(any(target_os = "linux", target_os = "macos")))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 use crate::language_server::ServerFrontend;
 
 use std::fmt::Display;
