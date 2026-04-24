@@ -1116,6 +1116,9 @@ fn add_type_spec_name_ids_to_graph(
         hir::TypeSpec::Inverted(inner) => {
             add_type_spec_name_ids_to_graph(inner, prev_name, names, edges);
         }
+        hir::TypeSpec::CopyView(inner) => {
+            add_type_spec_name_ids_to_graph(inner, prev_name, names, edges);
+        }
         hir::TypeSpec::Generic(_) | hir::TypeSpec::TraitSelf(_) | hir::TypeSpec::Wildcard(_) => {}
     }
 }

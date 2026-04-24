@@ -351,6 +351,10 @@ impl Generator {
                 fwrite!(b, "inv ");
                 self.print_type_expr(b, &expr.inner)?;
             }
+            TypeSpec::CopyView(expr) => {
+                fwrite!(b, "&amp;");
+                self.print_type_expr(b, &expr.inner)?;
+            }
             TypeSpec::Impl(traits) => {
                 fwrite!(b, "impl ");
                 separated(b, " + ", traits.iter(), |b, spec| {

@@ -125,6 +125,9 @@ impl TypeVarID {
             TypeVar::Known(_, KnownType::Inverted, params) => {
                 format!("inv {}", params[0].display_with_meta(meta, type_state))
             }
+            TypeVar::Known(_, KnownType::CopyView, params) => {
+                format!("&{}", params[0].display_with_meta(meta, type_state))
+            }
             TypeVar::Unknown(_, _, traits, meta_type) => match meta_type {
                 MetaType::Type => {
                     if !traits.inner.is_empty() {
@@ -166,7 +169,8 @@ impl TypeVarID {
                     KnownType::String(val) => format!("{val:?}"),
                     KnownType::Tuple => format!("Tuple"),
                     KnownType::Array => format!("Array"),
-                    KnownType::Inverted => format!("inv &"),
+                    KnownType::Inverted => format!("inv"),
+                    KnownType::CopyView => format!("&"),
                     KnownType::Error => format!("{{error}}"),
                 };
                 TypeVarString(format!("{base}{params}"), self)
@@ -312,6 +316,10 @@ impl TypeVar {
 
     pub fn inverted(loc: Loc<()>, inner: TypeVarID) -> Self {
         TypeVar::Known(loc, KnownType::Inverted, vec![inner])
+    }
+
+    pub fn copy_view(loc: Loc<()>, inner: TypeVarID) -> Self {
+        TypeVar::Known(loc, KnownType::CopyView, vec![inner])
     }
 
     pub fn expect_known<T, U, K, O>(&self, on_known: K, on_unknown: U) -> T
@@ -498,6 +506,9 @@ impl TypeVar {
                     params[0].display_with_meta(display_meta, type_state)
                 )
             }
+            TypeVar::Known(_, KnownType::CopyView, params) => {
+                format!("&{}", params[0].display_with_meta(display_meta, type_state))
+            }
             TypeVar::Unknown(_, _, traits, meta) if traits.inner.is_empty() => {
                 if display_meta {
                     format!("{meta}")
@@ -558,6 +569,7 @@ impl std::fmt::Display for KnownTypeVar {
             }
             KnownType::Array => write!(f, "[{}; {}]", params[0], params[1]),
             KnownType::Inverted => write!(f, "inv {}", params[0]),
+            KnownType::CopyView => write!(f, "&{}", params[0]),
         }
     }
 }

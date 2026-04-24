@@ -312,6 +312,7 @@ impl MirLowerable for ConcreteType {
                 Type::Struct(members)
             }
             CType::Backward(inner) => Type::Backward(Box::new(inner.to_mir_type())),
+            CType::CopyView(inner) => Type::CopyView(Box::new(inner.to_mir_type())),
         }
     }
 }
@@ -1811,7 +1812,7 @@ impl ExprLocal for Loc<Expression> {
                     // Dereferences do nothing for codegen of the actual operator. It only
                     // prevents pipelining, hence Alias is fine here
                     hir::expression::UnaryOperator::Dereference => unop_builder(Alias)?,
-                    hir::expression::UnaryOperator::Reference => unop_builder(Alias)?,
+                    hir::expression::UnaryOperator::Reference => unop_builder(ConstructCopyView)?,
                 };
             }
             ExprKind::TupleLiteral(elems) => {
@@ -1900,11 +1901,15 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::FieldAccess(target, field) => {
                 result.append(target.lower(ctx)?);
 
-                let ctype = ctx.types.concrete_type_of(
+                let mut ctype = &ctx.types.concrete_type_of(
                     target,
                     ctx.symtab.symtab(),
                     &ctx.item_list.types,
                 )?;
+
+                while let ConcreteType::CopyView(inner) = ctype {
+                    ctype = inner;
+                }
 
                 let field_index = if let ConcreteType::Struct {
                     name: _,

@@ -21,6 +21,7 @@ pub enum Type {
     /// containing a Backward<T> is returned, the module 'returning' it has an additional *input*
     /// for the wire, and if it takes an input with, n additional *output* port is created.
     Backward(Box<Type>),
+    CopyView(Box<Type>),
     InOut(Box<Type>),
 }
 
@@ -59,6 +60,7 @@ impl Type {
             Type::Array { inner, length } => inner.size() * length,
             Type::Memory { inner, length } => inner.size() * length,
             Type::Backward(_) => BigUint::zero(),
+            Type::CopyView(inner) => inner.size(),
             Type::InOut(inner) => inner.size(),
         }
     }
@@ -66,6 +68,7 @@ impl Type {
     pub fn backward_size(&self) -> BigUint {
         match self {
             Type::Backward(inner) => inner.size(),
+            Type::CopyView(_) => BigUint::zero(),
             Type::Int(_) | Type::UInt(_) | Type::Bool => BigUint::zero(),
             Type::Array { inner, length } => inner.backward_size() * length,
             Type::Enum(inner) => {
@@ -154,7 +157,10 @@ impl std::fmt::Display for Type {
                 write!(f, "enum {}", inner)
             }
             Type::Backward(inner) => {
-                write!(f, "&mut ({inner})")
+                write!(f, "inv ({inner})")
+            }
+            Type::CopyView(inner) => {
+                write!(f, "&({inner})")
             }
             Type::InOut(inner) => {
                 write!(f, "inout<{inner}>")

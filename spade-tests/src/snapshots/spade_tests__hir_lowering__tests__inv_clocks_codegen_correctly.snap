@@ -2,6 +2,6 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \main ((clk_in, clk_in_n89, bool), (clk_out, clk_out_n90, &mut (bool))) -> () {
-	let e2: () = Instance(\foo )(clk_in_n89, clk_out_n90)
+entity \main ((clk_in, clk_in_n90, bool), (clk_out, clk_out_n91, inv (bool))) -> () {
+	let e2: () = Instance(\foo )(clk_in_n90, clk_out_n91)
 } => e2

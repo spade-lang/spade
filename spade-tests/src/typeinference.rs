@@ -2624,3 +2624,121 @@ snapshot_error! {
         }
     "
 }
+
+code_compiles!(
+    copy_view_of_copy_value_works,
+    "fn main() {
+        let x: &bool = &false;
+    }"
+);
+
+code_compiles!(
+    copy_view_of_simple_non_copy_value_works,
+    "fn main() {
+        let bp = port.1;
+        set bp = true;
+
+        let x: &inv bool = &bp;
+    }"
+);
+
+code_compiles!(
+    copy_view_of_non_copy_value_is_copy,
+    "fn receiver(x: &inv bool) {}
+
+    fn main() {
+        let bp = port.1;
+        set bp = true;
+
+        let x: &inv bool = &bp;
+
+        receiver(x);
+        receiver(x);
+        receiver(x);
+        receiver(x);
+    }"
+);
+
+code_compiles!(
+    copy_view_of_tuple_non_copy_value_works,
+    "fn main() {
+        let t: (bool, inv bool) = (false, port.1);
+        set t.1 = true;
+
+        let x: &(bool, inv bool) = &t;
+    }"
+);
+
+code_compiles!(
+    copy_view_of_struct_non_copy_value_works,
+    "struct S {
+        f: bool,
+        b: inv bool,
+    }
+
+    fn main() {
+        let s = S(true, port.1);
+        set s.b = true;
+
+        let x: &S = &s;
+    }"
+);
+
+code_compiles!(
+    copy_view_of_tuple_can_be_indexed,
+    "fn main() {
+        let t: (bool, inv bool) = (false, port.1);
+        set t.1 = true;
+
+        let x: &(bool, inv bool) = &t;
+        let f: &bool = x.0;
+        let b: &inv bool = x.1;
+    }"
+);
+
+code_compiles!(
+    copy_view_of_struct_can_be_accessed,
+    "struct S {
+        f: bool,
+        b: inv bool,
+    }
+
+    fn main() {
+        let s = S(true, port.1);
+        set s.b = true;
+
+        let x: &S = &s;
+        let f: &bool = x.f;
+        let b: &inv bool = x.b;
+    }"
+);
+
+code_compiles!(
+    copy_view_of_copy_value_can_be_unwrapped,
+    "fn main() {
+        let x: &bool = &true;
+        let y: bool = *x;
+    }"
+);
+
+snapshot_error!(
+    copy_view_of_non_copy_value_cannot_be_unwrapped,
+    "fn main() {
+        let bp = port.1;
+        set bp = true;
+
+        let x: &inv bool = &bp;
+        let y: inv bool = *x;
+    }"
+);
+
+snapshot_error!(
+    copy_view_of_tuple_non_copy_cannot_be_unwrapped,
+    "fn main() {
+        let t: (bool, inv bool) = (false, port.1);
+        set t.1 = true;
+
+        let x: &(bool, inv bool) = &t;
+        let y: (bool, inv bool) = *x;
+    }"
+);

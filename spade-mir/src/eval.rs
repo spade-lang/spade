@@ -336,6 +336,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     Operator::FlipPort => todo!(),
                     Operator::ReadMutWires => todo!(),
                     Operator::Instance { .. } => todo!(),
+                    Operator::ConstructCopyView => todo!(),
                     Operator::Alias | Operator::BlackBoxAlias => name_vals[&ops[0]].clone(),
                     Operator::Nop => todo!(),
                 };

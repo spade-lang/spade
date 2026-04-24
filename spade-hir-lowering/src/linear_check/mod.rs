@@ -309,13 +309,10 @@ fn visit_expression(
         spade_hir::ExprKind::UnaryOperator(op, operand) => {
             visit_expression(operand, linear_state, ctx)?;
             match op.inner {
-                UnaryOperator::Sub
-                | UnaryOperator::Not
-                | UnaryOperator::BitwiseNot
-                | UnaryOperator::Reference => {
+                UnaryOperator::Sub | UnaryOperator::Not | UnaryOperator::BitwiseNot => {
                     linear_state.consume_expression(operand)?;
                 }
-                UnaryOperator::Dereference => {}
+                UnaryOperator::Reference | UnaryOperator::Dereference => {}
             }
         }
         spade_hir::ExprKind::Match(cond, variants) => {

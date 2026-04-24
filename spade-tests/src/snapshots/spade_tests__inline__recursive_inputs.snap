@@ -4,9 +4,9 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> uint<9> {
 	const e14: uint<8> = 1
-	let val_n94: uint<8> = Alias(e14)
+	let val_n95: uint<8> = Alias(e14)
 	const e398: uint<8> = 2
-	let e401: uint<9> = UnsignedAdd(val_n94, e398)
+	let e401: uint<9> = UnsignedAdd(val_n95, e398)
 	let e397: uint<9> = Alias(e401)
 	let e16: uint<9> = Alias(e397)
 } => e16

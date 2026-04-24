@@ -13,6 +13,7 @@ pub enum ImplTargetBase {
     Tuple,
     Array,
     Inv,
+    CopyView,
     Str,
 }
 
@@ -30,6 +31,7 @@ impl ImplTargetBase {
                 }
             }
             TypeSpec::Inverted(_) => Some(ImplTargetBase::Inv),
+            TypeSpec::CopyView(_) => Some(ImplTargetBase::CopyView),
 
             // These cannot occur on impl blocks
             TypeSpec::Impl(_) => todo!(),

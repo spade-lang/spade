@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn main() {
+    let t: (bool, inv bool) = (false, port.1);
+    set t.1 = true;
+
+    let x: &(bool, inv bool) = &t;
+    let y: (bool, inv bool) = *x;
+}
+
+error: Trait bound not satisfied. (bool, inv bool) does not implement core::marker::Copy
+  ┌─ testinput:6:32
+  │
+6 │     let y: (bool, inv bool) = *x;
+  │                               -^
+  │                               ││
+  │                               │(bool, inv bool) does not implement core::marker::Copy
+  │                               Required because of the trait bound specified here

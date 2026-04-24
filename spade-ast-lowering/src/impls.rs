@@ -356,6 +356,14 @@ pub fn get_impl_target(
                 ctx,
             )?],
         )),
+        spade_ast::TypeSpec::CopyView(inner) => Ok((
+            hir::ImplTarget::CopyView,
+            vec![visit_type_expression(
+                inner,
+                &TypeSpecKind::ImplTarget,
+                ctx,
+            )?],
+        )),
         ast::TypeSpec::Tuple(inner) => Ok((
             hir::ImplTarget::Tuple,
             inner
@@ -814,6 +822,13 @@ fn resolve_trait_self(
                 resolve_trait_self(inner.inner, impl_target_type, self_id, assoc_type_remaps)
                     .at_loc(&loc);
             hir::TypeSpec::Inverted(Box::new(new_inner))
+        }
+        hir::TypeSpec::CopyView(inner) => {
+            let loc = inner.loc();
+            let new_inner =
+                resolve_trait_self(inner.inner, impl_target_type, self_id, assoc_type_remaps)
+                    .at_loc(&loc);
+            hir::TypeSpec::CopyView(Box::new(new_inner))
         }
         hir::TypeSpec::TraitSelf(_) => impl_target_type,
         hir::TypeSpec::Declared(name_id, _) if &name_id.inner == self_id => impl_target_type,

@@ -251,6 +251,7 @@ pub enum Operator {
     ConstructEnum {
         variant: usize,
     },
+    ConstructCopyView,
     /// 1 if the input is the specified enum variant
     IsEnumVariant {
         variant: usize,
@@ -375,6 +376,7 @@ impl std::fmt::Display for Operator {
             } => write!(f, "EnumMember({} {})", variant, member_index),
             Operator::ConstructTuple => write!(f, "ConstructTuple"),
             Operator::ConstructArray => write!(f, "ConstructArray"),
+            Operator::ConstructCopyView => write!(f, "ConstructCopyView"),
             Operator::DeclClockedMemory { initial } => write!(
                 f,
                 "DeclClockedMemory({})",

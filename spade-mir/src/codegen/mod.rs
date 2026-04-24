@@ -445,7 +445,11 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
             format!("{} ? {} : {}", op_names[0], op_names[1], op_names[2])
         }
         Operator::IndexTuple(idx) => {
-            let inner_types = match &types[&ops[0]] {
+            let mut ty = &types[&ops[0]];
+            while let Type::CopyView(inner) = ty {
+                ty = inner;
+            }
+            let inner_types = match ty {
                 Type::Tuple(fields) => fields.clone(),
                 Type::Struct(fields) => fields.iter().map(|(_name, ty)| ty.clone()).collect(),
                 Type::Array { inner, length } => {
@@ -735,6 +739,13 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
             // i.e. the left-most element is stored to the right in the bit vector.
             format!("{{{}}}", members.join(", "))
         }
+        Operator::ConstructCopyView => {
+            assert!(
+                op_names.len() == 1,
+                "Expected exactly 1 operand to copy view operator"
+            );
+            format!("{}", op_names[0])
+        }
         Operator::Instance { .. } => {
             // NOTE: dummy. Set in the next match statement
             String::new()
@@ -888,6 +899,7 @@ fn backward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[Value
             let index = compute_tuple_index(*index, &sizes);
             format!("{}{}", op_names[0], index.verilog_code())
         }
+        Operator::ConstructCopyView => String::new(),
         Operator::FlipPort => {
             // NOTE: Set in statement_code
             String::new()
@@ -1086,6 +1098,13 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                         }
                     }
                     snippets.join("\n")
+                }
+                Operator::ConstructCopyView => {
+                    let c = code! {
+                        [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
+                    }
+                    .to_string();
+                    c
                 }
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));

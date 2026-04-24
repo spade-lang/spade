@@ -108,10 +108,17 @@ impl Requirement {
                 field,
                 expr,
             } => {
-                let resolved = target_type
-                    .resolve(&type_state)
-                    .clone()
-                    .resolve_named_or_inverted(false, type_state);
+                let mut raw_id = target_type.inner;
+                let mut raw_ty = raw_id.resolve(&type_state);
+                let mut view_layers = 0;
+
+                while let TypeVar::Known(_, KnownType::CopyView, ref inner) = raw_ty {
+                    raw_id = inner[0];
+                    raw_ty = raw_id.resolve(&type_state);
+                    view_layers += 1;
+                }
+
+                let resolved = raw_ty.clone().resolve_named_or_inverted(false, type_state);
                 match resolved {
                     ResolvedNamedOrInverted::Named(inverted, type_name, params) => {
                         // Check if we're dealing with a struct
@@ -179,7 +186,7 @@ impl Requirement {
                             &generic_list,
                             ctx,
                         )?;
-                        let field_type = if inverted {
+                        let mut field_type = if inverted {
                             match raw_field_type.resolve(type_state) {
                                 TypeVar::Known(_, KnownType::Inverted, inner) => inner[0].clone(),
                                 // If we were in an inverted context and we find
@@ -192,6 +199,15 @@ impl Requirement {
                         } else {
                             raw_field_type
                         };
+
+                        // Add layers of views again
+                        for _ in 0..view_layers {
+                            field_type = type_state.add_type_var(TypeVar::Known(
+                                target_type.loc(),
+                                KnownType::CopyView,
+                                vec![field_type],
+                            ));
+                        }
 
                         Ok(RequirementResult::Satisfied(vec![Replacement {
                             from: expr.clone(),

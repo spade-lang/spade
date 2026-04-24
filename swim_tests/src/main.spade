@@ -5,6 +5,7 @@ mod array_pattern;
 mod bidirectional_set;
 mod bool_memory;
 mod cocotb_sample;
+mod copy_view;
 mod cxx;
 mod deduplicated_mut_wires;
 mod div_and_mod;

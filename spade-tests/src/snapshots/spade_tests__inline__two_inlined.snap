@@ -4,16 +4,16 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> () {
 	const e391: bool = true
-	let x_n450: bool = Alias(e391)
+	let x_n511: bool = Alias(e391)
 	let e390: () = Nop()
 	let e388: () = Alias(e390)
 	let e7: () = Alias(e388)
-	let __n91: () = Alias(e7)
+	let __n92: () = Alias(e7)
 	const e399: bool = true
-	let x_n452: bool = Alias(e399)
+	let x_n513: bool = Alias(e399)
 	let e398: () = Nop()
 	let e396: () = Alias(e398)
 	let e9: () = Alias(e396)
-	let __n92: () = Alias(e9)
+	let __n93: () = Alias(e9)
 	let e6: () = Nop()
 } => e6

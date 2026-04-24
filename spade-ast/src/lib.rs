@@ -57,6 +57,7 @@ pub enum TypeSpec {
     /// ports.
     /// If applied to a struct port, all fields are inverted.
     Inverted(Box<Loc<TypeExpression>>),
+    CopyView(Box<Loc<TypeExpression>>),
     Impl(Vec<Loc<TraitSpec>>),
     Wildcard,
 }
@@ -68,6 +69,7 @@ impl TypeSpec {
             TypeSpec::Array { .. }
             | TypeSpec::Named(_, _)
             | TypeSpec::Inverted(_)
+            | TypeSpec::CopyView(_)
             | TypeSpec::Impl(_)
             | TypeSpec::Wildcard => false,
         }
@@ -79,6 +81,7 @@ impl TypeSpec {
             TypeSpec::Array { .. }
             | TypeSpec::Named(_, _)
             | TypeSpec::Inverted(_)
+            | TypeSpec::CopyView(_)
             | TypeSpec::Impl(_)
             | TypeSpec::Wildcard => false,
         }
@@ -100,6 +103,7 @@ impl std::fmt::Display for TypeSpec {
                 write!(f, "{name}{args}")
             }
             TypeSpec::Inverted(inner) => write!(f, "inv {inner}"),
+            TypeSpec::CopyView(inner) => write!(f, "&{inner}"),
             TypeSpec::Impl(trait_specs) => write!(
                 f,
                 "impl {}",

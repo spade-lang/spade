@@ -1127,30 +1127,31 @@ impl<'a> Parser<'a> {
             )
             .primary_label("~ cannot be used in a type")
             .span_suggest("Consider using inv", tilde, "inv "));
-        } else if let Some(wire_sign) = self.peek_and_eat(&TokenKind::Ampersand)? {
+        } else if let Some(amp) = self.peek_and_eat(&TokenKind::Ampersand)? {
             if let Some(mut_) = self.peek_and_eat(&TokenKind::Mut)? {
                 return Err(Diagnostic::error(
                     &().at(self.file_id, &mut_),
-                    "The syntax of &mut has changed to inv &",
+                    "The syntax of `&mut` has changed to `inv`",
                 )
-                .primary_label("&mut is now written as inv &")
+                .primary_label("`&mut` is now written as `inv`")
                 .span_suggest_replace(
-                    "Consider using inv &",
-                    ().between(self.file_id, &wire_sign, &mut_),
-                    "inv &",
+                    "Consider using `inv`",
+                    ().between(self.file_id, &amp, &mut_),
+                    "inv",
                 ));
             }
 
-            Diagnostic::warning(
-                &().at(self.file_id, &wire_sign),
-                "The & modifier on types no longer has any effect",
-            )
-            .primary_label("Useless &")
-            .help("Spade no longer differentiates types from ports at the individual type level")
-            .handle_in(&mut self.diags);
-
-            let rest = self.type_spec(accept_impl)?;
-            Ok(rest.clone().inner.between(self.file_id, &wire_sign, &rest))
+            let rest = self.type_expression()?;
+            Ok(TypeSpec::CopyView(Box::new(rest.clone())).between(self.file_id, &amp, &rest))
+        } else if let Some(amp) = self.peek_and_eat(&TokenKind::LogicalAnd)? {
+            let rest = self.type_expression()?;
+            Ok(TypeSpec::CopyView(Box::new(
+                TypeExpression::TypeSpec(Box::new(
+                    TypeSpec::CopyView(Box::new(rest.clone())).between(self.file_id, &amp, &rest),
+                ))
+                .between(self.file_id, &amp, &rest),
+            ))
+            .between(self.file_id, &amp, &rest))
         } else if let Some(r#impl) = self.peek_and_eat(&TokenKind::Impl)? {
             let traits = self
                 .token_separated(

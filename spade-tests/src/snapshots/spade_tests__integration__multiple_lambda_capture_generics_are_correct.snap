@@ -2,26 +2,26 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \generic[460] () -> uint<8> {
+entity \generic[523] () -> uint<8> {
 	let e3: {} = ConstructTuple()
 	let e8: () = ConstructTuple()
-	let e2: uint<8> = Instance(\impl#0::call[462] )(e3, e8)
+	let e2: uint<8> = Instance(\impl#0::call[525] )(e3, e8)
 } => e2
-entity \generic[461] () -> uint<8> {
+entity \generic[524] () -> uint<8> {
 	let e3: {} = ConstructTuple()
 	let e8: () = ConstructTuple()
-	let e2: uint<8> = Instance(\impl#0::call[463] )(e3, e8)
+	let e2: uint<8> = Instance(\impl#0::call[526] )(e3, e8)
 } => e2
 entity \test () -> () {
-	let e10: uint<8> = Instance(\generic[460] )()
-	let a_n100: uint<8> = Alias(e10)
-	let e12: uint<8> = Instance(\generic[461] )()
-	let b_n101: uint<8> = Alias(e12)
+	let e10: uint<8> = Instance(\generic[523] )()
+	let a_n101: uint<8> = Alias(e10)
+	let e12: uint<8> = Instance(\generic[524] )()
+	let b_n102: uint<8> = Alias(e12)
 	let e9: () = Nop()
 } => e9
-entity \impl#0::call[462] ((self, self_n98, {}), (args, args_n99, ())) -> uint<8> {
+entity \impl#0::call[525] ((self, self_n99, {}), (args, args_n100, ())) -> uint<8> {
 	const e4: uint<8> = 10
 } => e4
-entity \impl#0::call[463] ((self, self_n98, {}), (args, args_n99, ())) -> uint<8> {
+entity \impl#0::call[526] ((self, self_n99, {}), (args, args_n100, ())) -> uint<8> {
 	const e4: uint<8> = 20
 } => e4

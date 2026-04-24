@@ -138,6 +138,7 @@ pub(crate) fn split_wildcard(
             | spade_types::PrimitiveType::InOut => vec![],
         },
         ConcreteType::Backward(_) => vec![Constructor::Single],
+        ConcreteType::CopyView(_) => vec![Constructor::Single],
         ConcreteType::Integer(_) => unreachable!("Pattern matching on type level integer"),
         ConcreteType::Bool(_) => unreachable!("Pattern matching on type level bool"),
         ConcreteType::String(_) => unreachable!("Pattern matching on type level string"),
@@ -267,6 +268,7 @@ impl Constructor {
                 ConcreteType::Bool(_) => unreachable!("Pattern matching on type level bool"),
                 ConcreteType::String(_) => unreachable!("Pattern matching on type level string"),
                 ConcreteType::Backward(_) => vec![],
+                ConcreteType::CopyView(inner) => self.fields(inner),
             },
             Constructor::Variant(idx) => match ty {
                 ConcreteType::Enum { options } => {
@@ -434,6 +436,7 @@ impl std::fmt::Display for DeconstructedPattern {
                 ConcreteType::Bool(_) => unreachable!("Pattern on type level bool"),
                 ConcreteType::String(_) => unreachable!("Pattern on a type level string"),
                 ConcreteType::Backward(_) => unreachable!("Pattern on backward type"),
+                ConcreteType::CopyView(_) => unreachable!("Pattern on copy view"),
             },
             Constructor::Variant(idx) => match &self.ty {
                 ConcreteType::Enum { options } => {

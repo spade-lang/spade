@@ -97,6 +97,7 @@ fn split_compound_reg(reg: &Register, expr_idtracker: &ExprIdTracker) -> Vec<Sta
         | Type::InOut(_)
         | Type::Enum(_)
         | Type::Backward(_)
+        | Type::CopyView(_)
         | Type::Memory { .. } => vec![Statement::Register(reg.clone())],
         Type::Tuple(members) => generate_split_code(reg, members, expr_idtracker),
         Type::Struct(members) => generate_split_code(

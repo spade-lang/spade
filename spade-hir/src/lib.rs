@@ -377,6 +377,7 @@ pub enum TypeSpec {
         size: Box<Loc<TypeExpression>>,
     },
     Inverted(Box<Loc<TypeSpec>>),
+    CopyView(Box<Loc<TypeSpec>>),
     /// The type of the `self` parameter in a trait method spec. Should not
     /// occur in non-traits. The Loc is only used for diag_bails, so an approximate
     /// reference is fine.
@@ -399,6 +400,7 @@ impl TypeSpec {
             | TypeSpec::Generic(_)
             | TypeSpec::Array { .. }
             | TypeSpec::Inverted(_)
+            | TypeSpec::CopyView(_)
             | TypeSpec::TraitSelf(_)
             | TypeSpec::Wildcard(_) => false,
         }
@@ -416,6 +418,7 @@ impl TypeSpec {
                 ]
             }
             TypeSpec::Inverted(inner) => vec![TypeExpression::TypeSpec(inner.inner.clone())],
+            TypeSpec::CopyView(_) => vec![],
             TypeSpec::TraitSelf(_) => vec![],
             TypeSpec::Wildcard(_) => vec![],
         }
@@ -446,6 +449,9 @@ impl TypeSpec {
                 },
                 TypeSpec::Inverted(inner) => {
                     TypeSpec::Inverted(Box::new(inner.map(|s| s.replace_in(from, to))))
+                }
+                TypeSpec::CopyView(inner) => {
+                    TypeSpec::CopyView(Box::new(inner.map(|s| s.replace_in(from, to))))
                 }
                 TypeSpec::TraitSelf(_) => self,
                 TypeSpec::Wildcard(_) => self,
@@ -486,6 +492,7 @@ impl std::fmt::Display for TypeSpec {
             }
             TypeSpec::Array { inner, size } => format!("[{inner}; {size}]"),
             TypeSpec::Inverted(inner) => format!("~{inner}"),
+            TypeSpec::CopyView(inner) => format!("&{inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),
             TypeSpec::Wildcard(_) => "_".into(),
         };
@@ -1131,6 +1138,7 @@ pub struct TraitDef {
 pub enum ImplTarget {
     Array,
     Inverted,
+    CopyView,
     Tuple,
     Named(NameID),
 }
@@ -1152,6 +1160,14 @@ impl ImplTarget {
             ImplTarget::Inverted => {
                 format!(
                     "inv {}",
+                    args.get(0)
+                        .map(|a| format!("{}", a))
+                        .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
+                )
+            }
+            ImplTarget::CopyView => {
+                format!(
+                    "&{}",
                     args.get(0)
                         .map(|a| format!("{}", a))
                         .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),

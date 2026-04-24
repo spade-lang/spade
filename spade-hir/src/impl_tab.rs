@@ -123,7 +123,11 @@ pub fn type_specs_overlap(l: &TypeSpec, r: &TypeSpec) -> bool {
         (TypeSpec::Inverted(linner), TypeSpec::Inverted(rinner)) => {
             type_specs_overlap(&linner.inner, &rinner.inner)
         }
-        (TypeSpec::Inverted(_), _) => todo!(),
+        (TypeSpec::Inverted(_), _) => false,
+        (TypeSpec::CopyView(linner), TypeSpec::CopyView(rinner)) => {
+            type_specs_overlap(&linner.inner, &rinner.inner)
+        }
+        (TypeSpec::CopyView(_), _) => false,
         (TypeSpec::TraitSelf(_), _) => unreachable!("Self type cannot be checked for overlap"),
         (TypeSpec::Wildcard(_), _) => {
             unreachable!("Wildcard type cannot be checked for overlap")

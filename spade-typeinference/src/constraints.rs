@@ -197,7 +197,8 @@ impl ConstraintExpr {
                     KnownType::Named(_)
                     | KnownType::Tuple
                     | KnownType::Array
-                    | KnownType::Inverted => {
+                    | KnownType::Inverted
+                    | KnownType::CopyView => {
                         panic!("Inferred non-integer or bool for constraint variable")
                     }
                 },

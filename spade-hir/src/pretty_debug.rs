@@ -167,6 +167,7 @@ impl PrettyDebug for TypeSpec {
                 format!("[{}; {}]", inner.pretty_debug(), size.pretty_debug())
             }
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_debug()),
+            TypeSpec::CopyView(inner) => format!("&{}", inner.pretty_debug()),
             TypeSpec::TraitSelf(_) => format!("Self"),
             TypeSpec::Wildcard(_) => format!("_"),
         }

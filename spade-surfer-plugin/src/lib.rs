@@ -474,6 +474,7 @@ fn not_present_value(ty: &ConcreteType) -> TranslationResult {
         ConcreteType::Single { .. } => vec![],
         ConcreteType::Integer(_) | ConcreteType::Bool(_) | ConcreteType::String(_) => vec![],
         ConcreteType::Backward(inner) => not_present_value(inner).subfields,
+        ConcreteType::CopyView(inner) => not_present_value(inner).subfields,
         ConcreteType::Error => {
             vec![]
         }
@@ -730,6 +731,7 @@ fn translate_concrete(
             kind: ValueKind::Custom(Color32::from_gray(128)),
             subfields: vec![],
         },
+        ConcreteType::CopyView(inner) => translate_concrete(val, inner, problematic)?,
     };
     Ok(result)
 }
@@ -810,6 +812,7 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
         ConcreteType::Integer(_) | ConcreteType::Bool(_) => VariableInfo::Bits,
         ConcreteType::String(_) => VariableInfo::String,
         ConcreteType::Backward(inner) => info_from_concrete(inner)?,
+        ConcreteType::CopyView(inner) => info_from_concrete(inner)?,
         ConcreteType::Error => VariableInfo::Bool,
     };
     Ok(result)

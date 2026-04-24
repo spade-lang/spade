@@ -4,7 +4,7 @@ source: spade-tests/src/ast_lowering.rs
 fn test(x: (bool, 2)) {}
 
 
-error: Tuple elements must be types, not type level integers
+error: Tuple elements must be types, not type-level values
   ┌─ testinput:1:19
   │
 1 │ fn test(x: (bool, 2)) {}

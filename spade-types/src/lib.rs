@@ -58,6 +58,7 @@ pub enum ConcreteType {
     Bool(bool),
     String(String),
     Backward(Box<ConcreteType>),
+    CopyView(Box<ConcreteType>),
 }
 
 impl ConcreteType {
@@ -102,6 +103,7 @@ impl ConcreteType {
             ConcreteType::Bool(_) => false,
             ConcreteType::String(_) => false,
             ConcreteType::Backward(inner) => inner.is_error_recursively(),
+            ConcreteType::CopyView(inner) => inner.is_error_recursively(),
         }
     }
 
@@ -130,7 +132,9 @@ impl ConcreteType {
                 inner: Box::new(inner.resolve_recursive_inversions(invert)),
                 size: size,
             },
-            s @ ConcreteType::Enum { .. } | s @ ConcreteType::Single { .. } => {
+            s @ ConcreteType::Enum { .. }
+            | s @ ConcreteType::Single { .. }
+            | s @ ConcreteType::CopyView(_) => {
                 if invert {
                     ConcreteType::Backward(Box::new(s))
                 } else {
@@ -220,7 +224,10 @@ impl std::fmt::Display for ConcreteType {
                 format!("{:?}", val)
             }
             ConcreteType::Backward(inner) => {
-                format!("inv &{}", inner)
+                format!("inv {}", inner)
+            }
+            ConcreteType::CopyView(inner) => {
+                format!("&{}", inner)
             }
         };
 
@@ -237,6 +244,7 @@ pub enum KnownType {
     Tuple,
     Array,
     Inverted,
+    CopyView,
     // A special type that unifies with anything to produce another error. Doing code generation
     // on this type will produce invalid code.
     Error,

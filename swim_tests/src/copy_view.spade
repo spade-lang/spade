@@ -1,0 +1,18 @@
+struct S {
+    a: bool,
+    b: inv int<8>,
+    c: int<8>,
+}
+
+fn view_nop(i: &S) -> &S {
+    i
+}
+
+entity main(a: bool, b: inv int<8>, c: int<8>) -> (bool, int<8>) {
+    let s = S(a, b, c);
+    set s.b = if s.a { c } else { -c };
+
+    let t = view_nop(&s);
+
+    (*t.a, *t.c)
+}

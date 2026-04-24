@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn pipelines_with_ports_work() {
         let code = r#"
-            pipeline(3) pl(clk: clock, wire a: inv & int<16>) -> inv & int<16> {
+            pipeline(3) pl(clk: clock, wire a: inv int<16>) -> inv int<16> {
                 reg;
                 reg;
                 reg;
@@ -1531,12 +1531,12 @@ mod tests {
     fn assigning_ports_to_variables_works() {
         let code = r#"
             mod std {pub mod ports{
-                pub entity new_mut_wire<T>() -> inv &T {
+                pub entity new_mut_wire<T>() -> inv T {
                     port.1
                 }
             }}
 
-            entity test() -> inv &int<10> {
+            entity test() -> inv int<10> {
                 let x = inst std::ports::new_mut_wire();
                 x
             }
@@ -2011,8 +2011,8 @@ mod tests {
         let code = r#"
             #[wal_traceable(suffix = wal_suffix__)]
             struct Test {
-                a: &int<8>,
-                b: inv &int<4>
+                a: int<8>,
+                b: inv int<4>
             }
 
             entity main(x: Test) -> Test {
@@ -2057,10 +2057,10 @@ mod tests {
         let code = r#"
             #[wal_traceable(suffix = wal_suffix__)]
             struct Test {
-                a: &int<8>,
-                b: inv &int<4>,
-                c: &int<16>,
-                d: inv &int<7>
+                a: int<8>,
+                b: inv int<4>,
+                c: int<16>,
+                d: inv int<7>
             }
 
             entity main(x: Test) -> Test {

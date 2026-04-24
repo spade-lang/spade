@@ -42,6 +42,7 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::RangeIndexBits { .. }
         | Operator::ConstructTuple
         | Operator::ConstructEnum { .. }
+        | Operator::ConstructCopyView
         | Operator::IsEnumVariant { .. }
         | Operator::EnumMember { .. }
         | Operator::Select

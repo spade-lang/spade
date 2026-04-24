@@ -264,6 +264,10 @@ impl TypeState {
                 Self::type_spec_to_concrete(inner, type_list, generic_substitutions),
             )),
 
+            TypeSpec::CopyView(inner) => ConcreteType::CopyView(Box::new(
+                Self::type_spec_to_concrete(inner, type_list, generic_substitutions),
+            )),
+
             TypeSpec::TraitSelf(_) => panic!("Trying to concretize HIR TraitSelf type"),
             TypeSpec::Wildcard(_) => panic!("Trying to concretize HIR Wildcard type"),
         }
@@ -336,6 +340,9 @@ impl TypeState {
             TypeVar::Known(_, KnownType::Inverted, inner) => self
                 .inner_ungenerify_type(&inner[0], symtab, type_list)
                 .map(|t| ConcreteType::Backward(Box::new(t))),
+            TypeVar::Known(_, KnownType::CopyView, inner) => self
+                .inner_ungenerify_type(&inner[0], symtab, type_list)
+                .map(|t| ConcreteType::CopyView(Box::new(t))),
             TypeVar::Unknown(_, _, _, _) => None,
         }
     }

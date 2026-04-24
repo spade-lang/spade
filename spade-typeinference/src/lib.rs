@@ -457,6 +457,10 @@ impl TypeState {
                 let inner = self.type_var_from_hir(loc, inner, generic_list_token, ctx)?;
                 self.add_type_var(TypeVar::inverted(loc, inner))
             }
+            hir::TypeSpec::CopyView(inner) => {
+                let inner = self.type_var_from_hir(loc, inner, generic_list_token, ctx)?;
+                self.add_type_var(TypeVar::copy_view(loc, inner))
+            }
             hir::TypeSpec::Wildcard(_) => self.new_generic_any(),
             hir::TypeSpec::TraitSelf(_) => {
                 diag_bail!(
@@ -624,6 +628,28 @@ impl TypeState {
                 None,
                 ctx.symtab
                     .lang_item(LangItem::DataTrait)
+                    .clone()
+                    .at_loc(&loc),
+            ),
+            type_params: vec![],
+        }
+        .at_loc(&loc);
+
+        self.add_type_var(TypeVar::Unknown(
+            loc,
+            id,
+            TraitList::from_vec(vec![t]),
+            MetaType::Type,
+        ))
+    }
+
+    pub fn new_generic_copy_view(&mut self, loc: Loc<()>, ctx: &Context) -> TypeVarID {
+        let id = self.new_typeid();
+        let t = TraitReq {
+            name: TraitName::Named(
+                None,
+                ctx.symtab
+                    .lang_item(LangItem::CopyTrait)
                     .clone()
                     .at_loc(&loc),
             ),
@@ -3200,7 +3226,8 @@ impl TypeState {
                     }
                     (KnownType::Array, KnownType::Array)
                     | (KnownType::Tuple, KnownType::Tuple)
-                    | (KnownType::Inverted, KnownType::Inverted) => {
+                    | (KnownType::Inverted, KnownType::Inverted)
+                    | (KnownType::CopyView, KnownType::CopyView) => {
                         // Note, replacements should only occur when a variable goes from Unknown
                         // to Known, not when the base is the same. Replacements take care
                         // of parameters. Therefore, None is returned here
@@ -3322,6 +3349,7 @@ impl TypeState {
                     | (KnownType::Bool(_), MetaType::Bool)
                     | (KnownType::String(_), MetaType::Str)
                     | (KnownType::Inverted, MetaType::Type)
+                    | (KnownType::CopyView, MetaType::Type)
                     // Integers match ints and numbers
                     | (KnownType::Integer(_), MetaType::Int)
                     | (KnownType::Integer(_), MetaType::Number)
@@ -3358,6 +3386,7 @@ impl TypeState {
                     | (KnownType::Tuple, MetaType::Int | MetaType::Uint | MetaType::Number)
                     | (KnownType::Array, MetaType::Int | MetaType::Uint | MetaType::Number)
                     | (KnownType::Inverted, MetaType::Int | MetaType::Uint | MetaType::Number)
+                    | (KnownType::CopyView, MetaType::Int | MetaType::Uint | MetaType::Number)
                     => Err(meta_err_producer!())
                 }
             }
@@ -3521,6 +3550,7 @@ impl TypeState {
                             KnownType::Tuple => return Err(format!("({})", list)),
                             KnownType::Array => return Err(format!("[{}]", list)),
                             KnownType::Inverted => return Err(format!("inv {}", list)),
+                            KnownType::CopyView => return Err(format!("&{}", list)),
                         }
                     }
                 }

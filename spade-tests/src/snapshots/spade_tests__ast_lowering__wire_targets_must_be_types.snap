@@ -4,7 +4,7 @@ source: spade-tests/src/ast_lowering.rs
 fn test(x: inv 2) {}
 
 
-error: Inverted inner types must be types, not type level integers
+error: Inverted inner types must be types, not type-level values
   ┌─ testinput:1:16
   │
 1 │ fn test(x: inv 2) {}

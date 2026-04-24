@@ -17,3 +17,25 @@ impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data> Data 
 impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data, T7: Data> Data for (T0, T1, T2, T3, T4, T5, T6, T7) {}
 
 impl<T: Data, #uint N> Data for [T; N] {}
+
+/// The `Copy` trait is implemented by any type which can be used an infinite number of times and
+/// passed around freely.
+///
+/// For now, this means that the value can be read and must not be set (that means all types except
+/// `inv T`).
+///
+/// `Copy` is automatically implemented by the compiler, analogous to an auto trait in Rust. It
+/// should not be implemented manually.
+pub trait Copy: Data {}
+
+impl Copy for () {}
+impl<T0: Copy> Copy for (T0) {}
+impl<T0: Copy, T1: Copy> Copy for (T0, T1) {}
+impl<T0: Copy, T1: Copy, T2: Copy> Copy for (T0, T1, T2) {}
+impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy> Copy for (T0, T1, T2, T3) {}
+impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy> Copy for (T0, T1, T2, T3, T4) {}
+impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy, T5: Copy> Copy for (T0, T1, T2, T3, T4, T5) {}
+impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy, T5: Copy, T6: Copy> Copy for (T0, T1, T2, T3, T4, T5, T6) {}
+impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy, T5: Copy, T6: Copy, T7: Copy> Copy for (T0, T1, T2, T3, T4, T5, T6, T7) {}
+
+impl<T: Copy, #uint N> Copy for [T; N] {}

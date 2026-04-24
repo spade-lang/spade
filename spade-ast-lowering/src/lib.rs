@@ -448,7 +448,7 @@ pub fn visit_type_spec(
                 _ => {
                     return Err(Diagnostic::error(
                         inner.as_ref(),
-                        "Arrays elements must be types, not type level integers",
+                        "Arrays elements must be types, not type-level values",
                     )
                     .primary_label("Non-type array element"));
                 }
@@ -466,6 +466,7 @@ pub fn visit_type_spec(
                         | TypeSpec::Tuple(_)
                         | TypeSpec::Array { inner: _, size: _ }
                         | TypeSpec::Inverted(_)
+                        | TypeSpec::CopyView(_)
                         | TypeSpec::TraitSelf(_)
                         | TypeSpec::Wildcard(_)
                         | TypeSpec::Declared(_, _) => Ok(t.at_loc(p)),
@@ -486,7 +487,7 @@ pub fn visit_type_spec(
                     _ => {
                         return Err(Diagnostic::error(
                             p,
-                            "Tuple elements must be types, not type level integers",
+                            "Tuple elements must be types, not type-level values",
                         )
                         .primary_label("Tuples cannot contain non-types"))
                     }
@@ -501,13 +502,27 @@ pub fn visit_type_spec(
                 _ => {
                     return Err(Diagnostic::error(
                         inner.as_ref(),
-                        "Inverted inner types must be types, not type level integers",
+                        "Inverted inner types must be types, not type-level values",
                     )
                     .primary_label("Non-type cannot be inverted"));
                 }
             };
 
             Ok(hir::TypeSpec::Inverted(Box::new(inner)))
+        }
+        ast::TypeSpec::CopyView(inner) => {
+            let inner = match visit_type_expression(inner, kind, ctx)? {
+                hir::TypeExpression::TypeSpec(t) => t.at_loc(inner),
+                _ => {
+                    return Err(Diagnostic::error(
+                        inner.as_ref(),
+                        "Copy view inner types must be types, not type-level values",
+                    )
+                    .primary_label("Copy views cannot contain non-types"));
+                }
+            };
+
+            Ok(hir::TypeSpec::CopyView(Box::new(inner)))
         }
         ast::TypeSpec::Impl(specs) => {
             let specs = specs
@@ -2313,22 +2328,9 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     Ok(unop_method("wrapping_neg", "WrappingNeg", vec![])?)
                 }
                 ast::UnaryOperator::Dereference => {
-                    Diagnostic::warning(
-                        operator,
-                        "The dereference operator no longer has any effect.",
-                    )
-                    .primary_label("Useless operator")
-                    .handle_in(&mut ctx.diags.lock().unwrap());
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }
                 ast::UnaryOperator::Reference => {
-                    Diagnostic::warning(
-                        operator,
-                        "The reference operator no longer has any effect.",
-                    )
-                    .primary_label("Useless operator")
-                    .handle_in(&mut ctx.diags.lock().unwrap());
-
                     Ok(unop(hir::expression::UnaryOperator::Reference))
                 }
             }

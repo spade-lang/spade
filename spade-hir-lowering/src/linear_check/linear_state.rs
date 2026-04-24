@@ -60,19 +60,20 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
         ConcreteType::Array { inner, size: _ } => is_linear(inner),
         ConcreteType::Enum { .. } => false,
         ConcreteType::Single { base, params: _ } => match base {
-            spade_types::PrimitiveType::Int => false,
-            spade_types::PrimitiveType::Uint => false,
-            spade_types::PrimitiveType::Clock => false,
-            spade_types::PrimitiveType::Bool => false,
-            spade_types::PrimitiveType::Tri => false,
-            spade_types::PrimitiveType::Memory => false,
+            spade_types::PrimitiveType::Int
+            | spade_types::PrimitiveType::Uint
+            | spade_types::PrimitiveType::Clock
+            | spade_types::PrimitiveType::Bool
+            | spade_types::PrimitiveType::Tri
+            | spade_types::PrimitiveType::Memory => false,
             // Since the intended use case for this type is only to propagate IO pins
             // we'll make it linear to avoid confusing conflicts
             spade_types::PrimitiveType::InOut => true,
         },
-        ConcreteType::Integer(_) => false,
-        ConcreteType::Bool(_) => false,
-        ConcreteType::String(_) => false,
+        ConcreteType::Integer(_)
+        | ConcreteType::Bool(_)
+        | ConcreteType::String(_)
+        | ConcreteType::CopyView(_) => false,
         ConcreteType::Backward(_) => true,
     }
 }
@@ -169,6 +170,7 @@ enum LinearTreeKind {
     Struct(HashMap<Identifier, Rc<RefCell<LinearTree>>>),
     Tuple(Vec<Rc<RefCell<LinearTree>>>),
     Array(Vec<Rc<RefCell<LinearTree>>>),
+    CopyView(Rc<RefCell<LinearTree>>),
 }
 
 pub type ConsumptionError = (MutWireWitness, Loc<()>);
@@ -213,6 +215,7 @@ impl LinearTree {
                 })?;
                 Ok(())
             }
+            LinearTreeKind::CopyView(_) => Ok(()),
         }
     }
 
@@ -246,6 +249,13 @@ impl LinearTree {
     fn struct_(fields: HashMap<Identifier, Rc<RefCell<LinearTree>>>) -> Self {
         Self {
             kind: LinearTreeKind::Struct(fields),
+            aliases: vec![],
+        }
+    }
+
+    fn copy_view(inner: Rc<RefCell<LinearTree>>) -> Self {
+        Self {
+            kind: LinearTreeKind::CopyView(inner),
             aliases: vec![],
         }
     }
@@ -315,6 +325,7 @@ impl LinearTree {
                 }
                 Ok(())
             }
+            LinearTreeKind::CopyView(_) => Ok(()),
         }
     }
 }
@@ -365,10 +376,13 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
             spade_types::PrimitiveType::Memory => LinearTree::leaf(false),
             spade_types::PrimitiveType::InOut => LinearTree::leaf(true),
         },
-        ConcreteType::Integer(_) | ConcreteType::Bool(_) | ConcreteType::String(_) => {
-            LinearTree::leaf(false)
-        }
+        ConcreteType::Integer(_) => LinearTree::leaf(false),
+        ConcreteType::Bool(_) => LinearTree::leaf(false),
+        ConcreteType::String(_) => LinearTree::leaf(false),
         ConcreteType::Backward(_) => LinearTree::leaf(true),
+        ConcreteType::CopyView(inner) => {
+            LinearTree::copy_view(Rc::new(RefCell::new(build_linear_tree(source_loc, inner))))
+        }
     }
 }
 
@@ -530,9 +544,13 @@ impl LinearState {
                 .expect("Adding an alias to an expression which has no tree"),
         );
 
-        let base_tree = base_tree_rc.borrow();
+        let mut base_tree = base_tree_rc;
 
-        let subtree = idx(&base_tree);
+        while let LinearTreeKind::CopyView(inner) = &base_tree.clone().borrow().kind {
+            base_tree = inner.clone();
+        }
+
+        let subtree = idx(&base_tree.borrow());
 
         let new_alias = ItemReference::Anonymous(to.inner).at_loc(&to);
         subtree.borrow_mut().add_alias(new_alias.clone());

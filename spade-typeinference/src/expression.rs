@@ -286,7 +286,19 @@ impl TypeState {
             self.visit_expression(tup, ctx, generic_list);
             let t_id = self.type_of(&TypedExpression::Id(tup.id));
 
-            let inner_types = match t_id.resolve(self) {
+            let mut raw_t_id = t_id;
+            let mut raw_t = raw_t_id.resolve(self);
+            let mut view_layers = 0;
+
+            while let TypeVar::Known(_, KnownType::CopyView, ref inner) = raw_t {
+                raw_t_id = inner[0];
+                raw_t = raw_t_id.resolve(self);
+                view_layers += 1;
+            }
+
+            let inner_types = match raw_t_id.resolve(self) {
+                // Copy views have been peeled right above
+                TypeVar::Known(_, KnownType::CopyView, _) => unreachable!(),
                 TypeVar::Known(_, KnownType::Tuple, inner) => inner,
                 t @ TypeVar::Known(other_source, _, _) => {
                     return Err(Diagnostic::error(tup.loc(), "Attempt to use tuple indexing on non-tuple")
@@ -311,7 +323,17 @@ impl TypeState {
             };
 
             if (index.inner as usize) < inner_types.len() {
-                let true_inner_type = inner_types[index.inner as usize].clone();
+                let mut true_inner_type = inner_types[index.inner as usize].clone();
+
+                // Add layers of views again
+                for _ in 0..view_layers {
+                    true_inner_type = self.add_type_var(TypeVar::Known(
+                        expression.loc(),
+                        KnownType::CopyView,
+                        vec![true_inner_type])
+                    );
+                }
+
                 self.unify_expression_generic_error(
                     expression,
                     &true_inner_type,
@@ -874,14 +896,16 @@ impl TypeState {
 
                 // Since these are now no-ops, we just forward the result
                 UnaryOperator::Dereference => {
-                    let result_type = self.new_generic_type(expression.loc());
-                    self.unify_expression_generic_error(expression, &result_type, ctx)?;
-                    self.unify_expression_generic_error(operand, &result_type, ctx)?
+                    let inner_type = self.new_generic_copy_view(expression.loc(), ctx);
+                    let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type.clone()]).insert(self);
+                    self.unify_expression_generic_error(expression, &inner_type, ctx)?;
+                    self.unify_expression_generic_error(operand, &view_type, ctx)?
                 }
                 UnaryOperator::Reference => {
-                    let result_type = self.new_generic_type(expression.loc());
-                    self.unify_expression_generic_error(expression, &result_type, ctx)?;
-                    self.unify_expression_generic_error(operand, &result_type, ctx)?
+                    let inner_type = self.new_generic_type(expression.loc());
+                    let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type.clone()]).insert(self);
+                    self.unify_expression_generic_error(expression, &view_type, ctx)?;
+                    self.unify_expression_generic_error(operand, &inner_type, ctx)?
                 }
             }
         });

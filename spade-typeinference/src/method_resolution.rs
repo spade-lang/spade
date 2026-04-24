@@ -38,6 +38,7 @@ impl IntoImplTarget for KnownType {
             KnownType::Tuple => Some(ImplTarget::Tuple),
             KnownType::Array => Some(ImplTarget::Array),
             KnownType::Inverted => Some(ImplTarget::Inverted),
+            KnownType::CopyView => Some(ImplTarget::CopyView),
         }
     }
 }
@@ -311,6 +312,11 @@ fn spec_is_overlapping(spec: &TypeSpec, var: &TypeVarID, type_state: &TypeState)
             spec_is_overlapping(sinner, &vinner[0], type_state)
         }
         (TypeSpec::Inverted(_), _) => Overlap::No,
+
+        (TypeSpec::CopyView(sinner), TypeVar::Known(_, KnownType::CopyView, vinner)) => {
+            spec_is_overlapping(sinner, &vinner[0], type_state)
+        }
+        (TypeSpec::CopyView(_), _) => Overlap::No,
 
         // TraitSelf cannot appear as the impl target, so what we do here is irrelevant
         (TypeSpec::TraitSelf(_), TypeVar::Known(_, _, _)) => {

@@ -43,6 +43,7 @@ impl IsInOut for hir::TypeSpec {
             spade_hir::TypeSpec::Tuple(_) => false,
             spade_hir::TypeSpec::Array { .. } => false,
             spade_hir::TypeSpec::Inverted(_) => false,
+            spade_hir::TypeSpec::CopyView(_) => false,
             spade_hir::TypeSpec::TraitSelf(s) => match &ctx.self_ctx {
                 SelfContext::FreeStanding => diag_bail!(
                     s,
