@@ -115,6 +115,7 @@ pub struct Loc<T> {
 }
 
 impl<T> Loc<T> {
+    #[inline(always)]
     pub fn new(inner: T, span: Span, file_id: usize) -> Self {
         Self {
             inner,
@@ -122,38 +123,47 @@ impl<T> Loc<T> {
             file_id,
         }
     }
+    #[inline(always)]
     pub fn nowhere(inner: T) -> Self {
         Self::new(inner, Span::new(0, 0), 0)
     }
 
+    #[inline(always)]
     pub fn strip(self) -> T {
         self.inner
     }
 
+    #[inline(always)]
     pub fn strip_ref(&self) -> &T {
         &self.inner
     }
 
+    #[inline(always)]
     pub fn separate(self) -> (Self, Span) {
         let span = self.span;
         (self, span)
     }
 
+    #[inline(always)]
     pub fn separate_loc(self) -> (Self, Loc<()>) {
         let loc = self.loc();
         (self, loc)
     }
 
+    #[inline(always)]
     pub fn split(self) -> (T, Span) {
         (self.inner, self.span)
     }
+    #[inline(always)]
     pub fn split_ref(&self) -> (&T, Span) {
         (&self.inner, self.span)
     }
+    #[inline(always)]
     pub fn split_loc(self) -> (T, Loc<()>) {
         let loc = self.loc();
         (self.inner, loc)
     }
+    #[inline(always)]
     pub fn split_loc_ref(&self) -> (&T, Loc<()>) {
         let loc = self.loc();
         (&self.inner, loc)
@@ -163,6 +173,7 @@ impl<T> Loc<T> {
         self.span == other.span && self.file_id == other.file_id
     }
 
+    #[inline(always)]
     pub fn map<Y>(self, mut op: impl FnMut(T) -> Y) -> Loc<Y> {
         Loc {
             inner: op(self.inner),
@@ -171,6 +182,7 @@ impl<T> Loc<T> {
         }
     }
 
+    #[inline(always)]
     pub fn try_map<Y, E>(self, mut op: impl FnMut(T) -> Result<Y, E>) -> Result<Loc<Y>, E> {
         Ok(Loc {
             inner: op(self.inner)?,
@@ -179,6 +191,7 @@ impl<T> Loc<T> {
         })
     }
 
+    #[inline(always)]
     pub fn map_ref<Y>(&self, mut op: impl FnMut(&T) -> Y) -> Loc<Y> {
         Loc {
             inner: op(&self.inner),
@@ -187,6 +200,7 @@ impl<T> Loc<T> {
         }
     }
 
+    #[inline(always)]
     pub fn try_map_ref<Y, E>(&self, mut op: impl FnMut(&T) -> Result<Y, E>) -> Result<Loc<Y>, E> {
         Ok(Loc {
             inner: op(&self.inner)?,
@@ -195,6 +209,7 @@ impl<T> Loc<T> {
         })
     }
 
+    #[inline(always)]
     pub fn loc(&self) -> Loc<()> {
         Loc {
             inner: (),
@@ -292,6 +307,7 @@ impl<T> PartialEq for Loc<T>
 where
     T: PartialEq,
 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner
     }
@@ -303,6 +319,7 @@ impl<T> PartialOrd for Loc<T>
 where
     T: PartialOrd,
 {
+    #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.inner.partial_cmp(&other.inner)
     }
@@ -312,6 +329,7 @@ impl<T> Ord for Loc<T>
 where
     T: Ord,
 {
+    #[inline(always)]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.inner.cmp(&other.inner)
     }
@@ -321,8 +339,9 @@ impl<T> std::fmt::Display for Loc<T>
 where
     T: std::fmt::Display,
 {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
+        self.inner.fmt(f)
     }
 }
 
@@ -330,6 +349,7 @@ impl<T> std::hash::Hash for Loc<T>
 where
     T: std::hash::Hash,
 {
+    #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.inner.hash(state)
     }
@@ -339,6 +359,7 @@ impl<T> std::fmt::Debug for Loc<T>
 where
     T: std::fmt::Debug,
 {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.inner.fmt(f)
     }
@@ -347,21 +368,25 @@ where
 impl<T> std::ops::Deref for Loc<T> {
     type Target = T;
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 impl<T> std::ops::DerefMut for Loc<T> {
+    #[inline(always)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
 impl<T> AsLabel for Loc<T> {
+    #[inline(always)]
     fn file_id(&self) -> usize {
         self.file_id
     }
 
+    #[inline(always)]
     fn span(&self) -> std::ops::Range<usize> {
         self.span.into()
     }
