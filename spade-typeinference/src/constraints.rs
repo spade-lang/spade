@@ -164,7 +164,7 @@ impl ConstraintExpr {
 
 impl ConstraintExpr {
     /// Evaluates the ConstraintExpr returning a new simplified form
-    fn evaluate(&self, type_state: &TypeState) -> ConstraintExpr {
+    pub(crate) fn evaluate(&self, type_state: &TypeState) -> ConstraintExpr {
         let int_binop =
             |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> BigInt| {
                 match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {

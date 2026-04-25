@@ -1576,7 +1576,7 @@ impl ExprLocal for Loc<Expression> {
                         &value,
                         ctx.symtab.symtab(),
                         &ctx.item_list.types,
-                    ) {
+                    )? {
                         Some(ConcreteType::Integer(value)) => value,
                         Some(other) => diag_bail!(self, "Inferred {other} for type level integer"),
                         None => {
@@ -1628,7 +1628,7 @@ impl ExprLocal for Loc<Expression> {
                         &value,
                         ctx.symtab.symtab(),
                         &ctx.item_list.types,
-                    ) {
+                    )? {
                         Some(ConcreteType::Bool(value)) => value,
                         Some(other) => diag_bail!(self, "Inferred {other} for type level bool"),
                         None => {
@@ -2525,7 +2525,7 @@ impl ExprLocal for Loc<Expression> {
 
             if ctx
                 .types
-                .ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types)
+                .ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types)?
                 .is_none()
             {
                 return Err(Diagnostic::error(

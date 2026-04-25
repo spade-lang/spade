@@ -67,7 +67,6 @@ pub use crate::shared::SharedTypeState;
 use crate::traits::{TraitImpl, TraitImplList};
 
 mod constraints;
-pub mod dump;
 pub mod equation;
 pub mod error;
 pub mod expression;

@@ -375,7 +375,8 @@ impl Spade {
                 owned_state.symtab.symtab(),
                 &owned_state.item_list.types,
             )
-            .unwrap();
+            .expect("Failed to concretize type")
+            .expect("Found non-concrete type");
 
         let fwd_size = concrete.to_mir_type().size();
         let back_size = concrete.to_mir_type().backward_size();
@@ -437,6 +438,7 @@ impl Spade {
             self.type_state
                 .ungenerify_type(&ty_id, &symtab, &owned_state.item_list.types);
         let has_field = concrete
+            .expect("Found non-concrete type")
             .map(|c| concrete_ty_has_field(&c, next))
             .unwrap_or_default();
 
@@ -664,6 +666,7 @@ impl Spade {
                 owned_state.symtab.symtab(),
                 &owned_state.item_list.types,
             )
+            .expect("Error while unconcretizing types")
             .unwrap();
 
         let fwd_size = concrete.to_mir_type().size();
@@ -726,6 +729,7 @@ impl Spade {
                 owned_state.symtab.symtab(),
                 &owned_state.item_list.types,
             )
+            .expect("Error while unconcretizing type")
             .unwrap();
 
         let relevant_bits =
