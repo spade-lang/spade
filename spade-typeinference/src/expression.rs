@@ -893,8 +893,6 @@ impl TypeState {
                     self.unify_expression_generic_error(operand, &bool, ctx)?;
                     self.unify_expression_generic_error(expression, &bool, ctx)?
                 }
-
-                // Since these are now no-ops, we just forward the result
                 UnaryOperator::Dereference => {
                     let inner_type = self.new_generic_copy_view(expression.loc(), ctx);
                     let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type.clone()]).insert(self);

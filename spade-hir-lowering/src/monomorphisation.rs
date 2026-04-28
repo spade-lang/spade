@@ -488,10 +488,11 @@ fn monomorphize_item(
                 symtab,
             });
             run_pass!(LowerMethods {
-                type_state: &type_state,
+                type_state: &mut type_state,
                 items: item_list,
                 symtab,
                 impls: trait_impls,
+                idtracker: &idtracker,
             });
             run_pass!(LowerTypeLevelIf {
                 type_state: &type_state,
@@ -509,6 +510,15 @@ fn monomorphize_item(
                 items: item_list,
                 symtab,
             });
+
+            let mut errors = vec![];
+            for diag in type_state.owned.diags.drain() {
+                errors.push(state.add_mono_traceback(diag, &item));
+            }
+
+            if !errors.is_empty() {
+                return Err(errors);
+            }
 
             let self_mono_item = Some(item.clone());
             let out = generate_unit(

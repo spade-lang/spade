@@ -3101,3 +3101,51 @@ snapshot_mir! {
         }
     "
 }
+
+code_compiles! {
+    copy_view_methods_create_views_implicitly,
+    "
+    impl bool {
+        fn value(self) -> Self { self }
+        fn copy_view(&self) -> Self { *self }
+    }
+
+    fn test() {
+        let a: bool = true.value();
+        let b: bool = true.copy_view();
+    }
+    "
+}
+
+code_compiles! {
+    copy_view_methods_destroy_views_implicitly,
+    "
+    impl bool {
+        fn value(self) -> Self { self }
+        fn copy_view(&self) -> Self { *self }
+    }
+
+    fn test() {
+        let a: bool = (&true).value();
+        let b: bool = (&true).copy_view();
+    }
+    "
+}
+
+snapshot_error! {
+    copy_view_methods_destroy_views_implicitly_respecting_copy_requirement,
+    "
+    impl inv bool {
+        fn value(self) { set self = false; }
+        fn copy_view(&self) {}
+    }
+
+    fn test() {
+        let x: inv bool = port().1;
+        set x = true;
+
+        (&x).value();
+        (&x).copy_view();
+    }
+    "
+}

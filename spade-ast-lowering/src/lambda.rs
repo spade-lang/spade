@@ -336,6 +336,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                         } else {
                             None
                         },
+                        None,
                     )),
                     args: clock_arg
                         .clone()

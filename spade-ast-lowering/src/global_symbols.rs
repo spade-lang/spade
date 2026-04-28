@@ -776,7 +776,7 @@ pub fn re_visit_type_declaration(
                     .args
                     .clone()
                     .map(|l| {
-                        if let Some((ref self_, _wire)) = l.self_ {
+                        if let Some((ref self_, _wire, _amp)) = l.self_ {
                             Err(Diagnostic::bug(self_, "enum member contains self"))
                         } else {
                             Ok(l.args.clone())
@@ -886,7 +886,7 @@ pub fn re_visit_type_declaration(
             )
         }
         ast::TypeDeclKind::Struct(s) => {
-            if let Some((ref self_, ref _wire)) = s.members.self_ {
+            if let Some((ref self_, _wire, _amp)) = s.members.self_ {
                 return Err(Diagnostic::bug(
                     self_,
                     "struct contains self member which was let through parser",

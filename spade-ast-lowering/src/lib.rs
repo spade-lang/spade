@@ -618,7 +618,7 @@ fn visit_parameter_list(
         }
     }
 
-    if let Some((ref self_, ref wire_marker)) = l.self_ {
+    if let Some((ref self_, ref wire_marker, amp)) = l.self_ {
         let mut attrs = self_.inner.clone();
         let no_mangle = attrs
             .consume_no_mangle()
@@ -626,7 +626,7 @@ fn visit_parameter_list(
             .or(no_mangle_all);
         attrs.report_unused("`self` parameter")?;
 
-        match &ctx.self_ctx {
+        let mut ty = match &ctx.self_ctx {
             SelfContext::FreeStanding => {
                 return Err(Diagnostic::error(
                     self_,
@@ -634,24 +634,25 @@ fn visit_parameter_list(
                 )
                 .primary_label("not allowed here"));
             }
-            SelfContext::ImplBlock(spec) => result.push(hir::Parameter {
-                no_mangle,
-                name: Identifier::intern("self").at_loc(self_),
-                ty: spec.clone(),
-                field_translator: None,
-                wire: wire_marker.map(|w| w.loc()),
-            }),
+            SelfContext::ImplBlock(spec) => spec.clone(),
             // When visiting trait definitions, we don't need to add self to the
             // symtab at all since we won't be visiting unit bodies here.
             // NOTE: This will be incorrect if we add default impls for traits
-            SelfContext::TraitDefinition(_) => result.push(hir::Parameter {
-                no_mangle,
-                name: Identifier::intern("self").at_loc(self_),
-                ty: hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
-                field_translator: None,
-                wire: wire_marker.map(|w| w.loc()),
-            }),
-        }
+            SelfContext::TraitDefinition(_) => hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
+        };
+
+        if let Some(start_loc) = amp {
+            let end_loc = ty.loc();
+            ty = TypeSpec::CopyView(Box::new(ty)).between_locs(&start_loc, &end_loc);
+        };
+
+        result.push(hir::Parameter {
+            no_mangle,
+            name: Identifier::intern("self").at_loc(self_),
+            ty,
+            field_translator: None,
+            wire: wire_marker.map(|w| w.loc()),
+        })
     }
 
     for (attrs, wire_marker, name, input_type) in &l.args {

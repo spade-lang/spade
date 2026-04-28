@@ -780,7 +780,7 @@ pub struct WireMarker {}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ParameterList {
-    pub self_: Option<(Loc<AttributeList>, Option<Loc<WireMarker>>)>,
+    pub self_: Option<(Loc<AttributeList>, Option<Loc<WireMarker>>, Option<Loc<()>>)>,
     pub args: Vec<(
         AttributeList,
         Option<Loc<WireMarker>>,

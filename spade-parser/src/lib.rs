@@ -1610,6 +1610,8 @@ impl<'a> Parser<'a> {
             .peek_and_eat(&TokenKind::Wire)?
             .map(|w| WireMarker {}.at(self.file_id(), &w));
 
+        let amp = self.peek_and_eat(&TokenKind::Ampersand)?;
+
         let self_ = if self.peek_cond(
             |tok| matches!(tok, TokenKind::Identifier((i, false)) if i.as_str() == "self"),
             "Expected argument",
@@ -1620,7 +1622,21 @@ impl<'a> Parser<'a> {
             (first_attrs, attrs) = (AttributeList::empty(), first_attrs);
             let wire;
             (first_wire, wire) = (None, first_wire);
-            Some((attrs.at(self.file_id(), &self_tok), wire))
+            if let Some(amp_tok) = amp {
+                Some((
+                    attrs.between(self.file_id(), &amp_tok, &self_tok),
+                    wire,
+                    Some(amp_tok.loc()),
+                ))
+            } else {
+                Some((attrs.at(self.file_id(), &self_tok), wire, None))
+            }
+        } else if let Some(amp_tok) = amp {
+            return Err(UnexpectedToken {
+                got: amp_tok,
+                expected: vec!["`self`"],
+            }
+            .into());
         } else {
             None
         };

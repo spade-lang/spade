@@ -49,13 +49,24 @@ impl IntoImplTarget for KnownType {
 /// no such method, or None if the method is ambiguous
 pub fn select_method(
     expr: Loc<()>,
-    self_type: &TypeVarID,
+    self_type_id: &TypeVarID,
     method: &Loc<Identifier>,
     trait_impls: &TraitImplList,
     type_state: &TypeState,
-) -> Result<Option<Loc<NameID>>, Diagnostic> {
-    let target = self_type
-        .resolve(type_state)
+) -> Result<Option<(Loc<NameID>, i32)>, Diagnostic> {
+    let self_type = self_type_id.resolve(type_state);
+    let mut raw_self_type_id = self_type_id.clone();
+    let mut raw_self_type = self_type.clone();
+    let mut self_view_layers_delta = 0i32;
+
+    // Methods for copy views are implemented for the base type
+    while let TypeVar::Known(_, KnownType::CopyView, inner) = raw_self_type {
+        raw_self_type_id = inner[0];
+        raw_self_type = inner[0].resolve(type_state);
+        self_view_layers_delta -= 1;
+    }
+
+    let target = raw_self_type
         .expect_known::<_, _, _, Option<ImplTarget>>(
             |ktype, _params| ktype.into_impl_target(),
             || None,
@@ -64,7 +75,7 @@ pub fn select_method(
             Diagnostic::error(
                 expr,
                 format!(
-                    "{self_type} does not have any methods",
+                    "`{self_type}` does not have any methods",
                     self_type = self_type.display_with_meta(false, type_state)
                 ),
             )
@@ -87,11 +98,19 @@ pub fn select_method(
                     r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
                         if fn_name == &method.inner {
                             let is_overlapping =
-                                spec_is_overlapping(&r#impl.target, self_type, type_state);
-                            let selected = actual_fn.0.clone().at_loc(&actual_fn.1);
+                                spec_is_overlapping(&r#impl.target, &raw_self_type_id, type_state);
+                            let selected = actual_fn.name.clone().at_loc(&actual_fn.fn_loc);
                             match is_overlapping {
-                                Overlap::Yes => (Some((name, selected)), None, None),
-                                Overlap::Maybe => (None, Some((name, selected)), None),
+                                Overlap::Yes => (
+                                    Some((name, selected, actual_fn.takes_self_view)),
+                                    None,
+                                    None,
+                                ),
+                                Overlap::Maybe => (
+                                    None,
+                                    Some((name, selected, actual_fn.takes_self_view)),
+                                    None,
+                                ),
                                 Overlap::No => (None, None, Some(&r#impl.target)),
                             }
                         } else {
@@ -119,14 +138,15 @@ pub fn select_method(
         return Ok(None);
     }
 
-    let final_method = match matched_candidates.as_slice() {
-        [(_, method_name)] => method_name,
+    let (final_method, takes_self_view) = match matched_candidates.as_slice() {
+        [(_, method_name, takes_self_view)] => (method_name, *takes_self_view),
         [] => {
-            let self_type = self_type.display_with_meta(false, type_state);
+            let ty_name = self_type.display_with_meta(false, type_state);
+            let raw_ty_name = raw_self_type.display_with_meta(false, type_state);
             let mut d =
-                Diagnostic::error(method, format!("`{self_type}` has no method `{method}`"))
+                Diagnostic::error(method, format!("`{raw_ty_name}` has no method `{method}`"))
                     .primary_label("No such method")
-                    .secondary_label(expr, format!("This has type `{self_type}`"));
+                    .secondary_label(expr, format!("This has type `{ty_name}`"));
 
             match unmatched_candidates.as_slice() {
                 [] => {}
@@ -148,13 +168,13 @@ pub fn select_method(
             return Err(d);
         }
         candidates => {
-            let Some((_, anon_method)) = candidates
+            let Some((_, anon_method, takes_self_view)) = candidates
                 .iter()
-                .find(|(trait_name, _)| matches!(trait_name, TraitName::Anonymous(_)))
+                .find(|(trait_name, _, _)| matches!(trait_name, TraitName::Anonymous(_)))
             else {
                 let mut d = Diagnostic::error(method, "Multiple candidates satisfy this method");
 
-                for (trait_name, name) in candidates.iter().sorted() {
+                for (trait_name, name, _) in candidates.iter().sorted() {
                     d.push_subdiagnostic(Subdiagnostic::span_note(
                         name,
                         format!("a possible candidate corresponds to trait `{trait_name}`"),
@@ -164,11 +184,15 @@ pub fn select_method(
                 return Err(d);
             };
 
-            anon_method
+            (anon_method, *takes_self_view)
         }
     };
 
-    Ok(Some(final_method.clone()))
+    if takes_self_view {
+        self_view_layers_delta += 1;
+    }
+
+    Ok(Some((final_method.clone(), self_view_layers_delta)))
 }
 
 enum Overlap {

@@ -1,21 +1,25 @@
 use crate::passes::pass::Pass;
 use spade_common::{
+    id_tracker::ExprIdTracker,
     location_info::{Loc, WithLocation},
     name::Identifier,
 };
 use spade_diagnostics::Diagnostic;
 use spade_hir::{
-    ArgumentList, Expression, ItemList, expression::NamedArgument, symbol_table::FrozenSymtab,
+    ArgumentList, ExprKind, Expression, ItemList,
+    expression::{NamedArgument, UnaryOperator},
+    symbol_table::FrozenSymtab,
 };
 use spade_typeinference::{
     HasType, TypeState, method_resolution::select_method, traits::TraitImplList,
 };
 
 pub struct LowerMethods<'a> {
-    pub type_state: &'a TypeState,
+    pub type_state: &'a mut TypeState,
     pub items: &'a ItemList,
     pub symtab: &'a FrozenSymtab,
     pub impls: &'a TraitImplList,
+    pub idtracker: &'a ExprIdTracker,
 }
 
 impl<'a> Pass for LowerMethods<'a> {
@@ -31,6 +35,8 @@ impl<'a> Pass for LowerMethods<'a> {
                 turbofish: _,
                 safety,
             } => {
+                let mut self_ = self_.clone();
+                let self_loc = self_.loc();
                 let self_type = self_.get_type(self.type_state);
 
                 // Method resolution requires fully known types, so we'll do a throwaway MIR
@@ -41,7 +47,7 @@ impl<'a> Pass for LowerMethods<'a> {
                     &self.items.types,
                 )?;
 
-                let Some(method) =
+                let Some((method, self_view_layers_delta)) =
                     select_method(self_.loc(), &self_type, name, &self.impls, &self.type_state)?
                 else {
                     return Err(Diagnostic::bug(
@@ -52,6 +58,39 @@ impl<'a> Pass for LowerMethods<'a> {
                         ),
                     ));
                 };
+
+                let type_inference_ctx = spade_typeinference::Context {
+                    symtab: self.symtab.symtab(),
+                    items: self.items,
+                    trait_impls: self.impls,
+                };
+
+                let empty_generic_list = self
+                    .type_state
+                    .create_empty_generic_list(spade_typeinference::GenericListSource::Anonymous);
+
+                // Auto-adjust method target to the copy view level expected by the method
+
+                if self_view_layers_delta > 0 {
+                    for _ in 0..self_view_layers_delta {
+                        self_ = Box::new(
+                            ExprKind::UnaryOperator(UnaryOperator::Reference.nowhere(), self_)
+                                .with_id(self.idtracker.next())
+                                .at_loc(&self_loc),
+                        );
+                    }
+                } else if self_view_layers_delta < 0 {
+                    for _ in self_view_layers_delta..0 {
+                        self_ = Box::new(
+                            ExprKind::UnaryOperator(UnaryOperator::Dereference.nowhere(), self_)
+                                .with_id(self.idtracker.next())
+                                .at_loc(&self_loc),
+                        );
+                    }
+                }
+
+                self.type_state
+                    .visit_expression(&self_, &type_inference_ctx, &empty_generic_list);
 
                 // Insert self as the first arg
                 let args = args.map_ref(|args| {

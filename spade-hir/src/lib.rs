@@ -1108,10 +1108,17 @@ impl AttributeList {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct TraitUnitImpl {
+    pub name: NameID,
+    pub fn_loc: Loc<()>,
+    pub takes_self_view: bool,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct ImplBlock {
     /// Mapping of identifiers to the NameID of the entity which is the implementation
     /// for the specified function
-    pub fns: HashMap<Identifier, (NameID, Loc<()>)>,
+    pub fns: HashMap<Identifier, TraitUnitImpl>,
     pub type_params: Vec<Loc<TypeParam>>,
     pub target: Loc<TypeSpec>,
     pub id: ImplID,

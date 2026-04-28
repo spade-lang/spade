@@ -1870,28 +1870,15 @@ mod trait_tests {
     }
 
     code_compiles! {
-        method_call_on_wire_works,
+        method_call_on_inv_works,
         "
-            impl &bool {
-                entity method(self) {}
-            }
-
-            entity test() {
-                (&true).inst method()
-            }
-        "
-    }
-
-    code_compiles! {
-        method_call_on_inv_wire_works,
-        "
-            impl inv &bool {
+            impl inv bool {
                 entity method(self) {
-                    set self = &true;
+                    set self = true;
                 }
             }
 
-            entity test(x: inv& bool) {
+            entity test(x: inv bool) {
                 x.inst method()
             }
         "

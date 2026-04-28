@@ -244,7 +244,7 @@ impl Requirement {
                     return Ok(RequirementResult::Satisfied(vec![]));
                 }
                 TypeVar::Known(_, _, _) => {
-                    let Some(implementor) = select_method(
+                    let Some((implementor, self_view_layers_delta)) = select_method(
                         expr.loc(),
                         target_type,
                         method,
@@ -267,6 +267,7 @@ impl Requirement {
                         ctx,
                         false,
                         true,
+                        self_view_layers_delta,
                         turbofish.as_ref(),
                         prev_generic_list,
                     )?;

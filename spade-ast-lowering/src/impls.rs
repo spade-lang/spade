@@ -10,7 +10,7 @@ use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::pretty_debug::PrettyDebug;
 use spade_hir::symbol_table::{Thing, TypeDeclKind, TypeSymbol};
-use spade_hir::{self as hir, TraitName, TypeExpression};
+use spade_hir::{self as hir, TraitName, TraitUnitImpl, TypeExpression};
 use spade_types::meta_types::MetaType;
 
 use crate::error::Result;
@@ -100,7 +100,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     let trait_methods = &trait_def.fns;
 
     let mut trait_members = vec![];
-    let mut trait_impl = HashMap::default();
+    let mut trait_impl = HashMap::<Identifier, TraitUnitImpl>::default();
 
     ctx.self_ctx = SelfContext::ImplBlock(target_type.clone());
 
@@ -170,17 +170,24 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
                 let name = &unit.head.name;
                 trait_members.push((name.inner.clone(), u.head.clone()));
 
-                if let Some((_, prev)) = trait_impl.get(&name.inner) {
+                if let Some(imp) = trait_impl.get(&name.inner) {
                     return Err(
                         Diagnostic::error(name, format!("Multiple definitions of {name}"))
-                            .primary_label(format!("{name} is defined multiple times"))
-                            .secondary_label(prev, "Previous definition here"),
+                            .primary_label(format!("{} is defined multiple times", name))
+                            .secondary_label(imp.fn_loc, "Previous definition here"),
                     );
                 }
 
+                let takes_self_view =
+                    matches!(u.head.inputs.0[0].ty.inner, hir::TypeSpec::CopyView(_));
+
                 trait_impl.insert(
                     name.inner.clone(),
-                    (u.name.name_id().inner.clone(), u.loc()),
+                    hir::TraitUnitImpl {
+                        name: u.name.name_id().inner.clone(),
+                        fn_loc: u.loc(),
+                        takes_self_view,
+                    },
                 );
             }
             hir::Item::ExternUnit(_, head) => {
@@ -1438,7 +1445,7 @@ pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diag
             .sorted_by_key(|block| block.span)
         {
             let target = block.target.clone();
-            block.fns.retain(|f, (_f_nameid, f_loc)| {
+            block.fns.retain(|f, imp| {
                 let specs = set.entry(f.clone()).or_default();
                 if let Some((prev, _)) = specs
                     .iter()
@@ -1446,7 +1453,7 @@ pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diag
                 {
                     diags.push(
                         Diagnostic::error(
-                            *f_loc,
+                            imp.fn_loc,
                             format!("{} already has a method named {f}", target),
                         )
                         .primary_label("Duplicate method")
@@ -1454,7 +1461,7 @@ pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diag
                     );
                     false
                 } else {
-                    specs.push((f_loc.loc(), target.inner.clone()));
+                    specs.push((imp.fn_loc.loc(), target.inner.clone()));
                     true
                 }
             });

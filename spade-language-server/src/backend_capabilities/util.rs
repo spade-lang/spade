@@ -234,7 +234,7 @@ impl ServerBackend {
                             )
                             .ok()
                             .flatten()
-                            .and_then(|callee| {
+                            .and_then(|(callee, _)| {
                                 let symtab = self.symtab.lock().unwrap();
                                 let Some(symtab) = symtab.as_ref() else {
                                     return None;

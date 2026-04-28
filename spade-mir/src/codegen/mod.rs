@@ -445,11 +445,7 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
             format!("{} ? {} : {}", op_names[0], op_names[1], op_names[2])
         }
         Operator::IndexTuple(idx) => {
-            let mut ty = &types[&ops[0]];
-            while let Type::CopyView(inner) = ty {
-                ty = inner;
-            }
-            let inner_types = match ty {
+            let inner_types = match &types[&ops[0]].strip_copy_view_layers() {
                 Type::Tuple(fields) => fields.clone(),
                 Type::Struct(fields) => fields.iter().map(|(_name, ty)| ty.clone()).collect(),
                 Type::Array { inner, length } => {
@@ -880,7 +876,7 @@ fn backward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[Value
             format!("{{{}}}", members.join(", "))
         }
         Operator::IndexTuple(index) => {
-            let inner_types = match &types[&ops[0]] {
+            let inner_types = match &types[&ops[0]].strip_copy_view_layers() {
                 Type::Tuple(fields) => fields.clone(),
                 Type::Struct(fields) => fields.iter().map(|(_name, ty)| ty.clone()).collect(),
                 Type::Array { inner, length } => {

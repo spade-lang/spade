@@ -4,7 +4,7 @@
 ///
 /// `Data` is automatically implemented by the compiler, analogous to an auto trait in Rust. It
 /// should not be implemented manually.
-pub trait Data {}
+pub trait Data: Copy {}
 
 impl Data for () {}
 impl<T0: Data> Data for (T0) {}
@@ -26,7 +26,7 @@ impl<T: Data, #uint N> Data for [T; N] {}
 ///
 /// `Copy` is automatically implemented by the compiler, analogous to an auto trait in Rust. It
 /// should not be implemented manually.
-pub trait Copy: Data {}
+pub trait Copy {}
 
 impl Copy for () {}
 impl<T0: Copy> Copy for (T0) {}

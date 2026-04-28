@@ -110,6 +110,15 @@ impl Type {
             _ => true,
         }
     }
+
+    pub fn strip_copy_view_layers(&self) -> &Type {
+        let mut ty = self;
+        while let Type::CopyView(inner) = ty {
+            ty = inner;
+        }
+
+        ty
+    }
 }
 
 impl std::fmt::Display for Type {

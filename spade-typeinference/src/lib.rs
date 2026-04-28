@@ -1148,18 +1148,51 @@ impl TypeState {
     fn type_check_argument_list(
         &mut self,
         args: &[Argument<Expression, TypeSpec>],
+        is_method: bool,
         ctx: &Context,
         generic_list: &GenericListToken,
+        self_view_layers_delta: i32,
     ) -> Result<()> {
-        for Argument {
-            target,
-            target_type,
-            value,
-            kind,
-        } in args.iter()
-        {
-            let target_type =
-                self.type_var_from_hir(value.loc(), target_type, generic_list, ctx)?;
+        for (idx, arg) in args.iter().enumerate() {
+            let Argument {
+                target,
+                target_type,
+                value,
+                kind,
+            } = arg;
+
+            let mut target_tv =
+                self.type_var_from_hir(value.loc(), &target_type, generic_list, ctx)?;
+
+            let mut value_tv = value.inner.get_type(self);
+
+            // Method targets get automatically wrapped with / unwrapped from copy views.
+            // However, that mechanism is performed only during HIR lowering, which comes later.
+            // Here, we can nudge the level of copy view layers on both sides according to the
+            // information obtained from the method selection mechanism.
+            //
+            // This is not sufficient for type checking! In particular, copy view targets for
+            // methods taking `self` may typecheck even if the wrapped value does not implement
+            // `Copy`. This is not a problem though, as method lowering will perform proper type
+            // checking when the actual argument expression is modified. This operation provides
+            // type inference though.
+            if is_method && idx == 0 {
+                for _ in self_view_layers_delta..0 {
+                    target_tv = self.add_type_var(TypeVar::Known(
+                        ().nowhere(),
+                        KnownType::CopyView,
+                        vec![target_tv],
+                    ));
+                }
+
+                for _ in 0..self_view_layers_delta {
+                    value_tv = self.add_type_var(TypeVar::Known(
+                        ().nowhere(),
+                        KnownType::CopyView,
+                        vec![value_tv],
+                    ));
+                }
+            }
 
             let loc = match kind {
                 hir::param_util::ArgumentKind::Positional => value.loc(),
@@ -1168,17 +1201,16 @@ impl TypeState {
                 hir::param_util::ArgumentKind::Default => value.loc(),
             };
 
-            self.unify(&value.inner, &target_type, ctx)
-                .into_diagnostic(
-                    loc,
-                    |d, tm| {
-                        let (expected, got) = tm.display_e_g(self);
-                        d.message(format!(
-                            "Argument type mismatch. Expected {expected} got {got}"
-                        ))
-                    },
-                    self,
-                )?;
+            self.unify(&value_tv, &target_tv, ctx).into_diagnostic(
+                loc,
+                |d, tm| {
+                    let (expected, got) = tm.display_e_g(self);
+                    d.message(format!(
+                        "Argument type mismatch. Expected {expected} got {got}"
+                    ))
+                },
+                self,
+            )?;
         }
 
         Ok(())
@@ -1252,6 +1284,7 @@ impl TypeState {
                     ctx,
                     true,
                     false,
+                    0,
                     turbofish.as_ref(),
                     generic_list,
                 )?;
@@ -1416,18 +1449,22 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) {
-        let new_type = self.new_generic_type(expression.loc());
-        self.add_equation(TypedExpression::Id(expression.inner.id), new_type);
+        let id = TypedExpression::Id(expression.inner.id);
 
-        match self.visit_expression_result(expression, ctx, generic_list, new_type) {
-            Ok(_) => {}
-            Err(e) => {
-                new_type
-                    .unify_with(&self.t_err(expression.loc()), self)
-                    .commit(self, ctx)
-                    .unwrap();
+        if !self.owned.equations.contains_key(&id) {
+            let new_type = self.new_generic_type(expression.loc());
+            self.add_equation(id, new_type);
 
-                self.owned.diags.errors.push(e);
+            match self.visit_expression_result(expression, ctx, generic_list, new_type) {
+                Ok(_) => {}
+                Err(e) => {
+                    new_type
+                        .unify_with(&self.t_err(expression.loc()), self)
+                        .commit(self, ctx)
+                        .unwrap();
+
+                    self.owned.diags.errors.push(e);
+                }
             }
         }
     }
@@ -1451,6 +1488,7 @@ impl TypeState {
         // If we are calling a method, we have an implicit self argument which means
         // that any error reporting number of arguments should be reduced by one
         is_method: bool,
+        self_view_layers_delta: i32,
         turbofish: Option<&Loc<ArgumentList<TypeExpression>>>,
         generic_list: &GenericListToken,
     ) -> Result<()> {
@@ -1602,7 +1640,13 @@ impl TypeState {
         };
 
         // Unify the types of the arguments
-        self.type_check_argument_list(&matched_args, ctx, &unit_generic_list)?;
+        self.type_check_argument_list(
+            &matched_args,
+            is_method,
+            ctx,
+            &unit_generic_list,
+            self_view_layers_delta,
+        )?;
 
         let return_type = head
             .output_type
