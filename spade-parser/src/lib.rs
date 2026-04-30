@@ -805,6 +805,7 @@ impl<'a> Parser<'a> {
             match &token.kind {
                 TokenKind::Integer(val)
                 | TokenKind::HexInteger(val)
+                | TokenKind::OctInteger(val)
                 | TokenKind::BinInteger(val) => {
                     let (val_int, val_signed) = val;
 

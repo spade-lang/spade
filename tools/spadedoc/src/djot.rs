@@ -227,6 +227,7 @@ impl SyntaxColor {
             TokenKind::Identifier(_) => SyntaxColor::None,
             TokenKind::Integer(_) => SyntaxColor::Number,
             TokenKind::HexInteger(_) => SyntaxColor::Number,
+            TokenKind::OctInteger(_) => SyntaxColor::Number,
             TokenKind::BinInteger(_) => SyntaxColor::Number,
             TokenKind::True
             | TokenKind::False

@@ -57,6 +57,10 @@ pub enum TokenKind {
         parse_int(&lex.slice()[2..], 16)
     })]
     HexInteger((BigUint, LiteralKind)),
+    #[regex(r"0o[0-7][0-7_]*([uUiI][0-7]*)?", |lex| {
+        parse_int(&lex.slice()[2..], 8)
+    })]
+    OctInteger((BigUint, LiteralKind)),
     #[regex(r"0b[0-1][0-1_]*([uUiI][0-9]*)?", |lex| {
         parse_int(&lex.slice()[2..], 2)
     })]
@@ -290,6 +294,7 @@ impl TokenKind {
             TokenKind::Identifier(_) => "identifier",
             TokenKind::Integer(_) => "integer",
             TokenKind::HexInteger(_) => "hexadecimal integer",
+            TokenKind::OctInteger(_) => "octal integer",
             TokenKind::BinInteger(_) => "binary integer",
             TokenKind::True => "true",
             TokenKind::False => "false",
@@ -416,7 +421,10 @@ impl TokenKind {
     pub fn is_integer(&self) -> bool {
         matches!(
             self,
-            TokenKind::Integer(_) | TokenKind::HexInteger(_) | TokenKind::BinInteger(_)
+            TokenKind::Integer(_)
+                | TokenKind::HexInteger(_)
+                | TokenKind::OctInteger(_)
+                | TokenKind::BinInteger(_)
         )
     }
 
@@ -424,6 +432,7 @@ impl TokenKind {
         match self {
             TokenKind::Integer((i, _))
             | TokenKind::HexInteger((i, _))
+            | TokenKind::OctInteger((i, _))
             | TokenKind::BinInteger((i, _)) => Some(i.clone()),
             _ => None,
         }
