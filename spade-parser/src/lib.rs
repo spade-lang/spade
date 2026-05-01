@@ -3321,6 +3321,13 @@ mod tests {
 
         check_parse!(code, int_literal, Ok(Some(expected)));
     }
+    #[test]
+    fn oct_int_literals_work() {
+        let code = "0o755";
+        let expected = IntLiteral::unsized_(493).nowhere();
+
+        check_parse!(code, int_literal, Ok(Some(expected)));
+    }
 
     #[test]
     fn type_spec_with_multiple_generics_works() {
@@ -3421,6 +3428,15 @@ mod tests {
         let code = "0b101";
 
         let expected = Pattern::integer(5).nowhere();
+
+        check_parse!(code, pattern, Ok(expected));
+    }
+
+    #[test]
+    fn oct_integer_patterns_work() {
+        let code = "0o755";
+
+        let expected = Pattern::integer(493).nowhere();
 
         check_parse!(code, pattern, Ok(expected));
     }
