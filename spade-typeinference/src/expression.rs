@@ -1,4 +1,6 @@
 use num::{BigInt, BigUint, One};
+use smallvec::smallvec;
+
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::Identifier;
 use spade_common::num_ext::InfallibleToBigInt;
@@ -256,7 +258,7 @@ impl TypeState {
                 // NOTE: safe unwrap, we know this expr has a type because we just visited
             }
 
-            let mut inner_types = vec![];
+            let mut inner_types = smallvec![];
             for expr in inner {
                 let t = self.type_of(&TypedExpression::Id(expr.id));
 
@@ -452,7 +454,7 @@ impl TypeState {
                 members[0].get_type(self)
             };
 
-            let size_type = TypeVar::Known(expression.loc(), KnownType::Integer(members.len().to_bigint()), vec![]).insert(self);
+            let size_type = TypeVar::Known(expression.loc(), KnownType::Integer(members.len().to_bigint()), smallvec![]).insert(self);
             let result_type = TypeVar::array(
                 expression.loc(),
                 inner_type,
@@ -497,8 +499,8 @@ impl TypeState {
     ) -> Result<()> {
         assuming_kind!(ExprKind::CreatePorts = &expression => {
             let inner_type = self.new_generic_type(expression.loc());
-            let inverted = TypeVar::Known(expression.loc(), KnownType::Inverted, vec![inner_type.clone()]).insert(self);
-            let compound = TypeVar::tuple(expression.loc(), vec![inner_type, inverted]).insert(self);
+            let inverted = TypeVar::Known(expression.loc(), KnownType::Inverted, smallvec![inner_type.clone()]).insert(self);
+            let compound = TypeVar::tuple(expression.loc(), smallvec![inner_type, inverted]).insert(self);
             self.unify_expression_generic_error(expression, &compound, ctx)?;
         });
         Ok(())

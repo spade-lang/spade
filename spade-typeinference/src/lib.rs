@@ -25,6 +25,7 @@ use num::{BigInt, BigUint, Zero};
 use replacement::ReplacementStack;
 use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use spade_common::doc_links::WIRE_DOCS;
 use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
@@ -214,7 +215,7 @@ impl TypeState {
         let owned = OwnedTypeState::fresh();
         let mut result = Self { shared, owned };
         result.owned.error_type =
-            Some(result.add_type_var(TypeVar::Known(().nowhere(), KnownType::Error, vec![])));
+            Some(result.add_type_var(TypeVar::Known(().nowhere(), KnownType::Error, smallvec![])));
         result
     }
 
@@ -301,13 +302,13 @@ impl TypeState {
     ) -> Result<WithObligations<TypeVarID>> {
         let id = match &e.inner {
             hir::TypeExpression::Bool(b) => self
-                .add_type_var(TypeVar::Known(e.loc(), KnownType::Bool(*b), vec![]))
+                .add_type_var(TypeVar::Known(e.loc(), KnownType::Bool(*b), smallvec![]))
                 .no_obligations(),
             hir::TypeExpression::Integer(i) => self
                 .add_type_var(TypeVar::Known(
                     e.loc(),
                     KnownType::Integer(i.clone()),
-                    vec![],
+                    smallvec![],
                 ))
                 .no_obligations(),
 
@@ -315,7 +316,7 @@ impl TypeState {
                 .add_type_var(TypeVar::Known(
                     e.loc(),
                     KnownType::String(s.clone()),
-                    vec![],
+                    smallvec![],
                 ))
                 .no_obligations(),
             hir::TypeExpression::TypeSpec(spec) => self.type_var_from_hir_with_obligations(
@@ -367,7 +368,7 @@ impl TypeState {
                             .hir_type_expr_to_var_with_obligations(e, generic_list_token, ctx)?
                             .absorb_obligations(&mut obligations))
                     })
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<SmallVec<[_; 4]>>>()?;
 
                 let TypeDeclaration {
                     name: _,
@@ -496,11 +497,11 @@ impl TypeState {
     }
 
     pub fn new_generic_int(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVar {
-        TypeVar::Known(loc, t_int(symtab), vec![self.new_generic_tluint(loc)])
+        TypeVar::Known(loc, t_int(symtab), smallvec![self.new_generic_tluint(loc)])
     }
 
     pub fn new_concrete_int(&mut self, size: BigUint, loc: Loc<()>) -> TypeVarID {
-        TypeVar::Known(loc, KnownType::Integer(size.to_bigint()), vec![]).insert(self)
+        TypeVar::Known(loc, KnownType::Integer(size.to_bigint()), smallvec![]).insert(self)
     }
 
     /// Return a new generic int. The first returned value is int<N>, and the second
@@ -511,7 +512,7 @@ impl TypeState {
         symtab: &SymbolTable,
     ) -> (TypeVarID, TypeVarID) {
         let size = self.new_generic_tlint(loc);
-        let full = self.add_type_var(TypeVar::Known(loc, t_int(symtab), vec![size.clone()]));
+        let full = self.add_type_var(TypeVar::Known(loc, t_int(symtab), smallvec![size.clone()]));
         (full, size)
     }
 
@@ -521,7 +522,7 @@ impl TypeState {
         symtab: &SymbolTable,
     ) -> (TypeVarID, TypeVarID) {
         let size = self.new_generic_tluint(loc);
-        let full = self.add_type_var(TypeVar::Known(loc, t_uint(symtab), vec![size.clone()]));
+        let full = self.add_type_var(TypeVar::Known(loc, t_uint(symtab), smallvec![size.clone()]));
         (full, size)
     }
 
@@ -603,7 +604,7 @@ impl TypeState {
         let size = self.new_generic_tluint(loc);
         let t = TraitReq {
             name: TraitName::Named(Some(path.inner), number.nowhere()),
-            type_params: vec![size.clone()],
+            type_params: smallvec![size.clone()],
         }
         .nowhere();
         (
@@ -627,7 +628,7 @@ impl TypeState {
                     .clone()
                     .at_loc(&loc),
             ),
-            type_params: vec![],
+            type_params: smallvec![],
         }
         .at_loc(&loc);
 
@@ -1087,7 +1088,7 @@ impl TypeState {
             current_stage_depth: self.add_type_var(TypeVar::Known(
                 unit_kind.loc(),
                 KnownType::Integer(BigInt::zero()),
-                vec![],
+                smallvec![],
             )),
             pipeline_loc: body_loc.loc(),
             total_depth: depth_var.clone().at_loc(depth),
@@ -1336,7 +1337,7 @@ impl TypeState {
                             .collect::<Result<Vec<_>>>()?
                             .into_iter(),
                     )
-                    .collect::<Vec<_>>();
+                    .collect::<SmallVec<_>>();
 
                 let self_type = TypeVar::Known(
                     expression.loc(),
@@ -1587,7 +1588,7 @@ impl TypeState {
                 self.add_type_var(TypeVar::Known(
                     expression_id.loc(),
                     KnownType::Tuple,
-                    vec![],
+                    smallvec![],
                 ))
             });
 
@@ -1694,7 +1695,7 @@ impl TypeState {
         let arg1_loc = args[1].value.loc();
         let tup = TypeVar::tuple(
             args[1].value.loc(),
-            vec![
+            smallvec![
                 self.new_generic_type(arg1_loc),
                 addr_type,
                 self.new_generic_type(arg1_loc),
@@ -2257,12 +2258,12 @@ impl TypeState {
                             &TypeVar::Known(
                                 pattern.loc(),
                                 KnownType::Array,
-                                vec![
+                                smallvec![
                                     inner_t,
                                     self.add_type_var(TypeVar::Known(
                                         pattern.loc(),
                                         KnownType::Integer(inner.len().to_bigint()),
-                                        vec![],
+                                        smallvec![],
                                     )),
                                 ],
                             )
@@ -2508,7 +2509,7 @@ impl TypeState {
                         var
                     }
                     Some(PipelineRegMarkerExtra::Condition(_)) | None => self.add_type_var(
-                        TypeVar::Known(stmt.loc(), KnownType::Integer(1.to_bigint()), vec![]),
+                        TypeVar::Known(stmt.loc(), KnownType::Integer(1.to_bigint()), smallvec![]),
                     ),
                 };
 
@@ -2739,7 +2740,7 @@ impl TypeState {
                 .map(|te| self.hir_type_expr_to_var(te, generic_list, ctx))
                 .collect::<Result<_>>()?
         } else {
-            vec![]
+            smallvec![]
         };
 
         Ok(TraitReq {
@@ -3443,7 +3444,7 @@ impl TypeState {
                 });
 
                 // NOTE: safe unwrap. We already checked the constraint above
-                let expected_type = self.add_type_var(TypeVar::Known(loc, replacement.val, vec![]));
+                let expected_type = self.add_type_var(TypeVar::Known(loc, replacement.val, smallvec![]));
                 let result = self.unify_inner(&expected_type.clone().at_loc(&loc), &var, ctx);
                 let is_meta_error = matches!(result, Err(UnificationError::MetaMismatch { .. }));
                 match result {

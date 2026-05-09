@@ -1,3 +1,5 @@
+use smallvec::smallvec;
+
 use spade_common::location_info::WithLocation;
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_hir::symbol_table::SymbolTable;
@@ -16,8 +18,8 @@ pub fn sized_int(size: u128, symtab: &SymbolTable, type_state: &mut TypeState) -
     TVar::Known(
         ().nowhere(),
         t_int(symtab),
-        vec![
-            TVar::Known(().nowhere(), KnownType::Integer(size.to_bigint()), vec![])
+        smallvec![
+            TVar::Known(().nowhere(), KnownType::Integer(size.to_bigint()), smallvec![])
                 .insert(type_state),
         ],
     )
@@ -28,7 +30,7 @@ pub fn unsized_int(id: u64, symtab: &SymbolTable, type_state: &mut TypeState) ->
     TVar::Known(
         ().nowhere(),
         t_int(symtab),
-        vec![
+        smallvec![
             TVar::Unknown(().nowhere(), id, TraitList::empty(), MetaType::Uint).insert(type_state),
         ],
     )

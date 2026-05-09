@@ -5,6 +5,7 @@ use crate::{
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use spade_common::location_info::Loc;
 use spade_hir::{ImplBlock, ImplTarget, TraitName};
 use std::collections::BTreeSet;
@@ -33,7 +34,7 @@ impl TraitImplList {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TraitReq {
     pub name: TraitName,
-    pub type_params: Vec<TypeVarID>,
+    pub type_params: SmallVec<[TypeVarID; 4]>,
 }
 
 impl TraitReq {

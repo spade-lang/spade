@@ -6,6 +6,7 @@ type HashMap<K, V> =
 
 use num::BigInt;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_types::{KnownType, meta_types::MetaType};
 
@@ -273,7 +274,7 @@ impl std::fmt::Display for TypeVarString {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum TypeVar {
     /// The base type is known and has a list of parameters
-    Known(Loc<()>, KnownType, Vec<TypeVarID>),
+    Known(Loc<()>, KnownType, SmallVec<[TypeVarID; 4]>),
     /// The type is unknown, but must satisfy the specified traits. When the generic substitution
     /// is done, the TypeVars will be carried over to the KnownType type vars
     Unknown(Loc<()>, u64, TraitList, MetaType),
@@ -299,19 +300,19 @@ impl TypeVar {
     }
 
     pub fn array(loc: Loc<()>, inner: TypeVarID, size: TypeVarID) -> Self {
-        TypeVar::Known(loc, KnownType::Array, vec![inner, size])
+        TypeVar::Known(loc, KnownType::Array, smallvec![inner, size])
     }
 
-    pub fn tuple(loc: Loc<()>, inner: Vec<TypeVarID>) -> Self {
+    pub fn tuple(loc: Loc<()>, inner: SmallVec<[TypeVarID; 4]>) -> Self {
         TypeVar::Known(loc, KnownType::Tuple, inner)
     }
 
     pub fn unit(loc: Loc<()>) -> Self {
-        TypeVar::Known(loc, KnownType::Tuple, Vec::new())
+        TypeVar::Known(loc, KnownType::Tuple, smallvec![])
     }
 
     pub fn inverted(loc: Loc<()>, inner: TypeVarID) -> Self {
-        TypeVar::Known(loc, KnownType::Inverted, vec![inner])
+        TypeVar::Known(loc, KnownType::Inverted, smallvec![inner])
     }
 
     pub fn expect_known<T, U, K, O>(&self, on_known: K, on_unknown: U) -> T
@@ -564,7 +565,7 @@ impl std::fmt::Display for KnownTypeVar {
 
 pub enum ResolvedNamedOrInverted {
     Unknown,
-    Named(bool, NameID, Vec<TypeVarID>),
+    Named(bool, NameID, SmallVec<[TypeVarID; 4]>),
     Other,
 }
 

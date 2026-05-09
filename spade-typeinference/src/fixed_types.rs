@@ -1,3 +1,5 @@
+use smallvec::smallvec;
+
 use spade_common::{
     location_info::{Loc, WithLocation},
     name::Path,
@@ -27,23 +29,23 @@ fn lookup(symtab: &SymbolTable, name: &[&str]) -> KnownType {
 
 impl TypeState {
     pub fn t_int(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, t_int(symtab), vec![]))
+        self.add_type_var(TypeVar::Known(loc, t_int(symtab), smallvec![]))
     }
     pub fn t_uint(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, t_uint(symtab), vec![]))
+        self.add_type_var(TypeVar::Known(loc, t_uint(symtab), smallvec![]))
     }
     pub fn t_tri(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, t_tri(symtab), vec![]))
+        self.add_type_var(TypeVar::Known(loc, t_tri(symtab), smallvec![]))
     }
     pub fn t_bool(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, t_bool(symtab), vec![]))
+        self.add_type_var(TypeVar::Known(loc, t_bool(symtab), smallvec![]))
     }
     pub fn t_clock(&mut self, loc: Loc<()>, symtab: &SymbolTable) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, t_clock(symtab), vec![]))
+        self.add_type_var(TypeVar::Known(loc, t_clock(symtab), smallvec![]))
     }
 
     pub fn t_err(&mut self, loc: Loc<()>) -> TypeVarID {
-        self.add_type_var(TypeVar::Known(loc, KnownType::Error, vec![]))
+        self.add_type_var(TypeVar::Known(loc, KnownType::Error, smallvec![]))
     }
 }
 

@@ -20,6 +20,7 @@ itertools.workspace = true
 imbl.workspace = true
 num.workspace = true
 rustc-hash.workspace = true
+smallvec.workspace=true
 serde.workspace = true
 tracing.workspace = true
 fastrand.workspace = true
