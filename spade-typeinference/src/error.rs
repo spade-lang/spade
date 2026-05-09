@@ -1,5 +1,6 @@
 use itertools::Itertools;
 
+use smallvec::SmallVec;
 use spade_common::location_info::{FullSpan, Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
 
@@ -446,7 +447,7 @@ pub enum UnificationError {
     Specific(spade_diagnostics::Diagnostic),
     UnsatisfiedTraits {
         var: TypeVarID,
-        traits: Vec<Loc<TraitReq>>,
+        traits: SmallVec<[Loc<TraitReq>; 4]>,
         failing_var: UnificationTrace,
     },
     FromConstraints {

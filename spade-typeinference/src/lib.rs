@@ -611,7 +611,7 @@ impl TypeState {
             self.add_type_var(TypeVar::Unknown(
                 loc,
                 id,
-                TraitList::from_vec(vec![t]),
+                TraitList::from_vec(smallvec![t]),
                 MetaType::Type,
             )),
             size,
@@ -635,7 +635,7 @@ impl TypeState {
         self.add_type_var(TypeVar::Unknown(
             loc,
             id,
-            TraitList::from_vec(vec![t]),
+            TraitList::from_vec(smallvec![t]),
             MetaType::Type,
         ))
     }
@@ -2763,7 +2763,7 @@ impl TypeState {
             .map(|spec| self.visit_trait_spec(spec, generic_list_tok, ctx))
             .collect::<Result<BTreeSet<_>>>()?
             .into_iter()
-            .collect_vec();
+            .collect::<SmallVec<_>>();
 
         if !trait_reqs.is_empty() {
             let trait_list = TraitList::from_vec(trait_reqs);
@@ -3255,7 +3255,7 @@ impl TypeState {
                                     (None, None) => panic!("Found a trait but neither side has it"),
                                 },
                             )
-                            .collect::<std::result::Result<Vec<_>, UnificationError>>()?;
+                            .collect::<std::result::Result<SmallVec<_>, UnificationError>>()?;
 
                         self.new_generic_with_traits(*new_loc, TraitList::from_vec(new_traits))
                     }
@@ -3549,7 +3549,7 @@ impl TypeState {
         trait_is_expected: bool,
         trait_list_loc: &Loc<()>,
         ctx: &Context,
-    ) -> std::result::Result<Vec<(TraitImpl, TraitReq)>, UnificationError> {
+    ) -> std::result::Result<SmallVec<[(TraitImpl, TraitReq); 4]>, UnificationError> {
         self.owned.trace_stack.push(|| {
             TraceStackEntry::EnsuringImpls(
                 var.debug_resolve(self),
@@ -3609,7 +3609,7 @@ impl TypeState {
                     unreachable!()
                 };
 
-                let (impls, unsatisfied): (Vec<_>, Vec<_>) = traits
+                let (impls, unsatisfied): (SmallVec<_>, SmallVec<_>) = traits
                     .inner
                     .iter()
                     .map(|trait_req| {
@@ -3700,7 +3700,7 @@ impl TypeState {
             }
             _ => {
                 if traits.inner.is_empty() {
-                    Ok(vec![])
+                    Ok(smallvec![])
                 } else {
                     error_producer!(traits.clone())
                 }

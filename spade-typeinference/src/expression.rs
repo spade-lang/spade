@@ -385,7 +385,7 @@ impl TypeState {
 
             if let Some(op_trait) = op_trait {
                 let req = self.visit_trait_spec(op_trait, generic_list, ctx)?;
-                let op_trait_generic = self.new_generic_with_traits(().nowhere(), TraitList::from_vec(vec![req]));
+                let op_trait_generic = self.new_generic_with_traits(().nowhere(), TraitList::from_vec(smallvec![req]));
                 self.unify_expression_generic_error(target, &op_trait_generic, ctx)?;
 
                 // At the time of writing:

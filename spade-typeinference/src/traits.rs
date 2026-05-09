@@ -5,7 +5,7 @@ use crate::{
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use spade_common::location_info::Loc;
 use spade_hir::{ImplBlock, ImplTarget, TraitName};
 use std::collections::BTreeSet;
@@ -90,15 +90,15 @@ impl std::fmt::Debug for TraitReq {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TraitList {
-    pub inner: Vec<Loc<TraitReq>>,
+    pub inner: SmallVec<[Loc<TraitReq>; 4]>,
 }
 
 impl TraitList {
     pub fn empty() -> Self {
-        Self { inner: vec![] }
+        Self { inner: smallvec![] }
     }
 
-    pub fn from_vec(inner: Vec<Loc<TraitReq>>) -> Self {
+    pub fn from_vec(inner: SmallVec<[Loc<TraitReq>; 4]>) -> Self {
         Self { inner }
     }
 
@@ -113,7 +113,7 @@ impl TraitList {
             .chain(other.inner.into_iter())
             .collect::<BTreeSet<_>>()
             .into_iter()
-            .collect_vec();
+            .collect();
 
         TraitList { inner: merged }
     }
