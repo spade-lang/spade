@@ -231,7 +231,7 @@ test:swim-tests:
   image: "rust:$RUST_VERSION"
   stage: test
   # Since this is a long running test, we'll give it a head start even if this
-  # means unnecessarily double 
+  # means unnecessarily double
   needs: []
   cache:
     - <<: *cache_swim
@@ -276,7 +276,7 @@ test:coverage:
         coverage_format: cobertura
         path: cobertura.xml
 
-      
+
 
 # Yowasp jobs
 yowasp:build:
@@ -305,7 +305,7 @@ yowasp:build:
   artifacts:
     paths:
       # Path of our artifacts
-      - yowasp/npmjs/dist 
+      - yowasp/npmjs/dist
 
 yowasp:publish:
   stage: yowasp
@@ -338,7 +338,7 @@ yowasp:playground:
       when: always
     - when: never
 
- 
+
 trawler:
     stage: trawler
     allow_failure: true
@@ -366,7 +366,7 @@ build:surfer-plugin-main:
   extends: [.build:surfer-plugin, .artifact-main]
 build:surfer-plugin:
   extends: [.build:surfer-plugin, .artifact-other]
-    
+
 
 .build:wheel-manylinux:
   cache:
@@ -378,9 +378,9 @@ build:surfer-plugin:
   before_script:
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - source $CARGO_HOME/env
-    - /opt/python/cp38-cp38/bin/pip install maturin
+    - /opt/python/cp39-cp39/bin/pip install maturin
   script:
-    - /opt/python/cp38-cp38/bin/maturin build -i /opt/python/cp38-cp38/bin/python -m spade-python/Cargo.toml
+    - /opt/python/cp39-cp39/bin/maturin build -i /opt/python/cp39-cp39/bin/python -m spade-python/Cargo.toml
   artifacts:
     paths:
       - ${CARGO_TARGET_DIR}/wheels/*.whl
@@ -411,11 +411,8 @@ build:wheel-manylinux:
       - spade/bin/spade
       - spade/bin/spade-language-server
       - spade/bin/spadedoc
-    
+
 build:static-main:
   extends: [.build:static, .artifact-main]
 build:static:
   extends: [.build:static, .artifact-other]
-
-
-

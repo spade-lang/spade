@@ -3653,6 +3653,9 @@ impl TypeState {
                                     {
                                         return None;
                                     }
+                                    if trait_impl.name != trait_req.name {
+                                        return None;
+                                    }
                                     self.checkpoint();
                                     let trait_params_match = trait_impl
                                         .trait_type_params
@@ -3675,10 +3678,7 @@ impl TypeState {
                                         );
                                     self.restore();
 
-                                    if trait_impl.name == trait_req.name
-                                        && trait_params_match
-                                        && impl_params_match
-                                    {
+                                    if trait_params_match && impl_params_match {
                                         Some(trait_impl)
                                     } else {
                                         None
