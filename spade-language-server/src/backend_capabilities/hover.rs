@@ -340,6 +340,7 @@ impl ExprKindExt for ExprKind {
             | ExprKind::RangeIndex { .. }
             | ExprKind::TupleIndex(_, _)
             | ExprKind::FieldAccess(_, _)
+            | ExprKind::TypeCast(_, _)
             | ExprKind::UnaryOperator(_, _)
             | ExprKind::Block(_)
             | ExprKind::PipelineRef { .. }

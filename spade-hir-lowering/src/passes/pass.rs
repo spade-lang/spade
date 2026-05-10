@@ -59,6 +59,7 @@ impl Passable for Loc<Expression> {
             }
             ExprKind::TupleIndex(lhs, _) => subnodes!(lhs),
             ExprKind::FieldAccess(lhs, _) => subnodes!(lhs),
+            ExprKind::TypeCast(lhs, _) => subnodes!(lhs),
             ExprKind::MethodCall {
                 target: self_,
                 op_trait: _,

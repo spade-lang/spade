@@ -592,6 +592,11 @@ impl<'a> Parser<'a> {
             )?;
 
             Ok(inner_expr.between_locs(&expr, &loc))
+        } else if self.peek_and_eat(&TokenKind::As)?.is_some() {
+            let expr_loc = expr.loc();
+            let ty = self.type_expression()?;
+            let ty_loc = ty.loc();
+            return Ok(Expression::TypeCast(Box::new(expr), ty).between_locs(&expr_loc, &ty_loc));
         } else {
             return Ok(expr);
         }?;

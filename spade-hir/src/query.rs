@@ -120,6 +120,7 @@ impl<'a> QueryCache {
             } => self.visit_expression(target),
             crate::ExprKind::TupleIndex(target, _) => self.visit_expression(target),
             crate::ExprKind::FieldAccess(target, _) => self.visit_expression(target),
+            crate::ExprKind::TypeCast(target, _) => self.visit_expression(target),
             crate::ExprKind::MethodCall {
                 target,
                 op_trait: _,

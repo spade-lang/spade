@@ -285,6 +285,9 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::FieldAccess(base, field) => {
                 format!("{}.{}", base.pretty_debug(), field)
             }
+            crate::ExprKind::TypeCast(base, ty) => {
+                format!("{} as {}", base.pretty_debug(), ty.pretty_debug())
+            }
             crate::ExprKind::MethodCall {
                 target,
                 op_trait: _,

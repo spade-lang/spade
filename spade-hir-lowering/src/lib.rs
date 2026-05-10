@@ -119,6 +119,7 @@ impl LocExprExt for Loc<hir::Expression> {
             ExprKind::RangeIndex { .. } => Some(self.clone()),
             ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(ctx),
+            ExprKind::TypeCast(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::Call {
                 kind: CallKind::Function,
                 callee,
@@ -1448,6 +1449,7 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::TupleLiteral(_) => Ok(None),
             ExprKind::TupleIndex(_, _) => Ok(None),
             ExprKind::FieldAccess(_, _) => Ok(None),
+            ExprKind::TypeCast(_, _) => Ok(None),
             ExprKind::CreatePorts => Ok(None),
             ExprKind::ArrayLiteral { .. } => Ok(None),
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
@@ -1950,6 +1952,9 @@ impl ExprLocal for Loc<Expression> {
                     }),
                     self,
                 )
+            }
+            ExprKind::TypeCast(target, _) => {
+                target.lower(ctx)?;
             }
             ExprKind::ArrayLiteral(values) => {
                 for elem in values {

@@ -1084,6 +1084,7 @@ impl TypeState {
             | ExprKind::RangeIndex { .. }
             | ExprKind::TupleIndex(_, _)
             | ExprKind::FieldAccess(_, _)
+            | ExprKind::TypeCast(_, _)
             | ExprKind::MethodCall { .. }
             | ExprKind::Call { .. }
             | ExprKind::BinaryOperator(_, _, _)
@@ -1220,6 +1221,7 @@ impl TypeState {
             ExprKind::FieldAccess(_, _) => {
                 self.visit_field_access(expression, ctx, generic_list)?
             }
+            ExprKind::TypeCast(_, _) => self.visit_type_cast(expression, ctx, generic_list)?,
             ExprKind::MethodCall { .. } => self.visit_method_call(expression, ctx, generic_list)?,
             ExprKind::RangeIndex { .. } => self.visit_range_index(expression, ctx, generic_list)?,
             ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,

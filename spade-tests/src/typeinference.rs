@@ -2742,3 +2742,24 @@ snapshot_error!(
         let y: (bool, inv bool) = *x;
     }"
 );
+
+code_compiles!(
+    type_cast_works,
+    "fn main() {
+        let x = 0 as uint<8>;
+    }"
+);
+
+snapshot_error!(
+    type_cast_rejects_mismatches,
+    "fn main() {
+        let x = true as uint<8>;
+    }"
+);
+
+code_compiles!(
+    type_cast_with_wildcards_works,
+    "fn main() {
+        let x = [undef(); 8] as [bool; _];
+    }"
+);

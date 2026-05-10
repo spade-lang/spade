@@ -849,6 +849,7 @@ fn descriptive_loc(expr: &Loc<Expression>) -> Option<Loc<()>> {
         | spade_hir::ExprKind::Index(_, _)
         | spade_hir::ExprKind::RangeIndex { .. }
         | spade_hir::ExprKind::TupleIndex(_, _)
+        | spade_hir::ExprKind::TypeCast(_, _)
         | spade_hir::ExprKind::UnaryOperator(_, _)
         | spade_hir::ExprKind::Match(_, _)
         | spade_hir::ExprKind::Block(_)

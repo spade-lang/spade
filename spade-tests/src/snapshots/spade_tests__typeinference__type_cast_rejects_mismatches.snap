@@ -1,0 +1,17 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn main() {
+    let x = true as uint<8>;
+}
+
+error: Expected type uint<8>, got bool
+  ┌─ testinput:2:13
+  │
+2 │     let x = true as uint<8>;
+  │             ^^^^    ------- Type uint<8> inferred here
+  │             │        
+  │             Expected uint<8>
+  │
+  = note: Expected: uint<8>
+               Got: bool

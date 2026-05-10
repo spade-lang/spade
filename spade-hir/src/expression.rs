@@ -213,6 +213,7 @@ pub enum ExprKind {
     },
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
+    TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     MethodCall {
         target: Box<Loc<Expression>>,
         op_trait: Option<Loc<TraitSpec>>,

@@ -387,6 +387,7 @@ pub enum Expression {
         deprecated_syntax: bool,
     },
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
+    TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     CreatePorts,
     Lambda {
         unit_kind: Loc<UnitKind>,
@@ -501,6 +502,7 @@ impl Expression {
             Expression::TupleLiteral(_) => "tuple literal",
             Expression::TupleIndex { .. } => "tuple index",
             Expression::FieldAccess(_, _) => "field access",
+            Expression::TypeCast(_, _) => "type cast",
             Expression::If { .. } => "if",
             Expression::TypeLevelIf { .. } => "type level if",
             Expression::Match { if_let: false, .. } => "match",

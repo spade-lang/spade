@@ -291,6 +291,7 @@ pub enum TypeSpecKind {
     ImplTrait,
     ImplTarget,
     BindingType,
+    TypeCast,
     Turbofish,
     PipelineHeadDepth,
     PipelineRegCount,
@@ -346,6 +347,7 @@ pub fn visit_type_expression(
                 | TypeSpecKind::Turbofish
                 | TypeSpecKind::TypeLevelIf
                 | TypeSpecKind::BindingType
+                | TypeSpecKind::TypeCast
                 | TypeSpecKind::PipelineInstDepth
                 | TypeSpecKind::PipelineRegCount
                 | TypeSpecKind::PipelineHeadDepth => {
@@ -571,6 +573,7 @@ pub fn visit_type_spec(
                     default_error("Traits used in trait bound", "trait bound")
                 }
                 TypeSpecKind::PipelineInstDepth
+                | TypeSpecKind::TypeCast
                 | TypeSpecKind::TypeLevelIf
                 | TypeSpecKind::Turbofish
                 | TypeSpecKind::BindingType => Ok(hir::TypeSpec::Wildcard(t.loc())),
@@ -2439,6 +2442,10 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             Box::new(target.visit(visit_expression, ctx)),
             field.clone(),
         )),
+        ast::Expression::TypeCast(target, ty) => Ok(hir::ExprKind::TypeCast(
+            Box::new(target.visit(visit_expression, ctx)),
+            visit_type_expression(ty, &TypeSpecKind::TypeCast, ctx)?.at_loc(&ty),
+        )),
         ast::Expression::MethodCall {
             kind,
             target,
@@ -2935,6 +2942,7 @@ fn inject_verilog_attrs(
         | ExprKind::RangeIndex { .. }
         | ExprKind::TupleIndex(_, _)
         | ExprKind::FieldAccess(_, _)
+        | ExprKind::TypeCast(_, _)
         | ExprKind::MethodCall { .. }
         | ExprKind::BinaryOperator(_, _, _)
         | ExprKind::UnaryOperator(_, _)

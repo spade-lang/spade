@@ -377,6 +377,24 @@ impl TypeState {
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
+    pub fn visit_type_cast(
+        &mut self,
+        expression: &Loc<Expression>,
+        ctx: &Context,
+        generic_list: &GenericListToken,
+    ) -> Result<()> {
+        assuming_kind!(ExprKind::TypeCast(target, ty) = &expression => {
+            self.visit_expression(target, ctx, generic_list);
+
+            let tv = self.hir_type_expr_to_var(ty, generic_list, ctx)?;
+            self.unify_expression_generic_error(target, &tv, ctx)?;
+            self.unify_expression_generic_error(expression, &tv, ctx)?;
+        });
+        Ok(())
+    }
+
+    #[trace_typechecker]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_method_call(
         &mut self,
         expression: &Loc<Expression>,
