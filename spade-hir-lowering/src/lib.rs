@@ -843,7 +843,7 @@ impl PatternLocal for Loc<Pattern> {
             spade_hir::PatternKind::Bound { inner, .. } => inner
                 .as_ref()
                 .map(|pat| pat.is_trivially_irrefutable())
-                .unwrap_or(false),
+                .unwrap_or(true),
             spade_hir::PatternKind::Tuple(inner) | spade_hir::PatternKind::Array(inner) => {
                 inner.iter().all(Self::is_trivially_irrefutable)
             }
