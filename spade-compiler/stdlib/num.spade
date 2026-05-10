@@ -327,23 +327,24 @@ impl<#uint N> uint<N> where N > 0 {
     }
 }
 
+impl<#uint N> Default for int<N> {
+    fn hacky_default(self) -> Self {
+        0
+    }
+}
+
+impl<#uint N> Default for uint<N> {
+    fn hacky_default(self) -> Self {
+        0
+    }
+}
+
 /// A number encoded into Gray code.
 ///
 /// Gray code is notable for making adjacent values differ in a single bit. This property makes it
 /// useful in hardware for things like counters that cross clock domain boundaries.
 pub struct Gray<#uint N> {
     inner: uint<N>,
-}
-
-impl<#uint N> PartialEq for Gray<N> {
-    fn eq(self, rhs: Self) -> bool {
-        self.inner == rhs.inner
-    }
-
-    #[inline]
-    fn ne(self, rhs: Self) -> bool {
-        !self.eq(rhs)
-    }
 }
 
 impl<#uint N> Gray<N> {
@@ -378,6 +379,23 @@ impl<#uint N> Gray<N> {
     }
 }
 
+impl<#uint N> Default for Gray<N> {
+    fn hacky_default(self) -> Self {
+        Gray(0)
+    }
+}
+
+impl<#uint N> PartialEq for Gray<N> {
+    fn eq(self, rhs: Self) -> bool {
+        self.inner == rhs.inner
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
+
 
 /// Returns the binary value of the given gray code value
 fn gray_to_bin_impl<#uint N>(gray: uint<N>) -> uint<N> {
@@ -394,4 +412,3 @@ fn gray_to_bin_impl<#uint N>(gray: uint<N>) -> uint<N> {
         high_bit | zext(gray_to_bin_impl(lower_gray))
     }
 }
-

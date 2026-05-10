@@ -1,0 +1,86 @@
+/// Trait for types which have a constructible default value.
+///
+/// # Caveats
+///
+/// Spade does not support static methods yet. As a temporary workaround, a regular method can be
+/// used instead, ignoring its `self` parameter, and an auxiliary function calls it on an undefined
+/// value. In this case, `Default::hacky_default` is such method and `default` is such auxiliary
+/// function.
+///
+/// Once Spade supports static methods, `Default::hacky_default` will be replaced by a static method
+/// `Default::default`.
+pub trait Default {
+    fn hacky_default(self) -> Self;
+}
+
+impl Default for bool {
+    fn hacky_default(self) -> Self {
+        false
+    }
+}
+
+impl Default for () {
+    fn hacky_default(self) -> Self { () }
+}
+
+impl<T0: Default> Default for (T0) {
+    fn hacky_default(self) -> Self {
+        (default())
+    }
+}
+
+impl<T0: Default, T1: Default> Default for (T0, T1) {
+    fn hacky_default(self) -> Self {
+        (default(), default())
+    }
+}
+
+impl<T0: Default, T1: Default, T2: Default> Default for (T0, T1, T2) {
+    fn hacky_default(self) -> Self {
+        (default(), default(), default())
+    }
+}
+
+impl<T0: Default, T1: Default, T2: Default, T3: Default> Default for (T0, T1, T2, T3) {
+    fn hacky_default(self) -> Self {
+        (default(), default(), default(), default())
+    }
+}
+
+impl<T0: Default, T1: Default, T2: Default, T3: Default, T4: Default> Default for (T0, T1, T2, T3, T4) {
+    fn hacky_default(self) -> Self {
+        (default(), default(), default(), default(), default())
+    }
+}
+
+impl<T0: Default, T1: Default, T2: Default, T3: Default, T4: Default, T5: Default> Default for (T0, T1, T2, T3, T4, T5) {
+    fn hacky_default(self) -> Self {
+        (default(), default(), default(), default(), default(), default())
+    }
+}
+
+impl<T0: Default, T1: Default, T2: Default, T3: Default, T4: Default, T5: Default, T6: Default> Default for (T0, T1, T2, T3, T4, T5, T6) {
+    fn hacky_default(self) -> Self {
+        (default(), default(), default(), default(), default(), default(), default())
+    }
+}
+
+impl<T0: Default, T1: Default, T2: Default, T3: Default, T4: Default, T5: Default, T6: Default, T7: Default> Default for (T0, T1, T2, T3, T4, T5, T6, T7) {
+    fn hacky_default(self) -> Self {
+        (default(), default(), default(), default(), default(), default(), default(), default())
+    }
+}
+
+/// Builds a default value for a type implementing the `Default` trait.
+///
+/// # Examples
+///
+/// ```spade
+/// let zero: uint<8> = default();
+/// let none: Option<bool> = default();
+/// assert zero == 0;
+/// assert none == None;
+/// ```
+pub fn default<T: Default>() -> T {
+    undef::<T>().hacky_default()
+}

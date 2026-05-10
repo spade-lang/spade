@@ -29,7 +29,7 @@
 //! See the documentation for the `Option<T>` type below for more methods that it implements.
 
 /// Represents a (valid, data) pair.
-/// 
+///
 /// The option type represents a value which may or may not be present, essentially a
 /// valid/invalid signal that comes bundled with the data that signal validates.
 ///
@@ -245,6 +245,12 @@ impl<T> Option<T> {
         } else {
             None
         }
+    }
+}
+
+impl<T> Default for Option<T> {
+    fn hacky_default(self) -> Self {
+        None
     }
 }
 

@@ -1,6 +1,7 @@
 pub mod array;
 pub mod cdc;
 pub mod conv;
+pub mod default;
 pub mod io;
 pub mod mem;
 pub mod num;

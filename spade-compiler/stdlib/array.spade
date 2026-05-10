@@ -608,3 +608,9 @@ impl<#uint N> [bool; N] where N > 0 {
         std::ops::reduce_xor(self)
     }
 }
+
+impl<T: Default, #uint N> Default for [T; N] {
+    fn hacky_default(self) -> Self {
+        [default(); N]
+    }
+}
