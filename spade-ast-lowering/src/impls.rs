@@ -24,10 +24,11 @@ use crate::{
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
+    let old_self_ctx = ctx.self_ctx.clone();
     ctx.symtab.new_scope();
     let result = visit_impl_inner(block, ctx);
     ctx.symtab.close_scope();
-    ctx.self_ctx = SelfContext::FreeStanding;
+    ctx.self_ctx = old_self_ctx;
     result
 }
 
@@ -397,8 +398,37 @@ pub fn create_trait_from_unit_heads(
     documentation: String,
     ctx: &mut Context,
 ) -> Result<()> {
+    let old_self_ctx = ctx.self_ctx.clone();
     ctx.symtab.new_scope();
 
+    let result = create_trait_from_unit_heads_inner(
+        name,
+        type_params,
+        subtraits,
+        where_clauses,
+        assoc_types,
+        heads,
+        paren_sugar,
+        documentation,
+        ctx,
+    );
+
+    ctx.symtab.close_scope();
+    ctx.self_ctx = old_self_ctx;
+    result
+}
+
+pub fn create_trait_from_unit_heads_inner(
+    name: TraitName,
+    type_params: &Option<Loc<Vec<Loc<ast::TypeParam>>>>,
+    subtraits: &Vec<Loc<ast::TraitSpec>>,
+    where_clauses: &[ast::WhereClause],
+    assoc_types: &[Loc<ast::AssocType>],
+    heads: &[Loc<ast::UnitHead>],
+    paren_sugar: bool,
+    documentation: String,
+    ctx: &mut Context,
+) -> Result<()> {
     ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
 
     let visited_type_params = if let Some(params) = type_params {
@@ -542,7 +572,6 @@ pub fn create_trait_from_unit_heads(
         documentation,
     )?;
 
-    ctx.symtab.close_scope();
     Ok(())
 }
 
