@@ -1954,7 +1954,17 @@ impl ExprLocal for Loc<Expression> {
                 )
             }
             ExprKind::TypeCast(target, _) => {
-                target.lower(ctx)?;
+                result.append(target.lower(ctx)?);
+                result.push_primary(
+                    mir::Statement::Binding(mir::Binding {
+                        name: self.variable(ctx)?,
+                        operator: mir::Operator::Alias,
+                        operands: vec![target.variable(ctx)?],
+                        ty: self_type,
+                        loc: Some(self.loc()),
+                    }),
+                    self,
+                )
             }
             ExprKind::ArrayLiteral(values) => {
                 for elem in values {

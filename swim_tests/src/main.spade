@@ -38,6 +38,7 @@ mod test_bool_wire_codegen;
 mod trait_based_ops_codegen_zero_sized;
 mod tuple_method_resolution;
 mod two_option_match;
+mod type_cast;
 mod type_level_if;
 mod unsigned_add;
 mod zero_size_enum;
