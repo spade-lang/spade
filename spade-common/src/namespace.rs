@@ -19,8 +19,8 @@ impl ModuleNamespace {
             namespace,
             base_namespace,
             file: file.to_string_lossy().to_string(),
-            // Safe unwrap, canonicalize ensures all partial path components exist as directories
-            working_dir: Some(file.canonicalize()?.parent().unwrap().to_path_buf()),
+            // Safe unwrap, we have a filename, and the parent of a filename is the always present
+            working_dir: Some(file.parent().unwrap().to_path_buf()),
         })
     }
 }

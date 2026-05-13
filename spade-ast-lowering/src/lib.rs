@@ -2987,10 +2987,8 @@ fn handle_include(
     let mut src = String::new();
 
     let new_working_dir = file_path
-        .canonicalize()
-        .map_err(|e| Diagnostic::error(loc, format!("Error finding {path:?}: {e}")))?
         .parent()
-        // Safe unwrap (canonicalize ensures it is valid)
+        // Safe unwrap, since we always have a file name parent cannot fail
         .unwrap()
         .to_path_buf();
 
