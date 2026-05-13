@@ -171,7 +171,6 @@ fn visit_expression(
         | spade_hir::ExprKind::TupleLiteral(_)
         | spade_hir::ExprKind::ArrayLiteral(_)
         | spade_hir::ExprKind::ArrayShorthandLiteral(_, _)
-        | spade_hir::ExprKind::CreatePorts
         | spade_hir::ExprKind::Index(_, _)
         | spade_hir::ExprKind::RangeIndex { .. }
         | spade_hir::ExprKind::TypeCast(_, _)
@@ -237,7 +236,6 @@ fn visit_expression(
                 return Err(diag);
             }
         }
-        spade_hir::ExprKind::CreatePorts => {}
         spade_hir::ExprKind::Index(target, idx_expr) => {
             visit_expression(target, linear_state, ctx)?;
             visit_expression(idx_expr, linear_state, ctx)?;

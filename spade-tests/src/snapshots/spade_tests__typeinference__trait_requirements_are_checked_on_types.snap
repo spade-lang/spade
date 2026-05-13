@@ -9,7 +9,7 @@ enum E<T: Tr> {
 }
 
 fn test() -> E<bool>{
-  let result = port;
+  let result = port();
   set result.1 = std::undef::undef();
   result.0
 }

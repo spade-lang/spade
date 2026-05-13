@@ -283,8 +283,6 @@ impl<'a> Parser<'a> {
             Ok(label_access)
         } else if let Some(unsafe_expr) = self.unsafe_block()? {
             Ok(unsafe_expr)
-        } else if let Some(create_ports) = self.peek_and_eat(&TokenKind::Port)? {
-            Ok(Expression::CreatePorts.at(self.file_id(), &create_ports))
         } else if let Some((path, is_macro, turbofish)) = self.path_with_turbofish()? {
             if is_macro {
                 let opening_token = self.peek()?;

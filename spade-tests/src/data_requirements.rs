@@ -4,7 +4,7 @@ snapshot_error! {
     reg_requires_data,
     "
         entity test(clk: clock) {
-            reg(clk) r = port;
+            reg(clk) r = port();
         }
     "
 }
@@ -13,7 +13,7 @@ snapshot_error! {
     pipeline_binding_requires_data,
     "
         pipeline(0) test(clk: clock) {
-            let r = port;
+            let r = port();
         }
     ",
     false
@@ -110,7 +110,7 @@ code_compiles! {
     inv_data_can_be_captured,
     "
         entity test(clk: clock) {
-            let x: inv bool = port.1;
+            let x: inv bool = port().1;
 
             let lambda = entity |clk| {
                 set x = false;
@@ -125,7 +125,7 @@ code_compiles! {
     inv_data_can_be_captured_in_pipelines,
     "
         entity test(clk: clock) {
-            let x: inv bool = port.1;
+            let x: inv bool = port().1;
 
             let lambda = pipeline(1) |clk| {
             reg;

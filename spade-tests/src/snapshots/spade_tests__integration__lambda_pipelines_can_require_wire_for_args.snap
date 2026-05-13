@@ -6,8 +6,8 @@ entity test(clk: clock) {
         reg;
         x
     };
-    
-    set pl.inst(1) call(clk, (port.1,)) = 1u32;
+
+    set pl.inst(1) call(clk, (port().1,)) = 1u32;
 }
 
 

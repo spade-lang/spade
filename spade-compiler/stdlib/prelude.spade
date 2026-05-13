@@ -28,7 +28,7 @@ pub use std::num::zext;
 #[deprecated = "Use `std::num::interleave` or `uint<N>::interleave` instead"]
 pub use std::ops::interleave;
 
-#[deprecated = "Use `port` to create a `(T, inv T)` pair instead"]
+#[deprecated = "Use `port()` to create a `(T, inv T)` pair instead"]
 pub use std::ports::new_mut_wire;
 #[deprecated = "Use `(inv T)::inspect` to get a `(T, inv T)` pair instead"]
 pub use std::ports::read_mut_wire;

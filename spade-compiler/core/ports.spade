@@ -1,0 +1,10 @@
+/// Creates a pair of connected forward and backward wires.
+///
+/// # Examples
+///
+/// ```spade
+/// let (fwd, back) = port();
+/// set back = 3u8;
+/// assert fwd == 3u8;
+/// ```
+pub extern fn port<T>() -> (T, inv T);

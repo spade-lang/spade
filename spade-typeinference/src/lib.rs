@@ -1076,7 +1076,6 @@ impl TypeState {
             | ExprKind::TriLiteral(_)
             | ExprKind::TypeLevelBool(_)
             | ExprKind::TypeLevelInteger(_)
-            | ExprKind::CreatePorts
             | ExprKind::TupleLiteral(_)
             | ExprKind::ArrayLiteral(_)
             | ExprKind::ArrayShorthandLiteral(_, _)
@@ -1217,7 +1216,6 @@ impl TypeState {
             ExprKind::ArrayShorthandLiteral(_, _) => {
                 self.visit_array_shorthand_literal(expression, ctx, generic_list)?
             }
-            ExprKind::CreatePorts => self.visit_create_ports(expression, ctx, generic_list)?,
             ExprKind::FieldAccess(_, _) => {
                 self.visit_field_access(expression, ctx, generic_list)?
             }

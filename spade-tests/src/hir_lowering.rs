@@ -1532,7 +1532,7 @@ mod tests {
         let code = r#"
             mod std {pub mod ports{
                 pub entity new_mut_wire<T>() -> inv T {
-                    port.1
+                    port().1
                 }
             }}
 
@@ -1719,7 +1719,7 @@ mod tests {
             }
 
             entity x() -> (P, inv P) {
-                port
+                port()
             }
         ";
 
@@ -1751,7 +1751,7 @@ mod tests {
             struct P { }
 
             entity x() -> (P, inv P) {
-                port
+                port()
             }
         ";
 
@@ -1764,7 +1764,7 @@ mod tests {
             struct X {x: int<8>}
 
             entity t() -> X {
-                let (a, b) = port;
+                let (a, b) = port();
                 a
             }
         "

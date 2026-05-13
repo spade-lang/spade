@@ -500,8 +500,8 @@ impl<T, #uint N> [inv T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// let x = port;
-    /// let y = port;
+    /// let x = port();
+    /// let y = port();
     /// let array_of_invs: [inv bool; 2] = [x.1, y.1];
     /// let inv_array: inv [bool; 2] = array_of_invs.transpose();
     /// set inv_array = [true, false];
@@ -522,7 +522,7 @@ impl<T, #uint N> inv [T; N] {
     /// # Examples
     ///
     /// ```spade
-    /// let a = port;
+    /// let a = port();
     /// let inv_array: inv [bool; 2] = a.1;
     /// let array_of_invs: [inv bool; 2] = inv_array.transpose();
     /// set array_of_invs[0] = true;

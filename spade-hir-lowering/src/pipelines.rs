@@ -629,7 +629,6 @@ impl PipelineAvailability for Expression {
             ExprKind::BoolLiteral(_) => Ok(None),
             ExprKind::TypeLevelBool(_) => Ok(None),
             ExprKind::TriLiteral(_) => Ok(None),
-            ExprKind::CreatePorts => Ok(None),
             ExprKind::StageReady | ExprKind::StageValid => Ok(Some(0)),
             ExprKind::TupleLiteral(inner) => try_compute_availability(inner, ctx),
             ExprKind::ArrayLiteral(elems) => try_compute_availability(elems, ctx),

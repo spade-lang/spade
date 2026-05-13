@@ -1,12 +1,12 @@
 /// Creates an standalone `inv` value.
 ///
 /// This function is an old remnant of earlier versions of Spade and it shall not be used anymore.
-/// Instead, use `port` to get a pair of `(T, inv T)` that are internally connected, or `port.1` to
-/// get a standalone `inv` value as a drop-in replacement.
-// FIXME(spade#393) #[deprecated = "Use `port` to create a `(T, inv T)` pair instead"]
+/// Instead, use `port` to get a pair of `(T, inv T)` that are internally connected, or `port().1`
+/// to get a standalone `inv` value as a drop-in replacement.
+// FIXME(spade#393) #[deprecated = "Use `port()` to create a `(T, inv T)` pair instead"]
 #[inline]
 pub entity new_mut_wire<T>() -> inv T {
-    port.1
+    port().1
 }
 
 /// Reads the current value of a `inv` value.
@@ -20,7 +20,7 @@ pub entity new_mut_wire<T>() -> inv T {
 /// # Examples
 ///
 /// ```spade,notest
-/// let (fwd, back) = port;
+/// let (fwd, back) = port();
 /// set back = true;
 /// assert fwd == true;
 /// assert inst read_mut_wire(back) == true;
@@ -62,7 +62,7 @@ impl<T> inv T {
     /// # Examples
     ///
     /// ```spade
-    /// let (fwd, back) = port;
+    /// let (fwd, back) = port();
     /// let (new_fwd, new_back) = back.inspect();
     /// set new_back = true;
     /// assert fwd == true;
@@ -70,7 +70,7 @@ impl<T> inv T {
     /// ```
     #[inline]
     pub fn inspect(self) -> (T, Self) {
-        let (fwd, back) = port;
+        let (fwd, back) = port();
         set self = fwd;
 
         (fwd, back)

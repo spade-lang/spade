@@ -4,7 +4,7 @@ source: spade-tests/src/hir_lowering.rs
 struct X {x: int<8>}
 
 entity t() -> X {
-    let (a, b) = port;
+    let (a, b) = port();
     a
 }
 
@@ -12,7 +12,7 @@ entity t() -> X {
 error: b.x is unused
   ┌─ testinput:4:13
   │
-4 │     let (a, b) = port;
+4 │     let (a, b) = port();
   │             ^ b.x is unused
   │
   = note: b.x is an inverted wire (`inv`) which must be set

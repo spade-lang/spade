@@ -165,7 +165,7 @@ fn using_names_of_types_in_namespaces_works() {
 #[test]
 fn field_access_works_on_flipped_ports() {
     let code = r#"
-        struct port P {p1: &bool, p2: inv &bool}
+        struct P {p1: &bool, p2: inv &bool}
         entity t(p: inv P) -> bool {
             set p.p1 = &true;
             *p.p2
@@ -477,7 +477,7 @@ code_compiles! {
     inv_wires_are_allowed_in_fn_output,
     "
         fn a() -> inv &bool {
-            port#0
+            port().0
         }
     "
 }
@@ -570,8 +570,8 @@ code_compiles! {
                 reg;
                 x
             };
-            
-            set pl.inst(1) call(clk, (port.1,)) = 1u32;
+
+            set pl.inst(1) call(clk, (port().1,)) = 1u32;
         }
     "
 }
@@ -584,8 +584,8 @@ snapshot_error! {
                 reg;
                 x
             };
-            
-            set pl.inst(1) call(clk, (port.1,)) = 1u32;
+
+            set pl.inst(1) call(clk, (port().1,)) = 1u32;
         }
     "
 }
@@ -594,7 +594,7 @@ snapshot_error! {
     lambdas_that_capture_non_data_are_non_data,
     "
         entity test(clk: clock) {
-            let w = port.1;
+            let w = port().1;
             let l = fn || {
                 set w = 0u32;
             };

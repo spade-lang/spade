@@ -112,7 +112,6 @@ impl LocExprExt for Loc<hir::Expression> {
                 .iter()
                 .find_map(|e| e.runtime_requirement_witness(ctx)),
             ExprKind::ArrayShorthandLiteral(inner, _) => inner.runtime_requirement_witness(ctx),
-            ExprKind::CreatePorts => Some(self.clone()),
             ExprKind::Index(l, r) => l
                 .runtime_requirement_witness(ctx)
                 .or_else(|| r.runtime_requirement_witness(ctx)),
@@ -1450,7 +1449,6 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::TupleIndex(_, _) => Ok(None),
             ExprKind::FieldAccess(_, _) => Ok(None),
             ExprKind::TypeCast(_, _) => Ok(None),
-            ExprKind::CreatePorts => Ok(None),
             ExprKind::ArrayLiteral { .. } => Ok(None),
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
             ExprKind::RangeIndex { .. } => Ok(None),
@@ -1845,56 +1843,6 @@ impl ExprLocal for Loc<Expression> {
                         name: self.variable(ctx)?,
                         operator: mir::Operator::IndexTuple(idx.inner as u64),
                         operands: vec![tup.variable(ctx)?],
-                        ty: self_type,
-                        loc: Some(self.loc()),
-                    }),
-                    self,
-                )
-            }
-            ExprKind::CreatePorts => {
-                let (inner_type, right_mir_type) = match &hir_type {
-                    ConcreteType::Tuple(inner) => {
-                        if inner.len() != 2 {
-                            diag_bail!(self, "port type was not 2-tuple. Got {hir_type}")
-                        }
-
-                        (&inner[0], inner[1].to_mir_type())
-                    }
-                    _ => {
-                        diag_bail!(self, "port type was not tuple. Got {hir_type}")
-                    }
-                };
-
-                let inner_mir_type = inner_type.to_mir_type();
-
-                let lname = mir::ValueName::Expr(ctx.idtracker.next());
-                let rname = mir::ValueName::Expr(ctx.idtracker.next());
-
-                result.append_secondary(
-                    vec![
-                        mir::Statement::Binding(mir::Binding {
-                            name: lname.clone(),
-                            operator: mir::Operator::Nop,
-                            operands: vec![],
-                            ty: inner_mir_type,
-                            loc: Some(self.loc()),
-                        }),
-                        mir::Statement::Binding(mir::Binding {
-                            name: rname.clone(),
-                            operator: mir::Operator::FlipPort,
-                            operands: vec![lname.clone()],
-                            ty: right_mir_type,
-                            loc: Some(self.loc()),
-                        }),
-                    ],
-                    self,
-                    "Port construction",
-                );
-                result.push_primary(
-                    mir::Statement::Binding(mir::Binding {
-                        name: self.variable(ctx)?,
-                        operator: mir::Operator::ConstructTuple,
-                        operands: vec![lname, rname],
                         ty: self_type,
                         loc: Some(self.loc()),
                     }),
@@ -2594,6 +2542,7 @@ impl ExprLocal for Loc<Expression> {
             ["core", "ops", "intrinsics", "le"] => handle_le,
             ["core", "ops", "intrinsics", "gt"] => handle_gt,
             ["core", "ops", "intrinsics", "ge"] => handle_ge,
+            ["core", "ports", "port"] => handle_port,
             ["core", "undef", "undef"] => handle_undef,
             // std
             ["std", "mem", "clocked_memory"] => handle_clocked_memory_decl,
@@ -3452,6 +3401,80 @@ impl ExprLocal for Loc<Expression> {
             mir::Operator::UnsignedGe,
             ctx,
         )
+    }
+
+    fn handle_port(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        _args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        let (left_mir_type, right_mir_type) = match &self_type {
+            MirType::Tuple(items) => {
+                if items.len() != 2 {
+                    // Must be guaranteed by the function signature
+                    return Err(Diagnostic::bug(
+                        self,
+                        format!(
+                            "Inferred non-dyadic tuple return type `{self_type}` for port built-in"
+                        ),
+                    ));
+                }
+                (items[0].clone(), items[1].clone())
+            }
+            // Must be guaranteed by the function signature
+            _ => {
+                return Err(Diagnostic::bug(
+                    self,
+                    format!("Inferred non-tuple return type `{self_type}` for port built-in"),
+                ));
+            }
+        };
+
+        let lname = mir::ValueName::Expr(ctx.idtracker.next());
+        let rname = mir::ValueName::Expr(ctx.idtracker.next());
+
+        result.append_secondary(
+            vec![
+                mir::Statement::Binding(mir::Binding {
+                    name: lname.clone(),
+                    operator: mir::Operator::Nop,
+                    operands: vec![],
+                    ty: left_mir_type,
+                    loc: Some(self.loc()),
+                }),
+                mir::Statement::Binding(mir::Binding {
+                    name: rname.clone(),
+                    operator: mir::Operator::FlipPort,
+                    operands: vec![lname.clone()],
+                    ty: right_mir_type,
+                    loc: Some(self.loc()),
+                }),
+            ],
+            self,
+            "Port construction",
+        );
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator: mir::Operator::ConstructTuple,
+                operands: vec![lname, rname],
+                ty: self_type,
+                loc: Some(self.loc()),
+            }),
+            self,
+        );
+
+        Ok(result)
     }
 
     fn handle_undef(

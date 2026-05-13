@@ -2,7 +2,7 @@
 source: spade-tests/src/data_requirements.rs
 ---
 pipeline(0) test(clk: clock) {
-    let r = port;
+    let r = port();
 }
 
 
@@ -12,7 +12,7 @@ error: Trait bound not satisfied. (_, inv _) does not implement core::marker::Da
 1 │     pipeline(0) test(clk: clock) {
   │ ╭────────────────────────────────'
   │ │ ╭──────────────────────────────'
-2 │ │ │     let r = port;
+2 │ │ │     let r = port();
   │ │ │         ^
   │ │ │         │
   │ │ │         (_, inv _) does not implement core::marker::Data
@@ -25,5 +25,5 @@ error: Trait bound not satisfied. (_, inv _) does not implement core::marker::Da
   = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html
   = Consider making the binding a wire
   │
-2 │     let wire r = port;
+2 │     let wire r = port();
   │         +++++

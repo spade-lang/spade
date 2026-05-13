@@ -12,4 +12,6 @@ use core::ops::{
 use core::ops::{And, Not, Or, Xor};
 use core::ops::{BitAnd, BitNot, BitOr, BitXor};
 
+use core::ports::port;
+
 use core::undef::undef;

@@ -2,15 +2,15 @@
 source: spade-tests/src/data_requirements.rs
 ---
 entity test(clk: clock) {
-    reg(clk) r = port;
+    reg(clk) r = port();
 }
 
 
 error: Trait bound not satisfied. (_, inv _) does not implement core::marker::Data
   ┌─ testinput:2:14
   │
-2 │     reg(clk) r = port;
-  │     ---      ^   ---- The type of this expression is not Data which means it cannot be stored in a register.
+2 │     reg(clk) r = port();
+  │     ---      ^   ------ The type of this expression is not Data which means it cannot be stored in a register.
   │     │        │    
   │     │        (_, inv _) does not implement core::marker::Data
   │     Required because of the trait bound specified here

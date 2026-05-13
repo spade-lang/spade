@@ -1,0 +1,25 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+impl inv bool {
+    fn value(self) { set self = false; }
+    fn copy_view(&self) {}
+}
+
+fn test() {
+    let x: inv bool = port().1;
+    set x = true;
+
+    (&x).value();
+    (&x).copy_view();
+}
+
+
+error: Trait bound not satisfied. inv bool does not implement core::marker::Copy
+   ┌─ testinput:10:5
+   │
+10 │     (&x).value();
+   │     ^^^^
+   │     │
+   │     inv bool does not implement core::marker::Copy
+   │     Required because of the trait bound specified here

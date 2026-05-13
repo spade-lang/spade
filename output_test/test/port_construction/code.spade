@@ -21,10 +21,9 @@ entity scaler_impl(p: inv ScalingPort) -> bool {
 }
 
 entity arbiter(val: int<10>) -> int<12> {
-    let (p1, p2) = port;
+    let (p1, p2) = port();
 
     let _ = inst scaler_impl(p2);
     inst scalee(p1, val)
 
 }
-

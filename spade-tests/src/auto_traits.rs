@@ -169,7 +169,7 @@ snapshot_error! {
     registers_require_data,
     "
         entity test(clk: clock) {
-            reg(clk) r = port.1;
+            reg(clk) r = port().1;
         }
     "
 }

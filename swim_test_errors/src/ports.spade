@@ -1,8 +1,8 @@
-struct port Inner {
+struct Inner {
     fwd: &uint<8>,
     back: inv &uint<8>
 }
-struct port Nested {
+struct Nested {
     fwd: &uint<8>,
     back: inv &uint<8>,
     inner: Inner
@@ -15,10 +15,10 @@ entity dut(fwd: uint<8>, back: inv &uint<4>, nested: Nested) -> Nested {
 
     Nested$(
         fwd: &0,
-        back: port.1,
+        back: port().1,
         inner: Inner$(
             fwd: &0,
-            back: port.1
+            back: port().1
         )
     )
 }

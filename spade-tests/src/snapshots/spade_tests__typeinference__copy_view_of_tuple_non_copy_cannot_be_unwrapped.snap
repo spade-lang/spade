@@ -2,7 +2,7 @@
 source: spade-tests/src/typeinference.rs
 ---
 fn main() {
-    let t: (bool, inv bool) = (false, port.1);
+    let t: (bool, inv bool) = (false, port().1);
     set t.1 = true;
 
     let x: &(bool, inv bool) = &t;

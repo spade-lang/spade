@@ -253,7 +253,6 @@ impl SyntaxColor {
             TokenKind::Function => SyntaxColor::Keyword,
             TokenKind::Enum => SyntaxColor::Keyword,
             TokenKind::Struct => SyntaxColor::Keyword,
-            TokenKind::Port => SyntaxColor::Keyword,
             TokenKind::Wire => SyntaxColor::Keyword,
             TokenKind::Mod => SyntaxColor::Keyword,
             TokenKind::Type => SyntaxColor::Keyword,

@@ -102,7 +102,6 @@ impl<'a> QueryCache {
             // FIXME Visit types
             crate::ExprKind::TypeLevelBool(_) => {}
             crate::ExprKind::TypeLevelInteger(_) => {}
-            crate::ExprKind::CreatePorts => {}
             crate::ExprKind::TupleLiteral(inner) | crate::ExprKind::ArrayLiteral(inner) => {
                 for expr in inner {
                     self.visit_expression(expr)

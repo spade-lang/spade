@@ -2220,7 +2220,6 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             };
             Ok(hir::ExprKind::TriLiteral(result))
         }
-        ast::Expression::CreatePorts => Ok(hir::ExprKind::CreatePorts),
         ast::Expression::BinaryOperator(lhs, tok, rhs) => {
             let lhs = &lhs.visit(visit_expression, ctx);
             let rhs = &rhs.visit(visit_expression, ctx);
@@ -2934,7 +2933,6 @@ fn inject_verilog_attrs(
         | ExprKind::TriLiteral(_)
         | ExprKind::TypeLevelBool(_)
         | ExprKind::TypeLevelInteger(_)
-        | ExprKind::CreatePorts
         | ExprKind::TupleLiteral(_)
         | ExprKind::ArrayLiteral(_)
         | ExprKind::ArrayShorthandLiteral(_, _)

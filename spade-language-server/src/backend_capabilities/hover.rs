@@ -304,7 +304,6 @@ impl ExprKindExt for ExprKind {
         match &self {
             ExprKind::IntLiteral(_, _) => true,
             ExprKind::TypeLevelInteger(_) => true,
-            ExprKind::CreatePorts => true,
             ExprKind::MethodCall {
                 target: _,
                 op_trait: _,

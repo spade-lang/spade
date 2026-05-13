@@ -388,7 +388,6 @@ pub enum Expression {
     },
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
     TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
-    CreatePorts,
     Lambda {
         unit_kind: Loc<UnitKind>,
         args: Loc<Vec<Loc<Pattern>>>,
@@ -495,7 +494,6 @@ impl Expression {
             Expression::TriLiteral(_) => "tri-state literal",
             Expression::ArrayLiteral(_) => "array literal",
             Expression::ArrayShorthandLiteral(_, _) => "array shorthand literal",
-            Expression::CreatePorts => "port",
             Expression::Index(_, _) => "index",
             Expression::RangeIndex { .. } => "range index",
             Expression::Parenthesized(_) => "parenthesized",

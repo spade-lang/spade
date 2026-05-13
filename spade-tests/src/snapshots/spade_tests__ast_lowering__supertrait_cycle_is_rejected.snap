@@ -13,17 +13,17 @@ error: Cycle caused by supertrait of `D`
 4 │ trait D: A {}
   │       ^
   │
-note: ... which is a supertrait of `C`
-  ┌─ testinput:3:10
+note: ... which is a supertrait of `B`
+  ┌─ testinput:2:10
   │
-3 │ trait C: D {}
+2 │ trait B: D {}
   │          ^
   │
 note: ... which is a supertrait of `A`
-  ┌─ testinput:1:14
+  ┌─ testinput:1:10
   │
 1 │ trait A: B + C {}
-  │              ^
+  │          ^
   │
 note: ... which is a supertrait of `D`, completing the cycle
   ┌─ testinput:4:10

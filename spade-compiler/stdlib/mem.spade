@@ -70,9 +70,9 @@ reg;
 /// A dual port block RAM that supports read and write ports being in different domains.
 /// If writes and reads happen to the same address, the behaviour is undefined.
 pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>, ReadPort<W, D>) {
-    let w_addr = port;
-    let w_write = port;
-    let r_addr = port;
+    let w_addr = port();
+    let w_write = port();
+    let r_addr = port();
 
     reg(write_clk) undef = undef;
     let w = match w_write.0 {
@@ -139,7 +139,7 @@ mod fifo_impl {
         };
         let write_clk = false; // Unbind write_clk so we don't use it on accident later
 
-        let ack = port;
+        let ack = port();
 
         decl read_ptr;
         let empty = write_ptr == read_ptr;
@@ -190,7 +190,7 @@ mod fifo_impl {
         };
         let read_clk = false; // Unbind so we don't use it on accident later
 
-        let write_value = port;
+        let write_value = port();
 
         decl write_ptr;
         let full = trunc(write_ptr + 1) == read_ptr;
@@ -224,7 +224,7 @@ pub entity fifo<#uint AddrWidth, Data, #uint NumElements>(
 ) -> (FifoWrite<Data>, FifoRead<AddrWidth, Data>) {
     let (mem_write, mem_read) = inst dp_bram::<AddrWidth, Data, NumElements>$(write_clk, read_clk);
 
-    let (from_w, to_w) = port;
+    let (from_w, to_w) = port();
 
     let write = inst fifo_impl::fifo_write::<AddrWidth, Data>$(write_clk, write_rst, mem: mem_write, from_w, read_clk);
     let read = inst fifo_impl::fifo_read::<AddrWidth, Data, NumElements>$(read_clk, read_rst, mem: mem_read, to_w, write_clk);

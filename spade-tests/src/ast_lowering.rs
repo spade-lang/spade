@@ -1573,7 +1573,7 @@ snapshot_error! {
     no_mangle_all_error_correctly_formats_suggested_inverted_type_for_wire,
     "#[no_mangle(all)]
     entity foo() -> int<8> {
-        let (a, a_inv) = port;
+        let (a, a_inv) = port();
         a
     }"
 }

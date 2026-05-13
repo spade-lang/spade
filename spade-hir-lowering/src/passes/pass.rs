@@ -199,7 +199,6 @@ impl Passable for Loc<Expression> {
             | ExprKind::BoolLiteral(_)
             | ExprKind::TypeLevelBool(_)
             | ExprKind::TriLiteral(_)
-            | ExprKind::CreatePorts
             | ExprKind::PipelineRef { .. }
             | ExprKind::StageReady
             | ExprKind::StageValid

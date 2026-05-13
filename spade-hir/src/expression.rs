@@ -201,7 +201,6 @@ pub enum ExprKind {
     TriLiteral(TriLiteral),
     TypeLevelBool(NameID),
     TypeLevelInteger(NameID),
-    CreatePorts,
     TupleLiteral(Vec<Loc<Expression>>),
     ArrayLiteral(Vec<Loc<Expression>>),
     ArrayShorthandLiteral(Box<Loc<Expression>>, Loc<ConstGenericWithId>),

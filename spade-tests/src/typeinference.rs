@@ -2586,7 +2586,7 @@ snapshot_error! {
     }
 
     fn test() -> E<bool>{
-      let result = port;
+      let result = port();
       set result.1 = std::undef::undef();
       result.0
     }
@@ -2635,7 +2635,7 @@ code_compiles!(
 code_compiles!(
     copy_view_of_simple_non_copy_value_works,
     "fn main() {
-        let bp = port.1;
+        let bp = port().1;
         set bp = true;
 
         let x: &inv bool = &bp;
@@ -2647,7 +2647,7 @@ code_compiles!(
     "fn receiver(x: &inv bool) {}
 
     fn main() {
-        let bp = port.1;
+        let bp = port().1;
         set bp = true;
 
         let x: &inv bool = &bp;
@@ -2662,7 +2662,7 @@ code_compiles!(
 code_compiles!(
     copy_view_of_tuple_non_copy_value_works,
     "fn main() {
-        let t: (bool, inv bool) = (false, port.1);
+        let t: (bool, inv bool) = (false, port().1);
         set t.1 = true;
 
         let x: &(bool, inv bool) = &t;
@@ -2677,7 +2677,7 @@ code_compiles!(
     }
 
     fn main() {
-        let s = S(true, port.1);
+        let s = S(true, port().1);
         set s.b = true;
 
         let x: &S = &s;
@@ -2687,7 +2687,7 @@ code_compiles!(
 code_compiles!(
     copy_view_of_tuple_can_be_indexed,
     "fn main() {
-        let t: (bool, inv bool) = (false, port.1);
+        let t: (bool, inv bool) = (false, port().1);
         set t.1 = true;
 
         let x: &(bool, inv bool) = &t;
@@ -2704,7 +2704,7 @@ code_compiles!(
     }
 
     fn main() {
-        let s = S(true, port.1);
+        let s = S(true, port().1);
         set s.b = true;
 
         let x: &S = &s;
@@ -2724,7 +2724,7 @@ code_compiles!(
 snapshot_error!(
     copy_view_of_non_copy_value_cannot_be_unwrapped,
     "fn main() {
-        let bp = port.1;
+        let bp = port().1;
         set bp = true;
 
         let x: &inv bool = &bp;
@@ -2735,7 +2735,7 @@ snapshot_error!(
 snapshot_error!(
     copy_view_of_tuple_non_copy_cannot_be_unwrapped,
     "fn main() {
-        let t: (bool, inv bool) = (false, port.1);
+        let t: (bool, inv bool) = (false, port().1);
         set t.1 = true;
 
         let x: &(bool, inv bool) = &t;

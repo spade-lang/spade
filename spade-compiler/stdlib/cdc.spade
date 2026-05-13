@@ -96,14 +96,14 @@ mod handshake_impl {
 
 /// Synchronize data from the domain of `from_clk` to `to_clk` via handshaking. Primarily to be used to cross
 /// domains of similar speed. A single-cycle pulse on data in `from_clk` results in a single-cycle output in `to_clk`.
-/// 
+///
 /// ## Safety
-/// 
+///
 /// If the data in `from_clk` is active for more than one cycle in a row, the behaviour is unpredictable. Likewise,
 /// the behaviour is unpredictable if the data occurs too frequently, i.e. within a few clock cycles in the
 /// slowest domain.
 pub unsafe entity handshake<T>(from_clk: clock, rst: bool, data: Option<T>, to_clk: clock) -> Option<T> {
-    let (txorxi, txirxo) = port;
+    let (txorxi, txirxo) = port();
     let _ = inst handshake_impl::transmitter(from_clk, rst, data, txorxi);
     inst handshake_impl::receiver(to_clk, rst, txirxo)
 }
@@ -180,7 +180,7 @@ mod sync_wide_impl {
 /// This guarantees that all values sent between the domains are valid, but
 /// some values may be skipped
 pub entity sync_wide<T>(source_clk: clock, rst: bool, input: T, init: T, dest_clk: clock) -> T {
-    let (from_tx, to_tx) = port;
+    let (from_tx, to_tx) = port();
 
     let _ = inst sync_wide_impl::sender$(source_clk, rst, data_in: input, to_tx);
 

@@ -24,14 +24,14 @@ struct SubStructWithInv {
 }
 
 entity simple_io() -> SimpleIO {
-    let (fwd, back) = port;
+    let (fwd, back) = port();
     SimpleIO$(fwd, back)
 }
 
 
 entity substruct() -> SubStruct {
-    let (fwd, back) = port;
-    let (raw_fwd, raw_back) = port;
+    let (fwd, back) = port();
+    let (raw_fwd, raw_back) = port();
     SubStruct$(raw_fwd, raw_back, inner: SimpleIO$(fwd, back))
 }
 

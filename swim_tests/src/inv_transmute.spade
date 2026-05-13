@@ -1,6 +1,6 @@
 fn inv_transmute_works() {
-    let (a, a_inv) = port;
-    let (b, b_inv) = port;
+    let (a, a_inv) = port();
+    let (b, b_inv) = port();
 
     let x: (uint<8>, inv uint<8>, uint<8>, inv uint<8>) = (0, a_inv, 2, b_inv);
     let y: [(uint<8>, inv uint<8>); 2] = unsafe { core::conv::transmute(x) };
@@ -20,8 +20,8 @@ fn inv_transmute_works() {
 }
 
 fn inv_concat_works() {
-    let (a, a_inv) = port;
-    let (b, b_inv) = port;
+    let (a, a_inv) = port();
+    let (b, b_inv) = port();
 
     let c = [a_inv].concat([b_inv]);
 

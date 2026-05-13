@@ -528,23 +528,6 @@ impl TypeState {
 
     #[trace_typechecker]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn visit_create_ports(
-        &mut self,
-        expression: &Loc<Expression>,
-        ctx: &Context,
-        _generic_list: &GenericListToken,
-    ) -> Result<()> {
-        assuming_kind!(ExprKind::CreatePorts = &expression => {
-            let inner_type = self.new_generic_type(expression.loc());
-            let inverted = TypeVar::Known(expression.loc(), KnownType::Inverted, vec![inner_type.clone()]).insert(self);
-            let compound = TypeVar::tuple(expression.loc(), vec![inner_type, inverted]).insert(self);
-            self.unify_expression_generic_error(expression, &compound, ctx)?;
-        });
-        Ok(())
-    }
-
-    #[trace_typechecker]
-    #[tracing::instrument(level = "trace", skip_all)]
     pub fn visit_index(
         &mut self,
         expression: &Loc<Expression>,

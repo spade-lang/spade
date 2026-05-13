@@ -8,16 +8,16 @@ expression: build_items(code)
             kind: Unescaped(
                 "x",
             ),
-            source: x#56,
+            source: x#58,
         },
         inputs: [
             MirInput {
                 name: "a",
                 val_name: Named(
-                    94,
+                    98,
                     "a",
                     Name(
-                        a#94,
+                        a#98,
                     ),
                 ),
                 ty: Int(
@@ -30,10 +30,10 @@ expression: build_items(code)
             MirInput {
                 name: "b",
                 val_name: Named(
-                    95,
+                    99,
                     "b",
                     Name(
-                        b#95,
+                        b#99,
                     ),
                 ),
                 ty: Backward(
@@ -48,10 +48,10 @@ expression: build_items(code)
             MirInput {
                 name: "c",
                 val_name: Named(
-                    96,
+                    100,
                     "c",
                     Name(
-                        c#96,
+                        c#100,
                     ),
                 ),
                 ty: Bool,
@@ -62,10 +62,10 @@ expression: build_items(code)
             MirInput {
                 name: "d",
                 val_name: Named(
-                    97,
+                    101,
                     "d",
                     Name(
-                        d#97,
+                        d#101,
                     ),
                 ),
                 ty: Bool,
@@ -76,10 +76,10 @@ expression: build_items(code)
             MirInput {
                 name: "e",
                 val_name: Named(
-                    98,
+                    102,
                     "e",
                     Name(
-                        e#98,
+                        e#102,
                     ),
                 ),
                 ty: Array {
@@ -116,10 +116,10 @@ expression: build_items(code)
             ),
             Set {
                 target: Named(
-                    95,
+                    99,
                     "b",
                     Name(
-                        b#95,
+                        b#99,
                     ),
                 ),
                 value: Expr(
