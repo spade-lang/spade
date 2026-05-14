@@ -110,7 +110,7 @@ pub(crate) fn gather_impls_n_docs(
                 impls.add_outer_doc(&ctx.symtab, &u.head.name, &u.head.attributes);
             }
             ast::Item::MacroDef(_) => {
-                // FIXME: Once macros become user-defineable, we should handle them
+                // FIXME: Once macros become user-definable, we should handle them
             }
             ast::Item::TraitDef(t) => {
                 impls.add_outer_doc(&ctx.symtab, &t.name, &t.attributes);

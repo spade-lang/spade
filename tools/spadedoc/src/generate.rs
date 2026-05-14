@@ -1,8 +1,8 @@
 use camino::Utf8PathBuf;
 use itertools::Itertools;
 use spade_ast::{
-    self as ast, ExternalMod, MacroDef, ModuleBody, TraitDef, TraitSpec, TypeDeclKind,
-    TypeDeclaration, TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
+    self as ast, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration,
+    TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -233,15 +233,8 @@ impl Generator {
 
                     self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u, &docs))?;
                 }
-                ast::Item::MacroDef(m) => {
-                    let name = m.name.as_str();
-                    let docs = self.lookup_docs(&m.name);
-                    contents
-                        .entry(ItemKind::Macro)
-                        .or_default()
-                        .push(ItemListEntry::new(name, &docs));
-
-                    self.describe(FileName::Item(name), |g, b| g.doc_macro(b, &m, &docs))?;
+                ast::Item::MacroDef(_) => {
+                    // FIXME: Once macros become user-definable, we should handle them
                 }
                 ast::Item::TraitDef(t) => {
                     let name = t.name.as_str();
@@ -488,17 +481,6 @@ impl Generator {
             self.path_breadcrumbs(body)?;
             write_title(body, kind, u.head.name.as_str())?;
             self.in_codeblock(body, |b| self.print_unit_head(b, &u.head))?;
-            write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
-
-            Ok(())
-        })
-    }
-
-    fn doc_macro(&mut self, body: &mut Node<'_>, m: &Loc<MacroDef>, docs: &str) -> DResult<()> {
-        main(body, |body| {
-            self.path_breadcrumbs(body)?;
-            write_title(body, ItemKind::Macro, m.name.as_str())?;
-            self.in_codeblock(body, |b| self.print_macro(b, &m))?;
             write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())

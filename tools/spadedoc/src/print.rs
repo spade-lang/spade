@@ -182,22 +182,6 @@ impl Generator {
         Ok(())
     }
 
-    pub fn print_macro(&self, b: &mut Node<'_>, m: &MacroDef) -> DResult<()> {
-        self.print_visibility(b, &m.visibility)?;
-
-        let kind = ItemKind::Macro;
-        fwrite!(b, "macro ");
-
-        b.styled_tag("span", &[kind.color_class()], |b| {
-            fwrite!(b, m.name.as_str());
-            Ok(())
-        })?;
-
-        // NOTE: add a more sophisticated description (do something with macro rules)?
-
-        Ok(())
-    }
-
     pub(crate) fn print_where_clauses(
         &self,
         b: &mut Node<'_>,
