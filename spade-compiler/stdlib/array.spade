@@ -612,7 +612,7 @@ impl<#uint N> [bool; N] where N > 0 {
 }
 
 impl<T: Default, #uint N> Default for [T; N] {
-    fn hacky_default(self) -> Self {
-        [default(); N]
+    fn default() -> Self {
+        [T::default(); N]
     }
 }

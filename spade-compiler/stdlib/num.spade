@@ -328,13 +328,13 @@ impl<#uint N> uint<N> where N > 0 {
 }
 
 impl<#uint N> Default for int<N> {
-    fn hacky_default(self) -> Self {
+    fn default() -> Self {
         0
     }
 }
 
 impl<#uint N> Default for uint<N> {
-    fn hacky_default(self) -> Self {
+    fn default() -> Self {
         0
     }
 }
@@ -380,7 +380,7 @@ impl<#uint N> Gray<N> {
 }
 
 impl<#uint N> Default for Gray<N> {
-    fn hacky_default(self) -> Self {
+    fn default() -> Self {
         Gray(0)
     }
 }

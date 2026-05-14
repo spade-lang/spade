@@ -249,7 +249,7 @@ impl<T> Option<T> {
 }
 
 impl<T> Default for Option<T> {
-    fn hacky_default(self) -> Self {
+    fn default() -> Self {
         None
     }
 }
