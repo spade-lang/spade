@@ -225,6 +225,8 @@ impl LambdaReplacement {
                             field_translator: i.field_translator,
                         })
                         .collect(),
+                    // TODO: Verify
+                    spade_hir::Selfness::Static,
                 )
                 .at_loc(&unit.head.inputs),
                 ..unit.head.clone()

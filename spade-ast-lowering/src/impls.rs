@@ -177,15 +177,12 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
                     );
                 }
 
-                let takes_self_view =
-                    matches!(u.head.inputs.0[0].ty.inner, hir::TypeSpec::CopyView(_));
-
                 trait_impl.insert(
                     name.inner.clone(),
                     hir::TraitUnitImpl {
                         name: u.name.name_id().inner.clone(),
                         fn_loc: u.loc(),
-                        takes_self_view,
+                        selfness: u.head.inputs.1,
                     },
                 );
             }
@@ -1080,7 +1077,7 @@ fn map_trait_method_parameters(
                 })
             })
             .collect::<Result<_>>()
-            .map(|params| hir::ParameterList(params))
+            .map(|params| hir::ParameterList(params, trait_method.inputs.1))
     })?;
 
     let output_type = if let Some(ty) = trait_method.output_type.as_ref() {

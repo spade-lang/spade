@@ -752,7 +752,9 @@ pub fn re_visit_type_declaration(
                     .args
                     .clone()
                     .map(|l| visit_parameter_list(&l, ctx, None))
-                    .unwrap_or_else(|| Ok(hir::ParameterList(vec![]).nowhere()))?;
+                    .unwrap_or_else(|| {
+                        Ok(hir::ParameterList(vec![], spade_hir::Selfness::Static).nowhere())
+                    })?;
 
                 let args = variant
                     .args

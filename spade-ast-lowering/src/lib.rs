@@ -28,7 +28,7 @@ use recursive::recursive;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{CodeBundle, Diagnostic, codespan::Span, diag_anyhow, diag_bail};
-use spade_hir::{expression::Safety, symbol_table::TypeDeclKind};
+use spade_hir::{Selfness, expression::Safety, symbol_table::TypeDeclKind};
 use spade_parser::Parser;
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
@@ -602,22 +602,7 @@ fn visit_parameter_list(
     let mut arg_names: HashSet<Loc<Identifier>> = HashSet::default();
     let mut result = vec![];
 
-    if let SelfContext::ImplBlock(_) = ctx.self_ctx {
-        if l.self_.is_none() {
-            // Suggest insertion after the first paren
-            let mut diag = Diagnostic::error(l, "Method must take 'self' as the first parameter")
-                .primary_label("Missing self");
-
-            let suggest_msg = "Consider adding self";
-            diag = if l.args.is_empty() {
-                diag.span_suggest_replace(suggest_msg, l, "(self)")
-            } else {
-                diag.span_suggest_insert_before(suggest_msg, &l.args[0].2, "self, ")
-            };
-            return Err(diag);
-        }
-    }
-
+    let mut selfness = Selfness::Static;
     if let Some((ref self_, ref wire_marker, amp)) = l.self_ {
         let mut attrs = self_.inner.clone();
         let no_mangle = attrs
@@ -644,6 +629,9 @@ fn visit_parameter_list(
         if let Some(start_loc) = amp {
             let end_loc = ty.loc();
             ty = TypeSpec::CopyView(Box::new(ty)).between_locs(&start_loc, &end_loc);
+            selfness = Selfness::CopyView;
+        } else {
+            selfness = Selfness::Value;
         };
 
         result.push(hir::Parameter {
@@ -653,7 +641,7 @@ fn visit_parameter_list(
             field_translator: None,
             wire: wire_marker.map(|w| w.loc()),
         })
-    }
+    };
 
     for (attrs, wire_marker, name, input_type) in &l.args {
         if let Some(prev) = arg_names.get(name) {
@@ -683,7 +671,7 @@ fn visit_parameter_list(
         });
     }
 
-    Ok(hir::ParameterList(result).at_loc(l))
+    Ok(hir::ParameterList(result, selfness).at_loc(l))
 }
 
 /// Builds a diagnostic for a `#[no_mangle(all)]`-marked unit with a non-unit output type.

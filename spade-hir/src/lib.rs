@@ -785,7 +785,7 @@ pub struct Parameter {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct ParameterList(pub Vec<Parameter>);
+pub struct ParameterList(pub Vec<Parameter>, pub Selfness);
 
 impl ParameterList {
     pub fn argument_num(&self) -> usize {
@@ -1075,11 +1075,21 @@ impl AttributeList {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialOrd, Ord)]
+pub enum Selfness {
+    // Pure self, e.g. `fn inner(self)`
+    Value,
+    // CopyView self, e.g. `fn is_some(&self)`
+    CopyView,
+    // No self, e.g. `fn default()`
+    Static,
+}
+
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TraitUnitImpl {
     pub name: NameID,
     pub fn_loc: Loc<()>,
-    pub takes_self_view: bool,
+    pub selfness: Selfness,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]

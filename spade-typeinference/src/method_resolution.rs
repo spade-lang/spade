@@ -3,6 +3,7 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, NameID};
 
 use spade_diagnostics::Diagnostic;
+use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_hir::{ImplTarget, TraitName, TraitUnitImpl, TypeExpression, TypeSpec};
 use spade_types::KnownType;
@@ -143,16 +144,12 @@ pub fn select_method(
                                 spec_is_overlapping(&r#impl.target, &raw_self_type_id, type_state);
                             let selected = actual_fn.name.clone().at_loc(&actual_fn.fn_loc);
                             match is_overlapping {
-                                Overlap::Yes => (
-                                    Some((name, selected, actual_fn.takes_self_view)),
-                                    None,
-                                    None,
-                                ),
-                                Overlap::Maybe => (
-                                    None,
-                                    Some((name, selected, actual_fn.takes_self_view)),
-                                    None,
-                                ),
+                                Overlap::Yes => {
+                                    (Some((name, selected, actual_fn.selfness)), None, None)
+                                }
+                                Overlap::Maybe => {
+                                    (None, Some((name, selected, actual_fn.selfness)), None)
+                                }
                                 Overlap::No => (None, None, Some(&r#impl.target)),
                             }
                         } else {
@@ -180,8 +177,8 @@ pub fn select_method(
         return Ok(None);
     }
 
-    let (final_method, takes_self_view) = match matched_candidates.as_slice() {
-        [(_, method_name, takes_self_view)] => (method_name, *takes_self_view),
+    let (final_method, selfness) = match matched_candidates.as_slice() {
+        [(_, method_name, selfness)] => (method_name, *selfness),
         [] => {
             let ty_name = self_type.display_with_meta(false, type_state);
             let raw_ty_name = raw_self_type.display_with_meta(false, type_state);
@@ -210,7 +207,7 @@ pub fn select_method(
             return Err(d);
         }
         candidates => {
-            let Some((_, anon_method, takes_self_view)) = candidates
+            let Some((_, anon_method, selfness)) = candidates
                 .iter()
                 .find(|(trait_name, _, _)| matches!(trait_name, TraitName::Anonymous(_)))
             else {
@@ -226,12 +223,30 @@ pub fn select_method(
                 return Err(d);
             };
 
-            (anon_method, *takes_self_view)
+            (anon_method, *selfness)
         }
     };
 
-    if takes_self_view {
-        self_view_layers_delta += 1;
+    match selfness {
+        spade_hir::Selfness::Value => {}
+        spade_hir::Selfness::CopyView => {
+            self_view_layers_delta += 1;
+        }
+        spade_hir::Selfness::Static => {
+            return Err(
+                Diagnostic::error(method, "Tried to call associated function as method")
+                    .primary_label("This is an associated function")
+                    .span_suggest_replace(
+                        "use associated function syntax instead",
+                        (
+                            Span::new(expr.span.start(), method.span.start()),
+                            expr.file_id,
+                        ),
+                        // TODO: append pretty-printed name of type
+                        format!("{}::", self_type_id.display(type_state)),
+                    ),
+            );
+        }
     }
 
     Ok(Some((final_method.clone(), self_view_layers_delta)))

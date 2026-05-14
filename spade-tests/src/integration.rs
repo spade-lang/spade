@@ -43,6 +43,65 @@ fn trait_self_return_type_works() {
 }
 
 #[test]
+fn associated_direct_functions_work() {
+    let code = r#"
+        struct A { b: bool }
+
+        impl A {
+            fn yes() -> Self {
+                A(true)
+            }
+        }
+
+        entity main() {
+            let _a = A::yes();
+        }
+    "#;
+
+    build_items(code);
+}
+
+#[test]
+fn associated_trait_function_work() {
+    let code = r#"
+        struct A { b: bool }
+
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for A {
+            fn default() -> Self {
+                A(false)
+            }
+        }
+
+        entity main() {
+            let _a = A::default();
+        }
+    "#;
+
+    build_items(code);
+}
+
+snapshot_error! {
+    associated_function_as_method_call,
+    "
+    struct A { b: bool }
+
+    impl A {
+        fn yes() -> Self {
+            A(true)
+        }
+    }
+
+    entity main() {
+        let _a = A(false).yes();
+    }
+    "
+}
+
+#[test]
 fn namespacing_works() {
     let code = r#"
         mod X {

@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/integration.rs
+assertion_line: 87
+---
+struct A { b: bool }
+
+impl A {
+    fn yes() -> Self {
+        A(true)
+    }
+}
+
+entity main() {
+    let _a = A(false).yes();
+}
+
+
+error: Tried to call associated function as method
+   ┌─ testinput:10:23
+   │
+10 │     let _a = A(false).yes();
+   │                       ^^^ This is an associated function
+   │
+   = use associated function syntax instead
+   │
+10 │     let _a = A::yes();
+   │              ~~~
