@@ -40,6 +40,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             spade_hir::ExprKind::TypeCast(_, _) => Ok(()),
             spade_hir::ExprKind::MethodCall { .. } => Ok(()),
             spade_hir::ExprKind::Call { .. } => Ok(()),
+            spade_hir::ExprKind::AssociatedCall { .. } => Ok(()),
             spade_hir::ExprKind::BinaryOperator(lhs, op, rhs) => {
                 let check = |operand| {
                     if type_of(operand)?.size() == BigUint::ZERO {

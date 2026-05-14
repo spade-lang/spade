@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct A { b: bool }
+
+impl A {
+    fn inner(self) -> bool {
+        self.b
+    }
+}
+
+entity main() {
+    let _b = A::inner();
+}
+
+
+error: Tried to call method as associated function
+   ┌─ testinput:10:17
+   │
+10 │     let _b = A::inner();
+   │                 ^^^^^ This is a method
+   │
+   = use method syntax instead
+   │
+10 │     let _b = /* value of A */.inner();
+   │              ~~~~~~~~~~~~~~~~~

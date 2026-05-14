@@ -317,6 +317,18 @@ impl PrettyDebug for ExprKind {
                     [0] format!("{}{}::<{}>{}", if *safety == Safety::Unsafe { "unsafe " } else { "" }, callee.pretty_debug(), turbofish.pretty_debug(), args.pretty_debug());
                 }.to_string()
             }
+            crate::ExprKind::AssociatedCall {
+                kind: _,
+                callee,
+                name,
+                args,
+                turbofish,
+                safety,
+            } => {
+                code! {
+                    [0] format!("{}{}::{}::<{}>{}", if *safety == Safety::Unsafe { "unsafe " } else { "" }, callee.pretty_debug(), name.pretty_debug(), turbofish.pretty_debug(), args.pretty_debug());
+                }.to_string()
+            }
             crate::ExprKind::BinaryOperator(lhs, op, rhs) => {
                 format!("({} {} {})", lhs.pretty_debug(), op, rhs.pretty_debug())
             },

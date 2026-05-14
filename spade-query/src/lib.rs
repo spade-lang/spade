@@ -177,7 +177,11 @@ impl<'a> QueryCache {
                 verilog_attr_groups: _,
             } => {
                 self.handle_nameid(callee.clone());
-                // FIXME: handle callee and turbofish
+                // FIXME: handle turbofish
+                self.visit_arg_list(args)
+            }
+            crate::ExprKind::AssociatedCall { kind: _, callee: _, name: _, args, turbofish: _, safety: _ } => {
+                // FIXME: Handle `name`, `turbofish`, and `callee`
                 self.visit_arg_list(args)
             }
             crate::ExprKind::LambdaDef {

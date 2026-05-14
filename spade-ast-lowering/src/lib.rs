@@ -298,6 +298,7 @@ pub enum TypeSpecKind {
     PipelineInstDepth,
     TraitBound,
     TypeLevelIf,
+    AssociatedFn,
 }
 
 fn visit_default_type_expression(
@@ -340,6 +341,9 @@ pub fn visit_type_expression(
                 TypeSpecKind::StructMember => default_error("Struct members", "struct member"),
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bounds", "trait bound")
+                }
+                TypeSpecKind::AssociatedFn => {
+                    default_error("Associated functions", "associated fn")
                 }
                 TypeSpecKind::Alias
                 | TypeSpecKind::Argument
@@ -571,6 +575,9 @@ pub fn visit_type_spec(
                 }
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bound", "trait bound")
+                }
+                TypeSpecKind::AssociatedFn => {
+                    default_error("Associated functions", "associated fn")
                 }
                 TypeSpecKind::PipelineInstDepth
                 | TypeSpecKind::TypeCast
@@ -2502,7 +2509,6 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             args,
             turbofish,
         } => {
-            let (name_id, _) = ctx.symtab.lookup_unit(callee, true)?;
             let args = visit_argument_list(args, ctx)?.at_loc(args);
 
             let kind = visit_call_kind(kind, ctx)?;
@@ -2512,14 +2518,48 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 .map(|t| visit_turbofish(t, ctx))
                 .transpose()?;
 
-            Ok(hir::ExprKind::Call {
-                kind,
-                callee: name_id.at_loc(callee),
-                args,
-                turbofish,
-                safety: ctx.safety,
-                verilog_attr_groups: vec![],
-            })
+            // Try to look up a unit for the full path
+            match ctx.symtab.lookup_unit(callee, true) {
+                Ok((name_id, _)) => Ok(hir::ExprKind::Call {
+                    kind,
+                    callee: name_id.at_loc(callee),
+                    args,
+                    turbofish,
+                    safety: ctx.safety,
+                    verilog_attr_groups: vec![],
+                }),
+                Err(e) => {
+                    // When it's not found, try to find the type behind it for associated functions
+                    if callee.0.len() >= 2 {
+                        let ty = callee.prelude();
+                        let assoc = callee.tail().unwrap_named().clone();
+
+                        let start = ty.0.first().unwrap().loc();
+                        let end = ty.0.last().unwrap().loc();
+                        let ty = ty.between_locs(&start, &end);
+                        let loc = ty.loc();
+
+                        let tyspec = ast::TypeSpec::Named(ty, None);
+
+                        if let Ok(tyspec) =
+                            visit_type_spec(&tyspec.at_loc(&loc), &TypeSpecKind::AssociatedFn, ctx)
+                        {
+                            Ok(hir::ExprKind::AssociatedCall {
+                                kind,
+                                callee: tyspec,
+                                name: assoc,
+                                args,
+                                turbofish,
+                                safety: ctx.safety,
+                            })
+                        } else {
+                            Err(Diagnostic::from(e))
+                        }
+                    } else {
+                        Err(Diagnostic::from(e))
+                    }
+                }
+            }
         }
         ast::Expression::Identifier(path) => {
             // If the identifier isn't a valid variable, report as "expected value".
@@ -2860,6 +2900,7 @@ fn inject_verilog_attrs(
         | ExprKind::Incomplete(_, _)
         | ExprKind::TypeCast(_, _)
         | ExprKind::MethodCall { .. }
+        | ExprKind::AssociatedCall { .. }
         | ExprKind::BinaryOperator(_, _, _)
         | ExprKind::UnaryOperator(_, _)
         | ExprKind::Match(_, _)

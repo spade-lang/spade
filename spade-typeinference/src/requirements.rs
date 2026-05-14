@@ -35,6 +35,7 @@ pub enum Requirement {
         /// The expression from which this requirement arises
         expr: Loc<TypeVarID>,
     },
+    /// Has an associated function that may also take self to be a method
     HasMethod {
         call_kind: CallKind,
         /// The ID of the expression which causes this requirement
@@ -52,6 +53,8 @@ pub enum Requirement {
         turbofish: Option<Loc<ArgumentList<TypeExpression>>>,
         /// The generic list of the context where this is instantiated
         prev_generic_list: GenericListToken,
+        /// Whether the 'method' is an associated function or a true method
+        takes_self: bool,
     },
     /// The type should be an integer large enough to fit the specified value
     FitsIntLiteral {
@@ -239,6 +242,7 @@ impl Requirement {
                 turbofish,
                 prev_generic_list,
                 call_kind,
+                takes_self,
             } => match &target_type.inner.resolve(type_state) {
                 TypeVar::Known(_, KnownType::Error, _) => {
                     return Ok(RequirementResult::Satisfied(vec![]));
@@ -248,6 +252,7 @@ impl Requirement {
                         expr.loc(),
                         target_type,
                         method,
+                        *takes_self,
                         &ctx.trait_impls,
                         type_state,
                     )?

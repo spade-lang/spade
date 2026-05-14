@@ -214,6 +214,10 @@ impl ServerBackend {
                                     (target, true, true)
                                 }
                             }),
+                            spade_hir::ExprKind::AssociatedCall { .. } => {
+                                // TODO: We shuold complete these
+                                None
+                            }
                             spade_hir::ExprKind::FieldAccess(target, _) => {
                                 Some((target, false, false))
                             }

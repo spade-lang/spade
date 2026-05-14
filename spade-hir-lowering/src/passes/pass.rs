@@ -86,6 +86,18 @@ impl Passable for Loc<Expression> {
                     arg.apply(pass)?;
                 }
             }
+            ExprKind::AssociatedCall {
+                kind: _,
+                callee: _,
+                name: _,
+                args,
+                turbofish: _,
+                safety: _,
+            } => {
+                for arg in args.expressions_mut() {
+                    arg.apply(pass)?;
+                }
+            }
             ExprKind::BinaryOperator(lhs, _, rhs) => subnodes!(lhs, rhs),
             ExprKind::UnaryOperator(_, operand) => subnodes!(operand),
             ExprKind::Match(cond, branches) => {

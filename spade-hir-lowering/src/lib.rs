@@ -133,7 +133,9 @@ impl LocExprExt for Loc<hir::Expression> {
             },
             // NOTE: We probably shouldn't see this here since we'll have lowered
             // methods at this point, but this function doesn't throw
-            ExprKind::MethodCall { .. } | ExprKind::Call { .. } => Some(self.clone()),
+            ExprKind::MethodCall { .. }
+            | ExprKind::Call { .. }
+            | ExprKind::AssociatedCall { .. } => Some(self.clone()),
             ExprKind::BinaryOperator(l, operator, r) => {
                 if let Some(witness) = l
                     .runtime_requirement_witness(ctx)
@@ -1232,6 +1234,10 @@ impl ExprLocal for Loc<Expression> {
                 self,
                 "method call should have been lowered to function by this point"
             ),
+            ExprKind::AssociatedCall { .. } => diag_bail!(
+                self,
+                "associated fn call should have been lowered to function by this point"
+            ),
             ExprKind::LambdaDef { .. } => diag_bail!(
                 self,
                 "lambda def call should have been lowered to function by this point"
@@ -2160,6 +2166,12 @@ impl ExprLocal for Loc<Expression> {
                 diag_bail!(
                     self,
                     "Method should already have been lowered at this point"
+                )
+            }
+            ExprKind::AssociatedCall { .. } => {
+                diag_bail!(
+                    self,
+                    "Associated fn should already have been lowered at this point"
                 )
             }
             ExprKind::LambdaDef { .. } => {

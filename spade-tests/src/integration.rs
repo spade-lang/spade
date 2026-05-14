@@ -101,6 +101,23 @@ snapshot_error! {
     "
 }
 
+snapshot_error! {
+    method_as_associated_function_call,
+    "
+    struct A { b: bool }
+
+    impl A {
+        fn inner(self) -> bool {
+            self.b
+        }
+    }
+
+    entity main() {
+        let _b = A::inner();
+    }
+    "
+}
+
 #[test]
 fn namespacing_works() {
     let code = r#"
@@ -1197,20 +1214,6 @@ mod trait_tests {
     }
 
     snapshot_error! {
-        method_which_does_not_take_self_is_an_error,
-        "
-            struct X {}
-            impl X {
-                fn test(x: bool) -> bool {true}
-            }
-
-            fn main(x: X) -> bool {
-                x.test$(y: 1)
-            }
-        "
-    }
-
-    snapshot_error! {
         binding_self_causes_reasonable_error,
         "
             struct X {}
@@ -1241,17 +1244,6 @@ mod trait_tests {
                 x.a()
             }
 
-        "
-    }
-
-    snapshot_error! {
-        good_suggestion_for_missing_self_in_zero_arg_fn,
-        "
-            struct X {}
-
-            impl X {
-                fn a() -> bool {true}
-            }
         "
     }
 

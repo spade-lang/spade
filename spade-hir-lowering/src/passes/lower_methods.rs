@@ -11,7 +11,7 @@ use spade_hir::{
     symbol_table::FrozenSymtab,
 };
 use spade_typeinference::{
-    HasType, TypeState, method_resolution::select_method, traits::TraitImplList,
+    Context, HasType, TypeState, method_resolution::select_method, traits::TraitImplList,
 };
 
 pub struct LowerMethods<'a> {
@@ -24,6 +24,7 @@ pub struct LowerMethods<'a> {
 
 impl<'a> Pass for LowerMethods<'a> {
     fn visit_expression(&mut self, expression: &mut Loc<Expression>) -> crate::error::Result<()> {
+        let eid = expression.id;
         let replacement_kind = match &mut expression.kind {
             spade_hir::ExprKind::MethodCall {
                 target: self_,
@@ -47,8 +48,14 @@ impl<'a> Pass for LowerMethods<'a> {
                     &self.items.types,
                 )?;
 
-                let Some((method, self_view_layers_delta)) =
-                    select_method(self_.loc(), &self_type, name, &self.impls, &self.type_state)?
+                let Some((method, self_view_layers_delta)) = select_method(
+                    self_.loc(),
+                    &self_type,
+                    name,
+                    true,
+                    &self.impls,
+                    &self.type_state,
+                )?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
@@ -107,6 +114,52 @@ impl<'a> Pass for LowerMethods<'a> {
 
                 Some(spade_hir::ExprKind::Call {
                     kind: call_kind.clone(),
+                    callee: method.inner.at_loc(name),
+                    args: args.clone(),
+                    turbofish: None,
+                    safety: *safety,
+                    verilog_attr_groups: vec![],
+                })
+            }
+            ExprKind::AssociatedCall {
+                kind,
+                callee,
+                name,
+                args,
+                turbofish: _,
+                safety,
+            } => {
+                let callee_type = self.type_state.type_var_from_hir(
+                    callee.loc(),
+                    callee,
+                    &spade_typeinference::GenericListToken::Expression(eid),
+                    &Context {
+                        symtab: self.symtab.symtab(),
+                        items: self.items,
+                        trait_impls: self.impls,
+                    },
+                )?;
+
+                let Some((method, _)) = select_method(
+                    callee.loc(),
+                    &callee_type,
+                    name,
+                    false,
+                    &self.impls,
+                    &self.type_state,
+                )?
+                else {
+                    return Err(Diagnostic::bug(
+                        expression.loc(),
+                        format!(
+                            "Incorrect method call. None or Multiple candidates exist for {self_type}",
+                            self_type = callee_type.display(&self.type_state)
+                        ),
+                    ));
+                };
+
+                Some(spade_hir::ExprKind::Call {
+                    kind: kind.clone(),
                     callee: method.inner.at_loc(name),
                     args: args.clone(),
                     turbofish: None,

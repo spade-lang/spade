@@ -404,6 +404,7 @@ pub enum Expression {
         args: Loc<Vec<Loc<Pattern>>>,
         body: Box<Loc<Block>>,
     },
+    /// A call to a standalone or associated function, will be differentiated in ast lowering.
     Call {
         kind: CallKind,
         callee: Loc<Path>,

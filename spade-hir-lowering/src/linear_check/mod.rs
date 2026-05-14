@@ -190,6 +190,10 @@ fn visit_expression(
             expr,
             "method call should have been lowered to function by this point"
         ),
+        spade_hir::ExprKind::AssociatedCall { .. } => diag_bail!(
+            expr,
+            "associated fn call should have been lowered to function by this point"
+        ),
     };
 
     if produces_new_resource {
@@ -403,6 +407,10 @@ fn visit_expression(
         spade_hir::ExprKind::MethodCall { .. } => diag_bail!(
             expr,
             "method call should have been lowered to function by this point"
+        ),
+        spade_hir::ExprKind::AssociatedCall { .. } => diag_bail!(
+            expr,
+            "associated fn call should have been lowered to function by this point"
         ),
         spade_hir::ExprKind::LambdaDef { .. } => diag_bail!(
             expr,

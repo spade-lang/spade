@@ -235,6 +235,7 @@ impl ServerBackend {
                                 thing.loc(),
                                 &target_ty,
                                 name,
+                                true,
                                 &self.trait_impls.lock().unwrap(),
                                 ts,
                             )
@@ -256,6 +257,7 @@ impl ServerBackend {
                         None
                     }
                 }
+                // TODO: We should handle AssociatedCall here
                 _ => None,
             });
 

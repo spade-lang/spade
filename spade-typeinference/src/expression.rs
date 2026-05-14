@@ -453,7 +453,39 @@ impl TypeState {
                 args: args_with_self,
                 turbofish: turbofish.clone(),
                 prev_generic_list: generic_list.clone(),
-                call_kind: call_kind.clone()
+                call_kind: call_kind.clone(),
+                takes_self: true,
+            };
+
+            requirement.check_or_add(self, ctx)?
+        });
+        Ok(())
+    }
+
+    #[trace_typechecker]
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn visit_associated_call(
+        &mut self,
+        expression: &Loc<Expression>,
+        ctx: &Context,
+        generic_list: &GenericListToken,
+    ) -> Result<()> {
+        assuming_kind!(ExprKind::AssociatedCall { kind, callee, name, args, turbofish, safety: _ } = &expression => {
+            self.visit_argument_list(&args, ctx, generic_list)?;
+
+            let target_type = self.type_var_from_hir(callee.loc(), callee, generic_list, ctx)?;
+            let self_type = self.type_of(&TypedExpression::Id(expression.id));
+
+            let requirement = Requirement::HasMethod {
+                expr_id: expression.map_ref(|e| e.id),
+                target_type: target_type.at_loc(&callee),
+                method: name.clone(),
+                expr: self_type.at_loc(expression),
+                args: args.clone(),
+                turbofish: turbofish.clone(),
+                prev_generic_list: generic_list.clone(),
+                call_kind: kind.clone(),
+                takes_self: false,
             };
 
             requirement.check_or_add(self, ctx)?

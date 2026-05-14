@@ -1089,6 +1089,7 @@ impl TypeState {
             | ExprKind::TypeCast(_, _)
             | ExprKind::MethodCall { .. }
             | ExprKind::Call { .. }
+            | ExprKind::AssociatedCall { .. }
             | ExprKind::BinaryOperator(_, _, _)
             | ExprKind::UnaryOperator(_, _)
             | ExprKind::PipelineRef { .. }
@@ -1272,6 +1273,9 @@ impl TypeState {
             }
             ExprKind::TypeCast(_, _) => self.visit_type_cast(expression, ctx, generic_list)?,
             ExprKind::MethodCall { .. } => self.visit_method_call(expression, ctx, generic_list)?,
+            ExprKind::AssociatedCall { .. } => {
+                self.visit_associated_call(expression, ctx, generic_list)?
+            }
             ExprKind::RangeIndex { .. } => self.visit_range_index(expression, ctx, generic_list)?,
             ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
             ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,

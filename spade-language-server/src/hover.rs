@@ -324,10 +324,12 @@ impl ExprKindExt for ExprKind {
                 safety: _,
                 verilog_attr_groups: _,
             } => callee.contains_start(loc),
+            ExprKind::AssociatedCall { ..  } => {
+                // TODO: Handle associated call
+                false
+            },
             ExprKind::BinaryOperator(_, op, _) => op.contains_start(loc),
-
             ExprKind::Error => false,
-
             ExprKind::Identifier(_)
             | ExprKind::Match(_, _)
             | ExprKind::If { .. }

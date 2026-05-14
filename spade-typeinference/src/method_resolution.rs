@@ -5,7 +5,7 @@ use spade_common::name::{Identifier, NameID};
 use spade_diagnostics::Diagnostic;
 use spade_diagnostics::codespan::Span;
 use spade_diagnostics::diagnostic::Subdiagnostic;
-use spade_hir::{ImplTarget, TraitName, TraitUnitImpl, TypeExpression, TypeSpec};
+use spade_hir::{ImplTarget, Selfness, TraitName, TraitUnitImpl, TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
 use crate::TypeState;
@@ -94,6 +94,7 @@ pub fn select_method(
     expr: Loc<()>,
     self_type_id: &TypeVarID,
     method: &Loc<Identifier>,
+    takes_self: bool,
     trait_impls: &TraitImplList,
     type_state: &TypeState,
 ) -> Result<Option<(Loc<NameID>, i32)>, Diagnostic> {
@@ -227,12 +228,12 @@ pub fn select_method(
         }
     };
 
-    match selfness {
-        spade_hir::Selfness::Value => {}
-        spade_hir::Selfness::CopyView => {
+    match (takes_self, selfness) {
+        (true, Selfness::Value) => {}
+        (true, Selfness::CopyView) => {
             self_view_layers_delta += 1;
         }
-        spade_hir::Selfness::Static => {
+        (true, Selfness::Static) => {
             return Err(
                 Diagnostic::error(method, "Tried to call associated function as method")
                     .primary_label("This is an associated function")
@@ -242,11 +243,25 @@ pub fn select_method(
                             Span::new(expr.span.start(), method.span.start()),
                             expr.file_id,
                         ),
-                        // TODO: append pretty-printed name of type
                         format!("{}::", self_type_id.display(type_state)),
                     ),
             );
         }
+        (false, Selfness::Value) | (false, Selfness::CopyView) => {
+            return Err(
+                Diagnostic::error(method, "Tried to call method as associated function")
+                    .primary_label("This is a method")
+                    .span_suggest_replace(
+                        "use method syntax instead",
+                        (
+                            Span::new(expr.span.start(), method.span.start()),
+                            expr.file_id,
+                        ),
+                        format!("/* value of {} */.", self_type_id.display(type_state)),
+                    ),
+            );
+        }
+        (false, Selfness::Static) => {}
     }
 
     Ok(Some((final_method.clone(), self_view_layers_delta)))

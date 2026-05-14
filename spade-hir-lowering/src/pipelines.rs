@@ -778,6 +778,10 @@ impl PipelineAvailability for Expression {
                 name,
                 "Method call should already have been lowered by this point"
             ),
+            ExprKind::AssociatedCall { name, .. } => diag_bail!(
+                name,
+                "Associated fn call should already have been lowered by this point"
+            ),
             ExprKind::StaticUnreachable(message) => {
                 diag_bail!(
                     message,

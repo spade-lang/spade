@@ -1,6 +1,8 @@
 use std::borrow::BorrowMut;
 
-use crate::{ConstGenericWithId, Pattern, TraitSpec, TypeExpression, TypeParam, UnitKind};
+use crate::{
+    ConstGenericWithId, Pattern, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitKind,
+};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -239,6 +241,14 @@ pub enum ExprKind {
         turbofish: Option<Loc<ArgumentList<TypeExpression>>>,
         safety: Safety,
         verilog_attr_groups: Vec<Vec<(Loc<Identifier>, Option<Loc<String>>)>>,
+    },
+    AssociatedCall {
+        kind: CallKind,
+        callee: Loc<TypeSpec>,
+        name: Loc<Identifier>,
+        args: Loc<ArgumentList<Expression>>,
+        turbofish: Option<Loc<ArgumentList<TypeExpression>>>,
+        safety: Safety,
     },
     BinaryOperator(
         Box<Loc<Expression>>,
