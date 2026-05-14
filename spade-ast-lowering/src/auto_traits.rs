@@ -120,8 +120,9 @@ impl TyExt for Loc<TypeSpec> {
             }
             // As soon as we see an `inv`, we know for sure we're not dealing with Data
             TypeSpec::Inverted(_) => Some(DataWitness::Here(self.loc())),
-            // As soon as we see an `&`, we know for sure we're dealing with Data
-            TypeSpec::CopyView(_) => None,
+            TypeSpec::CopyView(inner) => {
+                inner.get_data_witness(ctx).map(|w| w.recurse(&inner.loc()))
+            }
             TypeSpec::TraitSelf(_) => {
                 unreachable!()
             }
