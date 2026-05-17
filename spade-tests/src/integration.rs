@@ -84,6 +84,32 @@ fn associated_trait_function_work() {
     build_items(code);
 }
 
+snapshot_mir! {
+    associated_function_generic,
+    "
+    trait FavNumber {
+        fn favnum() -> uint<8>;
+    }
+    fn generic<T: FavNumber>() -> uint<8> {
+        T::favnum()
+    }
+    impl FavNumber for bool {
+        fn favnum() -> uint<8> {
+            13
+        }
+    }
+    impl FavNumber for () {
+        fn favnum() -> uint<8> {
+            0
+        }
+    }
+
+    fn test() -> (uint<8>, uint<8>) {
+        (generic::<bool>(), generic::<()>())
+    }
+    ", all
+}
+
 snapshot_error! {
     associated_function_as_method_call,
     "
