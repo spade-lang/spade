@@ -11,7 +11,8 @@ use spade_hir::{
     symbol_table::FrozenSymtab,
 };
 use spade_typeinference::{
-    Context, HasType, TypeState, method_resolution::select_method, traits::TraitImplList,
+    HasType, TypeState, equation::TypeVarID, method_resolution::select_method,
+    traits::TraitImplList,
 };
 
 pub struct LowerMethods<'a> {
@@ -24,7 +25,6 @@ pub struct LowerMethods<'a> {
 
 impl<'a> Pass for LowerMethods<'a> {
     fn visit_expression(&mut self, expression: &mut Loc<Expression>) -> crate::error::Result<()> {
-        let eid = expression.id;
         let replacement_kind = match &mut expression.kind {
             spade_hir::ExprKind::MethodCall {
                 target: self_,
@@ -124,21 +124,22 @@ impl<'a> Pass for LowerMethods<'a> {
             ExprKind::AssociatedCall {
                 kind,
                 callee,
+                callee_res,
                 name,
                 args,
                 turbofish: _,
                 safety,
             } => {
-                let callee_type = self.type_state.type_var_from_hir(
-                    callee.loc(),
-                    callee,
-                    &spade_typeinference::GenericListToken::Expression(eid),
-                    &Context {
-                        symtab: self.symtab.symtab(),
-                        items: self.items,
-                        trait_impls: self.impls,
-                    },
-                )?;
+                let callee_type = callee_res
+                    .0
+                    .lock()
+                    .unwrap()
+                    .take()
+                    .expect("Couldn't retrieve throwaway typevarid for assoc fn lowering");
+                let callee_type = TypeVarID {
+                    inner: callee_type.0,
+                    type_state_key: callee_type.1,
+                };
 
                 let Some((method, _)) = select_method(
                     callee.loc(),

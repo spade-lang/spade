@@ -28,7 +28,11 @@ use recursive::recursive;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{CodeBundle, Diagnostic, codespan::Span, diag_anyhow, diag_bail};
-use spade_hir::{Selfness, expression::Safety, symbol_table::TypeDeclKind};
+use spade_hir::{
+    Selfness,
+    expression::{CalleeRes, Safety},
+    symbol_table::TypeDeclKind,
+};
 use spade_parser::Parser;
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
@@ -2547,6 +2551,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                             Ok(hir::ExprKind::AssociatedCall {
                                 kind,
                                 callee: tyspec,
+                                callee_res: Arc::new(CalleeRes::default()),
                                 name: assoc,
                                 args,
                                 turbofish,

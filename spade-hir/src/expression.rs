@@ -1,4 +1,7 @@
-use std::borrow::BorrowMut;
+use std::{
+    borrow::BorrowMut,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     ConstGenericWithId, Pattern, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitKind,
@@ -195,6 +198,25 @@ impl LambdaTypeParams {
     }
 }
 
+#[repr(transparent)]
+pub struct CalleeRes(pub Mutex<Option<(usize, u64)>>);
+impl PartialEq for CalleeRes {
+    #[inline]
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+impl ::std::fmt::Debug for CalleeRes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CalleeRes").finish()
+    }
+}
+impl Default for CalleeRes {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum IncompleteExpression {
     IncompleteDot {
@@ -245,6 +267,14 @@ pub enum ExprKind {
     AssociatedCall {
         kind: CallKind,
         callee: Loc<TypeSpec>,
+        /// This is a hack because we only get TypeSpec and the resolved type
+        /// will otherwise be a new throwaway id inside visit_expr but we need
+        /// the typevar again because lower_methods does the whole method
+        /// selection a second time ;(
+        /// Also, this must mimic `TypeVarID` which isn't known in this crate
+        /// Also, this must be Send and all that stuff because ugh
+        #[serde(skip)]
+        callee_res: Arc<CalleeRes>,
         name: Loc<Identifier>,
         args: Loc<ArgumentList<Expression>>,
         turbofish: Option<Loc<ArgumentList<TypeExpression>>>,

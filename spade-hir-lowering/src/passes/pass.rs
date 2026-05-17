@@ -89,6 +89,7 @@ impl Passable for Loc<Expression> {
             ExprKind::AssociatedCall {
                 kind: _,
                 callee: _,
+                callee_res: _,
                 name: _,
                 args,
                 turbofish: _,
