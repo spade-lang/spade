@@ -1,0 +1,29 @@
+[package]
+name = "spade-lir"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+spade-codespan-reporting.workspace = true
+derive-where = "1.2.7"
+indoc.workspace = true
+itertools.workspace = true
+rustc-hash.workspace = true
+nesty = "0.2"
+num.workspace = true
+serde.workspace = true
+
+spade-common.workspace = true
+spade-diagnostics.workspace = true
+spade-mir.workspace = true
+
+[dev-dependencies]
+colored.workspace = true
+spade-codespan.workspace = true
+prettydiff.workspace = true
+pretty_assertions.workspace = true
