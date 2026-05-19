@@ -29,6 +29,8 @@ spade-hir = {path = "spade-hir", version = "0.19.0"}
 spade-hir-lowering = {path = "spade-hir-lowering", version = "0.19.0"}
 spade-macros = {path = "spade-macros", version = "0.19.0"}
 spade-mir = {path = "spade-mir", version = "0.19.0"}
+spade-mir-lowering = {path = "spade-mir-lowering", version = "0.19.0"}
+spade-lir = {path = "spade-lir", version = "0.19.0"}
 spade-parser = {path = "spade-parser", version = "0.19.0"}
 spade-typeinference = {path = "spade-typeinference", version = "0.19.0"}
 spade-types = {path = "spade-types", version = "0.19.0"}

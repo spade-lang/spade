@@ -3591,6 +3591,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "spade-lir"
+version = "0.18.0"
+dependencies = [
+ "colored 3.1.1",
+ "derive-where",
+ "indoc",
+ "itertools",
+ "nesty",
+ "num",
+ "pretty_assertions",
+ "prettydiff",
+ "rustc-hash",
+ "serde",
+ "spade-codespan",
+ "spade-codespan-reporting",
+ "spade-common",
+ "spade-diagnostics",
+ "spade-mir",
+]
+
+[[package]]
 name = "spade-macros"
 version = "0.19.0"
 dependencies = [
@@ -3618,6 +3639,14 @@ dependencies = [
  "spade-codespan-reporting",
  "spade-common",
  "spade-diagnostics",
+]
+
+[[package]]
+name = "spade-mir-lowering"
+version = "0.18.0"
+dependencies = [
+ "spade-lir",
+ "spade-mir",
 ]
 
 [[package]]
