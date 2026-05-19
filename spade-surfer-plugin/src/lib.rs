@@ -841,14 +841,11 @@ fn descriptive_loc(expr: &Loc<Expression>) -> Option<Loc<()>> {
             CallKind::Entity(kw) => ().between_locs(kw, callee),
             CallKind::Pipeline { inst_loc, .. } => ().between_locs(inst_loc, callee),
         }),
-        spade_hir::ExprKind::AssociatedCall {
-            kind: _,
-            callee,
-            name,
-            args: _,
-            turbofish: _,
-            safety: _,
-        } => Some(().between_locs(callee, name)),
+        spade_hir::ExprKind::AssociatedCall { kind, name, .. } => Some(match &kind {
+            CallKind::Function => name.loc(),
+            CallKind::Entity(kw) => ().between_locs(kw, name),
+            CallKind::Pipeline { inst_loc, .. } => ().between_locs(inst_loc, name),
+        }),
         spade_hir::ExprKind::BinaryOperator(_, op, _) => Some(op.loc()),
         spade_hir::ExprKind::TupleLiteral(_)
         | spade_hir::ExprKind::LambdaDef { .. }

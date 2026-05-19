@@ -470,14 +470,13 @@ impl TypeState {
         ctx: &Context,
         generic_list: &GenericListToken,
     ) -> Result<()> {
-        assuming_kind!(ExprKind::AssociatedCall { kind, callee, callee_res, name, args, turbofish, safety: _ } = &expression => {
+        assuming_kind!(ExprKind::AssociatedCall { kind, callee, callee_ty, name, args, turbofish, safety: _ } = &expression => {
             self.visit_argument_list(&args, ctx, generic_list)?;
 
             let target_type = self.type_var_from_hir(callee.loc(), callee, generic_list, ctx)?;
             let self_type = self.type_of(&TypedExpression::Id(expression.id));
 
-            // Stupid hack, we need to save our throwaway typevar for lower_methods
-            callee_res.0.lock().unwrap().replace((target_type.inner, target_type.type_state_key));
+            self.add_equation(TypedExpression::Id(*callee_ty), target_type);
 
             let requirement = Requirement::HasMethod {
                 expr_id: expression.map_ref(|e| e.id),

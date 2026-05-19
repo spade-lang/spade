@@ -11,7 +11,7 @@ use spade_hir::{
     symbol_table::FrozenSymtab,
 };
 use spade_typeinference::{
-    HasType, TypeState, equation::TypeVarID, method_resolution::select_method,
+    HasType, TypeState, equation::TypedExpression, method_resolution::select_method,
     traits::TraitImplList,
 };
 
@@ -124,26 +124,17 @@ impl<'a> Pass for LowerMethods<'a> {
             ExprKind::AssociatedCall {
                 kind,
                 callee,
-                callee_res,
+                callee_ty,
                 name,
                 args,
                 turbofish: _,
                 safety,
             } => {
-                let callee_type = callee_res
-                    .0
-                    .lock()
-                    .unwrap()
-                    .take()
-                    .expect("Couldn't retrieve throwaway typevarid for assoc fn lowering");
-                let callee_type = TypeVarID {
-                    inner: callee_type.0,
-                    type_state_key: callee_type.1,
-                };
+                let callee_ty = self.type_state.type_of(&TypedExpression::Id(*callee_ty));
 
                 let Some((method, _)) = select_method(
                     callee.loc(),
-                    &callee_type,
+                    &callee_ty,
                     name,
                     false,
                     &self.impls,
@@ -154,7 +145,7 @@ impl<'a> Pass for LowerMethods<'a> {
                         expression.loc(),
                         format!(
                             "Incorrect method call. None or Multiple candidates exist for {self_type}",
-                            self_type = callee_type.display(&self.type_state)
+                            self_type = callee_ty.display(&self.type_state)
                         ),
                     ));
                 };

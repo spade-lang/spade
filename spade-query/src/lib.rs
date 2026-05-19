@@ -180,7 +180,15 @@ impl<'a> QueryCache {
                 // FIXME: handle turbofish
                 self.visit_arg_list(args)
             }
-            crate::ExprKind::AssociatedCall { kind: _, callee: _, name: _, args, turbofish: _, safety: _ } => {
+            crate::ExprKind::AssociatedCall {
+                kind: _,
+                callee_ty: _,
+                callee: _,
+                name: _,
+                args,
+                turbofish: _,
+                safety: _,
+            } => {
                 // FIXME: Handle `name`, `turbofish`, and `callee`
                 self.visit_arg_list(args)
             }

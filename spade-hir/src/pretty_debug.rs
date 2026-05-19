@@ -320,7 +320,7 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::AssociatedCall {
                 kind: _,
                 callee,
-                callee_res: _,
+                callee_ty: _,
                 name,
                 args,
                 turbofish,

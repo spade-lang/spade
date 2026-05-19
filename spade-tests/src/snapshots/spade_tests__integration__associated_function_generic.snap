@@ -9,13 +9,13 @@ entity \generic[524] () -> uint<8> {
 	let e2: uint<8> = Instance(\impl#1::favnum )()
 } => e2
 entity \test () -> (uint<8>, uint<8>) {
-	let e9: uint<8> = Instance(\generic[523] )()
-	let e10: uint<8> = Instance(\generic[524] )()
-	let e8: (uint<8>, uint<8>) = ConstructTuple(e9, e10)
-} => e8
+	let e10: uint<8> = Instance(\generic[523] )()
+	let e11: uint<8> = Instance(\generic[524] )()
+	let e9: (uint<8>, uint<8>) = ConstructTuple(e10, e11)
+} => e9
 entity \impl#0::favnum () -> uint<8> {
-	const e4: uint<8> = 13
-} => e4
+	const e5: uint<8> = 13
+} => e5
 entity \impl#1::favnum () -> uint<8> {
-	const e6: uint<8> = 0
-} => e6
+	const e7: uint<8> = 0
+} => e7
