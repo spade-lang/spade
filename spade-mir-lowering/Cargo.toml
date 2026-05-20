@@ -11,3 +11,5 @@ repository.workspace = true
 [dependencies]
 spade-mir.workspace = true
 spade-lir.workspace = true
+spade-common.workspace = true
+spade-diagnostics.workspace = true
