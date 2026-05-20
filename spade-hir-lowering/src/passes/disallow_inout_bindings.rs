@@ -125,8 +125,7 @@ impl<'a> Pass for InOutChecks<'a> {
                         | spade_hir::Statement::Label(_)
                         | spade_hir::Statement::Assert(_)
                         | spade_hir::Statement::Expression(_)
-                        | spade_hir::Statement::Set { .. }
-                        | spade_hir::Statement::WalSuffixed { .. } => {}
+                        | spade_hir::Statement::Set { .. } => {}
                     }
                 }
             }

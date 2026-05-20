@@ -117,7 +117,6 @@ impl Passable for Loc<Expression> {
                             pattern: _,
                             ty: _,
                             value,
-                            wal_trace: _,
                         }) => value.apply(pass)?,
                         Statement::Expression(expr) => expr.apply(pass)?,
                         Statement::Register(reg) => {
@@ -156,10 +155,6 @@ impl Passable for Loc<Expression> {
                             None => {}
                         },
                         Statement::Label(_) => {}
-                        Statement::WalSuffixed {
-                            suffix: _,
-                            target: _,
-                        } => {}
                         Statement::Assert(expr) => expr.apply(pass)?,
                         Statement::Set { target, value } => subnodes!(target, value),
                     }

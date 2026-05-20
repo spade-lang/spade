@@ -154,7 +154,6 @@ impl TyExt for Loc<TypeDeclaration> {
                 let Struct {
                     members,
                     attributes: _,
-                    wal_traceable: _,
                     documentation: _,
                 } = &s.inner;
 
@@ -173,7 +172,6 @@ impl TyExt for Loc<TypeDeclaration> {
             spade_hir::TypeDeclKind::Alias(alias) => {
                 let TypeAlias {
                     type_spec,
-                    wal_traceable: _,
                     documentation: _,
                 } = &alias.inner;
 
@@ -200,7 +198,6 @@ impl TyExt for Loc<TypeDeclaration> {
                 let Struct {
                     members,
                     attributes: _,
-                    wal_traceable: _,
                     documentation: _,
                 } = &s.inner;
 
@@ -219,7 +216,6 @@ impl TyExt for Loc<TypeDeclaration> {
             spade_hir::TypeDeclKind::Alias(alias) => {
                 let TypeAlias {
                     type_spec,
-                    wal_traceable: _,
                     documentation: _,
                 } = &alias.inner;
 

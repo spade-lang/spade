@@ -188,18 +188,10 @@ impl PartialEq for Pattern {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct WalTrace {
-    pub clk: Option<Loc<Expression>>,
-    pub rst: Option<Loc<Expression>>,
-}
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Binding {
     pub pattern: Loc<Pattern>,
     pub ty: Option<Loc<TypeSpec>>,
     pub value: Loc<Expression>,
-    // Specifies if a wal_trace mir node should be emitted for this struct. If this
-    // is present, the type is traceable
-    pub wal_trace: Option<Loc<WalTrace>>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -225,10 +217,6 @@ pub enum Statement {
         target: Loc<Expression>,
         value: Loc<Expression>,
     },
-    WalSuffixed {
-        suffix: Identifier,
-        target: Loc<NameID>,
-    },
 }
 
 impl Statement {
@@ -238,7 +226,6 @@ impl Statement {
             pattern: PatternKind::name(name_id).with_id(pattern_id).nowhere(),
             ty: None,
             value: val.nowhere(),
-            wal_trace: None,
         })
     }
 
@@ -247,12 +234,7 @@ impl Statement {
         ty: Option<Loc<TypeSpec>>,
         value: Loc<Expression>,
     ) -> Statement {
-        Statement::Binding(Binding {
-            pattern,
-            ty,
-            value,
-            wal_trace: None,
-        })
+        Statement::Binding(Binding { pattern, ty, value })
     }
 }
 
@@ -576,24 +558,15 @@ pub struct Enum {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct WalTraceable {
-    pub suffix: Path,
-    pub uses_clk: bool,
-    pub uses_rst: bool,
-}
-
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Struct {
     pub members: Loc<ParameterList>,
     pub attributes: AttributeList,
-    pub wal_traceable: Option<Loc<WalTraceable>>,
     pub documentation: String,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TypeAlias {
     pub type_spec: Loc<TypeSpec>,
-    pub wal_traceable: Option<Loc<WalTraceable>>,
     pub documentation: String,
 }
 
@@ -1081,9 +1054,6 @@ pub enum Attribute {
     Fsm {
         state: NameID,
     },
-    WalTraceable {
-        suffix: Identifier,
-    },
     Inline,
 }
 impl Attribute {
@@ -1092,7 +1062,6 @@ impl Attribute {
             Attribute::VerilogAttrs { entries: _ } => "verilog_attrs",
             Attribute::Optimize { passes: _ } => "optimize",
             Attribute::Fsm { state: _ } => "fsm",
-            Attribute::WalTraceable { suffix: _ } => "suffix",
             Attribute::Inline => "inline",
         }
     }

@@ -493,27 +493,6 @@ pub enum Statement {
         target: Loc<ValueName>,
         value: Loc<ValueName>,
     },
-    /// This is a tracing signal as part of the value `name`. It is used for
-    /// both individual fields if `#[wal_traceable]` and `#[wal_trace]` is used,
-    /// and whole signals if `#[wal_suffix]` is used
-    /// I.e. the result of
-    /// ```
-    /// #[wal_traceable(suffix) struct T {a: A, b: B}
-    ///
-    /// let x: T = ...`
-    /// ```
-    ///
-    /// Will be
-    /// (e(0); IndexStruct(0); x)
-    /// (wal_trace {name: x, val: e(0), suffix: _a_suffix, ty: A}
-    /// (e(1); IndexStruct(1); x)
-    /// (wal_trace {name: x, val: e(0), suffix: _a_suffix, ty: A}
-    WalTrace {
-        name: ValueName,
-        val: ValueName,
-        suffix: String,
-        ty: Type,
-    },
     Error,
 }
 
@@ -525,12 +504,6 @@ impl std::fmt::Display for Statement {
             Statement::Constant(id, ty, val) => write!(f, "const {id}: {ty} = {val}"),
             Statement::Assert(val) => write!(f, "assert {val}"),
             Statement::Set { target, value } => write!(f, "set {target} = {value}"),
-            Statement::WalTrace {
-                name,
-                val,
-                suffix,
-                ty: _,
-            } => write!(f, "wal_trace({name}, {val}, {suffix})"),
             Statement::Error => write!(f, "Error"),
         }
     }

@@ -37,7 +37,6 @@ impl StatementList {
             Statement::Constant(name, _, _) => Some(name.clone()),
             Statement::Assert(_) => None,
             Statement::Set { .. } => None,
-            Statement::WalTrace { .. } => None,
             Statement::Error => None,
         };
         self.stmts.push(stmt);
@@ -61,7 +60,6 @@ impl StatementList {
             Statement::Constant(name, _, _) => Some(name.clone()),
             Statement::Assert(_) => None,
             Statement::Set { .. } => None,
-            Statement::WalTrace { .. } => None,
             Statement::Error => None,
         };
         self.stmts.push(stmt);

@@ -47,7 +47,6 @@ impl MirTypeList {
                 Statement::Set { .. } => {
                     // No new types introduced
                 }
-                Statement::WalTrace { .. } => {}
                 Statement::Error => {}
             }
         }

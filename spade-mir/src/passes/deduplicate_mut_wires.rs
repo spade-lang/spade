@@ -134,8 +134,7 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
             Statement::Constant(_, _, _)
             | Statement::Assert(_)
             | Statement::Set { .. }
-            | Statement::Error
-            | Statement::WalTrace { .. } => {}
+            | Statement::Error => {}
         }
     }
 
@@ -180,17 +179,6 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
                     })
                 }
             }
-            Statement::WalTrace {
-                name,
-                val,
-                suffix,
-                ty,
-            } => Some(Statement::WalTrace {
-                name: get_replacement(name),
-                val: get_replacement(val),
-                suffix,
-                ty,
-            }),
         })
         .collect::<Vec<_>>();
 

@@ -21,12 +21,9 @@ use const_generic::ConstGenericExt;
 use error::format_witnesses;
 use error::refutable_pattern_diagnostic;
 use error::undefined_variable;
-use hir::ArgumentList;
 use hir::Attribute;
 use hir::Parameter;
-use hir::TypeDeclKind;
 use hir::TypeSpec;
-use hir::WalTrace;
 use hir::expression::CallKind;
 use hir::expression::TriLiteral;
 use itertools::Itertools;
@@ -67,8 +64,6 @@ use spade_hir::expression::Safety;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_typeinference::GenericListToken;
 use spade_typeinference::HasType;
-use spade_typeinference::equation::TypeVar;
-use spade_typeinference::equation::TypedExpression;
 use spade_typeinference::traits::TraitImplList;
 use spade_types::meta_types::MetaType;
 use statement_list::StatementList;
@@ -893,318 +888,6 @@ impl PatternLocal for Loc<Pattern> {
     }
 }
 
-pub fn do_wal_trace_lowering(
-    pattern: &Loc<hir::Pattern>,
-    main_value_name: &ValueName,
-    wal_traceable: &Loc<hir::WalTraceable>,
-    wal_trace: &Loc<WalTrace>,
-    ty: &ConcreteType,
-    result: &mut StatementList,
-    ctx: &mut Context,
-) -> Result<()> {
-    let hir::WalTrace { clk, rst } = &wal_trace.inner;
-    let hir::WalTraceable {
-        suffix,
-        uses_clk,
-        uses_rst,
-    } = &wal_traceable.inner;
-
-    let mut check_clk_or_rst =
-        |signal: &Option<Loc<Expression>>, uses: bool, name, suffix| -> Result<()> {
-            match (signal, uses) {
-                (None, false) => {}
-                (None, true) => {
-                    return Err(Diagnostic::error(
-                        wal_trace,
-                        format!("The {name} signal for this trace must be provided"),
-                    ));
-                }
-                (Some(signal), false) => {
-                    return Err(
-                        Diagnostic::error(signal, format!("Unnecessary {name} signal"))
-                            .primary_label(format!("Unnecessary {name} signal"))
-                            .secondary_label(
-                                wal_traceable,
-                                format!("This struct does not need a {name} signal for tracing"),
-                            ),
-                    );
-                }
-                (Some(signal), true) => result.push_anonymous(mir::Statement::WalTrace {
-                    name: main_value_name.clone(),
-                    val: signal.variable(ctx)?,
-                    suffix: format!("__{suffix}__{}", wal_traceable.suffix.clone()),
-                    ty: MirType::Bool,
-                }),
-            }
-            Ok(())
-        };
-    check_clk_or_rst(clk, *uses_clk, "clock", "clk")?;
-    check_clk_or_rst(rst, *uses_rst, "reset", "rst")?;
-
-    if let ConcreteType::Struct {
-        name: _,
-        members,
-        field_translators: _,
-    } = ty
-    {
-        // Sanity check that all fields are either pure input or pure output
-        for (n, ty) in members {
-            let mir_ty = ty.to_mir_type();
-            if mir_ty.backward_size() != BigUint::zero()
-                && ty.to_mir_type().size() != BigUint::zero()
-            {
-                return Err(Diagnostic::error(
-                    pattern,
-                    "Wal tracing does not work on types with mixed-direction fields",
-                )
-                .primary_label(format!(
-                    "The field '{n}' of the struct has both & and &mut wires"
-                )));
-            }
-        }
-
-        // If we have &mut wires, we need a flipped port to read the values from because
-        // we need to work around a small bug. Create an anonymous value for this
-        // lifeguard spade#252
-        let flipped_id = ctx.idtracker.next();
-        let flipped_ty = MirType::Struct(
-            members
-                .iter()
-                .filter_map(|(n, ty)| match ty.to_mir_type() {
-                    MirType::Backward(i) => Some((n.as_str().to_owned(), i.as_ref().clone())),
-                    _ => None,
-                })
-                .collect(),
-        );
-        let flipped_port = mir::Statement::Binding(mir::Binding {
-            name: ValueName::Expr(flipped_id),
-            operator: mir::Operator::ReadMutWires,
-            operands: vec![main_value_name.clone()],
-            ty: flipped_ty.clone(),
-            loc: None,
-        });
-        if !flipped_ty.size().is_zero() {
-            result.push_anonymous(flipped_port);
-        }
-
-        // The forward port has the backward variants included, so extracting `(a, &mut b, c)` so
-        // the forward fields will be [0] and [2]
-        // The backward copy only has the mut wire, so it is (&mut b) and the index is [0]
-        let mut i_all = 0;
-        let mut i_backward = 0;
-        for (n, ty) in members.iter() {
-            let new_id = ctx.idtracker.next();
-            let field_name = ValueName::Expr(new_id);
-
-            let (is_backward, mir_ty, operand, operator) = match ty.to_mir_type() {
-                MirType::Backward(b) => {
-                    let result = (
-                        true,
-                        *b,
-                        ValueName::Expr(flipped_id),
-                        mir::Operator::IndexTuple(i_backward),
-                    );
-                    i_backward += 1;
-                    i_all += 1;
-                    result
-                }
-                other => {
-                    let result = (
-                        false,
-                        other,
-                        main_value_name.clone(),
-                        mir::Operator::IndexTuple(i_all),
-                    );
-                    i_all += 1;
-                    result
-                }
-            };
-            // Insert an indexing operation, and a wal trace on the result.
-            result.push_anonymous(mir::Statement::Binding(mir::Binding {
-                name: field_name.clone(),
-                operator,
-                operands: vec![operand],
-                ty: mir_ty.clone(),
-                loc: None,
-            }));
-
-            // Add the wal trace statement
-            result.push_anonymous(mir::Statement::WalTrace {
-                name: main_value_name.clone(),
-                val: field_name,
-                suffix: format!("__{n}__{}", suffix.clone()),
-                ty: mir_ty,
-            });
-
-            // Add the new expression to the type state so we can look it up
-            // during translation. Doing this is a messy process however, because
-            // we lost information. We'll cheat, and unify the expression with
-            // indexing for the correct field on the pattern.
-            // This is kind of a giant hack and makes quite a few assumptions about
-            // the rest of the compiler
-            // If problems occur in this code, it is probably a good idea to start
-            // looking at refactoring this into a more sane state
-
-            let dummy_expr_id = ctx.idtracker.next();
-            let dummy_expr = if is_backward {
-                hir::Expression {
-                    id: new_id,
-                    kind: ExprKind::Call {
-                        kind: CallKind::Entity(().nowhere()),
-                        callee: ctx
-                            .symtab
-                            .symtab()
-                            .lookup_unit(
-                                &Path::from_strs(&["std", "ports", "read_mut_wire"]).nowhere(),
-                                true,
-                            )
-                            .expect("did not find std::ports::read_mut_wire in symtab")
-                            .0
-                            .nowhere(),
-                        args: ArgumentList::Positional(vec![
-                            hir::Expression {
-                                kind: ExprKind::FieldAccess(
-                                    Box::new(
-                                        hir::Expression {
-                                            kind: ExprKind::Null,
-                                            id: dummy_expr_id,
-                                        }
-                                        .nowhere(),
-                                    ),
-                                    n.clone().nowhere(),
-                                ),
-                                id: ctx.idtracker.next(),
-                            }
-                            .nowhere(),
-                        ])
-                        .nowhere(),
-                        turbofish: None,
-                        safety: Safety::Default,
-                        verilog_attr_groups: vec![],
-                    },
-                }
-                .nowhere()
-            } else {
-                hir::Expression {
-                    kind: ExprKind::FieldAccess(
-                        Box::new(
-                            hir::Expression {
-                                kind: ExprKind::Null,
-                                id: dummy_expr_id,
-                            }
-                            .nowhere(),
-                        ),
-                        n.clone().nowhere(),
-                    ),
-                    id: new_id,
-                }
-                .nowhere()
-            };
-
-            let type_ctx = spade_typeinference::Context {
-                symtab: ctx.symtab.symtab(),
-                items: ctx.item_list,
-                trait_impls: &ctx.trait_impls,
-            };
-            let generic_list = &ctx
-                .types
-                .create_empty_generic_list(spade_typeinference::GenericListSource::Anonymous);
-            ctx.types
-                .visit_expression(&dummy_expr, &type_ctx, generic_list);
-
-            ctx.types
-                .unify(
-                    &TypedExpression::Id(pattern.id),
-                    &TypedExpression::Id(dummy_expr_id),
-                    &spade_typeinference::Context {
-                        symtab: ctx.symtab.symtab(),
-                        items: ctx.item_list,
-                        trait_impls: ctx.trait_impls,
-                    },
-                )
-                .unwrap(); // Unification with a completely generic expr
-            ctx.types.check_requirements(true, &type_ctx).unwrap();
-        }
-    } else {
-        diag_bail!(wal_trace, "Tracing on non-struct")
-    }
-
-    Ok(())
-}
-
-pub fn lower_wal_trace(
-    pattern: &Loc<hir::Pattern>,
-    wal_trace: &Loc<WalTrace>,
-    ctx: &mut Context,
-    result: &mut StatementList,
-    concrete_ty: &ConcreteType,
-) -> Result<()> {
-    let hir_ty = pattern.get_type(ctx.types);
-    match &hir_ty.resolve(&ctx.types) {
-        TypeVar::Known(_, spade_types::KnownType::Named(name), _) => {
-            let ty = ctx.item_list.types.get(name);
-
-            match ty.as_ref().map(|ty| &ty.inner.kind) {
-                Some(TypeDeclKind::Struct(s)) => {
-                    if let Some(suffix) = &s.wal_traceable {
-                        do_wal_trace_lowering(
-                            pattern,
-                            &pattern.value_name(),
-                            suffix,
-                            wal_trace,
-                            concrete_ty,
-                            result,
-                            ctx,
-                        )?;
-                    } else {
-                        return Err(Diagnostic::error(
-                            wal_trace,
-                            "#[wal_trace] on struct without #[wal_traceable]",
-                        )
-                        .primary_label(format!("{} does not have #[wal_traceable]", name))
-                        .secondary_label(
-                            pattern,
-                            format!("This has type {} which does not have #[wal_traceable]", hir_ty.display(ctx.types)),
-                        )
-                        .note("This most likely means that the struct can not be analyzed by a wal script"));
-                    }
-                }
-                Some(other) => {
-                    return Err(Diagnostic::error(
-                        wal_trace,
-                        "#[wal_trace] can only be applied to values of struct type",
-                    )
-                    .primary_label(format!("#[wal_trace] on {}", other.name()))
-                    .secondary_label(
-                        pattern,
-                        format!(
-                            "This has type {} which is {}",
-                            hir_ty.display(ctx.types),
-                            other.name()
-                        ),
-                    )
-                    .into());
-                }
-                None => {
-                    diag_bail!(wal_trace, "wal_trace on non-declared type")
-                }
-            }
-        }
-        other => {
-            return Err(Diagnostic::error(
-                wal_trace,
-                "#[wal_trace] can only be applied to values of struct type",
-            )
-            .primary_label(format!("#[wal_trace] on {}", other.display(ctx.types)))
-            .secondary_label(
-                pattern,
-                format!("This has type {}", other.display(ctx.types)),
-            ));
-        }
-    }
-    Ok(())
-}
-
 #[local_impl]
 impl StatementLocal for Statement {
     #[tracing::instrument(name = "Statement::lower", level = "trace", skip(self, ctx))]
@@ -1216,7 +899,6 @@ impl StatementLocal for Statement {
                 pattern,
                 ty: _,
                 value,
-                wal_trace,
             }) => {
                 result.append(value.lower(ctx)?);
 
@@ -1231,10 +913,6 @@ impl StatementLocal for Statement {
                 let mir_ty = concrete_ty.to_mir_type();
 
                 result.append(pattern.lower(value.variable(ctx)?, mir_ty, ctx)?);
-
-                if let Some(wal_trace) = wal_trace {
-                    lower_wal_trace(pattern, wal_trace, ctx, &mut result, &concrete_ty)?;
-                }
             }
             Statement::Expression(expr) => {
                 result.append(expr.lower(ctx)?);
@@ -1301,9 +979,9 @@ impl StatementLocal for Statement {
                         Ok(())
                     }
                     Attribute::Inline => Err(attr.report_unused("register")),
-                    Attribute::VerilogAttrs { .. }
-                    | Attribute::WalTraceable { .. }
-                    | Attribute::Optimize { .. } => Err(attr.report_unused("register")),
+                    Attribute::VerilogAttrs { .. } | Attribute::Optimize { .. } => {
+                        Err(attr.report_unused("register"))
+                    }
                 })?;
 
                 let initial = if let Some(init) = initial {
@@ -1357,19 +1035,6 @@ impl StatementLocal for Statement {
             Statement::Assert(expr) => {
                 result.append(expr.lower(ctx)?);
                 result.push_anonymous(mir::Statement::Assert(expr.variable(ctx)?.at_loc(expr)))
-            }
-            Statement::WalSuffixed { suffix, target } => {
-                let ty = ctx
-                    .types
-                    .concrete_type_of_name(target, ctx.symtab.symtab(), &ctx.item_list.types)?
-                    .to_mir_type();
-
-                result.push_anonymous(mir::Statement::WalTrace {
-                    name: target.value_name(),
-                    val: target.value_name(),
-                    suffix: suffix.as_str().to_owned(),
-                    ty,
-                })
             }
             Statement::Set { target, value } => {
                 result.append(target.lower(ctx)?);
@@ -4028,7 +3693,7 @@ pub fn generate_unit<'a>(
             inline = true;
             Ok(())
         }
-        Attribute::Fsm { .. } | Attribute::WalTraceable { .. } => Err(attr.report_unused("unit")),
+        Attribute::Fsm { .. } => Err(attr.report_unused("unit")),
     })?;
 
     let mut statements = statements.to_vec(&mut *name_source_map.write().unwrap());

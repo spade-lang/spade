@@ -15,7 +15,7 @@ use fixed_types::{t_int, t_uint};
 use hir::expression::CallKind;
 use hir::{
     Binding, ConstGeneric, Parameter, PipelineRegMarkerExtra, TypeExpression, TypeSpec, UnitHead,
-    UnitKind, WalTrace, WhereClause, param_util,
+    UnitKind, WhereClause, param_util,
 };
 type HashMap<K, V> = imbl::GenericHashMap<K, V, rustc_hash::FxBuildHasher, DefaultSharedPtr>;
 use imbl::shared_ptr::DefaultSharedPtr;
@@ -885,7 +885,6 @@ impl TypeState {
                 pattern,
                 ty: _,
                 value: _,
-                wal_trace: _,
             }) => {
                 self.pattern_data_constraint(pattern, pipeline_loc, ctx)?;
             }
@@ -916,7 +915,6 @@ impl TypeState {
             Statement::Label(_) => {}
             Statement::Assert(_) => {}
             Statement::Set { .. } => {}
-            Statement::WalSuffixed { .. } => {}
         }
         Ok(())
     }
@@ -2445,33 +2443,6 @@ impl TypeState {
     }
 
     #[trace_typechecker]
-    pub fn visit_wal_trace(
-        &mut self,
-        trace: &Loc<WalTrace>,
-        ctx: &Context,
-        generic_list: &GenericListToken,
-    ) -> Result<()> {
-        let WalTrace { clk, rst } = &trace.inner;
-        clk.as_ref()
-            .map(|x| {
-                self.visit_expression(x, ctx, generic_list);
-                x.unify_with(&self.t_clock(trace.loc(), ctx.symtab), self)
-                    .commit(self, ctx)
-                    .into_default_diagnostic(x, self)
-            })
-            .transpose()?;
-        rst.as_ref()
-            .map(|x| {
-                self.visit_expression(x, ctx, generic_list);
-                x.unify_with(&self.t_bool(trace.loc(), ctx.symtab), self)
-                    .commit(self, ctx)
-                    .into_default_diagnostic(x, self)
-            })
-            .transpose()?;
-        Ok(())
-    }
-
-    #[trace_typechecker]
     pub fn visit_statement_error(
         &mut self,
         stmt: &Loc<Statement>,
@@ -2493,12 +2464,7 @@ impl TypeState {
                 }
                 Ok(())
             }
-            Statement::Binding(Binding {
-                pattern,
-                ty,
-                value,
-                wal_trace,
-            }) => {
+            Statement::Binding(Binding { pattern, ty, value }) => {
                 trace!("Visiting `let {} = ..`", pattern.kind);
                 self.visit_expression(value, ctx, generic_list);
 
@@ -2522,12 +2488,6 @@ impl TypeState {
                         .into_default_diagnostic(value.loc(), self)
                         .handle_in(&mut self.owned.diags);
                 }
-
-                wal_trace
-                    .as_ref()
-                    .map(|wt| self.visit_wal_trace(wt, ctx, generic_list))
-                    .transpose()
-                    .handle_in(&mut self.owned.diags);
 
                 Ok(())
             }
@@ -2636,7 +2596,6 @@ impl TypeState {
                 .unwrap();
                 Ok(())
             }
-            Statement::WalSuffixed { .. } => Ok(()),
             Statement::Assert(expr) => {
                 self.visit_expression(expr, ctx, generic_list);
 

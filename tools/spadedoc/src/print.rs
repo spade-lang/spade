@@ -5,8 +5,8 @@ use crate::{
     html::Node,
 };
 use spade_ast::{
-    BinaryOperator, Enum, Expression, MacroDef, ParameterList, Struct, TraitDef, TraitSpec,
-    TypeExpression, TypeParam, TypeSpec, UnaryOperator, UnitHead, WhereClause,
+    BinaryOperator, Enum, Expression, ParameterList, Struct, TraitDef, TraitSpec, TypeExpression,
+    TypeParam, TypeSpec, UnaryOperator, UnitHead, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},

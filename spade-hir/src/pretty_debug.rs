@@ -495,12 +495,7 @@ impl PrettyDebug for Statement {
     fn pretty_debug(&self) -> String {
         match self {
             Statement::Error => "{error}".to_string(),
-            Statement::Binding(Binding {
-                pattern,
-                ty,
-                value,
-                wal_trace: _,
-            }) => {
+            Statement::Binding(Binding { pattern, ty, value }) => {
                 format!(
                     "let {}: {} = {};",
                     pattern.pretty_debug(),
@@ -552,7 +547,6 @@ impl PrettyDebug for Statement {
             Statement::Set { target, value } => {
                 format!("set {} = {}", target.pretty_debug(), value.pretty_debug())
             }
-            Statement::WalSuffixed { .. } => format!("[val suffixed]"),
         }
     }
 }

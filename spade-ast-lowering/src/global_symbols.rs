@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use hir::{
-    TypeExpression, WalTraceable,
+    TypeExpression,
     symbol_table::{EnumVariant, StructCallable},
 };
 use spade_ast::{self as ast, Module, ModuleBody};
@@ -55,9 +55,6 @@ pub fn gather_macro_rules(module: &ast::ModuleBody, ctx: &mut Context) -> Result
                     | ast::Attribute::Optimize { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
-                    | ast::Attribute::WalTraceable { .. }
-                    | ast::Attribute::WalTrace { .. }
-                    | ast::Attribute::WalSuffix { .. }
                     | ast::Attribute::Documentation { .. }
                     | ast::Attribute::Inline
                     | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("macro")),
@@ -114,9 +111,6 @@ pub fn handle_external_modules(
                         | ast::Attribute::Optimize { .. }
                         | ast::Attribute::NoMangle { .. }
                         | ast::Attribute::Fsm { .. }
-                        | ast::Attribute::WalTraceable { .. }
-                        | ast::Attribute::WalTrace { .. }
-                        | ast::Attribute::WalSuffix { .. }
                         | ast::Attribute::Documentation { .. }
                         | ast::Attribute::Inline
                         | ast::Attribute::SurferTranslator(_) => {
@@ -239,9 +233,6 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
                     | ast::Attribute::Optimize { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
-                    | ast::Attribute::WalTraceable { .. }
-                    | ast::Attribute::WalTrace { .. }
-                    | ast::Attribute::WalSuffix { .. }
                     | ast::Attribute::Documentation { .. }
                     | ast::Attribute::Inline
                     | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("module")),
@@ -275,9 +266,6 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
                     | ast::Attribute::Optimize { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
-                    | ast::Attribute::WalTraceable { .. }
-                    | ast::Attribute::WalTrace { .. }
-                    | ast::Attribute::WalSuffix { .. }
                     | ast::Attribute::Documentation { .. }
                     | ast::Attribute::Inline
                     | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("use")),
@@ -358,13 +346,10 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
                 ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::Optimize { .. }
                 | ast::Attribute::SurferTranslator(_)
-                | ast::Attribute::WalTraceable { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
-                | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::Inline
-                | ast::Attribute::Deprecated { .. }
-                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
+                | ast::Attribute::Deprecated { .. } => Err(attr.report_unused("trait")),
             })?;
             create_trait_from_unit_heads(
                 hir::TraitName::Named(None, name.at_loc(&def.name)),
@@ -486,12 +471,9 @@ pub fn visit_trait(r#trait: &Loc<ast::TraitDef>, ctx: &mut Context) -> Result<()
         ast::Attribute::VerilogAttrs { .. }
         | ast::Attribute::Optimize { .. }
         | ast::Attribute::SurferTranslator(_)
-        | ast::Attribute::WalTraceable { .. }
         | ast::Attribute::NoMangle { .. }
         | ast::Attribute::Fsm { .. }
-        | ast::Attribute::WalSuffix { .. }
-        | ast::Attribute::Inline
-        | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("trait")),
+        | ast::Attribute::Inline => Err(attr.report_unused("trait")),
     })?;
     ctx.symtab.add_unique_thing(
         Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
@@ -815,12 +797,9 @@ pub fn re_visit_type_declaration(
                     | ast::Attribute::VerilogAttrs { .. }
                     | ast::Attribute::SurferTranslator(_)
                     | ast::Attribute::SpadecParenSugar
-                    | ast::Attribute::WalTraceable { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
-                    | ast::Attribute::WalSuffix { .. }
-                    | ast::Attribute::Inline
-                    | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum variant")),
+                    | ast::Attribute::Inline => Err(attr.report_unused("enum variant")),
                 })?;
 
                 let variant_thing = EnumVariant {
@@ -867,14 +846,11 @@ pub fn re_visit_type_declaration(
                 ast::Attribute::Deprecated { .. } => Ok(None),
                 ast::Attribute::Optimize { .. }
                 | ast::Attribute::VerilogAttrs { .. }
-                | ast::Attribute::WalTraceable { .. }
                 | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
-                | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::SurferTranslator(_)
-                | ast::Attribute::Inline
-                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("enum")),
+                | ast::Attribute::Inline => Err(attr.report_unused("enum")),
             })?;
 
             hir::TypeDeclKind::Enum(
@@ -921,30 +897,9 @@ pub fn re_visit_type_declaration(
                 hir::TypeSpec::Declared(declaration_id.clone(), output_type_exprs.clone())
                     .at_loc(s);
 
-            let mut wal_traceable = None;
             let documentation = s.attributes.merge_docs();
             let mut deprecation_note = None;
             let attributes = s.attributes.lower(&mut |attr| match &attr.inner {
-                ast::Attribute::WalTraceable {
-                    suffix,
-                    uses_rst,
-                    uses_clk,
-                } => {
-                    let suffix = if let Some(suffix) = suffix {
-                        Path::ident(suffix.clone())
-                    } else {
-                        declaration_id.1.clone()
-                    };
-                    wal_traceable = Some(
-                        WalTraceable {
-                            suffix,
-                            uses_clk: *uses_clk,
-                            uses_rst: *uses_rst,
-                        }
-                        .at_loc(attr),
-                    );
-                    Ok(None)
-                }
                 ast::Attribute::Documentation { .. } => Ok(None),
                 ast::Attribute::Deprecated { note, .. } => {
                     deprecation_note = Some(note.clone());
@@ -954,11 +909,9 @@ pub fn re_visit_type_declaration(
                 | ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
-                | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::SurferTranslator(_)
-                | ast::Attribute::Inline
-                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("struct")),
+                | ast::Attribute::Inline => Err(attr.report_unused("struct")),
             })?;
 
             ctx.symtab.add_thing_with_name_id(
@@ -987,36 +940,14 @@ pub fn re_visit_type_declaration(
                 hir::Struct {
                     members,
                     attributes,
-                    wal_traceable,
                     documentation,
                 }
                 .at_loc(s),
             )
         }
         ast::TypeDeclKind::Alias(a) => {
-            let mut wal_traceable = None;
             let documentation = a.attributes.merge_docs();
             let _ = a.attributes.lower(&mut |attr| match &attr.inner {
-                ast::Attribute::WalTraceable {
-                    suffix,
-                    uses_rst,
-                    uses_clk,
-                } => {
-                    let suffix = if let Some(suffix) = suffix {
-                        Path::ident(suffix.clone())
-                    } else {
-                        declaration_id.1.clone()
-                    };
-                    wal_traceable = Some(
-                        WalTraceable {
-                            suffix,
-                            uses_clk: *uses_clk,
-                            uses_rst: *uses_rst,
-                        }
-                        .at_loc(attr),
-                    );
-                    Ok(None)
-                }
                 ast::Attribute::Documentation { .. } | ast::Attribute::Deprecated { .. } => {
                     Ok(None)
                 }
@@ -1024,11 +955,9 @@ pub fn re_visit_type_declaration(
                 | ast::Attribute::VerilogAttrs { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
-                | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::SpadecParenSugar
                 | ast::Attribute::Inline
-                | ast::Attribute::SurferTranslator(_)
-                | ast::Attribute::WalTrace { .. } => Err(attr.report_unused("type alias")),
+                | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("type alias")),
             })?;
 
             let type_spec = visit_type_spec(&a.type_spec, &TypeSpecKind::Alias, ctx)?;
@@ -1049,7 +978,6 @@ pub fn re_visit_type_declaration(
             hir::TypeDeclKind::Alias(
                 hir::TypeAlias {
                     type_spec,
-                    wal_traceable,
                     documentation,
                 }
                 .at_loc(a),

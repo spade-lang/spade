@@ -218,7 +218,6 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
                 .at_loc(&unit),
                 ty: None,
                 value: new_result,
-                wal_trace: None,
             })
             .at_loc(&unit);
 

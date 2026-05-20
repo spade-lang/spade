@@ -138,7 +138,6 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     target: _,
                     value: _,
                 } => {}
-                crate::Statement::WalTrace { .. } => {}
                 crate::Statement::Error => {}
             }
         }
@@ -207,15 +206,6 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                 crate::Statement::Set { target, value } => {
                     target.inner = state.get(target);
                     value.inner = state.get(value);
-                }
-                crate::Statement::WalTrace {
-                    name,
-                    val,
-                    suffix: _,
-                    ty: _,
-                } => {
-                    *name = state.get(name);
-                    *val = state.get(val);
                 }
                 crate::Statement::Error => {}
             }

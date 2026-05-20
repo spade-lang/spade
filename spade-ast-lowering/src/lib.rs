@@ -46,7 +46,7 @@ use hir::expression::{BinaryOperator, IntLiteralKind};
 use hir::param_util::ArgumentError;
 use hir::symbol_table::DeclarationState;
 use hir::symbol_table::{LookupError, SymbolTable, Thing, TypeSymbol};
-use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName, WalTrace};
+use hir::{ConstGeneric, ExecutableItem, PatternKind, TraitName};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use spade_ast::{self as ast, Attribute, Expression, MacroRules, TypeParam, WhereClause};
 pub use spade_common::id_tracker;
@@ -1337,8 +1337,6 @@ pub fn visit_unit(
         hir::UnitName::WithID(id.clone().at_loc(name))
     };
 
-    let mut wal_suffix = None;
-
     let attributes = attributes.lower(&mut |attr: &Loc<ast::Attribute>| match &attr.inner {
         ast::Attribute::Optimize { passes } => Ok(Some(hir::Attribute::Optimize {
             passes: passes.clone(),
@@ -1375,18 +1373,6 @@ pub fn visit_unit(
                 );
                 Ok(None)
             }
-        }
-        ast::Attribute::WalSuffix { suffix } => {
-            if body.is_none() {
-                return Err(
-                    Diagnostic::error(attr, "wal_suffix is not allowed on `extern` units")
-                        .primary_label("Not allowed on `extern` units")
-                        .secondary_label(unit.head.extern_token.unwrap(), "This unit is `extern`"),
-                );
-            }
-
-            wal_suffix = Some(suffix.clone());
-            Ok(None)
         }
         ast::Attribute::VerilogAttrs { entries } => Ok(Some(hir::Attribute::VerilogAttrs {
             entries: entries.clone(),
@@ -1441,38 +1427,10 @@ pub fn visit_unit(
 
     ctx.pipeline_ctx = maybe_perform_pipelining_tasks(unit, &head, ctx)?;
 
-    let mut body = body
+    let body = body
         .as_ref()
         .unwrap()
         .map_ref(|body| visit_expression(&body, ctx));
-
-    // Add wal_suffixes for the signals if requested. This creates new statements
-    // which we'll add to the end of the body
-    if let Some(suffix) = wal_suffix {
-        match &mut body.kind {
-            hir::ExprKind::Block(block) => {
-                block.statements.append(
-                    &mut inputs
-                        .iter()
-                        .map(
-                            |Input {
-                                 wire: _,
-                                 name,
-                                 ty: _,
-                             }| {
-                                hir::Statement::WalSuffixed {
-                                    suffix: suffix.inner.clone(),
-                                    target: name.clone(),
-                                }
-                                .at_loc(&suffix)
-                            },
-                        )
-                        .collect(),
-                );
-            }
-            _ => diag_bail!(body, "Unit body was not block"),
-        }
-    }
 
     ctx.symtab.close_scope();
     ctx.current_unit = None;
@@ -1950,31 +1908,7 @@ fn try_visit_statement(
 
             let pattern = pattern.try_visit(visit_pattern, ctx)?;
 
-            let mut wal_trace = None;
             attrs.lower(&mut |attr| match &attr.inner {
-                ast::Attribute::WalTrace { clk, rst } => {
-                    wal_trace = Some(
-                        WalTrace {
-                            clk: clk.as_ref().map(|x| x.visit(visit_expression, ctx)),
-                            rst: rst.as_ref().map(|x| x.visit(visit_expression, ctx)),
-                        }
-                        .at_loc(attr),
-                    );
-                    Ok(None)
-                }
-                ast::Attribute::WalSuffix { suffix } => {
-                    // All names in the pattern should have the suffix applied to them
-                    for name in pattern.get_names() {
-                        stmts.push(
-                            hir::Statement::WalSuffixed {
-                                suffix: suffix.inner.clone(),
-                                target: name.clone(),
-                            }
-                            .at_loc(suffix),
-                        );
-                    }
-                    Ok(None)
-                }
                 ast::Attribute::VerilogAttrs { entries }
                     if inject_verilog_attrs(&mut value, entries) =>
                 {
@@ -1988,8 +1922,7 @@ fn try_visit_statement(
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::SpadecParenSugar
-                | ast::Attribute::Inline
-                | ast::Attribute::WalTraceable { .. } => Err(attr.report_unused("let binding")),
+                | ast::Attribute::Inline => Err(attr.report_unused("let binding")),
             })?;
 
             stmts.push(
@@ -1997,7 +1930,6 @@ fn try_visit_statement(
                     pattern,
                     ty: hir_type,
                     value,
-                    wal_trace,
                 })
                 .at_loc(s),
             );
@@ -2012,8 +1944,6 @@ fn try_visit_statement(
                     Ok(None)
                 }
                 ast::Attribute::VerilogAttrs { .. }
-                | ast::Attribute::WalTrace { .. }
-                | ast::Attribute::WalSuffix { .. }
                 | ast::Attribute::NoMangle { .. }
                 | ast::Attribute::Fsm { .. }
                 | ast::Attribute::Optimize { .. }
@@ -2021,10 +1951,7 @@ fn try_visit_statement(
                 | ast::Attribute::Documentation { .. }
                 | ast::Attribute::SurferTranslator(_)
                 | ast::Attribute::SpadecParenSugar
-                | ast::Attribute::Inline
-                | ast::Attribute::WalTraceable { .. } => {
-                    Err(attr.report_unused("expression statement"))
-                }
+                | ast::Attribute::Inline => Err(attr.report_unused("expression statement")),
             })?;
             Ok(vec![hir::Statement::Expression(value).at_loc(expr)])
         }
@@ -2879,19 +2806,6 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
                 };
 
                 Ok(Some(hir::Attribute::Fsm { state: name_id }))
-            }
-            ast::Attribute::WalSuffix { suffix } => {
-                // All names in the pattern should have the suffix applied to them
-                for name in pattern.get_names() {
-                    stmts.push(
-                        hir::Statement::WalSuffixed {
-                            suffix: suffix.inner.clone(),
-                            target: name.clone(),
-                        }
-                        .at_loc(suffix),
-                    );
-                }
-                Ok(None)
             }
             _ => Err(attr.report_unused("a register")),
         })

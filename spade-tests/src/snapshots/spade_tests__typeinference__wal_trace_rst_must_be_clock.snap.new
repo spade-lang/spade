@@ -1,0 +1,24 @@
+---
+source: spade-tests/src/typeinference.rs
+assertion_line: 765
+---
+#[wal_traceable(suffix = __)]
+struct T {}
+fn test(t: T, x: int<10>) -> bool {
+    #[wal_trace(rst=x)]
+    let t = t;
+    false
+}
+
+
+error: Unknown attribute 'wal_traceable'
+  ┌─ testinput:1:3
+  │
+1 │ #[wal_traceable(suffix = __)]
+  │   ^^^^^^^^^^^^^ Unrecognised attribute
+
+error: Unknown attribute 'wal_trace'
+  ┌─ testinput:4:7
+  │
+4 │     #[wal_trace(rst=x)]
+  │       ^^^^^^^^^ Unrecognised attribute

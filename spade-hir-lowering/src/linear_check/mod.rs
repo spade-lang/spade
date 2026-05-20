@@ -84,7 +84,6 @@ pub fn visit_statement(
             pattern,
             ty: _,
             value,
-            wal_trace: _,
         }) => {
             visit_expression(value, linear_state, ctx)?;
             linear_state.consume_expression(value)?;
@@ -138,7 +137,6 @@ pub fn visit_statement(
         },
         Statement::Label(_) => {}
         Statement::Assert(_) => {}
-        Statement::WalSuffixed { .. } => {}
         Statement::Set { target, value } => {
             visit_expression(target, linear_state, ctx)?;
             visit_expression(value, linear_state, ctx)?;

@@ -355,40 +355,6 @@ code_compiles! {
 }
 
 snapshot_error! {
-    wal_traceable_with_unexpected_param_is_error,
-    "
-        #[wal_traceable(a, uses_clk, this_is_not_valid)]
-        struct T {}
-    "
-}
-
-snapshot_error! {
-    wal_trace_does_not_accept_duplicate_clk,
-    "
-        #[wal_trace(clk=x, clk=x)]
-        struct T {}
-    "
-}
-snapshot_error! {
-    wal_trace_does_not_accept_bad_parameter,
-    "
-        #[wal_trace(clk=x, not_a_param=x)]
-        struct T {}
-    "
-}
-
-snapshot_error! {
-    required_parameter_message_is_helpful,
-    "
-        fn main() -> bool {
-            #[wal_suffix()]
-            let x = 0;
-            x
-        }
-    "
-}
-
-snapshot_error! {
     multiple_resets_triggers_error,
     "
     entity main() -> bool {

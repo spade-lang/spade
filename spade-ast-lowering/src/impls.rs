@@ -54,7 +54,6 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
             kind: hir::TypeDeclKind::Alias(
                 hir::TypeAlias {
                     type_spec: target_type.clone(),
-                    wal_traceable: None,
                     documentation: String::new(),
                 }
                 .nowhere(),

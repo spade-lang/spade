@@ -74,7 +74,6 @@ pub fn handle_statement(
         Statement::Binding(Binding {
             pattern: pat,
             value: expr,
-            wal_trace: _,
             ty: _,
         }) => {
             let time = expr.inner.available_in(ctx)?;
@@ -202,9 +201,6 @@ pub fn handle_statement(
         }
         Statement::Assert(_) => {
             // Assertions have no effect on pipeline state
-        }
-        Statement::WalSuffixed { .. } => {
-            // Wal suffixes have no effect on pipeline state
         }
         Statement::Set { .. } => {
             // Set have no effect on pipeline state

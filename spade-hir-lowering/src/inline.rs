@@ -82,17 +82,6 @@ impl<'a> InlinedStatements<'a> {
                             target: get_final_name(target).at_loc(target),
                             value: get_final_name(value).at_loc(value),
                         },
-                        Statement::WalTrace {
-                            name,
-                            val,
-                            suffix,
-                            ty,
-                        } => Statement::WalTrace {
-                            name: get_final_name(name),
-                            val: get_final_name(val),
-                            suffix: suffix.clone(),
-                            ty: ty.clone(),
-                        },
                     };
                     new_statements.push(new);
                 }
@@ -290,7 +279,6 @@ fn perform_inlining<'a>(
                                     Statement::Error => None,
                                     Statement::Assert(_) => None,
                                     Statement::Set { .. } => None,
-                                    Statement::WalTrace { .. } => None,
                                 })
                                 .collect::<Vec<_>>();
 

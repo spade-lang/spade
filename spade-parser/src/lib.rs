@@ -2411,37 +2411,6 @@ impl<'a> Parser<'a> {
                 Ok(result)
             }
             "inline" => Ok(Attribute::Inline),
-            "wal_trace" => {
-                if self.peek_kind(&TokenKind::OpenParen)? {
-                    Ok(attribute_arg_parser!(
-                        start,
-                        self,
-                        s,
-                        Attribute::WalTrace {
-                            clk: { s.expression() },
-                            rst: { s.expression() }
-                        }
-                    ))
-                } else {
-                    Ok(Attribute::WalTrace {
-                        clk: None,
-                        rst: None,
-                    })
-                }
-            }
-            "wal_traceable" => Ok(attribute_arg_parser!(
-                start,
-                self,
-                s,
-                Attribute::WalTraceable {
-                    suffix: { s.normal_identifier() },
-                    uses_clk: bool,
-                    uses_rst: bool
-                }
-            )),
-            "wal_suffix" => Ok(attribute_arg_parser!(start, self, s, Attribute::WalSuffix {
-                suffix [required]: {s.normal_identifier()}
-            })),
             other => Err(
                 Diagnostic::error(&start, format!("Unknown attribute '{other}'"))
                     .primary_label("Unrecognised attribute"),

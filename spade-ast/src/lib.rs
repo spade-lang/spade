@@ -707,19 +707,6 @@ pub enum Attribute {
     Fsm {
         state: Option<Loc<Identifier>>,
     },
-    WalTraceable {
-        suffix: Option<Loc<Identifier>>,
-        uses_clk: bool,
-        uses_rst: bool,
-    },
-    WalTrace {
-        clk: Option<Loc<Expression>>,
-        rst: Option<Loc<Expression>>,
-    },
-    /// Create a copy of the marked signal with the specified suffix applied
-    WalSuffix {
-        suffix: Loc<Identifier>,
-    },
     Documentation {
         content: String,
     },
@@ -736,9 +723,6 @@ impl Attribute {
             Attribute::Deprecated { .. } => "deprecated",
             Attribute::NoMangle { .. } => "no_mangle",
             Attribute::Fsm { .. } => "fsm",
-            Attribute::WalTraceable { .. } => "wal_traceable",
-            Attribute::WalTrace { .. } => "wal_trace",
-            Attribute::WalSuffix { .. } => "wal_suffix",
             Attribute::Documentation { .. } => "doc",
             Attribute::SurferTranslator(_) => "surfer_translator",
             Attribute::Inline => "inline",

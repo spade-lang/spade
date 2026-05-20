@@ -65,7 +65,6 @@ impl<'a> Pass for FlattenRegs<'a> {
             Statement::Label(_) => Ok(None),
             Statement::Assert(_) => Ok(None),
             Statement::Set { .. } => Ok(None),
-            Statement::WalSuffixed { .. } => Ok(None),
         }
     }
 

@@ -605,7 +605,7 @@ fn codegen(
                 }
                 let bumpy_mir_entity = mir.clone();
 
-                let codegenable = prepare_codegen(mir, idtracker);
+                let codegenable = prepare_codegen(mir);
 
                 let mut local_instance_map = InstanceMap::new();
                 let code = spade_mir::codegen::entity_code(

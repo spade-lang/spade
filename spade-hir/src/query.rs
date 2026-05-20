@@ -270,7 +270,6 @@ impl<'a> QueryCache {
                 pattern,
                 ty: _,
                 value,
-                wal_trace: _,
             }) => {
                 self.visit_pattern(pattern);
                 // FIXME: Handle ty
@@ -315,10 +314,6 @@ impl<'a> QueryCache {
                 self.visit_expression(target);
                 self.visit_expression(value);
             }
-            Statement::WalSuffixed {
-                suffix: _,
-                target: _,
-            } => {}
         }
     }
 
