@@ -3571,6 +3571,8 @@ dependencies = [
 name = "spade-mir-lowering"
 version = "0.18.0"
 dependencies = [
+ "spade-common",
+ "spade-diagnostics",
  "spade-lir",
  "spade-mir",
 ]
