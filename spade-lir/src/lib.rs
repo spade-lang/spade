@@ -94,12 +94,22 @@ pub enum Operator {
     BitwiseNot,
     // Divide op[0] by 2**op[1] rounding towards 0
     DivPow2,
+
     Concat,
     Slice,
     RangeSlice(BigUint, BigUint),
+    /// Replicate [0] `copies` times
+    Replicate{copies: BigUint},
 
     /// Select [1] if [0] else [2]
     Select,
+    /// Corresponds to a match statement. If value [0] is true, select [1], if [2] holds, select
+    /// [3] and so on. Values are priorotized in order, i.e. if both [0] and [2] hold, [1] is
+    /// selected
+    // NOTE: We may want to add a MatchUnique for cases where we can guarantee uniqueness,
+    // typically match statements with no wildcards
+    Match,
+
     /// Create a mutable array which is modified on the rising edge of the first argument.
     /// the second argument is an array of (write enable, write address, write data) tuples
     /// which update the array.
@@ -176,10 +186,12 @@ impl std::fmt::Display for Operator {
             Operator::USub => write!(f, "USub"),
             Operator::Not => write!(f, "Not"),
             Operator::Select => write!(f, "Select"),
+            Operator::Match => write!(f, "Match"),
             Operator::LeftShift => write!(f, "LeftShift"),
             Operator::DivPow2 => write!(f, "DivPow2"),
             Operator::Concat => write!(f, "Concat"),
             Operator::Slice => write!(f, "Slice"),
+            Operator::Replicate { copies } => write!(f, "Replicate({copies})"),
             Operator::RangeSlice(start, end) => write!(f, "RangeSlice({start}, {end})"),
             Operator::DeclClockedMemory { initial } => write!(
                 f,
