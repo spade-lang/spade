@@ -331,7 +331,13 @@ yowasp:publish:
 yowasp:playground:
   stage: yowasp
   needs: [yowasp:publish]
-  trigger: spade-lang/playground
+  script: |
+      curl -X 'POST' \
+        'https://codeberg.org/api/v1/repos/spade-lang/playground/actions/workflows/publish.yml/dispatches' \
+        -H 'accept: application/json' \
+        -H 'Authorization: token ${CODEBERG_DISPATCH_TOKEN}' \
+        -H 'Content-Type: application/json' \
+        -d '{"ref": "main"}'
   rules:
     # only publish on the main branch
     - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
