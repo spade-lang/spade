@@ -32,6 +32,15 @@ pub enum Type {
     InOut(Box<Type>),
 }
 
+impl Type {
+    pub fn size(&self) -> BigUint {
+        match self {
+            Type::BitVector(s) => s.clone(),
+            Type::InOut(inner) => inner.size(),
+        }
+    }
+}
+
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -96,8 +105,14 @@ pub enum Operator {
     DivPow2,
 
     Concat,
-    Slice,
-    RangeSlice(BigUint, BigUint),
+    BackConcat,
+    /// Slice `op[0]` at a runtime offset of `op[1]`, i.e. `op[0][op[0]..op[0] + elem_size]`
+    /// If reversed is true, the 0th index is at the msb of the target rather than the lsb, i.e.
+    /// `op[0](size - op[0] - elem_size .. size - op[0])
+    Slice{elem_size: BigUint, reversed: bool},
+    BackSlice{elem_size: BigUint, reversed: bool},
+    RangeSlice{start: BigUint, end_exclusive: BigUint},
+    BackRangeSlice(BigUint, BigUint),
     /// Replicate [0] `copies` times
     Replicate{copies: BigUint},
 
@@ -190,9 +205,12 @@ impl std::fmt::Display for Operator {
             Operator::LeftShift => write!(f, "LeftShift"),
             Operator::DivPow2 => write!(f, "DivPow2"),
             Operator::Concat => write!(f, "Concat"),
-            Operator::Slice => write!(f, "Slice"),
+            Operator::BackConcat => write!(f, "BackConcat"),
+            Operator::Slice{elem_size, reversed} => write!(f, "Slice({elem_size}, {reversed})"),
+            Operator::BackSlice{elem_size, reversed} => write!(f, "BackSlice({elem_size}, {reversed})"),
             Operator::Replicate { copies } => write!(f, "Replicate({copies})"),
-            Operator::RangeSlice(start, end) => write!(f, "RangeSlice({start}, {end})"),
+            Operator::RangeSlice{start, end_exclusive} => write!(f, "RangeSlice({start}, {end_exclusive})"),
+            Operator::BackRangeSlice(start, end) => write!(f, "BackRangeSlice({start}, {end})"),
             Operator::DeclClockedMemory { initial } => write!(
                 f,
                 "DeclClockedMemory({})",
