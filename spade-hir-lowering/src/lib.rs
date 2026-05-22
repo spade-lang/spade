@@ -334,23 +334,30 @@ impl NameIDExt for NameID {
 }
 
 struct PatternCondition {
-    pub statements: Vec<mir::Statement>,
-    pub result_name: ValueName,
+    pub statements: Vec<Loc<mir::Statement>>,
+    pub result_name: Loc<ValueName>,
 }
 
 /// Returns a name which is `true` if all of `ops` are true, along with helper
 /// statements required for that computation. If `ops` is empt, a single `true` constant
 /// is returned
-pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::Statement>, ValueName) {
+pub fn all_conditions(
+    loc: Loc<()>,
+    ops: Vec<Loc<ValueName>>,
+    ctx: &mut Context,
+) -> (Vec<Loc<mir::Statement>>, Loc<ValueName>) {
     if ops.is_empty() {
         let id = ctx.idtracker.next();
         (
-            vec![mir::Statement::Constant(
-                ValueName::Expr(id),
-                MirType::Bool,
-                ConstantValue::Bool(true),
-            )],
-            ValueName::Expr(id),
+            vec![
+                mir::Statement::Constant(
+                    ValueName::Expr(id).at_loc(&loc),
+                    MirType::Bool,
+                    ConstantValue::Bool(true),
+                )
+                .near_loc(&loc),
+            ],
+            ValueName::Expr(id).near_loc(&loc),
         )
     } else if ops.len() == 1 {
         (vec![], ops[0].clone())
@@ -358,14 +365,17 @@ pub fn all_conditions(ops: Vec<ValueName>, ctx: &mut Context) -> (Vec<mir::State
         let mut result_name = ops[0].clone();
         let mut statements = vec![];
         for op in &ops[1..] {
-            let new_name = ValueName::Expr(ctx.idtracker.next());
-            statements.push(mir::Statement::Binding(mir::Binding {
-                name: new_name.clone(),
-                operator: mir::Operator::LogicalAnd,
-                operands: vec![result_name, op.clone()],
-                ty: MirType::Bool,
-                loc: None,
-            }));
+            let new_name = ValueName::Expr(ctx.idtracker.next()).at_loc(&loc);
+            statements.push(
+                mir::Statement::Binding(mir::Binding {
+                    name: new_name.clone(),
+                    operator: mir::Operator::LogicalAnd,
+                    operands: vec![result_name, op.clone()],
+                    ty: MirType::Bool,
+                    loc: None,
+                })
+                .near_loc(&loc),
+            );
             result_name = new_name;
         }
         (statements, result_name)
@@ -378,7 +388,7 @@ impl PatternLocal for Loc<Pattern> {
     /// self_name. Used if this is handled elsewhere
     fn lower_no_initial_binding(
         &self,
-        self_name: ValueName,
+        self_name: Loc<ValueName>,
         ctx: &mut Context,
     ) -> Result<StatementList> {
         let mut result = StatementList::new();
@@ -387,7 +397,7 @@ impl PatternLocal for Loc<Pattern> {
             &ctx.types
                 .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
         {
-            result.push_primary(spade_mir::Statement::Error, self);
+            result.push_primary(spade_mir::Statement::Error.at_loc(&self), self);
 
             return Ok(result);
         }
@@ -409,7 +419,8 @@ impl PatternLocal for Loc<Pattern> {
                             operands: vec![self_name.clone()],
                             ty,
                             loc: Some(self.loc()),
-                        }),
+                        })
+                        .at_loc(&self),
                         pat.as_ref(),
                     );
 
@@ -430,7 +441,8 @@ impl PatternLocal for Loc<Pattern> {
                             operands: vec![self_name.clone()],
                             ty,
                             loc: Some(self.loc()),
-                        }),
+                        })
+                        .at_loc(&self),
                         p,
                     );
 
@@ -443,10 +455,11 @@ impl PatternLocal for Loc<Pattern> {
                     let idx_id = ctx.idtracker.next();
                     result.push_secondary(
                         mir::Statement::Constant(
-                            ValueName::Expr(idx_id),
+                            ValueName::Expr(idx_id).at_loc(self),
                             index_ty.clone(),
                             mir::ConstantValue::Int(i.to_bigint()),
-                        ),
+                        )
+                        .at_loc(&self),
                         p,
                         "destructured array index",
                     );
@@ -454,13 +467,14 @@ impl PatternLocal for Loc<Pattern> {
                         mir::Statement::Binding(mir::Binding {
                             name: p.value_name(),
                             operator: mir::Operator::IndexArray,
-                            operands: vec![self_name.clone(), ValueName::Expr(idx_id)],
+                            operands: vec![self_name.clone(), ValueName::Expr(idx_id).at_loc(self)],
                             ty: ctx
                                 .types
                                 .concrete_type_of(p, ctx.symtab.symtab(), &ctx.item_list.types)?
                                 .to_mir_type(),
                             loc: Some(self.loc()),
-                        }),
+                        })
+                        .at_loc(&self),
                         p,
                     );
 
@@ -495,7 +509,8 @@ impl PatternLocal for Loc<Pattern> {
                                         )?
                                         .to_mir_type(),
                                     loc: Some(self.loc()),
-                                }),
+                                })
+                                .at_loc(self),
                                 value,
                             );
 
@@ -523,7 +538,8 @@ impl PatternLocal for Loc<Pattern> {
                                         )?
                                         .to_mir_type(),
                                     loc: Some(self.loc()),
-                                }),
+                                })
+                                .at_loc(&self),
                                 &p.value,
                             );
 
@@ -546,7 +562,7 @@ impl PatternLocal for Loc<Pattern> {
     #[tracing::instrument(name = "Pattern::lower", level = "trace", skip(self, self_ty, ctx))]
     fn lower(
         &self,
-        self_name: ValueName,
+        self_name: Loc<ValueName>,
         self_ty: MirType,
         ctx: &mut Context,
     ) -> Result<StatementList> {
@@ -559,7 +575,8 @@ impl PatternLocal for Loc<Pattern> {
                 operands: vec![self_name.clone()],
                 ty: self_ty.clone(),
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -573,8 +590,8 @@ impl PatternLocal for Loc<Pattern> {
     #[tracing::instrument(level = "trace", skip(self, ctx))]
     fn condition(
         &self,
-        value_name: &ValueName,
-        if_cond_name: Option<ValueName>,
+        value_name: &Loc<ValueName>,
+        if_cond_name: Option<Loc<ValueName>>,
         ctx: &mut Context,
     ) -> Result<PatternCondition> {
         let output_id = ctx.idtracker.next();
@@ -587,10 +604,11 @@ impl PatternLocal for Loc<Pattern> {
                 let const_id = ctx.idtracker.next();
                 let statements = match c {
                     Some(c) => {
-                        let intermediate_name = ValueName::Expr(ctx.idtracker.next());
+                        let intermediate_name =
+                            ValueName::Expr(ctx.idtracker.next()).near_loc(self);
                         vec![
                             mir::Statement::Constant(
-                                ValueName::Expr(const_id),
+                                ValueName::Expr(const_id).at_loc(self),
                                 self_type.to_mir_type(),
                                 ConstantValue::Int(val.clone()),
                             ),
@@ -598,11 +616,14 @@ impl PatternLocal for Loc<Pattern> {
                                 name: intermediate_name.clone(),
                                 ty: MirType::Bool,
                                 operator: mir::Operator::Eq,
-                                operands: vec![value_name.clone(), ValueName::Expr(const_id)],
+                                operands: vec![
+                                    value_name.clone(),
+                                    ValueName::Expr(const_id).near_loc(self),
+                                ],
                                 loc: None,
                             }),
                             mir::Statement::Binding(mir::Binding {
-                                name: result_name.clone(),
+                                name: result_name.clone().at_loc(self),
                                 ty: MirType::Bool,
                                 operator: mir::Operator::LogicalAnd,
                                 operands: vec![intermediate_name, c],
@@ -612,34 +633,43 @@ impl PatternLocal for Loc<Pattern> {
                     }
                     None => vec![
                         mir::Statement::Constant(
-                            ValueName::Expr(const_id),
+                            ValueName::Expr(const_id).near_loc(self),
                             self_type.to_mir_type(),
                             ConstantValue::Int(val.clone()),
                         ),
                         mir::Statement::Binding(mir::Binding {
-                            name: result_name.clone(),
+                            name: result_name.clone().near_loc(self),
                             ty: MirType::Bool,
                             operator: mir::Operator::Eq,
-                            operands: vec![value_name.clone(), ValueName::Expr(const_id)],
+                            operands: vec![
+                                value_name.clone(),
+                                ValueName::Expr(const_id).near_loc(self),
+                            ],
                             loc: None,
                         }),
                     ],
                 };
 
                 Ok(PatternCondition {
-                    statements,
-                    result_name,
+                    statements: statements
+                        .into_iter()
+                        .map(|stmt| stmt.at_loc(&self))
+                        .collect(),
+                    result_name: result_name.near_loc(self),
                 })
             }
             (hir::PatternKind::Bool(true), Some(c)) => Ok(PatternCondition {
-                statements: vec![mir::Statement::Binding(mir::Binding {
-                    name: result_name.clone(),
-                    ty: MirType::Bool,
-                    operator: mir::Operator::LogicalAnd,
-                    operands: vec![value_name.clone(), c],
-                    loc: None,
-                })],
-                result_name: result_name,
+                statements: vec![
+                    mir::Statement::Binding(mir::Binding {
+                        name: result_name.clone().near_loc(self),
+                        ty: MirType::Bool,
+                        operator: mir::Operator::LogicalAnd,
+                        operands: vec![value_name.clone(), c],
+                        loc: None,
+                    })
+                    .near_loc(&self),
+                ],
+                result_name: result_name.near_loc(self),
             }),
             (hir::PatternKind::Bool(true), None) => Ok(PatternCondition {
                 statements: vec![],
@@ -651,32 +681,37 @@ impl PatternLocal for Loc<Pattern> {
                 Ok(PatternCondition {
                     statements: vec![
                         mir::Statement::Binding(mir::Binding {
-                            name: negated_value_name.clone(),
+                            name: negated_value_name.clone().near_loc(self),
                             ty: MirType::Bool,
                             operator: mir::Operator::LogicalNot,
                             operands: vec![value_name.clone()],
                             loc: None,
-                        }),
+                        })
+                        .near_loc(&self),
                         mir::Statement::Binding(mir::Binding {
-                            name: result_name.clone(),
+                            name: result_name.clone().near_loc(self),
                             ty: MirType::Bool,
                             operator: mir::Operator::LogicalAnd,
-                            operands: vec![negated_value_name, c],
+                            operands: vec![negated_value_name.near_loc(self), c],
                             loc: None,
-                        }),
+                        })
+                        .near_loc(&self),
                     ],
-                    result_name,
+                    result_name: result_name.near_loc(self),
                 })
             }
             (hir::PatternKind::Bool(false), None) => Ok(PatternCondition {
-                statements: vec![mir::Statement::Binding(mir::Binding {
-                    name: result_name.clone(),
-                    ty: MirType::Bool,
-                    operator: mir::Operator::LogicalNot,
-                    operands: vec![value_name.clone()],
-                    loc: None,
-                })],
-                result_name,
+                statements: vec![
+                    mir::Statement::Binding(mir::Binding {
+                        name: result_name.clone().near_loc(self),
+                        ty: MirType::Bool,
+                        operator: mir::Operator::LogicalNot,
+                        operands: vec![value_name.clone()],
+                        loc: None,
+                    })
+                    .near_loc(&self),
+                ],
+                result_name: result_name.near_loc(self),
             }),
             (
                 hir::PatternKind::Bound {
@@ -686,35 +721,42 @@ impl PatternLocal for Loc<Pattern> {
             ) => {
                 let mut pat_cond = pat.condition(&pat.value_name(), c, ctx)?;
 
-                pat_cond
-                    .statements
-                    .push(mir::Statement::Binding(mir::Binding {
-                        name: result_name.clone(),
+                pat_cond.statements.push(
+                    mir::Statement::Binding(mir::Binding {
+                        name: result_name.clone().near_loc(self),
                         ty: MirType::Bool,
                         operator: mir::Operator::Alias,
                         operands: vec![pat_cond.result_name.clone()],
                         loc: None,
-                    }));
+                    })
+                    .near_loc(&self),
+                );
 
                 Ok(pat_cond)
             }
             (hir::PatternKind::Bound { inner: None, .. }, Some(c)) => Ok(PatternCondition {
-                statements: vec![mir::Statement::Binding(mir::Binding {
-                    name: result_name.clone(),
-                    ty: MirType::Bool,
-                    operator: mir::Operator::Alias,
-                    operands: vec![c],
-                    loc: None,
-                })],
-                result_name,
+                statements: vec![
+                    mir::Statement::Binding(mir::Binding {
+                        name: result_name.clone().near_loc(self),
+                        ty: MirType::Bool,
+                        operator: mir::Operator::Alias,
+                        operands: vec![c],
+                        loc: None,
+                    })
+                    .near_loc(&self),
+                ],
+                result_name: result_name.near_loc(self),
             }),
             (hir::PatternKind::Bound { inner: None, .. }, None) => Ok(PatternCondition {
-                statements: vec![mir::Statement::Constant(
-                    ValueName::Expr(output_id),
-                    MirType::Bool,
-                    mir::ConstantValue::Bool(true),
-                )],
-                result_name,
+                statements: vec![
+                    mir::Statement::Constant(
+                        ValueName::Expr(output_id).near_loc(self),
+                        MirType::Bool,
+                        mir::ConstantValue::Bool(true),
+                    )
+                    .near_loc(&self),
+                ],
+                result_name: result_name.near_loc(self),
             }),
             (hir::PatternKind::Tuple(branches), c) | (hir::PatternKind::Array(branches), c) => {
                 let subpatterns = branches
@@ -733,7 +775,7 @@ impl PatternLocal for Loc<Pattern> {
                     .flat_map(|sub| sub.statements.into_iter())
                     .collect::<Vec<_>>();
 
-                let (mut new_statements, result_name) = all_conditions(conditions, ctx);
+                let (mut new_statements, result_name) = all_conditions(self.loc(), conditions, ctx);
                 statements.append(&mut new_statements);
 
                 Ok(PatternCondition {
@@ -751,7 +793,7 @@ impl PatternLocal for Loc<Pattern> {
                         let enum_variant = ctx.symtab.symtab().enum_variant_by_id(path);
 
                         mir::Statement::Binding(mir::Binding {
-                            name: self_condition_name.clone(),
+                            name: self_condition_name.clone().near_loc(self),
                             operator: mir::Operator::IsEnumVariant {
                                 variant: enum_variant.option,
                             },
@@ -761,7 +803,7 @@ impl PatternLocal for Loc<Pattern> {
                         })
                     }
                     PatternableKind::Struct => mir::Statement::Constant(
-                        ValueName::Expr(self_condition_id),
+                        ValueName::Expr(self_condition_id).near_loc(self),
                         MirType::Bool,
                         ConstantValue::Bool(true),
                     ),
@@ -769,9 +811,9 @@ impl PatternLocal for Loc<Pattern> {
 
                 // let enum_variant = ctx.symtab.symtab().enum_variant_by_id(path);
 
-                let mut conditions = vec![self_condition_name];
+                let mut conditions = vec![self_condition_name.near_loc(self)];
                 let mut cond_statements = vec![];
-                cond_statements.push(self_condition);
+                cond_statements.push(self_condition.near_loc(&self));
                 for p in args.iter() {
                     // NOTE: We know that `lower` will generate a binding for this
                     // argument with the specified value_name, so we can just use that
@@ -786,7 +828,8 @@ impl PatternLocal for Loc<Pattern> {
                     conditions.push(if_cond_name);
                 }
 
-                let (mut extra_statements, result_name) = all_conditions(conditions, ctx);
+                let (mut extra_statements, result_name) =
+                    all_conditions(self.loc(), conditions, ctx);
                 cond_statements.append(&mut extra_statements);
 
                 Ok(PatternCondition {
@@ -803,21 +846,20 @@ impl PatternLocal for Loc<Pattern> {
     ///
     /// This is done to avoid creating too many unnecessary ExprID variables
     /// in the output code to make it more readable
-    fn value_name(&self) -> ValueName {
+    fn value_name(&self) -> Loc<ValueName> {
         match &self.kind {
             hir::PatternKind::Bound {
                 name,
                 inner: _,
                 pre_declared: _,
                 wire: _,
-            } => return name.value_name(),
-            hir::PatternKind::Integer(_) => {}
-            hir::PatternKind::Bool(_) => {}
-            hir::PatternKind::Tuple(_) => {}
-            hir::PatternKind::Type(_, _) => {}
-            hir::PatternKind::Array(_) => {}
+            } => name.value_name().at_loc(self),
+            hir::PatternKind::Integer(_)
+            | hir::PatternKind::Bool(_)
+            | hir::PatternKind::Tuple(_)
+            | hir::PatternKind::Type(_, _)
+            | hir::PatternKind::Array(_) => ValueName::Expr(self.id).at_loc(self),
         }
-        ValueName::Expr(self.id)
     }
 
     /// Return true if this pattern is just an alias for another name. If this is not
@@ -891,12 +933,12 @@ impl PatternLocal for Loc<Pattern> {
 }
 
 #[local_impl]
-impl StatementLocal for Statement {
+impl StatementLocal for Loc<Statement> {
     #[tracing::instrument(name = "Statement::lower", level = "trace", skip(self, ctx))]
     fn lower(&self, ctx: &mut Context) -> Result<StatementList> {
         let mut result = StatementList::new();
-        match self {
-            Statement::Error => result.push_anonymous(mir::Statement::Error),
+        match &self.inner {
+            Statement::Error => result.push_anonymous(mir::Statement::Error.at_loc(self)),
             Statement::Binding(hir::Binding {
                 pattern,
                 ty: _,
@@ -1021,8 +1063,8 @@ impl StatementLocal for Statement {
                         initial,
                         value: value.variable(ctx)?,
                         loc: Some(pattern.loc()),
-                        traced,
-                    }),
+                    })
+                    .at_loc(&self),
                     pattern,
                 );
 
@@ -1036,15 +1078,18 @@ impl StatementLocal for Statement {
             Statement::Label(_) => {}
             Statement::Assert(expr) => {
                 result.append(expr.lower(ctx)?);
-                result.push_anonymous(mir::Statement::Assert(expr.variable(ctx)?.at_loc(expr)))
+                result.push_anonymous(mir::Statement::Assert(expr.variable(ctx)?).at_loc(&self))
             }
             Statement::Set { target, value } => {
                 result.append(target.lower(ctx)?);
                 result.append(value.lower(ctx)?);
-                result.push_anonymous(mir::Statement::Set {
-                    target: target.variable(ctx)?.at_loc(target),
-                    value: value.variable(ctx)?.at_loc(value),
-                })
+                result.push_anonymous(
+                    mir::Statement::Set {
+                        target: target.variable(ctx)?,
+                        value: value.variable(ctx)?,
+                    }
+                    .near_loc(&self),
+                )
             }
         }
         Ok(result)
@@ -1060,7 +1105,7 @@ impl ExprLocal for Loc<Expression> {
     /// If the verilog code for this expression is just an alias for another variable
     /// that is returned here. This allows us to skip generating wires that we don't
     /// really need
-    fn alias(&self, ctx: &Context) -> Result<Option<mir::ValueName>> {
+    fn alias(&self, ctx: &Context) -> Result<Option<Loc<mir::ValueName>>> {
         let subs = &ctx.subs;
         match &self.kind {
             ExprKind::Error => Ok(None),
@@ -1104,8 +1149,10 @@ impl ExprLocal for Loc<Expression> {
                             )),
                     )
                 }
-                Substitution::Available(current) => Ok(Some(current.value_name())),
-                Substitution::Wire | Substitution::ZeroSized => Ok(Some(ident.value_name())),
+                Substitution::Available(current) => Ok(Some(current.value_name().at_loc(&self))),
+                Substitution::Wire | Substitution::ZeroSized => {
+                    Ok(Some(ident.value_name().at_loc(&self)))
+                }
             },
             ExprKind::IntLiteral(_, _) => Ok(None),
             ExprKind::TypeLevelBool(_) => Ok(None),
@@ -1168,8 +1215,10 @@ impl ExprLocal for Loc<Expression> {
                             .note(format!("Since {name} is defined at stage {} with latency {}, it cannot be accessed before stage {}", original_stage, available_at - original_stage, available_at))
                         )
                     }
-                    Substitution::Available(name) => Ok(Some(name.value_name())),
-                    Substitution::Wire | Substitution::ZeroSized => Ok(Some(name.value_name())),
+                    Substitution::Available(name) => Ok(Some(name.value_name().at_loc(&self))),
+                    Substitution::Wire | Substitution::ZeroSized => {
+                        Ok(Some(name.value_name().at_loc(&self)))
+                    }
                 }
             }
             ExprKind::StageReady => Ok(None),
@@ -1197,11 +1246,13 @@ impl ExprLocal for Loc<Expression> {
 
     // NOTE: this impl and a few others could be moved to a impl block that does not have
     // the Loc requirement if desired
-    fn variable(&self, ctx: &Context) -> Result<mir::ValueName> {
+    fn variable(&self, ctx: &Context) -> Result<Loc<mir::ValueName>> {
         // If this expressions should not use the standard __expr__{} variable,
         // that is specified here
 
-        Ok(self.alias(ctx)?.unwrap_or(mir::ValueName::Expr(self.id)))
+        Ok(self
+            .alias(ctx)?
+            .unwrap_or(mir::ValueName::Expr(self.id).at_loc(&self)))
     }
 
     fn lower(&self, ctx: &mut Context) -> Result<StatementList> {
@@ -1213,7 +1264,7 @@ impl ExprLocal for Loc<Expression> {
         let self_type = hir_type.to_mir_type();
 
         match &self.kind {
-            ExprKind::Error => result.push_primary(mir::Statement::Error, self),
+            ExprKind::Error => result.push_primary(mir::Statement::Error.at_loc(&self), self),
             ExprKind::Identifier(_) => {
                 // Empty. The identifier will be defined elsewhere
             }
@@ -1221,10 +1272,11 @@ impl ExprLocal for Loc<Expression> {
                 let ty = self_type;
                 result.push_primary(
                     mir::Statement::Constant(
-                        ValueName::Expr(self.id),
+                        ValueName::Expr(self.id).at_loc(self),
                         ty,
                         mir::ConstantValue::Int(value.clone()),
-                    ),
+                    )
+                    .at_loc(&self),
                     self,
                 );
             }
@@ -1256,10 +1308,11 @@ impl ExprLocal for Loc<Expression> {
 
                     result.push_primary(
                         mir::Statement::Constant(
-                            ValueName::Expr(self.id),
+                            ValueName::Expr(self.id).at_loc(self),
                             ty,
                             mir::ConstantValue::Int(value.clone()),
-                        ),
+                        )
+                        .at_loc(&self),
                         self,
                     )
                 } else {
@@ -1273,10 +1326,11 @@ impl ExprLocal for Loc<Expression> {
                 let ty = self_type;
                 result.push_primary(
                     mir::Statement::Constant(
-                        ValueName::Expr(self.id),
+                        ValueName::Expr(self.id).at_loc(self),
                         ty,
                         mir::ConstantValue::Bool(*value),
-                    ),
+                    )
+                    .at_loc(&self),
                     self,
                 );
             }
@@ -1308,10 +1362,11 @@ impl ExprLocal for Loc<Expression> {
 
                     result.push_primary(
                         mir::Statement::Constant(
-                            ValueName::Expr(self.id),
+                            ValueName::Expr(self.id).at_loc(self),
                             ty,
                             mir::ConstantValue::Bool(value),
-                        ),
+                        )
+                        .at_loc(&self),
                         self,
                     )
                 } else {
@@ -1329,7 +1384,8 @@ impl ExprLocal for Loc<Expression> {
                     TriLiteral::HighImp => mir::ConstantValue::HighImp,
                 };
                 result.push_primary(
-                    mir::Statement::Constant(ValueName::Expr(self.id), ty, cv),
+                    mir::Statement::Constant(ValueName::Expr(self.id).at_loc(self), ty, cv)
+                        .at_loc(&self),
                     self,
                 );
             }
@@ -1346,7 +1402,8 @@ impl ExprLocal for Loc<Expression> {
                                 operands: vec![lhs.variable(ctx)?, rhs.variable(ctx)?],
                                 ty: self_type,
                                 loc: Some(self.loc()),
-                            }),
+                            })
+                            .at_loc(&self),
                             self,
                         );
                     }};
@@ -1373,7 +1430,8 @@ impl ExprLocal for Loc<Expression> {
                                 operands: vec![lhs.variable(ctx)?, rhs.variable(ctx)?],
                                 ty: self_type,
                                 loc: Some(self.loc()),
-                            }),
+                            })
+                            .at_loc(&self),
                             self,
                         );
                     }};
@@ -1468,7 +1526,8 @@ impl ExprLocal for Loc<Expression> {
                             operands: vec![operand.variable(ctx)?],
                             ty: self_type,
                             loc: Some(self.loc()),
-                        }),
+                        })
+                        .at_loc(&self),
                         self,
                     );
                     Ok(())
@@ -1499,7 +1558,8 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1513,7 +1573,8 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![tup.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(self),
                     self,
                 )
             }
@@ -1565,7 +1626,8 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1578,7 +1640,8 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1596,7 +1659,8 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1623,7 +1687,8 @@ impl ExprLocal for Loc<Expression> {
                             .collect::<Result<_>>()?,
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1638,7 +1703,8 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?, index.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1682,7 +1748,8 @@ impl ExprLocal for Loc<Expression> {
                         operands: vec![target.variable(ctx)?],
                         ty: self_type,
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 )
             }
@@ -1700,7 +1767,8 @@ impl ExprLocal for Loc<Expression> {
                             operands: vec![],
                             ty: MirType::unit(),
                             loc: Some(self.loc()),
-                        }),
+                        })
+                        .at_loc(&self),
                         self,
                     )
                 }
@@ -1730,7 +1798,8 @@ impl ExprLocal for Loc<Expression> {
                             .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 );
             }
@@ -1848,7 +1917,8 @@ impl ExprLocal for Loc<Expression> {
                             .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .near_loc(&self),
                     self,
                 )
             }
@@ -2024,19 +2094,21 @@ impl ExprLocal for Loc<Expression> {
                             mir::Statement::Binding(mir::Binding {
                                 name: self.variable(ctx)?,
                                 operator: mir::Operator::Alias,
-                                operands: vec![signal_name.clone()],
+                                operands: vec![signal_name.near_loc(&self).clone()],
                                 ty: mir::types::Type::Bool,
                                 loc: Some(self.loc()),
-                            }),
+                            })
+                            .at_loc(&self),
                             self,
                         )
                     }
                     None => result.push_primary(
                         mir::Statement::Constant(
-                            ValueName::Expr(self.id),
+                            ValueName::Expr(self.id).at_loc(&self),
                             mir::types::Type::Bool,
                             mir::ConstantValue::Bool(true),
-                        ),
+                        )
+                        .at_loc(&self),
                         self,
                     ),
                 }
@@ -2059,19 +2131,21 @@ impl ExprLocal for Loc<Expression> {
                             mir::Statement::Binding(mir::Binding {
                                 name: self.variable(ctx)?,
                                 operator: mir::Operator::Alias,
-                                operands: vec![signal_name.clone()],
+                                operands: vec![signal_name.at_loc(&self).clone()],
                                 ty: mir::types::Type::Bool,
                                 loc: Some(self.loc()),
-                            }),
+                            })
+                            .at_loc(&self),
                             self,
                         )
                     }
                     None => result.push_primary(
                         mir::Statement::Constant(
-                            ValueName::Expr(self.id),
+                            ValueName::Expr(self.id).at_loc(&self),
                             mir::types::Type::Bool,
                             mir::ConstantValue::Bool(true),
-                        ),
+                        )
+                        .at_loc(&self),
                         self,
                     ),
                 }
@@ -2256,7 +2330,8 @@ impl ExprLocal for Loc<Expression> {
                         .map(|arg| arg.value.variable(ctx))
                         .collect::<Result<_>>()?,
                     loc: Some(self.loc()),
-                }),
+                })
+                .at_loc(&self),
                 self,
             ),
             Some(hir::ExecutableItem::StructInstance) => result.push_primary(
@@ -2272,7 +2347,8 @@ impl ExprLocal for Loc<Expression> {
                         .map(|arg| arg.value.variable(ctx))
                         .collect::<Result<Vec<_>>>()?,
                     loc: Some(self.loc()),
-                }),
+                })
+                .at_loc(&self),
                 self,
             ),
             Some(hir::ExecutableItem::Unit(u)) => {
@@ -2340,7 +2416,8 @@ impl ExprLocal for Loc<Expression> {
                             .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 );
             }
@@ -2446,7 +2523,8 @@ impl ExprLocal for Loc<Expression> {
                             .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
                         loc: Some(self.loc()),
-                    }),
+                    })
+                    .at_loc(&self),
                     self,
                 );
             }
@@ -2550,7 +2628,8 @@ impl ExprLocal for Loc<Expression> {
                     .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type(),
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2583,7 +2662,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![target.variable(ctx)?, index.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2630,7 +2710,8 @@ impl ExprLocal for Loc<Expression> {
                     .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
                     .to_mir_type(),
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2682,7 +2763,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2733,7 +2815,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2811,7 +2894,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: None,
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2840,7 +2924,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2888,7 +2973,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2917,7 +3003,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -2997,7 +3084,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3114,19 +3202,21 @@ impl ExprLocal for Loc<Expression> {
         result.append_secondary(
             vec![
                 mir::Statement::Binding(mir::Binding {
-                    name: lname.clone(),
+                    name: lname.clone().near_loc(&self),
                     operator: mir::Operator::Nop,
                     operands: vec![],
                     ty: left_mir_type,
                     loc: Some(self.loc()),
-                }),
+                })
+                .near_loc(&self),
                 mir::Statement::Binding(mir::Binding {
-                    name: rname.clone(),
+                    name: rname.clone().near_loc(&self),
                     operator: mir::Operator::FlipPort,
-                    operands: vec![lname.clone()],
+                    operands: vec![lname.clone().near_loc(&self)],
                     ty: right_mir_type,
                     loc: Some(self.loc()),
-                }),
+                })
+                .near_loc(&self),
             ],
             self,
             "Port construction",
@@ -3136,10 +3226,11 @@ impl ExprLocal for Loc<Expression> {
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
                 operator: mir::Operator::ConstructTuple,
-                operands: vec![lname, rname],
+                operands: vec![lname.near_loc(&self), rname.near_loc(&self)],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3164,10 +3255,11 @@ impl ExprLocal for Loc<Expression> {
 
         result.push_primary(
             mir::Statement::Constant(
-                ValueName::Expr(self.id),
+                ValueName::Expr(self.id).at_loc(&self),
                 self_type,
                 ConstantValue::Undef(width),
-            ),
+            )
+            .at_loc(&self),
             self,
         );
 
@@ -3213,7 +3305,8 @@ impl ExprLocal for Loc<Expression> {
                     operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                     ty: self_type,
                     loc: Some(path.loc()),
-                }),
+                })
+                .at_loc(&self),
                 self,
             );
 
@@ -3242,7 +3335,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3270,7 +3364,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3298,7 +3393,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3326,7 +3422,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3365,7 +3462,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3404,7 +3502,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3434,7 +3533,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(path.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3470,7 +3570,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(path.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3516,7 +3617,8 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(path.loc()),
-            }),
+            })
+            .at_loc(&self),
             self,
         );
 
@@ -3605,7 +3707,7 @@ pub fn generate_unit<'a>(
 
                 Ok(MirInput {
                     name,
-                    val_name,
+                    val_name: val_name.at_loc(name_id),
                     ty,
                     no_mangle: *no_mangle,
                 })

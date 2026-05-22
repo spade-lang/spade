@@ -5,6 +5,7 @@ use num::ToPrimitive;
 use num::Zero;
 use num::range;
 use rustc_hash::FxHashMap as HashMap;
+use spade_common::location_info::Loc;
 use spade_common::num_ext::InfallibleToBigUint;
 
 use crate::{Binding, Operator, Statement, ValueName, enum_util, types::Type};
@@ -206,13 +207,13 @@ impl Value {
 
 /// Evaluates a list of statements, returning the value of the final statement in the
 /// list. Panics if the list of statements is empty
-pub fn eval_statements(statements: &[Statement]) -> Value {
+pub fn eval_statements(statements: &[Loc<Statement>]) -> Value {
     let mut name_vals: HashMap<ValueName, Value> = HashMap::default();
     let mut name_types: HashMap<ValueName, Type> = HashMap::default();
 
     let mut last_value = None;
     for stmt in statements {
-        let (n, v) = match stmt {
+        let (n, v) = match &stmt.inner {
             Statement::Binding(b) => {
                 let Binding {
                     name,
@@ -222,7 +223,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     loc: _,
                 } = b;
 
-                name_types.insert(name.clone(), ty.clone());
+                name_types.insert(name.inner.clone(), ty.clone());
 
                 let val = match operator {
                     Operator::Add => Value::Int {
@@ -355,7 +356,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
                     crate::ConstantValue::HighImp => todo!(),
                     crate::ConstantValue::Undef(_) => todo!(),
                 };
-                name_types.insert(name.clone(), ty.clone());
+                name_types.insert(name.inner.clone(), ty.clone());
                 (name.clone(), val)
             }
             Statement::Assert(_) => panic!("trying to evaluate an assert statement"),
@@ -363,7 +364,7 @@ pub fn eval_statements(statements: &[Statement]) -> Value {
             Statement::Error => panic!("Trying to evaluate an Error statement"),
         };
 
-        name_vals.insert(n, v.clone());
+        name_vals.insert(n.inner, v.clone());
         last_value = Some(v);
     }
     last_value.expect("Trying to evaluate empty statement list")

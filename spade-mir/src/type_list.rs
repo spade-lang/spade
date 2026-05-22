@@ -1,5 +1,6 @@
 use crate::{Entity, MirInput, Statement, ValueName, types::Type};
 use rustc_hash::FxHashMap as HashMap;
+use spade_common::location_info::Loc;
 
 #[derive(Debug)]
 pub struct MirTypeList {
@@ -23,7 +24,7 @@ impl MirTypeList {
             no_mangle: _,
         } in &e.inputs
         {
-            result.inner.insert(val_name.clone(), ty.clone());
+            result.inner.insert(val_name.inner.clone(), ty.clone());
         }
 
         result.add_statements(&e.statements);
@@ -31,17 +32,17 @@ impl MirTypeList {
         result
     }
 
-    pub(crate) fn add_statements(&mut self, stmts: &[Statement]) {
+    pub(crate) fn add_statements(&mut self, stmts: &[Loc<Statement>]) {
         for stmt in stmts {
-            match stmt {
+            match &stmt.inner {
                 Statement::Binding(b) => {
-                    self.inner.insert(b.name.clone(), b.ty.clone());
+                    self.inner.insert(b.name.inner.clone(), b.ty.clone());
                 }
                 Statement::Register(reg) => {
-                    self.inner.insert(reg.name.clone(), reg.ty.clone());
+                    self.inner.insert(reg.name.inner.clone(), reg.ty.clone());
                 }
                 Statement::Constant(idx, ty, _) => {
-                    self.inner.insert(idx.clone(), ty.clone());
+                    self.inner.insert(idx.inner.clone(), ty.clone());
                 }
                 Statement::Assert(_) => {}
                 Statement::Set { .. } => {

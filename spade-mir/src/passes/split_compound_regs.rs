@@ -1,6 +1,9 @@
 use num::ToPrimitive;
 
-use spade_common::id_tracker::ExprIdTracker;
+use spade_common::{
+    id_tracker::ExprIdTracker,
+    location_info::{Loc, WithLocation},
+};
 
 use crate::{Binding, Operator, Register, Statement, ValueName, types::Type};
 
@@ -15,30 +18,35 @@ impl MirPass for SplitCompoundRegs {
 
     fn transform_statements(
         &self,
-        stmts: &[Statement],
+        stmts: &[Loc<Statement>],
         expr_idtracker: &ExprIdTracker,
-    ) -> Vec<Statement> {
+    ) -> Vec<Loc<Statement>> {
         stmts
             .iter()
-            .flat_map(|stmt| match stmt {
-                Statement::Register(reg) => split_compound_reg(reg, expr_idtracker),
-                other => vec![other.clone()],
+            .flat_map(|stmt| {
+                match &stmt.inner {
+                    Statement::Register(reg) => {
+                        split_compound_reg(&reg.clone().at_loc(stmt), expr_idtracker)
+                    }
+                    other => vec![other.clone().at_loc(stmt)],
+                }
+                .into_iter()
             })
             .collect()
     }
 }
 
 fn generate_split_code(
-    reg: &Register,
+    reg: &Loc<Register>,
     members: &Vec<Type>,
     expr_idtracker: &ExprIdTracker,
-) -> Vec<Statement> {
-    let (reg_names, split_stmts): (Vec<_>, Vec<_>) = members
+) -> Vec<Loc<Statement>> {
+    let (reg_names, split_stmts): (Vec<Loc<_>>, Vec<_>) = members
         .iter()
         .enumerate()
         .map(|(i, member)| {
-            let split_name = ValueName::Expr(expr_idtracker.next());
-            let reg_name = ValueName::Expr(expr_idtracker.next());
+            let split_name = ValueName::Expr(expr_idtracker.next()).at_loc(reg);
+            let reg_name = ValueName::Expr(expr_idtracker.next()).at_loc(reg);
             let split_stmt = Statement::Binding(Binding {
                 name: split_name.clone(),
                 operator: Operator::IndexTuple(i as u64),
@@ -56,12 +64,12 @@ fn generate_split_code(
                     initial: None,
                     value: split_name.clone(),
                     loc: None,
-                    traced: None,
-                },
+                }
+                .at_loc(reg),
                 expr_idtracker,
             );
 
-            let split_stmts = vec![split_stmt]
+            let split_stmts = vec![split_stmt.at_loc(reg)]
                 .into_iter()
                 .chain(reg_stmts)
                 .collect::<Vec<_>>();
@@ -81,13 +89,13 @@ fn generate_split_code(
     split_stmts
         .into_iter()
         .flatten()
-        .chain(vec![new_compound])
+        .chain(vec![new_compound.at_loc(reg)])
         .collect()
 }
 
-fn split_compound_reg(reg: &Register, expr_idtracker: &ExprIdTracker) -> Vec<Statement> {
+fn split_compound_reg(reg: &Loc<Register>, expr_idtracker: &ExprIdTracker) -> Vec<Loc<Statement>> {
     if reg.initial.is_some() {
-        return vec![Statement::Register(reg.clone())];
+        return vec![Statement::Register(reg.inner.clone()).at_loc(reg)];
     }
 
     match &reg.ty {
@@ -98,7 +106,7 @@ fn split_compound_reg(reg: &Register, expr_idtracker: &ExprIdTracker) -> Vec<Sta
         | Type::Enum(_)
         | Type::Backward(_)
         | Type::CopyView(_)
-        | Type::Memory { .. } => vec![Statement::Register(reg.clone())],
+        | Type::Memory { .. } => vec![Statement::Register(reg.inner.clone()).at_loc(reg)],
         Type::Tuple(members) => generate_split_code(reg, members, expr_idtracker),
         Type::Struct(members) => generate_split_code(
             reg,
@@ -116,7 +124,7 @@ fn split_compound_reg(reg: &Register, expr_idtracker: &ExprIdTracker) -> Vec<Sta
                     expr_idtracker,
                 )
             } else {
-                vec![Statement::Register(reg.clone())]
+                vec![Statement::Register(reg.inner.clone()).at_loc(reg)]
             }
         }
     }

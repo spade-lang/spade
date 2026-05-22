@@ -74,6 +74,13 @@ pub trait WithLocation: Sized {
         Loc::new(self, loc.span, loc.file_id)
     }
 
+    /// Creates a new Loc from another Loc, but with future internal tracking that this loc
+    /// is imprecise and should not be shown to a user outside Diagnostic::bug. Currently,
+    /// this is completely untracked, but something we can enable in the future
+    fn near_loc<T: Sized>(self, loc: &Loc<T>) -> Loc<Self> {
+        Loc::new(self, loc.span, loc.file_id)
+    }
+
     fn between(
         self,
         file_id: usize,

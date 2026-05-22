@@ -4,10 +4,15 @@
 #[macro_export]
 macro_rules! value_name {
     (n($id:expr, $debug_name:expr)) => {
-        spade_mir::ValueName::_test_named($id, $debug_name.to_string())
+        spade_common::location_info::WithLocation::nowhere(spade_mir::ValueName::_test_named(
+            $id,
+            $debug_name.to_string(),
+        ))
     };
     (e($id:expr)) => {
-        spade_mir::ValueName::Expr(spade_common::id_tracker::ExprID($id))
+        spade_common::location_info::WithLocation::nowhere(spade_mir::ValueName::Expr(
+            spade_common::id_tracker::ExprID($id),
+        ))
     };
 }
 
@@ -44,7 +49,7 @@ macro_rules! statement {
     (
         const $id:expr; $ty:expr; $value:expr
     ) => {
-        spade_mir::Statement::Constant(spade_mir::ValueName::Expr(spade_common::id_tracker::ExprID($id)), $ty, $value)
+        spade_common::location_info::WithLocation::nowhere(spade_mir::Statement::Constant(spade_common::location_info::WithLocation::nowhere(spade_mir::ValueName::Expr(spade_common::id_tracker::ExprID($id))), $ty, $value))
     };
     // Bindings
     (
@@ -53,7 +58,7 @@ macro_rules! statement {
         $operator:ident $(($operator_args:tt))?$({$operator_struct_args:tt})?;
         $($arg_kind:ident $arg_name:tt),*
     ) => {
-        spade_mir::Statement::Binding(spade_mir::Binding {
+        spade_common::location_info::WithLocation::nowhere(spade_mir::Statement::Binding(spade_mir::Binding {
             name: spade_mir::value_name!($name_kind $name),
             operator: spade_mir::Operator::$operator$($operator_args)?,
             operands: vec![
@@ -61,7 +66,7 @@ macro_rules! statement {
             ],
             ty: $type,
             loc: None,
-        })
+        }))
     };
     //register with async reset
     (
@@ -73,7 +78,7 @@ macro_rules! statement {
         $(initial $initial:tt)?;
         $val_kind:ident $val_name:tt
     ) => {
-        spade_mir::Statement::Register(spade_mir::Register {
+        spade_common::location_info::WithLocation::nowhere(spade_mir::Statement::Register(spade_mir::Register {
             name: spade_mir::value_name!($name_kind $name),
             ty: $type,
             clock: spade_mir::value_name!($clk_name_kind $clk_name),
@@ -81,8 +86,7 @@ macro_rules! statement {
             initial: spade_mir::optional_initial!($($initial)?),
             value: spade_mir::value_name!($val_kind $val_name),
             loc: None,
-            traced: spade_mir::if_tracing!($($traced_kind $traced_name)?)
-        })
+        }))
     };
     // Register without reset
     (
@@ -92,7 +96,7 @@ macro_rules! statement {
         clock ($clk_name_kind:ident $clk_name:tt);
         $val_kind:ident $val_name:tt
     ) => {
-        spade_mir::Statement::Register(spade_mir::Register {
+        spade_common::location_info::WithLocation::nowhere(spade_mir::Statement::Register(spade_mir::Register {
             name: spade_mir::value_name!($name_kind $name),
             ty: $type,
             clock: spade_mir::value_name!($clk_name_kind $clk_name),
@@ -100,8 +104,7 @@ macro_rules! statement {
             initial: None,
             value: spade_mir::value_name!($val_kind $val_name),
             loc: None,
-            traced: spade_mir::if_tracing!($($traced_kind $traced_name)?)
-        })
+        }))
     };
     // Set statement
     (set; $lhs_kind:ident $lhs_name:tt; $rhs_kind:ident $rhs_name:tt) => {
@@ -161,7 +164,7 @@ macro_rules! entity {
             output: spade_mir::value_name!($output_name_kind $output_name),
             output_type: $output_type,
             statements: vec![
-                $( spade_mir::statement! $statement ),*
+                $( (spade_mir::statement! $statement) ),*
             ],
             verilog_attr_groups: vec![],
         }
@@ -197,6 +200,7 @@ macro_rules! assert_same_mir {
 #[cfg(test)]
 mod tests {
     use spade_common::id_tracker::ExprID;
+    use spade_common::location_info::WithLocation;
     use spade_common::name::{NameID, Path};
     use spade_mir::unit_name::UnitNameKind;
 
@@ -207,19 +211,19 @@ mod tests {
     fn value_name_parsing_works() {
         assert_eq!(
             value_name!(n(0, "test")),
-            ValueName::_test_named(0, "test".to_string())
+            ValueName::_test_named(0, "test".to_string()).nowhere()
         );
-        assert_eq!(value_name!(e(0)), ValueName::Expr(ExprID(0)));
+        assert_eq!(value_name!(e(0)), ValueName::Expr(ExprID(0)).nowhere());
     }
 
     #[test]
     fn binding_parsing_works() {
         let expected = Statement::Binding(Binding {
-            name: ValueName::Expr(ExprID(0)),
+            name: ValueName::Expr(ExprID(0)).nowhere(),
             operator: Operator::Add,
             operands: vec![
-                ValueName::Expr(ExprID(1)),
-                ValueName::_test_named(1, "test".to_string()),
+                ValueName::Expr(ExprID(1)).nowhere(),
+                ValueName::_test_named(1, "test".to_string()).nowhere(),
             ],
             ty: Type::Bool,
             loc: None,
@@ -227,18 +231,18 @@ mod tests {
 
         assert_eq!(
             statement!(e(0); Type::Bool; Add; e(1), n(1, "test")),
-            expected
+            expected.nowhere()
         );
     }
 
     #[test]
     fn named_parsing_works() {
         let expected = Statement::Binding(Binding {
-            name: ValueName::_test_named(0, "string".to_string()),
+            name: ValueName::_test_named(0, "string".to_string()).nowhere(),
             operator: Operator::Add,
             operands: vec![
-                ValueName::Expr(ExprID(1)),
-                ValueName::_test_named(1, "test".to_string()),
+                ValueName::Expr(ExprID(1)).nowhere(),
+                ValueName::_test_named(1, "test".to_string()).nowhere(),
             ],
             ty: Type::Bool,
             loc: None,
@@ -246,45 +250,46 @@ mod tests {
 
         assert_eq!(
             statement!(n(0, "string"); Type::Bool; Add; e(1), n(1, "test")),
-            expected
+            expected.nowhere()
         );
     }
 
     #[test]
     fn register_parsing_works() {
         let expected = Statement::Register(Register {
-            name: ValueName::_test_named(0, "test".into()),
+            name: ValueName::_test_named(0, "test".into()).nowhere(),
             ty: Type::int(5),
-            clock: ValueName::_test_named(1, "clk".into()),
+            clock: ValueName::_test_named(1, "clk".into()).nowhere(),
             reset: None,
             initial: None,
-            value: ValueName::Expr(ExprID(0)),
+            value: ValueName::Expr(ExprID(0)).nowhere(),
             loc: None,
-            traced: Some(ValueName::Expr(ExprID(2))),
         });
 
         assert_eq!(
             statement!(traced(e(2)) reg n(0, "test"); Type::int(5); clock (n(1, "clk")); e(0)),
-            expected
+            expected.nowhere()
         );
     }
 
     #[test]
     fn register_with_reset_parsing_works() {
         let expected = Statement::Register(Register {
-            name: ValueName::_test_named(0, "test".into()),
+            name: ValueName::_test_named(0, "test".into()).nowhere(),
             ty: Type::int(5),
-            clock: ValueName::_test_named(1, "clk".into()),
-            reset: Some((ValueName::Expr(ExprID(1)), ValueName::Expr(ExprID(2)))),
+            clock: ValueName::_test_named(1, "clk".into()).nowhere(),
+            reset: Some((
+                ValueName::Expr(ExprID(1)).nowhere(),
+                ValueName::Expr(ExprID(2)).nowhere(),
+            )),
             initial: None,
-            value: ValueName::Expr(ExprID(0)),
+            value: ValueName::Expr(ExprID(0)).nowhere(),
             loc: None,
-            traced: None,
         });
 
         assert_eq!(
             statement!(reg n(0, "test"); Type::int(5); clock (n(1, "clk")); reset (e(1), e(2)); e(0)),
-            expected
+            expected.nowhere()
         );
     }
 
@@ -301,11 +306,11 @@ mod tests {
             inline: false,
             inputs: vec![MirInput {
                 name: "_i_clk".to_string(),
-                val_name: ValueName::_test_named(0, "clk".to_string()),
+                val_name: ValueName::_test_named(0, "clk".to_string()).nowhere(),
                 ty: Type::Bool,
                 no_mangle: None,
             }],
-            output: ValueName::_test_named(1, "value".to_string()),
+            output: ValueName::_test_named(1, "value".to_string()).nowhere(),
             output_type: Type::int(6),
             statements: vec![
                 statement!(e(0); Type::int(6); Add; n(1, "value")),
@@ -325,13 +330,13 @@ mod tests {
     #[test]
     fn constant_parsing_works() {
         let expected = Statement::Constant(
-            ValueName::Expr(ExprID(0)),
+            ValueName::Expr(ExprID(0)).nowhere(),
             Type::int(10),
             ConstantValue::int(6),
         );
 
         let result = statement!(const 0; Type::int(10); ConstantValue::int(6));
 
-        assert_eq!(result, expected);
+        assert_eq!(result, expected.nowhere());
     }
 }

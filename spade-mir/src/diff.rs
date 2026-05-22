@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap as HashMap;
-use spade_common::id_tracker::ExprID;
+use spade_common::{id_tracker::ExprID, location_info::Loc};
 
 use crate::{Entity, MirInput, Register, Statement, ValueName};
 
@@ -133,7 +133,6 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
                 initial: initial1,
                 value: value1,
                 loc: _,
-                traced: _,
             } = &r1;
             let Register {
                 name: _,
@@ -143,7 +142,6 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
                 initial: initial2,
                 value: value2,
                 loc: _,
-                traced: _,
             } = &r2;
             if ty1 != ty2 {
                 return false;
@@ -205,8 +203,8 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
 }
 
 fn populate_var_map(
-    stmts1: &[Statement],
-    stmts2: &[Statement],
+    stmts1: &[Loc<Statement>],
+    stmts2: &[Loc<Statement>],
     var_map: &mut VarMap,
 ) -> Result<(), ()> {
     // Check if two names can be the same by comparing the string names of ValueName::Named.
@@ -214,7 +212,7 @@ fn populate_var_map(
     stmts1
         .iter()
         .zip(stmts2.iter())
-        .try_for_each(|(s1, s2)| match (s1, s2) {
+        .try_for_each(|(s1, s2)| match (&s1.inner, &s2.inner) {
             (Statement::Binding(b1), Statement::Binding(b2)) => {
                 var_map.try_update_name(&b1.name, &b2.name)
             }

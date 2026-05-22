@@ -96,7 +96,7 @@ fn statement_declaration(
             let ops = &binding
                 .operands
                 .iter()
-                .map(ValueName::var_name)
+                .map(|name| name.var_name())
                 .collect::<Vec<_>>();
 
             // Aliases of memories have to be treated differently because we can't
@@ -217,7 +217,11 @@ fn compute_tuple_index(idx: u64, sizes: &[BigUint]) -> TupleIndex {
     }
 }
 
-fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueName]) -> String {
+fn forward_expression_code(
+    binding: &Binding,
+    types: &MirTypeList,
+    ops: &[Loc<ValueName>],
+) -> String {
     let self_type = &binding.ty;
     let op_names = ops.iter().map(|op| op.var_name()).collect::<Vec<_>>();
 
@@ -749,13 +753,17 @@ fn forward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueN
     }
 }
 
-fn backward_expression_code(binding: &Binding, types: &MirTypeList, ops: &[ValueName]) -> String {
+fn backward_expression_code(
+    binding: &Binding,
+    types: &MirTypeList,
+    ops: &[Loc<ValueName>],
+) -> String {
     let self_type = &binding.ty;
     let op_names = ops
         .iter()
-        .map(ValueName::backward_var_name)
+        .map(|n| n.backward_var_name())
         .collect::<Vec<_>>();
-    let fwd_op_names = ops.iter().map(ValueName::var_name).collect::<Vec<_>>();
+    let fwd_op_names = ops.iter().map(|n| n.var_name()).collect::<Vec<_>>();
     match &binding.operator {
         Operator::Add
         | Operator::UnsignedAdd
@@ -921,13 +929,13 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
             let ops = &binding
                 .operands
                 .iter()
-                .map(ValueName::var_name)
+                .map(|n| n.var_name())
                 .collect::<Vec<_>>();
 
             let back_ops = &binding
                 .operands
                 .iter()
-                .map(ValueName::backward_var_name)
+                .map(|n| n.backward_var_name())
                 .collect::<Vec<_>>();
 
             let forward_expression = if binding.ty.size() != BigUint::zero() {
@@ -1199,14 +1207,14 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
         }
         Statement::Set { target, value } => {
             let mut assignments = Vec::new();
-            if ctx.types[&value.inner].size() != BigUint::ZERO {
+            if ctx.types[&value].size() != BigUint::ZERO {
                 assignments.push(format!(
                     "assign {} = {};",
                     target.backward_var_name(),
                     value.var_name(),
                 ));
             }
-            if ctx.types[&value.inner].backward_size() != BigUint::ZERO {
+            if ctx.types[&value].backward_size() != BigUint::ZERO {
                 assignments.push(format!(
                     "assign {} = {};",
                     value.backward_var_name(),
@@ -1712,11 +1720,11 @@ mod tests {
             inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
-                val_name: ValueName::_test_named(0, "a".to_string()),
+                val_name: ValueName::_test_named(0, "a".to_string()).nowhere(),
                 ty: Type::Bool,
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::Bool,
             statements: vec![],
             verilog_attr_groups: vec![],
@@ -1753,11 +1761,11 @@ mod tests {
             inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
-                val_name: ValueName::_test_named(0, "a".to_string()),
+                val_name: ValueName::_test_named(0, "a".to_string()).nowhere(),
                 ty: Type::Backward(Box::new(Type::Bool)),
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::Bool,
             statements: vec![],
             verilog_attr_groups: vec![],
@@ -3365,7 +3373,7 @@ mod expression_tests {
 
     #[test]
     fn assertion_codegen_works() {
-        let stmt = Statement::Assert(value_name!(e(0)).at(0, &Span::new(1, 2)));
+        let stmt = Statement::Assert(value_name!(e(0)).inner.at(0, &Span::new(1, 2))).nowhere();
 
         // NOTE: The escape sequences here are a bit annoying when this test fails,
         // but where to add an option to turn them off isn't obvious. To update this test
@@ -3406,8 +3414,8 @@ mod expression_tests {
     #[test]
     fn set_codegen_works() {
         let stmt = Statement::Set {
-            target: value_name!(e(0)).nowhere(),
-            value: value_name!(e(1)).nowhere(),
+            target: value_name!(e(0)),
+            value: value_name!(e(1)),
         };
 
         let expected = indoc! {
@@ -3494,11 +3502,11 @@ mod expression_tests {
             inline: false,
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
-                val_name: ValueName::_test_named(0, "a".to_string()),
+                val_name: ValueName::_test_named(0, "a".to_string()).nowhere(),
                 ty: Type::InOut(Box::new(Type::Bool)),
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::unit(),
             statements: vec![],
             verilog_attr_groups: vec![],
@@ -3532,11 +3540,11 @@ mod expression_tests {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
-                val_name: ValueName::_test_named(0, "a".to_string()),
+                val_name: ValueName::_test_named(0, "a".to_string()).nowhere(),
                 ty: Type::Bool,
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::unit(),
             statements: vec![],
             verilog_attr_groups: vec![
@@ -3578,31 +3586,34 @@ mod expression_tests {
             name: spade_mir::unit_name::IntoUnitName::_test_into_unit_name("test"),
             inputs: vec![spade_mir::MirInput {
                 name: "a".to_string(),
-                val_name: ValueName::_test_named(0, "a".to_string()),
+                val_name: ValueName::_test_named(0, "a".to_string()).nowhere(),
                 ty: Type::Bool,
                 no_mangle: Some(().nowhere()),
             }],
-            output: ValueName::Expr(ExprID(0)),
+            output: ValueName::Expr(ExprID(0)).nowhere(),
             output_type: Type::unit(),
-            statements: vec![spade_mir::Statement::Binding(spade_mir::Binding {
-                name: ValueName::_test_named(0, "x".to_string()),
-                operator: spade_mir::Operator::Instance {
-                    name: UnitName::_test_from_strs(&["foo"]),
-                    params: vec![],
-                    argument_names: vec![],
-                    loc: None,
-                    verilog_attr_groups: vec![
-                        vec![("single".into(), None)],
-                        vec![
-                            ("standalone".into(), None),
-                            ("key".into(), Some("val".into())),
+            statements: vec![
+                spade_mir::Statement::Binding(spade_mir::Binding {
+                    name: ValueName::_test_named(0, "x".to_string()).nowhere(),
+                    operator: spade_mir::Operator::Instance {
+                        name: UnitName::_test_from_strs(&["foo"]),
+                        params: vec![],
+                        argument_names: vec![],
+                        loc: None,
+                        verilog_attr_groups: vec![
+                            vec![("single".into(), None)],
+                            vec![
+                                ("standalone".into(), None),
+                                ("key".into(), Some("val".into())),
+                            ],
                         ],
-                    ],
-                },
-                operands: vec![],
-                ty: Type::unit(),
-                loc: None,
-            })],
+                    },
+                    operands: vec![],
+                    ty: Type::unit(),
+                    loc: None,
+                })
+                .nowhere(),
+            ],
             verilog_attr_groups: vec![],
             inline: false,
         };

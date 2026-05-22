@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap as HashMap;
-use spade_common::id_tracker::ExprIdTracker;
+use spade_common::{id_tracker::ExprIdTracker, location_info::Loc};
 
 use crate::Statement;
 
@@ -12,9 +12,9 @@ pub trait MirPass {
 
     fn transform_statements(
         &self,
-        stmts: &[Statement],
+        stmts: &[Loc<Statement>],
         expr_idtracker: &ExprIdTracker,
-    ) -> Vec<Statement>;
+    ) -> Vec<Loc<Statement>>;
 }
 
 pub fn mir_passes() -> HashMap<&'static str, Box<dyn MirPass + Sync + Send>> {

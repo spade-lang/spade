@@ -230,7 +230,7 @@ pub enum Operator {
     /// which update the array.
     DeclClockedMemory {
         /// Initial values for the memory. Must be const evaluatable
-        initial: Option<Vec<Vec<Statement>>>,
+        initial: Option<Vec<Vec<Loc<Statement>>>>,
     },
     IndexArray,
     IndexMemory,
@@ -417,9 +417,9 @@ impl std::fmt::Display for Operator {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Binding {
-    pub name: ValueName,
+    pub name: Loc<ValueName>,
     pub operator: Operator,
-    pub operands: Vec<ValueName>,
+    pub operands: Vec<Loc<ValueName>>,
     pub ty: Type,
     pub loc: Option<Loc<()>>,
 }
@@ -443,16 +443,13 @@ impl std::fmt::Display for Binding {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Register {
-    pub name: ValueName,
+    pub name: Loc<ValueName>,
     pub ty: Type,
-    pub clock: ValueName,
-    pub reset: Option<(ValueName, ValueName)>,
-    pub initial: Option<Vec<Statement>>,
-    pub value: ValueName,
+    pub clock: Loc<ValueName>,
+    pub reset: Option<(Loc<ValueName>, Loc<ValueName>)>,
+    pub initial: Option<Vec<Loc<Statement>>>,
+    pub value: Loc<ValueName>,
     pub loc: Option<Loc<()>>,
-    /// True if this register corresponds to an fsm with the specified ValueName
-    /// as the actual state
-    pub traced: Option<ValueName>,
 }
 
 impl std::fmt::Display for Register {
@@ -465,7 +462,6 @@ impl std::fmt::Display for Register {
             initial,
             value,
             loc: _,
-            traced: _,
         } = self;
 
         let reset = reset
@@ -487,7 +483,7 @@ pub enum Statement {
     Binding(Binding),
     Register(Register),
     /// A constant expression with the specified ID and value
-    Constant(ValueName, Type, ConstantValue),
+    Constant(Loc<ValueName>, Type, ConstantValue),
     Assert(Loc<ValueName>),
     Set {
         target: Loc<ValueName>,
@@ -512,7 +508,7 @@ impl std::fmt::Display for Statement {
 #[derive(Clone, PartialEq, Debug)]
 pub struct MirInput {
     pub name: String,
-    pub val_name: ValueName,
+    pub val_name: Loc<ValueName>,
     pub ty: Type,
     pub no_mangle: Option<Loc<()>>,
 }
@@ -522,10 +518,10 @@ pub struct Entity {
     pub name: UnitName,
     /// A module input which is called `.1` externally and `.2` internally in the module
     pub inputs: Vec<MirInput>,
-    pub output: ValueName,
+    pub output: Loc<ValueName>,
     pub output_type: Type,
     pub verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
-    pub statements: Vec<Statement>,
+    pub statements: Vec<Loc<Statement>>,
     pub inline: bool,
 }
 

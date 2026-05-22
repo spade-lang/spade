@@ -1,11 +1,12 @@
 use itertools::Itertools;
+use spade_common::location_info::Loc;
 use spade_mir::Statement;
 
 use crate::name_map::NameSource;
 use crate::name_map::NameSourceMap;
 
 pub struct StatementList {
-    pub(crate) stmts: Vec<Statement>,
+    pub(crate) stmts: Vec<Loc<Statement>>,
     name_map: NameSourceMap,
 }
 
@@ -25,13 +26,13 @@ impl StatementList {
 
     /// Pushes a statement which has no associated name or id. Currently used for asserts,
     /// wal_tracing, and pipeline enable signals
-    pub fn push_anonymous(&mut self, stmt: Statement) {
+    pub fn push_anonymous(&mut self, stmt: Loc<Statement>) {
         self.stmts.push(stmt)
     }
 
     /// Pushes a statement which is the primary statement associated with the specified expression
-    pub fn push_primary(&mut self, stmt: Statement, source: impl Into<NameSource>) {
-        let name = match &stmt {
+    pub fn push_primary(&mut self, stmt: Loc<Statement>, source: impl Into<NameSource>) {
+        let name = match &stmt.inner {
             Statement::Binding(b) => Some(b.name.clone()),
             Statement::Register(r) => Some(r.name.clone()),
             Statement::Constant(name, _, _) => Some(name.clone()),
@@ -50,11 +51,11 @@ impl StatementList {
     /// this value does. For example, being part of a condition, or being a pipeline register
     pub fn push_secondary(
         &mut self,
-        stmt: Statement,
+        stmt: Loc<Statement>,
         source: impl Into<NameSource>,
         description: &str,
     ) {
-        let name = match &stmt {
+        let name = match &stmt.inner {
             Statement::Binding(b) => Some(b.name.clone()),
             Statement::Register(r) => Some(r.name.clone()),
             Statement::Constant(name, _, _) => Some(name.clone()),
@@ -71,7 +72,7 @@ impl StatementList {
 
     pub fn append_secondary(
         &mut self,
-        other: Vec<Statement>,
+        other: Vec<Loc<Statement>>,
         source: impl Into<NameSource> + Clone,
         description: &str,
     ) {
@@ -85,11 +86,11 @@ impl StatementList {
         self.name_map.merge(other.name_map)
     }
 
-    pub fn to_vec(self, name_map: &mut NameSourceMap) -> Vec<Statement> {
+    pub fn to_vec(self, name_map: &mut NameSourceMap) -> Vec<Loc<Statement>> {
         name_map.merge(self.name_map);
         self.stmts
     }
-    pub fn to_vec_no_source_map(self) -> Vec<Statement> {
+    pub fn to_vec_no_source_map(self) -> Vec<Loc<Statement>> {
         self.stmts
     }
 }

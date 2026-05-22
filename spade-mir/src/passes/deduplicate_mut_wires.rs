@@ -1,5 +1,6 @@
 use num::BigUint;
 use rustc_hash::FxHashMap as HashMap;
+use spade_common::location_info::{Loc, WithLocation};
 
 use crate::{Binding, Operator, Statement, ValueName};
 
@@ -14,14 +15,17 @@ impl MirPass for DeduplicateMutWires {
 
     fn transform_statements(
         &self,
-        stmts: &[Statement],
+        stmts: &[Loc<Statement>],
         _expr_idtracker: &spade_common::id_tracker::ExprIdTracker,
-    ) -> Vec<Statement> {
+    ) -> Vec<Loc<Statement>> {
         replace_duplicate_mut_wires(stmts)
     }
 }
 
-fn recursive_lookup(map: &HashMap<&ValueName, ValueName>, name: ValueName) -> Option<ValueName> {
+fn recursive_lookup(
+    map: &HashMap<Loc<ValueName>, Loc<ValueName>>,
+    name: Loc<ValueName>,
+) -> Option<Loc<ValueName>> {
     if let n @ Some(next) = map.get(&name) {
         if let Some(deeper) = recursive_lookup(map, next.clone()) {
             Some(deeper)
@@ -102,13 +106,15 @@ fn op_needs_deduplication(op: &Operator) -> bool {
     }
 }
 
-fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
-    let mut seen_statements: HashMap<(&Operator, &Vec<ValueName>, &crate::types::Type), ValueName> =
-        HashMap::default();
+fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> {
+    let mut seen_statements: HashMap<
+        (&Operator, &Vec<Loc<ValueName>>, &crate::types::Type),
+        ValueName,
+    > = HashMap::default();
     let mut replaced_names = HashMap::default();
 
     for stmt in stmts {
-        match stmt {
+        match &stmt.inner {
             Statement::Binding(Binding {
                 name,
                 operator,
@@ -120,13 +126,13 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
                 if ty.backward_size() != BigUint::ZERO && op_needs_deduplication(operator) {
                     if let Some(prev_name) = seen_statements.get(&(operator, operands, ty)) {
                         replaced_names.insert(
-                            name,
-                            recursive_lookup(&replaced_names, prev_name.clone())
-                                .unwrap_or(prev_name.clone()),
+                            name.clone(),
+                            recursive_lookup(&replaced_names, prev_name.clone().at_loc(stmt))
+                                .unwrap_or(prev_name.clone().at_loc(stmt)),
                         );
                     }
                 }
-                seen_statements.insert((operator, operands, ty), name.clone());
+                seen_statements.insert((operator, operands, ty), name.inner.clone());
             }
             Statement::Register(_) => {
                 // Empty, registers cannot contain mut wires
@@ -138,47 +144,50 @@ fn replace_duplicate_mut_wires(stmts: &[Statement]) -> Vec<Statement> {
         }
     }
 
-    let get_replacement = |v: ValueName| replaced_names.get(&v).cloned().unwrap_or(v);
+    let get_replacement = |v: Loc<ValueName>| replaced_names.get(&v).cloned().unwrap_or(v);
 
     let iter_result = stmts
         .into_iter()
-        .filter_map(|stmt| match stmt.clone() {
-            Statement::Binding(Binding {
-                name,
-                operator,
-                operands,
-                ty,
-                loc,
-            }) => {
-                if replaced_names.contains_key(&name) {
-                    None
-                } else {
-                    Some(Statement::Binding(Binding {
-                        name,
-                        operator,
-                        operands: operands.into_iter().map(get_replacement).collect(),
-                        ty,
-                        loc,
-                    }))
+        .filter_map(|stmt| {
+            match stmt.inner.clone() {
+                Statement::Binding(Binding {
+                    name,
+                    operator,
+                    operands,
+                    ty,
+                    loc,
+                }) => {
+                    if replaced_names.contains_key(&name.clone().nowhere()) {
+                        None
+                    } else {
+                        Some(Statement::Binding(Binding {
+                            name,
+                            operator,
+                            operands: operands.into_iter().map(get_replacement).collect(),
+                            ty,
+                            loc,
+                        }))
+                    }
+                }
+                // Unchanged things since they don't consume nor create mut wires
+                s @ Statement::Register(_)
+                | s @ Statement::Constant(_, _, _)
+                | s @ Statement::Error
+                | s @ Statement::Assert(_) => Some(s),
+                Statement::Set { target, value } => {
+                    // If we replaced a mut wire with another, the other one is going to do
+                    // the assignment. Doing it here is going to cause issues
+                    if replaced_names.contains_key(&target) {
+                        None
+                    } else {
+                        Some(Statement::Set {
+                            target: target,
+                            value: value,
+                        })
+                    }
                 }
             }
-            // Unchanged things since they don't consume nor create mut wires
-            s @ Statement::Register(_)
-            | s @ Statement::Constant(_, _, _)
-            | s @ Statement::Error
-            | s @ Statement::Assert(_) => Some(s),
-            Statement::Set { target, value } => {
-                // If we replaced a mut wire with another, the other one is going to do
-                // the assignment. Doing it here is going to cause issues
-                if replaced_names.contains_key(&target.inner) {
-                    None
-                } else {
-                    Some(Statement::Set {
-                        target: target.map(|t| get_replacement(t)),
-                        value: value.map(|v| get_replacement(v)),
-                    })
-                }
-            }
+            .map(|s| s.at_loc(&stmt))
         })
         .collect::<Vec<_>>();
 

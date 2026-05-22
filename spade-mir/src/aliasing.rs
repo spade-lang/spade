@@ -4,10 +4,11 @@ use crate::{Entity, MirInput, Operator, Register, Statement, ValueName};
 use itertools::Itertools;
 use num::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use spade_common::location_info::{Loc, WithLocation};
 
-fn try_rename(name: &mut ValueName, replacements: &HashMap<ValueName, ValueName>) {
-    if let Some(replacement) = replacements.get(name) {
-        *name = (*replacement).clone();
+fn try_rename(name: &mut ValueName, replacements: &HashMap<Loc<ValueName>, Loc<ValueName>>) {
+    if let Some(replacement) = replacements.get(&name.clone().nowhere()) {
+        *name = (*replacement).clone().inner;
     }
 }
 
@@ -22,17 +23,17 @@ pub fn flatten_aliases(entity: &mut Entity) {
     let mut unaliasable = HashSet::default();
     let mut types = HashMap::default();
 
-    for MirInput { val_name: val, .. } in &entity.inputs {
+    for MirInput { val_name: val, .. } in entity.inputs.iter() {
         unaliasable.insert(val.clone());
     }
 
     // Build an undirected "graph" of aliases
     for stmt in &entity.statements {
-        match stmt {
+        match &stmt.inner {
             Statement::Binding(binding) => {
                 if let Operator::Alias = binding.operator {
-                    types.insert(binding.name.clone(), binding.ty.clone());
-                    types.insert(binding.operands[0].clone(), binding.ty.clone());
+                    types.insert(binding.name.inner.clone(), binding.ty.clone());
+                    types.insert(binding.operands[0].inner.clone(), binding.ty.clone());
                     edges
                         .entry(binding.name.clone())
                         .or_insert(vec![])
@@ -85,7 +86,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
                 if unaliasable.contains(node) {
                     return 0;
                 };
-                match node {
+                match &node.inner {
                     ValueName::Named(_, _, _) => 1,
                     ValueName::Expr(_) => 2,
                 }
@@ -100,7 +101,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
             if node != representative {
                 final_aliases.insert(node.clone(), representative.clone());
 
-                if matches!(node, ValueName::Named(_, _, _))
+                if matches!(node.inner, ValueName::Named(_, _, _))
                     && types
                         .get(&node)
                         .map(|ty| ty.backward_size() == BigUint::ZERO)
@@ -114,18 +115,18 @@ pub fn flatten_aliases(entity: &mut Entity) {
 
     // Remove any aliases that are now inlined
     entity.statements.retain(|stmt| {
-        if let Statement::Binding(binding) = stmt {
+        if let Statement::Binding(binding) = &stmt.inner {
             !(binding.operator == Operator::Alias
                 && final_aliases.contains_key(&binding.operands[0]))
                 && !(binding.operator == Operator::Alias
-                    && final_aliases.contains_key(&binding.name))
+                    && final_aliases.contains_key(&binding.name.clone().nowhere()))
         } else {
             true
         }
     });
 
     for stmt in &mut entity.statements {
-        match stmt {
+        match &mut stmt.inner {
             Statement::Binding(binding) => {
                 try_rename(&mut binding.name, &final_aliases);
                 for op in &mut binding.operands {
@@ -142,7 +143,6 @@ pub fn flatten_aliases(entity: &mut Entity) {
                 initial: _,
                 value,
                 loc: _,
-                traced: _,
             }) => {
                 try_rename(clock, &final_aliases);
                 try_rename(name, &final_aliases);
@@ -166,17 +166,21 @@ pub fn flatten_aliases(entity: &mut Entity) {
     }
 
     for (representative, other) in new_aliases {
-        entity.statements.push(Statement::Binding(crate::Binding {
-            name: other,
-            operator: Operator::Alias,
-            operands: vec![representative.clone()],
-            ty: types
-                .get(&representative)
-                .cloned()
-                .expect("Found an alias without a type")
-                .clone(),
-            loc: None,
-        }));
+        let loc = other.loc();
+        entity.statements.push(
+            Statement::Binding(crate::Binding {
+                name: other.clone(),
+                operator: Operator::Alias,
+                operands: vec![representative.clone()],
+                ty: types
+                    .get(&representative)
+                    .cloned()
+                    .expect("Found an alias without a type")
+                    .clone(),
+                loc: None,
+            })
+            .at_loc(&loc),
+        );
     }
 
     try_rename(&mut entity.output, &final_aliases);

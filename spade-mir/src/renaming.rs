@@ -1,6 +1,10 @@
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
-use spade_common::{id_tracker::ExprID, name::NameID};
+use spade_common::{
+    id_tracker::ExprID,
+    location_info::{Loc, WithLocation},
+    name::NameID,
+};
 
 use crate::{Binding, Entity, MirInput, Register, ValueName};
 
@@ -52,7 +56,7 @@ pub struct NameState {
     /// Mapping between names and the amount of copies of that name we've seen so far
     names: HashMap<String, u64>,
     /// Mapping between ValueName and predictable name
-    name_map: HashMap<ValueName, ValueName>,
+    name_map: HashMap<Loc<ValueName>, Loc<ValueName>>,
 }
 
 impl Default for NameState {
@@ -69,8 +73,8 @@ impl NameState {
         }
     }
 
-    pub fn push(&mut self, name: &ValueName) {
-        let new_name = match name {
+    pub fn push(&mut self, name: &Loc<ValueName>) {
+        let new_name = match &name.inner {
             ValueName::Named(_, name_str, source) => {
                 let id = self
                     .names
@@ -81,12 +85,13 @@ impl NameState {
                 ValueName::Named(*id, name_str.clone(), source.clone())
             }
             v @ ValueName::Expr(_) => v.clone(),
-        };
+        }
+        .at_loc(name);
 
         self.name_map.insert(name.clone(), new_name);
     }
 
-    pub fn get(&mut self, name: &ValueName) -> ValueName {
+    pub fn get(&mut self, name: &Loc<ValueName>) -> Loc<ValueName> {
         self.name_map
             .get(name)
             .cloned()
@@ -110,11 +115,11 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
         } = e;
 
         for input in inputs {
-            state.push(&input.val_name);
+            state.push(&input.clone().val_name);
         }
 
         for stmt in statements {
-            match stmt {
+            match &stmt.inner {
                 crate::Statement::Binding(Binding {
                     name,
                     operator: _,
@@ -130,7 +135,6 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     initial: _,
                     value: _,
                     loc: _,
-                    traced: _,
                 }) => state.push(name),
                 crate::Statement::Constant(name, _, _) => state.push(name),
                 crate::Statement::Assert(_) => {}
@@ -168,7 +172,7 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
         *output = state.get(output);
 
         for stmt in statements.iter_mut() {
-            match stmt {
+            match &mut stmt.inner {
                 crate::Statement::Binding(Binding {
                     name,
                     operator: _,
@@ -190,7 +194,6 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     initial: _,
                     value,
                     loc: _,
-                    traced,
                 }) => {
                     *name = state.get(name);
                     *clock = state.get(clock);
@@ -199,13 +202,12 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                         *val = state.get(val);
                     });
                     *value = state.get(value);
-                    traced.as_mut().map(|traced| *traced = state.get(traced));
                 }
                 crate::Statement::Constant(name, _, _) => *name = state.get(name),
-                crate::Statement::Assert(val) => val.inner = state.get(val),
+                crate::Statement::Assert(val) => *val = state.get(val),
                 crate::Statement::Set { target, value } => {
-                    target.inner = state.get(target);
-                    value.inner = state.get(value);
+                    *target = state.get(target);
+                    *value = state.get(value);
                 }
                 crate::Statement::Error => {}
             }

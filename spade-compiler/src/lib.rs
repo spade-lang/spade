@@ -750,7 +750,7 @@ fn codegen(
                 if mir
                     .statements
                     .iter()
-                    .any(|stmt| matches!(stmt, spade_mir::Statement::Error))
+                    .any(|stmt| matches!(stmt.inner, spade_mir::Statement::Error))
                 {
                     return None;
                 }

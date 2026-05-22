@@ -15,26 +15,26 @@ use crate::monomorphisation::MirOutput;
 
 #[derive(Clone)]
 enum InlinedStatements<'a> {
-    Normal(Vec<&'a Statement>),
+    Normal(Vec<&'a Loc<Statement>>),
     InlinedCall {
-        outer_output_name: &'a ValueName,
-        inner_output_name: &'a ValueName,
+        outer_output_name: &'a Loc<ValueName>,
+        inner_output_name: &'a Loc<ValueName>,
         ty: &'a Type,
-        loc: &'a Option<Loc<()>>,
+        loc: Loc<()>,
         target: InlinedEntity<'a>,
-        name_map: Rc<BTreeMap<ValueName, ValueName>>,
-        input_expr_map: Rc<Vec<(ValueName, ValueName)>>,
-        type_map: Rc<Vec<(ValueName, KnownTypeVar)>>,
+        name_map: Rc<BTreeMap<Loc<ValueName>, Loc<ValueName>>>,
+        input_expr_map: Rc<Vec<(Loc<ValueName>, Loc<ValueName>)>>,
+        type_map: Rc<Vec<(Loc<ValueName>, KnownTypeVar)>>,
     },
 }
 
 impl<'a> InlinedStatements<'a> {
     fn finalize(
         &self,
-        name_map: &BTreeMap<ValueName, ValueName>,
+        name_map: &BTreeMap<Loc<ValueName>, Loc<ValueName>>,
         idtracker: &ExprIdTracker,
         type_state: &mut TypeState,
-        new_statements: &mut Vec<Statement>,
+        new_statements: &mut Vec<Loc<Statement>>,
         nameidtracker: &NameIdTracker,
     ) -> Result<()> {
         let get_final_name = |source_name| name_map.get(source_name).unwrap_or(source_name).clone();
@@ -42,7 +42,7 @@ impl<'a> InlinedStatements<'a> {
             InlinedStatements::Normal(stmts) => {
                 new_statements.reserve(stmts.len());
                 for stmt in stmts {
-                    let new = match stmt {
+                    let new = match &stmt.inner {
                         Statement::Error => Statement::Error,
                         Statement::Binding(binding) => Statement::Binding(Binding {
                             name: get_final_name(&binding.name),
@@ -68,22 +68,19 @@ impl<'a> InlinedStatements<'a> {
                             initial: reg.initial.clone(),
                             value: get_final_name(&reg.value),
                             loc: reg.loc.clone(),
-                            traced: None,
                         }),
                         Statement::Constant(value_name, ty, constant_value) => Statement::Constant(
                             get_final_name(value_name),
                             ty.clone(),
                             constant_value.clone(),
                         ),
-                        Statement::Assert(val) => {
-                            Statement::Assert(get_final_name(&val).at_loc(val))
-                        }
+                        Statement::Assert(val) => Statement::Assert(get_final_name(val)),
                         Statement::Set { target, value } => Statement::Set {
-                            target: get_final_name(target).at_loc(target),
-                            value: get_final_name(value).at_loc(value),
+                            target: get_final_name(target),
+                            value: get_final_name(value),
                         },
                     };
-                    new_statements.push(new);
+                    new_statements.push(new.at_loc(stmt));
                 }
                 Ok(())
             }
@@ -102,13 +99,14 @@ impl<'a> InlinedStatements<'a> {
                     .chain(name_map.keys())
                     .chain(type_map.iter().map(|(n, _)| n))
                     .map(|k| {
-                        let new_name = match k {
+                        let new_name = match &k.inner {
                             ValueName::Named(_, name, value_name_source) => ValueName::Named(
                                 nameidtracker.next(),
                                 name.clone(),
                                 value_name_source.clone(),
-                            ),
-                            ValueName::Expr(_) => ValueName::Expr(idtracker.next()),
+                            )
+                            .at_loc(k),
+                            ValueName::Expr(_) => ValueName::Expr(idtracker.next()).at_loc(k),
                         };
                         (k.clone(), new_name)
                     })
@@ -121,7 +119,7 @@ impl<'a> InlinedStatements<'a> {
 
                 for (dest, source_ty) in type_map.iter() {
                     let dest = new_name_map.get(dest).unwrap_or(dest);
-                    let dest_type = match dest {
+                    let dest_type = match &dest.inner {
                         ValueName::Named(id, name, _) => {
                             // NOTE: The name here is somewhat artificial, but since we only do actual
                             // comparison based on the ID, it is fine
@@ -145,15 +143,16 @@ impl<'a> InlinedStatements<'a> {
                             .get(&inner_output_name)
                             .ok_or_else(|| {
                                 diag_anyhow!(
-                                    loc.unwrap_or(().nowhere()),
+                                    *loc,
                                     "Did not find the output in an entity being inlined"
                                 )
                             })?
                             .clone(),
                     ],
                     ty: (*ty).clone(),
-                    loc: (*loc).clone(),
-                });
+                    loc: Some((*loc).clone()),
+                })
+                .at_loc(loc);
 
                 for stmts in &target.statements {
                     stmts.finalize(
@@ -221,7 +220,7 @@ fn perform_inlining<'a>(
         let mut current_normal = vec![];
         let mut new_stmts = vec![];
         while let Some(stmt) = stmts_iter.next() {
-            match stmt {
+            match &stmt.inner {
                 Statement::Binding(Binding {
                     name: output_name,
                     operator:
@@ -234,7 +233,7 @@ fn perform_inlining<'a>(
                         },
                     operands,
                     ty,
-                    loc,
+                    loc: _,
                 }) => {
                     // Check if this should be inlined
                     if let Some(callee) = source_map.get(callee) {
@@ -251,13 +250,18 @@ fn perform_inlining<'a>(
                                 .map(|(input, operand)| (input.val_name.clone(), operand.clone()))
                                 .collect::<Vec<_>>();
 
-                            let name_generator = |current_name: &ValueName| match current_name {
+                            let name_generator = |current_name: &Loc<ValueName>| match &current_name
+                                .inner
+                            {
                                 ValueName::Named(_, path, value_name_source) => ValueName::Named(
                                     nameidtracker.next(),
                                     path.clone(),
                                     value_name_source.clone(),
-                                ),
-                                ValueName::Expr(_) => ValueName::Expr(idtracker.next()),
+                                )
+                                .at_loc(current_name),
+                                ValueName::Expr(_) => {
+                                    ValueName::Expr(idtracker.next()).at_loc(current_name)
+                                }
                             };
 
                             // Build a map of names in the callee to new unique names in the caller
@@ -265,7 +269,7 @@ fn perform_inlining<'a>(
                                 .mir
                                 .statements
                                 .iter()
-                                .filter_map(|stmt| match stmt {
+                                .filter_map(|stmt| match &stmt.inner {
                                     Statement::Binding(binding) => {
                                         Some((binding.name.clone(), name_generator(&binding.name)))
                                     }
@@ -284,7 +288,7 @@ fn perform_inlining<'a>(
 
                             let mut type_map = vec![];
                             for (source, dest) in &inner_expr_map {
-                                let source_type = match source {
+                                let source_type = match &source.inner {
                                     ValueName::Named(id, name, _) => {
                                         // NOTE: The path::from_strs here is a lie,
                                         // but we only need this for lookups so
@@ -326,7 +330,7 @@ fn perform_inlining<'a>(
                                 inner_output_name: &callee.mir.output,
                                 input_expr_map: Rc::new(input_expr_map),
                                 ty,
-                                loc,
+                                loc: stmt.loc(),
                             });
                         } else {
                             current_normal.push(stmt)
@@ -335,7 +339,7 @@ fn perform_inlining<'a>(
                         current_normal.push(stmt)
                     }
                 }
-                other_stmt => current_normal.push(other_stmt),
+                _ => current_normal.push(stmt),
             }
         }
         new_stmts.push(InlinedStatements::Normal(current_normal));
