@@ -13,6 +13,7 @@ use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
 pub use spade_common::namespace::ModuleNamespace;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
+use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
@@ -736,15 +737,17 @@ fn codegen(
     let codegen_results = mir_entities
         .into_par_iter()
         .enumerate()
-        .filter_map(
+        .map(
             |(
                 i,
                 MirOutput {
                     mir,
                     type_state,
                     reg_name_map,
+                    mono_traceback,
                 },
-            )| {
+            )|
+             -> Result<_, Diagnostic> {
                 // Codegen breaks if not all statements are valid, and since we don't need
                 // codegen if there are errors, we can safely bail from codegen of units with errors
                 if mir
@@ -752,22 +755,60 @@ fn codegen(
                     .iter()
                     .any(|stmt| matches!(stmt.inner, spade_mir::Statement::Error))
                 {
-                    return None;
+                    return Ok(None);
                 }
                 let bumpy_mir_entity = mir.clone();
 
                 let codegenable = prepare_codegen(mir);
 
                 let mut local_instance_map = InstanceMap::new();
-                let code = spade_mir::codegen::entity_code(
+
+                let mir_codegen_out = spade_mir::codegen::entity_code(
                     &codegenable,
                     &mut local_instance_map,
                     &Some(code.read().unwrap().clone()),
                 );
 
+                let code = (|| {
+                    let mut lir = spade_mir_lowering::lower_entity(
+                        &codegenable.0,
+                        &spade_mir_lowering::Context {
+                            idtracker: &idtracker,
+                        },
+                    )?;
+
+                    lir.legalize()
+                        .map_err(|mut e| {
+                            e.add_note("The LIR entity was:");
+                            for line in format!("{lir}").lines() {
+                                e.add_note(line);
+                            }
+                            e
+                        })?;
+
+                    let (code, _) = spade_lir::codegen::entity_code(
+                        &lir,
+                        &mut local_instance_map,
+                        &Some(code.read().unwrap().clone()),
+                    )?;
+
+                    Ok(code)
+                })()
+                .map_err(|mut diagnostic: Diagnostic| {
+                    for (loc, message) in mono_traceback {
+                        diagnostic = diagnostic.subdiagnostic(Subdiagnostic::TemplateTraceback {
+                            span: loc.into(),
+                            message: Message::from(message),
+                        });
+                    }
+
+                    diagnostic
+                })?;
+
                 let flat_mir_entity = codegenable.clone();
 
-                let (code, name_map) = code;
+                // TODO: Get rid of all the MIR codegen stuff here
+                let (_mir_codegen_out, name_map) = mir_codegen_out;
 
                 let mir_context = (
                     codegenable.0.name.source.clone(),
@@ -777,7 +818,7 @@ fn codegen(
                         verilog_name_map: name_map,
                     },
                 );
-                Some((
+                Ok(Some((
                     i,
                     CodegenArtefact {
                         bumpy_mir_entity,
@@ -787,9 +828,15 @@ fn codegen(
                         local_instance_map,
                         local_mir_context: mir_context,
                     },
-                ))
+                )))
             },
         )
+        .collect::<Vec<_>>();
+
+    let codegen_results = codegen_results
+        .into_iter()
+        .filter_map(|result| result.or_report(error_handler))
+        .flatten()
         .collect::<Vec<_>>();
 
     let mut bumpy_mir_entities = Vec::with_capacity(codegen_results.len());

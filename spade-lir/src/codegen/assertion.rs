@@ -1,4 +1,3 @@
-// TODO: Remove
 use spade_codespan_reporting::diagnostic::Diagnostic;
 use spade_codespan_reporting::term::{self, termcolor::Buffer};
 
@@ -28,3 +27,4 @@ impl CompilationError for AssertedExpression {
         spade_diagnostics::diagnostic::DiagnosticLevel::Error
     }
 }
+
