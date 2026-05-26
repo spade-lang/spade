@@ -1,3 +1,4 @@
+// TODO: Remove
 use spade_codespan_reporting::diagnostic::Diagnostic;
 use spade_codespan_reporting::term::{self, termcolor::Buffer};
 
