@@ -3,7 +3,7 @@ mod types;
 
 use spade_common::{
     id_tracker::ExprIdTracker,
-    location_info::Loc,
+    location_info::{Loc, WithLocation},
     num_ext::{InfallibleToBigInt, InfallibleToBigUint},
 };
 use spade_diagnostics::{Diagnostic, diag_bail};
@@ -16,8 +16,8 @@ use crate::types::TypeExt;
 
 pub type Result<T> = std::result::Result<T, Diagnostic>;
 
-struct Context<'a> {
-    idtracker: &'a ExprIdTracker,
+pub struct Context<'a> {
+    pub idtracker: &'a ExprIdTracker,
 }
 
 trait ValueNameExt {
@@ -33,12 +33,16 @@ impl ValueNameExt for mir::ValueName {
     }
 }
 
+pub fn lower_entity(entity: &mir::Entity, ctx: &Context) -> Result<lir::Entity> {
+    entity.lower(ctx)
+}
+
 pub(crate) trait EntityExt {
-    fn lower(&self) -> lir::Entity;
+    fn lower(&self, ctx: &Context) -> Result<lir::Entity>;
 }
 
 impl EntityExt for mir::Entity {
-    fn lower(&self) -> lir::Entity {
+    fn lower(&self, ctx: &Context) -> Result<lir::Entity> {
         let mir::Entity {
             name,
             inputs,
@@ -49,25 +53,12 @@ impl EntityExt for mir::Entity {
             inline,
         } = self;
 
+        let types = MirTypeList::from_entity(self);
+
         // These are in inverted order because we change the output to be an input
-        let (output_back, output_fwd) = output_type.lower();
+        let (output_fwd, output_back) = output_type.lower();
 
-        let output_args = [
-            output_back.map(|ty| LirArg {
-                name: "__output".to_string(),
-                val_name: lir::ValueName::OutputBack,
-                ty,
-                no_mangle: None,
-            }),
-            output_fwd.map(|ty| LirArg {
-                name: "__input".to_string(),
-                val_name: lir::ValueName::OutputFwd,
-                ty,
-                no_mangle: None,
-            }),
-        ];
-
-        let arguments: Vec<_> = inputs
+        let (mut inputs, mut outputs): (Vec<_>, Vec<_>) = inputs
             .iter()
             .map(|input| {
                 let MirInput {
@@ -79,89 +70,143 @@ impl EntityExt for mir::Entity {
 
                 let (fwd, back) = ty.lower();
 
-                fwd.map(|ty| LirArg {
-                    name: name.clone(),
-                    val_name: lir::ValueName::Forward(val_name.clone().inner),
-                    ty: ty.clone(),
-                    no_mangle: *no_mangle,
-                })
-                .into_iter()
-                .chain(back.map(|ty| LirArg {
-                    name: name.clone(),
-                    val_name: lir::ValueName::Forward(val_name.clone().inner),
-                    ty: ty.clone(),
-                    no_mangle: *no_mangle,
-                }))
+                (
+                    LirArg {
+                        name: name.clone(),
+                        val_name: lir::ValueName::Forward(val_name.clone().inner).at_loc(val_name),
+                        ty: fwd.clone(),
+                        no_mangle: *no_mangle,
+                    },
+                    LirArg {
+                        name: name.clone(),
+                        val_name: lir::ValueName::Forward(val_name.clone().inner).at_loc(val_name),
+                        ty: back.clone(),
+                        no_mangle: *no_mangle,
+                    },
+                )
             })
+            .unzip();
+
+        inputs.push(LirArg {
+            name: "__input".to_string(),
+            val_name: lir::ValueName::OutputBack.at_loc(output),
+            ty: output_back.clone(),
+            no_mangle: None,
+        });
+        outputs.push(LirArg {
+            name: "__output".to_string(),
+            val_name: lir::ValueName::OutputFwd.at_loc(output),
+            ty: output_fwd.clone(),
+            no_mangle: None,
+        });
+
+        let mut statements = statements
+            .iter()
+            .map(|stmt| stmt.lower(&types, ctx))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
             .flatten()
-            .chain(output_args.into_iter().flatten())
             .collect::<Vec<_>>();
 
-        let statements = statements.iter().flat_map(|stmt| stmt.lower()).collect();
+        // TODO
+        statements.push(
+            lir::Statement::Binding(lir::Binding {
+                name: spade_lir::ValueName::OutputFwd,
+                operator: spade_lir::Operator::BlackBoxAlias,
+                operands: vec![output.map_ref(|v| v.lower_fwd())],
+                ty: output_fwd,
+                loc: None,
+            })
+            .at_loc(&self.output),
+        );
 
-        lir::Entity {
+        Ok(lir::Entity {
             name: name.clone(),
-            arguments: arguments,
+            inputs,
+            outputs,
             verilog_attr_groups: verilog_attr_groups.clone(),
             statements,
             inline: *inline,
-        }
+        })
     }
 }
 
 trait StatementExt {
-    fn lower(&self) -> Vec<lir::Statement>;
+    fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>>;
 }
 
-impl StatementExt for mir::Statement {
-    fn lower(&self) -> Vec<lir::Statement> {
-        match self {
-            spade_mir::Statement::Binding(binding) => todo!(),
-            spade_mir::Statement::Register(register) => todo!(),
-            spade_mir::Statement::Constant(value_name, ty, val) => {
-                vec![lir::Statement::Constant(
-                    value_name.lower_fwd(),
-                    ty.lower().0.expect("Constant did not have a forward type"),
-                    val.clone(),
-                )]
+impl StatementExt for Loc<mir::Statement> {
+    fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>> {
+        match &self.inner {
+            mir::Statement::Binding(binding) => binding.at_loc(self).lower(types, ctx),
+            mir::Statement::Register(mir::Register {
+                name,
+                ty,
+                clock,
+                reset,
+                initial,
+                value,
+                loc,
+            }) => {
+                if let Some(_intial) = initial {
+                    // TODO
+                    diag_bail!(self, "Register intial is unsupported in LIR")
+                }
+                let (fwd, back) = ty.lower();
+                if back.size() != BigUint::ZERO {
+                    diag_bail!(self, "Found a register with non-zero backward size")
+                }
+                Ok(vec![
+                    lir::Statement::Register(lir::Register {
+                        name: name.lower_fwd(),
+                        ty: fwd,
+                        clock: clock.lower_fwd(),
+                        reset: reset
+                            .as_ref()
+                            .map(|(trig, val)| (trig.lower_fwd(), val.lower_fwd())),
+                        // TODO
+                        initial: None,
+                        value: value.lower_fwd(),
+                        loc: loc.clone(),
+                    })
+                    .at_loc(self),
+                ])
             }
-            spade_mir::Statement::Assert(value_name) => {
-                vec![lir::Statement::Assert(
-                    value_name.map_ref(|v| v.lower_fwd()),
-                )]
-            }
-            spade_mir::Statement::Set { target, value } => {
-                vec![lir::Statement::Set {
+            mir::Statement::Constant(value_name, ty, val) => Ok(vec![
+                lir::Statement::Constant(value_name.lower_fwd(), ty.lower().0, val.clone())
+                    .at_loc(self),
+            ]),
+            mir::Statement::Assert(value_name) => Ok(vec![
+                lir::Statement::Assert(value_name.map_ref(|v| v.lower_fwd())).at_loc(self),
+            ]),
+            mir::Statement::Set { target, value } => Ok(vec![
+                lir::Statement::Set {
                     target: target.map_ref(|v| v.lower_back()),
                     value: value.map_ref(|v| v.lower_fwd()),
-                }]
-            }
-            spade_mir::Statement::Error => {
-                vec![spade_lir::Statement::Error]
-            }
+                }
+                .at_loc(self),
+                lir::Statement::Set {
+                    target: value.map_ref(|v| v.lower_back()),
+                    value: target.map_ref(|v| v.lower_fwd()),
+                }
+                .at_loc(self),
+            ]),
+            mir::Statement::Error => Ok(vec![lir::Statement::Error.at_loc(self)]),
         }
     }
 }
 
 trait BindingExt {
-    fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<lir::Statement>>;
+    fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>>;
 }
 
 impl BindingExt for Loc<&mir::Binding> {
-    fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<lir::Statement>> {
+    fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>> {
         let (fwd, back) = self.ty.lower();
 
         let fwd_only_operator =
-            |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<lir::ValueName>)| {
-                let Some(fwd) = &fwd else {
-                    diag_bail!(
-                        self,
-                        "{} was applied to a type without forward component ({})",
-                        self.operator,
-                        self.ty
-                    );
-                };
-                if back.is_some() {
+            |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<Loc<lir::ValueName>>)| {
+                if back.size() != BigUint::ZERO {
                     diag_bail!(
                         self,
                         "{} was applied to a type with a backward component ({})",
@@ -170,62 +215,69 @@ impl BindingExt for Loc<&mir::Binding> {
                     );
                 }
 
-                let (operator, operands) = inner(fwd);
+                let (operator, operands) = inner(&fwd);
 
-                Ok(vec![lir::Statement::Binding(lir::Binding {
-                    name: self.name.lower_fwd(),
-                    operator: operator,
-                    operands: operands,
-                    ty: fwd.clone(),
-                    loc: self.loc.clone(),
-                })])
-            };
-
-        let lowered_fwd = || self.operands.iter().map(|op| op.lower_fwd()).collect();
-        let lowered_back = || {
-            self.operands
-                .iter()
-                .map(|op| op.lower_back())
-                .collect::<Vec<_>>()
-        };
-
-        let trivial_fwd_operator = |new_operator: lir::Operator| -> Result<Vec<lir::Statement>> {
-            fwd_only_operator(&|_| (new_operator.clone(), lowered_fwd()))
-        };
-
-        let maybe_fwd_operator =
-            |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<lir::ValueName>)| {
-                if let Some(fwd) = &fwd {
-                    let (operator, operands) = inner(fwd);
-
-                    Ok(vec![lir::Statement::Binding(lir::Binding {
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: operator,
                         operands: operands,
                         ty: fwd.clone(),
                         loc: self.loc.clone(),
-                    })])
-                } else {
-                    Ok(vec![])
-                }
+                    })
+                    .at_loc(self),
+                ])
+            };
+
+        let lowered_fwd = || {
+            self.operands
+                .iter()
+                .map(|op| op.map_ref(|op| op.lower_fwd()))
+                .collect()
+        };
+        let lowered_back = || {
+            self.operands
+                .iter()
+                .map(|op| op.map_ref(|op| op.lower_back()))
+                .collect::<Vec<_>>()
+        };
+
+        let trivial_fwd_operator =
+            |new_operator: lir::Operator| -> Result<Vec<Loc<lir::Statement>>> {
+                fwd_only_operator(&|_| (new_operator.clone(), lowered_fwd()))
+            };
+
+        let maybe_fwd_operator =
+            |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<Loc<lir::ValueName>>)| {
+                let (operator, operands) = inner(&fwd);
+
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: operator,
+                        operands: operands,
+                        ty: fwd.clone(),
+                        loc: self.loc.clone(),
+                    })
+                    .at_loc(self),
+                ])
             };
 
         let maybe_back_operator =
-            |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<lir::ValueName>)| {
-                if let Some(back) = &back {
-                    let (operator, operands) = inner(back);
+            |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<Loc<lir::ValueName>>)| {
+                let (operator, operands) = inner(&back);
 
-                    Ok(vec![lir::Statement::Binding(lir::Binding {
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_back(),
                         operator: operator,
                         operands: operands,
                         // Safe unwrap, the assert above guards
                         ty: back.clone(),
                         loc: self.loc.clone(),
-                    })])
-                } else {
-                    Ok(vec![])
-                }
+                    })
+                    .at_loc(self),
+                ])
             };
 
         match &self.operator {
@@ -275,9 +327,63 @@ impl BindingExt for Loc<&mir::Binding> {
             mir::Operator::Match => trivial_fwd_operator(lir::Operator::Match),
             mir::Operator::BitwiseNot => trivial_fwd_operator(lir::Operator::BitwiseNot),
 
-            mir::Operator::ReadPort => todo!(),
+            mir::Operator::ReadPort => Ok(vec![
+                lir::Statement::Binding(lir::Binding {
+                    name: self.name.lower_fwd(),
+                    operator: lir::Operator::Alias,
+                    operands: vec![self.operands[0].map_ref(|op| op.lower_back())],
+                    ty: fwd,
+                    loc: self.loc,
+                })
+                .at_loc(self),
+            ]),
 
-            mir::Operator::SignExtend => todo!(),
+            mir::Operator::SignExtend => {
+                let msb_name = lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
+                let replicated_name =
+                    lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
+                let in_ty = &types[&self.operands[0]]; // TODO Don't index, use .get and bail on error
+                if in_ty.size() == BigUint::ZERO {
+                    diag_bail!(self, "Sign extend called on zero sized type");
+                };
+
+                let replicated_size = self.ty.size() - in_ty.size();
+
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
+                        name: msb_name.clone(),
+                        operator: lir::Operator::RangeSlice {
+                            start: in_ty.size(),
+                            end_exclusive: in_ty.size(),
+                        },
+                        operands: vec![self.operands[0].map_ref(|op| op.lower_fwd())],
+                        ty: lir::Type::BitVector(BigUint::one()),
+                        loc: None,
+                    })
+                    .near_loc(self),
+                    lir::Statement::Binding(lir::Binding {
+                        name: replicated_name.clone(),
+                        operator: lir::Operator::Replicate {
+                            copies: replicated_size.clone(),
+                        },
+                        operands: vec![msb_name.near_loc(self)],
+                        ty: lir::Type::BitVector(replicated_size),
+                        loc: None,
+                    })
+                    .near_loc(self),
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: lir::Operator::Concat,
+                        operands: vec![
+                            replicated_name.near_loc(self),
+                            self.operands[0].map_ref(|op| op.lower_fwd()),
+                        ],
+                        ty: fwd,
+                        loc: self.loc,
+                    })
+                    .at_loc(self),
+                ])
+            }
             mir::Operator::ZeroExtend => todo!(),
             mir::Operator::Truncate => fwd_only_operator(&|ty| {
                 (
@@ -289,7 +395,13 @@ impl BindingExt for Loc<&mir::Binding> {
                 )
             }),
 
-            mir::Operator::Concat => trivial_fwd_operator(lir::Operator::Concat),
+            mir::Operator::Concat => Ok([
+                maybe_fwd_operator(&|_| (lir::Operator::Concat, lowered_fwd()))?,
+                maybe_back_operator(&|_| (lir::Operator::BackConcat, lowered_back()))?,
+            ]
+            .into_iter()
+            .flatten()
+            .collect()),
 
             mir::Operator::ConstructArray => Ok([
                 maybe_fwd_operator(&|_| {
@@ -309,12 +421,19 @@ impl BindingExt for Loc<&mir::Binding> {
             .flatten()
             .collect()),
 
-            mir::Operator::DeclClockedMemory { initial } => todo!(),
-            mir::Operator::IndexMemory => todo!(),
+            mir::Operator::DeclClockedMemory { initial } => {
+                // TODO
+                Ok(vec![])
+            }
+            mir::Operator::IndexMemory => {
+                // TODO
+                Ok(vec![])
+            }
 
             mir::Operator::IndexArray => {
-                let mir::types::Type::Array { inner, length: _ } = &self.ty else {
-                    diag_bail!(self, "IndexArray invoked on non-array ({})", self.ty);
+                let target_ty = &types[&self.operands[0]];
+                let mir::types::Type::Array { inner, length: _ } = target_ty else {
+                    diag_bail!(self, "IndexArray invoked on non-array ({})", target_ty);
                 };
 
                 Ok([
@@ -354,7 +473,7 @@ impl BindingExt for Loc<&mir::Binding> {
                     maybe_fwd_operator(&|_ty| {
                         let member_size = inner.size();
                         let num_elems = end - start;
-                        let end_index = (end * &member_size) - BigUint::one();
+                        let end_index = end * &member_size;
                         let offset = member_size * num_elems;
 
                         (
@@ -368,7 +487,7 @@ impl BindingExt for Loc<&mir::Binding> {
                     maybe_fwd_operator(&|_ty| {
                         let member_size = inner.backward_size();
                         let num_elems = end - start;
-                        let end_index = (end * &member_size) - BigUint::one();
+                        let end_index = end * &member_size;
                         let offset = member_size * num_elems;
 
                         (
@@ -408,14 +527,15 @@ impl BindingExt for Loc<&mir::Binding> {
                         self.ty
                     );
                 };
-                let (Some(fwd), None) = (fwd, back) else {
-                    diag_bail!(self, "Enum lir type was suspicious ({})", self.ty)
-                };
+
+                if back.size() != BigUint::ZERO {
+                    diag_bail!(self, "Enum lir type has backward component ({})", self.ty)
+                }
 
                 let tag_const = lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
                 let tag_size = enum_util::tag_size(options.len());
 
-                let mut operands = vec![tag_const.clone()];
+                let mut operands = vec![tag_const.clone().near_loc(self)];
                 operands.extend(lowered_fwd());
 
                 Ok(vec![
@@ -423,14 +543,16 @@ impl BindingExt for Loc<&mir::Binding> {
                         tag_const.clone(),
                         lir::Type::BitVector(tag_size.to_biguint()),
                         mir::ConstantValue::Int(variant.to_bigint()),
-                    ),
+                    )
+                    .near_loc(self),
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: lir::Operator::Concat,
                         operands,
                         ty: fwd,
                         loc: self.loc,
-                    }),
+                    })
+                    .at_loc(self),
                 ])
             }
             mir::Operator::ConstructCopyView => {
@@ -441,11 +563,14 @@ impl BindingExt for Loc<&mir::Binding> {
 
                 // Special case for enum without members and payload
                 if enum_type.size() == BigUint::ZERO {
-                    Ok(vec![lir::Statement::Constant(
-                        self.name.lower_fwd(),
-                        lir::Type::BitVector(BigUint::one()),
-                        mir::ConstantValue::Bool(true),
-                    )])
+                    Ok(vec![
+                        lir::Statement::Constant(
+                            self.name.lower_fwd(),
+                            lir::Type::BitVector(BigUint::one()),
+                            mir::ConstantValue::Bool(true),
+                        )
+                        .at_loc(self),
+                    ])
                 } else {
                     let tag_size = enum_util::tag_size(enum_type.assume_enum().len());
                     let total_size = enum_type.size();
@@ -463,7 +588,8 @@ impl BindingExt for Loc<&mir::Binding> {
                             expected_tag.clone(),
                             lir::Type::BitVector(tag_size.to_biguint()),
                             mir::ConstantValue::Int(variant.to_bigint()),
-                        ),
+                        )
+                        .near_loc(self),
                         lir::Statement::Binding(lir::Binding {
                             name: extracted_tag.clone(),
                             operator: lir::Operator::RangeSlice {
@@ -473,14 +599,19 @@ impl BindingExt for Loc<&mir::Binding> {
                             operands: lowered_fwd(),
                             ty: lir::Type::BitVector(tag_size.to_biguint()),
                             loc: self.loc,
-                        }),
+                        })
+                        .near_loc(self),
                         lir::Statement::Binding(spade_lir::Binding {
                             name: self.name.lower_fwd(),
                             operator: lir::Operator::Eq,
-                            operands: vec![extracted_tag, expected_tag],
+                            operands: vec![
+                                extracted_tag.near_loc(self),
+                                expected_tag.near_loc(self),
+                            ],
                             ty: lir::Type::BitVector(BigUint::one()),
                             loc: self.loc,
-                        }),
+                        })
+                        .at_loc(self),
                     ])
                 }
             }
@@ -528,11 +659,7 @@ impl BindingExt for Loc<&mir::Binding> {
                 };
                 // TODO: Also handle backward tuple indexinng
                 maybe_fwd_operator(&|_| {
-
-                    let sizes = inner_types
-                        .iter()
-                        .map(|t| t.backward_size())
-                        .collect::<Vec<_>>();
+                    let sizes = inner_types.iter().map(|t| t.size()).collect::<Vec<_>>();
 
                     // Compute the start index of the element we're looking for
                     let mut start_bit = BigUint::zero();
@@ -547,26 +674,122 @@ impl BindingExt for Loc<&mir::Binding> {
                     (
                         lir::Operator::RangeSlice {
                             start: &total_width - end_bit,
-                            end_exclusive: &total_width - start_bit - 1u32.to_biguint(),
+                            end_exclusive: &total_width - start_bit,
                         },
                         lowered_fwd(),
                     )
                 })
             }
-            mir::Operator::ReadMutWires => todo!(),
+            mir::Operator::ReadMutWires => {
+                // TODO
+                Ok(vec![])
+            }
             mir::Operator::Instance {
                 name,
                 params,
                 argument_names,
-                loc,
+                loc: _,
                 verilog_attr_groups,
-            } => todo!(),
+            } => {
+                let (mut inputs, mut outputs): (Vec<_>, Vec<_>) = argument_names
+                    .iter()
+                    .zip(&self.operands)
+                    .map(|(arg_name, value)| {
+                        let (fwd, back) = types[value].lower();
+                        (
+                            (
+                                arg_name.mangle_input(),
+                                fwd,
+                                value.map_ref(|v| v.lower_fwd()),
+                            ),
+                            (
+                                arg_name.mangle_output(),
+                                back,
+                                value.map_ref(|v| v.lower_back()),
+                            ),
+                        )
+                    })
+                    .unzip();
 
-            mir::Operator::FlipPort => todo!(),
+                inputs.push((
+                    "__input".to_string(),
+                    back,
+                    self.name.map_ref(|n| n.lower_back()).clone(),
+                ));
+                outputs.push((
+                    "__output".to_string(),
+                    fwd,
+                    self.name.map_ref(|n| n.lower_fwd()).clone(),
+                ));
 
-            mir::Operator::Alias => todo!(),
-            mir::Operator::BlackBoxAlias => todo!(),
-            mir::Operator::Nop => todo!(),
+                Ok(vec![
+                    lir::Statement::Instance {
+                        name: name.clone(),
+                        params: params.clone(),
+                        inputs: inputs.into_iter().collect(),
+                        outputs: outputs.into_iter().collect(),
+                        verilog_attr_groups: verilog_attr_groups.clone(),
+                    }
+                    .at_loc(self),
+                ])
+            }
+
+            mir::Operator::FlipPort => Ok([
+                maybe_fwd_operator(&|_| (lir::Operator::Alias, lowered_back()))?,
+                maybe_back_operator(&|_| (lir::Operator::Alias, lowered_fwd()))?,
+            ]
+            .into_iter()
+            .flatten()
+            .collect()),
+
+            mir::Operator::Alias => Ok([
+                maybe_fwd_operator(&|_| {
+                    (lir::Operator::Alias, lowered_fwd().into_iter().collect())
+                })?,
+                maybe_back_operator(&|_| {
+                    (
+                        lir::Operator::BackAlias,
+                        lowered_back().into_iter().collect(),
+                    )
+                })?,
+            ]
+            .into_iter()
+            .flatten()
+            .collect()),
+            mir::Operator::BlackBoxAlias => Ok([
+                maybe_fwd_operator(&|_| {
+                    (
+                        lir::Operator::BlackBoxAlias,
+                        lowered_fwd().into_iter().rev().collect(),
+                    )
+                })?,
+                maybe_back_operator(&|_| {
+                    (
+                        lir::Operator::BackBlackBoxAlias,
+                        lowered_back().into_iter().rev().collect(),
+                    )
+                })?,
+            ]
+            .into_iter()
+            .flatten()
+            .collect()),
+            mir::Operator::Nop => Ok([
+                maybe_fwd_operator(&|_| {
+                    (
+                        lir::Operator::Nop,
+                        lowered_fwd().into_iter().rev().collect(),
+                    )
+                })?,
+                maybe_back_operator(&|_| {
+                    (
+                        lir::Operator::Nop,
+                        lowered_back().into_iter().rev().collect(),
+                    )
+                })?,
+            ]
+            .into_iter()
+            .flatten()
+            .collect()),
         }
     }
 }

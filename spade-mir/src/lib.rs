@@ -163,6 +163,25 @@ pub struct ParamName {
     pub no_mangle: Option<Loc<()>>,
 }
 
+impl ParamName {
+    pub fn mangle_input(&self) -> String {
+        if self.no_mangle.is_some() {
+            self.name.clone()
+        } else {
+            format!("{}_i", self.name.clone())
+        }
+    }
+
+    pub fn mangle_output(&self) -> String {
+        if self.no_mangle.is_some() {
+            self.name.clone()
+        } else {
+            format!("{}_o", self.name.clone())
+        }
+    }
+    
+}
+
 #[derive_where(PartialEq, Eq, Hash)]
 #[derive(Clone, Debug)]
 pub enum Operator {

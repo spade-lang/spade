@@ -1,12 +1,21 @@
-use derive_where::derive_where;
+pub mod codegen;
+mod verilog;
+mod name_map;
+mod type_list;
+mod legalization;
+pub mod pretty_print;
+
 use itertools::Itertools;
 use num::BigUint;
 
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::Loc;
 
+use spade_diagnostics::Diagnostic;
 pub(crate) use spade_mir::ConstantValue;
-use spade_mir as mir;
+use spade_mir::{self as mir, UnitName};
+
+type Result<T> = std::result::Result<T, Diagnostic>;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum ValueName {
@@ -33,6 +42,10 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn unit() -> Self {
+        Type::BitVector(BigUint::ZERO)
+    }
+
     pub fn size(&self) -> BigUint {
         match self {
             Type::BitVector(s) => s.clone(),
@@ -45,7 +58,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::BitVector(size) => {
-                write!(f, "bits[{}]", size)
+                write!(f, "bits<{}>", size)
             }
             Type::InOut(inner) => {
                 write!(f, "inout({})", inner)
@@ -60,8 +73,7 @@ pub struct ParamName {
     pub no_mangle: Option<Loc<()>>,
 }
 
-#[derive_where(PartialEq, Eq, Hash)]
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Operator {
     // Binary arithmetic operators
     Add,
@@ -109,12 +121,23 @@ pub enum Operator {
     /// Slice `op[0]` at a runtime offset of `op[1]`, i.e. `op[0][op[0]..op[0] + elem_size]`
     /// If reversed is true, the 0th index is at the msb of the target rather than the lsb, i.e.
     /// `op[0](size - op[0] - elem_size .. size - op[0])
-    Slice{elem_size: BigUint, reversed: bool},
-    BackSlice{elem_size: BigUint, reversed: bool},
-    RangeSlice{start: BigUint, end_exclusive: BigUint},
+    Slice {
+        elem_size: BigUint,
+        reversed: bool,
+    },
+    BackSlice {
+        elem_size: BigUint,
+        reversed: bool,
+    },
+    RangeSlice {
+        start: BigUint,
+        end_exclusive: BigUint,
+    },
     BackRangeSlice(BigUint, BigUint),
     /// Replicate [0] `copies` times
-    Replicate{copies: BigUint},
+    Replicate {
+        copies: BigUint,
+    },
 
     /// Select [1] if [0] else [2]
     Select,
@@ -133,31 +156,14 @@ pub enum Operator {
         initial: Option<Vec<Vec<Statement>>>,
     },
 
-    /// Inverts the direction of all bits of a port. I.e. the forward ports
-    /// become backward ports. This is only valid when converting from T to ~T
-    FlipPort,
-
-    /// Instantiation of another module with the specified name. The operands are passed
-    /// by name to the entity. The operand name mapping is decided by the `argument_names` field of
-    /// this variant. The first operand gets mapped to the first argument name, and so on.
-    /// The target module can only have a single output which must be the last argument.
-    /// The location of the instantiation is optional but can be passed to improve
-    /// critical path report readability
-    Instance {
-        name: mir::UnitName,
-        params: Vec<(String, ConstantValue)>,
-        /// The names of the arguments in the same order as the operands.
-        /// For instance, if the `i`th argument name is "foo" and the `i`th [`Binding`] is
-        /// `my_port`, the verilog module will be instantiated with `.foo(my_port)`.
-        argument_names: Vec<ParamName>,
-        #[derive_where(skip)]
-        loc: Option<Loc<()>>,
-        verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
-    },
     /// Alias another named value
     Alias,
     /// Like `Alias`, but don't attempt to replace the aliased name with another
     BlackBoxAlias,
+
+    BackAlias,
+    BackBlackBoxAlias,
+    
     /// Define a variable for the value but don't do anything with it. Useful for creating ports
     Nop,
 }
@@ -206,10 +212,19 @@ impl std::fmt::Display for Operator {
             Operator::DivPow2 => write!(f, "DivPow2"),
             Operator::Concat => write!(f, "Concat"),
             Operator::BackConcat => write!(f, "BackConcat"),
-            Operator::Slice{elem_size, reversed} => write!(f, "Slice({elem_size}, {reversed})"),
-            Operator::BackSlice{elem_size, reversed} => write!(f, "BackSlice({elem_size}, {reversed})"),
+            Operator::Slice {
+                elem_size,
+                reversed,
+            } => write!(f, "Slice({elem_size}, {reversed})"),
+            Operator::BackSlice {
+                elem_size,
+                reversed,
+            } => write!(f, "BackSlice({elem_size}, {reversed})"),
             Operator::Replicate { copies } => write!(f, "Replicate({copies})"),
-            Operator::RangeSlice{start, end_exclusive} => write!(f, "RangeSlice({start}, {end_exclusive})"),
+            Operator::RangeSlice {
+                start,
+                end_exclusive,
+            } => write!(f, "RangeSlice({start}, {end_exclusive})"),
             Operator::BackRangeSlice(start, end) => write!(f, "BackRangeSlice({start}, {end})"),
             Operator::DeclClockedMemory { initial } => write!(
                 f,
@@ -226,10 +241,10 @@ impl std::fmt::Display for Operator {
                     "None".to_owned()
                 }
             ),
-            Operator::Instance { name, .. } => write!(f, "Instance({})", name.as_verilog()),
             Operator::Alias => write!(f, "Alias"),
             Operator::BlackBoxAlias => write!(f, "BlackBoxAlias"),
-            Operator::FlipPort => write!(f, "FlipPort"),
+            Operator::BackAlias => write!(f, "BackAlias"),
+            Operator::BackBlackBoxAlias => write!(f, "BackBlackBoxAlias"),
             Operator::Nop => write!(f, "Nop"),
             Operator::ReadWriteItemsInOut(n) => write!(f, "ReadWriteInOut({})", n),
         }
@@ -240,7 +255,7 @@ impl std::fmt::Display for Operator {
 pub struct Binding {
     pub name: ValueName,
     pub operator: Operator,
-    pub operands: Vec<ValueName>,
+    pub operands: Vec<Loc<ValueName>>,
     pub ty: Type,
     pub loc: Option<Loc<()>>,
 }
@@ -271,9 +286,6 @@ pub struct Register {
     pub initial: Option<Vec<Statement>>,
     pub value: ValueName,
     pub loc: Option<Loc<()>>,
-    /// True if this register corresponds to an fsm with the specified ValueName
-    /// as the actual state
-    pub traced: Option<ValueName>,
 }
 
 impl std::fmt::Display for Register {
@@ -286,7 +298,6 @@ impl std::fmt::Display for Register {
             initial,
             value,
             loc: _,
-            traced: _,
         } = self;
 
         let reset = reset
@@ -314,117 +325,36 @@ pub enum Statement {
         target: Loc<ValueName>,
         value: Loc<ValueName>,
     },
-    /// This is a tracing signal as part of the value `name`. It is used for
-    /// both individual fields if `#[wal_traceable]` and `#[wal_trace]` is used,
-    /// and whole signals if `#[wal_suffix]` is used
-    /// I.e. the result of
-    /// ```
-    /// #[wal_traceable(suffix) struct T {a: A, b: B}
-    ///
-    /// let x: T = ...`
-    /// ```
-    ///
-    /// Will be
-    /// (e(0); IndexStruct(0); x)
-    /// (wal_trace {name: x, val: e(0), suffix: _a_suffix, ty: A}
-    /// (e(1); IndexStruct(1); x)
-    /// (wal_trace {name: x, val: e(0), suffix: _a_suffix, ty: A}
-    WalTrace {
-        name: ValueName,
-        val: ValueName,
-        suffix: String,
-        ty: Type,
-    },
-    Error,
-}
 
-impl std::fmt::Display for Statement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Statement::Binding(b) => write!(f, "{b}"),
-            Statement::Register(r) => write!(f, "{r}"),
-            Statement::Constant(id, ty, val) => write!(f, "const {id}: {ty} = {val}"),
-            Statement::Assert(val) => write!(f, "assert {val}"),
-            Statement::Set { target, value } => write!(f, "set {target} = {value}"),
-            Statement::WalTrace {
-                name,
-                val,
-                suffix,
-                ty: _,
-            } => write!(f, "wal_trace({name}, {val}, {suffix})"),
-            Statement::Error => write!(f, "Error"),
-        }
-    }
+    Instance {
+        name: UnitName,
+        params: Vec<(String, ConstantValue)>,
+
+        inputs: Vec<(String, Type, Loc<ValueName>)>,
+        outputs: Vec<(String, Type, Loc<ValueName>)>,
+
+        verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
+    },
+
+    Error,
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct LirArg {
     pub name: String,
-    pub val_name: ValueName,
+    pub val_name: Loc<ValueName>,
     pub ty: Type,
     pub no_mangle: Option<Loc<()>>,
 }
-
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Entity {
     /// The name of the module
     pub name: mir::UnitName,
-    /// A module input which is called `.1` externally and `.2` internally in the module
-    pub arguments: Vec<LirArg>,
+    pub inputs: Vec<LirArg>,
+    pub outputs: Vec<LirArg>,
     pub verilog_attr_groups: Vec<Vec<(String, Option<String>)>>,
-    pub statements: Vec<Statement>,
+    pub statements: Vec<Loc<Statement>>,
     pub inline: bool,
 }
 
-impl std::fmt::Display for Entity {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Entity {
-            name,
-            arguments,
-            statements,
-            verilog_attr_groups,
-            inline,
-        } = self;
-
-        let inputs = arguments
-            .iter()
-            .map(
-                |LirArg {
-                     name,
-                     val_name,
-                     ty,
-                     no_mangle,
-                 }| {
-                    format!(
-                        "({}{name}, {val_name}, {ty})",
-                        no_mangle.map(|_| "#[no_mangle]").unwrap_or("")
-                    )
-                },
-            )
-            .join(", ");
-
-        let statements = statements.iter().map(|s| format!("\t{s}\n")).join("");
-
-        for attrs in verilog_attr_groups {
-            let contents = attrs
-                .iter()
-                .map(|(key, value)| match value {
-                    Some(v) => format!("{key} = {v:?}"),
-                    None => key.clone(),
-                })
-                .join(",");
-
-            writeln!(f, "#[verilog_attrs({contents})]")?;
-        }
-
-        writeln!(
-            f,
-            "{inline}entity {name}({inputs}) {{",
-            name = name.as_verilog(),
-            inline = if *inline { "inline " } else { "" }
-        )?;
-        write!(f, "{statements}")?;
-        write!(f, "}}")
-    }
-}
