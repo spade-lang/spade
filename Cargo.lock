@@ -3202,7 +3202,7 @@ dependencies = [
 
 [[package]]
 name = "spade-ast"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "itertools",
  "logos",
@@ -3214,7 +3214,7 @@ dependencies = [
 
 [[package]]
 name = "spade-ast-lowering"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "itertools",
  "local-impl",
@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "spade-common"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "bumpalo",
  "itertools",
@@ -3285,7 +3285,7 @@ dependencies = [
 
 [[package]]
 name = "spade-diagnostics"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "insta",
  "itertools",
@@ -3296,7 +3296,7 @@ dependencies = [
 
 [[package]]
 name = "spade-hir"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "colored 3.1.1",
  "itertools",
@@ -3313,7 +3313,7 @@ dependencies = [
 
 [[package]]
 name = "spade-hir-lowering"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "colored 3.1.1",
  "itertools",
@@ -3335,7 +3335,7 @@ dependencies = [
 
 [[package]]
 name = "spade-lang"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3402,7 +3402,7 @@ dependencies = [
 
 [[package]]
 name = "spade-macros"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3412,7 +3412,7 @@ dependencies = [
 
 [[package]]
 name = "spade-mir"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "colored 3.1.1",
  "derive-where",
@@ -3432,7 +3432,7 @@ dependencies = [
 
 [[package]]
 name = "spade-parser"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "colored 3.1.1",
  "itertools",
@@ -3449,7 +3449,7 @@ dependencies = [
 
 [[package]]
 name = "spade-python"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "color-eyre",
  "itertools",
@@ -3478,7 +3478,7 @@ dependencies = [
 
 [[package]]
 name = "spade-simulation-ext"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "color-eyre",
  "itertools",
@@ -3509,7 +3509,7 @@ dependencies = [
 
 [[package]]
 name = "spade-surfer-plugin"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "camino",
  "color-eyre",
@@ -3534,7 +3534,7 @@ dependencies = [
 
 [[package]]
 name = "spade-tests"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "colored 3.1.1",
  "indoc",
@@ -3563,7 +3563,7 @@ dependencies = [
 
 [[package]]
 name = "spade-typeinference"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "assert_matches",
  "colored 3.1.1",
@@ -3585,7 +3585,7 @@ dependencies = [
 
 [[package]]
 name = "spade-types"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "num",
  "rustc-hash",
@@ -3595,7 +3595,7 @@ dependencies = [
 
 [[package]]
 name = "spadedoc"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "ammonia",
  "argh",

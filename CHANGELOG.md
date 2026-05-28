@@ -9,6 +9,48 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.19.0] - 2026-05-28
+
+## Added
+- [!618][!618] Added `include!` built-in macro that injects an expression from an external file
+- [!618][!618] Added `include_bytes!` built-in macro that creates an array literal from the contents of a file read at compile time
+- [!648][!648] Added `inv [T; N]::transpose` and `[inv T; N]::transpose` methods to convert between both representations
+- [!651][!651] Add `[T; N]::len`
+- [!656][!656] Added `Copy` auto trait for all types that are not consumable during the linear check (e.g., all non-`inv` types).
+- [!656][!656] Added "copy view" mechanism to transform linear types into nonlinear views that can be copied around freely
+  - For any given type `T`, `&T` represents a view into it that allows values to be copied freely but forbids `set`ting them
+  - A copy view can be obtained using the `&` unary operator.
+  - A copy view can be turned into the original type `T` using the `*` unary operator, but only if `T: Copy`.
+  - Field accesses `array.name` and `tuple.N` work on copy views but preserve the `&` wrapping.
+- [!656][!656] For any given type `T`, `&T` represents a view into it that allows values to be copied freely but forbids `set`ting them
+- [!656][!656] A copy view can be obtained using the `&` unary operator.
+- [!656][!656] A copy view can be turned into the original type `T` using the `*` unary operator, but only if `T: Copy`.
+- [!656][!656] Field accesses `array.name` and `tuple.N` work on copy views but preserve the `&` wrapping.
+- [!661][!661] Added support for octal integer literals using the `0o` prefix (e.g., `0o755`)
+- [!669][!669] Added type ascriptions to give expressions explicit types (i.e., `value as Type`)
+- [!671][!671] Added a `Default` trait with a preluded `default` shorthand function to build default values
+- [!673][!673] Added `core::ports::port` built-in function to create a connected pair of `(T, inv T)` ports.
+
+## Fixed
+- [!649][!649] Fix codegen of `inout<bool>::read_write`
+
+## Changed
+- [!647][!647] `transmute` and `[T; N]::concat` among others now support `inv` values
+
+## Removed
+- [!673][!673] Removed `port` keyword in favor of `core::ports::port`.
+
+[!618]: https://gitlab.com/spade-lang/spade/-/merge_requests/618
+[!647]: https://gitlab.com/spade-lang/spade/-/merge_requests/647
+[!648]: https://gitlab.com/spade-lang/spade/-/merge_requests/648
+[!649]: https://gitlab.com/spade-lang/spade/-/merge_requests/649
+[!651]: https://gitlab.com/spade-lang/spade/-/merge_requests/651
+[!656]: https://gitlab.com/spade-lang/spade/-/merge_requests/656
+[!661]: https://gitlab.com/spade-lang/spade/-/merge_requests/661
+[!669]: https://gitlab.com/spade-lang/spade/-/merge_requests/669
+[!671]: https://gitlab.com/spade-lang/spade/-/merge_requests/671
+[!673]: https://gitlab.com/spade-lang/spade/-/merge_requests/673
+
 ## [0.18.0] - 2026-04-16
 
 ## Added
@@ -746,8 +788,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...main
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.18.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.19.0...main
+[0.19.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.19.0...v0.18.0
 [0.18.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.18.0...v0.17.0
 [0.17.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...v0.16.0
 [0.16.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.16.0...v0.15.0
