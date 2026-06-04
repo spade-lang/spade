@@ -21,7 +21,7 @@ camino = "1.1.1"
 spade-codespan-reporting = "0.12.0"
 color-eyre = "0.6.1"
 tokio = { version = "1.44.1", features = ["full"] }
-tower-lsp = "0.17.0"
+tower-lsp = "0.20.0"
 itertools.workspace = true
 indoc.workspace = true
 rustc-hash.workspace = true

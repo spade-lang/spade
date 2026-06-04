@@ -1,6 +1,9 @@
 use itertools::Itertools;
 use spade_common::{location_info::WithLocation, name::Path};
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionResponse, Position, Url};
+use tower_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionResponse, Position,
+    Url,
+};
 
 use crate::backend::ServerBackend;
 
@@ -97,34 +100,32 @@ impl CompletionInfo for ServerBackend {
                     });
 
                     let local_name = local_name.to_named_str().unwrap_or("<hidden>").to_string();
-                    let (label, insert_text) = if is_imported {
+                    let full_path = thing_name
+                        .1
+                        .to_named_strs()
+                        .into_iter()
+                        .filter_map(|x| x)
+                        .join("::");
+                    let (label, filter_text) = if is_imported {
                         (local_name, None)
                     } else {
-                        (
-                            format!(
-                                "{} ({})",
-                                local_name,
-                                thing_name
-                                    .1
-                                    .to_named_strs()
-                                    .into_iter()
-                                    .filter_map(|x| x)
-                                    .join("::")
-                            ),
-                            Some(local_name),
-                        )
+                        (format!("{} ({})", local_name, full_path.clone()), Some(local_name))
                     };
 
                     Some(CompletionItem {
                         label: label,
+                        label_details: Some(CompletionItemLabelDetails {
+                            detail: None,
+                            description: if !is_local { Some(full_path) } else { None },
+                        }),
                         kind: kind,
                         detail: None,
                         documentation: None,
                         deprecated: None,
                         preselect: None,
                         sort_text: None,
-                        filter_text: None,
-                        insert_text: insert_text,
+                        filter_text: filter_text.clone(),
+                        insert_text: filter_text,
                         insert_text_format: None,
                         insert_text_mode: None,
                         text_edit: None,
