@@ -16,7 +16,7 @@ use spade_typeinference::traits::TraitImplList;
 use swim::libraries::RestoreAction;
 use swim::lockfile::LockFile;
 use swim::spade::{Namespace, SpadeFile};
-use swim::{libs_dir, lock_file, src_dir};
+use swim::RootDir;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     Diagnostic, DiagnosticSeverity, Location, MessageType, SymbolInformation, SymbolKind, Url,
@@ -93,17 +93,6 @@ fn spade_path(s: &str) -> spade_common::name::Path {
     spade_common::name::Path(parts)
 }
 
-macro_rules! try_or_warn {
-    ($expr:expr, $prefix:expr $(,)?) => {
-        if let Err(e) = $expr {
-            println!("{}{:#}", $prefix, e);
-            return HashMap::default();
-        } else {
-            $expr.unwrap()
-        }
-    };
-}
-
 impl ServerBackend {
     pub async fn try_compile(
         &self,
@@ -113,6 +102,20 @@ impl ServerBackend {
         modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
     ) -> HashMap<Url, Vec<Diagnostic>> {
+        macro_rules! try_or_warn {
+            ($expr:expr, $prefix:expr $(,)?) => {
+                if let Err(e) = $expr {
+                    let _ = self
+                        .client_log_chan
+                        .send((MessageType::ERROR, format!("Failed to compile. {e:?}")))
+                        .await;
+                    return HashMap::default();
+                } else {
+                    $expr.unwrap()
+                }
+            };
+        }
+
         let maybe_root_dir = self.root_dir.lock().unwrap().as_ref().map(Clone::clone);
         // FIXME look upwards for swim.toml?
         let has_swim_toml = maybe_root_dir
@@ -123,7 +126,7 @@ impl ServerBackend {
         match (maybe_root_dir, has_swim_toml) {
             (Some(root_dir), true) => {
                 try_or_warn!(
-                    self.try_compile_swim(&root_dir, modified_file, version)
+                    self.try_compile_swim(&RootDir(root_dir.clone()), modified_file, version)
                         .await,
                     "When compiling swim project: ",
                 )
@@ -141,38 +144,37 @@ impl ServerBackend {
 
     async fn try_compile_swim(
         &self,
-        root_dir: &Utf8Path,
+        root_dir: &RootDir,
         modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
     ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
-        let swim_toml = root_dir.join("swim.toml");
-        if !swim_toml.exists() {
+        let swim_toml = root_dir.swim_toml_file();
+        if !swim_toml.0.exists() {
             bail!("swim.toml doesn't exist");
         }
-        if !swim_toml.is_file() {
+        if !swim_toml.0.is_file() {
             bail!("swim.toml isn't a file");
         }
-        /*
-        self.client
-            .log_message(MessageType::LOG, format!("Reading {swim_toml:?}"))
-            .await;
-        */
-        let config = swim::config::Config::read(root_dir, &None)?;
+        let config = swim::config::Config::read(&root_dir.as_library(), &None)?;
 
         // Get Spade repository, which clones the compiler repository if needed. This ensures
         // we have the standard library on disk.
-        swim::spade::get_spade_repository(root_dir, &config, RestoreAction::Deny)?;
+        swim::spade_build::get_spade_repository(root_dir, &config, RestoreAction::Deny)?;
 
-        let mut lock_file = LockFile::open_or_default(lock_file(root_dir));
+        let mut lock_file = LockFile::open_or_default(root_dir.lock_file());
         let library_dirs = swim::libraries::collect_libraries(
-            &libs_dir(root_dir),
+            root_dir,
+            &root_dir.libs_dir(),
             &config,
             &mut lock_file,
             RestoreAction::Deny,
+            swim::libraries::StaleCheckStrategy::AssumeCorrect,
         )?;
         let library_files: Vec<_> = library_dirs
             .iter()
-            .map(|(name, dir)| swim::spade::spade_files_in_dir(Namespace::new_lib(&name), dir))
+            .map(|(name, dir)| {
+                swim::spade::spade_files_in_dir(Namespace::new_lib(&name), &dir.src_dir())
+            })
             .collect::<color_eyre::Result<Vec<_>>>()?
             .into_iter()
             .flatten()
@@ -182,7 +184,7 @@ impl ServerBackend {
 
         let self_files = swim::spade::spade_files_in_dir(
             Namespace::new_lib(&config.package.name),
-            src_dir(root_dir),
+            &root_dir.as_library().src_dir(),
         )?;
 
         let spade_files: Vec<_> = self_files.into_iter().chain(library_files).collect();

@@ -599,9 +599,7 @@ impl SymbolTable {
         self.declarations.pop();
     }
 
-    pub fn close_scope_for(&mut self, scope_owner: NameID) {
-        
-    }
+    pub fn close_scope_for(&mut self, scope_owner: NameID) {}
 
     pub fn current_scope(&self) -> usize {
         self.symbols.len() - 1
