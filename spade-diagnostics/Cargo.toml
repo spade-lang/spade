@@ -19,5 +19,7 @@ itertools.workspace = true
 
 spade-common.workspace = true
 
+rustc-hash = "2.1"
+
 [dev-dependencies]
 insta.workspace = true
