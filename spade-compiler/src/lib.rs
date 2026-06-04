@@ -16,6 +16,7 @@ use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
+use spade_mir::passes::MirPass;
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
 use spade_mir::unit_name::InstanceMap;
 use spade_mir::verilator_wrapper::verilator_wrappers;
@@ -27,7 +28,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use tracing::Level;
 use typeinference::TypeState;
 
-use spade_ast::ModuleBody;
+use spade_ast::{MacroRules, ModuleBody};
 use spade_ast_lowering::{
     Context as AstLoweringCtx, SelfContext, auto_traits, ensure_unique_anonymous_traits,
     global_symbols, visit_module_body,
@@ -35,7 +36,7 @@ use spade_ast_lowering::{
 use spade_common::id_tracker::{GenericIdTracker, ImplIdTracker};
 use spade_common::name::{NameID, Path as SpadePath, Visibility};
 use spade_diagnostics::{CodeBundle, DiagHandler, Diagnostic};
-use spade_hir::symbol_table::SymbolTable;
+use spade_hir::symbol_table::{FrozenSymtab, SymbolTable};
 use spade_hir::{ExecutableItem, ItemList};
 use spade_hir_lowering::{NameSourceMap, monomorphisation::MirOutput};
 use spade_parser::Parser;
@@ -87,73 +88,39 @@ struct CodegenArtefacts {
     mir_context: HashMap<NameID, MirContext>,
 }
 
-#[tracing::instrument(skip_all)]
-pub fn compile(
-    mut sources: Vec<(ModuleNamespace, String, String)>,
-    include_stdlib: bool,
-    opts: Opt,
-    diag_handler: DiagHandler,
-) -> Result<Artefacts, CompilationResult> {
+pub struct GlobalCompilationState {
+    item_list: ItemList,
+    impl_type_state: TypeState,
+    frozen_symtab: FrozenSymtab,
+    idtracker: Arc<ExprIdTracker>,
+    mapped_trait_impls: TraitImplList,
+    shared_type_state: Arc<SharedTypeState>,
+    impl_idtracker: ImplIdTracker,
+    generic_idtracker: GenericIdTracker,
+    macros: HashMap<NameID, MacroRules>,
+}
+
+pub enum GlobalCompilationError {
+    EarlyFailure,
+}
+
+/// Run enough of the compilation process on all files included in the project in order
+/// to independently be able to re-run compilation on the bodies of entities.
+pub fn run_global_compilation_tasks(
+    sources: Vec<(ModuleNamespace, String, String)>,
+    code: Arc<RwLock<CodeBundle>>,
+    errors: &mut ErrorHandler,
+    unfinished_artefacts: &mut UnfinishedArtefacts,
+    print_parse_traceback: bool,
+) -> Result<GlobalCompilationState, GlobalCompilationError> {
     let diags = Arc::new(Mutex::new(DiagList::new()));
     let mut symtab = SymbolTable::new(diags.clone());
     let mut item_list = ItemList::new();
 
-    let mut sources = if include_stdlib {
-        // We want to build stdlib and prelude before building user code,
-        // to give `previously defined <here>` pointing into user code, instead
-        // of stdlib code
-        let mut all_sources = stdlib_files();
-        all_sources.append(&mut sources);
-        all_sources
-    } else {
-        sources
-    };
-    sources.append(&mut core_files());
-
     spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
 
-    let code = Arc::new(RwLock::new(CodeBundle::new("".to_string())));
-
-    let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Arc::clone(&code));
-
-    let module_asts = parse(
-        sources,
-        Arc::clone(&code),
-        opts.print_parse_traceback,
-        &mut errors,
-    );
+    let module_asts = parse(sources, Arc::clone(&code), print_parse_traceback, errors);
     errors.errors_are_recoverable();
-
-    let mut unfinished_artefacts = UnfinishedArtefacts {
-        code: code.read().unwrap().clone(),
-        symtab: None,
-        item_list: None,
-        type_states: None,
-    };
-
-    let pass_impls = spade_mir::passes::mir_passes();
-    let opt_passes = opts
-        .opt_passes
-        .iter()
-        .map(|pass| {
-            if let Some(pass) = pass_impls.get(pass.as_str()) {
-                Ok(pass.as_ref())
-            } else {
-                let err = format!("{pass} is not a known optimization pass.");
-                Err(err)
-            }
-        })
-        .collect::<Result<Vec<_>, _>>();
-    let mut opt_passes = match opt_passes {
-        Ok(p) => p,
-        Err(e) => {
-            errors.error_buffer.write_all(e.as_bytes()).unwrap();
-            return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
-        }
-    };
-    // This is a non-optional pass that prevents codegen bugs
-    let deduplicate_mut_wires = DeduplicateMutWires {};
-    opt_passes.push(&deduplicate_mut_wires);
 
     let mut ctx = AstLoweringCtx {
         symtab,
@@ -198,7 +165,7 @@ pub fn compile(
 
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
-            global_symbols::gather_macro_rules(module_ast, ctx).or_report(&mut errors);
+            global_symbols::gather_macro_rules(module_ast, ctx).or_report(errors);
         })
     }
 
@@ -216,13 +183,13 @@ pub fn compile(
                 &mut missing_namespace_set,
                 ctx,
             )
-            .or_report(&mut errors);
+            .or_report(errors);
         })
     }
 
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
+        return Err(GlobalCompilationError::EarlyFailure);
     }
 
     for err in global_symbols::report_missing_mod_declarations(&module_asts, &missing_namespace_set)
@@ -234,24 +201,24 @@ pub fn compile(
 
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
-            global_symbols::gather_traits_and_modules(module_ast, ctx).or_report(&mut errors);
+            global_symbols::gather_traits_and_modules(module_ast, ctx).or_report(errors);
         })
     }
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
-            global_symbols::gather_types(module_ast, ctx).or_report(&mut errors);
+            global_symbols::gather_types(module_ast, ctx).or_report(errors);
         })
     }
 
     errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
+        return Err(GlobalCompilationError::EarlyFailure);
     }
 
     for (namespace, module_ast) in &module_asts {
         do_in_namespace(namespace, &mut ctx, &mut |ctx| {
-            global_symbols::gather_symbols(module_ast, ctx).or_report(&mut errors);
+            global_symbols::gather_symbols(module_ast, ctx).or_report(errors);
         })
     }
 
@@ -260,26 +227,24 @@ pub fn compile(
 
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
+        return Err(GlobalCompilationError::EarlyFailure);
     }
 
-    lower_ast(&module_asts, &mut ctx, &mut errors);
+    lower_ast(&module_asts, &mut ctx, errors);
 
     auto_traits::impl_auto_traits(&mut ctx).handle_in(&mut diags.lock().unwrap());
 
     errors.drain_diag_list(&mut ctx.diags.lock().unwrap());
     if errors.failed_now() {
         unfinished_artefacts.symtab = Some(ctx.symtab);
-        return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
+        return Err(GlobalCompilationError::EarlyFailure);
     }
-    // Let's prevent using this thing again
-    let _unfinished_artefacts = unfinished_artefacts;
 
     let AstLoweringCtx {
         symtab,
         mut item_list,
         macros,
-        code,
+        code: _,
         idtracker,
         impl_idtracker,
         generic_idtracker,
@@ -319,18 +284,47 @@ pub fn compile(
 
     errors.drain_diag_list(&mut impl_type_state.owned.diags);
 
+    Ok(GlobalCompilationState {
+        item_list,
+        impl_type_state,
+        frozen_symtab,
+        idtracker,
+        mapped_trait_impls,
+        shared_type_state,
+        impl_idtracker,
+        generic_idtracker,
+        macros,
+    })
+}
+
+pub struct LocalCompilationResult {
+    type_states: BTreeMap<NameID, TypeState>,
+    mir_entities: Vec<Result<MirOutput, Diagnostic>>,
+    name_source_map: Arc<RwLock<NameSourceMap>>,
+}
+
+pub fn run_local_compilation_steps(
+    global_state: &GlobalCompilationState,
+    errors: &mut ErrorHandler,
+    opt_passes: &Vec<&(dyn MirPass + Send + Sync)>,
+) -> Result<LocalCompilationResult, CompilationResult> {
     let mut type_states = BTreeMap::new();
 
-    let executables_and_types = item_list
+    let type_inference_ctx = typeinference::Context {
+        symtab: global_state.frozen_symtab.symtab(),
+        items: &global_state.item_list,
+        trait_impls: &global_state.mapped_trait_impls,
+    };
+
+    let executables_and_types = global_state
+        .item_list
         .executables
         .iter()
         .filter_map(|(name, item)| match item {
             ExecutableItem::Unit(u) => {
-                let mut type_state = impl_type_state.create_child();
+                let mut type_state = global_state.impl_type_state.create_child();
 
-                let result = type_state
-                    .visit_unit(u, &type_inference_ctx)
-                    .report(&mut errors);
+                let result = type_state.visit_unit(u, &type_inference_ctx).report(errors);
 
                 let failures = type_state.owned.diags.errors.len() != 0;
                 errors.drain_diag_list(&mut type_state.owned.diags);
@@ -361,14 +355,99 @@ pub fn compile(
     let name_source_map = Arc::new(RwLock::new(NameSourceMap::new()));
     let mir_entities = spade_hir_lowering::monomorphisation::compile_items(
         &executables_and_types,
-        &frozen_symtab,
-        &idtracker,
+        &global_state.frozen_symtab,
+        &global_state.idtracker,
         &name_source_map,
-        &item_list,
+        &global_state.item_list,
         &opt_passes,
-        &impl_type_state,
-        &mapped_trait_impls,
+        &global_state.impl_type_state,
+        &global_state.mapped_trait_impls,
     );
+
+    Ok(LocalCompilationResult {
+        type_states,
+        mir_entities,
+        name_source_map,
+    })
+}
+
+#[tracing::instrument(skip_all)]
+pub fn compile(
+    mut sources: Vec<(ModuleNamespace, String, String)>,
+    include_stdlib: bool,
+    opts: Opt,
+    diag_handler: DiagHandler,
+) -> Result<Artefacts, CompilationResult> {
+    let mut sources = if include_stdlib {
+        // We want to build stdlib and prelude before building user code,
+        // to give `previously defined <here>` pointing into user code, instead
+        // of stdlib code
+        let mut all_sources = stdlib_files();
+        all_sources.append(&mut sources);
+        all_sources
+    } else {
+        sources
+    };
+    sources.append(&mut core_files());
+
+    let code = Arc::new(RwLock::new(CodeBundle::new("".to_string())));
+    let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Arc::clone(&code));
+
+    let mut unfinished_artefacts = UnfinishedArtefacts {
+        code: code.read().unwrap().clone(),
+        symtab: None,
+        item_list: None,
+        type_states: None,
+    };
+
+    let pass_impls = spade_mir::passes::mir_passes();
+    let opt_passes = opts
+        .opt_passes
+        .iter()
+        .map(|pass| {
+            if let Some(pass) = pass_impls.get(pass.as_str()) {
+                Ok(pass.as_ref())
+            } else {
+                let err = format!("{pass} is not a known optimization pass.");
+                Err(err)
+            }
+        })
+        .collect::<Result<Vec<_>, _>>();
+
+    let mut opt_passes = match opt_passes {
+        Ok(p) => p,
+        Err(e) => {
+            errors.error_buffer.write_all(e.as_bytes()).unwrap();
+            return Err(CompilationResult::EarlyFailure(unfinished_artefacts));
+        }
+    };
+    // This is a non-optional pass that prevents codegen bugs
+    let deduplicate_mut_wires = DeduplicateMutWires {};
+    opt_passes.push(&deduplicate_mut_wires);
+
+    let global_compilation_state = run_global_compilation_tasks(
+        sources,
+        Arc::clone(&code),
+        &mut errors,
+        &mut unfinished_artefacts,
+        opts.print_parse_traceback,
+    )
+    .map_err(|e| match e {
+        GlobalCompilationError::EarlyFailure => {
+            CompilationResult::EarlyFailure(unfinished_artefacts)
+        }
+    })?;
+
+    let LocalCompilationResult {
+        type_states,
+        mir_entities,
+        name_source_map,
+    } = run_local_compilation_steps(&global_compilation_state, &mut errors, &opt_passes)?;
+
+    let mir_entities: Vec<_> = mir_entities
+        .into_iter()
+        .filter_map(|result_mir| result_mir.or_report(&mut errors))
+        .collect();
 
     let CodegenArtefacts {
         bumpy_mir_entities,
@@ -381,9 +460,21 @@ pub fn compile(
         mir_entities,
         Arc::clone(&code),
         &mut errors,
-        &idtracker,
-        &frozen_symtab.symtab().id_tracker,
+        &global_compilation_state.idtracker,
+        &global_compilation_state.frozen_symtab.symtab().id_tracker,
     );
+
+    let GlobalCompilationState {
+        item_list,
+        impl_type_state: _,
+        frozen_symtab,
+        idtracker,
+        mapped_trait_impls,
+        shared_type_state,
+        impl_idtracker,
+        generic_idtracker,
+        macros,
+    } = global_compilation_state;
 
     let state = CompilerState {
         code: code
@@ -567,17 +658,12 @@ struct CodegenArtefact {
 
 #[tracing::instrument(skip_all)]
 fn codegen(
-    mir_entities: Vec<Result<MirOutput, Diagnostic>>,
+    mir_entities: Vec<MirOutput>,
     code: Arc<RwLock<CodeBundle>>,
     error_handler: &mut ErrorHandler,
     idtracker: &Arc<ExprIdTracker>,
     nameidtracker: &spade_common::id_tracker::NameIdTracker,
 ) -> CodegenArtefacts {
-    let mir_entities: Vec<_> = mir_entities
-        .into_iter()
-        .filter_map(|result_mir| result_mir.or_report(error_handler))
-        .collect();
-
     let mir_entities = do_inlining(mir_entities, idtracker, nameidtracker)
         .or_report(error_handler)
         .unwrap_or_default();
