@@ -3,7 +3,9 @@ use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
 use std::sync::{Arc, Mutex};
+use tokio::select;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::DidChangeTextDocumentParams;
 use tower_lsp::lsp_types::{
@@ -22,6 +24,8 @@ pub struct ServerFrontend<C> {
     backend: ServerBackend,
     symbols: Arc<Mutex<Vec<SymbolInformation>>>,
     client: Arc<C>,
+
+    last_compile_fuse: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 impl<C: Client> ServerFrontend<C> {
@@ -34,6 +38,7 @@ impl<C: Client> ServerFrontend<C> {
             backend: ServerBackend::new(sender),
             client: Arc::clone(&arc_client),
             symbols: Arc::new(Mutex::new(Vec::new())),
+            last_compile_fuse: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -138,15 +143,33 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             .canonicalize_utf8()
             .unwrap();
 
-        self.compile(
-            &path,
-            params
-                .content_changes
-                .last()
-                .map(|change| (path.as_path(), change.text.as_str())),
-            None,
-        )
-        .await;
+        // If the user types fast, we end up with a long queue of compilation tasks that are operating
+        // on old code. To fix this, we'll fuse these compilation proceses, and kill the previous in-progress
+        // compilation if a new one is starting
+        if let Some(fuse) = self.last_compile_fuse.lock().unwrap().take() {
+            let _ = fuse.send(());
+        }
+
+        let (sender, receiver) = oneshot::channel();
+        *self.last_compile_fuse.lock().unwrap() = Some(sender);
+
+        async {
+            select! {
+                _ = self.compile(
+                    &path,
+                    params
+                        .content_changes
+                        .last()
+                        .map(|change| (path.as_path(), change.text.as_str())),
+                    None,
+                ) => {}
+                // A select on 2 tasks cancels the one that doesn't finish, so if we receive
+                // something from the fuse before compilation is done, we kill the compilation
+                // here
+                _ = receiver => {}
+            }
+        }
+        .await
     }
 
     async fn symbol(
