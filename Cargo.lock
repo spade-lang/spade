@@ -3289,6 +3289,7 @@ version = "0.19.0"
 dependencies = [
  "insta",
  "itertools",
+ "rustc-hash",
  "spade-codespan",
  "spade-codespan-reporting",
  "spade-common",

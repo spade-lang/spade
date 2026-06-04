@@ -275,6 +275,7 @@
 //! the emitter. Almost everywhere, the diagnostics are returned and handled by
 //! someone else. (In Spade, that someone else is `spade-compiler`.)
 
+use rustc_hash::FxHashMap as HashMap;
 use std::io::Write;
 
 use spade_codespan_reporting::files::{Files, SimpleFiles};
@@ -296,6 +297,7 @@ pub mod emitter;
 #[derive(Clone, Debug)]
 pub struct CodeBundle {
     pub files: SimpleFiles<String, String>,
+    pub file_ids: HashMap<String, usize>,
 }
 
 impl CodeBundle {
@@ -303,12 +305,16 @@ impl CodeBundle {
     pub fn new(string: String) -> Self {
         let mut files = SimpleFiles::new();
         files.add("<str>".to_string(), string);
-        Self { files }
+        Self {
+            files,
+            file_ids: HashMap::default(),
+        }
     }
 
     pub fn from_files(files: &[(String, String)]) -> Self {
         let mut result = Self {
             files: SimpleFiles::new(),
+            file_ids: HashMap::default(),
         };
         for (name, content) in files {
             result.add_file(name.clone(), content.clone());
@@ -317,7 +323,13 @@ impl CodeBundle {
     }
 
     pub fn add_file(&mut self, filename: String, content: String) -> usize {
-        self.files.add(filename, content)
+        let id = self.files.add(filename.clone(), content);
+        self.file_ids.insert(filename, id);
+        id
+    }
+
+    pub fn file_id(&self, filename: &str) -> usize {
+        self.file_ids[filename]
     }
 
     pub fn dump_files(&self) -> Vec<(&str, &str)> {

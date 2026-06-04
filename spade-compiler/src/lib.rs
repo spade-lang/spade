@@ -302,6 +302,7 @@ pub struct LocalCompilationResult {
 }
 
 pub fn run_local_compilation_steps(
+    only_in_file: Option<usize>,
     global_state: &GlobalCompilationState,
     errors: &mut ErrorHandler,
     opt_passes: &Vec<&(dyn MirPass + Send + Sync)>,
@@ -320,27 +321,31 @@ pub fn run_local_compilation_steps(
         .iter()
         .filter_map(|(name, item)| match item {
             ExecutableItem::Unit(u) => {
-                let mut type_state = global_state.impl_type_state.create_child();
+                if only_in_file.map(|file| file == u.file_id).unwrap_or(true) {
+                    let mut type_state = global_state.impl_type_state.create_child();
 
-                let result = type_state.visit_unit(u, &type_inference_ctx).report(errors);
+                    let result = type_state.visit_unit(u, &type_inference_ctx).report(errors);
 
-                let failures = type_state.owned.diags.errors.len() != 0;
-                errors.drain_diag_list(&mut type_state.owned.diags);
+                    let failures = type_state.owned.diags.errors.len() != 0;
+                    errors.drain_diag_list(&mut type_state.owned.diags);
 
-                // Later stages will fail if we don't have a a complete type state,
-                // so we'll need to filter out modules that failed. However, for the LSP
-                // we still want to retain the incomplete type state
-                type_states.insert(name.clone(), type_state.clone());
+                    // Later stages will fail if we don't have a a complete type state,
+                    // so we'll need to filter out modules that failed. However, for the LSP
+                    // we still want to retain the incomplete type state
+                    type_states.insert(name.clone(), type_state.clone());
 
-                if let Ok(()) = result {
-                    type_state.emit_trace_if_enabled(|| {}, &u.name);
-                    if !failures {
-                        Some((name, (item, type_state)))
+                    if let Ok(()) = result {
+                        type_state.emit_trace_if_enabled(|| {}, &u.name);
+                        if !failures {
+                            Some((name, (item, type_state)))
+                        } else {
+                            None
+                        }
                     } else {
+                        type_state.emit_trace_if_enabled(|| {}, &u.name);
                         None
                     }
                 } else {
-                    type_state.emit_trace_if_enabled(|| {}, &u.name);
                     None
                 }
             }
@@ -374,12 +379,12 @@ pub enum CompilationGoal {
     Codegen,
     /// Same as `codegen`, but no files are emitted. Used for LSP on file save events etc.
     Full,
-    /// Only build enough of the project to re-build the units that live in `SpadePath`. In practice, this
+    /// Only build enough of the project to re-build the units that are defined in the specified file. In practice, this
     /// means parsing, global visiting and impl collection for the whole project, but no ast lowering of any
     /// units outside `SpadePath`
     ///
     /// This is used by the LSP for interactive editing of a single file.
-    LocalBuild(SpadePath),
+    LocalBuild(String),
 }
 
 impl CompilationGoal {
@@ -460,11 +465,22 @@ pub fn compile(
         }
     })?;
 
+    let file_filter = match &compilation_goal {
+        CompilationGoal::Codegen => None,
+        CompilationGoal::Full => None,
+        CompilationGoal::LocalBuild(file) => Some(code.read().unwrap().file_id(file)),
+    };
+
     let LocalCompilationResult {
         type_states,
         mir_entities,
         name_source_map,
-    } = run_local_compilation_steps(&global_compilation_state, &mut errors, &opt_passes)?;
+    } = run_local_compilation_steps(
+        file_filter,
+        &global_compilation_state,
+        &mut errors,
+        &opt_passes,
+    )?;
 
     let mir_entities: Vec<_> = mir_entities
         .into_iter()
