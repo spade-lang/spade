@@ -1,7 +1,10 @@
+use crate::backend_capabilities::completion::CompletionInfo;
 use crate::backend_capabilities::goto_definition::GotoDefinition;
 use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
+use tower_lsp::lsp_types::CompletionParams;
+use tower_lsp::lsp_types::CompletionResponse;
 use std::sync::{Arc, Mutex};
 use tokio::select;
 use tokio::sync::mpsc;
@@ -210,6 +213,15 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
         } = params.text_document_position_params;
 
         Ok(self.backend.find_hover(&pos, &doc.uri).await)
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let TextDocumentPositionParams {
+            text_document: doc,
+            position: pos,
+        } = params.text_document_position;
+
+        Ok(self.backend.get_completions(&pos, &doc.uri).await)
     }
 
     async fn shutdown(&self) -> Result<()> {
