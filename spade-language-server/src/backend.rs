@@ -23,8 +23,6 @@ pub struct ServerBackend {
     pub trait_impls: Arc<Mutex<TraitImplList>>,
     pub code: Arc<Mutex<CodeBundle>>,
     pub query_cache: Arc<Mutex<QueryCache>>,
-    // Note: Try using two copies of code again to make functionality work(better) even when the parser bails early.
-    pub _old_code: Arc<Mutex<CodeBundle>>,
 
     /// A channel allowing for logging without requiring an async context or handle to the client.
     pub client_log_chan: mpsc::Sender<(MessageType, String)>,
@@ -39,7 +37,6 @@ impl ServerBackend {
             trait_impls: Arc::new(Mutex::new(TraitImplList::new())),
             code: Arc::new(Mutex::new(CodeBundle::new(String::new()))),
             query_cache: Arc::new(Mutex::new(QueryCache::empty())),
-            _old_code: Arc::new(Mutex::new(CodeBundle::new(String::new()))),
             type_states: Arc::new(Mutex::new(BTreeMap::new())),
             client_log_chan: sender,
         }
