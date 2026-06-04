@@ -108,6 +108,9 @@ impl ServerBackend {
     pub async fn try_compile(
         &self,
         file: &Utf8Path,
+        // If false, the whole project will be re-built, if true, only the current file will
+        // be re-built
+        modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
     ) -> HashMap<Url, Vec<Diagnostic>> {
         let maybe_root_dir = self.root_dir.lock().unwrap().as_ref().map(Clone::clone);
@@ -120,14 +123,15 @@ impl ServerBackend {
         match (maybe_root_dir, has_swim_toml) {
             (Some(root_dir), true) => {
                 try_or_warn!(
-                    self.try_compile_swim(&root_dir, version).await,
+                    self.try_compile_swim(&root_dir, modified_file, version)
+                        .await,
                     "When compiling swim project: ",
                 )
             }
             (_, false) => {
                 // Try to compile the "current" file.
                 try_or_warn!(
-                    self.try_compile_file(file, version).await,
+                    self.try_compile_file(file, modified_file, version).await,
                     format!("When compiling {file}: ")
                 )
             }
@@ -138,6 +142,7 @@ impl ServerBackend {
     async fn try_compile_swim(
         &self,
         root_dir: &Utf8Path,
+        modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
     ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
         let swim_toml = root_dir.join("swim.toml");
@@ -182,12 +187,14 @@ impl ServerBackend {
 
         let spade_files: Vec<_> = self_files.into_iter().chain(library_files).collect();
 
-        self.try_compile_files(&spade_files, version).await
+        self.try_compile_files(&spade_files, modified_file, version)
+            .await
     }
 
     async fn try_compile_files(
         &self,
         files: &[SpadeFile],
+        modified_file: Option<(&Utf8Path, &str)>,
         _version: Option<i32>,
     ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
         let file_names: Vec<String> = files.iter().map(|f| f.path.to_string()).collect();
@@ -212,7 +219,15 @@ impl ServerBackend {
                     )
                     .with_context(|| format!("Failed to open {}", &path.to_string()))?,
                     path.to_string(),
-                    file_contents,
+                    if let Some((modified_path, new_content)) = modified_file {
+                        if path == modified_path {
+                            new_content.to_string()
+                        } else {
+                            file_contents
+                        }
+                    } else {
+                        file_contents
+                    },
                 ))
             })
             .collect::<color_eyre::Result<Vec<_>>>()?
@@ -235,7 +250,10 @@ impl ServerBackend {
         }));
         let compile_result = spade::compile(
             sources,
-            spade::CompilationGoal::Full,
+            match modified_file {
+                Some((file, _)) => spade::CompilationGoal::LocalBuild(file.to_string()),
+                None => spade::CompilationGoal::Full,
+            },
             false,
             opts,
             diag_handler,
@@ -313,6 +331,7 @@ impl ServerBackend {
     async fn try_compile_file(
         &self,
         file: &Utf8Path,
+        modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
     ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
         self.try_compile_files(
@@ -323,6 +342,7 @@ impl ServerBackend {
                 },
                 path: file.to_path_buf(),
             }],
+            modified_file,
             version,
         )
         .await
