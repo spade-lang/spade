@@ -104,10 +104,11 @@ pub struct StoredCompilerState {
     pub item_list: ItemList,
     pub macros: HashMap<NameID, MacroRules>,
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
-    pub instance_map: InstanceMap,
-    pub mir_context: HashMap<NameID, StoredMirContext>,
     pub shared_type_state: Arc<SharedTypeState>,
     pub trait_impl_list: TraitImplList,
+
+    pub instance_map: Option<InstanceMap>,
+    pub mir_context: Option<HashMap<NameID, StoredMirContext>>,
 }
 
 impl StoredCompilerState {
@@ -137,10 +138,12 @@ impl StoredCompilerState {
             macros,
             name_source_map,
             instance_map,
-            mir_context: mir_context
-                .into_iter()
-                .map(|(k, v)| (k, v.with_shared(Arc::clone(&shared_type_state))))
-                .collect(),
+            mir_context: mir_context.map(|mir_context| {
+                mir_context
+                    .into_iter()
+                    .map(|(k, v)| (k, v.with_shared(Arc::clone(&shared_type_state))))
+                    .collect()
+            }),
             shared_type_state,
             trait_impl_list,
         }
@@ -157,10 +160,13 @@ pub struct CompilerState {
     pub item_list: ItemList,
     pub macros: HashMap<NameID, MacroRules>,
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
-    pub instance_map: InstanceMap,
-    pub mir_context: HashMap<NameID, MirContext>,
     pub shared_type_state: Arc<SharedTypeState>,
     pub trait_impl_list: TraitImplList,
+
+    // These fields are not present if code generation is not run. In this
+    // case, runing any methods that require them will panic.
+    pub instance_map: Option<InstanceMap>,
+    pub mir_context: Option<HashMap<NameID, MirContext>>,
 }
 
 impl CompilerState {
@@ -175,11 +181,12 @@ impl CompilerState {
             macros: self.macros,
             name_source_map: self.name_source_map,
             instance_map: self.instance_map,
-            mir_context: self
-                .mir_context
-                .into_iter()
-                .map(|(k, v)| (k, v.to_stored()))
-                .collect(),
+            mir_context: self.mir_context.map(|mir_context| {
+                mir_context
+                    .into_iter()
+                    .map(|(k, v)| (k, v.to_stored()))
+                    .collect()
+            }),
             shared_type_state: self.shared_type_state,
             trait_impl_list: self.trait_impl_list,
         }
@@ -237,8 +244,12 @@ impl CompilerState {
         let (verilog_source, _mir_ctx) = source_of_hierarchical_value(
             top_module,
             hierarchy,
-            &self.instance_map,
-            &self.mir_context,
+            self.instance_map.as_ref().expect(
+                "Ran name_source_of_hierarchical_value on a compiler state without an instance map",
+            ),
+            self.mir_context.as_ref().expect(
+                "Ran name_source_of_hierarchical_value on compiler state without mir_context",
+            ),
         )?;
 
         match verilog_source {
@@ -261,8 +272,12 @@ impl CompilerState {
         type_of_hierarchical_value(
             top_module,
             hierarchy,
-            &self.instance_map,
-            &self.mir_context,
+            self.instance_map.as_ref().expect(
+                "Ran type_of_hierarchical_value on a compiler state without an instance map",
+            ),
+            self.mir_context
+                .as_ref()
+                .expect("Ran type_of_hierarchical_value on compiler state without mir_context"),
             self.symtab.symtab(),
             &self.item_list,
         )
@@ -290,10 +305,12 @@ impl SerializedSize for StoredCompilerState {
             trait_impl_list,
         } = self;
 
-        for (_, mc) in mir_context {
-            let mut path = field.to_vec();
-            path.push("mir_context");
-            mc.accumulate_size(&path, into);
+        if let Some(mir_context) = mir_context {
+            for (_, mc) in mir_context {
+                let mut path = field.to_vec();
+                path.push("mir_context");
+                mc.accumulate_size(&path, into);
+            }
         }
 
         add_field(field, "code", code, into);
