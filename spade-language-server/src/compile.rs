@@ -321,6 +321,7 @@ impl ServerBackend {
         )
         .await
     }
+
     // Field 'deprecated' in SymbolInformation is deprecated (the irony!)
     // but we still have to specify it.
     #[allow(deprecated)]
