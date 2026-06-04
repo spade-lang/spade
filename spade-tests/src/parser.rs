@@ -1007,7 +1007,10 @@ fn test() {
 
     let diagnostic_handler = DiagHandler::new(Box::new(CodespanEmitter));
 
-    let code_bundle = Arc::new(RwLock::new(CodeBundle { files }));
+    let code_bundle = Arc::new(RwLock::new(CodeBundle {
+        files,
+        file_ids: Default::default(),
+    }));
 
     let mut buffer = Buffer::no_color();
 

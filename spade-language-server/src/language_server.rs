@@ -5,6 +5,7 @@ use camino::Utf8PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::DidChangeTextDocumentParams;
 use tower_lsp::lsp_types::{
     CompletionOptions, DidOpenTextDocumentParams, DidSaveTextDocumentParams, GotoDefinitionParams,
     GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
@@ -42,8 +43,13 @@ impl<C: Client> ServerFrontend<C> {
         }
     }
 
-    async fn compile(&self, path: &Utf8Path, version: Option<i32>) {
-        let diagnostics_per_file = self.backend.try_compile(path, version).await;
+    async fn compile(
+        &self,
+        path: &Utf8Path,
+        modified_file: Option<(&Utf8Path, &str)>,
+        version: Option<i32>,
+    ) {
+        let diagnostics_per_file = self.backend.try_compile(path, modified_file, version).await;
 
         for (uri, diagnostics) in diagnostics_per_file {
             self.client
@@ -115,7 +121,7 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             .log_message(MessageType::LOG, format!("did_open: {}", path))
             .await;
 
-        self.compile(&path, Some(params.text_document.version))
+        self.compile(&path, None, Some(params.text_document.version))
             .await;
     }
 
@@ -124,7 +130,23 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             .canonicalize_utf8()
             .unwrap();
 
-        self.compile(&path, None).await;
+        self.compile(&path, None, None).await;
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let path = Utf8PathBuf::from(params.text_document.uri.path().to_string())
+            .canonicalize_utf8()
+            .unwrap();
+
+        self.compile(
+            &path,
+            params
+                .content_changes
+                .last()
+                .map(|change| (path.as_path(), change.text.as_str())),
+            None,
+        )
+        .await;
     }
 
     async fn symbol(
