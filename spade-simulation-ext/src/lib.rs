@@ -246,6 +246,8 @@ impl Spade {
 
         let mir_context = state
             .mir_context
+            .as_ref()
+            .expect("Ran simulation-ext on a compiler state without mir context")
             .get(&uut_name)
             .ok_or_else(|| anyhow!("Did not find a mir context for unit"))?;
 

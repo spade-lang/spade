@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use color_eyre::eyre::{Context, Result, anyhow, bail};
 use serde::Deserialize;
+use spade::CompilationGoal;
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_diagnostics::DiagHandler;
 use spade_diagnostics::emitter::CodespanEmitter;
@@ -158,7 +159,13 @@ fn main() -> Result<()> {
     };
 
     let diag_handler = DiagHandler::new(Box::new(CodespanEmitter));
-    let result = spade::compile(sources?, !opts.omit_stdlib, spade_opts, diag_handler);
+    let result = spade::compile(
+        sources?,
+        CompilationGoal::Codegen,
+        !opts.omit_stdlib,
+        spade_opts,
+        diag_handler,
+    );
     std::io::stderr().write_all(buffer.as_slice())?;
 
     match result {

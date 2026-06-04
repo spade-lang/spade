@@ -2,7 +2,7 @@ use std::io::Write;
 
 use spade_codespan_reporting::term::termcolor::Buffer;
 
-use spade::Artefacts;
+use spade::{Artefacts, CompilationGoal};
 use spade_diagnostics::emitter::CodespanEmitter;
 use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler};
 
@@ -128,6 +128,7 @@ macro_rules! snapshot_error {
 
             let _ = spade::compile(
                 files,
+                spade::CompilationGoal::Codegen,
                 $include_stdlib,
                 opts,
                 spade_diagnostics::DiagHandler::new(Box::new(
@@ -300,7 +301,9 @@ fn build_items_with_stdlib(code: &str) -> Vec<spade_mir::Entity> {
 /// Returns all MIR entities in unflattened format
 #[cfg(test)]
 fn build_items_inner(code: &str, with_stdlib: bool) -> Vec<spade_mir::Entity> {
-    build_artifacts(code, with_stdlib).bumpy_mir_entities
+    build_artifacts(code, with_stdlib)
+        .bumpy_mir_entities
+        .expect("Did not get any bumpy mir entities from build_artifacts")
 }
 
 pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
@@ -340,6 +343,8 @@ pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
 
             match spade::compile(
                 files,
+                // For tests, we still want to see Diagnostic::bugs emitted from codegen, so we'll run codegen
+                CompilationGoal::Codegen,
                 with_stdlib,
                 opts,
                 spade_diagnostics::DiagHandler::new(Box::new(

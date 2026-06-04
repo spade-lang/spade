@@ -233,7 +233,13 @@ impl ServerBackend {
         let diag_handler = DiagHandler::new(Box::new(LspDiagnosticsEmitter {
             diagnostics: Arc::clone(&diagnostics),
         }));
-        let compile_result = spade::compile(sources, false, opts, diag_handler);
+        let compile_result = spade::compile(
+            sources,
+            spade::CompilationGoal::Full,
+            false,
+            opts,
+            diag_handler,
+        );
         let diagnostics = std::mem::take(&mut *diagnostics.lock().unwrap());
 
         let mut diagnostics_per_file: HashMap<Url, Vec<Diagnostic>> = files

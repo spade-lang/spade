@@ -56,11 +56,9 @@ pub struct Opt<'b> {
 /// Compiler output.
 pub struct Artefacts {
     pub code: CodeBundle,
-    pub item_list: ItemList,
     // MIR entities before aliases have been flattened
-    pub bumpy_mir_entities: Vec<spade_mir::Entity>,
-    // MIR entities after flattening
-    pub flat_mir_entities: Vec<Codegenable>,
+    pub bumpy_mir_entities: Option<Vec<spade_mir::Entity>>,
+    pub item_list: ItemList,
     pub state: CompilerState,
     pub impl_list: TraitImplList,
     pub type_states: BTreeMap<NameID, TypeState>,
@@ -80,8 +78,8 @@ pub enum CompilationResult {
 }
 
 struct CodegenArtefacts {
-    bumpy_mir_entities: Vec<spade_mir::Entity>,
     flat_mir_entities: Vec<Codegenable>,
+    bumpy_mir_entities: Vec<spade_mir::Entity>,
     module_code: Vec<String>,
     mir_code: Vec<String>,
     instance_map: InstanceMap,
@@ -371,9 +369,33 @@ pub fn run_local_compilation_steps(
     })
 }
 
+pub enum CompilationGoal {
+    /// Run codegen, and actually emit resulting files.
+    Codegen,
+    /// Same as `codegen`, but no files are emitted. Used for LSP on file save events etc.
+    Full,
+    /// Only build enough of the project to re-build the units that live in `SpadePath`. In practice, this
+    /// means parsing, global visiting and impl collection for the whole project, but no ast lowering of any
+    /// units outside `SpadePath`
+    ///
+    /// This is used by the LSP for interactive editing of a single file.
+    LocalBuild(SpadePath),
+}
+
+impl CompilationGoal {
+    fn should_codegen(&self) -> bool {
+        match self {
+            CompilationGoal::Codegen => true,
+            CompilationGoal::Full => false,
+            CompilationGoal::LocalBuild(_) => false,
+        }
+    }
+}
+
 #[tracing::instrument(skip_all)]
 pub fn compile(
     mut sources: Vec<(ModuleNamespace, String, String)>,
+    compilation_goal: CompilationGoal,
     include_stdlib: bool,
     opts: Opt,
     diag_handler: DiagHandler,
@@ -449,21 +471,6 @@ pub fn compile(
         .filter_map(|result_mir| result_mir.or_report(&mut errors))
         .collect();
 
-    let CodegenArtefacts {
-        bumpy_mir_entities,
-        flat_mir_entities,
-        module_code,
-        mir_code,
-        instance_map,
-        mir_context,
-    } = codegen(
-        mir_entities,
-        Arc::clone(&code),
-        &mut errors,
-        &global_compilation_state.idtracker,
-        &global_compilation_state.frozen_symtab.symtab().id_tracker,
-    );
-
     let GlobalCompilationState {
         item_list,
         impl_type_state: _,
@@ -476,7 +483,7 @@ pub fn compile(
         macros,
     } = global_compilation_state;
 
-    let state = CompilerState {
+    let mut state = CompilerState {
         code: code
             .read()
             .unwrap()
@@ -491,42 +498,63 @@ pub fn compile(
         item_list: item_list.clone(),
         macros: macros.clone(),
         name_source_map,
-        instance_map,
-        mir_context,
+        instance_map: None,
+        mir_context: None,
         shared_type_state,
         trait_impl_list: mapped_trait_impls.clone(),
     };
 
-    let code = code.read().unwrap();
+    let mut final_bumpy_mir_entities = None;
+    if compilation_goal.should_codegen() {
+        let CodegenArtefacts {
+            bumpy_mir_entities,
+            flat_mir_entities,
+            module_code,
+            mir_code,
+            instance_map,
+            mir_context,
+        } = codegen(
+            mir_entities,
+            Arc::clone(&code),
+            &mut errors,
+            &state.idtracker,
+            &state.symtab.symtab().id_tracker,
+        );
 
-    if !errors.failed() {
-        if let Some(outfile) = opts.outfile {
-            std::fs::write(outfile, module_code.join("\n\n")).or_report(&mut errors);
-        }
-        if let Some(cpp_file) = opts.verilator_wrapper_output {
-            let cpp_code =
-                verilator_wrappers(&flat_mir_entities.iter().map(|e| &e.0).collect::<Vec<_>>());
-            std::fs::write(cpp_file, cpp_code).or_report(&mut errors);
-        }
-        if let Some(mir_output) = opts.mir_output {
-            std::fs::write(mir_output, mir_code.join("\n\n")).or_report(&mut errors);
-        }
-        if let Some(item_list_file) = opts.item_list_file {
-            let list = name_dump::list_names(&item_list);
+        final_bumpy_mir_entities = Some(bumpy_mir_entities);
+        state.mir_context = Some(mir_context);
+        state.instance_map = Some(instance_map);
+        if !errors.failed() {
+            if let Some(outfile) = opts.outfile {
+                std::fs::write(outfile, module_code.join("\n\n")).or_report(&mut errors);
+            }
+            if let Some(cpp_file) = opts.verilator_wrapper_output {
+                let cpp_code =
+                    verilator_wrappers(&flat_mir_entities.iter().map(|e| &e.0).collect::<Vec<_>>());
+                std::fs::write(cpp_file, cpp_code).or_report(&mut errors);
+            }
+            if let Some(mir_output) = opts.mir_output {
+                std::fs::write(mir_output, mir_code.join("\n\n")).or_report(&mut errors);
+            }
+            if let Some(item_list_file) = opts.item_list_file {
+                let list = name_dump::list_names(&item_list);
 
-            match ron::to_string(&list) {
-                Ok(encoded) => {
-                    std::fs::write(item_list_file, encoded).or_report(&mut errors);
-                }
-                Err(e) => {
-                    errors.set_failed();
-                    println!("Failed to encode item list as RON {e:?}")
+                match ron::to_string(&list) {
+                    Ok(encoded) => {
+                        std::fs::write(item_list_file, encoded).or_report(&mut errors);
+                    }
+                    Err(e) => {
+                        errors.set_failed();
+                        println!("Failed to encode item list as RON {e:?}")
+                    }
                 }
             }
         }
+    }
 
-        let stored_state = state.into_stored();
+    let stored_state = state.into_stored();
 
+    if compilation_goal.should_codegen() {
         if let Some(state_dump_file) = opts.state_dump_file {
             if std::env::var("SPADE_REPORT_SERIALIZED_SIZE").is_ok() {
                 spade_common::sizes::SerializedSize::report_size(&stored_state);
@@ -542,28 +570,20 @@ pub fn compile(
                 }
             }
         }
-        let artefacts = Artefacts {
-            bumpy_mir_entities,
-            flat_mir_entities,
-            code: code.clone(),
-            item_list,
-            impl_list: mapped_trait_impls,
-            state: stored_state.into_compiler_state(),
-            type_states,
-        };
+    }
 
+    let artefacts = Artefacts {
+        bumpy_mir_entities: final_bumpy_mir_entities,
+        code: code.read().unwrap().clone(),
+        item_list,
+        impl_list: mapped_trait_impls,
+        state: stored_state.into_compiler_state(),
+        type_states,
+    };
+
+    if !errors.failed() {
         Ok(artefacts)
     } else {
-        let artefacts = Artefacts {
-            bumpy_mir_entities,
-            flat_mir_entities,
-            code: code.clone(),
-            item_list,
-            impl_list: mapped_trait_impls,
-            state,
-            type_states,
-        };
-
         Err(CompilationResult::LateFailure(artefacts))
     }
 }
