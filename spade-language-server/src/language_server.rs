@@ -95,6 +95,7 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             definition_provider: Some(OneOf::Left(true)),
 
             completion_provider: Some(CompletionOptions {
+                completion_item: Default::default(),
                 resolve_provider: Some(false),
                 trigger_characters: Some(vec![dot]),
                 all_commit_characters: None,
