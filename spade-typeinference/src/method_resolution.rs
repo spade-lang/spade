@@ -4,7 +4,7 @@ use spade_common::name::{Identifier, NameID};
 
 use spade_diagnostics::Diagnostic;
 use spade_diagnostics::diagnostic::Subdiagnostic;
-use spade_hir::{ImplTarget, TraitName, TypeExpression, TypeSpec};
+use spade_hir::{ImplTarget, TraitName, TraitUnitImpl, TypeExpression, TypeSpec};
 use spade_types::KnownType;
 
 use crate::TypeState;
@@ -41,6 +41,48 @@ impl IntoImplTarget for KnownType {
             KnownType::CopyView => Some(ImplTarget::CopyView),
         }
     }
+}
+
+pub fn methods_for_type<'a>(
+    trait_impls: &'a TraitImplList,
+    ty: &TypeVarID,
+    type_state: &TypeState,
+) -> Vec<(&'a Identifier, &'a TraitUnitImpl)> {
+    let Some(target) = ty
+        .resolve(type_state)
+        .expect_known::<_, _, _, Option<ImplTarget>>(
+            |ktype, _params| ktype.into_impl_target(),
+            || None,
+        )
+    else {
+        return vec![];
+    };
+
+    let Some(impls) = trait_impls.inner.get(&target) else {
+        return vec![];
+    };
+
+    impls
+        .iter()
+        .flat_map(
+            |TraitImpl {
+                 name: _,
+                 target_type_params: _,
+                 trait_type_params: _,
+                 impl_block: r#impl,
+             }| {
+                r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
+                    let is_overlapping = spec_is_overlapping(&r#impl.target, &ty, type_state);
+                    match is_overlapping {
+                        Overlap::Yes => Some((fn_name, actual_fn)),
+                        Overlap::Maybe => None,
+                        Overlap::No => None,
+                    }
+                })
+            },
+        )
+        .filter_map(|x| x)
+        .collect::<Vec<_>>()
 }
 
 /// Attempts to look up which function to call when calling `method` on a var

@@ -3,13 +3,13 @@ use crate::backend_capabilities::goto_definition::GotoDefinition;
 use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
-use tower_lsp::lsp_types::CompletionParams;
-use tower_lsp::lsp_types::CompletionResponse;
 use std::sync::{Arc, Mutex};
 use tokio::select;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::CompletionParams;
+use tower_lsp::lsp_types::CompletionResponse;
 use tower_lsp::lsp_types::DidChangeTextDocumentParams;
 use tower_lsp::lsp_types::{
     CompletionOptions, DidOpenTextDocumentParams, DidSaveTextDocumentParams, GotoDefinitionParams,
