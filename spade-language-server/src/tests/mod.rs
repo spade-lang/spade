@@ -22,6 +22,7 @@ use crate::language_server::ServerFrontend;
 use crate::tests::markers::{find_markers, Marker};
 use crate::Client;
 
+pub mod completion;
 mod diagnostics;
 mod goto_definition;
 mod hover;
@@ -95,6 +96,7 @@ async fn init_with_file(
     opt: InitFileOpt,
     test_comps: Option<&Vec<&str>>,
     completion_char: &str,
+    include_stdlib: bool,
 ) -> TestContext {
     let InitFileOpt { open_immediately } = opt;
     let root_dir = TempDir::new().unwrap();
@@ -106,7 +108,10 @@ async fn init_with_file(
 
     tokio::fs::write(&path, code).await.unwrap();
     let client = TestClient::new();
-    let server = ServerFrontend::new(client.clone());
+    let mut server = ServerFrontend::new(client.clone());
+
+    server.backend.include_stdlib = include_stdlib;
+
     server
         .initialize(InitializeParams {
             root_uri: Some(root_uri),
@@ -278,6 +283,7 @@ async fn server_starts() {
         InitFileOpt::default(),
         None,
         "",
+        true,
     )
     .await;
 }

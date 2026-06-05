@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use spade_common::name::NameID;
 use spade_hir::{query::Thing, symbol_table::SymbolTable};
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,
@@ -173,22 +174,40 @@ impl CompletionInfo for ServerBackend {
                         }
                     }
 
-                    let kind = Some(match thing {
-                        spade_hir::symbol_table::Thing::Struct(_) => CompletionItemKind::STRUCT,
-                        spade_hir::symbol_table::Thing::EnumVariant(_) => CompletionItemKind::ENUM,
-                        spade_hir::symbol_table::Thing::Unit(_) => CompletionItemKind::FUNCTION,
-                        spade_hir::symbol_table::Thing::Variable(_) => CompletionItemKind::VALUE,
-                        spade_hir::symbol_table::Thing::Alias { .. } => {
-                            CompletionItemKind::REFERENCE
-                        }
-                        spade_hir::symbol_table::Thing::ArrayLabel(_) => {
-                            CompletionItemKind::PROPERTY
-                        }
-                        spade_hir::symbol_table::Thing::Module(_, _) => CompletionItemKind::MODULE,
-                        spade_hir::symbol_table::Thing::Macro(_, _) => CompletionItemKind::FUNCTION,
-                        spade_hir::symbol_table::Thing::Trait(_) => CompletionItemKind::INTERFACE,
-                        spade_hir::symbol_table::Thing::Dummy => CompletionItemKind::MODULE,
-                    });
+                    let resolved_thing = follow_aliases(symtab.symtab(), thing);
+
+                    let kind = Some(
+                        match resolved_thing
+                            .as_ref()
+                            .map(|(_, thing)| thing)
+                            .unwrap_or(&thing)
+                        {
+                            spade_hir::symbol_table::Thing::Struct(_) => CompletionItemKind::STRUCT,
+                            spade_hir::symbol_table::Thing::EnumVariant(_) => {
+                                CompletionItemKind::ENUM
+                            }
+                            spade_hir::symbol_table::Thing::Unit(_) => CompletionItemKind::FUNCTION,
+                            spade_hir::symbol_table::Thing::Variable(_) => {
+                                CompletionItemKind::VALUE
+                            }
+                            spade_hir::symbol_table::Thing::Alias { .. } => {
+                                CompletionItemKind::REFERENCE
+                            }
+                            spade_hir::symbol_table::Thing::ArrayLabel(_) => {
+                                CompletionItemKind::PROPERTY
+                            }
+                            spade_hir::symbol_table::Thing::Module(_, _) => {
+                                CompletionItemKind::MODULE
+                            }
+                            spade_hir::symbol_table::Thing::Macro(_, _) => {
+                                CompletionItemKind::FUNCTION
+                            }
+                            spade_hir::symbol_table::Thing::Trait(_) => {
+                                CompletionItemKind::INTERFACE
+                            }
+                            spade_hir::symbol_table::Thing::Dummy => CompletionItemKind::MODULE,
+                        },
+                    );
 
                     // Everything remaining should be completed, but how we complete it depends
                     // on the path relative to the current unit. If the thing shares a common ancestor
@@ -214,11 +233,22 @@ impl CompletionInfo for ServerBackend {
                         )
                     };
 
+                    let description = resolved_thing
+                        .map(|name| {
+                            name.0
+                                 .1
+                                .to_named_strs()
+                                .into_iter()
+                                .filter_map(|x| x)
+                                .join("::")
+                        })
+                        .unwrap_or(full_path);
+
                     Some(CompletionItem {
                         label: label,
                         label_details: Some(CompletionItemLabelDetails {
                             detail: None,
-                            description: if !is_local { Some(full_path) } else { None },
+                            description: Some(description),
                         }),
                         kind: kind,
                         detail: None,
@@ -244,6 +274,36 @@ impl CompletionInfo for ServerBackend {
         };
 
         Some(CompletionResponse::Array(names))
+    }
+}
+
+fn follow_aliases<'a>(
+    symtab: &'a SymbolTable,
+    thing: &spade_hir::symbol_table::Thing,
+) -> Option<(NameID, &'a spade_hir::symbol_table::Thing)> {
+    match thing {
+        spade_hir::symbol_table::Thing::Alias {
+            loc: _,
+            path,
+            in_namespace: _,
+        } => symtab
+            .lookup_thing(path, true)
+            .ok()
+            .and_then(
+                |original @ (_, thing)| match follow_aliases(symtab, thing) {
+                    None => Some(original),
+                    new => new,
+                },
+            ),
+        spade_hir::symbol_table::Thing::Struct(_)
+        | spade_hir::symbol_table::Thing::EnumVariant(_)
+        | spade_hir::symbol_table::Thing::Unit(_)
+        | spade_hir::symbol_table::Thing::Variable(_)
+        | spade_hir::symbol_table::Thing::ArrayLabel(_)
+        | spade_hir::symbol_table::Thing::Module(_, _)
+        | spade_hir::symbol_table::Thing::Macro(_, _)
+        | spade_hir::symbol_table::Thing::Trait(_)
+        | spade_hir::symbol_table::Thing::Dummy => None,
     }
 }
 

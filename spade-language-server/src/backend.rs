@@ -26,6 +26,8 @@ pub struct ServerBackend {
 
     /// A channel allowing for logging without requiring an async context or handle to the client.
     pub client_log_chan: mpsc::Sender<(MessageType, String)>,
+
+    pub include_stdlib: bool,
 }
 
 impl ServerBackend {
@@ -39,6 +41,8 @@ impl ServerBackend {
             query_cache: Arc::new(Mutex::new(QueryCache::empty())),
             type_states: Arc::new(Mutex::new(BTreeMap::new())),
             client_log_chan: sender,
+
+            include_stdlib: true,
         }
     }
 }

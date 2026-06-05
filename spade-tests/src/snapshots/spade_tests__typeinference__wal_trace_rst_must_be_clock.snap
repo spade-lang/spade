@@ -10,16 +10,14 @@ fn test(t: T, x: int<10>) -> bool {
 }
 
 
-error: Expected type bool, got int<10>
-  ┌─ testinput:4:21
+error: Unknown attribute 'wal_traceable'
+  ┌─ testinput:1:3
   │
-3 │ fn test(t: T, x: int<10>) -> bool {
-  │                  ------- Type int<10> inferred here
+1 │ #[wal_traceable(suffix = __)]
+  │   ^^^^^^^^^^^^^ Unrecognised attribute
+
+error: Unknown attribute 'wal_trace'
+  ┌─ testinput:4:7
+  │
 4 │     #[wal_trace(rst=x)]
-  │     ----------------^--
-  │     │               │
-  │     │               Expected bool
-  │     Type bool inferred here
-  │
-  = note: Expected: bool
-               Got: int<10>
+  │       ^^^^^^^^^ Unrecognised attribute

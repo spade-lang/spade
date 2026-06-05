@@ -10,16 +10,14 @@ fn test(t: T, x: bool) -> bool {
 }
 
 
-error: Expected type clock, got bool
-  ┌─ testinput:4:21
+error: Unknown attribute 'wal_traceable'
+  ┌─ testinput:1:3
   │
-3 │ fn test(t: T, x: bool) -> bool {
-  │                  ---- Type bool inferred here
+1 │ #[wal_traceable(suffix = __)]
+  │   ^^^^^^^^^^^^^ Unrecognised attribute
+
+error: Unknown attribute 'wal_trace'
+  ┌─ testinput:4:7
+  │
 4 │     #[wal_trace(clk=x)]
-  │     ----------------^--
-  │     │               │
-  │     │               Expected clock
-  │     Type clock inferred here
-  │
-  = note: Expected: clock
-               Got: bool
+  │       ^^^^^^^^^ Unrecognised attribute
