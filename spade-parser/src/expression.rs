@@ -496,6 +496,14 @@ impl<'a> Parser<'a> {
                     None
                 };
 
+                if !self.peek_cond(|tok| matches!(tok, TokenKind::Identifier(_)), "Identifier")? {
+                    let next = self.peek()?;
+                    let loc = ().at(self.file_id(), &next);
+                    return Ok(Expression::IncompleteDot {
+                        base: Box::new(expr.clone()),
+                    }
+                    .between_locs(&expr, &loc));
+                }
                 let field = self.normal_identifier()?;
 
                 let turbofish = self.turbofish()?;

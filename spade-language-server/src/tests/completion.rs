@@ -7,14 +7,12 @@ use crate::tests::{init_with_file, InitFileOpt, TestContext};
 
 async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
     let TestContext {
-        root_dir: root_dir, // Has to be given a name to not go out of scope // TODO: Probably wrong
+        root_dir: _,
         client: _,
         server,
         markers,
         file_uri,
     } = init_with_file(code, InitFileOpt::default(), false).await;
-
-    root_dir.into_persistent();
 
     // Check hover
     let completions = markers.values().find(|m| m.completion);
@@ -121,7 +119,7 @@ test_completion! {
 }
 
 test_completion! {
-    completion_after_dot,
+    completion_on_in_progress_field,
     "
         struct NameOfStruct {}
         impl NameOfStruct {
@@ -140,3 +138,68 @@ test_completion! {
         }
     ",
 }
+
+test_completion! {
+    completion_on_blank_dot,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            fn method(self) {}
+        }
+
+        fn foo() -> bool {
+            let s = NameOfStruct();
+
+            let _ = s.
+                   // ^[1] completion
+
+            let another = false;
+
+            false
+        }
+    ",
+}
+
+test_completion! {
+    completion_on_blank_dot_not_in_target,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            fn method(self) {}
+        }
+
+        fn foo() -> bool {
+            let s = NameOfStruct();
+
+            let _ = s.
+                 // ^[1] completion
+
+            let another = false;
+
+            false
+        }
+    ",
+}
+
+
+test_completion! {
+    completion_on_field_not_in_target,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            fn method(self) {}
+        }
+
+        fn foo() -> bool {
+            let s = NameOfStruct();
+
+            let _ = s.
+                 // ^[1] completion
+
+            let another = false;
+
+            false
+        }
+    ",
+}
+

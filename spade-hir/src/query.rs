@@ -119,6 +119,7 @@ impl<'a> QueryCache {
             } => self.visit_expression(target),
             crate::ExprKind::TupleIndex(target, _) => self.visit_expression(target),
             crate::ExprKind::FieldAccess(target, _) => self.visit_expression(target),
+            crate::ExprKind::IncompleteDot { base } => self.visit_expression(base),
             crate::ExprKind::TypeCast(target, _) => self.visit_expression(target),
             crate::ExprKind::MethodCall {
                 target,

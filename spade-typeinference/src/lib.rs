@@ -1081,6 +1081,7 @@ impl TypeState {
             | ExprKind::RangeIndex { .. }
             | ExprKind::TupleIndex(_, _)
             | ExprKind::FieldAccess(_, _)
+            | ExprKind::IncompleteDot { base: _ }
             | ExprKind::TypeCast(_, _)
             | ExprKind::MethodCall { .. }
             | ExprKind::Call { .. }
@@ -1245,6 +1246,14 @@ impl TypeState {
             ExprKind::ArrayLiteral(_) => self.visit_array_literal(expression, ctx, generic_list)?,
             ExprKind::ArrayShorthandLiteral(_, _) => {
                 self.visit_array_shorthand_literal(expression, ctx, generic_list)?
+            }
+            ExprKind::IncompleteDot { base } => {
+                self.visit_expression(base, ctx, generic_list);
+
+                new_type
+                    .unify_with(&self.t_err(expression.loc()), self)
+                    .commit(self, ctx)
+                    .unwrap();
             }
             ExprKind::FieldAccess(_, _) => {
                 self.visit_field_access(expression, ctx, generic_list)?

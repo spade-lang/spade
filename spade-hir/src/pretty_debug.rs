@@ -270,6 +270,9 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::Index(base, idx) => {
                 format!("{}[{}]", base.pretty_debug(), idx.pretty_debug())
             }
+            crate::ExprKind::IncompleteDot { base } => {
+                format!("{}.", base.pretty_debug())
+            }
             crate::ExprKind::RangeIndex { target, start, end } => {
                 format!(
                     "{}[{}..{}]",

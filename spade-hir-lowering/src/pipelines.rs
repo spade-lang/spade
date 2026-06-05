@@ -641,6 +641,10 @@ impl PipelineAvailability for Expression {
             } => try_compute_availability(&[target.as_ref()], ctx),
             ExprKind::TupleIndex(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::FieldAccess(lhs, _) => lhs.inner.available_in(ctx),
+            ExprKind::IncompleteDot { .. } => {
+                // TODO
+                Ok(None)
+            }
             ExprKind::TypeCast(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::BinaryOperator(lhs, _, rhs) => {
                 try_compute_availability(&[lhs.as_ref(), rhs.as_ref()], ctx)
