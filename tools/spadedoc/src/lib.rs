@@ -69,7 +69,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         mir_output: None,
         state_dump_file: None,
         item_list_file: None,
-        print_parse_traceback: false,
+        print_parse_traceback: None,
         verilator_wrapper_output: None,
         opt_passes: vec![],
     };

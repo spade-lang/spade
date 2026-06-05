@@ -246,7 +246,7 @@ impl ServerBackend {
             mir_output: None,
             state_dump_file: None,
             item_list_file: None,
-            print_parse_traceback: false,
+            print_parse_traceback: std::env::var("SPADE_TRACE_PARSER").ok(),
             verilator_wrapper_output: None,
             opt_passes: vec![],
         };

@@ -109,7 +109,7 @@ macro_rules! snapshot_error {
                 verilator_wrapper_output: None,
                 state_dump_file: None,
                 item_list_file: None,
-                print_parse_traceback: std::env::var("SPADE_TRACE_PARSER").is_ok(),
+                print_parse_traceback: std::env::var("SPADE_TRACE_PARSER").ok(),
                 opt_passes: vec![]
             };
 
@@ -326,7 +326,7 @@ pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
                 verilator_wrapper_output: None,
                 state_dump_file: None,
                 item_list_file: None,
-                print_parse_traceback: false,
+                print_parse_traceback: None,
                 opt_passes: vec![],
             };
 

@@ -33,20 +33,33 @@ macro_rules! test_completion {
             // Check hover
             let hover = markers.values().find(|m| m.completion);
             if let Some(hover) = hover {
+                let position = TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier {
+                        uri: file_uri.clone(),
+                    },
+                    position: hover.range.start,
+                };
+
                 let response = server
                     .completion(CompletionParams {
-                        text_document_position: TextDocumentPositionParams {
-                            text_document: TextDocumentIdentifier {
-                                uri: file_uri.clone(),
-                            },
-                            position: hover.range.start,
-                        },
+                        text_document_position: position,
                         context: None,
                         partial_result_params: Default::default(),
                         work_done_progress_params: Default::default(),
                     })
                     .await
                     .unwrap();
+
+                server.backend.get_position_details(&hover.range.start, &file_uri.clone())
+                    .map(|details| {
+                        let qq = server.backend.query_cache.lock().unwrap();
+                        let things_around = qq.things_around(&details.loc);
+                        
+                        println!(
+                            "The things around are :\n{:?}", things_around,
+                        );
+
+                    });
 
                 if $expect_none {
                     if response.is_some() {
@@ -79,7 +92,7 @@ macro_rules! test_completion {
 }
 
 test_completion! {
-    completion_after_dot,
+    bare_completion,
     "
         struct NameOfStruct {
             field_a: bool,
@@ -92,8 +105,29 @@ test_completion! {
         fn foo() -> bool {
             let s = NameOfStruct(false, 2);
 
-            ;
+            
       //    ^[1] completion
+            false
+        }
+    ",
+}
+
+test_completion! {
+    completion_after_dot,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            fn method(self) {}
+        }
+
+        fn foo() -> bool {
+            let s = NameOfStruct();
+
+            s.aaa
+            // ^[1] completion
+
+            let another = statement;
+
             false
         }
     ",

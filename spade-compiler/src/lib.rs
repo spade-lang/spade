@@ -49,7 +49,8 @@ pub struct Opt<'b> {
     pub verilator_wrapper_output: Option<PathBuf>,
     pub state_dump_file: Option<PathBuf>,
     pub item_list_file: Option<PathBuf>,
-    pub print_parse_traceback: bool,
+    /// Print the traceback for the specified file
+    pub print_parse_traceback: Option<String>,
     pub opt_passes: Vec<String>,
 }
 
@@ -109,7 +110,7 @@ pub fn run_global_compilation_tasks(
     code: Arc<RwLock<CodeBundle>>,
     errors: &mut ErrorHandler,
     unfinished_artefacts: &mut UnfinishedArtefacts,
-    print_parse_traceback: bool,
+    print_parse_traceback: Option<String>,
 ) -> Result<GlobalCompilationState, GlobalCompilationError> {
     let diags = Arc::new(Mutex::new(DiagList::new()));
     let mut symtab = SymbolTable::new(diags.clone());
@@ -628,25 +629,26 @@ pub fn do_in_namespace(
 pub fn parse(
     sources: Vec<(ModuleNamespace, String, String)>,
     code: Arc<RwLock<CodeBundle>>,
-    print_parse_traceback: bool,
+    print_parse_traceback: Option<String>,
     errors: &mut ErrorHandler,
 ) -> Vec<(ModuleNamespace, Loc<ModuleBody>)> {
     let mut module_asts = vec![];
     // Read and parse input files
     for (namespace, name, content) in sources {
         let _span = tracing::span!(Level::TRACE, "source", ?name).entered();
-        let file_id = code.write().unwrap().add_file(name, content.clone());
+        let file_id = code.write().unwrap().add_file(name.clone(), content.clone());
         let mut parser = Parser::new(&content, file_id, namespace.working_dir.clone());
 
         let result = parser
             .top_level_module_body()
             .map_err(|e| {
-                if print_parse_traceback {
-                    println!("{}", spade_parser::format_parse_stack(&parser.parse_stack));
-                };
                 e
             })
             .or_report(errors);
+        if print_parse_traceback.as_ref().map(|file| name.contains(file)).unwrap_or(false) {
+            println!("Parse traceback for {name}");
+            println!("{}", spade_parser::format_parse_stack(&parser.parse_stack));
+        };
 
         errors.drain_diag_list(&mut parser.diags);
 
