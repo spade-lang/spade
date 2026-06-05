@@ -1,0 +1,36 @@
+---
+source: spade-tests/src/parser.rs
+---
+fn test() {
+    0
+
+    0
+}
+
+
+error: Expected a `;` after this expression.
+  ┌─ testinput:2:5
+  │
+2 │     0
+  │     ^
+3 │ 
+4 │     0
+  │     - Required because it is followed by this
+  │
+  = help: Only the last expression to be returned can be without a semicolon
+
+error: Output type mismatch
+  ┌─ testinput:1:11
+  │  
+1 │   fn test() {
+  │ ╭───────────^
+2 │ │     0
+3 │ │ 
+4 │ │     0
+5 │ │ }
+  │ ╰─^ Found type Number<_>
+  │  
+  = note: The function does not specify a return type.
+          Add a return type, or remove the return value.
+  = note: Expected: ()
+               Got: Number<_>

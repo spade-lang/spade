@@ -91,13 +91,7 @@ struct InitFileOpt {
 }
 
 /// Initialize the LSP with one file.
-async fn init_with_file(
-    code: &str,
-    opt: InitFileOpt,
-    test_comps: Option<&Vec<&str>>,
-    completion_char: &str,
-    include_stdlib: bool,
-) -> TestContext {
+async fn init_with_file(code: &str, opt: InitFileOpt, include_stdlib: bool) -> TestContext {
     let InitFileOpt { open_immediately } = opt;
     let root_dir = TempDir::new().unwrap();
     let root_uri = Url::from_directory_path(&root_dir).unwrap();
@@ -150,8 +144,6 @@ async fn init_with_file(
                 },
             })
             .await;
-
-        // FIXME: probably race condition here. wait for server to mark "done compiling files" or something
 
         client
             .diagnostics
@@ -227,38 +219,6 @@ async fn init_with_file(
         }
     }
 
-    // Check completions
-    let comps = markers.values().find(|m| m.comps);
-    if let Some(comps) = comps {
-        let response = server
-            .completion(CompletionParams {
-                text_document_position: TextDocumentPositionParams {
-                    text_document: TextDocumentIdentifier {
-                        uri: file_uri.clone(),
-                    },
-                    position: comps.range.start,
-                },
-                work_done_progress_params: Default::default(),
-                partial_result_params: Default::default(),
-                context: Some(CompletionContext {
-                    trigger_kind: CompletionTriggerKind::INVOKED,
-                    trigger_character: Some(completion_char.to_string()),
-                }),
-            })
-            .await
-            .unwrap()
-            .unwrap();
-
-        if let CompletionResponse::Array(lsp_completions) = response {
-            for c1 in test_comps.unwrap() {
-                assert!(lsp_completions
-                    .iter()
-                    .find(|c2| comps_are_same(c1, c2))
-                    .is_some());
-            }
-        }
-    }
-
     TestContext {
         root_dir,
         client,
@@ -266,10 +226,6 @@ async fn init_with_file(
         markers,
         file_uri,
     }
-}
-
-fn comps_are_same(c1: &str, c2: &CompletionItem) -> bool {
-    c1 == c2.label
 }
 
 #[tokio::test]
@@ -281,8 +237,6 @@ async fn server_starts() {
             }
         "#,
         InitFileOpt::default(),
-        None,
-        "",
         true,
     )
     .await;

@@ -1147,3 +1147,39 @@ snapshot_error! {
         macro test[] {}
     "
 }
+
+snapshot_error! {
+    parser_can_recover_non_final_expression,
+    "
+        fn test() {
+            0
+
+            0
+        }
+    "
+}
+
+snapshot_error! {
+    parser_error_for_failing_completion_test,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            fn method(self) {}
+        }
+
+        fn foo() -> bool {
+            let s = NameOfStruct();
+
+            s.aaa
+            // ^[1] completion
+
+            let another = statement;
+
+            false
+        }
+
+        fn bar() -> bool {
+            foo()
+        }
+    "
+}

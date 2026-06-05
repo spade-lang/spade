@@ -14,11 +14,30 @@ entity top(input: int<32>) -> uint<32> {}
 
 
 
-error: Unexpected `identifier`, expected `}`
-  ┌─ testinput:7:5
+error: Expected a `;` after this expression.
+  ┌─ testinput:6:5
   │
+6 │     test()
+  │     ^^^^^^
 7 │     test()
-  │     ^^^^ expected `}`
+  │     ------ Required because it is followed by this
+  │
+  = help: Only the last expression to be returned can be without a semicolon
+
+error: Output type mismatch. Expected uint<32>, got ()
+  ┌─ testinput:5:53
+  │  
+5 │   entity int32_to_float32(input: int<32>) -> uint<32> {
+  │                                              -------- uint<32> type specified here
+  │ ╭─────────────────────────────────────────────────────^
+6 │ │     test()
+7 │ │     test()
+  │ │     ------ Type () inferred here
+8 │ │ }
+  │ ╰─^ Found type ()
+  │  
+  = note: Expected: uint<32>
+               Got: ()
 
 error: Output type mismatch. Expected uint<32>, got ()
    ┌─ testinput:10:40

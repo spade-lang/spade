@@ -25,8 +25,6 @@ macro_rules! test_hover {
             } = init_with_file(
                 $code,
                 InitFileOpt::default(),
-                None,
-                "",
                 true,
             )
             .await;

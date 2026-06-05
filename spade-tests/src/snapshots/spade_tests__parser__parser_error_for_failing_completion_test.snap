@@ -1,0 +1,40 @@
+---
+source: spade-tests/src/parser.rs
+---
+struct NameOfStruct {}
+impl NameOfStruct {
+    fn method(self) {}
+}
+
+fn foo() -> bool {
+    let s = NameOfStruct();
+
+    s.aaa
+    // ^[1] completion
+
+    let another = statement;
+
+    false
+}
+
+fn bar() -> bool {
+    foo()
+}
+
+
+error: Expected a `;` after this expression.
+   ┌─ testinput:9:5
+   │
+ 9 │     s.aaa
+   │     ^^^^^
+   ·
+14 │     false
+   │     ----- Required because it is followed by this
+   │
+   = help: Only the last expression to be returned can be without a semicolon
+
+error: Use of undeclared name statement
+   ┌─ testinput:12:19
+   │
+12 │     let another = statement;
+   │                   ^^^^^^^^^ Undeclared name

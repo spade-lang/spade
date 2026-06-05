@@ -14,11 +14,21 @@ enum Y {
 }
 
 
-error: Unexpected `identifier`, expected `}`
+error: Expected a `;` after this expression.
+  ┌─ testinput:2:5
+  │
+2 │     not valid syntax
+  │     ^^^ ----- Required because it is followed by this
+  │
+  = help: Only the last expression to be returned can be without a semicolon
+
+error: Expected a `;` after this expression.
   ┌─ testinput:2:9
   │
 2 │     not valid syntax
-  │         ^^^^^ expected `}`
+  │         ^^^^^ ------ Required because it is followed by this
+  │
+  = help: Only the last expression to be returned can be without a semicolon
 
 error: Unexpected `}`, expected `:`
   ┌─ testinput:7:1
@@ -31,3 +41,21 @@ error: Unexpected `(`, expected `{`, `,` or `}`
    │
 10 │     Variant(a)
    │            ^
+
+error: Use of undeclared name not
+  ┌─ testinput:2:5
+  │
+2 │     not valid syntax
+  │     ^^^ Undeclared name
+
+error: Use of undeclared name valid
+  ┌─ testinput:2:9
+  │
+2 │     not valid syntax
+  │         ^^^^^ Undeclared name
+
+error: Use of undeclared name syntax
+  ┌─ testinput:2:15
+  │
+2 │     not valid syntax
+  │               ^^^^^^ Undeclared name
