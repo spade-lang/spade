@@ -212,6 +212,7 @@ pub enum ExprKind {
     },
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
+    IncompleteDot{base: Box<Loc<Expression>>},
     TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     MethodCall {
         target: Box<Loc<Expression>>,

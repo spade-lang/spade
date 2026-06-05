@@ -58,6 +58,7 @@ impl Passable for Loc<Expression> {
                 subnodes!(target)
             }
             ExprKind::TupleIndex(lhs, _) => subnodes!(lhs),
+            ExprKind::IncompleteDot { base } => subnodes!(base),
             ExprKind::FieldAccess(lhs, _) => subnodes!(lhs),
             ExprKind::TypeCast(lhs, _) => subnodes!(lhs),
             ExprKind::MethodCall {

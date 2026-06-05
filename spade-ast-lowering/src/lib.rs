@@ -2369,6 +2369,9 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             Box::new(target.visit(visit_expression, ctx)),
             field.clone(),
         )),
+        ast::Expression::IncompleteDot { base } => Ok(hir::ExprKind::IncompleteDot {
+            base: Box::new(visit_expression(&base.inner, ctx).at_loc(base)),
+        }),
         ast::Expression::TypeCast(target, ty) => Ok(hir::ExprKind::TypeCast(
             Box::new(target.visit(visit_expression, ctx)),
             visit_type_expression(ty, &TypeSpecKind::TypeCast, ctx)?.at_loc(&ty),
@@ -2855,6 +2858,7 @@ fn inject_verilog_attrs(
         | ExprKind::RangeIndex { .. }
         | ExprKind::TupleIndex(_, _)
         | ExprKind::FieldAccess(_, _)
+        | ExprKind::IncompleteDot { .. }
         | ExprKind::TypeCast(_, _)
         | ExprKind::MethodCall { .. }
         | ExprKind::BinaryOperator(_, _, _)

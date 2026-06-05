@@ -112,6 +112,7 @@ impl LocExprExt for Loc<hir::Expression> {
                 .or_else(|| r.runtime_requirement_witness(ctx)),
             ExprKind::RangeIndex { .. } => Some(self.clone()),
             ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(ctx),
+            ExprKind::IncompleteDot { base } => None,
             ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::TypeCast(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::Call {
@@ -1113,6 +1114,7 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::TupleLiteral(_) => Ok(None),
             ExprKind::TupleIndex(_, _) => Ok(None),
             ExprKind::FieldAccess(_, _) => Ok(None),
+            ExprKind::IncompleteDot { .. } =>  Ok(None),
             ExprKind::TypeCast(_, _) => Ok(None),
             ExprKind::ArrayLiteral { .. } => Ok(None),
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
@@ -1513,6 +1515,9 @@ impl ExprLocal for Loc<Expression> {
                     }),
                     self,
                 )
+            }
+            ExprKind::IncompleteDot { base } => {
+                // TODO, emit an error here
             }
             ExprKind::FieldAccess(target, field) => {
                 result.append(target.lower(ctx)?);

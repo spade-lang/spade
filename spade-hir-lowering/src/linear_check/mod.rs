@@ -161,6 +161,7 @@ fn visit_expression(
         | spade_hir::ExprKind::Null
         | spade_hir::ExprKind::StaticUnreachable(_) => false,
         spade_hir::ExprKind::Error
+        | spade_hir::ExprKind::IncompleteDot { .. }
         | spade_hir::ExprKind::IntLiteral(_, _)
         | spade_hir::ExprKind::TypeLevelInteger(_)
         | spade_hir::ExprKind::BoolLiteral(_)
@@ -289,6 +290,9 @@ fn visit_expression(
         spade_hir::ExprKind::TupleIndex(base, idx) => {
             visit_expression(base, linear_state, ctx)?;
             linear_state.alias_tuple_member(expr.id.at_loc(expr), base.id, idx)?
+        }
+        spade_hir::ExprKind::IncompleteDot { base } => {
+            visit_expression(base, linear_state, ctx)?;
         }
         spade_hir::ExprKind::FieldAccess(base, field) => {
             visit_expression(base, linear_state, ctx)?;

@@ -60,18 +60,21 @@ impl CompletionInfo for ServerBackend {
                         match &expression.kind {
                             spade_hir::ExprKind::Error => None,
 
-                            spade_hir::ExprKind::MethodCall { target, name, .. }
-                            | spade_hir::ExprKind::FieldAccess(target, name) => {
-                                // TODO: Only complete if we are inside or at the edge of the loc
+                            spade_hir::ExprKind::IncompleteDot { base: target }
+                            | spade_hir::ExprKind::MethodCall { target, .. }
+                            | spade_hir::ExprKind::FieldAccess(target, _) => {
+                                if !target.contains_start(loc) {
+                                    let ty = target.get_type(ts);
 
-                                let ty = target.get_type(ts);
-
-                                type_field_completions(
-                                    &ty,
-                                    &self.trait_impls.lock().unwrap(),
-                                    ts,
-                                    symtab.symtab(),
-                                )
+                                    type_field_completions(
+                                        &ty,
+                                        &self.trait_impls.lock().unwrap(),
+                                        ts,
+                                        symtab.symtab(),
+                                    )
+                                } else {
+                                    None
+                                }
                             }
 
                             // For identifiers we can just use naked completion
