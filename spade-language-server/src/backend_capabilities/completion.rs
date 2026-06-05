@@ -33,7 +33,7 @@ impl CompletionInfo for ServerBackend {
 
     async fn get_type_completions(
         &self,
-        pos @ PositionDetails {
+        PositionDetails {
             loc,
             name: _,
             unit_type_state,

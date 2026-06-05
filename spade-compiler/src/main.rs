@@ -63,9 +63,9 @@ pub struct Opt {
     /// Print a traceback of the type inference process if type inference or hir lowering fails
     #[structopt(long = "print-type-traceback")]
     pub print_type_traceback: bool,
-    /// Print a traceback of the parser if parsing fails
+    /// Print a traceback of the parser for the specified file if parsing fails
     #[structopt(long = "print-parse-traceback")]
-    pub print_parse_traceback: bool,
+    pub print_parse_traceback: Option<String>,
 
     /// Read the arguments from the specified `.json` file instead of parsing the
     /// command line arguments
