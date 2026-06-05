@@ -65,7 +65,11 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
                         })
                         .unwrap_or(false)
                     {
-                        result += &format!("{}\n", &item.label);
+                        result += &format!(
+                            "{}\t{}\n",
+                            &item.label,
+                            item.insert_text.unwrap_or("-".to_string())
+                        );
                     }
                 }
 
@@ -181,7 +185,6 @@ test_completion! {
     ",
 }
 
-
 test_completion! {
     completion_on_field_not_in_target,
     "
@@ -203,3 +206,21 @@ test_completion! {
     ",
 }
 
+test_completion! {
+    completion_adds_inst_correctly,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            fn func(self) {}
+            entity ent(self) {}
+            pipeline(5) pl1(self, clk: clock) {}
+            pipeline({5 + 1}) pl2(self, clk: clock) {}
+        }
+
+        fn foo() {
+            NameOfStruct().
+                        // ^[1] completion
+
+        }
+    ",
+}

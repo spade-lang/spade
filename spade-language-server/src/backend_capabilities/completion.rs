@@ -321,10 +321,31 @@ fn type_field_completions(
         .map(|(method, fn_info)| {
             let actual_fn = symtab.unit_by_id(&fn_info.name);
 
+            let inst = match &actual_fn.unit_kind.inner {
+                spade_hir::UnitKind::Function(_) => "".to_string(),
+                spade_hir::UnitKind::Entity => "inst ".to_string(),
+                spade_hir::UnitKind::Pipeline {
+                    depth,
+                    depth_typeexpr_id: _,
+                } => {
+                    let depth = match &depth.inner {
+                        spade_hir::TypeExpression::Integer(val) => format!("{val}"),
+                        spade_hir::TypeExpression::Bool(_)
+                        | spade_hir::TypeExpression::String(_)
+                        | spade_hir::TypeExpression::TypeSpec(_)
+                        | spade_hir::TypeExpression::ConstGeneric(_) => "${2:depth}".to_string(),
+                    };
+                    format!("inst({depth}) ")
+                }
+            };
+
             let (label, inserted) = if actual_fn.inputs.0.len() == 1 {
-                (format!("{method}()"), Some(format!("{method}()")))
+                (format!("{method}()"), Some(format!("{inst}{method}()")))
             } else {
-                (format!("{method}(…)"), Some(format!("{method}($1)$0")))
+                (
+                    format!("{method}(…)"),
+                    Some(format!("{inst}{method}($1)$0")),
+                )
             };
 
             CompletionItem {
