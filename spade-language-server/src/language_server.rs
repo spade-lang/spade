@@ -3,10 +3,13 @@ use crate::backend_capabilities::goto_definition::GotoDefinition;
 use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use tokio::select;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use tokio::sync::watch;
+use tokio::sync::Semaphore;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::CompletionParams;
 use tower_lsp::lsp_types::CompletionResponse;
@@ -24,11 +27,13 @@ use crate::backend::ServerBackend;
 use crate::Client;
 
 pub struct ServerFrontend<C> {
-    backend: ServerBackend,
+    pub(crate) backend: ServerBackend,
     symbols: Arc<Mutex<Vec<SymbolInformation>>>,
     client: Arc<C>,
 
     last_compile_fuse: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+    is_compiling_rx: watch::Receiver<bool>,
+    is_compiling_tx: watch::Sender<bool>,
 }
 
 impl<C: Client> ServerFrontend<C> {
@@ -37,11 +42,15 @@ impl<C: Client> ServerFrontend<C> {
         let arc_client = Arc::new(client);
         let _log_handler = tokio::spawn(Self::print_logs(Arc::clone(&arc_client), receiver));
 
+        let (is_compiling_tx, is_compiling_rx) = watch::channel(false);
+
         ServerFrontend {
             backend: ServerBackend::new(sender),
             client: Arc::clone(&arc_client),
             symbols: Arc::new(Mutex::new(Vec::new())),
             last_compile_fuse: Arc::new(Mutex::new(None)),
+            is_compiling_rx,
+            is_compiling_tx,
         }
     }
 
@@ -143,6 +152,8 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let _ = self.is_compiling_tx.send(true);
+
         let path = Utf8PathBuf::from(params.text_document.uri.path().to_string())
             .canonicalize_utf8()
             .unwrap();
@@ -166,7 +177,10 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
                         .last()
                         .map(|change| (path.as_path(), change.text.as_str())),
                     None,
-                ) => {}
+                ) => {
+                    let _ = self.is_compiling_tx.send(false);
+
+                }
                 // A select on 2 tasks cancels the one that doesn't finish, so if we receive
                 // something from the fuse before compilation is done, we kill the compilation
                 // here
@@ -217,6 +231,10 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let mut is_compiling = self.is_compiling_rx.clone();
+
+        let _ = is_compiling.wait_for(|val| *val == true);
+
         let TextDocumentPositionParams {
             text_document: doc,
             position: pos,

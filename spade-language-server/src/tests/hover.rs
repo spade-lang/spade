@@ -27,6 +27,7 @@ macro_rules! test_hover {
                 InitFileOpt::default(),
                 None,
                 "",
+                true,
             )
             .await;
 

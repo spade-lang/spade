@@ -234,7 +234,11 @@ impl ServerBackend {
             })
             .collect::<color_eyre::Result<Vec<_>>>()?
             .into_iter()
-            .chain(stdlib_files())
+            .chain(if self.include_stdlib {
+                stdlib_files()
+            } else {
+                vec![]
+            })
             .collect::<Vec<_>>();
         let opts = spade::Opt {
             error_buffer: &mut buffer,

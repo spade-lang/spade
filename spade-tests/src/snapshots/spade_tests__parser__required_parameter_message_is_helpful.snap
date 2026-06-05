@@ -8,11 +8,11 @@ fn main() -> bool {
 }
 
 
-error: Missing argument 'suffix'
+error: Unknown attribute 'wal_suffix'
   ┌─ testinput:2:7
   │
 2 │     #[wal_suffix()]
-  │       ^^^^^^^^^^ Missing argument 'suffix'
+  │       ^^^^^^^^^^ Unrecognised attribute
 
 error: Output type mismatch. Expected bool, got Number<_>
   ┌─ testinput:1:19
