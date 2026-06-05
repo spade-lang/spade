@@ -67,7 +67,7 @@ pub struct Artefacts {
 
 /// Like [Artefacts], but if the compiler didn't finish due to errors.
 pub struct UnfinishedArtefacts {
-    pub code: CodeBundle,
+    pub code: Arc<RwLock<CodeBundle>>,
     pub symtab: Option<SymbolTable>,
     pub item_list: Option<ItemList>,
     pub type_states: Option<BTreeMap<NameID, TypeState>>,
@@ -422,7 +422,7 @@ pub fn compile(
     let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Arc::clone(&code));
 
     let mut unfinished_artefacts = UnfinishedArtefacts {
-        code: code.read().unwrap().clone(),
+        code: Arc::clone(&code),
         symtab: None,
         item_list: None,
         type_states: None,
@@ -636,16 +636,21 @@ pub fn parse(
     // Read and parse input files
     for (namespace, name, content) in sources {
         let _span = tracing::span!(Level::TRACE, "source", ?name).entered();
-        let file_id = code.write().unwrap().add_file(name.clone(), content.clone());
+        let file_id = code
+            .write()
+            .unwrap()
+            .add_file(name.clone(), content.clone());
         let mut parser = Parser::new(&content, file_id, namespace.working_dir.clone());
 
         let result = parser
             .top_level_module_body()
-            .map_err(|e| {
-                e
-            })
+            .map_err(|e| e)
             .or_report(errors);
-        if print_parse_traceback.as_ref().map(|file| name.contains(file)).unwrap_or(false) {
+        if print_parse_traceback
+            .as_ref()
+            .map(|file| name.contains(file))
+            .unwrap_or(false)
+        {
             println!("Parse traceback for {name}");
             println!("{}", spade_parser::format_parse_stack(&parser.parse_stack));
         };

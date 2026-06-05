@@ -1501,6 +1501,44 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_stages: bool,
     ) -> Result<(Vec<Loc<Statement>>, Option<Loc<Expression>>)> {
+        let (mut statements, mut final_expr): (_, Option<Loc<Expression>>) = (vec![], None);
+
+        while !self.peek_kind(&TokenKind::CloseBrace)? {
+            let (new_statements, new_final) = self.block_statements(allow_stages)?;
+
+            if let Some(old) = &final_expr {
+                let loc = old.loc();
+                statements
+                    .push(Statement::Expression(old.clone(), AttributeList::empty()).at_loc(&loc));
+            }
+
+            match (
+                final_expr,
+                new_final
+                    .as_ref()
+                    .map(|f| f.loc())
+                    .or_else(|| new_statements.last().map(|s| s.loc())),
+            ) {
+                (Some(old), Some(new)) => {
+                    Diagnostic::error(&old, "Expected a `;` after this expression.")
+                        .secondary_label(new, "Required because it is followed by this")
+                        .help("Only the last expression to be returned can be without a semicolon")
+                        .handle_in(&mut self.diags);
+                }
+                _ => {}
+            }
+            statements.extend(new_statements);
+
+            final_expr = new_final
+        }
+
+        Ok((statements, final_expr))
+    }
+
+    pub fn block_statements(
+        &mut self,
+        allow_stages: bool,
+    ) -> Result<(Vec<Loc<Statement>>, Option<Loc<Expression>>)> {
         fn semi_validator(next: Token) -> Result<TokenKind> {
             match next.kind {
                 TokenKind::GreekQuestionMark => Err(Diagnostic::error(
@@ -1519,16 +1557,18 @@ impl<'a> Parser<'a> {
                     parser.eat_unconditional()?;
                     Ok(inner)
                 }
-                Ok(other) => Err(Diagnostic::error(
-                    span,
-                    format!("Expected `;`, got `{}`", other.as_str()),
-                )
-                .primary_label("Expected `;`")
-                .span_suggest_insert_after(
-                    "You probably forgot to end this statement with a `;`",
-                    inner,
-                    ";",
-                )),
+                Ok(other) => {
+                    Diagnostic::error(span, format!("Expected `;`, got `{}`", other.as_str()))
+                        .primary_label("Expected `;`")
+                        .span_suggest_insert_after(
+                            "You probably forgot to end this statement with a `;`",
+                            &inner,
+                            ";",
+                        )
+                        .handle_in(&mut parser.diags);
+
+                    Ok(inner)
+                }
                 Err(err) => Err(err),
             }
         };

@@ -102,7 +102,7 @@ impl ServerBackend {
         pos: &Position,
         uri: &Url,
     ) -> Option<PositionDetails> {
-        let Some(loc) = self.pos_uri_to_loc(pos, uri).ok() else {
+        let Ok(loc) = self.pos_uri_to_loc(pos, uri) else {
             return None;
         };
 

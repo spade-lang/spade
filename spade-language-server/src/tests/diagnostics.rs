@@ -10,8 +10,6 @@ async fn integer_does_not_fit() {
         }
     "#,
         InitFileOpt::default(),
-        None,
-        "",
         true,
     )
     .await;

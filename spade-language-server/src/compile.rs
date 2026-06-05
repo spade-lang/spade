@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use camino::Utf8Path;
 use color_eyre::eyre::{bail, Context};
 use rustc_hash::FxHashMap as HashMap;
-use spade::{stdlib_files, Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts};
+use spade::{Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::{Identifier, PathSegment};
@@ -234,12 +234,8 @@ impl ServerBackend {
             })
             .collect::<color_eyre::Result<Vec<_>>>()?
             .into_iter()
-            .chain(if self.include_stdlib {
-                stdlib_files()
-            } else {
-                vec![]
-            })
             .collect::<Vec<_>>();
+
         let opts = spade::Opt {
             error_buffer: &mut buffer,
             outfile: None,
@@ -260,7 +256,7 @@ impl ServerBackend {
                 Some((file, _)) => spade::CompilationGoal::LocalBuild(file.to_string()),
                 None => spade::CompilationGoal::Full,
             },
-            false,
+            self.include_stdlib,
             opts,
             diag_handler,
         );
@@ -319,7 +315,7 @@ impl ServerBackend {
                 type_states,
                 symtab,
             })) => {
-                *self.code.lock().unwrap() = code;
+                *self.code.lock().unwrap() = code.read().unwrap().clone();
                 *self.query_cache.lock().unwrap() = item_list
                     .as_ref()
                     .map(|item_list| QueryCache::from_item_list(&item_list))
