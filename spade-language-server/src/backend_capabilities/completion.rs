@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use spade_common::name::NameID;
-use spade_hir::{query::Thing, symbol_table::SymbolTable};
+use spade_hir::{query::Thing, symbol_table::SymbolTable, ParameterList, UnitKind};
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,
     TypeState,
@@ -107,9 +107,9 @@ impl CompletionInfo for ServerBackend {
                         }
                     }
                     // Naked is fine for now
-                    Thing::Statement(statement) => None,
+                    Thing::Statement(_) => None,
                     // Naked is fine for now
-                    Thing::Executable(executable_item) => None,
+                    Thing::Executable(_) => None,
                 }
             })
             .last()
@@ -179,39 +179,6 @@ impl CompletionInfo for ServerBackend {
 
                     let resolved_thing = follow_aliases(symtab.symtab(), thing);
 
-                    let kind = Some(
-                        match resolved_thing
-                            .as_ref()
-                            .map(|(_, thing)| thing)
-                            .unwrap_or(&thing)
-                        {
-                            spade_hir::symbol_table::Thing::Struct(_) => CompletionItemKind::STRUCT,
-                            spade_hir::symbol_table::Thing::EnumVariant(_) => {
-                                CompletionItemKind::ENUM
-                            }
-                            spade_hir::symbol_table::Thing::Unit(_) => CompletionItemKind::FUNCTION,
-                            spade_hir::symbol_table::Thing::Variable(_) => {
-                                CompletionItemKind::VALUE
-                            }
-                            spade_hir::symbol_table::Thing::Alias { .. } => {
-                                CompletionItemKind::REFERENCE
-                            }
-                            spade_hir::symbol_table::Thing::ArrayLabel(_) => {
-                                CompletionItemKind::PROPERTY
-                            }
-                            spade_hir::symbol_table::Thing::Module(_, _) => {
-                                CompletionItemKind::MODULE
-                            }
-                            spade_hir::symbol_table::Thing::Macro(_, _) => {
-                                CompletionItemKind::FUNCTION
-                            }
-                            spade_hir::symbol_table::Thing::Trait(_) => {
-                                CompletionItemKind::INTERFACE
-                            }
-                            spade_hir::symbol_table::Thing::Dummy => CompletionItemKind::MODULE,
-                        },
-                    );
-
                     // Everything remaining should be completed, but how we complete it depends
                     // on the path relative to the current unit. If the thing shares a common ancestor
                     // with the unit, complete it as a bare thing, otherwise, complete it
@@ -227,11 +194,14 @@ impl CompletionInfo for ServerBackend {
                         .into_iter()
                         .filter_map(|x| x)
                         .join("::");
-                    let (label, filter_text) = if is_imported {
-                        (local_name, None)
+
+                    let CompletionData { kind, label, snippet } = completion_data(&local_name, thing);
+                    
+                    let (final_label, filter_text) = if is_imported {
+                        (label, None)
                     } else {
                         (
-                            format!("{} ({})", local_name, full_path.clone()),
+                            format!("{} [{}]", label, full_path.clone()),
                             Some(local_name),
                         )
                     };
@@ -248,19 +218,19 @@ impl CompletionInfo for ServerBackend {
                         .unwrap_or(full_path);
 
                     Some(CompletionItem {
-                        label: label,
+                        label: final_label,
                         label_details: Some(CompletionItemLabelDetails {
                             detail: None,
                             description: Some(description),
                         }),
-                        kind: kind,
+                        kind: Some(kind),
                         detail: None,
                         documentation: None,
                         deprecated: None,
                         preselect: None,
                         sort_text: None,
                         filter_text: filter_text.clone(),
-                        insert_text: filter_text,
+                        insert_text: snippet,
                         insert_text_format: None,
                         insert_text_mode: None,
                         text_edit: None,
@@ -278,6 +248,60 @@ impl CompletionInfo for ServerBackend {
 
         Some(CompletionResponse::Array(names))
     }
+}
+
+struct CompletionData {
+    kind: CompletionItemKind,
+    label: String,
+    snippet: Option<String>,
+}
+
+fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> CompletionData {
+    let kind = match thing {
+        spade_hir::symbol_table::Thing::Struct(_) => CompletionItemKind::STRUCT,
+        spade_hir::symbol_table::Thing::EnumVariant(_) => CompletionItemKind::ENUM,
+        spade_hir::symbol_table::Thing::Unit(_) => CompletionItemKind::FUNCTION,
+        spade_hir::symbol_table::Thing::Variable(_) => CompletionItemKind::VALUE,
+        spade_hir::symbol_table::Thing::Alias { .. } => CompletionItemKind::REFERENCE,
+        spade_hir::symbol_table::Thing::ArrayLabel(_) => CompletionItemKind::PROPERTY,
+        spade_hir::symbol_table::Thing::Module(_, _) => CompletionItemKind::MODULE,
+        spade_hir::symbol_table::Thing::Macro(_, _) => CompletionItemKind::FUNCTION,
+        spade_hir::symbol_table::Thing::Trait(_) => CompletionItemKind::INTERFACE,
+        spade_hir::symbol_table::Thing::Dummy => CompletionItemKind::MODULE,
+    };
+
+    let mut sb = SnippetBuilder::new();
+    let mut unit_like = |params: &ParameterList, kind: &UnitKind| {
+        let (inst_label, inst_snippet) = kind.label_snippet(&mut sb);
+        let (arg_label, arg_snippet) = params.label_snippet(&mut sb);
+
+        (format!("{inst_label}{name}{arg_label}"), Some(format!("{inst_snippet}{name}{arg_snippet}")))
+    };
+
+    let (label, snippet) = match thing {
+        spade_hir::symbol_table::Thing::Struct(t) => unit_like(
+            &t.params,
+            &UnitKind::Function(spade_hir::FunctionKind::Struct),
+        ),
+        spade_hir::symbol_table::Thing::EnumVariant(t) => {
+            unit_like(&t.params, &UnitKind::Function(spade_hir::FunctionKind::Enum))
+        }
+        spade_hir::symbol_table::Thing::Unit(t) => unit_like(&t.inputs, &t.unit_kind.inner),
+        spade_hir::symbol_table::Thing::Macro(_, _) => {
+            (format!("{name}"), None)
+        }
+
+        spade_hir::symbol_table::Thing::Variable(_)
+        | spade_hir::symbol_table::Thing::Alias {
+            ..
+        }
+        | spade_hir::symbol_table::Thing::ArrayLabel(_)
+        | spade_hir::symbol_table::Thing::Module(_, _)
+        | spade_hir::symbol_table::Thing::Trait(_)
+        | spade_hir::symbol_table::Thing::Dummy => (format!("{name}"), None)
+    };
+
+    CompletionData { kind: kind, label, snippet: snippet }
 }
 
 fn follow_aliases<'a>(
@@ -310,6 +334,64 @@ fn follow_aliases<'a>(
     }
 }
 
+struct SnippetBuilder {
+    placeholder_idx: u64,
+}
+
+impl SnippetBuilder {
+    fn new() -> Self {
+        Self { placeholder_idx: 1 }
+    }
+    fn next(&mut self) -> u64 {
+        let result = self.placeholder_idx;
+        self.placeholder_idx += 1;
+        result
+    }
+}
+
+trait UnitKindExt {
+    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String);
+}
+impl UnitKindExt for UnitKind {
+    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String) {
+        match self {
+            spade_hir::UnitKind::Function(_) => ("".to_string(), "".to_string()),
+            spade_hir::UnitKind::Entity => ("".to_string(), "inst ".to_string()),
+            spade_hir::UnitKind::Pipeline {
+                depth,
+                depth_typeexpr_id: _,
+            } => {
+                let depth = match &depth.inner {
+                    spade_hir::TypeExpression::Integer(val) => format!("{val}"),
+                    spade_hir::TypeExpression::Bool(_)
+                    | spade_hir::TypeExpression::String(_)
+                    | spade_hir::TypeExpression::TypeSpec(_)
+                    | spade_hir::TypeExpression::ConstGeneric(_) => {
+                        format!("${{{}}}", snippet_builder.next())
+                    }
+                };
+                ("".to_string(), format!("inst({depth}) "))
+            }
+        }
+    }
+}
+
+trait ParamListExt {
+    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String);
+}
+impl ParamListExt for ParameterList {
+    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String) {
+        if self.0.len() == 1 {
+            (format!("()"), format!("()$0"))
+        } else {
+            (
+                format!("(…)"),
+                format!("(${{{}}})$0", snippet_builder.next()),
+            )
+        }
+    }
+}
+
 fn type_field_completions(
     ty: &TypeVarID,
     trait_impls: &TraitImplList,
@@ -321,32 +403,13 @@ fn type_field_completions(
         .map(|(method, fn_info)| {
             let actual_fn = symtab.unit_by_id(&fn_info.name);
 
-            let inst = match &actual_fn.unit_kind.inner {
-                spade_hir::UnitKind::Function(_) => "".to_string(),
-                spade_hir::UnitKind::Entity => "inst ".to_string(),
-                spade_hir::UnitKind::Pipeline {
-                    depth,
-                    depth_typeexpr_id: _,
-                } => {
-                    let depth = match &depth.inner {
-                        spade_hir::TypeExpression::Integer(val) => format!("{val}"),
-                        spade_hir::TypeExpression::Bool(_)
-                        | spade_hir::TypeExpression::String(_)
-                        | spade_hir::TypeExpression::TypeSpec(_)
-                        | spade_hir::TypeExpression::ConstGeneric(_) => "${2:depth}".to_string(),
-                    };
-                    format!("inst({depth}) ")
-                }
-            };
+            let mut snippet_builder = SnippetBuilder::new();
+            let (inst_label, inst_snippet) =
+                actual_fn.unit_kind.label_snippet(&mut snippet_builder);
+            let (arg_label, arg_snippet) = actual_fn.inputs.label_snippet(&mut snippet_builder);
 
-            let (label, inserted) = if actual_fn.inputs.0.len() == 1 {
-                (format!("{method}()"), Some(format!("{inst}{method}()")))
-            } else {
-                (
-                    format!("{method}(…)"),
-                    Some(format!("{inst}{method}($1)$0")),
-                )
-            };
+            let label = format!("{inst_label}{method}{arg_label}");
+            let inserted = Some(format!("{inst_snippet}{method}{arg_snippet}"));
 
             CompletionItem {
                 label: label,
