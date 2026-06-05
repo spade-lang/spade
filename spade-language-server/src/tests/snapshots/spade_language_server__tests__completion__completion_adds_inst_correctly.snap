@@ -1,6 +1,5 @@
 ---
 source: spade-language-server/src/tests/completion.rs
-assertion_line: 76
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
@@ -19,7 +18,7 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-pl2(…)	inst(${2:depth}) pl2($1)$0
-pl1(…)	inst(5) pl1($1)$0
-func()	func()
-ent()	inst ent()
+pl2(…)	inst(${1}) pl2(${2})$0
+pl1(…)	inst(5) pl1(${1})$0
+ent()	inst ent()$0
+func()	func()$0
