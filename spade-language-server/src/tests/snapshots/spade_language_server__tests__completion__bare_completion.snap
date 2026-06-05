@@ -20,7 +20,7 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-Self (proj::Self)
-foo (proj::foo)
-NameOfStruct (proj::NameOfStruct)
-proj (proj)
+Self (proj::Self)	Self
+foo (proj::foo)	foo
+NameOfStruct (proj::NameOfStruct)	NameOfStruct
+proj (proj)	proj
