@@ -1,26 +1,21 @@
 ---
 source: spade-language-server/src/tests/completion.rs
+assertion_line: 76
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
-        struct NameOfStruct {
-            field_a: bool,
-            field_b: int<4>,
-        }
+        struct NameOfStruct {}
+
         impl NameOfStruct {
-            fn method(self) {}
+            fn func(self) {}
         }
 
-        fn foo() -> bool {
-            let s = NameOfStruct(false, 2);
-
-            
-      //    ^[1] completion
-            false
+        fn foo() {
+            NameOfStruct(). if
+                        // ^[1] completion
         }
     
 ---code ⬆️ completion ⬇️ ---
 NameOfStruct(…) [proj::NameOfStruct]	NameOfStruct(${1})$0
 Self [proj::Self]	-
-foo(…) [proj::foo]	foo(${1})$0
 proj [proj]	-

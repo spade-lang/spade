@@ -24,11 +24,18 @@ impl CompletionInfo for ServerBackend {
     async fn get_completions(&self, pos: &Position, uri: &Url) -> Option<CompletionResponse> {
         let pos_details = self.get_position_details(pos, uri)?;
 
-        if let Some(from_type) = self.get_type_completions(&pos_details).await {
+        let mut results = if let Some(from_type) = self.get_type_completions(&pos_details).await {
             Some(from_type)
         } else {
             self.get_naked_completions(pos, uri).await
+        };
+
+        // Not at all required for functionality, but it makes tests more preditable
+        match &mut results {
+            Some(CompletionResponse::Array(inner)) => inner.sort_by(|l, r| l.label.cmp(&r.label)),
+            _ => {}
         }
+        results
     }
 
     async fn get_type_completions(
