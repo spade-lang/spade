@@ -20,11 +20,11 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-Self	-
-foo(…)	foo(${1})$0
 NameOfStruct(…)	NameOfStruct(${1})$0
-another	-
+Self	-
 _	-
+another	-
+foo(…)	foo(${1})$0
+proj [proj]	-
 s	-
 self	-
-proj [proj]	-

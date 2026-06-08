@@ -224,3 +224,34 @@ test_completion! {
         }
     ",
 }
+
+test_completion!{
+    field_completion_works,
+    "
+        struct NameOfStruct {
+            f1: bool,
+            field2: bool,
+        }
+
+        fn foo() {
+            NameOfStruct().
+                        // ^[1] completion
+        }
+    "
+}
+
+test_completion!{
+    method_completion_does_not_run_in_next_token,
+    "
+        struct NameOfStruct {}
+
+        impl NameOfStruct {
+            fn func(self) {}
+        }
+
+        fn foo() {
+            NameOfStruct(). if
+                        //  ^[1] completion
+        }
+    "
+}
