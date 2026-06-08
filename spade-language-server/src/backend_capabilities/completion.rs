@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use spade_common::name::NameID;
+use spade_common::{location_info::WithLocation, name::NameID};
 use spade_hir::{query::Thing, symbol_table::SymbolTable, ParameterList, UnitKind};
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,
@@ -195,8 +195,12 @@ impl CompletionInfo for ServerBackend {
                         .filter_map(|x| x)
                         .join("::");
 
-                    let CompletionData { kind, label, snippet } = completion_data(&local_name, thing);
-                    
+                    let CompletionData {
+                        kind,
+                        label,
+                        snippet,
+                    } = completion_data(&local_name, thing);
+
                     let (final_label, filter_text) = if is_imported {
                         (label, None)
                     } else {
@@ -275,7 +279,10 @@ fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> Comple
         let (inst_label, inst_snippet) = kind.label_snippet(&mut sb);
         let (arg_label, arg_snippet) = params.label_snippet(&mut sb);
 
-        (format!("{inst_label}{name}{arg_label}"), Some(format!("{inst_snippet}{name}{arg_snippet}")))
+        (
+            format!("{inst_label}{name}{arg_label}"),
+            Some(format!("{inst_snippet}{name}{arg_snippet}")),
+        )
     };
 
     let (label, snippet) = match thing {
@@ -283,25 +290,26 @@ fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> Comple
             &t.params,
             &UnitKind::Function(spade_hir::FunctionKind::Struct),
         ),
-        spade_hir::symbol_table::Thing::EnumVariant(t) => {
-            unit_like(&t.params, &UnitKind::Function(spade_hir::FunctionKind::Enum))
-        }
+        spade_hir::symbol_table::Thing::EnumVariant(t) => unit_like(
+            &t.params,
+            &UnitKind::Function(spade_hir::FunctionKind::Enum),
+        ),
         spade_hir::symbol_table::Thing::Unit(t) => unit_like(&t.inputs, &t.unit_kind.inner),
-        spade_hir::symbol_table::Thing::Macro(_, _) => {
-            (format!("{name}"), None)
-        }
+        spade_hir::symbol_table::Thing::Macro(_, _) => (format!("{name}"), None),
 
         spade_hir::symbol_table::Thing::Variable(_)
-        | spade_hir::symbol_table::Thing::Alias {
-            ..
-        }
+        | spade_hir::symbol_table::Thing::Alias { .. }
         | spade_hir::symbol_table::Thing::ArrayLabel(_)
         | spade_hir::symbol_table::Thing::Module(_, _)
         | spade_hir::symbol_table::Thing::Trait(_)
-        | spade_hir::symbol_table::Thing::Dummy => (format!("{name}"), None)
+        | spade_hir::symbol_table::Thing::Dummy => (format!("{name}"), None),
     };
 
-    CompletionData { kind: kind, label, snippet: snippet }
+    CompletionData {
+        kind: kind,
+        label,
+        snippet: snippet,
+    }
 }
 
 fn follow_aliases<'a>(
@@ -440,8 +448,24 @@ fn type_field_completions(
 
     let field_like = match ty.resolve(type_state) {
         spade_typeinference::equation::TypeVar::Known(_, known_type, params) => match known_type {
-            // TODO
-            spade_types::KnownType::Named(_) => vec![],
+            spade_types::KnownType::Named(name) => match symtab.thing_by_id(&name) {
+                Some(spade_hir::symbol_table::Thing::Struct(s)) => s
+                    .params
+                    .0
+                    .iter()
+                    .map(|param| {
+                        let mut result = CompletionItem::new_simple(
+                            format!("{}", param.name),
+                            format!("{}", param.name),
+                        );
+
+                        result.kind = Some(CompletionItemKind::FIELD);
+
+                        result
+                    })
+                    .collect(),
+                _ => vec![],
+            },
             spade_types::KnownType::Array => vec![],
             spade_types::KnownType::Inverted => vec![],
             spade_types::KnownType::CopyView => vec![],
@@ -462,7 +486,6 @@ fn type_field_completions(
             spade_types::KnownType::Bool(_) => vec![],
             spade_types::KnownType::String(_) => vec![],
         },
-        // TODO: Here we can complete methods
         spade_typeinference::equation::TypeVar::Unknown(_, _, _trait_list, _) => vec![],
     };
 
