@@ -17,14 +17,14 @@ pub trait CompletionInfo {
 
     async fn get_naked_completions(&self, pos: &Position, uri: &Url) -> Option<CompletionResponse>;
 
-    async fn get_type_completions(&self, pos: &PositionDetails) -> Option<CompletionResponse>;
+    async fn get_contextual_completion(&self, pos: &PositionDetails) -> Option<CompletionResponse>;
 }
 
 impl CompletionInfo for ServerBackend {
     async fn get_completions(&self, pos: &Position, uri: &Url) -> Option<CompletionResponse> {
         let pos_details = self.get_position_details(pos, uri)?;
 
-        let mut results = if let Some(from_type) = self.get_type_completions(&pos_details).await {
+        let mut results = if let Some(from_type) = self.get_contextual_completion(&pos_details).await {
             Some(from_type)
         } else {
             self.get_naked_completions(pos, uri).await
@@ -38,7 +38,7 @@ impl CompletionInfo for ServerBackend {
         results
     }
 
-    async fn get_type_completions(
+    async fn get_contextual_completion(
         &self,
         PositionDetails {
             loc,
@@ -60,6 +60,7 @@ impl CompletionInfo for ServerBackend {
             .iter()
             .filter_map(|thing| {
                 match &thing.inner {
+                    Thing::Path(_) => None,
                     // FIXME: We can probably complete fields here
                     Thing::Pattern(_) => None,
 

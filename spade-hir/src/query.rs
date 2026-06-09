@@ -5,7 +5,7 @@ use spade_common::{
     id_tracker::ExprID,
     loc_map::LocMap,
     location_info::{Loc, WithLocation},
-    name::NameID,
+    name::{NameID, Path},
 };
 
 use crate::{
@@ -16,6 +16,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Thing {
+    Path(Path),
     Pattern(Pattern),
     Expr(Expression),
     Statement(Statement),
@@ -95,7 +96,10 @@ impl<'a> QueryCache {
     fn visit_expr_kind(&mut self, kind: &Loc<&ExprKind>) {
         match &kind.inner {
             crate::ExprKind::Error => {}
-            crate::ExprKind::Identifier(ident) => self.names.insert(ident.clone().at_loc(kind)),
+            crate::ExprKind::Identifier(ident) => {
+                self.things.insert(ident.1.clone().at_loc(kind).map(Thing::Path));
+                self.names.insert(ident.clone().at_loc(kind))
+            },
             crate::ExprKind::IntLiteral(_, _) => {}
             crate::ExprKind::BoolLiteral(_) => {}
             crate::ExprKind::TriLiteral(_) => {}

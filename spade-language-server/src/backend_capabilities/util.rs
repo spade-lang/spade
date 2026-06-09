@@ -156,7 +156,9 @@ impl ServerBackend {
             .iter()
             .filter_map(|thing| match &thing.inner {
                 Thing::Expr(expr) => Some(expr),
-                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
+                Thing::Path(_) | Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => {
+                    None
+                }
             })
             .filter_map(|expr| {
                 unit_type_state.as_ref().and_then(|ts| {
@@ -173,7 +175,7 @@ impl ServerBackend {
             .iter()
             .filter_map(|thing| match &thing.inner {
                 Thing::Expr(expression) => Some((thing, expression)),
-                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
+                Thing::Path(_) | Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
             })
             .find_map(|(thing, expr)| match &expr.kind {
                 ExprKind::FieldAccess(base, field) => {
