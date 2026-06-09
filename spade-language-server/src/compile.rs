@@ -97,7 +97,7 @@ impl ServerBackend {
     pub async fn try_compile(
         &self,
         file: &Utf8Path,
-        // If false, the whole project will be re-built, if true, only the current file will
+        // If None, the whole project will be re-built, if Some, only the specified file will
         // be re-built
         modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
