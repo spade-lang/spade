@@ -1,6 +1,5 @@
 ---
 source: spade-language-server/src/tests/completion.rs
-assertion_line: 76
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
@@ -8,10 +7,16 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
             f1: bool,
             field2: bool,
         }
+        impl NameOfStruct {
+            fn func(self) {}
+        }
 
         fn foo() {
-            NameOfStruct().
-                        // ^[1] completion
+            NameOfStruct(false, false).
+                                    // ^[1] completion
         }
     
 ---code ⬆️ completion ⬇️ ---
+f1	-
+field2	-
+func()	func()$0

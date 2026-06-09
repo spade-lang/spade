@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use spade_common::{location_info::WithLocation, name::NameID};
+use spade_common::name::NameID;
 use spade_hir::{query::Thing, symbol_table::SymbolTable, ParameterList, UnitKind};
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,

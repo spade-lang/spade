@@ -232,10 +232,13 @@ test_completion!{
             f1: bool,
             field2: bool,
         }
+        impl NameOfStruct {
+            fn func(self) {}
+        }
 
         fn foo() {
-            NameOfStruct().
-                        // ^[1] completion
+            NameOfStruct(false, false).
+                                    // ^[1] completion
         }
     "
 }
@@ -252,6 +255,25 @@ test_completion!{
         fn foo() {
             NameOfStruct(). if
                         //  ^[1] completion
+        }
+    "
+}
+
+test_completion!{
+    dot_completion_runs_on_next_line,
+    "
+        struct NameOfStruct {
+            f1: bool,
+            field2: bool,
+        }
+        impl NameOfStruct {
+            fn func(self) {}
+        }
+
+        fn foo() {
+            NameOfStruct(false, false).
+            
+             // ^[1] completion
         }
     "
 }
