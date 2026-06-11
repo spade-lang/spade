@@ -1,5 +1,8 @@
 use spade_common::location_info::Loc;
-use spade_hir::{Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement, Unit};
+use spade_hir::{
+    Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement, Unit,
+    expression::IncompleteExpression,
+};
 
 use crate::Result;
 
@@ -58,7 +61,6 @@ impl Passable for Loc<Expression> {
                 subnodes!(target)
             }
             ExprKind::TupleIndex(lhs, _) => subnodes!(lhs),
-            ExprKind::IncompleteDot { base } => subnodes!(base),
             ExprKind::FieldAccess(lhs, _) => subnodes!(lhs),
             ExprKind::TypeCast(lhs, _) => subnodes!(lhs),
             ExprKind::MethodCall {
@@ -200,6 +202,15 @@ impl Passable for Loc<Expression> {
             | ExprKind::StageValid
             | ExprKind::Null
             | ExprKind::StaticUnreachable(_) => {}
+
+            ExprKind::Incomplete(
+                _,
+                IncompleteExpression::IncompleteDot {
+                    base,
+                    has_depth: _,
+                    has_inst: _,
+                },
+            ) => subnodes!(base),
         };
 
         pass.visit_expression(self)

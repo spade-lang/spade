@@ -37,7 +37,6 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             spade_hir::ExprKind::RangeIndex { .. } => Ok(()),
             spade_hir::ExprKind::TupleIndex(_, _) => Ok(()),
             spade_hir::ExprKind::FieldAccess(_, _) => Ok(()),
-            spade_hir::ExprKind::IncompleteDot { .. } => Ok(()),
             spade_hir::ExprKind::TypeCast(_, _) => Ok(()),
             spade_hir::ExprKind::MethodCall { .. } => Ok(()),
             spade_hir::ExprKind::Call { .. } => Ok(()),
@@ -106,6 +105,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
             spade_hir::ExprKind::Null => Ok(()),
             spade_hir::ExprKind::LambdaDef { .. } => Ok(()),
             spade_hir::ExprKind::StaticUnreachable(_) => Ok(()),
+            spade_hir::ExprKind::Incomplete(_, _) => Ok(()),
         }
     }
 

@@ -6,6 +6,7 @@ use spade_common::{
     name::{Identifier, Path, Visibility},
     num_ext::InfallibleToBigInt,
 };
+use spade_diagnostics::Diagnostic;
 use std::{fmt::Display, path::PathBuf, rc::Rc};
 
 pub use crate::token::TokenKind;
@@ -361,6 +362,15 @@ pub enum BitLiteral {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum IncompleteExpression {
+    IncompleteDot {
+        base: Box<Loc<Expression>>,
+        has_inst: bool,
+        has_depth: bool,
+    },
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expression {
     Identifier(Loc<Path>),
     IntLiteral(Loc<IntLiteral>),
@@ -387,9 +397,6 @@ pub enum Expression {
         deprecated_syntax: bool,
     },
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
-    IncompleteDot {
-        base: Box<Loc<Expression>>,
-    },
     TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     Lambda {
         unit_kind: Loc<UnitKind>,
@@ -462,6 +469,11 @@ pub enum Expression {
     StageValid,
     StageReady,
     StaticUnreachable(Loc<String>),
+    /// An expression which is incomplete, but which downstream passes can still
+    /// use. The `Diagnostic` is the parse error that would have been emitted
+    /// by the parser, and it is the responsibility of some downstream pass
+    /// to emit this diagnostic.
+    Incomplete(Diagnostic, IncompleteExpression),
 }
 
 impl Expression {
@@ -503,7 +515,7 @@ impl Expression {
             Expression::TupleLiteral(_) => "tuple literal",
             Expression::TupleIndex { .. } => "tuple index",
             Expression::FieldAccess(_, _) => "field access",
-            Expression::IncompleteDot { .. } => "incomplete dot",
+            Expression::Incomplete { .. } => "incomplete",
             Expression::TypeCast(_, _) => "type cast",
             Expression::If { .. } => "if",
             Expression::TypeLevelIf { .. } => "type level if",

@@ -11,7 +11,8 @@ use spade_common::{
 use crate::{
     ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind, Expression, Generic,
     ItemList, Pattern, PatternArgument, PatternKind, Register, Statement, Struct, TypeAlias,
-    TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec, expression::NamedArgument,
+    TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
+    expression::{IncompleteExpression, NamedArgument},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -119,7 +120,6 @@ impl<'a> QueryCache {
             } => self.visit_expression(target),
             crate::ExprKind::TupleIndex(target, _) => self.visit_expression(target),
             crate::ExprKind::FieldAccess(target, _) => self.visit_expression(target),
-            crate::ExprKind::IncompleteDot { base } => self.visit_expression(base),
             crate::ExprKind::TypeCast(target, _) => self.visit_expression(target),
             crate::ExprKind::MethodCall {
                 target,
@@ -212,6 +212,13 @@ impl<'a> QueryCache {
             crate::ExprKind::StageReady => {}
             crate::ExprKind::StaticUnreachable(_) => {}
             crate::ExprKind::Null => {}
+            crate::ExprKind::Incomplete(_diag, inner) => match inner {
+                IncompleteExpression::IncompleteDot {
+                    base,
+                    has_inst: _,
+                    has_depth: _,
+                } => self.visit_expression(base),
+            },
         }
     }
 

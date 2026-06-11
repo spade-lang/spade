@@ -30,6 +30,7 @@ use spade_common::id_tracker::{ExprID, ImplID};
 use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::{Diagnostic, diag_anyhow, diag_bail};
+use spade_hir::expression::IncompleteExpression;
 use spade_hir::pretty_print::PrettyPrint;
 use spade_macros::trace_typechecker;
 use spade_types::meta_types::{MetaType, unify_meta};
@@ -1081,7 +1082,6 @@ impl TypeState {
             | ExprKind::RangeIndex { .. }
             | ExprKind::TupleIndex(_, _)
             | ExprKind::FieldAccess(_, _)
-            | ExprKind::IncompleteDot { base: _ }
             | ExprKind::TypeCast(_, _)
             | ExprKind::MethodCall { .. }
             | ExprKind::Call { .. }
@@ -1092,6 +1092,7 @@ impl TypeState {
             | ExprKind::StageValid
             | ExprKind::StageReady
             | ExprKind::StaticUnreachable(_)
+            | ExprKind::Incomplete(_, _)
             | ExprKind::Null => {}
         };
         Ok(())
@@ -1247,7 +1248,14 @@ impl TypeState {
             ExprKind::ArrayShorthandLiteral(_, _) => {
                 self.visit_array_shorthand_literal(expression, ctx, generic_list)?
             }
-            ExprKind::IncompleteDot { base } => {
+            ExprKind::Incomplete(
+                _,
+                IncompleteExpression::IncompleteDot {
+                    base,
+                    has_inst: _,
+                    has_depth: _,
+                },
+            ) => {
                 self.visit_expression(base, ctx, generic_list);
 
                 new_type

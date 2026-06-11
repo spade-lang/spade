@@ -1,6 +1,9 @@
 use itertools::Itertools;
 use spade_common::name::NameID;
-use spade_hir::{query::Thing, symbol_table::SymbolTable, ParameterList, UnitKind};
+use spade_hir::{
+    expression::IncompleteExpression, query::Thing, symbol_table::SymbolTable, ParameterList,
+    UnitKind,
+};
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,
     TypeState,
@@ -30,7 +33,7 @@ impl CompletionInfo for ServerBackend {
             self.get_naked_completions(pos, uri).await
         };
 
-        // Not at all required for functionality, but it makes tests more preditable
+        // Not at all required for functionality, but it makes tests more predictable
         match &mut results {
             Some(CompletionResponse::Array(inner)) => inner.sort_by(|l, r| l.label.cmp(&r.label)),
             _ => {}
@@ -59,7 +62,7 @@ impl CompletionInfo for ServerBackend {
         things_around
             .iter()
             .filter_map(|thing| {
-                match &thing.inner {
+                let info = match &thing.inner {
                     // FIXME: We can probably complete fields here
                     Thing::Pattern(_) => None,
 
@@ -67,21 +70,25 @@ impl CompletionInfo for ServerBackend {
                         match &expression.kind {
                             spade_hir::ExprKind::Error => None,
 
-                            spade_hir::ExprKind::IncompleteDot { base: target }
-                            | spade_hir::ExprKind::MethodCall { target, .. }
-                            | spade_hir::ExprKind::FieldAccess(target, _) => {
-                                if !target.contains_start(loc) {
-                                    let ty = target.get_type(ts);
-
-                                    type_field_completions(
-                                        &ty,
-                                        &self.trait_impls.lock().unwrap(),
-                                        ts,
-                                        symtab.symtab(),
-                                    )
-                                } else {
-                                    None
+                            spade_hir::ExprKind::Incomplete(
+                                _,
+                                IncompleteExpression::IncompleteDot {
+                                    base: target,
+                                    has_depth,
+                                    has_inst,
+                                },
+                            ) => Some((target, *has_inst, *has_depth)),
+                            spade_hir::ExprKind::MethodCall {
+                                target, call_kind, ..
+                            } => Some(match call_kind {
+                                spade_hir::expression::CallKind::Function => (target, false, false),
+                                spade_hir::expression::CallKind::Entity(_) => (target, true, false),
+                                spade_hir::expression::CallKind::Pipeline { .. } => {
+                                    (target, true, true)
                                 }
+                            }),
+                            spade_hir::ExprKind::FieldAccess(target, _) => {
+                                Some((target, false, false))
                             }
 
                             // For identifiers we can just use naked completion
@@ -117,7 +124,24 @@ impl CompletionInfo for ServerBackend {
                     Thing::Statement(_) => None,
                     // Naked is fine for now
                     Thing::Executable(_) => None,
-                }
+                };
+
+                info.and_then(|(target, has_inst, has_depth)| {
+                    if !target.contains_start(loc) {
+                        let ty = target.get_type(ts);
+
+                        type_field_completions(
+                            &ty,
+                            &self.trait_impls.lock().unwrap(),
+                            ts,
+                            symtab.symtab(),
+                            has_inst,
+                            has_depth,
+                        )
+                    } else {
+                        None
+                    }
+                })
             })
             .last()
     }
@@ -283,7 +307,8 @@ fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> Comple
 
     let mut sb = SnippetBuilder::new();
     let mut unit_like = |params: &ParameterList, kind: &UnitKind| {
-        let (inst_label, inst_snippet) = kind.label_snippet(&mut sb);
+        // FIXME Use `inst` data here
+        let (inst_label, inst_snippet) = kind.label_snippet(false, false, &mut sb);
         let (arg_label, arg_snippet) = params.label_snippet(&mut sb);
 
         (
@@ -365,13 +390,30 @@ impl SnippetBuilder {
 }
 
 trait UnitKindExt {
-    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String);
+    fn label_snippet(
+        &self,
+        has_inst: bool,
+        has_depth: bool,
+        snippet_builder: &mut SnippetBuilder,
+    ) -> (String, String);
 }
 impl UnitKindExt for UnitKind {
-    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String) {
+    fn label_snippet(
+        &self,
+        has_inst: bool,
+        has_depth: bool,
+        snippet_builder: &mut SnippetBuilder,
+    ) -> (String, String) {
         match self {
             spade_hir::UnitKind::Function(_) => ("".to_string(), "".to_string()),
-            spade_hir::UnitKind::Entity => ("".to_string(), "inst ".to_string()),
+            spade_hir::UnitKind::Entity => (
+                "".to_string(),
+                if !has_inst {
+                    "inst ".to_string()
+                } else {
+                    "".to_string()
+                },
+            ),
             spade_hir::UnitKind::Pipeline {
                 depth,
                 depth_typeexpr_id: _,
@@ -385,7 +427,14 @@ impl UnitKindExt for UnitKind {
                         format!("${{{}}}", snippet_builder.next())
                     }
                 };
-                ("".to_string(), format!("inst({depth}) "))
+                match (has_inst, has_depth) {
+                    (false, false) => ("".to_string(), format!("inst({depth}) ")),
+                    (true, false) => ("".to_string(), format!("({depth}) ")),
+                    (true, true) => ("".to_string(), format!("")),
+
+                    // NOTE: This should not occur in practice, we'll just return something that sort of works
+                    (false, true) => ("".to_string(), "".to_string()),
+                }
             }
         }
     }
@@ -412,21 +461,25 @@ fn type_field_completions(
     trait_impls: &TraitImplList,
     type_state: &TypeState,
     symtab: &SymbolTable,
+    has_inst: bool,
+    has_depth: bool,
 ) -> Option<CompletionResponse> {
     let methods = methods_for_type(&trait_impls, &ty, type_state)
         .into_iter()
-        .map(|(method, fn_info)| {
+        .filter_map(|(method, fn_info)| {
             let actual_fn = symtab.unit_by_id(&fn_info.name);
 
             let mut snippet_builder = SnippetBuilder::new();
             let (inst_label, inst_snippet) =
-                actual_fn.unit_kind.label_snippet(&mut snippet_builder);
+                actual_fn
+                    .unit_kind
+                    .label_snippet(has_inst, has_depth, &mut snippet_builder);
             let (arg_label, arg_snippet) = actual_fn.inputs.label_snippet(&mut snippet_builder);
 
             let label = format!("{inst_label}{method}{arg_label}");
             let inserted = Some(format!("{inst_snippet}{method}{arg_snippet}"));
 
-            CompletionItem {
+            Some(CompletionItem {
                 label: label,
                 label_details: None,
                 kind: Some(CompletionItemKind::FUNCTION),
@@ -450,7 +503,7 @@ fn type_field_completions(
                 commit_characters: None,
                 data: None,
                 tags: None,
-            }
+            })
         });
 
     let field_like = match ty.resolve(type_state) {

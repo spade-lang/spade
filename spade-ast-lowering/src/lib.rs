@@ -2369,9 +2369,6 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             Box::new(target.visit(visit_expression, ctx)),
             field.clone(),
         )),
-        ast::Expression::IncompleteDot { base } => Ok(hir::ExprKind::IncompleteDot {
-            base: Box::new(visit_expression(&base.inner, ctx).at_loc(base)),
-        }),
         ast::Expression::TypeCast(target, ty) => Ok(hir::ExprKind::TypeCast(
             Box::new(target.visit(visit_expression, ctx)),
             visit_type_expression(ty, &TypeSpecKind::TypeCast, ctx)?.at_loc(&ty),
@@ -2686,6 +2683,20 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         }
         ast::Expression::StageReady => Ok(hir::ExprKind::StageReady),
         ast::Expression::StageValid => Ok(hir::ExprKind::StageValid),
+        ast::Expression::Incomplete(diag, inner) => match inner {
+            spade_ast::IncompleteExpression::IncompleteDot {
+                base,
+                has_inst,
+                has_depth,
+            } => Ok(hir::ExprKind::Incomplete(
+                diag.clone(),
+                hir::expression::IncompleteExpression::IncompleteDot {
+                    base: Box::new(visit_expression(&base.inner, ctx).at_loc(base)),
+                    has_inst: *has_inst,
+                    has_depth: *has_depth,
+                },
+            )),
+        },
         ast::Expression::StaticUnreachable(message) => {
             Ok(hir::ExprKind::StaticUnreachable(message.clone()))
         }
@@ -2858,7 +2869,7 @@ fn inject_verilog_attrs(
         | ExprKind::RangeIndex { .. }
         | ExprKind::TupleIndex(_, _)
         | ExprKind::FieldAccess(_, _)
-        | ExprKind::IncompleteDot { .. }
+        | ExprKind::Incomplete(_, _)
         | ExprKind::TypeCast(_, _)
         | ExprKind::MethodCall { .. }
         | ExprKind::BinaryOperator(_, _, _)

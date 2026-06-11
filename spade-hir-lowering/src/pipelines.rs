@@ -641,10 +641,6 @@ impl PipelineAvailability for Expression {
             } => try_compute_availability(&[target.as_ref()], ctx),
             ExprKind::TupleIndex(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::FieldAccess(lhs, _) => lhs.inner.available_in(ctx),
-            ExprKind::IncompleteDot { .. } => {
-                // TODO
-                Ok(None)
-            }
             ExprKind::TypeCast(lhs, _) => lhs.inner.available_in(ctx),
             ExprKind::BinaryOperator(lhs, _, rhs) => {
                 try_compute_availability(&[lhs.as_ref(), rhs.as_ref()], ctx)
@@ -718,6 +714,7 @@ impl PipelineAvailability for Expression {
                 on_false,
             } => try_compute_availability(&[on_true.as_ref(), on_false.as_ref()], ctx),
             ExprKind::PipelineRef { .. } => Ok(Some(0)),
+            ExprKind::Incomplete(_, _) => Ok(None),
             ExprKind::TypeLevelIf { cond, .. } => diag_bail!(
                 cond,
                 "Type level if should already have been lowered by this point"

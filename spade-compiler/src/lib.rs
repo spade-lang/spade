@@ -49,7 +49,8 @@ pub struct Opt<'b> {
     pub verilator_wrapper_output: Option<PathBuf>,
     pub state_dump_file: Option<PathBuf>,
     pub item_list_file: Option<PathBuf>,
-    /// Print the traceback for the specified file
+    /// Print the parsing traceback for any files which contain the specified
+    /// string
     pub print_parse_traceback: Option<String>,
     pub opt_passes: Vec<String>,
 }
@@ -87,6 +88,8 @@ struct CodegenArtefacts {
     mir_context: HashMap<NameID, MirContext>,
 }
 
+/// The state of the compiler after having `run_global_compilation_tasks`. Using this
+/// the bodies of units can be built independently.
 pub struct GlobalCompilationState {
     item_list: ItemList,
     impl_type_state: TypeState,

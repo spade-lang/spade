@@ -14,7 +14,6 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
         file_uri,
     } = init_with_file(code, InitFileOpt::default(), false).await;
 
-    // Check hover
     let completions = markers.values().find(|m| m.completion);
     if let Some(completions) = completions {
         let position = TextDocumentPositionParams {
@@ -225,7 +224,7 @@ test_completion! {
     ",
 }
 
-test_completion!{
+test_completion! {
     field_completion_works,
     "
         struct NameOfStruct {
@@ -243,7 +242,7 @@ test_completion!{
     "
 }
 
-test_completion!{
+test_completion! {
     method_completion_does_not_run_in_next_token,
     "
         struct NameOfStruct {}
@@ -259,7 +258,7 @@ test_completion!{
     "
 }
 
-test_completion!{
+test_completion! {
     dot_completion_runs_on_next_line,
     "
         struct NameOfStruct {
@@ -274,6 +273,40 @@ test_completion!{
             NameOfStruct(false, false).
             
              // ^[1] completion
+        }
+    "
+}
+
+test_completion! {
+    dot_completion_does_not_double_fill_inst,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            entity func(self) {}
+            pipeline(1) funct(self, clk: clock) {reg;}
+        }
+
+        fn foo() {
+            NameOfStruct().inst 
+            
+            // ^[1] completion
+        }
+    "
+}
+
+test_completion! {
+    dot_completion_does_not_double_fill_pipeline_inst,
+    "
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            entity func(self) {}
+            pipeline(1) funct(self, clk: clock) {reg;}
+        }
+
+        entity foo() {
+            NameOfStruct().inst(_)
+            
+            // ^[1] completion
         }
     "
 }

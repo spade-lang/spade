@@ -3,13 +3,11 @@ use crate::backend_capabilities::goto_definition::GotoDefinition;
 use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use tokio::select;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::watch;
-use tokio::sync::Semaphore;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::CompletionParams;
 use tower_lsp::lsp_types::CompletionResponse;
@@ -159,7 +157,7 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             .unwrap();
 
         // If the user types fast, we end up with a long queue of compilation tasks that are operating
-        // on old code. To fix this, we'll fuse these compilation proceses, and kill the previous in-progress
+        // on old code. To fix this, we'll fuse these compilation process, and kill the previous in-progress
         // compilation if a new one is starting
         if let Some(fuse) = self.last_compile_fuse.lock().unwrap().take() {
             let _ = fuse.send(());

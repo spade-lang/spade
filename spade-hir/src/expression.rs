@@ -11,6 +11,7 @@ use spade_common::{
     name::{Identifier, Path},
     num_ext::InfallibleToBigInt,
 };
+use spade_diagnostics::Diagnostic;
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum BinaryOperator {
@@ -193,6 +194,15 @@ impl LambdaTypeParams {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub enum IncompleteExpression {
+    IncompleteDot {
+        base: Box<Loc<Expression>>,
+        has_inst: bool,
+        has_depth: bool,
+    },
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Error,
     Identifier(NameID),
@@ -212,7 +222,6 @@ pub enum ExprKind {
     },
     TupleIndex(Box<Loc<Expression>>, Loc<u128>),
     FieldAccess(Box<Loc<Expression>>, Loc<Identifier>),
-    IncompleteDot{base: Box<Loc<Expression>>},
     TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     MethodCall {
         target: Box<Loc<Expression>>,
@@ -277,6 +286,8 @@ pub enum ExprKind {
     StageValid,
     StageReady,
     StaticUnreachable(Loc<String>),
+    #[serde(skip)]
+    Incomplete(Diagnostic, IncompleteExpression),
     // This is a special case expression which is never created in user code, but which can be used
     // in type inference to create virtual expressions with specific IDs
     Null,

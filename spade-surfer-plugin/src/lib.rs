@@ -827,7 +827,6 @@ fn descriptive_loc(expr: &Loc<Expression>) -> Option<Loc<()>> {
         spade_hir::ExprKind::TriLiteral(_) => None,
         spade_hir::ExprKind::TypeLevelBool(_) => None,
         spade_hir::ExprKind::TypeLevelInteger(_) => None,
-        spade_hir::ExprKind::IncompleteDot{..} => None,
         spade_hir::ExprKind::FieldAccess(_, field) => Some(field.loc()),
         spade_hir::ExprKind::MethodCall {
             name, call_kind, ..
@@ -859,6 +858,7 @@ fn descriptive_loc(expr: &Loc<Expression>) -> Option<Loc<()>> {
         | spade_hir::ExprKind::StageValid
         | spade_hir::ExprKind::StageReady
         | spade_hir::ExprKind::StaticUnreachable(_)
+        | spade_hir::ExprKind::Incomplete(_, _)
         | spade_hir::ExprKind::Null => Some(expr.loc()),
     }
 }

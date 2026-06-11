@@ -1,0 +1,20 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+        struct NameOfStruct {}
+        impl NameOfStruct {
+            entity func(self) {}
+            pipeline(1) funct(self, clk: clock) {reg;}
+        }
+
+        fn foo() {
+            NameOfStruct().inst 
+            
+            // ^[1] completion
+        }
+    
+---code ⬆️ completion ⬇️ ---
+func()	func()$0
+funct(…)	(1) funct(${1})$0

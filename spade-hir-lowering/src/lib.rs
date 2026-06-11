@@ -112,7 +112,6 @@ impl LocExprExt for Loc<hir::Expression> {
                 .or_else(|| r.runtime_requirement_witness(ctx)),
             ExprKind::RangeIndex { .. } => Some(self.clone()),
             ExprKind::TupleIndex(l, _) => l.runtime_requirement_witness(ctx),
-            ExprKind::IncompleteDot { base } => None,
             ExprKind::FieldAccess(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::TypeCast(l, _) => l.runtime_requirement_witness(ctx),
             ExprKind::Call {
@@ -176,6 +175,8 @@ impl LocExprExt for Loc<hir::Expression> {
             ExprKind::StageValid => Some(self.clone()),
             ExprKind::LambdaDef { .. } => Some(self.clone()),
             ExprKind::StaticUnreachable(_) => None,
+
+            ExprKind::Incomplete(_, _) => None,
 
             ExprKind::Null => None,
         }
@@ -1114,7 +1115,6 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::TupleLiteral(_) => Ok(None),
             ExprKind::TupleIndex(_, _) => Ok(None),
             ExprKind::FieldAccess(_, _) => Ok(None),
-            ExprKind::IncompleteDot { .. } =>  Ok(None),
             ExprKind::TypeCast(_, _) => Ok(None),
             ExprKind::ArrayLiteral { .. } => Ok(None),
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
@@ -1191,6 +1191,7 @@ impl ExprLocal for Loc<Expression> {
                 diag_bail!(self, "Null expression found during hir lowering")
             }
             ExprKind::StaticUnreachable(_) => Ok(None),
+            ExprKind::Incomplete(_, _) => Ok(None),
         }
     }
 
@@ -1515,9 +1516,6 @@ impl ExprLocal for Loc<Expression> {
                     }),
                     self,
                 )
-            }
-            ExprKind::IncompleteDot { base } => {
-                // TODO, emit an error here
             }
             ExprKind::FieldAccess(target, field) => {
                 result.append(target.lower(ctx)?);
@@ -2103,6 +2101,7 @@ impl ExprLocal for Loc<Expression> {
                 )
                 .primary_label(message.inner.clone()));
             }
+            ExprKind::Incomplete(diag, _) => return Err(diag.clone()),
         }
 
         Ok(result)

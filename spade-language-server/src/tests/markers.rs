@@ -15,7 +15,6 @@ pub struct Marker {
     pub goto: bool,
     pub goto_target: bool,
     pub goto_target_end: bool,
-    pub comps: bool,
     pub hover: bool,
     pub completion: bool,
 }
@@ -37,7 +36,6 @@ pub fn find_markers(
             let goto = kind == "goto";
             let goto_target = kind == "goto-target";
             let goto_target_end = kind == "goto-target-end";
-            let comps = kind == "comps";
             let hover = kind == "hover";
             let completion = kind == "completion";
             (
@@ -57,7 +55,6 @@ pub fn find_markers(
                     goto,
                     goto_target,
                     goto_target_end,
-                    comps,
                     hover,
                     completion,
                 },

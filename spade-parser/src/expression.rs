@@ -1,7 +1,8 @@
 use num::ToPrimitive;
 use spade_ast::token::TokenKind;
 use spade_ast::{
-    ArgumentList, BinaryOperator, Block, CallKind, Expression, IntLiteral, UnaryOperator,
+    ArgumentList, BinaryOperator, Block, CallKind, Expression, IncompleteExpression, IntLiteral,
+    UnaryOperator,
 };
 use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::Diagnostic;
@@ -475,12 +476,6 @@ impl<'a> Parser<'a> {
             } else {
                 let inst = self.peek_and_eat(&TokenKind::Instance)?;
 
-                if let Some(inst) = &inst {
-                    self.unit_context
-                        .allows_inst(().at(self.file_id(), inst))
-                        .handle_in(&mut self.diags);
-                }
-
                 // Check if this is a pipeline or not
                 let pipeline_depth = if inst.is_some() {
                     if self.peek_kind(&TokenKind::OpenParen)? {
@@ -499,14 +494,27 @@ impl<'a> Parser<'a> {
                 if !self.peek_cond(|tok| matches!(tok, TokenKind::Identifier(_)), "Identifier")? {
                     let next = self.peek()?;
                     let loc = ().at(self.file_id(), &next);
-                    return Ok(Expression::IncompleteDot {
-                        base: Box::new(expr.clone()),
-                    }
+                    return Ok(Expression::Incomplete(
+                        Diagnostic::error(next, "Expected an identifier after `.`")
+                            .primary_label("Expected identifier")
+                            .secondary_label(dot, "To complete this `.`"),
+                        IncompleteExpression::IncompleteDot {
+                            has_inst: inst.is_some(),
+                            has_depth: pipeline_depth.is_some(),
+                            base: Box::new(expr.clone()),
+                        },
+                    )
                     .between_locs(&expr, &loc));
                 }
                 let field = self.normal_identifier()?;
 
                 let turbofish = self.turbofish()?;
+
+                if let Some(inst) = &inst {
+                    self.unit_context
+                        .allows_inst(().at(self.file_id(), inst))
+                        .handle_in(&mut self.diags);
+                }
 
                 if let Some(args) = self.argument_list()? {
                     Ok(Expression::MethodCall {

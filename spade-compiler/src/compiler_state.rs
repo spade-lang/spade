@@ -164,7 +164,7 @@ pub struct CompilerState {
     pub trait_impl_list: TraitImplList,
 
     // These fields are not present if code generation is not run. In this
-    // case, runing any methods that require them will panic.
+    // case, running any methods that require them will panic.
     pub instance_map: Option<InstanceMap>,
     pub mir_context: Option<HashMap<NameID, MirContext>>,
 }

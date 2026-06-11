@@ -11,7 +11,6 @@ use smart_default::SmartDefault;
 use spade_codespan_reporting::files::SimpleFile;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
-    CompletionContext, CompletionItem, CompletionParams, CompletionResponse, CompletionTriggerKind,
     Diagnostic, DidOpenTextDocumentParams, GotoDefinitionParams, GotoDefinitionResponse,
     InitializeParams, InitializedParams, MessageType, Range, TextDocumentIdentifier,
     TextDocumentItem, TextDocumentPositionParams, Url,
