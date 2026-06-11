@@ -1,6 +1,3 @@
-use crate::backend_capabilities::completion::CompletionInfo;
-use crate::backend_capabilities::goto_definition::GotoDefinition;
-use crate::backend_capabilities::hover::HoverInfo;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
 use std::sync::{Arc, Mutex};
@@ -23,6 +20,9 @@ use tower_lsp::LanguageServer;
 
 use crate::backend::ServerBackend;
 use crate::Client;
+use crate::completion::CompletionInfo;
+use crate::goto_definition::GotoDefinition;
+use crate::hover::HoverInfo;
 
 pub struct ServerFrontend<C> {
     pub(crate) backend: ServerBackend,

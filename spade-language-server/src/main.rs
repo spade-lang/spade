@@ -1,5 +1,8 @@
+mod completion;
+mod goto_definition;
+mod hover;
+mod util;
 mod backend;
-mod backend_capabilities;
 mod compile;
 mod language_server;
 // Disabling lsp tests on macos for now since they break in CI and I don't have

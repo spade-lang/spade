@@ -13,7 +13,7 @@ use tower_lsp::lsp_types::{
     InsertTextFormat, Position, Url,
 };
 
-use crate::{backend::ServerBackend, backend_capabilities::util::PositionDetails};
+use crate::{backend::ServerBackend, util::PositionDetails};
 
 pub trait CompletionInfo {
     async fn get_completions(&self, pos: &Position, uri: &Url) -> Option<CompletionResponse>;

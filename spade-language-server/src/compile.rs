@@ -23,7 +23,7 @@ use tower_lsp::lsp_types::{
 };
 
 use crate::backend::ServerBackend;
-use crate::backend_capabilities::util::loc_to_location;
+use crate::util::loc_to_location;
 
 struct LspDiagnosticsEmitter {
     /// All diagnostics and which file they are located in.
