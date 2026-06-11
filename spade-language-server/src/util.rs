@@ -11,7 +11,7 @@ use spade_common::{
 use spade_diagnostics::CodeBundle;
 use spade_hir::{
     query::Thing, symbol_table::StructCallable, ExecutableItem, ExprKind, Expression, TypeSpec,
-    UnitHead,
+    Unit, UnitHead,
 };
 use spade_typeinference::{
     equation::{TypeVar, TypeVarID},
@@ -138,6 +138,7 @@ impl ServerBackend {
             loc,
             name,
             unit_type_state,
+            current_unit,
         })
     }
 
@@ -147,6 +148,7 @@ impl ServerBackend {
             loc,
             name: _,
             unit_type_state,
+            current_unit: _,
         }: &PositionDetails,
     ) -> ContextualExpressionInfo {
         let qq = self.query_cache.lock().unwrap();
@@ -264,6 +266,7 @@ pub(crate) struct PositionDetails {
     pub loc: Loc<()>,
     pub name: Option<Loc<NameID>>,
     pub unit_type_state: Option<TypeState>,
+    pub current_unit: Option<Loc<Unit>>,
 }
 
 #[derive(Debug)]

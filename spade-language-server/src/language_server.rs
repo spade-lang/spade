@@ -19,10 +19,9 @@ use tower_lsp::lsp_types::{
 use tower_lsp::LanguageServer;
 
 use crate::backend::ServerBackend;
-use crate::Client;
-use crate::completion::CompletionInfo;
 use crate::goto_definition::GotoDefinition;
 use crate::hover::HoverInfo;
+use crate::Client;
 
 pub struct ServerFrontend<C> {
     pub(crate) backend: ServerBackend,

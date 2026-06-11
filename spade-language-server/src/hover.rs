@@ -20,6 +20,7 @@ impl ServerBackend {
             loc: _,
             name,
             unit_type_state,
+            current_unit: _,
         }: &PositionDetails,
     ) -> Option<String> {
         let Some(name) = name else { return None };
@@ -141,6 +142,7 @@ impl ServerBackend {
             loc: _,
             name,
             unit_type_state: _,
+            current_unit: _,
         }: &PositionDetails,
     ) -> Option<String> {
         let Some(name) = name else { return None };
@@ -195,6 +197,7 @@ impl ServerBackend {
             loc,
             name: _,
             unit_type_state,
+            current_unit: _,
         }: &PositionDetails,
     ) -> Option<String> {
         let Some(ts) = unit_type_state else {

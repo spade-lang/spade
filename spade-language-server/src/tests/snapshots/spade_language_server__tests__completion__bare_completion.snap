@@ -24,3 +24,4 @@ NameOfStruct(…) [proj::NameOfStruct]	NameOfStruct(${1})$0
 Self [proj::Self]	-
 foo(…) [proj::foo]	foo(${1})$0
 proj [proj]	-
+s	-

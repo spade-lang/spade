@@ -23,8 +23,6 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
 NameOfStruct(…)	NameOfStruct(${1})$0
 Self	-
 _	-
-another	-
 foo(…)	foo(${1})$0
 proj [proj]	-
 s	-
-self	-

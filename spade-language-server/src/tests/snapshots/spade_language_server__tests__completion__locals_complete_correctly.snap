@@ -1,0 +1,34 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+        entity test(clk: clock, argument: bool) {
+            let before_let = false;
+            reg(clk) before_reg = false;
+            decl before_decl;
+
+            {
+                let inner_but_hidden = false;
+            };
+
+            {
+                let inner_let = false;
+
+                // ^[1] completion
+            };
+
+            let before_decl = false;
+            let after_let = false;
+            reg(clk) after_reg = false;
+        }
+    
+---code ⬆️ completion ⬇️ ---
+argument	-
+before_decl	-
+before_let	-
+before_reg	-
+clk	-
+inner_let	-
+proj [proj]	-
+test(…) [proj::test]	inst test(${1})$0

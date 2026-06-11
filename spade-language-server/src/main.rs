@@ -1,10 +1,10 @@
+mod backend;
+mod compile;
 mod completion;
 mod goto_definition;
 mod hover;
-mod util;
-mod backend;
-mod compile;
 mod language_server;
+mod util;
 // Disabling lsp tests on macos for now since they break in CI and I don't have
 // ready access to a mac to debug them on
 #[cfg(all(test, not(target_os = "macos")))]

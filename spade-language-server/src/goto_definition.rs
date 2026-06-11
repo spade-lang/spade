@@ -14,6 +14,7 @@ impl GotoDefinition for ServerBackend {
             loc: _,
             ref name,
             unit_type_state: _,
+            current_unit: _,
         } = self.get_position_details(pos, uri)?;
 
         let contextual = self.contextual_expression_info(pos);

@@ -310,3 +310,28 @@ test_completion! {
         }
     "
 }
+
+test_completion! {
+    locals_complete_correctly,
+    "
+        entity test(clk: clock, argument: bool) {
+            let before_let = false;
+            reg(clk) before_reg = false;
+            decl before_decl;
+
+            {
+                let inner_but_hidden = false;
+            };
+
+            {
+                let inner_let = false;
+
+                // ^[1] completion
+            };
+
+            let before_decl = false;
+            let after_let = false;
+            reg(clk) after_reg = false;
+        }
+    "
+}
