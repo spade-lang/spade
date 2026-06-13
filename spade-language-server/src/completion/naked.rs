@@ -127,7 +127,7 @@ impl ServerBackend {
                         preselect: None,
                         sort_text: None,
                         filter_text: filter_text.clone(),
-                        insert_text: snippet,
+                        insert_text: Some(snippet),
                         insert_text_format: None,
                         insert_text_mode: None,
                         text_edit: None,
@@ -185,7 +185,7 @@ fn follow_aliases<'a>(
 struct CompletionData {
     kind: CompletionItemKind,
     label: String,
-    snippet: Option<String>,
+    snippet: String
 }
 
 fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> CompletionData {
@@ -210,7 +210,7 @@ fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> Comple
 
         (
             format!("{inst_label}{name}{arg_label}"),
-            Some(format!("{inst_snippet}{name}{arg_snippet}")),
+            format!("{inst_snippet}{name}{arg_snippet}"),
         )
     };
 
@@ -224,14 +224,14 @@ fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> Comple
             &UnitKind::Function(spade_hir::FunctionKind::Enum),
         ),
         spade_hir::symbol_table::Thing::Unit(t) => unit_like(&t.inputs, &t.unit_kind.inner),
-        spade_hir::symbol_table::Thing::Macro(_, _) => (format!("{name}"), None),
+        spade_hir::symbol_table::Thing::Macro(_, _) => (format!("{name}"), format!("{name}!")),
 
         spade_hir::symbol_table::Thing::Variable(_)
         | spade_hir::symbol_table::Thing::Alias { .. }
         | spade_hir::symbol_table::Thing::ArrayLabel(_)
         | spade_hir::symbol_table::Thing::Module(_, _)
         | spade_hir::symbol_table::Thing::Trait(_)
-        | spade_hir::symbol_table::Thing::Dummy => (format!("{name}"), None),
+        | spade_hir::symbol_table::Thing::Dummy => (format!("{name}"), format!("{name}")),
     };
 
     CompletionData {
