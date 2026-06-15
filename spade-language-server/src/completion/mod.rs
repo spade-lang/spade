@@ -134,8 +134,8 @@ impl ServerBackend {
                                         label_details: None,
                                         kind: Some(kind),
                                         detail: None,
-                                        documentation: None, // TODO: Docs
-                                        deprecated: None,    // TODO
+                                        documentation: None, // FIXME: Docs
+                                        deprecated: None,    // FIXME
                                         preselect: None,
                                         sort_text: Some(label.clone()),
                                         filter_text: Some(label),

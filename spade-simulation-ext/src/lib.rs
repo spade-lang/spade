@@ -238,7 +238,6 @@ impl Spade {
                 .get(0)
                 .map(|segment| vec![segment.clone()])
                 .unwrap_or(vec![]),
-            None,
         ));
         for segment in namespace.0 {
             symtab.push_namespace(segment)

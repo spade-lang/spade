@@ -10,6 +10,6 @@ error: Incorrect number of tokens passed to `include!`
   ┌─ testinput:2:5
   │
 2 │     include!()
-  │     ^^^^^^^^
+  │     ^^^^^^^
   │
   = note: A single string literal containing the path to include must be passed

@@ -1316,7 +1316,7 @@ pub fn visit_unit(
     ctx.symtab.new_scope();
 
     let path = extra_path
-        .unwrap_or(Path(vec![], None))
+        .unwrap_or(Path(vec![]))
         .join(Path::ident(name.clone()))
         .at_loc(&name.loc());
 
@@ -2406,7 +2406,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             macro_rules! handle_special_macros {
                 ($([$($path:expr),*] => $handler:ident),*) => {
                     $({
-                        let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*], None).nowhere();
+                        let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
                         let final_id = ctx.symtab.try_lookup_id(&path, false);
                         if final_id
                             .map(|n| &n == &name)

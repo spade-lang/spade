@@ -47,15 +47,3 @@ error: Use of undeclared name not
   │
 2 │     not valid syntax
   │     ^^^ Undeclared name
-
-error: Use of undeclared name valid
-  ┌─ testinput:2:9
-  │
-2 │     not valid syntax
-  │         ^^^^^ Undeclared name
-
-error: Use of undeclared name syntax
-  ┌─ testinput:2:15
-  │
-2 │     not valid syntax
-  │               ^^^^^^ Undeclared name

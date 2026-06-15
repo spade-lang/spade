@@ -186,37 +186,18 @@ macro_rules! peek_for {
 
 // Actual parsing functions
 impl<'a> Parser<'a> {
-    #[trace_parser]
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub fn macro_identifier(&mut self) -> Result<Loc<Identifier>> {
-        let token = self.eat_cond(TokenKind::is_normal_identifier, "Macro identifier")?;
-
-        if let TokenKind::Identifier((name, true)) = token.kind {
-            Ok(name.at(self.file_id(), &token.span))
-        } else {
-            unreachable!("eat_cond should have checked this");
-        }
+    pub fn expect_eof(&mut self, actual_expected: &'static str) -> Result<()> {
+        self.eat_cond(|tok| matches!(tok, TokenKind::Eof), actual_expected)
+            .map(|_| ())
     }
 
     #[trace_parser]
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn normal_identifier(&mut self) -> Result<Loc<Identifier>> {
-        let token = self.eat_cond(TokenKind::is_normal_identifier, "Identifier")?;
-
-        if let TokenKind::Identifier((name, false)) = token.kind {
-            Ok(name.at(self.file_id(), &token.span))
-        } else {
-            unreachable!("eat_cond should have checked this");
-        }
-    }
-
-    #[trace_parser]
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub fn identifier(&mut self) -> Result<(Loc<Identifier>, bool)> {
+    pub fn identifier(&mut self) -> Result<Loc<Identifier>> {
         let token = self.eat_cond(TokenKind::is_identifier, "Identifier")?;
 
-        if let TokenKind::Identifier((name, is_macro)) = token.kind {
-            Ok((name.at(self.file_id(), &token.span), is_macro))
+        if let TokenKind::Identifier(name) = token.kind {
+            Ok(name.at(self.file_id(), &token.span))
         } else {
             unreachable!("eat_cond should have checked this");
         }
@@ -228,13 +209,13 @@ impl<'a> Parser<'a> {
     }
 
     pub fn path_allow_trailing_separator(&mut self) -> Result<(Loc<Path>, bool)> {
-        let first = self.normal_identifier()?;
+        let first = self.identifier()?;
 
         self.continue_path(Path::ident(first).at_loc(&first))
     }
 
     /// Continue parsing a path that has been parsed with `leading` so far. This allows
-    /// a a trailing `::`, primarily to improve completion. If the leading is present `(_, true)`
+    /// a trailing `::`, primarily to improve completion. If the trailing `::` is present `(_, true)`
     /// is returned, otherwise `(_, false)`
     #[trace_parser]
     pub fn continue_path(&mut self, mut leading: Loc<Path>) -> Result<(Loc<Path>, bool)> {
@@ -243,15 +224,13 @@ impl<'a> Parser<'a> {
             let next_loc = next.loc();
 
             if let TokenKind::Identifier(_) = next.kind {
-                let next = self.normal_identifier()?;
+                let next = self.identifier()?;
 
                 leading.0.push(PathSegment::Named(next));
 
                 let leading_loc = leading.loc();
                 self.continue_path(leading.inner.between_locs(&leading_loc, &next_loc))
             } else {
-                leading.1 = Some(().at(self.file_id(), &next));
-
                 let leading_loc = leading.loc();
                 Ok((leading.inner.between_locs(&leading_loc, &next_loc), true))
             }
@@ -262,12 +241,12 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn path_tree_with_as_alias(&mut self) -> Result<Vec<(Loc<Path>, Option<Loc<Identifier>>)>> {
-        let mut prefix = Path(vec![], None);
+        let mut prefix = Path(vec![]);
         let mut alias = None;
 
         loop {
-            if self.peek_cond(TokenKind::is_normal_identifier, "Identifier")? {
-                let ident = self.normal_identifier()?;
+            if self.peek_cond(TokenKind::is_identifier, "Identifier")? {
+                let ident = self.identifier()?;
                 prefix = prefix.push_ident(ident);
             } else if self.peek_and_eat(&TokenKind::OpenBrace)?.is_some() {
                 let result = self
@@ -293,7 +272,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_and_eat(&TokenKind::As)?.is_some() {
-                alias = Some(self.normal_identifier()?);
+                alias = Some(self.identifier()?);
                 break;
             } else if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break;
@@ -307,7 +286,7 @@ impl<'a> Parser<'a> {
 
     pub fn named_turbofish(&mut self) -> Result<Loc<NamedTurbofish>> {
         // This is a named arg
-        let name = self.normal_identifier()?;
+        let name = self.identifier()?;
         if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
             let value = self.type_expression()?;
 
@@ -361,7 +340,7 @@ impl<'a> Parser<'a> {
 
         let (path, has_trailing_separator) = self.path_allow_trailing_separator()?;
 
-        let is_macro = false; // TODO: is_macro
+        let is_macro = self.peek_and_eat(&TokenKind::Not)?.is_some();
 
         if has_trailing_separator {
             if self.peek_kind(&TokenKind::Lt)? {
@@ -390,10 +369,10 @@ impl<'a> Parser<'a> {
                     Some(TurbofishInner::Named(params).at_loc(&loc)),
                 )))
             } else {
-                Ok(Some((path, false, None)))
+                Ok(Some((path, is_macro, None)))
             }
         } else {
-            Ok(Some((path, false, None)))
+            Ok(Some((path, is_macro, None)))
         }
     }
 
@@ -998,7 +977,7 @@ impl<'a> Parser<'a> {
             self.eat_unconditional()?;
             self.eat(&TokenKind::Dot)?;
 
-            let field = self.normal_identifier()?;
+            let field = self.identifier()?;
 
             let loc = ().between(self.file_id(), tok, &field);
             Ok(Some(
@@ -1068,7 +1047,7 @@ impl<'a> Parser<'a> {
                 .between(self.file_id(), &start, &offset);
                 PipelineStageReference::Relative(texpr)
             }
-            TokenKind::Identifier(_) => PipelineStageReference::Absolute(self.normal_identifier()?),
+            TokenKind::Identifier(_) => PipelineStageReference::Absolute(self.identifier()?),
             _ => {
                 return Err(Diagnostic::from(UnexpectedToken {
                     got: next,
@@ -1081,7 +1060,7 @@ impl<'a> Parser<'a> {
 
         self.eat(&TokenKind::Dot)?;
 
-        let ident = self.normal_identifier()?;
+        let ident = self.identifier()?;
 
         Ok(Some(
             Expression::PipelineReference {
@@ -1104,7 +1083,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<Loc<Expression>>> {
         peek_for!(self, &TokenKind::Dot);
 
-        let ident = self.normal_identifier()?;
+        let ident = self.identifier()?;
 
         match ident.inner.as_str() {
             "valid" => Ok(Some(Expression::StageValid.between(
@@ -1170,7 +1149,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     fn named_argument(&mut self) -> Result<Loc<NamedArgument>> {
         // This is a named arg
-        let name = self.normal_identifier()?;
+        let name = self.identifier()?;
         if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
             let value = self.expression()?;
 
@@ -1281,7 +1260,7 @@ impl<'a> Parser<'a> {
         } else if let Some(array) = self.array_spec()? {
             Ok(array)
         } else {
-            if !self.peek_cond(TokenKind::is_normal_identifier, "Identifier")? {
+            if !self.peek_cond(TokenKind::is_identifier, "Identifier")? {
                 return Err(Diagnostic::from(UnexpectedToken {
                     got: self.peek()?,
                     expected: vec!["type"],
@@ -1370,7 +1349,7 @@ impl<'a> Parser<'a> {
     /// name: Type
     #[trace_parser]
     pub fn name_and_type(&mut self, accept_impl: bool) -> Result<(Loc<Identifier>, Loc<TypeSpec>)> {
-        let name = self.normal_identifier()?;
+        let name = self.identifier()?;
         self.eat(&TokenKind::Colon)?;
         let t = self.type_spec(accept_impl)?;
         Ok((name, t))
@@ -1463,7 +1442,7 @@ impl<'a> Parser<'a> {
                 } else if let Some(start_brace) = s.peek_and_eat(&TokenKind::Dollar)? {
                     s.eat(&TokenKind::OpenParen)?;
                     let inner_parser = |s: &mut Self| {
-                        let lhs = s.normal_identifier()?;
+                        let lhs = s.identifier()?;
                         let rhs = if s.peek_and_eat(&TokenKind::Colon)?.is_some() {
                             Some(s.pattern()?)
                         } else {
@@ -1667,7 +1646,7 @@ impl<'a> Parser<'a> {
         let amp = self.peek_and_eat(&TokenKind::Ampersand)?;
 
         let self_ = if self.peek_cond(
-            |tok| matches!(tok, TokenKind::Identifier((i, false)) if i.as_str() == "self"),
+            |tok| matches!(tok, TokenKind::Identifier(i) if i.as_str() == "self"),
             "Expected argument",
         )? {
             let self_tok = self.eat_unconditional()?;
@@ -1702,7 +1681,7 @@ impl<'a> Parser<'a> {
         if !first_attrs.is_empty() {
             let Some(first_arg) = args.first_mut() else {
                 // At this point this parser will definitely fail, we run it just for its diagnostic
-                self.eat_cond(TokenKind::is_normal_identifier, "Identifier")?;
+                self.eat_cond(TokenKind::is_identifier, "Identifier")?;
                 unreachable!();
             };
 
@@ -1712,7 +1691,7 @@ impl<'a> Parser<'a> {
         if let Some(wire) = first_wire {
             let Some(first_arg) = args.first_mut() else {
                 // At this point this parser will definitely fail, we run it just for its diagnostic
-                self.eat_cond(TokenKind::is_normal_identifier, "Identifier")?;
+                self.eat_cond(TokenKind::is_identifier, "Identifier")?;
                 unreachable!();
             };
             first_arg.1 = Some(wire);
@@ -1733,8 +1712,8 @@ impl<'a> Parser<'a> {
     pub fn type_param(&mut self) -> Result<Loc<TypeParam>> {
         // If this is a type level integer
         if let Some(_hash) = self.peek_and_eat(&TokenKind::Hash)? {
-            let meta_type = self.normal_identifier()?;
-            let name = self.normal_identifier()?;
+            let meta_type = self.identifier()?;
+            let name = self.identifier()?;
             let loc = ().between_locs(&meta_type, &name);
 
             let default = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
@@ -1750,7 +1729,7 @@ impl<'a> Parser<'a> {
             }
             .at_loc(&loc))
         } else {
-            let (id, loc) = self.normal_identifier()?.separate();
+            let (id, loc) = self.identifier()?.separate();
             let traits = if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
                 self.token_separated(
                     Self::trait_spec,
@@ -1932,7 +1911,7 @@ impl<'a> Parser<'a> {
             if self.peek_and_eat(&TokenKind::OpenParen)?.is_some() {
                 let next_token = self.peek()?;
                 let visibility = match next_token.kind {
-                    TokenKind::Identifier((ref name, false)) => match name.as_str() {
+                    TokenKind::Identifier(ref name) => match name.as_str() {
                         "lib" => Some(Visibility::AtLib),
                         "self" => Some(Visibility::AtSelf),
                         "super" => Some(Visibility::AtSuper),
@@ -1987,7 +1966,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let name = self.normal_identifier()?;
+        let name = self.identifier()?;
 
         let type_params = self.generics_list()?;
 
@@ -2172,7 +2151,7 @@ impl<'a> Parser<'a> {
     pub fn enum_variant(&mut self) -> Result<EnumVariant> {
         let attributes = self.attributes()?;
 
-        let name = self.normal_identifier()?;
+        let name = self.identifier()?;
 
         let args = if let Some(start) = self.peek_and_eat(&TokenKind::OpenBrace)? {
             let result = self.type_parameter_list()?;
@@ -2228,7 +2207,7 @@ impl<'a> Parser<'a> {
         value: impl Fn(&mut Self) -> Result<T>,
     ) -> Result<Option<(Loc<String>, T)>> {
         let next = self.peek()?;
-        if matches!(next.kind, TokenKind::Identifier((k, false)) if k.as_str() == key) {
+        if matches!(next.kind, TokenKind::Identifier(k) if k.as_str() == key) {
             self.eat_unconditional()?;
 
             self.eat(&TokenKind::Assignment)?;
@@ -2245,7 +2224,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     #[tracing::instrument(skip(self))]
     pub fn attribute_inner(&mut self) -> Result<Attribute> {
-        let start = self.normal_identifier()?;
+        let start = self.identifier()?;
 
         macro_rules! bool_or_payload {
             ($name:ident bool) => {
@@ -2304,7 +2283,7 @@ impl<'a> Parser<'a> {
                             let next = $s.peek()?;
                             match &next.kind {
                                 $(
-                                    TokenKind::Identifier((ident, false)) if ident.as_str() == stringify!($name) => {
+                                    TokenKind::Identifier(ident) if ident.as_str() == stringify!($name) => {
                                         $s.eat_unconditional()?;
                                         rhs_or_present!($name, next, $s, $assignment);
                                     }
@@ -2380,7 +2359,7 @@ impl<'a> Parser<'a> {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (all, _) = self.surrounded(
                         &TokenKind::OpenParen,
-                        Self::normal_identifier,
+                        Self::identifier,
                         &TokenKind::CloseParen,
                     )?;
                     if all.inner.as_str() != "all" {
@@ -2398,7 +2377,7 @@ impl<'a> Parser<'a> {
                 if self.peek_kind(&TokenKind::OpenParen)? {
                     let (state, _) = self.surrounded(
                         &TokenKind::OpenParen,
-                        Self::normal_identifier,
+                        Self::identifier,
                         &TokenKind::CloseParen,
                     )?;
                     Ok(Attribute::Fsm { state: Some(state) })
@@ -2410,7 +2389,7 @@ impl<'a> Parser<'a> {
                 let (passes, _) = self.surrounded(
                     &TokenKind::OpenParen,
                     |s| {
-                        s.comma_separated(|s| s.normal_identifier(), &TokenKind::CloseParen)
+                        s.comma_separated(|s| s.identifier(), &TokenKind::CloseParen)
                             .no_context()
                     },
                     &TokenKind::CloseParen,
@@ -2474,7 +2453,7 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     fn verilog_attr(&mut self) -> Result<(Loc<Identifier>, Option<Loc<String>>)> {
-        let key = self.normal_identifier()?;
+        let key = self.identifier()?;
         let value = if self.peek_and_eat(&TokenKind::Assignment)?.is_some() {
             let token = self.eat_cond(TokenKind::is_string, "string")?;
             match &token.kind {
@@ -2563,9 +2542,9 @@ impl<'a> Parser<'a> {
 
                 match token.kind {
                     TokenKind::Identifier(_) => {
-                        let name = self.normal_identifier()?;
+                        let name = self.identifier()?;
                         self.eat(&TokenKind::Colon)?;
-                        let kind = self.normal_identifier()?;
+                        let kind = self.identifier()?;
 
                         Ok(MacroPattern::Fragment { name, kind }.between(
                             self.file_id(),
@@ -3482,7 +3461,7 @@ mod tests {
 
     #[test]
     fn parsing_identifier_works() {
-        check_parse!("abc123_", normal_identifier, Ok(ast_ident("abc123_")));
+        check_parse!("abc123_", identifier, Ok(ast_ident("abc123_")));
     }
 
     #[test]
@@ -3936,19 +3915,17 @@ mod tests {
 
         let expected = MacroPattern::EnclosedSubpattern {
             parts: vec![
-                MacroPattern::Token(
-                    TokenKind::Identifier((Identifier::intern("a"), false)).nowhere(),
-                )
-                .nowhere(),
+                MacroPattern::Token(TokenKind::Identifier(Identifier::intern("a")).nowhere())
+                    .nowhere(),
                 MacroPattern::Token(TokenKind::Comma.nowhere()).nowhere(),
                 MacroPattern::EnclosedSubpattern {
                     parts: vec![
                         MacroPattern::Token(
-                            TokenKind::Identifier((Identifier::intern("b"), false)).nowhere(),
+                            TokenKind::Identifier(Identifier::intern("b")).nowhere(),
                         )
                         .nowhere(),
                         MacroPattern::Token(
-                            TokenKind::Identifier((Identifier::intern("c"), false)).nowhere(),
+                            TokenKind::Identifier(Identifier::intern("c")).nowhere(),
                         )
                         .nowhere(),
                     ],
@@ -3965,7 +3942,7 @@ mod tests {
                 MacroPattern::RepeatedSubpattern {
                     parts: vec![
                         MacroPattern::Token(
-                            TokenKind::Identifier((Identifier::intern("e"), false)).nowhere(),
+                            TokenKind::Identifier(Identifier::intern("e")).nowhere(),
                         )
                         .nowhere(),
                         MacroPattern::Fragment {

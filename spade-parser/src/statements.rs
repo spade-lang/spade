@@ -222,8 +222,8 @@ impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
         parser.disallow_visibility(visibility, &start_token)?;
 
         let mut identifiers = vec![];
-        while parser.peek_cond(|t| t.is_normal_identifier(), "expected identifier")? {
-            identifiers.push(parser.normal_identifier()?);
+        while parser.peek_cond(|t| t.is_identifier(), "expected identifier")? {
+            identifiers.push(parser.identifier()?);
 
             if parser.peek_and_eat(&TokenKind::Comma)?.is_none() {
                 break;

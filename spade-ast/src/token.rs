@@ -32,17 +32,11 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
     )
 }
 
-fn process_ident(ident: &str) -> (Identifier, bool) {
-    let (ident, is_macro) = if ident.ends_with("!") {
-        (&ident[..ident.len() - 1], true)
-    } else {
-        (ident, false)
-    };
-
+fn process_ident(ident: &str) -> Identifier {
     if ident.starts_with("r#") {
-        (Identifier::intern(&ident[2..]), is_macro)
+        Identifier::intern(&ident[2..])
     } else {
-        (Identifier::intern(ident), is_macro)
+        Identifier::intern(ident)
     }
 }
 
@@ -51,10 +45,9 @@ pub enum TokenKind {
     // Unholy regex for unicode identifiers. Stolen from Repnop who stole it from Evrey
     #[regex(r#"(r#)?(?x:
         [\p{XID_Start}_]
-        \p{XID_Continue}*
-        (\u{3F} | \u{21} | (\u{3F}\u{21}))? # ? ! ?!
+        \p{XID_Continue}* 
     )"#, |lex| process_ident(lex.slice()))]
-    Identifier((Identifier, bool)),
+    Identifier(Identifier),
 
     #[regex(r"[0-9][0-9_]*([uUiI][0-9]*)?", |lex| {
         parse_int(lex.slice(), 10)
@@ -420,14 +413,6 @@ impl TokenKind {
         }
     }
 
-    pub fn is_macro_identifier(&self) -> bool {
-        matches!(self, TokenKind::Identifier((_, true)))
-    }
-
-    pub fn is_normal_identifier(&self) -> bool {
-        matches!(self, TokenKind::Identifier((_, false)))
-    }
-
     pub fn is_identifier(&self) -> bool {
         matches!(self, TokenKind::Identifier(_))
     }
@@ -469,10 +454,7 @@ mod tests {
 
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::Identifier((
-                Identifier::intern("abc123_"),
-                false
-            ))))
+            Some(Ok(TokenKind::Identifier(Identifier::intern("abc123_"),)))
         );
     }
 
@@ -573,7 +555,7 @@ mod tests {
         );
         assert_eq!(
             lex.next(),
-            Some(Ok(TokenKind::Identifier((Identifier::intern("xg"), false))))
+            Some(Ok(TokenKind::Identifier(Identifier::intern("xg"))))
         );
         assert_eq!(lex.next(), None);
     }

@@ -12,6 +12,6 @@ error: User-defined macros are not supported yet
   ┌─ testinput:4:5
   │
 4 │     mac_n_cheese!();
-  │     ^^^^^^^^^^^^^
+  │     ^^^^^^^^^^^^
   │
   = note: Only built-in macros are supported at the moment

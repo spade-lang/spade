@@ -155,8 +155,8 @@ macro_rules! snapshot_error {
         snapshot_error!(
             $fn, {
                 {
-                    spade_common::name::Path(vec![], None),
-                    spade_common::name::Path(vec![], None),
+                    spade_common::name::Path(vec![]),
+                    spade_common::name::Path(vec![]),
                     "testinput",
                     $src,
                 }
@@ -332,8 +332,8 @@ pub fn build_artifacts(code: &str, with_stdlib: bool) -> Artefacts {
 
             let files = vec![(
                 spade::ModuleNamespace {
-                    namespace: spade_common::name::Path(vec![], None),
-                    base_namespace: spade_common::name::Path(vec![], None),
+                    namespace: spade_common::name::Path(vec![]),
+                    base_namespace: spade_common::name::Path(vec![]),
                     file: "testinput".to_string(),
                     working_dir: None,
                 },

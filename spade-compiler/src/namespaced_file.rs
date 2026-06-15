@@ -22,15 +22,15 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
         0 => Err("Expected a string".to_string()),
         1 => Ok(NamespacedFile {
             file: arg.into(),
-            namespace: SpadePath(vec![], None),
-            base_namespace: SpadePath(vec![], None),
+            namespace: SpadePath(vec![]),
+            base_namespace: SpadePath(vec![]),
         }),
         3 => {
             let root_namespace = if parts[0].is_empty() {
-                SpadePath(vec![], None)
+                SpadePath(vec![])
             } else {
                 let mut root_parser = Parser::new(parts[0], 0, None);
-                root_parser
+                let result = root_parser
                     .path()
                     .map_err(|e| {
                         format!(
@@ -39,15 +39,25 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
                             e.labels.message.as_str()
                         )
                     })?
-                    .inner
+                    .inner;
+
+                root_parser.expect_eof("identifier").map_err(|e| {
+                    format!(
+                        "\nwhen parsing '{}': {}",
+                        parts[1],
+                        e.labels.message.as_str()
+                    )
+                })?;
+
+                result
             };
 
             let namespace = if parts[1].is_empty() {
-                SpadePath(vec![], None)
+                SpadePath(vec![])
             } else {
                 // NOTE: could be a bit smarter here and look for keywords manually
                 let mut namespace_parser = Parser::new(parts[1], 0, None);
-                namespace_parser
+                let result = namespace_parser
                     .path()
                     .map_err(|e| {
                         format!(
@@ -56,7 +66,16 @@ pub fn namespaced_file(arg: &str) -> Result<NamespacedFile, String> {
                             e.labels.message.as_str()
                         )
                     })?
-                    .inner
+                    .inner;
+                namespace_parser.expect_eof("identifier").map_err(|e| {
+                    format!(
+                        "\nwhen parsing '{}': {}",
+                        parts[1],
+                        e.labels.message.as_str()
+                    )
+                })?;
+
+                result
             };
 
             Ok(NamespacedFile {
@@ -91,17 +110,13 @@ mod tests {
         assert_eq!(
             namespaced_file("a,a::b,b.spade"),
             Ok(NamespacedFile {
-                base_namespace: SpadePath(
-                    vec![PathSegment::Named(Identifier::intern("a").nowhere())],
-                    None
-                ),
-                namespace: SpadePath(
-                    vec![
-                        PathSegment::Named(Identifier::intern("a").nowhere()),
-                        PathSegment::Named(Identifier::intern("b").nowhere())
-                    ],
-                    None
-                ),
+                base_namespace: SpadePath(vec![PathSegment::Named(
+                    Identifier::intern("a").nowhere()
+                )],),
+                namespace: SpadePath(vec![
+                    PathSegment::Named(Identifier::intern("a").nowhere()),
+                    PathSegment::Named(Identifier::intern("b").nowhere())
+                ],),
                 file: "b.spade".into(),
             })
         );
@@ -109,7 +124,7 @@ mod tests {
 
     #[test]
     fn invalid_path_errors_without_panic() {
-        // TODO: Fix this test
-        // assert!(namespaced_file("lib,lib::pipeline,pipeline.spade").is_err());
+        assert!(namespaced_file("lib,lib::pipeline,pipeline.spade").is_err());
+        assert!(namespaced_file("lib::pipeline,lib::pipeline,pipeline.spade").is_err());
     }
 }

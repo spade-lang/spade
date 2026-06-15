@@ -299,8 +299,6 @@ async fn fn_def_from_else_in_binding() {
     .await;
 }
 
-// TODO re-add this test
-#[ignore]
 #[tokio::test]
 async fn hairy_nested_fn_call() {
     init_with_file(
@@ -367,7 +365,6 @@ async fn binding_from_2darray() {
     .await;
 }
 
-#[ignore]
 #[tokio::test]
 async fn multiline_def_works() {
     init_with_file(

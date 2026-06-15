@@ -24,4 +24,3 @@ num.workspace = true
 bumpalo.workspace = true
 itertools.workspace = true
 postcard.workspace = true
-derive-where.workspace = true

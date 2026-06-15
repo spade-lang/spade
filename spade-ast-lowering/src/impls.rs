@@ -120,7 +120,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     };
 
     let impl_segment = PathSegment::Impl(impl_block_id.0);
-    let impl_prefix = Some(Path(vec![impl_segment.clone()], None));
+    let impl_prefix = Some(Path(vec![impl_segment.clone()]));
     ctx.symtab.add_dummy(impl_segment.clone());
 
     let mut assoc_type_remappings = HashMap::default();

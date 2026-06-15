@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
                     )
                     .between_locs(&expr, &loc));
                 }
-                let field = self.normal_identifier()?;
+                let field = self.identifier()?;
 
                 let turbofish = self.turbofish()?;
 

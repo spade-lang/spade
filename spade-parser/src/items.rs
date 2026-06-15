@@ -121,7 +121,7 @@ impl KeywordPeekingParser<Loc<MacroDef>> for MacroDefParser {
     ) -> Result<Loc<MacroDef>> {
         let start_token = parser.eat_unconditional()?;
 
-        let name = parser.normal_identifier()?;
+        let name = parser.identifier()?;
 
         let next_token = parser.peek()?;
 
@@ -191,7 +191,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
     ) -> Result<Loc<TraitDef>> {
         let start_token = parser.eat_unconditional()?;
 
-        let name = parser.normal_identifier()?;
+        let name = parser.identifier()?;
 
         let type_params = parser.generics_list()?;
 
@@ -232,7 +232,7 @@ impl KeywordPeekingParser<Loc<TraitDef>> for TraitDefParser {
             let vis = Visibility::Implicit.nowhere();
 
             if let Some(start_token) = parser.peek_and_eat(&TokenKind::Type)? {
-                let name = parser.normal_identifier()?;
+                let name = parser.identifier()?;
                 let type_params = parser.generics_list()?;
                 let end_loc = match &type_params {
                     Some(tp) => tp.loc(),
@@ -341,7 +341,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
 
-        let name = parser.normal_identifier()?;
+        let name = parser.identifier()?;
 
         let type_params = parser.generics_list()?;
 
@@ -386,7 +386,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
     ) -> Result<Loc<TypeDeclaration>> {
         let start_token = parser.eat_unconditional()?;
 
-        let name = parser.normal_identifier()?;
+        let name = parser.identifier()?;
 
         let type_params = parser.generics_list()?;
 
@@ -432,7 +432,7 @@ impl KeywordPeekingParser<Item> for ModuleParser {
         visibility: &Loc<Visibility>,
     ) -> Result<Item> {
         let start = parser.eat_unconditional()?;
-        let name = parser.normal_identifier()?;
+        let name = parser.identifier()?;
 
         if parser.peek_kind(&TokenKind::OpenBrace)? {
             let open_brace = parser.peek()?;
@@ -484,7 +484,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
         visibility: &Loc<Visibility>,
     ) -> Result<Loc<TypeDeclaration>> {
         let start = parser.eat_unconditional()?;
-        let name = parser.normal_identifier()?;
+        let name = parser.identifier()?;
         let generic_args = parser.generics_list()?;
 
         parser.eat(&TokenKind::Assignment)?;
