@@ -1566,7 +1566,7 @@ impl TypeState {
         macro_rules! handle_special_functions {
             ($([$($path:expr),*] => $handler:expr),*) => {
                 $(
-                    let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
+                    let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*], None).nowhere();
                     if ctx.symtab
                         .try_lookup_id(&path, false)
                         .map(|n| &FunctionLikeName::Free(n) == name)

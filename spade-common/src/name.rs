@@ -1,5 +1,6 @@
 use std::hash::Hash;
 
+use derive_where::derive_where;
 use serde::{Deserialize, Serialize, de::Visitor};
 
 use crate::{
@@ -146,8 +147,13 @@ impl std::fmt::Display for PathSegment {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
-pub struct Path(pub Vec<PathSegment>);
+/// The second parameter contains the loc following a trailing `::`, if present
+#[derive_where(PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Path(
+    pub Vec<PathSegment>,
+    #[derive_where(skip)] pub Option<Loc<()>>,
+);
 
 impl Path {
     pub fn to_strings(&self) -> Vec<String> {
@@ -165,6 +171,7 @@ impl Path {
                 .iter()
                 .map(|x| PathSegment::Named(Identifier::intern(x).nowhere()))
                 .collect(),
+            None,
         )
     }
 
@@ -175,11 +182,12 @@ impl Path {
                 .iter()
                 .map(|x| PathSegment::Named((*x).clone()))
                 .collect(),
+            None,
         )
     }
 
     pub fn ident(ident: Loc<Identifier>) -> Self {
-        Self(vec![PathSegment::Named(ident)])
+        Self(vec![PathSegment::Named(ident)], None)
     }
 
     pub fn ident_with_loc(ident: Loc<Identifier>) -> Loc<Self> {
@@ -232,7 +240,7 @@ impl Path {
             _ => (PathPrefix::None, 0),
         };
 
-        let path_without_prefix = Path(Vec::from(&self.0[count..]));
+        let path_without_prefix = Path(Vec::from(&self.0[count..]), None);
         (prefix, path_without_prefix)
     }
 
@@ -246,7 +254,7 @@ impl Path {
 
     /// Returns the whole path apart from the tail. Panics if the path is empty
     pub fn prelude(&self) -> Path {
-        Self(self.0[0..self.0.len() - 1].to_owned())
+        Self(self.0[0..self.0.len() - 1].to_owned(), None)
     }
 
     pub fn starts_with(&self, other: &Path) -> bool {

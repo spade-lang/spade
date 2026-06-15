@@ -197,7 +197,7 @@ async fn init_with_file(code: &str, opt: InitFileOpt, include_stdlib: bool) -> T
                 })
                 .await
                 .unwrap()
-                .unwrap();
+                .expect("Did not find a goto result");
 
             let range = if let Some(goto_target_end) = goto_target_end {
                 Range::new(goto_target.unwrap().range.start, goto_target_end.range.end)

@@ -561,13 +561,13 @@ impl SymbolTable {
             visibilities: HashMap::default(),
             deprecation_notes: HashMap::default(),
             lang_items: HashMap::default(),
-            namespace: Path(vec![]),
-            base_namespace: Path(vec![]),
+            namespace: Path(vec![], None),
+            base_namespace: Path(vec![], None),
             diags,
         };
 
         result.add_thing(
-            Path(vec![]),
+            Path(vec![], None),
             Thing::Module(().nowhere(), Identifier::intern("<root>").nowhere()),
             None,
             None,
@@ -863,7 +863,7 @@ impl SymbolTable {
     }
 
     pub fn add_dummy(&mut self, segment: PathSegment) -> NameID {
-        self.add_thing(Path(vec![segment]), Thing::Dummy, None, None)
+        self.add_thing(Path(vec![segment], None), Thing::Dummy, None, None)
     }
 
     pub fn add_declaration(&mut self, ident: Loc<Identifier>) -> Result<NameID, Diagnostic> {
@@ -1294,7 +1294,7 @@ impl SymbolTable {
                 let off = self.current_scope();
 
                 let ns = if namespace.0.len() >= levels {
-                    Path(Vec::from(&namespace.0[0..namespace.0.len() - levels]))
+                    Path(Vec::from(&namespace.0[0..namespace.0.len() - levels]), None)
                 } else {
                     let segment = path.0[levels - 1].clone();
                     return Err(LookupError::TooManySuperSegments(path.clone(), segment));
@@ -1345,7 +1345,7 @@ impl SymbolTable {
                         .find_map(|(o, s)| {
                             s.vars.get(&absolute_head).map(|_| (o, namespace.clone()))
                         })
-                        .unwrap_or((self.current_scope(), Path(vec![])));
+                        .unwrap_or((self.current_scope(), Path(vec![], None)));
 
                     (off, ns, segments)
                 }
@@ -1386,7 +1386,7 @@ impl SymbolTable {
                     // If visibility information does not exist, the check is ignored.
                     if let Some(visibility) = self.visibilities.get(id) {
                         let vis_path = match visibility.inner {
-                            Visibility::Public => Path(vec![]),
+                            Visibility::Public => Path(vec![], None),
                             Visibility::Implicit => working_path.prelude(),
                             Visibility::AtLib => self.base_namespace.clone(),
                             Visibility::AtSelf => working_path.prelude(),

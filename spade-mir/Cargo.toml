@@ -16,7 +16,7 @@ doctest = false
 
 [dependencies]
 spade-codespan-reporting.workspace = true
-derive-where = "1.2.7"
+derive-where.workspace = true
 indoc.workspace = true
 itertools.workspace = true
 rustc-hash.workspace = true

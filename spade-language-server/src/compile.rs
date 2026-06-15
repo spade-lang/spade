@@ -84,13 +84,13 @@ impl Emitter for LspDiagnosticsEmitter {
 
 fn spade_path(s: &str) -> spade_common::name::Path {
     if s.is_empty() {
-        return spade_common::name::Path(vec![]);
+        return spade_common::name::Path(vec![], None);
     }
     let parts = s
         .split("::")
         .map(|ident| PathSegment::Named(Identifier::intern(ident).nowhere()))
         .collect();
-    spade_common::name::Path(parts)
+    spade_common::name::Path(parts, None)
 }
 
 impl ServerBackend {

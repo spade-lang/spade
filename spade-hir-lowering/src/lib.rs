@@ -2180,7 +2180,7 @@ impl ExprLocal for Loc<Expression> {
                 handle_special_function!([$($path),*] => $handler)
             };
             ([$($path:expr),*] => $handler:ident) => {
-                let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*]).nowhere();
+                let path = Path(vec![$(PathSegment::Named(Identifier::intern($path).nowhere())),*], None).nowhere();
                 let final_id = ctx.symtab.symtab().try_lookup_id(&path, false);
                 if final_id
                     .map(|n| &n == &name.inner)

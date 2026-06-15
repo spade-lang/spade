@@ -396,7 +396,7 @@ pub fn visit_unit(
 
     let new_path = extra_path
         .as_ref()
-        .unwrap_or(&Path(vec![]))
+        .unwrap_or(&Path(vec![], None))
         .push_ident(unit.head.name)
         .at_loc(&unit.head.name);
 
@@ -549,7 +549,7 @@ pub fn visit_type_declaration(
 
     let path = extra_path
         .as_ref()
-        .unwrap_or(&Path(vec![]))
+        .unwrap_or(&Path(vec![], None))
         .push_ident(t.name)
         .at_loc(&t.name);
 
@@ -599,7 +599,7 @@ pub fn re_visit_type_declaration(
     let (declaration_id, _) = ctx.symtab.lookup_type_symbol(
         &extra_path
             .as_ref()
-            .unwrap_or(&Path(vec![]))
+            .unwrap_or(&Path(vec![], None))
             .push_ident(t.name)
             .at_loc(&t.name),
         false,

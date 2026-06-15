@@ -294,7 +294,9 @@ impl Generator {
     fn print_path(&self, b: &mut Node<'_>, path: &Path) -> DResult<()> {
         separated(b, "::", path.0.iter().enumerate(), |b, (i, seg)| {
             let p = &path.0[..(i + 1)];
-            let lookup = self.symtab.lookup_id(&Path(p.to_vec()).nowhere(), true);
+            let lookup = self
+                .symtab
+                .lookup_id(&Path(p.to_vec(), None).nowhere(), true);
 
             let seg = seg.to_named_str().expect("Path to non-named path segment");
 

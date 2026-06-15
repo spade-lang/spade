@@ -224,24 +224,37 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn path(&mut self) -> Result<Loc<Path>> {
-        let mut result = vec![];
-        loop {
-            result.push(PathSegment::Named(self.normal_identifier()?));
+        let first = self.normal_identifier()?;
 
-            if self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
-                break;
+        self.continue_path(Path::ident(first).at_loc(&first))
+    }
+
+    #[trace_parser]
+    pub fn continue_path(&mut self, mut leading: Loc<Path>) -> Result<Loc<Path>> {
+        if self.peek_and_eat(&TokenKind::PathSeparator)?.is_some() {
+            let next = self.peek()?;
+
+            if let TokenKind::Identifier(_) = next.kind {
+                let next = self.normal_identifier()?;
+
+                let next_loc = next.loc();
+                leading.0.push(PathSegment::Named(next));
+
+                let leading_loc = leading.loc();
+                self.continue_path(leading.inner.between_locs(&leading_loc, &next_loc))
+            } else {
+                leading.1 = Some(().at(self.file_id(), &next));
+
+                Ok(leading)
             }
+        } else {
+            Ok(leading)
         }
-        // NOTE: (safe unwrap) The vec will have at least one element because the first thing
-        // in the loop must push an identifier.
-        let start = result.first().unwrap().loc();
-        let end = result.last().unwrap().loc();
-        Ok(Path(result).between_locs(&start, &end))
     }
 
     #[trace_parser]
     pub fn path_tree_with_as_alias(&mut self) -> Result<Vec<(Loc<Path>, Option<Loc<Identifier>>)>> {
-        let mut prefix = Path(vec![]);
+        let mut prefix = Path(vec![], None);
         let mut alias = None;
 
         loop {
@@ -339,6 +352,8 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
+        // TODO: We need to handle turbofish here
+
         loop {
             let (ident, is_macro) = self.identifier()?;
             result.push(PathSegment::Named(ident));
@@ -350,7 +365,7 @@ impl<'a> Parser<'a> {
 
             if is_macro || self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
                 break Ok(Some((
-                    Path(result).between_locs(&path_start, &path_end),
+                    Path(result, None).between_locs(&path_start, &path_end),
                     is_macro,
                     None,
                 )));
@@ -359,7 +374,7 @@ impl<'a> Parser<'a> {
                 let params = self.generic_spec_list()?.unwrap();
 
                 break Ok(Some((
-                    Path(result).between(self.file_id(), &path_start, &path_end),
+                    Path(result, None).between(self.file_id(), &path_start, &path_end),
                     is_macro,
                     Some(params.map(|p| TurbofishInner::Positional(p))),
                 )));
@@ -375,7 +390,7 @@ impl<'a> Parser<'a> {
                 )?;
 
                 break Ok(Some((
-                    Path(result).between(self.file_id(), &path_start, &path_end),
+                    Path(result, None).between(self.file_id(), &path_start, &path_end),
                     is_macro,
                     Some(TurbofishInner::Named(params).at_loc(&loc)),
                 )));

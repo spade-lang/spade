@@ -622,7 +622,7 @@ pub fn do_in_namespace(
     ctx.symtab
         .set_base_namespace(namespace.base_namespace.clone());
     to_do(ctx);
-    ctx.symtab.set_base_namespace(SpadePath(vec![]));
+    ctx.symtab.set_base_namespace(SpadePath(vec![], None));
     for _ in &namespace.namespace.0 {
         ctx.symtab.pop_namespace();
     }
@@ -686,7 +686,7 @@ fn lower_ast(
         ctx.symtab
             .set_base_namespace(namespace.base_namespace.clone());
         visit_module_body(module_ast, ctx).or_report(errors);
-        ctx.symtab.set_base_namespace(SpadePath(vec![]));
+        ctx.symtab.set_base_namespace(SpadePath(vec![], None));
         for _ in &namespace.namespace.0 {
             ctx.symtab.pop_namespace();
         }
