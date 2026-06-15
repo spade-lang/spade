@@ -185,7 +185,7 @@ fn follow_aliases<'a>(
 struct CompletionData {
     kind: CompletionItemKind,
     label: String,
-    snippet: String
+    snippet: String,
 }
 
 fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> CompletionData {
