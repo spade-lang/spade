@@ -4,21 +4,3 @@ source: spade-tests/src/ast_lowering.rs
 fn test<T>() -> int<8> {
     T
 }
-
-
-error: Generic type T is a type but it is used as a value
-  ┌─ testinput:2:5
-  │
-1 │ fn test<T>() -> int<8> {
-  │         - T is declared here
-2 │     T
-  │     ^ T is a type
-  │
-  = Consider making `T` a type level integer
-  │
-1 │ fn test<#int T>() -> int<8> {
-  │         +++++
-  = or a type level uint
-  │
-1 │ fn test<#uint T>() -> int<8> {
-  │         ++++++

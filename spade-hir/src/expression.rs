@@ -200,6 +200,7 @@ pub enum IncompleteExpression {
         has_inst: bool,
         has_depth: bool,
     },
+    Path(Loc<Path>),
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]

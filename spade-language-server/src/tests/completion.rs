@@ -335,3 +335,39 @@ test_completion! {
         }
     "
 }
+
+test_completion! {
+    path_completion_works,
+    "
+        mod abc {
+            mod def {
+                struct A {
+                    
+                }
+            }
+        }
+
+        fn main() {
+            abc::def
+              // ^[1] completion
+        }
+    "
+}
+
+test_completion! {
+    path_completion_works_on_partial_paths,
+    "
+        mod abc {
+            mod def {
+                struct A {
+                    
+                }
+            }
+        }
+
+        fn main() {
+            abc::
+              // ^[1] completion
+        }
+    "
+}

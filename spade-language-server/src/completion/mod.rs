@@ -1,3 +1,4 @@
+use spade_common::name::Path;
 use spade_hir::{
     expression::IncompleteExpression, query::Thing, symbol_table::SymbolTable, ParameterList,
     UnitKind,
@@ -10,7 +11,11 @@ use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionResponse, InsertTextFormat, Position, Url,
 };
 
-use crate::{backend::ServerBackend, util::PositionDetails};
+use crate::{
+    backend::ServerBackend,
+    completion::naked::{completion_data, follow_aliases, CompletionData},
+    util::PositionDetails,
+};
 
 mod locals;
 mod naked;
@@ -21,6 +26,8 @@ impl ServerBackend {
 
         let mut results = if let Some(from_type) = self.get_type_completions(&pos_details).await {
             Some(from_type)
+        } else if let Some(from_path) = self.get_path_completions(&pos_details).await {
+            Some(from_path)
         } else {
             self.get_naked_completions(pos, uri).await
         };
@@ -31,6 +38,134 @@ impl ServerBackend {
             _ => {}
         }
         results
+    }
+
+    async fn get_path_completions(
+        &self,
+        PositionDetails {
+            loc: cursor,
+            name: _,
+            unit_type_state: _,
+            current_unit,
+        }: &PositionDetails,
+    ) -> Option<CompletionResponse> {
+        let Some(symtab) = &*self.symtab.lock().unwrap() else {
+            return None;
+        };
+        let Some(current_unit) = current_unit else {
+            return None;
+        };
+
+        let qq = self.query_cache.lock().unwrap();
+
+        let paths_around = qq.paths_around(cursor);
+
+        let completions = paths_around
+            .iter()
+            .map(|name| {
+                let path_until_cursor = name
+                    .0
+                    .iter()
+                    .filter_map(|segment| match segment {
+                        spade_common::name::PathSegment::Named(name) => {
+                            if name.ends_before(cursor) {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+
+                if path_until_cursor.is_empty() {
+                    return vec![];
+                }
+
+                let path_until_cursor = Path::from_idents(&path_until_cursor);
+
+                // In order to perform completion, we need to get the full paths, not
+                // paths relative to the current namespace. The symtab currently does not
+                // have this information, and doesn't allow setting the base namespace right now,
+                // so we'll cheat and look in _all_ the possible paths.
+                let candidate_paths = {
+                    let unit_name = current_unit.name.name_id();
+
+                    let mut current = vec![];
+                    let mut result = vec![];
+                    for segment in &unit_name.1 .0 {
+                        current.push(segment.clone());
+                        result.push(current.clone());
+                    }
+                    result
+                };
+
+                symtab
+                    .symtab()
+                    .things
+                    .iter()
+                    .map(|(name, thing)| {
+                        candidate_paths
+                            .iter()
+                            .filter_map(|candidate| {
+                                let full_path = candidate
+                                    .iter()
+                                    .chain(path_until_cursor.0.iter())
+                                    .cloned()
+                                    .collect::<Vec<_>>();
+
+                                if !name.1 .0.is_empty() && name.1.prelude().0 == full_path {
+                                    let thing = follow_aliases(symtab.symtab(), thing)
+                                        .map(|(_, thing)| thing)
+                                        .unwrap_or(thing);
+
+                                    let name = name.1.tail();
+                                    let Some(name) = name.to_named_str() else {
+                                        return None;
+                                    };
+                                    let CompletionData {
+                                        kind,
+                                        label,
+                                        snippet,
+                                    } = completion_data(name, thing);
+
+                                    Some(CompletionItem {
+                                        label: label.clone(),
+                                        label_details: None,
+                                        kind: Some(kind),
+                                        detail: None,
+                                        documentation: None, // TODO: Docs
+                                        deprecated: None,    // TODO
+                                        preselect: None,
+                                        sort_text: Some(label.clone()),
+                                        filter_text: Some(label),
+                                        insert_text: Some(snippet),
+                                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                                        insert_text_mode: None,
+                                        text_edit: None,
+                                        additional_text_edits: None,
+                                        command: None,
+                                        commit_characters: None,
+                                        data: None,
+                                        tags: None,
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .flatten()
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        if completions.is_empty() {
+            None
+        } else {
+            Some(CompletionResponse::Array(completions))
+        }
     }
 
     async fn get_type_completions(
@@ -110,6 +245,7 @@ impl ServerBackend {
                             | spade_hir::ExprKind::StageValid
                             | spade_hir::ExprKind::StageReady
                             | spade_hir::ExprKind::StaticUnreachable(_)
+                            | spade_hir::ExprKind::Incomplete(_, _)
                             | spade_hir::ExprKind::Null => None,
                         }
                     }

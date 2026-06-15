@@ -224,6 +224,11 @@ impl<T> Loc<T> {
             && other.span.start() < self.span.end()
     }
 
+    /// Returns true if `self` ends before the start of `other`
+    pub fn ends_before<R>(&self, other: &Loc<R>) -> bool {
+        other.file_id == self.file_id && self.span.end() < other.span.start()
+    }
+
     pub fn start_span(&self) -> Loc<()> {
         ().at(
             self.file_id,

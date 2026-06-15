@@ -2535,7 +2535,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         }
         ast::Expression::Identifier(path) => {
             // If the identifier isn't a valid variable, report as "expected value".
-            match ctx.symtab.lookup_variable(path) {
+            let result = match ctx.symtab.lookup_variable(path) {
                 Ok(id) => Ok(hir::ExprKind::Identifier(id)),
                 Err(LookupError::IsAType(_, _)) => {
                     let ty = ctx.symtab.lookup_type_symbol(path, false)?;
@@ -2606,6 +2606,14 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     Err(LookupError::NotAValue(path, was).into())
                 }
                 Err(err) => Err(err.into()),
+            };
+
+            match result {
+                Ok(r) => Ok(r),
+                Err(diag) => Ok(hir::ExprKind::Incomplete(
+                    diag,
+                    hir::expression::IncompleteExpression::Path(path.clone()),
+                )),
             }
         }
         ast::Expression::PipelineReference {

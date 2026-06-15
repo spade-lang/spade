@@ -224,20 +224,27 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn path(&mut self) -> Result<Loc<Path>> {
+        self.path_allow_trailing_separator().map(|(path, _)| path)
+    }
+
+    pub fn path_allow_trailing_separator(&mut self) -> Result<(Loc<Path>, bool)> {
         let first = self.normal_identifier()?;
 
         self.continue_path(Path::ident(first).at_loc(&first))
     }
 
+    /// Continue parsing a path that has been parsed with `leading` so far. This allows
+    /// a a trailing `::`, primarily to improve completion. If the leading is present `(_, true)`
+    /// is returned, otherwise `(_, false)`
     #[trace_parser]
-    pub fn continue_path(&mut self, mut leading: Loc<Path>) -> Result<Loc<Path>> {
+    pub fn continue_path(&mut self, mut leading: Loc<Path>) -> Result<(Loc<Path>, bool)> {
         if self.peek_and_eat(&TokenKind::PathSeparator)?.is_some() {
             let next = self.peek()?;
+            let next_loc = next.loc();
 
             if let TokenKind::Identifier(_) = next.kind {
                 let next = self.normal_identifier()?;
 
-                let next_loc = next.loc();
                 leading.0.push(PathSegment::Named(next));
 
                 let leading_loc = leading.loc();
@@ -245,10 +252,11 @@ impl<'a> Parser<'a> {
             } else {
                 leading.1 = Some(().at(self.file_id(), &next));
 
-                Ok(leading)
+                let leading_loc = leading.loc();
+                Ok((leading.inner.between_locs(&leading_loc, &next_loc), true))
             }
         } else {
-            Ok(leading)
+            Ok((leading, false))
         }
     }
 
@@ -347,37 +355,24 @@ impl<'a> Parser<'a> {
     pub fn path_with_turbofish(
         &mut self,
     ) -> Result<Option<(Loc<Path>, bool, Option<Loc<TurbofishInner>>)>> {
-        let mut result = vec![];
         if !self.peek_cond(TokenKind::is_identifier, "Identifier")? {
             return Ok(None);
         }
 
-        // TODO: We need to handle turbofish here
+        let (path, has_trailing_separator) = self.path_allow_trailing_separator()?;
 
-        loop {
-            let (ident, is_macro) = self.identifier()?;
-            result.push(PathSegment::Named(ident));
+        let is_macro = false; // TODO: is_macro
 
-            // NOTE: (safe unwrap) The vec will have at least one element because the first thing
-            // in the loop must push an identifier.
-            let path_start = result.first().unwrap().loc();
-            let path_end = result.last().unwrap().loc();
-
-            if is_macro || self.peek_and_eat(&TokenKind::PathSeparator)?.is_none() {
-                break Ok(Some((
-                    Path(result, None).between_locs(&path_start, &path_end),
-                    is_macro,
-                    None,
-                )));
-            } else if self.peek_kind(&TokenKind::Lt)? {
+        if has_trailing_separator {
+            if self.peek_kind(&TokenKind::Lt)? {
                 // safe unwrap, only None for token kind != Lt
                 let params = self.generic_spec_list()?.unwrap();
 
-                break Ok(Some((
-                    Path(result, None).between(self.file_id(), &path_start, &path_end),
+                Ok(Some((
+                    path,
                     is_macro,
                     Some(params.map(|p| TurbofishInner::Positional(p))),
-                )));
+                )))
             } else if self.peek_kind(&TokenKind::Dollar)? {
                 self.eat_unconditional()?;
                 let (params, loc) = self.surrounded(
@@ -389,12 +384,16 @@ impl<'a> Parser<'a> {
                     &TokenKind::Gt,
                 )?;
 
-                break Ok(Some((
-                    Path(result, None).between(self.file_id(), &path_start, &path_end),
+                Ok(Some((
+                    path,
                     is_macro,
                     Some(TurbofishInner::Named(params).at_loc(&loc)),
-                )));
+                )))
+            } else {
+                Ok(Some((path, false, None)))
             }
+        } else {
+            Ok(Some((path, false, None)))
         }
     }
 

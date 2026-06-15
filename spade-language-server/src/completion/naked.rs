@@ -152,7 +152,7 @@ impl ServerBackend {
     }
 }
 
-fn follow_aliases<'a>(
+pub(crate) fn follow_aliases<'a>(
     symtab: &'a SymbolTable,
     thing: &spade_hir::symbol_table::Thing,
 ) -> Option<(NameID, &'a spade_hir::symbol_table::Thing)> {
@@ -182,13 +182,16 @@ fn follow_aliases<'a>(
     }
 }
 
-struct CompletionData {
-    kind: CompletionItemKind,
-    label: String,
-    snippet: String,
+pub(crate) struct CompletionData {
+    pub kind: CompletionItemKind,
+    pub label: String,
+    pub snippet: String,
 }
 
-fn completion_data(name: &str, thing: &spade_hir::symbol_table::Thing) -> CompletionData {
+pub(crate) fn completion_data(
+    name: &str,
+    thing: &spade_hir::symbol_table::Thing,
+) -> CompletionData {
     let kind = match thing {
         spade_hir::symbol_table::Thing::Struct(_) => CompletionItemKind::STRUCT,
         spade_hir::symbol_table::Thing::EnumVariant(_) => CompletionItemKind::ENUM,

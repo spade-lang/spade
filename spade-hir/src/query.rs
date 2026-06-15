@@ -5,7 +5,7 @@ use spade_common::{
     id_tracker::ExprID,
     loc_map::LocMap,
     location_info::{Loc, WithLocation},
-    name::NameID,
+    name::{NameID, Path},
 };
 
 use crate::{
@@ -27,6 +27,7 @@ pub enum Thing {
 pub struct QueryCache {
     things: LocMap<Thing>,
     names: LocMap<NameID>,
+    paths: LocMap<Path>,
     // FIXME: To support patterns, this needs to not be just Loc<Expression> anymore
     ids: BTreeMap<ExprID, Loc<Expression>>,
 }
@@ -37,6 +38,7 @@ impl QueryCache {
         QueryCache {
             things: LocMap::new(),
             names: LocMap::new(),
+            paths: LocMap::new(),
             ids: BTreeMap::new(),
         }
     }
@@ -63,8 +65,17 @@ impl QueryCache {
         self.names.around(loc)
     }
 
+    pub fn paths_around(&self, loc: &Loc<()>) -> Vec<Loc<&Path>> {
+        self.paths.around(loc)
+    }
+
     pub fn id_to_expression(&self, id: ExprID) -> Option<&Loc<Expression>> {
         self.ids.get(&id).map(|x| x)
+    }
+
+    fn handle_nameid(&mut self, name: Loc<NameID>) {
+        self.paths.insert(name.1.clone().at_loc(&name));
+        self.names.insert(name.clone());
     }
 }
 
@@ -96,7 +107,7 @@ impl<'a> QueryCache {
     fn visit_expr_kind(&mut self, kind: &Loc<&ExprKind>) {
         match &kind.inner {
             crate::ExprKind::Error => {}
-            crate::ExprKind::Identifier(ident) => self.names.insert(ident.clone().at_loc(kind)),
+            crate::ExprKind::Identifier(ident) => self.handle_nameid(ident.clone().at_loc(kind)),
             crate::ExprKind::IntLiteral(_, _) => {}
             crate::ExprKind::BoolLiteral(_) => {}
             crate::ExprKind::TriLiteral(_) => {}
@@ -142,7 +153,7 @@ impl<'a> QueryCache {
                 safety: _,
                 verilog_attr_groups: _,
             } => {
-                self.names.insert(callee.clone());
+                self.handle_nameid(callee.clone());
                 // FIXME: handle callee and turbofish
                 self.visit_arg_list(args)
             }
@@ -218,6 +229,7 @@ impl<'a> QueryCache {
                     has_inst: _,
                     has_depth: _,
                 } => self.visit_expression(base),
+                IncompleteExpression::Path(path) => self.paths.insert(path.clone()),
             },
         }
     }
@@ -242,7 +254,7 @@ impl<'a> QueryCache {
                 pre_declared: _,
                 wire: _,
             } => {
-                self.names.insert(name.clone());
+                self.handle_nameid(name.clone());
                 if let Some(pat) = inner {
                     self.visit_pattern(&pat);
                 }
@@ -258,7 +270,7 @@ impl<'a> QueryCache {
                 }
             }
             PatternKind::Type(base, args) => {
-                self.names.insert(base.clone());
+                self.handle_nameid(base.clone());
                 for PatternArgument {
                     target: _,
                     value,
@@ -310,12 +322,12 @@ impl<'a> QueryCache {
             }
             Statement::Declaration(names) => {
                 for name in names {
-                    self.names.insert(name.clone());
+                    self.handle_nameid(name.clone());
                 }
             }
             Statement::PipelineRegMarker(_) => {}
             Statement::Label(l) => {
-                self.names.insert(l.clone());
+                self.handle_nameid(l.clone());
             }
             Statement::Assert(expr) => self.visit_expression(expr),
             Statement::Set { target, value } => {
@@ -348,7 +360,7 @@ impl<'a> QueryCache {
     }
 
     fn visit_type_decl(&mut self, ty: &TypeDeclaration) {
-        self.names.insert(ty.name.clone());
+        self.handle_nameid(ty.name.clone());
         match &ty.kind {
             TypeDeclKind::Enum(e) => self.visit_enum_decl(e),
             TypeDeclKind::Primitive(_) => {}
@@ -378,12 +390,12 @@ impl<'a> QueryCache {
     fn visit_type_spec(&mut self, ts: &Loc<TypeSpec>) {
         match &ts.inner {
             TypeSpec::Declared(n, params) => {
-                self.names.insert(n.clone());
+                self.handle_nameid(n.clone());
                 for param in params {
                     self.visit_type_expr(param);
                 }
             }
-            TypeSpec::Generic(Generic::Named(n)) => self.names.insert(n.clone()),
+            TypeSpec::Generic(Generic::Named(n)) => self.handle_nameid(n.clone()),
             TypeSpec::Generic(Generic::Hidden(_)) => {}
             TypeSpec::Tuple(inner) => {
                 for i in inner {
@@ -415,7 +427,7 @@ impl<'a> QueryCache {
 
     fn visit_const_generic(&mut self, cg: &Loc<ConstGeneric>) {
         match &cg.inner {
-            ConstGeneric::Name(n) => self.names.insert(n.clone()),
+            ConstGeneric::Name(n) => self.handle_nameid(n.clone()),
             ConstGeneric::Bool(_) => {}
             ConstGeneric::Int(_) => {}
             ConstGeneric::Str(_) => {}

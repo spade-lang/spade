@@ -1,8 +1,5 @@
 use spade_common::location_info::Loc;
-use spade_hir::{
-    Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement, Unit,
-    expression::IncompleteExpression,
-};
+use spade_hir::{Binding, ExprKind, Expression, PipelineRegMarkerExtra, Register, Statement, Unit};
 
 use crate::Result;
 
@@ -203,14 +200,7 @@ impl Passable for Loc<Expression> {
             | ExprKind::Null
             | ExprKind::StaticUnreachable(_) => {}
 
-            ExprKind::Incomplete(
-                _,
-                IncompleteExpression::IncompleteDot {
-                    base,
-                    has_depth: _,
-                    has_inst: _,
-                },
-            ) => subnodes!(base),
+            ExprKind::Incomplete(_, _) => {}
         };
 
         pass.visit_expression(self)

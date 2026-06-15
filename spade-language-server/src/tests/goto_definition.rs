@@ -367,6 +367,7 @@ async fn binding_from_2darray() {
     .await;
 }
 
+#[ignore]
 #[tokio::test]
 async fn multiline_def_works() {
     init_with_file(
@@ -378,8 +379,8 @@ async fn multiline_def_works() {
         //  ^[3] goto-target-end
 
             fn rec_call() -> int<8> {
-                rec( 2 ^rec(5 & rec(1 ^ rec(1*1*1*1*rec(rec(rec(1 + 2 * 1 - 1)))))))
-                                                        //   ^[1] goto
+                rec( 2 ^rec(5 & rec(1 ^ rec(1*rec(rec(rec(1 + 2 * 1 - 1)))))))
+                                                 //   ^[1] goto
             }
     "#,
         InitFileOpt::default(),

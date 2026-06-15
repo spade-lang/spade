@@ -1,0 +1,20 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+        mod abc {
+            mod def {
+                struct A {
+                    
+                }
+            }
+        }
+
+        fn main() {
+            abc::
+              // ^[1] completion
+        }
+    
+---code ⬆️ completion ⬇️ ---
+def	def
