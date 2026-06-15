@@ -20,8 +20,8 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-NameOfStruct(…) [proj::NameOfStruct]	NameOfStruct(${1})$0
+NameOfStruct(…) [proj::NameOfStruct]	NameOfStruct(${1:field_a}, ${2:field_b})$0
 Self [proj::Self]	Self
-foo(…) [proj::foo]	foo(${1})$0
+foo() [proj::foo]	foo()$0
 proj [proj]	proj
 s	-

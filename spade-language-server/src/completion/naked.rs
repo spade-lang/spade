@@ -2,8 +2,8 @@ use itertools::Itertools;
 use spade_common::name::NameID;
 use spade_hir::{symbol_table::SymbolTable, ParameterList, UnitKind};
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionResponse, Position,
-    Url,
+    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionResponse,
+    InsertTextFormat, Position, Url,
 };
 
 use crate::{
@@ -66,9 +66,16 @@ impl ServerBackend {
                         | spade_hir::symbol_table::Thing::Dummy => false,
                     };
 
+                    // We don't want to complete enum variants unless they are explicitly imported
+                    // with an alias
+                    if let spade_hir::symbol_table::Thing::EnumVariant(_) = thing {
+                        return None;
+                    }
+
                     if is_unnameable || is_local {
                         return None;
                     }
+
 
                     let resolved_thing = follow_aliases(symtab.symtab(), thing);
 
@@ -128,7 +135,7 @@ impl ServerBackend {
                         sort_text: None,
                         filter_text: filter_text.clone(),
                         insert_text: Some(snippet),
-                        insert_text_format: None,
+                        insert_text_format: Some(InsertTextFormat::SNIPPET),
                         insert_text_mode: None,
                         text_edit: None,
                         additional_text_edits: None,
@@ -205,11 +212,13 @@ pub(crate) fn completion_data(
         spade_hir::symbol_table::Thing::Dummy => CompletionItemKind::MODULE,
     };
 
+    let is_enum_variant = matches!(thing, spade_hir::symbol_table::Thing::EnumVariant(_));
+
     let mut sb = SnippetBuilder::new();
     let mut unit_like = |params: &ParameterList, kind: &UnitKind| {
         // FIXME Use `inst` data here
         let (inst_label, inst_snippet) = kind.label_snippet(false, false, &mut sb);
-        let (arg_label, arg_snippet) = params.label_snippet(&mut sb);
+        let (arg_label, arg_snippet) = params.label_snippet(&mut sb, is_enum_variant, false);
 
         (
             format!("{inst_label}{name}{arg_label}"),

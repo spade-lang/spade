@@ -371,3 +371,34 @@ test_completion! {
         }
     "
 }
+
+test_completion! {
+    non_imported_enum_variants_are_not_naked_completed,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            
+        // ^[1] completion
+        }
+    "
+}
+
+test_completion! {
+    enum_variants_are_path_completed,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            A::
+            // ^[1] completion
+        }
+    "
+}
+

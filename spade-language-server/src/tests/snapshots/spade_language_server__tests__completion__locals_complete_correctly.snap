@@ -31,4 +31,4 @@ before_reg	-
 clk	-
 inner_let	-
 proj [proj]	proj
-test(…) [proj::test]	inst test(${1})$0
+test(…) [proj::test]	inst test(${1:clk}, ${2:argument})$0

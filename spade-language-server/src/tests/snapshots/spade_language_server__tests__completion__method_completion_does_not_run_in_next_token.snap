@@ -15,6 +15,6 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-NameOfStruct(…) [proj::NameOfStruct]	NameOfStruct(${1})$0
+NameOfStruct() [proj::NameOfStruct]	NameOfStruct()$0
 Self [proj::Self]	Self
 proj [proj]	proj

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use spade_common::name::Path;
 use spade_hir::{
     expression::IncompleteExpression, query::Thing, symbol_table::SymbolTable, ParameterList,
@@ -343,16 +344,42 @@ impl UnitKindExt for UnitKind {
 }
 
 trait ParamListExt {
-    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String);
+    fn label_snippet(
+        &self,
+        snippet_builder: &mut SnippetBuilder,
+        is_enum_variant: bool,
+        is_nonstatic_method: bool,
+    ) -> (String, String);
 }
 impl ParamListExt for ParameterList {
-    fn label_snippet(&self, snippet_builder: &mut SnippetBuilder) -> (String, String) {
-        if self.0.len() == 1 {
-            (format!("()"), format!("()$0"))
+    fn label_snippet(
+        &self,
+        snippet_builder: &mut SnippetBuilder,
+        is_enum_variant: bool,
+        is_nonstatic_method: bool,
+    ) -> (String, String) {
+        let relevant_params = if is_nonstatic_method {
+            self.0.iter().skip(1).collect::<Vec<_>>()
+        } else {
+            self.0.iter().collect::<Vec<_>>()
+        };
+
+        if relevant_params.len() == 0 {
+            if !is_enum_variant {
+                (format!("()"), format!("()$0"))
+            } else {
+                (String::new(), String::new())
+            }
         } else {
             (
                 format!("(…)"),
-                format!("(${{{}}})$0", snippet_builder.next()),
+                format!(
+                    "({})$0",
+                    relevant_params
+                        .iter()
+                        .map(|param| format!("${{{}:{}}}", snippet_builder.next(), param.name))
+                        .join(", ")
+                ),
             )
         }
     }
@@ -376,7 +403,8 @@ fn type_field_completions(
                 actual_fn
                     .unit_kind
                     .label_snippet(has_inst, has_depth, &mut snippet_builder);
-            let (arg_label, arg_snippet) = actual_fn.inputs.label_snippet(&mut snippet_builder);
+            let (arg_label, arg_snippet) =
+                actual_fn.inputs.label_snippet(&mut snippet_builder, false, true);
 
             let label = format!("{inst_label}{method}{arg_label}");
             let inserted = Some(format!("{inst_snippet}{method}{arg_snippet}"));

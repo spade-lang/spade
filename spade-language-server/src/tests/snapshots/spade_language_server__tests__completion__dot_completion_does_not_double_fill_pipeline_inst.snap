@@ -17,4 +17,4 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
     
 ---code ⬆️ completion ⬇️ ---
 func()	func()$0
-funct(…)	funct(${1})$0
+funct(…)	funct(${1:clk})$0
