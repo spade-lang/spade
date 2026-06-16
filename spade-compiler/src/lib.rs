@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use tracing::Level;
 use typeinference::TypeState;
 
-use spade_ast::{MacroRules, ModuleBody};
+use spade_ast::{FloatingNodes, MacroRules, ModuleBody};
 use spade_ast_lowering::{
     Context as AstLoweringCtx, SelfContext, auto_traits, ensure_unique_anonymous_traits,
     global_symbols, visit_module_body,
@@ -64,6 +64,7 @@ pub struct Artefacts {
     pub state: CompilerState,
     pub impl_list: TraitImplList,
     pub type_states: BTreeMap<NameID, TypeState>,
+    pub floating_nodes: FloatingNodes,
 }
 
 /// Like [Artefacts], but if the compiler didn't finish due to errors.
@@ -71,6 +72,7 @@ pub struct UnfinishedArtefacts {
     pub code: Arc<RwLock<CodeBundle>>,
     pub symtab: Option<SymbolTable>,
     pub item_list: Option<ItemList>,
+    pub floating_nodes: Option<FloatingNodes>,
     pub type_states: Option<BTreeMap<NameID, TypeState>>,
 }
 
@@ -99,6 +101,7 @@ pub struct GlobalCompilationState {
     shared_type_state: Arc<SharedTypeState>,
     impl_idtracker: ImplIdTracker,
     generic_idtracker: GenericIdTracker,
+    floating_nodes: FloatingNodes,
     macros: HashMap<NameID, MacroRules>,
 }
 
@@ -121,8 +124,10 @@ pub fn run_global_compilation_tasks(
 
     spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
 
-    let module_asts = parse(sources, Arc::clone(&code), print_parse_traceback, errors);
+    let (module_asts, floating_nodes) = parse(sources, Arc::clone(&code), print_parse_traceback, errors);
     errors.errors_are_recoverable();
+
+    unfinished_artefacts.floating_nodes = Some(floating_nodes.clone());
 
     let mut ctx = AstLoweringCtx {
         symtab,
@@ -296,6 +301,7 @@ pub fn run_global_compilation_tasks(
         impl_idtracker,
         generic_idtracker,
         macros,
+        floating_nodes,
     })
 }
 
@@ -429,6 +435,7 @@ pub fn compile(
         symtab: None,
         item_list: None,
         type_states: None,
+        floating_nodes: None,
     };
 
     let pass_impls = spade_mir::passes::mir_passes();
@@ -501,6 +508,7 @@ pub fn compile(
         impl_idtracker,
         generic_idtracker,
         macros,
+        floating_nodes
     } = global_compilation_state;
 
     let mut state = CompilerState {
@@ -521,6 +529,7 @@ pub fn compile(
         instance_map: None,
         mir_context: None,
         shared_type_state,
+        floating_nodes: floating_nodes.clone(),
         trait_impl_list: mapped_trait_impls.clone(),
     };
 
@@ -540,7 +549,6 @@ pub fn compile(
             &state.idtracker,
             &state.symtab.symtab().id_tracker,
         );
-
         final_bumpy_mir_entities = Some(bumpy_mir_entities);
         state.mir_context = Some(mir_context);
         state.instance_map = Some(instance_map);
@@ -599,6 +607,7 @@ pub fn compile(
         impl_list: mapped_trait_impls,
         state: stored_state.into_compiler_state(),
         type_states,
+        floating_nodes
     };
 
     if !errors.failed() {
@@ -634,8 +643,9 @@ pub fn parse(
     code: Arc<RwLock<CodeBundle>>,
     print_parse_traceback: Option<String>,
     errors: &mut ErrorHandler,
-) -> Vec<(ModuleNamespace, Loc<ModuleBody>)> {
+) -> (Vec<(ModuleNamespace, Loc<ModuleBody>)>, FloatingNodes) {
     let mut module_asts = vec![];
+    let mut floating_nodes = FloatingNodes::default();
     // Read and parse input files
     for (namespace, name, content) in sources {
         let _span = tracing::span!(Level::TRACE, "source", ?name).entered();
@@ -663,9 +673,11 @@ pub fn parse(
         if let Some(ast) = result {
             module_asts.push((namespace, ast))
         }
+
+        floating_nodes.merge(parser.floating_nodes);
     }
 
-    module_asts
+    (module_asts, floating_nodes)
 }
 
 #[tracing::instrument(skip_all)]

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use spade_ast::FloatingNodes;
 use spade_common::{
     id_tracker::ExprID,
     loc_map::LocMap,
@@ -8,7 +9,7 @@ use spade_common::{
     name::{NameID, Path},
 };
 
-use crate::{
+use spade_hir::{
     ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind, Expression, Generic,
     ItemList, Pattern, PatternArgument, PatternKind, Register, Statement, Struct, TypeAlias,
     TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
@@ -43,7 +44,7 @@ impl QueryCache {
         }
     }
 
-    pub fn from_item_list(items: &ItemList) -> Self {
+    pub fn from_artifacts(items: &ItemList, floating_nodes: &FloatingNodes) -> Self {
         let mut result = QueryCache::empty();
 
         for (_, item) in items.executables.iter() {
@@ -52,6 +53,13 @@ impl QueryCache {
 
         for (_, ty) in items.types.iter() {
             result.visit_type_decl(ty)
+        }
+
+        {
+            let FloatingNodes { paths } = floating_nodes;
+            for path in paths {
+                result.handle_path(path.clone());
+            }
         }
 
         result
@@ -74,8 +82,11 @@ impl QueryCache {
     }
 
     fn handle_nameid(&mut self, name: Loc<NameID>) {
-        self.paths.insert(name.1.clone().at_loc(&name));
         self.names.insert(name.clone());
+    }
+
+    fn handle_path(&mut self, path: Loc<Path>) {
+        self.paths.insert(path);
     }
 }
 

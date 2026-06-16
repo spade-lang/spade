@@ -41,6 +41,7 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
                 let things_around = qq.things_around(&details.loc);
 
                 println!("The things around are :\n{:?}", things_around);
+                println!("The paths around are :\n{:?}", qq.paths_around(&details.loc));
             })
             .expect("The completion marker did not resolve to a loc...");
 
@@ -398,6 +399,99 @@ test_completion! {
         fn main() {
             A::
             // ^[1] completion
+        }
+    "
+}
+
+
+test_completion! {
+    enum_variants_are_path_completed_in_incomplete_contexts,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            let A::
+                // ^[1] completion
+            0
+        }
+    "
+}
+
+test_completion! {
+    enum_variants_are_path_completed_in_incomplete_contexts2,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            let A::
+                // ^[1] completion
+        }
+    "
+}
+
+
+test_completion! {
+    enum_variants_are_path_completed_in_incomplete_match_statements,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            match x {
+                A::
+                // ^[1] completion
+            }
+        }
+    "
+}
+
+test_completion! {
+    broken_match_statements_dont_break_subsequent,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            match x {
+                A::  =>
+            }
+        }
+
+        fn func2() {
+            A::
+            // ^[1] completion
+        }
+    "
+}
+
+test_completion! {
+    broken_match_statements_dont_break_subsequent2,
+    "
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            let x = ;
+            match x {
+                A::  =>
+            }
+        }
+
+        fn func2() {
+         
+        // ^[1] completion
         }
     "
 }

@@ -1059,3 +1059,35 @@ pub struct ModuleBody {
     pub members: Vec<Item>,
     pub documentation: Vec<String>,
 }
+
+/// Contains AST nodes that were found during parsing even if they did not end
+/// up being part of a complete ast node.
+///
+/// For example,
+/// ```
+/// match something {
+///     path::
+/// }
+/// ```
+///
+/// would result in `path::` being added to `paths` even though the match expression
+/// is missing a branch which makes the parser bail
+///
+/// This is primarily used by completion
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct FloatingNodes {
+    pub paths: Vec<Loc<Path>>
+}
+
+impl FloatingNodes {
+    pub fn add_path(&mut self, path: Loc<Path>) {
+        self.paths.push(path)
+    }
+
+    pub fn merge(&mut self, other: FloatingNodes) {
+        let FloatingNodes {
+            paths
+        } = other;
+        self.paths.extend(paths)
+    }
+}

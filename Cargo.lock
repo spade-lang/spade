@@ -3549,6 +3549,7 @@ dependencies = [
  "spade-macros",
  "spade-mir",
  "spade-parser",
+ "spade-query",
  "spade-typeinference",
  "spade-types",
  "tikv-jemallocator",
@@ -3579,6 +3580,7 @@ dependencies = [
  "spade-diagnostics",
  "spade-hir",
  "spade-lang",
+ "spade-query",
  "spade-typeinference",
  "spade-types",
  "swim",
@@ -3665,6 +3667,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spade-query"
+version = "0.19.0"
+dependencies = [
+ "serde",
+ "spade-ast",
+ "spade-common",
+ "spade-hir",
+]
+
+[[package]]
 name = "spade-simulation-ext"
 version = "0.19.0"
 dependencies = [
@@ -3716,6 +3728,7 @@ dependencies = [
  "spade-hir",
  "spade-hir-lowering",
  "spade-lang",
+ "spade-query",
  "spade-types",
  "surfer-translation-types",
 ]

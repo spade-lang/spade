@@ -1,0 +1,18 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+        enum A {
+            B,
+            C{x: bool},
+        }
+
+        fn main() {
+            let A::
+                // ^[1] completion
+        }
+    
+---code ⬆️ completion ⬇️ ---
+B	B
+C(…)	C(${1:x})$0

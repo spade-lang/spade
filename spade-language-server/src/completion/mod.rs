@@ -1,9 +1,10 @@
 use itertools::Itertools;
 use spade_common::name::Path;
 use spade_hir::{
-    expression::IncompleteExpression, query::Thing, symbol_table::SymbolTable, ParameterList,
+    expression::IncompleteExpression, symbol_table::SymbolTable, ParameterList,
     UnitKind,
 };
+use spade_query::Thing;
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,
     TypeState,

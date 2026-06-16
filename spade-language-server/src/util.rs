@@ -10,9 +10,10 @@ use spade_common::{
 };
 use spade_diagnostics::CodeBundle;
 use spade_hir::{
-    query::Thing, symbol_table::StructCallable, ExecutableItem, ExprKind, Expression, TypeSpec,
+    symbol_table::StructCallable, ExecutableItem, ExprKind, Expression, TypeSpec,
     Unit, UnitHead,
 };
+use spade_query::Thing;
 use spade_typeinference::{
     equation::{TypeVar, TypeVarID},
     method_resolution::select_method,

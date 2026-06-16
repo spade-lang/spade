@@ -20,6 +20,7 @@ homepage = "https://spade-lang.org"
 repository = "https://gitlab.com/spade-lang/spade"
 
 [workspace.dependencies]
+spade-lang = {path = "spade-compiler", version = "0.19.0"}
 spade-ast = {path = "spade-ast", version = "0.19.0"}
 spade-ast-lowering = {path = "spade-ast-lowering", version = "0.19.0"}
 spade-common = {path = "spade-common", version = "0.19.0"}
@@ -31,6 +32,7 @@ spade-mir = {path = "spade-mir", version = "0.19.0"}
 spade-parser = {path = "spade-parser", version = "0.19.0"}
 spade-typeinference = {path = "spade-typeinference", version = "0.19.0"}
 spade-types = {path = "spade-types", version = "0.19.0"}
+spade-query = {path = "spade-query", version = "0.19.0"}
 
 bumpalo = { version = "3.14.0" }
 clap = { version = "4.4", features = ["derive"] }

@@ -18,11 +18,7 @@ use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterP
 use tracing::{Level, debug, event};
 
 use spade_ast::{
-    ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
-    EnumVariant, Expression, Inequality, IntLiteral, Item, MacroPattern, MacroRepetitions,
-    ModuleBody, NamedArgument, NamedTurbofish, ParameterList, ParseCtx, Pattern,
-    PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeDeclaration, TypeExpression,
-    TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause, WireMarker,
+    ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind, EnumVariant, Expression, FloatingNodes, Inequality, IntLiteral, Item, MacroPattern, MacroRepetitions, ModuleBody, NamedArgument, NamedTurbofish, ParameterList, ParseCtx, Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause, WireMarker
 };
 use spade_common::location_info::{AsLabel, FullSpan, HasCodespan, Loc, WithLocation, lspan};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
@@ -130,6 +126,7 @@ pub struct Parser<'a> {
     parse_ctx: Rc<ParseCtx>,
     unit_context: Option<Loc<UnitKind>>,
     pub diags: DiagList,
+    pub floating_nodes: FloatingNodes,
     recovering_tokens: Vec<fn(&TokenKind) -> bool>,
     comments: Vec<Comment>,
 }
@@ -157,6 +154,7 @@ impl<'a> Parser<'a> {
             parse_ctx,
             unit_context: None,
             diags: DiagList::new(),
+            floating_nodes: FloatingNodes::default(),
             recovering_tokens: vec![|tok| tok == &TokenKind::Eof],
             comments: vec![],
         }
@@ -205,7 +203,9 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn path(&mut self) -> Result<Loc<Path>> {
-        self.path_allow_trailing_separator().map(|(path, _)| path)
+        let result = self.path_allow_trailing_separator().map(|(path, _)| path)?;
+        self.floating_nodes.add_path(result.clone());
+        Ok(result)
     }
 
     pub fn path_allow_trailing_separator(&mut self) -> Result<(Loc<Path>, bool)> {
@@ -3012,10 +3012,12 @@ impl<'a> Parser<'a> {
         self.parse_stack
             .push(ParseStackEntry::EatingExpected(expected.clone()));
         // Calling keep and eat in order to correctly handle >> as > > if desired
-        let next = self.eat_unconditional()?;
+        let next = self.peek()?;
         if &next.kind == expected {
+            self.eat_unconditional()?;
             Ok(next)
         } else if expected == &TokenKind::Gt && next.kind == TokenKind::RightShift {
+            self.eat_unconditional()?;
             self.peeked = Some(Token {
                 kind: TokenKind::Gt,
                 span: next.span.end..next.span.end,
@@ -3027,6 +3029,7 @@ impl<'a> Parser<'a> {
                 file_id: next.file_id,
             })
         } else if expected == &TokenKind::Gt && next.kind == TokenKind::ArithmeticRightShift {
+            self.eat_unconditional()?;
             self.peeked = Some(Token {
                 kind: TokenKind::RightShift,
                 span: next.span.start + 1..next.span.end,

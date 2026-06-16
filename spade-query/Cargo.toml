@@ -1,0 +1,15 @@
+[package]
+name = "spade-query"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+spade-ast.workspace = true
+spade-hir.workspace = true
+spade-common.workspace = true
+serde.workspace = true

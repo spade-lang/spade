@@ -19,8 +19,9 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     name::{Identifier, NameID, Path, PathSegment},
 };
-use spade_hir::{Expression, expression::CallKind, query::QueryCache};
+use spade_hir::{Expression, expression::CallKind};
 use spade_hir_lowering::{MirLowerable, name_map::NameSource};
+use spade_query::QueryCache;
 use spade_types::{ConcreteType, PrimitiveType};
 use std::sync::Mutex;
 use surfer_translation_types::{

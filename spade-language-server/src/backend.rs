@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use camino::Utf8PathBuf;
 use spade_common::name::NameID;
 use spade_diagnostics::CodeBundle;
-use spade_hir::query::QueryCache;
+use spade_query::QueryCache;
 use spade_hir::symbol_table::FrozenSymtab;
 use spade_hir::ItemList;
 use spade_typeinference::traits::TraitImplList;

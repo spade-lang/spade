@@ -111,7 +111,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
 
     let mut errors = ErrorHandler::new(opts.error_buffer, diag_handler, Arc::clone(&code));
 
-    let module_asts = parse(
+    let (module_asts, _floating) = parse(
         sources,
         Arc::clone(&code),
         opts.print_parse_traceback,

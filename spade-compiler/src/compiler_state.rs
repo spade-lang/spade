@@ -7,13 +7,12 @@ use color_eyre::eyre::anyhow;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
-use spade_ast::MacroRules;
+use spade_ast::{FloatingNodes, MacroRules};
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::name::NameID;
 use spade_common::{id_tracker::GenericIdTracker, location_info::WithLocation};
 use spade_hir::{
     ItemList,
-    query::QueryCache,
     symbol_table::{FrozenSymtab, SymbolTable},
 };
 use spade_hir_lowering::{
@@ -24,6 +23,7 @@ use spade_mir::{
     renaming::{VerilogNameMap, VerilogNameSource},
     unit_name::InstanceMap,
 };
+use spade_query::QueryCache;
 use spade_typeinference::{
     HasType, OwnedTypeState, SharedTypeState, TypeState, equation::TypedExpression,
     traits::TraitImplList,
@@ -106,6 +106,7 @@ pub struct StoredCompilerState {
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub shared_type_state: Arc<SharedTypeState>,
     pub trait_impl_list: TraitImplList,
+    pub floating_nodes: FloatingNodes,
 
     pub instance_map: Option<InstanceMap>,
     pub mir_context: Option<HashMap<NameID, StoredMirContext>>,
@@ -125,6 +126,7 @@ impl StoredCompilerState {
             instance_map,
             mir_context,
             shared_type_state,
+            floating_nodes,
             trait_impl_list,
         } = self;
 
@@ -144,6 +146,7 @@ impl StoredCompilerState {
                     .map(|(k, v)| (k, v.with_shared(Arc::clone(&shared_type_state))))
                     .collect()
             }),
+            floating_nodes,
             shared_type_state,
             trait_impl_list,
         }
@@ -162,6 +165,7 @@ pub struct CompilerState {
     pub name_source_map: Arc<RwLock<NameSourceMap>>,
     pub shared_type_state: Arc<SharedTypeState>,
     pub trait_impl_list: TraitImplList,
+    pub floating_nodes: FloatingNodes,
 
     // These fields are not present if code generation is not run. In this
     // case, running any methods that require them will panic.
@@ -187,13 +191,14 @@ impl CompilerState {
                     .map(|(k, v)| (k, v.to_stored()))
                     .collect()
             }),
+            floating_nodes: self.floating_nodes,
             shared_type_state: self.shared_type_state,
             trait_impl_list: self.trait_impl_list,
         }
     }
 
     pub fn build_query_cache<'a>(&'a self) -> QueryCache {
-        QueryCache::from_item_list(&self.item_list)
+        QueryCache::from_artifacts(&self.item_list, &self.floating_nodes)
     }
 
     // Attempts to demangle the specified string to the corresponding snippet of source code
@@ -302,6 +307,7 @@ impl SerializedSize for StoredCompilerState {
             instance_map,
             mir_context,
             shared_type_state,
+            floating_nodes,
             trait_impl_list,
         } = self;
 
@@ -324,6 +330,7 @@ impl SerializedSize for StoredCompilerState {
         add_field(field, "instance_map", instance_map, into);
         add_field(field, "mir_context", mir_context, into);
         add_field(field, "shared_type_state", shared_type_state, into);
+        add_field(field, "floating_nodes", floating_nodes, into);
         add_field(field, "trait_impl_list", trait_impl_list, into);
     }
 }

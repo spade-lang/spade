@@ -4,7 +4,6 @@ pub mod impl_tab;
 pub mod param_util;
 pub mod pretty_debug;
 pub mod pretty_print;
-pub mod query;
 pub mod symbol_table;
 pub mod testutil;
 
