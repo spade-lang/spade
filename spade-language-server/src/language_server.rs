@@ -92,7 +92,6 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             .map(|uri| Utf8PathBuf::from(uri.path().to_string()));
         *self.backend.root_dir.lock().unwrap() = root_dir;
 
-        let dot = ".".to_string();
         let server_capabilities = ServerCapabilities {
             text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
 
@@ -103,7 +102,7 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
             completion_provider: Some(CompletionOptions {
                 completion_item: Default::default(),
                 resolve_provider: Some(false),
-                trigger_characters: Some(vec![dot]),
+                trigger_characters: Some(vec![".".to_string(), "::".to_string()]),
                 all_commit_characters: None,
                 work_done_progress_options: WorkDoneProgressOptions {
                     work_done_progress: None,
