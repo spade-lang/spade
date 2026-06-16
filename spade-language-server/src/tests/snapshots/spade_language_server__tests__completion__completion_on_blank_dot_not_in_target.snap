@@ -20,9 +20,16 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
+Memory	-
 NameOfStruct()	NameOfStruct()$0
 Self	Self
 _	-
+bool	-
+clock	-
 foo()	foo()$0
+inout	-
+int	-
 proj [proj]	proj
 s	-
+tri	-
+uint	-

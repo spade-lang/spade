@@ -20,8 +20,15 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
+Memory	-
 NameOfStruct(…) [proj::NameOfStruct]	NameOfStruct(${1:field_a}, ${2:field_b})$0
 Self [proj::Self]	Self
+bool	-
+clock	-
 foo() [proj::foo]	foo()$0
+inout	-
+int	-
 proj [proj]	proj
 s	-
+tri	-
+uint	-

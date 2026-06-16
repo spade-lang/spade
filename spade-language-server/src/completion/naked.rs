@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use spade_common::name::NameID;
-use spade_hir::{symbol_table::SymbolTable, ParameterList, UnitKind};
+use spade_hir::{ParameterList, UnitKind, symbol_table::{SymbolTable, TypeSymbol}};
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionResponse,
     InsertTextFormat, Position, Url,
@@ -33,6 +33,66 @@ impl ServerBackend {
 
         // let names = if let Some(unit) = position_details.name {
         let symtab = self.symtab.lock().unwrap();
+
+        let global_types = if let Some(symtab) = &*symtab {
+            symtab
+                .symtab()
+                .types
+                .iter()
+                .filter_map(|(thing_name, ty)| {
+                    if thing_name.1 .0.len() == 0 {
+                        return None;
+                    }
+
+                    let local_name = thing_name.1.tail();
+                    if !local_name.is_named() {
+                        return None;
+                    }
+
+                    let is_unnameable = thing_name.1 .0.iter().any(|path| !path.is_named());
+
+                    // Locals are completed separately, and structs are completed as functions
+                    let ignore = match &ty.inner {
+                        TypeSymbol::Declared(_, _, spade_hir::symbol_table::TypeDeclKind::Struct) => true,
+                        TypeSymbol::Declared(_, _, _) => false,
+                        TypeSymbol::GenericArg { .. } => true,
+                        TypeSymbol::GenericMeta(_) => true,
+                    };
+
+                    if is_unnameable || ignore {
+                        return None;
+                    }
+
+                    let label = thing_name.1.tail().to_named_str().map(String::from).unwrap();
+                    if label == "Self" {
+                        return None;
+                    }
+
+                    Some(CompletionItem {
+                        label: label,
+                        label_details: None,
+                        kind: Some(CompletionItemKind::STRUCT),
+                        detail: None,
+                        documentation: None,
+                        deprecated: None,
+                        preselect: None,
+                        sort_text: None,
+                        filter_text: None,
+                        insert_text: None,
+                        insert_text_format: None,
+                        insert_text_mode: None,
+                        text_edit: None,
+                        additional_text_edits: None,
+                        command: None,
+                        commit_characters: None,
+                        data: None,
+                        tags: None,
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
 
         let global_names = if let Some(symtab) = &*symtab {
             symtab
@@ -152,6 +212,7 @@ impl ServerBackend {
 
         let names = global_names
             .into_iter()
+            .chain(global_types)
             .chain(local_names.unwrap_or_default())
             .collect();
 
