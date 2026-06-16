@@ -1,6 +1,5 @@
 ---
 source: spade-language-server/src/tests/completion.rs
-assertion_line: 76
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
@@ -11,15 +10,11 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
 
         fn main() {
             match x {
-                A::  =>
+                A::
                 // ^[1] completion
             }
-            =
-        }
-
-        fn another_one() {
-            =
         }
     
 ---code ⬆️ completion ⬇️ ---
-proj [proj]	proj
+B	B
+C(…)	C(${1:x})$0

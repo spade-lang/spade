@@ -2,9 +2,7 @@ use itertools::Itertools;
 use num::{BigInt, BigUint, Signed, Zero};
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    location_info::{Loc, WithLocation},
-    name::{Identifier, Path, Visibility},
-    num_ext::InfallibleToBigInt,
+    location_info::{Loc, WithLocation}, name::{Identifier, Path, Visibility}, namespace::ModuleNamespace, num_ext::InfallibleToBigInt
 };
 use spade_diagnostics::Diagnostic;
 use std::{fmt::Display, path::PathBuf, rc::Rc};
@@ -1076,7 +1074,22 @@ pub struct ModuleBody {
 /// This is primarily used by completion
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct FloatingNodes {
-    pub paths: Vec<Loc<Path>>
+    pub paths: Vec<Loc<Path>>,
+    /// Locs that track where namespaces are created
+    /// The paths here are _not_ absolute, they are relative to to any more broad module locs
+    ///
+    /// For example
+    ///
+    /// ```spade
+    /// src/submod/subfile.spade:
+    /// mod a {}
+    /// ```
+    ///
+    /// results in two modules:
+    /// `proj::submod::subfile` and `a`, Loc'd appropriately
+    /// 
+    /// To infer the actual path, the modules have to be walked in expanding order
+    pub namespaces: Vec<Loc<ModuleNamespace>>,
 }
 
 impl FloatingNodes {
@@ -1086,8 +1099,10 @@ impl FloatingNodes {
 
     pub fn merge(&mut self, other: FloatingNodes) {
         let FloatingNodes {
-            paths
+            paths,
+            namespaces,
         } = other;
-        self.paths.extend(paths)
+        self.paths.extend(paths);
+        self.namespaces.extend(namespaces);
     }
 }

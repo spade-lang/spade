@@ -48,19 +48,19 @@ impl ServerBackend {
             loc: cursor,
             name: _,
             unit_type_state: _,
-            current_unit,
+            current_unit: _,
         }: &PositionDetails,
     ) -> Option<CompletionResponse> {
         let Some(symtab) = &*self.symtab.lock().unwrap() else {
-            return None;
-        };
-        let Some(current_unit) = current_unit else {
             return None;
         };
 
         let qq = self.query_cache.lock().unwrap();
 
         let paths_around = qq.paths_around(cursor);
+        let Some(current_namespace) = qq.namespace_at(cursor) else {
+            return None
+        };
 
         let completions = paths_around
             .iter()
@@ -91,11 +91,9 @@ impl ServerBackend {
                 // have this information, and doesn't allow setting the base namespace right now,
                 // so we'll cheat and look in _all_ the possible paths.
                 let candidate_paths = {
-                    let unit_name = current_unit.name.name_id();
-
                     let mut current = vec![];
                     let mut result = vec![];
-                    for segment in &unit_name.1 .0 {
+                    for segment in &current_namespace .0 {
                         current.push(segment.clone());
                         result.push(current.clone());
                     }

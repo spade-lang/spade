@@ -6,7 +6,7 @@ use spade_common::{
     id_tracker::ExprID,
     loc_map::LocMap,
     location_info::{Loc, WithLocation},
-    name::{NameID, Path},
+    name::{NameID, Path}, namespace::ModuleNamespace,
 };
 
 use spade_hir::{
@@ -29,6 +29,7 @@ pub struct QueryCache {
     things: LocMap<Thing>,
     names: LocMap<NameID>,
     paths: LocMap<Path>,
+    namespaces: LocMap<ModuleNamespace>,
     // FIXME: To support patterns, this needs to not be just Loc<Expression> anymore
     ids: BTreeMap<ExprID, Loc<Expression>>,
 }
@@ -40,6 +41,7 @@ impl QueryCache {
             things: LocMap::new(),
             names: LocMap::new(),
             paths: LocMap::new(),
+            namespaces: LocMap::new(),
             ids: BTreeMap::new(),
         }
     }
@@ -56,9 +58,12 @@ impl QueryCache {
         }
 
         {
-            let FloatingNodes { paths } = floating_nodes;
+            let FloatingNodes { paths, namespaces } = floating_nodes;
             for path in paths {
                 result.handle_path(path.clone());
+            }
+            for namespace in namespaces {
+                result.namespaces.insert(namespace.clone());
             }
         }
 
@@ -77,6 +82,12 @@ impl QueryCache {
         self.paths.around(loc)
     }
 
+    pub fn namespace_at(&self, loc: &Loc<()>) -> Option<&Path> {
+        // FIXME: We should also add `mod` things here
+        // There can only be one file namespace, so .first is fine
+        self.namespaces.around(loc).first().map(|ns| &ns.namespace)
+    }
+
     pub fn id_to_expression(&self, id: ExprID) -> Option<&Loc<Expression>> {
         self.ids.get(&id).map(|x| x)
     }
@@ -88,6 +99,7 @@ impl QueryCache {
     fn handle_path(&mut self, path: Loc<Path>) {
         self.paths.insert(path);
     }
+
 }
 
 // Visitors

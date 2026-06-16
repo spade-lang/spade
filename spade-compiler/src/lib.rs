@@ -653,7 +653,10 @@ pub fn parse(
             .write()
             .unwrap()
             .add_file(name.clone(), content.clone());
+
         let mut parser = Parser::new(&content, file_id, namespace.working_dir.clone());
+
+        parser.floating_nodes.namespaces.push(namespace.clone().at(parser.file_id(), &(0..content.len())));
 
         let result = parser
             .top_level_module_body()

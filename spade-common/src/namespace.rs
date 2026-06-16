@@ -3,9 +3,11 @@ use std::{
     path::{Path as FsPath, PathBuf},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::name::Path as SpadePath;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModuleNamespace {
     pub namespace: SpadePath,
     pub base_namespace: SpadePath,
