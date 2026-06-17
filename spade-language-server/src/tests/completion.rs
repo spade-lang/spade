@@ -41,7 +41,10 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
                 let things_around = qq.things_around(&details.loc);
 
                 println!("The things around are :\n{:?}", things_around);
-                println!("The paths around are :\n{:?}", qq.paths_around(&details.loc));
+                println!(
+                    "The paths around are :\n{:?}",
+                    qq.paths_around(&details.loc)
+                );
             })
             .expect("The completion marker did not resolve to a loc...");
 
@@ -403,7 +406,6 @@ test_completion! {
     "
 }
 
-
 test_completion! {
     enum_variants_are_path_completed_in_incomplete_contexts,
     "
@@ -434,7 +436,6 @@ test_completion! {
         }
     "
 }
-
 
 test_completion! {
     enum_variants_are_path_completed_in_incomplete_match_statements,
@@ -496,3 +497,28 @@ test_completion! {
     "
 }
 
+test_completion! {
+    in_function_call,
+    "
+        pub mod abc {
+            pub mod def {
+                pub fn ghi() {
+                    
+                }
+            }
+        }
+        enum A {
+            B,
+            C,
+        }
+
+        fn func() {}
+
+        fn test() {
+            abc::def::
+            //   ^[1] completion
+
+            ghi()
+        }
+    "
+}

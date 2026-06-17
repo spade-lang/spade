@@ -1,0 +1,28 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+        pub mod abc {
+            pub mod def {
+                pub fn ghi() {
+                    
+                }
+            }
+        }
+        enum A {
+            B,
+            C,
+        }
+
+        fn func() {}
+
+        fn test() {
+            abc::def::
+            //   ^[1] completion
+
+            ghi()
+        }
+    
+---code ⬆️ completion ⬇️ ---
+def	def

@@ -2,7 +2,10 @@ use itertools::Itertools;
 use num::{BigInt, BigUint, Signed, Zero};
 use serde::{Deserialize, Serialize};
 use spade_common::{
-    location_info::{Loc, WithLocation}, name::{Identifier, Path, Visibility}, namespace::ModuleNamespace, num_ext::InfallibleToBigInt
+    location_info::{Loc, WithLocation},
+    name::{Identifier, Path, Visibility},
+    namespace::ModuleNamespace,
+    num_ext::InfallibleToBigInt,
 };
 use spade_diagnostics::Diagnostic;
 use std::{fmt::Display, path::PathBuf, rc::Rc};
@@ -1087,7 +1090,7 @@ pub struct FloatingNodes {
     ///
     /// results in two modules:
     /// `proj::submod::subfile` and `a`, Loc'd appropriately
-    /// 
+    ///
     /// To infer the actual path, the modules have to be walked in expanding order
     pub namespaces: Vec<Loc<ModuleNamespace>>,
 }
@@ -1098,10 +1101,7 @@ impl FloatingNodes {
     }
 
     pub fn merge(&mut self, other: FloatingNodes) {
-        let FloatingNodes {
-            paths,
-            namespaces,
-        } = other;
+        let FloatingNodes { paths, namespaces } = other;
         self.paths.extend(paths);
         self.namespaces.extend(namespaces);
     }

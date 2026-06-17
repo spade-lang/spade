@@ -10,8 +10,8 @@ use spade_common::name::{Identifier, PathSegment};
 use spade_diagnostics::diagnostic::DiagnosticLevel as SpadeDiagnosticLevel;
 use spade_diagnostics::Diagnostic as SpadeDiagnostic;
 use spade_diagnostics::{CodeBundle, DiagHandler, Emitter};
-use spade_query::QueryCache;
 use spade_hir::ItemList;
+use spade_query::QueryCache;
 use spade_typeinference::traits::TraitImplList;
 use swim::libraries::RestoreAction;
 use swim::lockfile::LockFile;
@@ -301,10 +301,11 @@ impl ServerBackend {
                     state,
                     impl_list,
                     floating_nodes,
-                    bumpy_mir_entities: _
+                    bumpy_mir_entities: _,
                 } = artefacts;
                 *self.code.lock().unwrap() = code;
-                *self.query_cache.lock().unwrap() = QueryCache::from_artifacts(&item_list, &floating_nodes);
+                *self.query_cache.lock().unwrap() =
+                    QueryCache::from_artifacts(&item_list, &floating_nodes);
                 *self.item_list.lock().unwrap() = item_list;
                 *self.type_states.lock().unwrap() = type_states;
                 *self.symtab.lock().unwrap() = Some(state.symtab);
@@ -320,7 +321,9 @@ impl ServerBackend {
                 *self.code.lock().unwrap() = code.read().unwrap().clone();
                 *self.query_cache.lock().unwrap() = item_list
                     .as_ref()
-                    .map(|item_list| QueryCache::from_artifacts(&item_list, &floating_nodes.unwrap_or_default()))
+                    .map(|item_list| {
+                        QueryCache::from_artifacts(&item_list, &floating_nodes.unwrap_or_default())
+                    })
                     .unwrap_or_else(|| QueryCache::empty());
                 *self.item_list.lock().unwrap() = item_list.unwrap_or_else(|| ItemList::new());
                 *self.type_states.lock().unwrap() = type_states.unwrap_or_default();

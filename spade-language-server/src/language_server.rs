@@ -229,7 +229,7 @@ impl<C: Client> LanguageServer for ServerFrontend<C> {
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let mut is_compiling = self.is_compiling_rx.clone();
 
-        let _ = is_compiling.wait_for(|val| *val == true);
+        let _ = is_compiling.wait_for(|val| *val == false).await;
 
         let TextDocumentPositionParams {
             text_document: doc,

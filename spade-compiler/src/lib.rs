@@ -124,7 +124,8 @@ pub fn run_global_compilation_tasks(
 
     spade_ast_lowering::builtins::populate_symtab(&mut symtab, &mut item_list);
 
-    let (module_asts, floating_nodes) = parse(sources, Arc::clone(&code), print_parse_traceback, errors);
+    let (module_asts, floating_nodes) =
+        parse(sources, Arc::clone(&code), print_parse_traceback, errors);
     errors.errors_are_recoverable();
 
     unfinished_artefacts.floating_nodes = Some(floating_nodes.clone());
@@ -508,7 +509,7 @@ pub fn compile(
         impl_idtracker,
         generic_idtracker,
         macros,
-        floating_nodes
+        floating_nodes,
     } = global_compilation_state;
 
     let mut state = CompilerState {
@@ -607,7 +608,7 @@ pub fn compile(
         impl_list: mapped_trait_impls,
         state: stored_state.into_compiler_state(),
         type_states,
-        floating_nodes
+        floating_nodes,
     };
 
     if !errors.failed() {
@@ -656,7 +657,10 @@ pub fn parse(
 
         let mut parser = Parser::new(&content, file_id, namespace.working_dir.clone());
 
-        parser.floating_nodes.namespaces.push(namespace.clone().at(parser.file_id(), &(0..content.len())));
+        parser
+            .floating_nodes
+            .namespaces
+            .push(namespace.clone().at(parser.file_id(), &(0..content.len())));
 
         let result = parser
             .top_level_module_body()

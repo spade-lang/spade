@@ -18,7 +18,11 @@ use statements::{AssertParser, BindingParser, DeclParser, LabelParser, RegisterP
 use tracing::{Level, debug, event};
 
 use spade_ast::{
-    ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind, EnumVariant, Expression, FloatingNodes, Inequality, IntLiteral, Item, MacroPattern, MacroRepetitions, ModuleBody, NamedArgument, NamedTurbofish, ParameterList, ParseCtx, Pattern, PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeDeclaration, TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause, WireMarker
+    ArgumentList, ArgumentPattern, Attribute, AttributeList, BitLiteral, Block, CallKind,
+    EnumVariant, Expression, FloatingNodes, Inequality, IntLiteral, Item, MacroPattern,
+    MacroRepetitions, ModuleBody, NamedArgument, NamedTurbofish, ParameterList, ParseCtx, Pattern,
+    PipelineStageReference, Statement, TraitSpec, TurbofishInner, TypeDeclaration, TypeExpression,
+    TypeParam, TypeSpec, Unit, UnitHead, UnitKind, WhereClause, WireMarker,
 };
 use spade_common::location_info::{AsLabel, FullSpan, HasCodespan, Loc, WithLocation, lspan};
 use spade_common::name::{Identifier, Path, PathSegment, Visibility};
@@ -203,15 +207,15 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     pub fn path(&mut self) -> Result<Loc<Path>> {
-        let result = self.path_allow_trailing_separator().map(|(path, _)| path)?;
-        self.floating_nodes.add_path(result.clone());
-        Ok(result)
+        self.path_allow_trailing_separator().map(|(path, _)| path)
     }
 
     pub fn path_allow_trailing_separator(&mut self) -> Result<(Loc<Path>, bool)> {
         let first = self.identifier()?;
 
-        self.continue_path(Path::ident(first).at_loc(&first))
+        let result = self.continue_path(Path::ident(first).at_loc(&first))?;
+        self.floating_nodes.add_path(result.0.clone());
+        Ok(result)
     }
 
     /// Continue parsing a path that has been parsed with `leading` so far. This allows

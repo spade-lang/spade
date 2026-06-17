@@ -27,7 +27,7 @@ impl ServerBackend {
         let from_expr = things_around
             .iter()
             .map(|thing| {
-                let spade_query::Thing::Expr(e) = &thing.inner else {
+                let spade_query::QueryThing::Expr(e) = &thing.inner else {
                     return vec![];
                 };
                 let ExprKind::Block(block) = &e.kind else {

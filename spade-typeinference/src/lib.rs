@@ -1263,12 +1263,6 @@ impl TypeState {
                     .commit(self, ctx)
                     .unwrap();
             }
-            ExprKind::Incomplete(_, IncompleteExpression::Path(_)) => {
-                new_type
-                    .unify_with(&self.t_err(expression.loc()), self)
-                    .commit(self, ctx)
-                    .unwrap();
-            }
             ExprKind::FieldAccess(_, _) => {
                 self.visit_field_access(expression, ctx, generic_list)?
             }

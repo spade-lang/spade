@@ -1,10 +1,9 @@
 use itertools::Itertools;
 use spade_common::name::Path;
 use spade_hir::{
-    expression::IncompleteExpression, symbol_table::SymbolTable, ParameterList,
-    UnitKind,
+    expression::IncompleteExpression, symbol_table::SymbolTable, ParameterList, UnitKind,
 };
-use spade_query::Thing;
+use spade_query::QueryThing;
 use spade_typeinference::{
     equation::TypeVarID, method_resolution::methods_for_type, traits::TraitImplList, HasType,
     TypeState,
@@ -59,7 +58,7 @@ impl ServerBackend {
 
         let paths_around = qq.paths_around(cursor);
         let Some(current_namespace) = qq.namespace_at(cursor) else {
-            return None
+            return None;
         };
 
         let completions = paths_around
@@ -93,7 +92,7 @@ impl ServerBackend {
                 let candidate_paths = {
                     let mut current = vec![];
                     let mut result = vec![];
-                    for segment in &current_namespace .0 {
+                    for segment in &current_namespace.0 {
                         current.push(segment.clone());
                         result.push(current.clone());
                     }
@@ -192,9 +191,9 @@ impl ServerBackend {
             .filter_map(|thing| {
                 let info = match &thing.inner {
                     // FIXME: We can probably complete fields here
-                    Thing::Pattern(_) => None,
+                    QueryThing::Pattern(_) => None,
 
-                    Thing::Expr(expression) => {
+                    QueryThing::Expr(expression) => {
                         match &expression.kind {
                             spade_hir::ExprKind::Error => None,
 
@@ -245,14 +244,13 @@ impl ServerBackend {
                             | spade_hir::ExprKind::StageValid
                             | spade_hir::ExprKind::StageReady
                             | spade_hir::ExprKind::StaticUnreachable(_)
-                            | spade_hir::ExprKind::Incomplete(_, _)
                             | spade_hir::ExprKind::Null => None,
                         }
                     }
                     // Naked is fine for now
-                    Thing::Statement(_) => None,
+                    QueryThing::Statement(_) => None,
                     // Naked is fine for now
-                    Thing::Executable(_) => None,
+                    QueryThing::Executable(_) => None,
                 };
 
                 info.and_then(|(target, has_inst, has_depth)| {
@@ -403,7 +401,9 @@ fn type_field_completions(
                     .unit_kind
                     .label_snippet(has_inst, has_depth, &mut snippet_builder);
             let (arg_label, arg_snippet) =
-                actual_fn.inputs.label_snippet(&mut snippet_builder, false, true);
+                actual_fn
+                    .inputs
+                    .label_snippet(&mut snippet_builder, false, true);
 
             let label = format!("{inst_label}{method}{arg_label}");
             let inserted = Some(format!("{inst_snippet}{method}{arg_snippet}"));

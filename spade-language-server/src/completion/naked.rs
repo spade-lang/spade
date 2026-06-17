@@ -1,6 +1,9 @@
 use itertools::Itertools;
 use spade_common::name::NameID;
-use spade_hir::{ParameterList, UnitKind, symbol_table::{SymbolTable, TypeSymbol}};
+use spade_hir::{
+    symbol_table::{SymbolTable, TypeDeclKind, TypeSymbol},
+    ParameterList, UnitKind,
+};
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionResponse,
     InsertTextFormat, Position, Url,
@@ -53,7 +56,7 @@ impl ServerBackend {
 
                     // Locals are completed separately, and structs are completed as functions
                     let ignore = match &ty.inner {
-                        TypeSymbol::Declared(_, _, spade_hir::symbol_table::TypeDeclKind::Struct) => true,
+                        TypeSymbol::Declared(_, _, TypeDeclKind::Struct) => true,
                         TypeSymbol::Declared(_, _, _) => false,
                         TypeSymbol::GenericArg { .. } => true,
                         TypeSymbol::GenericMeta(_) => true,
@@ -63,15 +66,37 @@ impl ServerBackend {
                         return None;
                     }
 
-                    let label = thing_name.1.tail().to_named_str().map(String::from).unwrap();
+                    let label = thing_name
+                        .1
+                        .tail()
+                        .to_named_str()
+                        .map(String::from)
+                        .unwrap();
                     if label == "Self" {
                         return None;
                     }
 
+                    let kind = match ty.inner {
+                        TypeSymbol::Declared(_, _, TypeDeclKind::Struct) => {
+                            Some(CompletionItemKind::STRUCT)
+                        }
+                        TypeSymbol::Declared(_, _, TypeDeclKind::Enum) => {
+                            Some(CompletionItemKind::ENUM)
+                        }
+                        TypeSymbol::Declared(_, _, TypeDeclKind::Primitive { is_inout: _ }) => {
+                            Some(CompletionItemKind::STRUCT)
+                        }
+                        TypeSymbol::Declared(_, _, TypeDeclKind::Alias) => {
+                            Some(CompletionItemKind::REFERENCE)
+                        }
+                        TypeSymbol::GenericArg { .. } => None,
+                        TypeSymbol::GenericMeta(_) => None,
+                    };
+
                     Some(CompletionItem {
                         label: label,
                         label_details: None,
-                        kind: Some(CompletionItemKind::STRUCT),
+                        kind: kind,
                         detail: None,
                         documentation: None,
                         deprecated: None,
@@ -135,7 +160,6 @@ impl ServerBackend {
                     if is_unnameable || is_local {
                         return None;
                     }
-
 
                     let resolved_thing = follow_aliases(symtab.symtab(), thing);
 

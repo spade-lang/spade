@@ -10,10 +10,9 @@ use spade_common::{
 };
 use spade_diagnostics::CodeBundle;
 use spade_hir::{
-    symbol_table::StructCallable, ExecutableItem, ExprKind, Expression, TypeSpec,
-    Unit, UnitHead,
+    symbol_table::StructCallable, ExecutableItem, ExprKind, Expression, TypeSpec, Unit, UnitHead,
 };
-use spade_query::Thing;
+use spade_query::QueryThing;
 use spade_typeinference::{
     equation::{TypeVar, TypeVarID},
     method_resolution::select_method,
@@ -122,7 +121,7 @@ impl ServerBackend {
             .things_around(&loc)
             .iter()
             .find_map(|thing| match thing.inner {
-                Thing::Executable(ExecutableItem::Unit(u)) => Some(u),
+                QueryThing::Executable(ExecutableItem::Unit(u)) => Some(u),
                 _ => None,
             })
             .cloned();
@@ -158,8 +157,10 @@ impl ServerBackend {
         let type_info = things_around
             .iter()
             .filter_map(|thing| match &thing.inner {
-                Thing::Expr(expr) => Some(expr),
-                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
+                QueryThing::Expr(expr) => Some(expr),
+                QueryThing::Pattern(_) | QueryThing::Statement(_) | QueryThing::Executable(_) => {
+                    None
+                }
             })
             .filter_map(|expr| {
                 unit_type_state.as_ref().and_then(|ts| {
@@ -175,8 +176,10 @@ impl ServerBackend {
         let struct_field_info = things_around
             .iter()
             .filter_map(|thing| match &thing.inner {
-                Thing::Expr(expression) => Some((thing, expression)),
-                Thing::Pattern(_) | Thing::Statement(_) | Thing::Executable(_) => None,
+                QueryThing::Expr(expression) => Some((thing, expression)),
+                QueryThing::Pattern(_) | QueryThing::Statement(_) | QueryThing::Executable(_) => {
+                    None
+                }
             })
             .find_map(|(thing, expr)| match &expr.kind {
                 ExprKind::FieldAccess(base, field) => {

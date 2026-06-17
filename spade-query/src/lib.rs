@@ -6,7 +6,8 @@ use spade_common::{
     id_tracker::ExprID,
     loc_map::LocMap,
     location_info::{Loc, WithLocation},
-    name::{NameID, Path}, namespace::ModuleNamespace,
+    name::{NameID, Path},
+    namespace::ModuleNamespace,
 };
 
 use spade_hir::{
@@ -17,7 +18,7 @@ use spade_hir::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Thing {
+pub enum QueryThing {
     Pattern(Pattern),
     Expr(Expression),
     Statement(Statement),
@@ -26,7 +27,7 @@ pub enum Thing {
 
 #[derive(Serialize, Deserialize)]
 pub struct QueryCache {
-    things: LocMap<Thing>,
+    things: LocMap<QueryThing>,
     names: LocMap<NameID>,
     paths: LocMap<Path>,
     namespaces: LocMap<ModuleNamespace>,
@@ -70,7 +71,7 @@ impl QueryCache {
         result
     }
 
-    pub fn things_around(&self, loc: &Loc<()>) -> Vec<Loc<&Thing>> {
+    pub fn things_around(&self, loc: &Loc<()>) -> Vec<Loc<&QueryThing>> {
         self.things.around(loc)
     }
 
@@ -99,7 +100,6 @@ impl QueryCache {
     fn handle_path(&mut self, path: Loc<Path>) {
         self.paths.insert(path);
     }
-
 }
 
 // Visitors
@@ -116,13 +116,13 @@ impl<'a> QueryCache {
             ExecutableItem::StructInstance => {}
             ExecutableItem::Unit(unit) => {
                 self.things
-                    .insert(unit.loc().map(|_| Thing::Executable(item.clone())));
+                    .insert(unit.loc().map(|_| QueryThing::Executable(item.clone())));
 
                 self.visit_expression(&unit.body)
             }
             ExecutableItem::ExternUnit(_, unit) => {
                 self.things
-                    .insert(unit.loc().map(|_| Thing::Executable(item.clone())));
+                    .insert(unit.loc().map(|_| QueryThing::Executable(item.clone())));
             }
         }
     }
@@ -252,14 +252,13 @@ impl<'a> QueryCache {
                     has_inst: _,
                     has_depth: _,
                 } => self.visit_expression(base),
-                IncompleteExpression::Path(path) => self.paths.insert(path.clone()),
             },
         }
     }
 
     fn visit_expression(&mut self, expr: &'a Loc<Expression>) {
         self.things
-            .insert(expr.loc().map(|_| Thing::Expr(expr.inner.clone())));
+            .insert(expr.loc().map(|_| QueryThing::Expr(expr.inner.clone())));
         self.ids.insert(expr.id, expr.clone());
 
         self.visit_expr_kind(&Loc::new(&expr.kind, expr.span, expr.file_id));
@@ -267,7 +266,7 @@ impl<'a> QueryCache {
 
     fn visit_pattern(&mut self, pat: &'a Loc<Pattern>) {
         self.things
-            .insert(pat.loc().map(|_| Thing::Pattern(pat.inner.clone())));
+            .insert(pat.loc().map(|_| QueryThing::Pattern(pat.inner.clone())));
         match &pat.inner.kind {
             PatternKind::Integer(_) => {}
             PatternKind::Bool(_) => {}
