@@ -1341,115 +1341,8 @@ impl TypeState {
                 self.unify_expression_generic_error(expression, on_true.as_ref(), ctx)?;
                 self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
             }
-            ExprKind::LambdaDef {
-                unit_kind,
-                arguments,
-                body,
-                lambda_type,
-                type_params,
-                outer_generic_params,
-                lambda_unit: _,
-                clock,
-                captures,
-            } => {
-                for arg in arguments {
-                    self.visit_pattern(arg, ctx, generic_list)?;
-                }
-
-                if let Some(clock) = clock {
-                    clock
-                        .unify_with(&self.t_clock(clock.loc(), ctx.symtab), self)
-                        .commit(self, ctx)
-                        .into_default_diagnostic(clock, self)?;
-                }
-
-                let outer_pipeline_state = self.owned.pipeline_state.take();
-                if let UnitKind::Pipeline {
-                    depth,
-                    depth_typeexpr_id,
-                } = &unit_kind.inner
-                {
-                    self.setup_pipeline_state(
-                        unit_kind,
-                        body,
-                        &generic_list,
-                        depth,
-                        depth_typeexpr_id,
-                        ctx,
-                    )?;
-                }
-                self.visit_expression(body, ctx, generic_list);
-                self.owned.pipeline_state = outer_pipeline_state;
-
-                let lambda_params = arguments
-                    .iter()
-                    .map(|arg| arg.get_type(self))
-                    .chain(vec![body.get_type(self)])
-                    .chain(captures.iter().map(|(_, cap_name)| cap_name.get_type(self)))
-                    .chain(
-                        outer_generic_params
-                            .iter()
-                            .map(|cap| {
-                                let gl = self.get_generic_list(generic_list).ok_or_else(|| {
-                                    diag_anyhow!(
-                                        expression,
-                                        "Found a captured generic but no generic list"
-                                    )
-                                })?;
-                                let t = gl
-                                    .get(&Generic::Named(cap.name_in_body.clone()))
-                                    .ok_or_else(|| {
-                                        diag_anyhow!(
-                                            &cap.name_in_body,
-                                            "Did not find an entry for {} in lambda generic list",
-                                            cap.name_in_body
-                                        )
-                                    });
-                                Ok(t?.clone())
-                            })
-                            .collect::<Result<Vec<_>>>()?
-                            .into_iter(),
-                    )
-                    .collect::<Vec<_>>();
-
-                let self_type = TypeVar::Known(
-                    expression.loc(),
-                    KnownType::Named(lambda_type.clone()),
-                    lambda_params.clone(),
-                );
-
-                let unit_generic_list = self.create_generic_list(
-                    GenericListSource::Expression(expression.id.at_loc(expression)),
-                    &type_params.all().cloned().collect::<Vec<_>>(),
-                    &[],
-                    &[],
-                    false,
-                    None,
-                    &[],
-                    None,
-                    ctx,
-                )?;
-
-                for (p, tp) in lambda_params.iter().zip(type_params.all()) {
-                    let gl = self.get_generic_list(&unit_generic_list).unwrap();
-                    // Safe unwrap, we're just unifying unknowns with unknowns
-                    p.unify_with(
-                        gl.get(&tp.name).ok_or_else(|| {
-                            diag_anyhow!(
-                                expression,
-                                "Lambda unit list did not contain {}",
-                                tp.name.pretty_print()
-                            )
-                        })?,
-                        self,
-                    )
-                    .commit(self, ctx)
-                    .into_default_diagnostic(expression, self)?;
-                }
-                expression
-                    .unify_with(&self.add_type_var(self_type), self)
-                    .commit(self, ctx)
-                    .into_default_diagnostic(expression, self)?;
+            ExprKind::LambdaDef {..} => {
+                self.visit_lambda_def(expression, ctx, generic_list)?;
             }
             ExprKind::StaticUnreachable(_) => {}
             ExprKind::Null => {}
@@ -3099,12 +2992,6 @@ impl TypeState {
         let v1 = e1.get_type(self);
         let v2 = e2.get_type(self);
 
-        trace!(
-            "Unifying {} with {}",
-            v1.debug_resolve(self),
-            v2.debug_resolve(self)
-        );
-
         self.owned
             .trace_stack
             .push(|| TraceStackEntry::TryingUnify(v1.debug_resolve(self), v2.debug_resolve(self)));
@@ -3429,6 +3316,7 @@ impl TypeState {
         for replaced_type in &replaced_types {
             if v1.inner != v2.inner {
                 let (from, to) = (replaced_type.get_type(self), new_type.get_type(self));
+
                 self.owned.replacements.insert(from, to);
                 if let Err(rec) = self.check_type_for_recursion(to, &mut vec![]) {
                     let err_t = self.t_err(().nowhere());
@@ -3861,6 +3749,10 @@ impl TypeState {
     }
 
     fn restore(&mut self) {
+        self.owned
+            .trace_stack
+            .push(|| TraceStackEntry::Message("Restoring checkpoint".to_string()));
+
         self.owned.replacements.discard_top();
         self.owned.trace_stack.push(|| TraceStackEntry::Exit);
 

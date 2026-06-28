@@ -5,7 +5,8 @@ use spade_common::num_ext::InfallibleToBigInt;
 use spade_diagnostics::diagnostic::DiagnosticLevel;
 use spade_diagnostics::{Diagnostic, diag_anyhow};
 use spade_hir::expression::{BinaryOperator, IntLiteralKind, NamedArgument, UnaryOperator};
-use spade_hir::{ExprKind, Expression, Generic};
+use spade_hir::pretty_print::PrettyPrint;
+use spade_hir::{ExprKind, Expression, Generic, UnitKind};
 use spade_macros::trace_typechecker;
 use spade_types::KnownType;
 use spade_types::meta_types::MetaType;
@@ -15,7 +16,9 @@ use crate::equation::{TypeVar, TypedExpression};
 use crate::error::{TypeMismatch as Tm, UnificationErrorExt};
 use crate::requirements::{ConstantInt, Requirement};
 use crate::traits::TraitList;
-use crate::{Context, GenericListToken, HasType, Result, TraceStackEntry, TypeState};
+use crate::{
+    Context, GenericListSource, GenericListToken, HasType, Result, TraceStackEntry, TypeState,
+};
 
 macro_rules! assuming_kind {
     ($pattern:pat = $expr:expr => $block:block) => {
@@ -907,6 +910,126 @@ impl TypeState {
                 }
             }
         });
+        Ok(())
+    }
+
+    #[trace_typechecker]
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn visit_lambda_def(
+        &mut self,
+        expression: &Loc<Expression>,
+        ctx: &Context,
+        generic_list: &GenericListToken,
+    ) -> Result<()> {
+        assuming_kind!(ExprKind::LambdaDef{
+                unit_kind,
+                arguments,
+                body,
+                lambda_type,
+                type_params,
+                outer_generic_params,
+                lambda_unit: _,
+                clock,
+                captures,
+
+        } = &expression => {
+            for arg in arguments {
+                self.visit_pattern(arg, ctx, generic_list)?;
+            }
+
+            if let Some(clock) = clock {
+                clock
+                    .unify_with(&self.t_clock(clock.loc(), ctx.symtab), self)
+                    .commit(self, ctx)
+                    .into_default_diagnostic(clock, self)?;
+            }
+
+            let outer_pipeline_state = self.owned.pipeline_state.take();
+            if let UnitKind::Pipeline {
+                depth,
+                depth_typeexpr_id,
+            } = &unit_kind.inner
+            {
+                self.setup_pipeline_state(
+                    unit_kind,
+                    body,
+                    &generic_list,
+                    depth,
+                    depth_typeexpr_id,
+                    ctx,
+                )?;
+            }
+            self.visit_expression(body, ctx, generic_list);
+            self.owned.pipeline_state = outer_pipeline_state;
+
+            let lambda_params = arguments
+                .iter()
+                .map(|arg| arg.get_type(self))
+                .chain(vec![body.get_type(self)])
+                .chain(captures.iter().map(|(_, cap_name)| cap_name.get_type(self)))
+                .chain(
+                    outer_generic_params
+                        .iter()
+                        .map(|cap| {
+                            let gl = self.get_generic_list(generic_list).ok_or_else(|| {
+                                diag_anyhow!(expression, "Found a captured generic but no generic list")
+                            })?;
+                            let t = gl
+                                .get(&Generic::Named(cap.name_in_body.clone()))
+                                .ok_or_else(|| {
+                                    diag_anyhow!(
+                                        &cap.name_in_body,
+                                        "Did not find an entry for {} in lambda generic list",
+                                        cap.name_in_body
+                                    )
+                                });
+                            Ok(t?.clone())
+                        })
+                        .collect::<Result<Vec<_>>>()?
+                        .into_iter(),
+                )
+                .collect::<Vec<_>>();
+
+            let self_type = TypeVar::Known(
+                expression.loc(),
+                KnownType::Named(lambda_type.clone()),
+                lambda_params.clone(),
+            );
+
+            let unit_generic_list = self.create_generic_list(
+                GenericListSource::Expression(expression.id.at_loc(expression)),
+                &type_params.all().cloned().collect::<Vec<_>>(),
+                &[],
+                &[],
+                false,
+                None,
+                &[],
+                None,
+                ctx,
+            )?;
+
+            for (p, tp) in lambda_params.iter().zip(type_params.all()) {
+                let gl = self.get_generic_list(&unit_generic_list).unwrap();
+                // Safe unwrap, we're just unifying unknowns with unknowns
+                p.unify_with(
+                    gl.get(&tp.name).ok_or_else(|| {
+                        diag_anyhow!(
+                            expression,
+                            "Lambda unit list did not contain {}",
+                            tp.name.pretty_print()
+                        )
+                    })?,
+                    self,
+                )
+                .commit(self, ctx)
+                .into_default_diagnostic(expression, self)?;
+            }
+            expression
+                .unify_with(&self.add_type_var(self_type), self)
+                .commit(self, ctx)
+                .into_default_diagnostic(expression, self)?;
+        });
+
         Ok(())
     }
 }
