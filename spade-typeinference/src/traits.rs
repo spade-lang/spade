@@ -123,6 +123,23 @@ impl TraitList {
             .map(|t| t.inner.display_with_meta(display_meta, type_state))
             .join(" + ")
     }
+
+    pub fn debug_resolve(&self, type_state: &TypeState) -> String {
+        self.inner
+            .iter()
+            .map(|t| {
+                format!(
+                    "{}<{}>",
+                    t.inner.name,
+                    t.inner
+                        .type_params
+                        .iter()
+                        .map(|t| { t.debug_resolve(type_state) })
+                        .join(", ")
+                )
+            })
+            .join(" + ")
+    }
 }
 
 // NOTE: The trait information is currently carried along with the type vars, but

@@ -2737,3 +2737,41 @@ code_compiles!(
         let x = [undef(); 8] as [bool; _];
     }"
 );
+
+code_compiles! {
+    lambda_param_inference_bug,
+    "
+        trait MockFn<A> {}
+
+        struct MockLambda<A> {}
+
+        impl<A> MockFn<A> for MockLambda<A> {}
+
+
+        pub struct AAAAAA {}
+        impl HFsm for AAAAAA {}
+
+        pub trait HFsm {}
+
+        struct WithOutput {}
+
+        pub struct S<Inner> {
+            inner: Inner,
+        }
+
+        impl<Inner> S<Inner>
+        where Inner: HFsm
+        {
+            fn with_output<F>(self, f: F)
+            where F: MockFn<Inner> {}
+        }
+
+        impl HFsm for () {}
+
+        entity dht22(clk: clock, rst: bool) {
+            let outer = S(AAAAAA());
+            outer
+                .with_output(MockLambda());
+        }
+    "
+}

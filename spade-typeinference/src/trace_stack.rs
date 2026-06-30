@@ -10,7 +10,6 @@ use crate::{
     constraints::ConstraintRhs,
     equation::{TypeVarString, TypedExpression},
     requirements::Requirement,
-    traits::TraitList,
 };
 
 impl TypeState {
@@ -77,9 +76,13 @@ pub enum TraceStackEntry {
         TypeVarString,
         Vec<TypeVarString>,
     ),
-    EnsuringImpls(TypeVarString, TraitList, bool),
+    EnsuringImpls(TypeVarString, String, bool),
     AddingEquation(TypedExpression, TypeVarString),
-    AddingTraitBounds(TypeVarString, TraitList),
+    AddingTraitBounds {
+        to_type: TypeVarString,
+        traits: String,
+        new_tvar: TypeVarString,
+    },
     AddRequirement(Requirement),
     ResolvedRequirement(Requirement),
     NewGenericList(HashMap<Generic, TypeVarString>),
@@ -135,7 +138,7 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
                 format!(
                     "{} {ty} as {} (trait_is_expected: {trait_is_expected})",
                     "ensuring impls".yellow(),
-                    tr.display_with_meta(true, type_state),
+                    tr,
                 )
             }
             TraceStackEntry::InferringFromConstraints(lhs, rhs) => {
@@ -178,8 +181,15 @@ pub fn format_trace_stack(type_state: &TypeState) -> String {
             }
             TraceStackEntry::AddRequirement(req) => format!("{} {req:?}", "added".yellow()),
             TraceStackEntry::ResolvedRequirement(req) => format!("{} {req:?}", "resolved".blue()),
-            TraceStackEntry::AddingTraitBounds(tvar, traits) => {
-                format!("{} {traits:?} to {tvar}", "adding trait bound".yellow(),)
+            TraceStackEntry::AddingTraitBounds {
+                to_type,
+                traits,
+                new_tvar,
+            } => {
+                format!(
+                    "{} {traits} to {to_type}, creating {new_tvar}",
+                    "adding trait bound".yellow(),
+                )
             }
         };
         if let TraceStackEntry::Exit = entry {

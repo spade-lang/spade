@@ -1341,7 +1341,7 @@ impl TypeState {
                 self.unify_expression_generic_error(expression, on_true.as_ref(), ctx)?;
                 self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
             }
-            ExprKind::LambdaDef {..} => {
+            ExprKind::LambdaDef { .. } => {
                 self.visit_lambda_def(expression, ctx, generic_list)?;
             }
             ExprKind::StaticUnreachable(_) => {}
@@ -2723,11 +2723,6 @@ impl TypeState {
                     target.pretty_print()
                 )));
             };
-
-            self.owned.trace_stack.push(|| {
-                TraceStackEntry::AddingTraitBounds(tvar.debug_resolve(self), trait_list.clone())
-            });
-
             match tvar.resolve(self) {
                 TypeVar::Known(_, _, _) => {
                     // NOTE: This branch is a no-op as it is only triggered when re-visiting
@@ -2744,15 +2739,14 @@ impl TypeState {
                         MetaType::Type,
                     ));
 
-                    trace!(
-                        "Adding trait bound {} on type {}",
-                        new_tvar.display_with_meta(true, self),
-                        target.pretty_print()
-                    );
-
-                    self.modify_generic_list(generic_list_tok, |generic_list| {
-                        generic_list.insert(target.clone(), new_tvar);
+                    let old = self.modify_generic_list(generic_list_tok, |generic_list| {
+                        generic_list.insert(target.clone(), new_tvar)
                     });
+
+                    // If we replace a variable in the generic list, we have to also track that replacement globally in case that old variable is already used elsewhere
+                    if let Some(old) = old {
+                        self.owned.replacements.insert(old, new_tvar);
+                    }
                 }
             }
         }
@@ -3490,7 +3484,7 @@ impl TypeState {
         self.owned.trace_stack.push(|| {
             TraceStackEntry::EnsuringImpls(
                 var.debug_resolve(self),
-                traits.clone(),
+                traits.debug_resolve(self),
                 trait_is_expected,
             )
         });
