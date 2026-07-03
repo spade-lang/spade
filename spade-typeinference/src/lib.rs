@@ -220,9 +220,13 @@ impl TypeState {
     }
 
     pub fn create_child(&self) -> Self {
+        let mut owned = self.owned.create_child();
+
+        owned.trace_stack = TraceStack::new();
+
         Self {
             shared: Arc::clone(&self.shared),
-            owned: self.owned.create_child(),
+            owned,
         }
     }
 

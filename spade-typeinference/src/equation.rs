@@ -152,7 +152,7 @@ impl TypeVarID {
     }
 
     pub fn debug_resolve(self, state: &TypeState) -> TypeVarString {
-        match self.resolve(state) {
+        let result = match self.resolve(state) {
             TypeVar::Known(_, base, params) => {
                 let params = if params.is_empty() {
                     "".to_string()
@@ -173,7 +173,7 @@ impl TypeVarID {
                     KnownType::CopyView => format!("&"),
                     KnownType::Error => format!("{{error}}"),
                 };
-                TypeVarString(format!("{base}{params}"), self)
+                format!("{base}{params}")
             }
             TypeVar::Unknown(_, id, traits, _meta_type) => {
                 let traits = if traits.inner.is_empty() {
@@ -188,8 +188,22 @@ impl TypeVarID {
                             .join(" + "),
                     )
                 };
-                TypeVarString(format!("t{id}{traits}"), self)
+                format!("t{id}{traits}")
             }
+        };
+
+        if std::env::var("SPADE_SHOW_TYPEIDS").is_ok() {
+            use colored::Colorize;
+            TypeVarString(
+                format!(
+                    "{}[{}]",
+                    format!("{result}").cyan(),
+                    format!("{}", self.inner).blue()
+                ),
+                self,
+            )
+        } else {
+            TypeVarString(result, self)
         }
     }
 }
