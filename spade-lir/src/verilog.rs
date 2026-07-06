@@ -19,7 +19,7 @@ pub fn size_spec(size: &Loc<BigUint>) -> Result<String> {
         Ok(format!(
             "[{}:0]",
             size.checked_sub(&1u32.to_biguint())
-                .ok_or_else(|| diag_anyhow!(size, "Sutraction with overflow while evaluating this"))?
+                .ok_or_else(|| diag_anyhow!(size, "Sutraction with overflow while evaluating this. The size was {size}"))?
         ))
     }
 }
