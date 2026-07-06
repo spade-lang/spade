@@ -1,9 +1,9 @@
 pub mod codegen;
-mod verilog;
 mod name_map;
-mod type_list;
-mod legalization;
 pub mod pretty_print;
+mod type_list;
+mod verilog;
+pub mod passes;
 
 use itertools::Itertools;
 use num::BigUint;
@@ -117,7 +117,6 @@ pub enum Operator {
     DivPow2,
 
     Concat,
-    BackConcat,
     /// Slice `op[0]` at a runtime offset of `op[1]`, i.e. `op[0][op[0]..op[0] + elem_size]`
     /// If reversed is true, the 0th index is at the msb of the target rather than the lsb, i.e.
     /// `op[0](size - op[0] - elem_size .. size - op[0])
@@ -125,15 +124,10 @@ pub enum Operator {
         elem_size: BigUint,
         reversed: bool,
     },
-    BackSlice {
-        elem_size: BigUint,
-        reversed: bool,
-    },
     RangeSlice {
         start: BigUint,
         end_exclusive: BigUint,
     },
-    BackRangeSlice(BigUint, BigUint),
     /// Replicate [0] `copies` times
     Replicate {
         copies: BigUint,
@@ -161,11 +155,59 @@ pub enum Operator {
     /// Like `Alias`, but don't attempt to replace the aliased name with another
     BlackBoxAlias,
 
-    BackAlias,
-    BackBlackBoxAlias,
-    
+    Back(BackOperator),
+
     /// Define a variable for the value but don't do anything with it. Useful for creating ports
     Nop,
+}
+
+/// When compiling something like
+///
+/// ```spade
+/// let x: (int<4>, inv bool);
+/// let y: (int<4>, inv uint<8>);
+/// let z = (x, y);
+/// ```
+///
+/// the MIR for Z will be roughly
+///
+/// ```spade
+/// let z = Concat(x, y);
+/// ```
+///
+/// The LIR forward direction is easy, it will simply be
+/// ```spade
+/// let z = Concat(x, y);
+/// ```
+/// But the back direction is more tricky. It should be
+/// ```spade
+/// let back(x) = back(z)[0];
+/// let back(y) = back(z)[1..9];
+/// ```
+/// However, dealing with this logic for each individual Spade construct is annoying. Therefore,
+/// the LIR has a few backward operators called `BackX`, for example, `BackConcat`. Mir Lowering will
+/// generate
+///
+/// ```spade
+/// let z = Concat(x, y);
+/// let back(z) = BackConcat(back(x), back(y));
+/// ```
+///
+/// and the `backflip` pass will transform these operators into the underlying forward indexing
+/// operators. This must be done before legalization and removes all `BackXYZ` operators.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub enum BackOperator {
+    Concat,
+    Alias,
+    BlackBoxAlias,
+    Slice {
+        elem_size: BigUint,
+        reversed: bool,
+    },
+    RangeSlice {
+        start: BigUint,
+        end_exclusive: BigUint,
+    },
 }
 
 impl std::fmt::Display for Operator {
@@ -211,21 +253,15 @@ impl std::fmt::Display for Operator {
             Operator::LeftShift => write!(f, "LeftShift"),
             Operator::DivPow2 => write!(f, "DivPow2"),
             Operator::Concat => write!(f, "Concat"),
-            Operator::BackConcat => write!(f, "BackConcat"),
             Operator::Slice {
                 elem_size,
                 reversed,
             } => write!(f, "Slice({elem_size}, {reversed})"),
-            Operator::BackSlice {
-                elem_size,
-                reversed,
-            } => write!(f, "BackSlice({elem_size}, {reversed})"),
             Operator::Replicate { copies } => write!(f, "Replicate({copies})"),
             Operator::RangeSlice {
                 start,
                 end_exclusive,
             } => write!(f, "RangeSlice({start}, {end_exclusive})"),
-            Operator::BackRangeSlice(start, end) => write!(f, "BackRangeSlice({start}, {end})"),
             Operator::DeclClockedMemory { initial } => write!(
                 f,
                 "DeclClockedMemory({})",
@@ -243,8 +279,16 @@ impl std::fmt::Display for Operator {
             ),
             Operator::Alias => write!(f, "Alias"),
             Operator::BlackBoxAlias => write!(f, "BlackBoxAlias"),
-            Operator::BackAlias => write!(f, "BackAlias"),
-            Operator::BackBlackBoxAlias => write!(f, "BackBlackBoxAlias"),
+            Operator::Back(BackOperator::Concat) => write!(f, "BackConcat"),
+            Operator::Back(BackOperator::Slice {
+                elem_size,
+                reversed,
+            }) => write!(f, "BackSlice({elem_size}, {reversed})"),
+            Operator::Back(BackOperator::RangeSlice { start, end_exclusive }) => {
+                write!(f, "BackRangeSlice({start}, {end_exclusive})")
+            }
+            Operator::Back(BackOperator::BlackBoxAlias) => write!(f, "BackBlackBoxAlias"),
+            Operator::Back(BackOperator::Alias) => write!(f, "Alias"),
             Operator::Nop => write!(f, "Nop"),
             Operator::ReadWriteItemsInOut(n) => write!(f, "ReadWriteInOut({})", n),
         }
@@ -357,4 +401,3 @@ pub struct Entity {
     pub statements: Vec<Loc<Statement>>,
     pub inline: bool,
 }
-

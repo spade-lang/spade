@@ -168,7 +168,7 @@ fn statement_declaration(
 }
 
 fn forward_expression_code(
-    binding: &Binding,
+    binding: Loc<&Binding>,
     types: &LirTypeList,
     ops: &[Loc<ValueName>],
 ) -> Result<String> {
@@ -322,10 +322,6 @@ fn forward_expression_code(
                 }
             }
         }
-        Operator::BackSlice {
-            elem_size,
-            reversed,
-        } => todo!(),
         Operator::RangeSlice {
             start,
             end_exclusive,
@@ -344,10 +340,7 @@ fn forward_expression_code(
                 )
             }
         }
-        Operator::BackRangeSlice(big_uint, big_uint1) => todo!(),
         Operator::Replicate { copies } => format!("{{{}{{{}}}}}", copies, binding.operands[0]),
-        Operator::BackAlias => todo!(),
-        Operator::BackBlackBoxAlias => todo!(),
 
         Operator::Match => {
             assert!(
@@ -491,7 +484,13 @@ fn forward_expression_code(
             String::new()
         }
         Operator::Nop => String::new(),
-        Operator::BackConcat => todo!(),
+
+        Operator::Back(_) => {
+            diag_bail!(
+                binding,
+                "Back operator should already have been lowered during codegen."
+            )
+        }
     };
 
     Ok(result)
@@ -513,7 +512,11 @@ fn statement_code(
                 .collect::<Vec<_>>();
 
             let forward_expression = if binding.ty.size() != BigUint::zero() {
-                Some(forward_expression_code(binding, types, &binding.operands)?)
+                Some(forward_expression_code(
+                    binding.at_loc(statement),
+                    types,
+                    &binding.operands,
+                )?)
             } else {
                 None
             };

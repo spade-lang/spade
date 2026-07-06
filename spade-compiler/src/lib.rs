@@ -16,6 +16,9 @@ use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
+use spade_lir::passes::backflip::Backflip;
+use spade_lir::passes::legalize::Legalize;
+use spade_lir::passes::{Pass, run_passes};
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
 use spade_mir::passes::MirPass;
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
@@ -777,14 +780,14 @@ fn codegen(
                         },
                     )?;
 
-                    lir.legalize()
-                        .map_err(|mut e| {
-                            e.add_note("The LIR entity was:");
-                            for line in format!("{lir}").lines() {
-                                e.add_note(line);
-                            }
-                            e
-                        })?;
+                    let passes = [
+                        // Box::new(|| Box::new(Backflip{}) as Box<dyn Pass>) as Box<dyn Fn() -> Box<dyn Pass>>,
+                        Box::new(|| Box::new(Legalize{}) as Box<dyn Pass>) as Box<dyn Fn() -> Box<dyn Pass>>,
+                    ];
+
+                    run_passes(&mut lir, passes.as_slice())?;
+
+                    println!("{}", lir); // TODO
 
                     let (code, _) = spade_lir::codegen::entity_code(
                         &lir,

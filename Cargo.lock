@@ -3594,7 +3594,7 @@ dependencies = [
 
 [[package]]
 name = "spade-lir"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "colored 3.1.1",
  "derive-where",
@@ -3645,7 +3645,7 @@ dependencies = [
 
 [[package]]
 name = "spade-mir-lowering"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "num",
  "spade-common",
