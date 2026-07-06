@@ -7,7 +7,7 @@ use spade_common::{
     num_ext::{InfallibleToBigInt, InfallibleToBigUint},
 };
 use spade_diagnostics::{Diagnostic, diag_bail};
-use spade_lir::{self as lir, LirArg};
+use spade_lir::{self as lir, BackOperator, LirArg};
 use spade_mir::{self as mir, MirInput, type_list::MirTypeList};
 
 use num::{BigUint, One, ToPrimitive, Zero};
@@ -397,7 +397,9 @@ impl BindingExt for Loc<&mir::Binding> {
 
             mir::Operator::Concat => Ok([
                 maybe_fwd_operator(&|_| (lir::Operator::Concat, lowered_fwd()))?,
-                maybe_back_operator(&|_| (lir::Operator::BackConcat, lowered_back()))?,
+                maybe_back_operator(&|_| {
+                    (lir::Operator::Back(BackOperator::Concat), lowered_back())
+                })?,
             ]
             .into_iter()
             .flatten()
@@ -412,7 +414,7 @@ impl BindingExt for Loc<&mir::Binding> {
                 })?,
                 maybe_back_operator(&|_| {
                     (
-                        lir::Operator::BackConcat,
+                        lir::Operator::Back(BackOperator::Concat),
                         lowered_back().into_iter().rev().collect(),
                     )
                 })?,
@@ -448,10 +450,10 @@ impl BindingExt for Loc<&mir::Binding> {
                     })?,
                     maybe_back_operator(&|_self_ty| {
                         (
-                            lir::Operator::BackSlice {
+                            lir::Operator::Back(BackOperator::Slice {
                                 elem_size: inner.backward_size(),
                                 reversed: true,
-                            },
+                            }),
                             lowered_back(),
                         )
                     })?,
@@ -491,7 +493,10 @@ impl BindingExt for Loc<&mir::Binding> {
                         let offset = member_size * num_elems;
 
                         (
-                            lir::Operator::BackRangeSlice(&end_index * offset, end_index),
+                            lir::Operator::Back(BackOperator::RangeSlice {
+                                start: &end_index * offset,
+                                end_exclusive: end_index,
+                            }),
                             lowered_back(),
                         )
                     })?,
@@ -514,7 +519,7 @@ impl BindingExt for Loc<&mir::Binding> {
             }),
             mir::Operator::ConstructTuple => Ok([
                 maybe_fwd_operator(&|_ty| (lir::Operator::Concat, lowered_fwd()))?,
-                maybe_back_operator(&|_ty| (lir::Operator::BackConcat, lowered_back()))?,
+                maybe_back_operator(&|_ty| (lir::Operator::Back(BackOperator::Concat), lowered_back()))?,
             ]
             .into_iter()
             .flatten()
@@ -748,7 +753,7 @@ impl BindingExt for Loc<&mir::Binding> {
                 })?,
                 maybe_back_operator(&|_| {
                     (
-                        lir::Operator::BackAlias,
+                        lir::Operator::Alias,
                         lowered_back().into_iter().collect(),
                     )
                 })?,
@@ -765,7 +770,7 @@ impl BindingExt for Loc<&mir::Binding> {
                 })?,
                 maybe_back_operator(&|_| {
                     (
-                        lir::Operator::BackBlackBoxAlias,
+                        lir::Operator::Back(BackOperator::BlackBoxAlias),
                         lowered_back().into_iter().rev().collect(),
                     )
                 })?,
