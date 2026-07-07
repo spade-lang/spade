@@ -57,10 +57,6 @@ pub fn run_passes(entity: &mut Entity, passes: &[Box<dyn Fn() -> Box<dyn Pass>>]
     for pass in passes {
         let mut pass = pass();
 
-        pass.visit_entity(entity)?;
-
-        let types = LirTypeList::from_entity(entity);
-
         maybe_trace(&|| {
             println!(
                 "Running {} on {}",
@@ -68,6 +64,14 @@ pub fn run_passes(entity: &mut Entity, passes: &[Box<dyn Fn() -> Box<dyn Pass>>]
                 entity.name.to_string().red()
             ); // TODO
         });
+
+
+        maybe_trace(&|| println!("Gathering types"));
+        let types = LirTypeList::from_entity(entity);
+
+        maybe_trace(&|| println!("Visiting entity"));
+        pass.visit_entity(entity)?;
+
 
         entity.statements = entity
             .statements
@@ -81,7 +85,7 @@ pub fn run_passes(entity: &mut Entity, passes: &[Box<dyn Fn() -> Box<dyn Pass>>]
             })
             .collect::<Result<Vec<_>>>()
             .map_err(|e| {
-                println!("{}", format!("Pass failed").bright_red());
+                maybe_trace(&|| println!("{}", format!("Pass failed").bright_red()));
                 e
             })?
             .into_iter()
