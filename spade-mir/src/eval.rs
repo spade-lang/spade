@@ -334,7 +334,7 @@ pub fn eval_statements(statements: &[Loc<Statement>]) -> Value {
                     Operator::IndexTuple(_) => todo!(),
                     Operator::ReadPort => todo!(),
                     Operator::ReadWriteItemsInOut(_) => todo!(),
-                    Operator::FlipPort => todo!(),
+                    Operator::CreatePort => todo!(),
                     Operator::ReadMutWires => todo!(),
                     Operator::Instance { .. } => todo!(),
                     Operator::ConstructCopyView => todo!(),

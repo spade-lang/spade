@@ -3174,59 +3174,11 @@ impl ExprLocal for Loc<Expression> {
             .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
             .to_mir_type();
 
-        let (left_mir_type, right_mir_type) = match &self_type {
-            MirType::Tuple(items) => {
-                if items.len() != 2 {
-                    // Must be guaranteed by the function signature
-                    return Err(Diagnostic::bug(
-                        self,
-                        format!(
-                            "Inferred non-dyadic tuple return type `{self_type}` for port built-in"
-                        ),
-                    ));
-                }
-                (items[0].clone(), items[1].clone())
-            }
-            // Must be guaranteed by the function signature
-            _ => {
-                return Err(Diagnostic::bug(
-                    self,
-                    format!("Inferred non-tuple return type `{self_type}` for port built-in"),
-                ));
-            }
-        };
-
-        let lname = mir::ValueName::Expr(ctx.idtracker.next());
-        let rname = mir::ValueName::Expr(ctx.idtracker.next());
-
-        result.append_secondary(
-            vec![
-                mir::Statement::Binding(mir::Binding {
-                    name: lname.clone().near_loc(&self),
-                    operator: mir::Operator::Nop,
-                    operands: vec![],
-                    ty: left_mir_type,
-                    loc: Some(self.loc()),
-                })
-                .near_loc(&self),
-                mir::Statement::Binding(mir::Binding {
-                    name: rname.clone().near_loc(&self),
-                    operator: mir::Operator::FlipPort,
-                    operands: vec![lname.clone().near_loc(&self)],
-                    ty: right_mir_type,
-                    loc: Some(self.loc()),
-                })
-                .near_loc(&self),
-            ],
-            self,
-            "Port construction",
-        );
-
         result.push_primary(
             mir::Statement::Binding(mir::Binding {
                 name: self.variable(ctx)?,
-                operator: mir::Operator::ConstructTuple,
-                operands: vec![lname.near_loc(&self), rname.near_loc(&self)],
+                operator: mir::Operator::CreatePort,
+                operands: vec![],
                 ty: self_type,
                 loc: Some(self.loc()),
             })

@@ -7,7 +7,7 @@ use spade_common::{
     num_ext::{InfallibleToBigInt, InfallibleToBigUint},
 };
 use spade_diagnostics::{Diagnostic, diag_bail};
-use spade_lir::{self as lir, BackOperator, LirArg};
+use spade_lir::{self as lir, BackOperator, LirArg, ValueName};
 use spade_mir::{self as mir, MirInput, type_list::MirTypeList};
 
 use num::{BigUint, One, ToPrimitive, Zero};
@@ -519,7 +519,9 @@ impl BindingExt for Loc<&mir::Binding> {
             }),
             mir::Operator::ConstructTuple => Ok([
                 maybe_fwd_operator(&|_ty| (lir::Operator::Concat, lowered_fwd()))?,
-                maybe_back_operator(&|_ty| (lir::Operator::Back(BackOperator::Concat), lowered_back()))?,
+                maybe_back_operator(&|_ty| {
+                    (lir::Operator::Back(BackOperator::Concat), lowered_back())
+                })?,
             ]
             .into_iter()
             .flatten()
@@ -739,23 +741,81 @@ impl BindingExt for Loc<&mir::Binding> {
                 ])
             }
 
-            mir::Operator::FlipPort => Ok([
-                maybe_fwd_operator(&|_| (lir::Operator::Alias, lowered_back()))?,
-                maybe_back_operator(&|_| (lir::Operator::Alias, lowered_fwd()))?,
-            ]
-            .into_iter()
-            .flatten()
-            .collect()),
+            mir::Operator::CreatePort => {
+                let (left_ty, right_ty) = match &self.ty {
+                    mir::types::Type::Tuple(inner) => {
+                        let [left, right] = inner.as_slice() else {
+                            diag_bail!(self, "CreatePort did not create a tuple of two elements")
+                        };
+                        (left, right)
+                    }
+                    _ => diag_bail!(self, "CreatePort did not create a tuple of two elements"),
+                };
+
+                let left_fwd = ValueName::new_fwd(ctx.idtracker);
+                let left_back = ValueName::new_back(ctx.idtracker);
+                let right_fwd = ValueName::new_fwd(ctx.idtracker);
+                let right_back = ValueName::new_back(ctx.idtracker);
+
+                let new_stmts = [
+                    // Declare the backward wires
+                    lir::Statement::Binding(spade_lir::Binding {
+                        name: left_back.clone(),
+                        operator: spade_lir::Operator::Nop,
+                        operands: vec![],
+                        ty: lir::Type::BitVector(left_ty.backward_size()),
+                        loc: self.loc.clone(),
+                    }).near_loc(self),
+                    lir::Statement::Binding(spade_lir::Binding {
+                        name: right_back.clone(),
+                        operator: spade_lir::Operator::Nop,
+                        operands: vec![],
+                        ty: lir::Type::BitVector(right_ty.backward_size()),
+                        loc: self.loc.clone(),
+                    }).near_loc(self),
+
+                    // Connect the backward wires to the forward wires
+                    lir::Statement::Binding(spade_lir::Binding {
+                        name: left_fwd.clone(),
+                        operator: spade_lir::Operator::Alias,
+                        operands: vec![right_back.clone().near_loc(self)],
+                        ty: lir::Type::BitVector(left_ty.size()),
+                        loc: self.loc.clone(),
+                    }).near_loc(self),
+                    lir::Statement::Binding(spade_lir::Binding {
+                        name: right_fwd.clone(),
+                        operator: spade_lir::Operator::Alias,
+                        operands: vec![left_back.clone().near_loc(self)],
+                        ty: lir::Type::BitVector(right_ty.size()),
+                        loc: self.loc.clone(),
+                    }).near_loc(self),
+
+                    // Create the final result
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: spade_lir::Operator::Concat,
+                        operands: vec![left_fwd.near_loc(self), right_fwd.near_loc(self)],
+                        ty: lir::Type::BitVector(self.ty.size()),
+                        loc: self.loc.clone(),
+                    }).at_loc(self),
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_back(),
+                        operator: spade_lir::Operator::Back(BackOperator::Concat),
+                        operands: vec![left_back.near_loc(self), right_back.near_loc(self)],
+                        ty: lir::Type::BitVector(self.ty.backward_size()),
+                        loc: self.loc.clone(),
+                    }).at_loc(self),
+                ];
+
+                Ok(new_stmts.into_iter().collect())
+            }
 
             mir::Operator::Alias => Ok([
                 maybe_fwd_operator(&|_| {
                     (lir::Operator::Alias, lowered_fwd().into_iter().collect())
                 })?,
                 maybe_back_operator(&|_| {
-                    (
-                        lir::Operator::Alias,
-                        lowered_back().into_iter().collect(),
-                    )
+                    (lir::Operator::Alias, lowered_back().into_iter().collect())
                 })?,
             ]
             .into_iter()

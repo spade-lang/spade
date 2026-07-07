@@ -3,8 +3,7 @@ use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 #[cfg(test)]
 mod tests {
     use crate::{
-        build_and_compare_entities, build_entity, build_items, build_items_with_stdlib,
-        snapshot_error, snapshot_mir,
+        build_and_compare_entities, build_entity, build_items, build_items_with_stdlib, code_compiles, snapshot_error, snapshot_mir
     };
     use colored::Colorize;
     use insta::assert_debug_snapshot;
@@ -1710,9 +1709,9 @@ mod tests {
         "
     }
 
-    #[test]
-    fn port_pair_creation_works() {
-        let code = "
+    code_compiles! {
+        port_pair_creation_works,
+        "
             struct P {
                 x: bool,
                 y: inv int<2>,
@@ -1721,28 +1720,7 @@ mod tests {
             entity x() -> (P, inv P) {
                 port()
             }
-        ";
-
-        let result = build_entity!(code);
-
-        let intype_inner = vec![
-            ("x".to_string(), Type::Bool),
-            ("y".to_string(), Type::Backward(Box::new(Type::int(2)))),
-        ];
-        let intype = Type::Struct(intype_inner.clone());
-        let outtype = Type::Struct(vec![
-            ("x".to_string(), Type::Backward(Box::new(Type::Bool))),
-            ("y".to_string(), Type::int(2)),
-        ]);
-        let tuple_type = Type::Tuple(vec![intype.clone(), outtype.clone()]);
-
-        let expected = entity!(&["x"]; () -> tuple_type.clone(); {
-            (e(1); intype; Nop;);
-            (e(2); outtype; FlipPort; e(1));
-            (e(3); tuple_type; ConstructTuple; e(1), e(2))
-        } => e(3));
-
-        assert_same_mir!(&result, &expected);
+        "        
     }
 
     #[test]
