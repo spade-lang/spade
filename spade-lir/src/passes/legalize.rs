@@ -13,7 +13,8 @@ use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::diag_bail;
 
 use crate::{
-    Binding, Entity, LirArg, Result, Statement, Type, passes::Pass, type_list::LirTypeList,
+    BackOperator, Binding, Entity, LirArg, Operator, Result, Statement, Type, passes::Pass,
+    type_list::LirTypeList,
 };
 
 pub struct Legalize {}
@@ -191,64 +192,54 @@ impl Binding {
 
         match &self.operator {
             // Add/Sub-like grow one bit, therefore the output of 0u0 + 0u0 is 0u1
-            crate::Operator::Add
-            | crate::Operator::UnsignedAdd
-            | crate::Operator::Sub
-            | crate::Operator::UnsignedSub => {
+            Operator::Add | Operator::UnsignedAdd | Operator::Sub | Operator::UnsignedSub => {
                 normal_binop(spade_mir::ConstantValue::Int(BigInt::ZERO))
             }
 
-            crate::Operator::Mul => todo!(),
-            crate::Operator::UnsignedMul => todo!(),
+            Operator::Mul => todo!(),
+            Operator::UnsignedMul => todo!(),
 
             // Equality is always true for 0 bit values
-            crate::Operator::Eq
-            | crate::Operator::Ge
-            | crate::Operator::UnsignedGe
-            | crate::Operator::Le
-            | crate::Operator::UnsignedLe => {
-                normal_binop(spade_mir::ConstantValue::Int(BigInt::one()))
-            }
+            Operator::Eq
+            | Operator::Ge
+            | Operator::UnsignedGe
+            | Operator::Le
+            | Operator::UnsignedLe => normal_binop(spade_mir::ConstantValue::Int(BigInt::one())),
 
             // Non-equality is always false for 0 bit values
-            crate::Operator::NotEq
-            | crate::Operator::Gt
-            | crate::Operator::UnsignedGt
-            | crate::Operator::Lt
-            | crate::Operator::UnsignedLt => {
-                normal_binop(spade_mir::ConstantValue::Int(BigInt::ZERO))
-            }
+            Operator::NotEq
+            | Operator::Gt
+            | Operator::UnsignedGt
+            | Operator::Lt
+            | Operator::UnsignedLt => normal_binop(spade_mir::ConstantValue::Int(BigInt::ZERO)),
 
             // Operators which do not grow should already have been dropped
-            crate::Operator::Div
-            | crate::Operator::UnsignedDiv
-            | crate::Operator::Mod
-            | crate::Operator::UnsignedMod
-            | crate::Operator::LeftShift
-            | crate::Operator::RightShift
-            | crate::Operator::ArithmeticRightShift
-            | crate::Operator::LogicalAnd
-            | crate::Operator::LogicalOr
-            | crate::Operator::LogicalXor
-            | crate::Operator::BitwiseAnd
-            | crate::Operator::BitwiseOr
-            | crate::Operator::BitwiseXor
-            | crate::Operator::ReduceAnd
-            | crate::Operator::ReduceOr
-            | crate::Operator::ReduceXor
-            | crate::Operator::DivPow2 => binop_should_have_dropped(),
+            Operator::Div
+            | Operator::UnsignedDiv
+            | Operator::Mod
+            | Operator::UnsignedMod
+            | Operator::LeftShift
+            | Operator::RightShift
+            | Operator::ArithmeticRightShift
+            | Operator::LogicalAnd
+            | Operator::LogicalOr
+            | Operator::LogicalXor
+            | Operator::BitwiseAnd
+            | Operator::BitwiseOr
+            | Operator::BitwiseXor
+            | Operator::ReduceAnd
+            | Operator::ReduceOr
+            | Operator::ReduceXor
+            | Operator::DivPow2 => binop_should_have_dropped(),
 
-            crate::Operator::LogicalNot
-            | crate::Operator::USub
-            | crate::Operator::Not
-            | crate::Operator::BitwiseNot => {
+            Operator::LogicalNot | Operator::USub | Operator::Not | Operator::BitwiseNot => {
                 // TODO: Sanity checks
                 Ok(None)
             }
 
-            crate::Operator::ReadWriteItemsInOut(big_uint) => todo!(),
+            Operator::ReadWriteItemsInOut(big_uint) => todo!(),
 
-            crate::Operator::Concat => {
+            Operator::Concat | Operator::Back(BackOperator::Concat) => {
                 let new_operands = self
                     .operands
                     .iter()
@@ -276,15 +267,16 @@ impl Binding {
                     Ok(None)
                 }
             }
-            // TODO
-            crate::Operator::Slice {
+            Operator::Slice {
                 elem_size,
                 reversed,
             } => {
                 if types.lookup(&self.operands[0])?.size() == BigUint::ZERO {
                     diag_bail!(
                         loc,
-                        "Slicing a zero size operand to produce a non-zero size result"
+                        "Slicing a zero size operand({}) to produce a non-zero size result ({})",
+                        self.operands[0],
+                        self.name
                     );
                 }
 
@@ -293,7 +285,7 @@ impl Binding {
                 if types.lookup(&self.operands[1])?.size() == BigUint::ZERO {
                     Ok(Some(Statement::Binding(Binding {
                         name: self.name.clone(),
-                        operator: crate::Operator::Alias,
+                        operator: Operator::Alias,
                         operands: self.operands.clone(),
                         ty: self.ty.clone(),
                         loc: Some(loc.clone()),
@@ -302,20 +294,29 @@ impl Binding {
                     Ok(None)
                 }
             }
-            crate::Operator::RangeSlice {
+            Operator::RangeSlice {
                 start: _,
                 end_exclusive: _,
             } => {
                 if types.lookup(&self.operands[0])?.size() == BigUint::ZERO {
                     diag_bail!(
                         loc,
-                        "Slicing a zero size operand to produce a non-zero size result"
+                        "{} on a zero size operand({}) to produce a non-zero size result ({})",
+                        self.operator,
+                        self.operands[0],
+                        self.name
                     );
                 }
 
                 Ok(None)
             }
-            crate::Operator::Replicate { copies: _ } => {
+            Operator::Back(BackOperator::RangeSlice {
+                start: _,
+                end_exclusive: _,
+            }) => {
+                Ok(None)
+            }
+            Operator::Replicate { copies: _ } => {
                 if types.lookup(&self.operands[0])?.size() == BigUint::ZERO {
                     diag_bail!(
                         loc,
@@ -325,7 +326,7 @@ impl Binding {
 
                 Ok(None)
             }
-            crate::Operator::Select => {
+            Operator::Select => {
                 if types.lookup(&self.operands[0])?.size() != BigUint::one() {
                     diag_bail!(loc, "Found a select operation with a non-1 size condition")
                 }
@@ -344,7 +345,7 @@ impl Binding {
 
                 Ok(None)
             }
-            crate::Operator::Match => {
+            Operator::Match => {
                 for chunk in &self.operands.iter().chunks(2) {
                     let chunks = chunk.collect::<Vec<_>>();
                     let [cond, val] = chunks.as_slice() else {
@@ -363,8 +364,11 @@ impl Binding {
                 Ok(None)
             }
             // TODO
-            crate::Operator::DeclClockedMemory { initial } => todo!(),
-            crate::Operator::Alias | crate::Operator::BlackBoxAlias => {
+            Operator::DeclClockedMemory { initial } => todo!(),
+
+            Operator::Alias
+            | Operator::BlackBoxAlias
+            | Operator::Back(BackOperator::Alias | BackOperator::BlackBoxAlias) => {
                 let in_ty = types.lookup(&self.operands[0])?;
                 if in_ty.size() == BigUint::ZERO {
                     diag_bail!(
@@ -379,10 +383,9 @@ impl Binding {
                 }
                 Ok(None)
             }
-            crate::Operator::Nop => Ok(None),
-
+            Operator::Nop => Ok(None),
             // TODO: We should have another pass that ensures that we don't have any back wires remaining
-            crate::Operator::Back(_) => Ok(None),
+            // crate::Operator::Back(_) => Ok(None),
         }
     }
 }
