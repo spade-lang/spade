@@ -9,6 +9,10 @@ use crate::{
 pub struct Backflip {}
 
 impl Pass for Backflip {
+    fn name(&self) -> &'static str {
+        "backflip"
+    }
+
     fn visit_entity(&mut self, entity: &mut crate::Entity) -> Result<()> {
         Ok(())
     }
