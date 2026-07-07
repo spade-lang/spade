@@ -153,7 +153,7 @@ fn statement_declaration(
             code! {
                 [0] outputs.iter().map(|(_name, ty, val)| {
                     // TODO: What if we have `inout` here, can we even return inout currently?
-                    logic(&val.var_name(), &ty.size().near_loc(val))
+                    logic(&val.var_name(), &ty.size().near_loc(val)).map_err(|e| e.note(format!("When generating the logic for output {val}")))
                 }).collect::<Result<Vec<_>>>()?
             }
         }
@@ -485,10 +485,10 @@ fn forward_expression_code(
         }
         Operator::Nop => String::new(),
 
-        Operator::Back(_) => {
+        Operator::Back(op) => {
             diag_bail!(
                 binding,
-                "Back operator should already have been lowered during codegen."
+                "Back operator ({op:?}) should already have been lowered during codegen."
             )
         }
     };

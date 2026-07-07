@@ -17,6 +17,7 @@ rustc-hash.workspace = true
 nesty = "0.2"
 num.workspace = true
 serde.workspace = true
+colored.workspace = true
 
 spade-common.workspace = true
 spade-diagnostics.workspace = true
