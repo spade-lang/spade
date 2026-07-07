@@ -300,9 +300,9 @@ pub enum Operator {
     /// example a Struct.
     IndexTuple(u64),
 
-    /// Inverts the direction of all bits of a port. I.e. the forward ports
-    /// become backward ports. This is only valid when converting from T to ~T
-    FlipPort,
+    /// Creates a `(T, inv T)` pair where the inv wires in `.0` are connected to the non-inverted wires in `.1`
+    /// and the inv wires in `.1` are connected the non-inverted wires in `.0`
+    CreatePort,
 
     /// Instantiation of another module with the specified name. The operands are passed
     /// by name to the entity. The operand name mapping is decided by the `argument_names` field of
@@ -432,7 +432,7 @@ impl std::fmt::Display for Operator {
             Operator::Instance { name, .. } => write!(f, "Instance({})", name.as_verilog()),
             Operator::Alias => write!(f, "Alias"),
             Operator::BlackBoxAlias => write!(f, "BlackBoxAlias"),
-            Operator::FlipPort => write!(f, "FlipPort"),
+            Operator::CreatePort => write!(f, "FlipPort"),
             Operator::Nop => write!(f, "Nop"),
             Operator::ReadWriteItemsInOut(n) => write!(f, "ReadWriteInOut({})", n),
         }

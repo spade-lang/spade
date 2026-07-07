@@ -9,7 +9,7 @@ use itertools::Itertools;
 use num::BigUint;
 
 use serde::{Deserialize, Serialize};
-use spade_common::location_info::Loc;
+use spade_common::{id_tracker::ExprIdTracker, location_info::Loc};
 
 use spade_diagnostics::Diagnostic;
 pub(crate) use spade_mir::ConstantValue;
@@ -24,6 +24,16 @@ pub enum ValueName {
     OutputFwd,
     OutputBack,
 }
+
+impl ValueName {
+    pub fn new_fwd(idtracker: &ExprIdTracker) -> Self {
+        Self::Forward(mir::ValueName::Expr(idtracker.next()))
+    }
+    pub fn new_back(idtracker: &ExprIdTracker) -> Self {
+        Self::Backward(mir::ValueName::Expr(idtracker.next()))
+    }
+}
+
 impl std::fmt::Display for ValueName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

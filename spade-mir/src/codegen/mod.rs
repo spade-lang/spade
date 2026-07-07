@@ -777,7 +777,7 @@ fn forward_expression_code(
             // NOTE Dummy. Set in statement_code
             String::new()
         }
-        Operator::FlipPort => {
+        Operator::CreatePort => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
@@ -964,7 +964,7 @@ fn backward_expression_code(
             format!("{}{}", op_names[0], index.verilog_code())
         }
         Operator::ConstructCopyView => String::new(),
-        Operator::FlipPort => {
+        Operator::CreatePort => {
             // NOTE: Set in statement_code
             String::new()
         }
@@ -1182,16 +1182,18 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 }
                 Operator::DivPow2 => forward_expression.unwrap(),
                 Operator::Nop => String::new(),
-                Operator::FlipPort => {
-                    let has_fwd = binding.ty.size() != BigUint::zero();
-                    let has_back = binding.ty.backward_size() != BigUint::zero();
-                    // The forward ports of the flipped port (op[0]) and and the original (self)
-                    // should be mapped to the backward ports of the opposite port
-                    code! {
-                        [0] has_fwd.then(|| format!("assign {} = {};", name, back_ops[0]));
-                        [0] has_back.then(|| format!("assign {} = {};", ops[0], back_name));
-                    }
-                    .to_string()
+                Operator::CreatePort => {
+                    // let has_fwd = binding.ty.size() != BigUint::zero();
+                    // let has_back = binding.ty.backward_size() != BigUint::zero();
+                    // // The forward ports of the flipped port (op[0]) and and the original (self)
+                    // // should be mapped to the backward ports of the opposite port
+                    // code! {
+                    //     [0] has_fwd.then(|| format!("assign {} = {};", name, back_ops[0]));
+                    //     [0] has_back.then(|| format!("assign {} = {};", ops[0], back_name));
+                    // }
+                    // .to_string()
+                    // TODO
+                    String::new()
                 }
                 Operator::DeclClockedMemory { .. } => forward_expression.unwrap(),
                 Operator::ReadWriteItemsInOut(num_items) => {
@@ -2219,7 +2221,7 @@ mod backward_expression_tests {
     #[test]
     fn flip_port_works() {
         let out_type = Type::Tuple(vec![Type::backward(Type::int(2)), Type::int(4)]);
-        let stmt = statement!(e(0); out_type; FlipPort; e(1));
+        let stmt = statement!(e(0); out_type; CreatePort; e(1));
 
         let expected = indoc! {
             r#"

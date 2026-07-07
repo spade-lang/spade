@@ -337,7 +337,7 @@ pub fn eval_statements(statements: &[Loc<Statement>]) -> Value {
                     Operator::EnumMember { .. } => todo!(),
                     Operator::IndexTuple(_) => todo!(),
                     Operator::ReadWriteItemsInOut(_) => todo!(),
-                    Operator::FlipPort => todo!(),
+                    Operator::CreatePort => todo!(),
                     Operator::Instance { .. } => todo!(),
                     Operator::ConstructCopyView => todo!(),
                     Operator::Alias | Operator::BlackBoxAlias => name_vals[&ops[0]].clone(),

@@ -381,10 +381,8 @@ impl Binding {
             }
             crate::Operator::Nop => Ok(None),
 
-            crate::Operator::Back(_) => diag_bail!(
-                loc,
-                "Back operator should already be lowered during lir legalization"
-            ),
+            // TODO: We should have another pass that ensures that we don't have any back wires remaining
+            crate::Operator::Back(_) => Ok(None),
         }
     }
 }

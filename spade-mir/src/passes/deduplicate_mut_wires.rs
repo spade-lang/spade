@@ -97,7 +97,7 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::Match
         | Operator::ConstructArray
         | Operator::DeclClockedMemory { .. }
-        | Operator::FlipPort
+        | Operator::CreatePort
         | Operator::Instance { .. }
         | Operator::BlackBoxAlias
         | Operator::Inspect

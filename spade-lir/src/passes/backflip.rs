@@ -89,6 +89,15 @@ impl Pass for Backflip {
                             .cloned()
                             .zip(starts.clone().into_iter().skip(1));
 
+                        let declaration = Statement::Binding(Binding {
+                            name: name.clone(),
+                            operator: Operator::Nop,
+                            operands: vec![],
+                            ty: ty.clone(),
+                            loc: loc.clone(),
+                        })
+                        .at_loc(&statement);
+
                         let result = operands
                             .iter()
                             .zip(offsets)
@@ -105,7 +114,7 @@ impl Pass for Backflip {
                             .map(Statement::Binding)
                             .map(|s| s.near_loc(statement));
 
-                        Ok(Some(result.collect()))
+                        Ok(Some([declaration].into_iter().chain(result).collect()))
                     }
                     BackOperator::Slice {
                         elem_size,
