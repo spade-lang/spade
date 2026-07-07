@@ -12,11 +12,17 @@ use num::{BigInt, BigUint, One};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::diag_bail;
 
-use crate::{Binding, Entity, LirArg, Result, Statement, Type, passes::Pass, type_list::LirTypeList};
+use crate::{
+    Binding, Entity, LirArg, Result, Statement, Type, passes::Pass, type_list::LirTypeList,
+};
 
 pub struct Legalize {}
 
 impl Pass for Legalize {
+    fn name(&self) -> &'static str {
+        "legalize"
+    }
+
     fn visit_entity(&mut self, entity: &mut crate::Entity) -> Result<()> {
         let Entity {
             name: _,
@@ -78,18 +84,14 @@ impl Pass for Legalize {
         };
 
         if should_drop {
-            return Ok(Some(vec![]))
+            return Ok(Some(vec![]));
         }
 
         // Legalize the inner parts of statements. We have already droppped statements which _produce_ zero size
         // types, but some statements need modifications to account for their inputs being zero sized
-        
 
         let loc = &statement.loc();
-        // TODO Consider whether we should keep it like this or get rid of the mutation of the
-        // replacement 
-        let mut replacement = statement.inner.clone();
-        let replacement = match &mut replacement {
+        let replacement = match &statement.inner {
             Statement::Binding(binding) => binding.replacement_binding(types, &loc)?,
             Statement::Register(register) => {
                 // TODO: Legalize clock and reset
@@ -116,9 +118,19 @@ impl Pass for Legalize {
                 outputs,
                 verilog_attr_groups,
             } => {
+                let mut inputs = inputs.clone();
+                let mut outputs = outputs.clone();
+
                 inputs.retain(|(_, ty, _)| ty.size() != BigUint::ZERO);
                 outputs.retain(|(_, ty, _)| ty.size() != BigUint::ZERO);
-                None
+
+                Some(Statement::Instance {
+                    name: name.clone(),
+                    params: params.clone(),
+                    inputs,
+                    outputs,
+                    verilog_attr_groups: verilog_attr_groups.clone(),
+                })
             }
         };
 
@@ -131,11 +143,7 @@ impl Pass for Legalize {
 }
 
 impl Binding {
-    fn replacement_binding(
-        &mut self,
-        types: &LirTypeList,
-        loc: &Loc<()>,
-    ) -> Result<Option<Statement>> {
+    fn replacement_binding(&self, types: &LirTypeList, loc: &Loc<()>) -> Result<Option<Statement>> {
         let produce_constant =
             |value, size| Statement::Constant(self.name.clone(), Type::BitVector(size), value);
 
@@ -380,4 +388,3 @@ impl Binding {
         }
     }
 }
-
