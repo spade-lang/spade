@@ -210,10 +210,6 @@ pub enum BackOperator {
     Concat,
     Alias,
     BlackBoxAlias,
-    Slice {
-        elem_size: BigUint,
-        reversed: bool,
-    },
     RangeSlice {
         start: BigUint,
         end_exclusive: BigUint,
@@ -290,10 +286,6 @@ impl std::fmt::Display for Operator {
             Operator::Alias => write!(f, "Alias"),
             Operator::BlackBoxAlias => write!(f, "BlackBoxAlias"),
             Operator::Back(BackOperator::Concat) => write!(f, "BackConcat"),
-            Operator::Back(BackOperator::Slice {
-                elem_size,
-                reversed,
-            }) => write!(f, "BackSlice({elem_size}, {reversed})"),
             Operator::Back(BackOperator::RangeSlice { start, end_exclusive }) => {
                 write!(f, "BackRangeSlice({start}, {end_exclusive})")
             }

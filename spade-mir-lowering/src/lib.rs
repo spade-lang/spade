@@ -448,15 +448,7 @@ impl BindingExt for Loc<&mir::Binding> {
                             lowered_fwd(),
                         )
                     })?,
-                    maybe_back_operator(&|_self_ty| {
-                        (
-                            lir::Operator::Back(BackOperator::Slice {
-                                elem_size: inner.backward_size(),
-                                reversed: true,
-                            }),
-                            lowered_back(),
-                        )
-                    })?,
+                    // TODO: Ensure that this the result doesn't have a backward component
                 ]
                 .into_iter()
                 .flatten()

@@ -116,10 +116,6 @@ impl Pass for Backflip {
 
                         Ok(Some([declaration].into_iter().chain(result).collect()))
                     }
-                    BackOperator::Slice {
-                        elem_size,
-                        reversed,
-                    } => todo!(),
                     BackOperator::RangeSlice {
                         start,
                         end_exclusive,
