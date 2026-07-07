@@ -780,9 +780,16 @@ fn codegen(
                         },
                     )?;
 
+                    macro_rules! pass {
+                        ($name:ident) => {
+                            Box::new(|| Box::new($name{}) as Box<dyn Pass>) as Box<dyn Fn() -> Box<dyn Pass>>
+                        }
+                    }
+
                     let passes = [
-                        Box::new(|| Box::new(Backflip{}) as Box<dyn Pass>) as Box<dyn Fn() -> Box<dyn Pass>>,
-                        Box::new(|| Box::new(Legalize{}) as Box<dyn Pass>) as Box<dyn Fn() -> Box<dyn Pass>>,
+                        pass!(Legalize),
+                        pass!(Backflip),
+                        pass!(Legalize),
                     ];
 
                     run_passes(&mut lir, passes.as_slice())?;
