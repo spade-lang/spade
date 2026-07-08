@@ -10,7 +10,7 @@ use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_lir::{self as lir, BackOperator, LirArg, ValueName};
 use spade_mir::{self as mir, MirInput, type_list::MirTypeList};
 
-use num::{BigUint, One, ToPrimitive, Zero};
+use num::{BigInt, BigUint, One, ToPrimitive, Zero};
 
 use crate::types::TypeExt;
 
@@ -180,15 +180,23 @@ impl StatementExt for Loc<mir::Statement> {
                 lir::Statement::Assert(value_name.map_ref(|v| v.lower_fwd())).at_loc(self),
             ]),
             mir::Statement::Set { target, value } => Ok(vec![
-                lir::Statement::Set {
-                    target: target.map_ref(|v| v.lower_back()),
-                    value: value.map_ref(|v| v.lower_fwd()),
-                }
+                lir::Statement::Binding(lir::Binding {
+                    name: target.lower_back(),
+                    operator: spade_lir::Operator::Alias,
+                    operands: vec![value.map_ref(|v| v.lower_fwd())],
+                    ty: lir::Type::BitVector(types[target].backward_size()),
+                    // TODO: If we don't remove this field, set it to the statement loc
+                    loc: None,
+                })
                 .at_loc(self),
-                lir::Statement::Set {
-                    target: value.map_ref(|v| v.lower_back()),
-                    value: target.map_ref(|v| v.lower_fwd()),
-                }
+                lir::Statement::Binding(lir::Binding {
+                    name: value.lower_fwd(),
+                    operator: spade_lir::Operator::Alias,
+                    operands: vec![target.map_ref(|v| v.lower_back())],
+                    ty: lir::Type::BitVector(types[target].backward_size()),
+                    // TODO: If we don't remove this field, set it to the statement loc
+                    loc: None,
+                })
                 .at_loc(self),
             ]),
             mir::Statement::Error => Ok(vec![lir::Statement::Error.at_loc(self)]),
@@ -340,8 +348,7 @@ impl BindingExt for Loc<&mir::Binding> {
 
             mir::Operator::SignExtend => {
                 let msb_name = lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
-                let replicated_name =
-                    lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
+                let replicated_name = lir::ValueName::new_fwd(ctx.idtracker);
                 let in_ty = &types[&self.operands[0]]; // TODO Don't index, use .get and bail on error
                 if in_ty.size() == BigUint::ZERO {
                     diag_bail!(self, "Sign extend called on zero sized type");
@@ -384,7 +391,36 @@ impl BindingExt for Loc<&mir::Binding> {
                     .at_loc(self),
                 ])
             }
-            mir::Operator::ZeroExtend => todo!(),
+            mir::Operator::ZeroExtend => {
+                let in_ty = &types[&self.operands[0]]; // TODO Don't index, use .get and bail on error
+                if in_ty.size() == BigUint::ZERO {
+                    diag_bail!(self, "Sign extend called on zero sized type");
+                };
+
+                let zeros_name = lir::ValueName::new_fwd(ctx.idtracker);
+
+                let replicated_size = self.ty.size() - in_ty.size();
+
+                Ok(vec![
+                    lir::Statement::Constant(
+                        zeros_name.clone(),
+                        lir::Type::BitVector(replicated_size),
+                        spade_mir::ConstantValue::Int(BigInt::zero()),
+                    )
+                    .near_loc(self),
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: lir::Operator::Concat,
+                        operands: vec![
+                            zeros_name.near_loc(self),
+                            self.operands[0].map_ref(|op| op.lower_fwd()),
+                        ],
+                        ty: fwd,
+                        loc: self.loc,
+                    })
+                    .at_loc(self),
+                ])
+            }
             mir::Operator::Truncate => fwd_only_operator(&|ty| {
                 (
                     lir::Operator::RangeSlice {
@@ -757,15 +793,16 @@ impl BindingExt for Loc<&mir::Binding> {
                         operands: vec![],
                         ty: lir::Type::BitVector(left_ty.backward_size()),
                         loc: self.loc.clone(),
-                    }).near_loc(self),
+                    })
+                    .near_loc(self),
                     lir::Statement::Binding(spade_lir::Binding {
                         name: right_back.clone(),
                         operator: spade_lir::Operator::Nop,
                         operands: vec![],
                         ty: lir::Type::BitVector(right_ty.backward_size()),
                         loc: self.loc.clone(),
-                    }).near_loc(self),
-
+                    })
+                    .near_loc(self),
                     // Connect the backward wires to the forward wires
                     lir::Statement::Binding(spade_lir::Binding {
                         name: left_fwd.clone(),
@@ -773,15 +810,16 @@ impl BindingExt for Loc<&mir::Binding> {
                         operands: vec![right_back.clone().near_loc(self)],
                         ty: lir::Type::BitVector(left_ty.size()),
                         loc: self.loc.clone(),
-                    }).near_loc(self),
+                    })
+                    .near_loc(self),
                     lir::Statement::Binding(spade_lir::Binding {
                         name: right_fwd.clone(),
                         operator: spade_lir::Operator::Alias,
                         operands: vec![left_back.clone().near_loc(self)],
                         ty: lir::Type::BitVector(right_ty.size()),
                         loc: self.loc.clone(),
-                    }).near_loc(self),
-
+                    })
+                    .near_loc(self),
                     // Create the final result
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
@@ -789,14 +827,16 @@ impl BindingExt for Loc<&mir::Binding> {
                         operands: vec![left_fwd.near_loc(self), right_fwd.near_loc(self)],
                         ty: lir::Type::BitVector(self.ty.size()),
                         loc: self.loc.clone(),
-                    }).at_loc(self),
+                    })
+                    .at_loc(self),
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_back(),
                         operator: spade_lir::Operator::Back(BackOperator::Concat),
                         operands: vec![left_back.near_loc(self), right_back.near_loc(self)],
                         ty: lir::Type::BitVector(self.ty.backward_size()),
                         loc: self.loc.clone(),
-                    }).at_loc(self),
+                    })
+                    .at_loc(self),
                 ];
 
                 Ok(new_stmts.into_iter().collect())

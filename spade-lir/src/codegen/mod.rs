@@ -139,9 +139,6 @@ fn statement_declaration(
         Statement::Assert(_) => {
             code! {}
         }
-        Statement::Set { .. } => {
-            code! {}
-        }
         Statement::Instance {
             name: _,
             params: _,
@@ -689,21 +686,6 @@ fn statement_code(
                     [1] "`endif";
                 [0] "end";
                 [0] format!("`endif")
-            }
-        }
-        Statement::Set { target, value } => {
-            let mut assignments = Vec::new();
-
-            // TODO diag_bail on zst
-
-            assignments.push(format!(
-                "assign {} = {};",
-                target.var_name(),
-                value.var_name(),
-            ));
-
-            code! {
-                [0] assignments;
             }
         }
         Statement::Error => {
