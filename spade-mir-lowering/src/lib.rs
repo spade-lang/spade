@@ -6,11 +6,11 @@ use spade_common::{
     location_info::{Loc, WithLocation},
     num_ext::{InfallibleToBigInt, InfallibleToBigUint},
 };
-use spade_diagnostics::{Diagnostic, diag_bail};
+use spade_diagnostics::{Diagnostic, diag_anyhow, diag_bail};
 use spade_lir::{self as lir, BackOperator, LirArg, ValueName};
 use spade_mir::{self as mir, MirInput, type_list::MirTypeList};
 
-use num::{BigInt, BigUint, One, ToPrimitive, Zero};
+use num::{BigInt, BigUint, CheckedSub, One, ToPrimitive, Zero};
 
 use crate::types::TypeExt;
 
@@ -668,8 +668,13 @@ impl BindingExt for Loc<&mir::Binding> {
 
                 let member_end = &member_start + variant_list[*variant][*member_index].size();
 
-                let upper_idx = &full_size - &member_start - 1u32.to_biguint();
-                let lower_idx = full_size - &member_end;
+                let upper_idx = &full_size
+                    .checked_sub(&member_start)
+                    .and_then(|val| val.checked_sub(&1u32.to_biguint()))
+                    .ok_or_else(|| diag_anyhow!(self, "Checked sub failed"))?;
+                let lower_idx = full_size
+                    .checked_sub(&member_end)
+                    .ok_or_else(|| diag_anyhow!(self, "Checked sub failed"))?;
 
                 fwd_only_operator(&|_| {
                     (
