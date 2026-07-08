@@ -17,7 +17,7 @@ def find_spade_files(dir: Path) -> List[Path]:
 
 def handle_code_block(file: Path, lines: List[Tuple[int, str]]) -> str:
     relevant_path = file.relative_to("../spade-compiler")
-    result = ""
+    result = "{\n"
     # result = f"entity {str(relevant_path).replace("/", "__")}_{line_num}(clk: clock, rst: bool) {{\n"
     while len(lines) != 0 and (line := lines.pop(0)):
         (num, line) = line
@@ -29,7 +29,7 @@ def handle_code_block(file: Path, lines: List[Tuple[int, str]]) -> str:
             result += f"    {clean_line}{source_loc}\n"
 
     # result += "}\n"
-    result += "\n\n"
+    result += "};\n\n"
     return result
     
 

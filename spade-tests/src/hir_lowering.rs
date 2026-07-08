@@ -2796,3 +2796,16 @@ snapshot_error! {
     }
     "
 }
+
+snapshot_error! {
+    lambda_capture_linear_error_has_useful_loc,
+    "
+        fn test() {
+            let x = port();
+            set x.1 = false;
+            let _ = fn || {
+                set x.1 = true;
+            };
+        }
+    "
+}

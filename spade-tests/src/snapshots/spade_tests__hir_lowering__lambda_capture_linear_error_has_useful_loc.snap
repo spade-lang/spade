@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+fn test() {
+    let x = port();
+    set x.1 = false;
+    let _ = fn || {
+        set x.1 = true;
+    };
+}
+
+
+error: Use of consumed resource
+  ┌─ testinput:4:13
+  │  
+3 │       set x.1 = false;
+  │           --- Previously used here
+4 │       let _ = fn || {
+  │ ╭─────────────^
+5 │ │         set x.1 = true;
+6 │ │     };
+  │ ╰─────^ Use of consumed resource

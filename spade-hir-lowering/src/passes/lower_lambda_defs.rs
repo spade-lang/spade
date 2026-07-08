@@ -336,7 +336,7 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
 
                             ExprKind::Identifier(name_id.clone().inner)
                                 .with_id(id)
-                                .at_loc(name_id)
+                                .at_loc(expression)
                         })
                         .collect(),
                 )
