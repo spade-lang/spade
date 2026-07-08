@@ -245,7 +245,10 @@ impl Binding {
                 Ok(None)
             }
 
-            Operator::ReadWriteItemsInOut(big_uint) => todo!(),
+            Operator::ReadWriteItemsInOut(big_uint) => {
+                // TODO
+                Ok(None)
+            },
 
             Operator::Concat | Operator::Back(BackOperator::Concat) => {
                 let new_operands = self
