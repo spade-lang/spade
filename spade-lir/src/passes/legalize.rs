@@ -20,6 +20,8 @@ use crate::{
 pub struct Legalize {}
 
 impl Pass for Legalize {
+    type Payload = ();
+
     fn name(&self) -> &'static str {
         "legalize"
     }
@@ -61,6 +63,7 @@ impl Pass for Legalize {
         &mut self,
         statement: &Loc<Statement>,
         types: &LirTypeList,
+        _payload: &mut Self::Payload,
     ) -> Result<Option<Vec<Loc<Statement>>>> {
         // Drop any statements that produce zero size types
         let should_drop = match &statement.inner {
@@ -72,7 +75,7 @@ impl Pass for Legalize {
                 false
             }
             crate::Statement::Set { target, value: _ } => {
-                if types.lookup(target).unwrap().size() == BigUint::ZERO {
+                if types.lookup(target)?.size() == BigUint::ZERO {
                     true
                 } else {
                     false
