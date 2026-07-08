@@ -2,12 +2,12 @@ use itertools::Itertools;
 use nesty::{Code, code};
 use spade_codespan_reporting::term::termcolor;
 
-use num::{BigInt, BigUint, One, Signed, Zero};
+use num::{BigInt, BigUint, CheckedSub, One, Signed, Zero};
 use spade_common::location_info::{Loc, WithLocation};
 use spade_common::name::NameID;
 use spade_common::num_ext::InfallibleToBigUint;
 use spade_diagnostics::emitter::CodespanEmitter;
-use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, diag_bail};
+use spade_diagnostics::{CodeBundle, CompilationError, DiagHandler, diag_anyhow, diag_bail};
 use spade_mir::unit_name::{InstanceMap, InstanceNameTracker};
 
 use crate::codegen::assertion::AssertedExpression;
@@ -332,7 +332,12 @@ fn forward_expression_code(
                 format!(
                     "{}[{}-:{}]",
                     op_names[0],
-                    end_exclusive - BigUint::one(),
+                    end_exclusive.checked_sub(&BigUint::one()).ok_or_else(|| {
+                        diag_anyhow!(
+                            binding,
+                            "Range slice requested sub of {end_exclusive} - 1 which underflowed"
+                        )
+                    })?,
                     start
                 )
             }
@@ -572,8 +577,9 @@ fn statement_code(
                     }
                     snippets.join("\n")
                     */
-                    // TODO: HAndle ReadWriteItemsInOut. Can we perhaps lower this during MIR lowering?
-                    todo!()
+                    // TODO: Handle ReadWriteItemsInOut. Can we perhaps lower this during MIR lowering?
+                    // todo!()
+                    "".to_string()
                 }
                 // TODO: Handle memories
                 // Operator::Alias | Operator::BlackBoxAlias => match binding.ty {
