@@ -16,9 +16,9 @@ use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
-use spade_lir::passes::backflip::Backflip;
+use spade_lir::passes::backflip::{FlipBackConcat, FlipBackRangeIndex};
 use spade_lir::passes::legalize::Legalize;
-use spade_lir::passes::{Pass, run_passes};
+use spade_lir::passes::{Pass, run_pass};
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
 use spade_mir::passes::MirPass;
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
@@ -780,19 +780,20 @@ fn codegen(
                         },
                     )?;
 
-                    macro_rules! pass {
-                        ($name:ident) => {
-                            Box::new(|| Box::new($name{}) as Box<dyn Pass>) as Box<dyn Fn() -> Box<dyn Pass>>
+                    macro_rules! run_passes {
+                        () => {};
+                        ($name:ident, $($rest:ident),* $(,)?) => {
+                            run_pass(&mut lir, $name{})?;
+                            run_passes!($($rest,)*);
                         }
                     }
 
-                    let passes = [
-                        pass!(Legalize),
-                        pass!(Backflip),
-                        pass!(Legalize),
+                    run_passes![
+                        Legalize,
+                        FlipBackConcat,
+                        FlipBackRangeIndex,
+                        Legalize,
                     ];
-
-                    run_passes(&mut lir, passes.as_slice())?;
 
                     let (code, _) = spade_lir::codegen::entity_code(
                         &lir,
