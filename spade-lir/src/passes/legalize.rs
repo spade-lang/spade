@@ -74,13 +74,6 @@ impl Pass for Legalize {
                 // Asserts are always bool. We check this during statement modification later
                 false
             }
-            crate::Statement::Set { target, value: _ } => {
-                if types.lookup(target)?.size() == BigUint::ZERO {
-                    true
-                } else {
-                    false
-                }
-            }
             // We keep instances even if the were to create only zero sized values. We will drop
             // their zero size values during statement modification
             crate::Statement::Instance { .. } => false,
@@ -105,12 +98,6 @@ impl Pass for Legalize {
             Statement::Assert(val) => {
                 if types.lookup(val)?.size() == BigUint::ZERO {
                     diag_bail!(loc, "Asserting a zero sized value");
-                }
-                None
-            }
-            Statement::Set { target, value } => {
-                if types.lookup(value)?.size() == types.lookup(target)?.size() {
-                    diag_bail!(loc, "Found `set` with mixed target/value size")
                 }
                 None
             }
