@@ -1,6 +1,7 @@
 pub mod backflip;
 pub mod legalize;
 pub mod drop_back_nops;
+pub mod forbid_back_operators;
 
 use colored::Colorize;
 use itertools::Itertools;

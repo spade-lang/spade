@@ -18,8 +18,9 @@ use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
 use spade_lir::passes::backflip::{FlipBackConcat, FlipBackRangeIndex};
 use spade_lir::passes::drop_back_nops::DropBackNops;
+use spade_lir::passes::forbid_back_operators::ForbidBackOperators;
 use spade_lir::passes::legalize::Legalize;
-use spade_lir::passes::{Pass, run_pass};
+use spade_lir::passes::{run_pass};
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
 use spade_mir::passes::MirPass;
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
@@ -795,6 +796,7 @@ fn codegen(
                         FlipBackRangeIndex,
                         DropBackNops,
                         Legalize,
+                        ForbidBackOperators,
                     ];
 
                     let (code, _) = spade_lir::codegen::entity_code(
