@@ -186,8 +186,26 @@ impl Binding {
                 normal_binop(spade_mir::ConstantValue::Int(BigInt::ZERO))
             }
 
-            Operator::Mul => todo!(),
-            Operator::UnsignedMul => todo!(),
+            // Multiplication with a zero width operand produces 0 and could in theory produce
+            // a 0 width type. However, the type system says N+M, so that's what we should emit
+            Operator::Mul |
+            Operator::UnsignedMul => {
+                if self.operands.len() != 2 {
+                    diag_bail!(
+                        loc,
+                        "Expected a binary operator but found {} operands",
+                        self.operands.len()
+                    );
+                }
+
+                let operands_are_zero = types.lookup(&self.operands[0])?.size() == BigUint::ZERO || types.lookup(&self.operands[1])?.size() == BigUint::ZERO;
+
+                if operands_are_zero {
+                    Ok(Some(produce_constant(spade_mir::ConstantValue::Int(BigInt::ZERO), self.ty.size())))
+                } else {
+                    Ok(None)
+                }
+            }
 
             // Equality is always true for 0 bit values
             Operator::Eq
