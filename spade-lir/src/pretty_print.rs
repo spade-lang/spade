@@ -84,7 +84,6 @@ impl std::fmt::Display for Statement {
                 write!(f, "const {value_name}: {ty} = {constant_value}")
             }
             Statement::Assert(val) => write!(f, "assert {val}"),
-            Statement::Set { target, value } => write!(f, "set {target} = {value}"),
             Statement::Instance {
                 name,
                 params,

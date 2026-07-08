@@ -367,10 +367,6 @@ pub enum Statement {
     /// A constant expression with the specified ID and value
     Constant(ValueName, Type, ConstantValue),
     Assert(Loc<ValueName>),
-    Set {
-        target: Loc<ValueName>,
-        value: Loc<ValueName>,
-    },
 
     Instance {
         name: UnitName,

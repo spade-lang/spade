@@ -47,9 +47,6 @@ impl LirTypeList {
                     self.inner.insert(idx.clone(), ty.clone());
                 }
                 Statement::Assert(_) => {}
-                Statement::Set { .. } => {
-                    // No new types introduced
-                }
                 Statement::Error => {}
                 Statement::Instance {
                     name: _,
