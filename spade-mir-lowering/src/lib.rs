@@ -149,8 +149,11 @@ impl StatementExt for Loc<mir::Statement> {
                 loc,
             }) => {
                 if let Some(_intial) = initial {
-                    // TODO
-                    diag_bail!(self, "Register intial is unsupported in LIR")
+                    // TODO: To support initial, we have to support LIR eval. For continuing with testing,
+                    // we'll warn instead of bailing here, but this naturally means that tests requiring
+                    // initial will fail
+                    let err = diag_anyhow!(self, "Register intial is unsupported in LIR");
+                    return Err(err.level(spade_diagnostics::diagnostic::DiagnosticLevel::Warning))
                 }
                 let (fwd, back) = ty.lower();
                 if back.size() != BigUint::ZERO {
@@ -660,31 +663,41 @@ impl BindingExt for Loc<&mir::Binding> {
                 let tag_size = enum_util::tag_size(variant_list.len());
                 let full_size = enum_type.size();
 
-                let member_start = (tag_size as u64)
-                    + variant_list[*variant][0..*member_index]
-                        .iter()
-                        .map(|t| t.size())
-                        .sum::<BigUint>();
+                if variant_list.len() == 0 {
+                    Ok(vec![
+                        lir::Statement::Constant(
+                            self.name.lower_fwd(),
+                            lir::Type::BitVector(BigUint::zero()),
+                            spade_mir::ConstantValue::Undef(BigUint::zero()),
+                        )
+                        .at_loc(self),
+                    ])
+                } else {
+                    let member_start = (tag_size as u64)
+                        + variant_list[*variant][0..*member_index]
+                            .iter()
+                            .map(|t| t.size())
+                            .sum::<BigUint>();
 
-                let member_end = &member_start + variant_list[*variant][*member_index].size();
+                    let member_end = &member_start + variant_list[*variant][*member_index].size();
 
-                let upper_idx = &full_size
-                    .checked_sub(&member_start)
-                    .and_then(|val| val.checked_sub(&1u32.to_biguint()))
-                    .ok_or_else(|| diag_anyhow!(self, "Checked sub failed"))?;
-                let lower_idx = full_size
-                    .checked_sub(&member_end)
-                    .ok_or_else(|| diag_anyhow!(self, "Checked sub failed"))?;
+                    let upper_idx = &full_size
+                        .checked_sub(&member_start)
+                        .ok_or_else(|| diag_anyhow!(self, "Checked sub failed"))?;
+                    let lower_idx = full_size
+                        .checked_sub(&member_end)
+                        .ok_or_else(|| diag_anyhow!(self, "Checked sub failed"))?;
 
-                fwd_only_operator(&|_| {
-                    (
-                        lir::Operator::RangeSlice {
-                            start: lower_idx.clone(),
-                            end_exclusive: upper_idx.clone(),
-                        },
-                        lowered_fwd(),
-                    )
-                })
+                    fwd_only_operator(&|_| {
+                        (
+                            lir::Operator::RangeSlice {
+                                start: lower_idx.clone(),
+                                end_exclusive: upper_idx.clone(),
+                            },
+                            lowered_fwd(),
+                        )
+                    })
+                }
             }
             mir::Operator::IndexTuple(idx) => {
                 let inner_types = match &types[&self.operands[0]].strip_copy_view_layers() {

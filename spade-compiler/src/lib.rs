@@ -17,6 +17,7 @@ use spade_diagnostics::diagnostic::{Message, Subdiagnostic};
 use spade_hir::expression::Safety;
 use spade_hir_lowering::inline::do_inlining;
 use spade_lir::passes::backflip::{FlipBackConcat, FlipBackRangeIndex};
+use spade_lir::passes::drop_back_nops::DropBackNops;
 use spade_lir::passes::legalize::Legalize;
 use spade_lir::passes::{Pass, run_pass};
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
@@ -792,6 +793,7 @@ fn codegen(
                         Legalize,
                         FlipBackConcat,
                         FlipBackRangeIndex,
+                        DropBackNops,
                         Legalize,
                     ];
 

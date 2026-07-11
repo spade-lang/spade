@@ -8,12 +8,10 @@ use crate::ValueName;
 impl ValueName {
     pub fn unescaped_var_name(&self) -> String {
         match self {
-            ValueName::Forward(mir::ValueName::Named(_, _, _))
-            | ValueName::Backward(mir::ValueName::Named(_, _, _)) => {
-                format!("{self}")
-            }
-            ValueName::Forward(mir::ValueName::Expr(id))
-            | ValueName::Backward(mir::ValueName::Expr(id)) => format!("_e_{}", id.0),
+            ValueName::Forward(mir::ValueName::Named(_, _, _)) => format!("{self}"),
+            ValueName::Backward(mir::ValueName::Named(_, _, _)) => format!("{self}_mut"),
+            ValueName::Forward(mir::ValueName::Expr(id)) => format!("_e_{}", id.0),
+            ValueName::Backward(mir::ValueName::Expr(id)) => format!("_e_{}_mut", id.0),
             ValueName::OutputFwd => "__output".to_string(),
             ValueName::OutputBack => "__input".to_string(),
         }
