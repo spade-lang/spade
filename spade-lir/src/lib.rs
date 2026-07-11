@@ -32,6 +32,15 @@ impl ValueName {
     pub fn new_back(idtracker: &ExprIdTracker) -> Self {
         Self::Backward(mir::ValueName::Expr(idtracker.next()))
     }
+
+    fn is_output(&self) -> bool {
+        match self {
+            ValueName::Forward(_) => false,
+            ValueName::Backward(_) => false,
+            ValueName::OutputFwd => true,
+            ValueName::OutputBack => true,
+        }
+    }
 }
 
 impl std::fmt::Display for ValueName {

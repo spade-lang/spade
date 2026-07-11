@@ -235,10 +235,15 @@ impl Binding {
             | Operator::BitwiseAnd
             | Operator::BitwiseOr
             | Operator::BitwiseXor
-            | Operator::ReduceAnd
-            | Operator::ReduceOr
-            | Operator::ReduceXor
             | Operator::DivPow2 => binop_should_have_dropped(),
+
+            Operator::ReduceAnd
+            | Operator::ReduceOr
+            | Operator::ReduceXor => {
+                // TODO: Sanity checks
+                Ok(None)
+            },
+            
 
             Operator::LogicalNot | Operator::USub | Operator::Not | Operator::BitwiseNot => {
                 // TODO: Sanity checks
