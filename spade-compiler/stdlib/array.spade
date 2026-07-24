@@ -331,7 +331,8 @@ impl<T, #uint N> [T; N] {
     where
         K <= N else "Split point is outside array bounds"
     {
-        (self[..K], self[K..])
+        let (r, l) =  unsafe { std::conv::transmute(self) };
+        (l, r)
     }
 
     /// Pairs elements of two arrays together into a single array of tuples.
@@ -483,8 +484,9 @@ impl<S, T, #uint N> [(S, T); N] {
         } else if N == 1 {
             ([self[0].0], [self[0].1])
         } else {
-            let (ll, lr) = self[..N/2].unzip();
-            let (rl, rr) = self[N/2..].unzip();
+            let (l, r) = self.split_at::<{N/2}>();
+            let (ll, lr) = l.unzip();
+            let (rl, rr) = r.unzip();
 
             (ll.concat(rl), lr.concat(rr))
         }
