@@ -134,7 +134,8 @@ impl<T, #uint N> [T; N] {
         gen if N == 0 {
             []
         } else {
-            [self[..ChunkSize]].concat(self[ChunkSize..].chunks())
+            let (l, r) = self.split_at::<ChunkSize>();
+            [l].concat(r.chunks())
         }
     }
 
@@ -168,10 +169,8 @@ impl<T, #uint N> [T; N] {
         gen if N < 2 {
             self
         } else {
-            let l = self[..N/2].reversed();
-            let r = self[N/2..].reversed();
-
-            r.concat(l)
+            let (l, r) = self.split_at::<{N/2}>();
+            r.reversed().concat(l.reversed())
         }
     }
 
@@ -237,10 +236,8 @@ impl<T, #uint N> [T; N] {
         } else if N == 1 {
             [f.call((self[0],))]
         } else {
-            let l = self[..N/2].map(f);
-            let r = self[N/2..].map(f);
-
-            l.concat(r)
+            let (l, r) = self.split_at::<{N/2}>();
+            l.map(f).concat(r.map(f))
         }
     }
 
@@ -357,8 +354,11 @@ impl<T, #uint N> [T; N] {
         } else if N == 1 {
             [(self[0], other[0])]
         } else {
-            let l = self[..N/2] `zip` other[..N/2];
-            let r = self[N/2..] `zip` other[N/2..];
+            let (ll, lr) = self.split_at::<{N/2}>();
+            let (rl, rr) = other.split_at::<{N/2}>();
+
+            let l = ll `zip` rl;
+            let r = lr `zip` rr;
 
             l.concat(r)
         }
@@ -556,10 +556,8 @@ impl<T, #uint N, #uint M> [[T; M]; N] {
         } else if N == 1 {
             self[0]
         } else {
-            let l = self[..N/2].flatten();
-            let r = self[N/2..].flatten();
-
-            l.concat(r)
+            let (l, r) = self.split_at::<{N/2}>();
+            l.flatten().concat(r.flatten())
         }
     }
 }
