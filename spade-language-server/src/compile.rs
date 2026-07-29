@@ -170,6 +170,7 @@ impl ServerBackend {
             RestoreAction::Deny,
             swim::libraries::StaleCheckStrategy::AssumeCorrect,
         )?;
+
         let library_files: Vec<_> = library_dirs
             .iter()
             .map(|(name, dir)| {
