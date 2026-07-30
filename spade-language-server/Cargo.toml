@@ -14,11 +14,7 @@ spade-hir.workspace = true
 spade-codespan.workspace = true
 spade-typeinference.workspace = true
 spade-query.workspace = true
-swim = {
-  git = "https://gitlab.com/spade-lang/swim.git",
-  rev = "78e85e13cbc9c1e24b9c4679a789c157571dfb84",
-  features=["full"]
-}
+swim = { git = "https://gitlab.com/spade-lang/swim.git", rev = "78e85e13cbc9c1e24b9c4679a789c157571dfb84", features=["full"] }
 
 
 async-recursion = "1.1.1"

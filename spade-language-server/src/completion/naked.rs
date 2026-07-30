@@ -11,7 +11,7 @@ use tower_lsp::lsp_types::{
 
 use crate::{
     backend::ServerBackend,
-    completion::{ParamListExt, SnippetBuilder, UnitKindExt},
+    completion::{ParamListExt, SnippetBuilder},
 };
 
 impl ServerBackend {
@@ -300,15 +300,16 @@ pub(crate) fn completion_data(
     let is_enum_variant = matches!(thing, spade_hir::symbol_table::Thing::EnumVariant(_));
 
     let mut sb = SnippetBuilder::new();
-    let mut unit_like = |params: &ParameterList, kind: &UnitKind| {
-        // FIXME Use `inst` data here
-        let (inst_label, inst_snippet) = kind.label_snippet(false, false, &mut sb);
+    let mut unit_like = |params: &ParameterList, _kind: &UnitKind| {
+        // Ideally we'd insert `inst` here if it is required for the target unit. However,
+        // we have to be careful doing so as we risk inserting double inst if the user
+        // already did so manually, or we may insert `inst` into a path. For now, we'll err
+        // on the side of reducing false positives in completion and just never insert inst
+        // let (_inst_label, _inst_snippet) = kind.label_snippet(false, false, &mut sb);
+        //
         let (arg_label, arg_snippet) = params.label_snippet(&mut sb, is_enum_variant, false);
 
-        (
-            format!("{inst_label}{name}{arg_label}"),
-            format!("{inst_snippet}{name}{arg_snippet}"),
-        )
+        (format!("{name}{arg_label}"), format!("{name}{arg_snippet}"))
     };
 
     let (label, snippet) = match thing {
