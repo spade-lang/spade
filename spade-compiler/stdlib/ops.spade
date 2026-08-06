@@ -131,7 +131,7 @@ pub extern fn reduce_or<#uint N>(x: [bool; N]) -> bool;
 
 /// Reduces an array of `bool` into a single value by performing a XOR operation on them.
 ///
-/// This operation is equivalent to the Verilog OR reduction operator `^`.
+/// This operation is equivalent to the Verilog XOR reduction operator `^`.
 ///
 /// # Examples
 ///

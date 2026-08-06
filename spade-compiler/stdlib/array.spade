@@ -605,7 +605,7 @@ impl<#uint N> [bool; N] where N > 0 {
     /// assert [false, true, true].reduce_xor() == false ^^ true ^^ true;
     /// ```
     ///
-    /// This operation is equivalent to the Verilog OR reduction operator `^`.
+    /// This operation is equivalent to the Verilog XOR reduction operator `^`.
     fn reduce_xor(self) -> bool {
         std::ops::reduce_xor(self)
     }
