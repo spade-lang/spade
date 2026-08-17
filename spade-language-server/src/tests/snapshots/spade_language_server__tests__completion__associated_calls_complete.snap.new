@@ -1,21 +1,23 @@
 ---
 source: spade-language-server/src/tests/completion.rs
+assertion_line: 79
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
-        enum A {
-            B,
-            C{x: bool},
+        struct S {}
+        impl S {
+            fn meth() {}
         }
 
         fn main() {
-            
-        // ^[1] completion
+            S::
+            // ^[1] completion
         }
     
 ---code ⬆️ completion ⬇️ ---
-A [proj::A]	A
 Memory [Memory]	Memory
+S [proj::S]	S
+S() [proj::S]	S()$0
 bool [bool]	bool
 clock [clock]	clock
 inout [inout]	inout

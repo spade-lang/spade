@@ -324,9 +324,8 @@ impl ExprKindExt for ExprKind {
                 safety: _,
                 verilog_attr_groups: _,
             } => callee.contains_start(loc),
-            ExprKind::AssociatedCall { ..  } => {
-                // TODO: Handle associated call
-                false
+            ExprKind::AssociatedCall { kind: _, callee: _, callee_ty: _, name, args: _, turbofish: _, safety: _   } => {
+                name.contains_start(loc)
             },
             ExprKind::BinaryOperator(_, op, _) => op.contains_start(loc),
             ExprKind::Error => false,

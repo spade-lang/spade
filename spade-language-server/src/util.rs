@@ -14,9 +14,7 @@ use spade_hir::{
 };
 use spade_query::QueryThing;
 use spade_typeinference::{
-    equation::{TypeVar, TypeVarID},
-    method_resolution::select_method,
-    HasType, TypeState,
+    HasType, TypeState, equation::{TypeVar, TypeVarID, TypedExpression}, method_resolution::select_method
 };
 use tower_lsp::lsp_types::{Location, Position, Range, Url};
 
@@ -257,7 +255,39 @@ impl ServerBackend {
                         None
                     }
                 }
-                // TODO: We should handle AssociatedCall here
+                ExprKind::AssociatedCall { kind: _, callee: _, callee_ty, name, args: _, turbofish: _, safety: _ } => {
+                    if name.contains_start(loc) {
+                        unit_type_state.as_ref().and_then(|ts| {
+                            let Some(target_ty) = TypedExpression::Id(*callee_ty).try_get_type(ts) else {
+                                return None;
+                            };
+
+                            select_method(
+                                thing.loc(),
+                                &target_ty,
+                                name,
+                                false,
+                                &self.trait_impls.lock().unwrap(),
+                                ts,
+                            )
+                            .ok()
+                            .flatten()
+                            .and_then(|(callee, _)| {
+                                let symtab = self.symtab.lock().unwrap();
+                                let Some(symtab) = symtab.as_ref() else {
+                                    return None;
+                                };
+                                let target_unit = symtab.symtab().unit_by_id(&callee.inner);
+                                Some(FieldInfo::Method {
+                                    target_unit,
+                                    target_ty,
+                                })
+                            })
+                        })
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             });
 

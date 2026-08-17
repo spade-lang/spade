@@ -304,3 +304,17 @@ test_hover! {
         }
     "#,
 }
+
+test_hover! {
+    associated_fn_hover_method_works,
+    r#"
+        struct S {}
+        impl S {
+            fn meth() {}
+        }
+        fn test() {
+            S::meth();
+           //  ^[1] hover
+        }
+    "#
+}

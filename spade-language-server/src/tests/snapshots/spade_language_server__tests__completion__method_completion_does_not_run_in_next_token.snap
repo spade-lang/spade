@@ -15,13 +15,13 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-Memory	-
+Memory [Memory]	Memory
+NameOfStruct [proj::NameOfStruct]	NameOfStruct
 NameOfStruct() [proj::NameOfStruct]	NameOfStruct()$0
-Self [proj::Self]	Self
-bool	-
-clock	-
-inout	-
-int	-
+bool [bool]	bool
+clock [clock]	clock
+inout [inout]	inout
+int [int]	int
 proj [proj]	proj
-tri	-
-uint	-
+tri [tri]	tri
+uint [uint]	uint

@@ -24,18 +24,18 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-Memory	-
+Memory [Memory]	Memory
 argument	-
 before_decl	-
 before_let	-
 before_reg	-
-bool	-
+bool [bool]	bool
 clk	-
-clock	-
+clock [clock]	clock
 inner_let	-
-inout	-
-int	-
+inout [inout]	inout
+int [int]	int
 proj [proj]	proj
 test(…) [proj::test]	test(${1:clk}, ${2:argument})$0
-tri	-
-uint	-
+tri [tri]	tri
+uint [uint]	uint

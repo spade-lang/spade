@@ -101,7 +101,7 @@ impl ServerBackend {
 
                 symtab
                     .symtab()
-                    .things
+                    .things_and_types()
                     .iter()
                     .map(|(name, thing)| {
                         candidate_paths
@@ -113,10 +113,12 @@ impl ServerBackend {
                                     .cloned()
                                     .collect::<Vec<_>>();
 
+
                                 if !name.1 .0.is_empty() && name.1.prelude().0 == full_path {
                                     let thing = follow_aliases(symtab.symtab(), thing)
                                         .map(|(_, thing)| thing)
-                                        .unwrap_or(thing);
+                                        .unwrap_or(thing.clone());
+
 
                                     let name = name.1.tail();
                                     let Some(name) = name.to_named_str() else {
@@ -126,7 +128,7 @@ impl ServerBackend {
                                         kind,
                                         label,
                                         snippet,
-                                    } = completion_data(name, thing);
+                                    } = completion_data(name, &thing);
 
                                     Some(CompletionItem {
                                         label: label.clone(),

@@ -517,6 +517,12 @@ pub enum LangItem {
     DataTrait,
 }
 
+#[derive(Clone, Copy)]
+pub enum ThingOrType<'a> {
+    Thing(&'a Thing),
+    Type(&'a TypeSymbol),
+}
+
 /// A table of the symbols known to the program in the current scope. Names
 /// are mapped to IDs which are then mapped to the actual things
 ///
@@ -602,6 +608,20 @@ impl SymbolTable {
     pub fn current_scope(&self) -> usize {
         self.symbols.len() - 1
     }
+
+    pub fn things_and_types<'a>(&'a self) -> Vec<(&'a NameID, ThingOrType<'a>)> {
+        self.things
+            .iter()
+            .map(|(name, thing)| (name, ThingOrType::Thing(thing)))
+            .chain(
+                self.types
+                    .iter()
+                    .map(|(name, ty)| (name, ThingOrType::Type(ty))),
+            )
+            .collect()
+    }
+
+    
 
     /// Push an identifier onto the current namespace
     ///
@@ -1095,11 +1115,11 @@ impl SymbolTable {
         &self,
         name: &Loc<Path>,
         check_metadata: bool,
-    ) -> Result<(NameID, Loc<TypeSymbol>), LookupError> {
+    ) -> Result<(NameID, &Loc<TypeSymbol>), LookupError> {
         let id = self.lookup_id(name, check_metadata)?;
 
         match self.types.get(&id) {
-            Some(tsym) => Ok((id, tsym.clone())),
+            Some(tsym) => Ok((id, tsym)),
             None => match self.things.get(&id) {
                 Some(thing) => Err(LookupError::NotATypeSymbol(name.clone(), thing.clone())),
                 None => panic!("{:?} was in symtab but is neither a type nor a thing", id),

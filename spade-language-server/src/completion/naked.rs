@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use spade_common::name::NameID;
 use spade_hir::{
-    symbol_table::{SymbolTable, TypeDeclKind, TypeSymbol},
+    symbol_table::{SymbolTable, Thing, ThingOrType, TypeDeclKind, TypeSymbol},
     ParameterList, UnitKind,
 };
 use tower_lsp::lsp_types::{
@@ -37,92 +37,10 @@ impl ServerBackend {
         // let names = if let Some(unit) = position_details.name {
         let symtab = self.symtab.lock().unwrap();
 
-        let global_types = if let Some(symtab) = &*symtab {
-            symtab
-                .symtab()
-                .types
-                .iter()
-                .filter_map(|(thing_name, ty)| {
-                    if thing_name.1 .0.len() == 0 {
-                        return None;
-                    }
-
-                    let local_name = thing_name.1.tail();
-                    if !local_name.is_named() {
-                        return None;
-                    }
-
-                    let is_unnameable = thing_name.1 .0.iter().any(|path| !path.is_named());
-
-                    // Locals are completed separately, and structs are completed as functions
-                    let ignore = match &ty.inner {
-                        TypeSymbol::Declared(_, _, TypeDeclKind::Struct) => true,
-                        TypeSymbol::Declared(_, _, _) => false,
-                        TypeSymbol::GenericArg { .. } => true,
-                        TypeSymbol::GenericMeta(_) => true,
-                    };
-
-                    if is_unnameable || ignore {
-                        return None;
-                    }
-
-                    let label = thing_name
-                        .1
-                        .tail()
-                        .to_named_str()
-                        .map(String::from)
-                        .unwrap();
-                    if label == "Self" {
-                        return None;
-                    }
-
-                    let kind = match ty.inner {
-                        TypeSymbol::Declared(_, _, TypeDeclKind::Struct) => {
-                            Some(CompletionItemKind::STRUCT)
-                        }
-                        TypeSymbol::Declared(_, _, TypeDeclKind::Enum) => {
-                            Some(CompletionItemKind::ENUM)
-                        }
-                        TypeSymbol::Declared(_, _, TypeDeclKind::Primitive { is_inout: _ }) => {
-                            Some(CompletionItemKind::STRUCT)
-                        }
-                        TypeSymbol::Declared(_, _, TypeDeclKind::Alias) => {
-                            Some(CompletionItemKind::REFERENCE)
-                        }
-                        TypeSymbol::GenericArg { .. } => None,
-                        TypeSymbol::GenericMeta(_) => None,
-                    };
-
-                    Some(CompletionItem {
-                        label: label,
-                        label_details: None,
-                        kind: kind,
-                        detail: None,
-                        documentation: None,
-                        deprecated: None,
-                        preselect: None,
-                        sort_text: None,
-                        filter_text: None,
-                        insert_text: None,
-                        insert_text_format: None,
-                        insert_text_mode: None,
-                        text_edit: None,
-                        additional_text_edits: None,
-                        command: None,
-                        commit_characters: None,
-                        data: None,
-                        tags: None,
-                    })
-                })
-                .collect::<Vec<_>>()
-        } else {
-            vec![]
-        };
-
         let global_names = if let Some(symtab) = &*symtab {
             symtab
                 .symtab()
-                .things
+                .things_and_types()
                 .iter()
                 .filter_map(|(thing_name, thing)| {
                     if thing_name.1 .0.len() == 0 {
@@ -138,22 +56,28 @@ impl ServerBackend {
 
                     // Locals are completed separately
                     let is_local = match thing {
-                        spade_hir::symbol_table::Thing::Variable(_) => true,
+                        ThingOrType::Thing(thing) => match thing {
+                            Thing::Variable(_) => true,
 
-                        spade_hir::symbol_table::Thing::Struct(_)
-                        | spade_hir::symbol_table::Thing::EnumVariant(_)
-                        | spade_hir::symbol_table::Thing::Unit(_)
-                        | spade_hir::symbol_table::Thing::Alias { .. }
-                        | spade_hir::symbol_table::Thing::ArrayLabel(_)
-                        | spade_hir::symbol_table::Thing::Module(_, _)
-                        | spade_hir::symbol_table::Thing::Macro(_, _)
-                        | spade_hir::symbol_table::Thing::Trait(_)
-                        | spade_hir::symbol_table::Thing::Dummy => false,
+                            Thing::Struct(_)
+                            | Thing::EnumVariant(_)
+                            | Thing::Unit(_)
+                            | Thing::Alias { .. }
+                            | Thing::ArrayLabel(_)
+                            | Thing::Module(_, _)
+                            | Thing::Macro(_, _)
+                            | Thing::Trait(_)
+                            | Thing::Dummy => false,
+                        },
+                        ThingOrType::Type(
+                            TypeSymbol::GenericArg { .. } | TypeSymbol::GenericMeta(_),
+                        ) => true,
+                        ThingOrType::Type(_) => false,
                     };
 
                     // We don't want to complete enum variants unless they are explicitly imported
                     // with an alias
-                    if let spade_hir::symbol_table::Thing::EnumVariant(_) = thing {
+                    if let ThingOrType::Thing(Thing::EnumVariant(_)) = thing {
                         return None;
                     }
 
@@ -172,6 +96,12 @@ impl ServerBackend {
                     });
 
                     let local_name = local_name.to_named_str().unwrap_or("<hidden>").to_string();
+
+                    // Massive hack to get rid of a bunch of false positive Self parameters
+                    if local_name == "Self" {
+                        return None
+                    }
+                    
                     let full_path = thing_name
                         .1
                         .to_named_strs()
@@ -236,7 +166,6 @@ impl ServerBackend {
 
         let names = global_names
             .into_iter()
-            .chain(global_types)
             .chain(local_names.unwrap_or_default())
             .collect();
 
@@ -246,31 +175,40 @@ impl ServerBackend {
 
 pub(crate) fn follow_aliases<'a>(
     symtab: &'a SymbolTable,
-    thing: &spade_hir::symbol_table::Thing,
-) -> Option<(NameID, &'a spade_hir::symbol_table::Thing)> {
+    thing: &ThingOrType,
+) -> Option<(NameID, spade_hir::symbol_table::ThingOrType<'a>)> {
     match thing {
-        spade_hir::symbol_table::Thing::Alias {
-            loc: _,
-            path,
-            in_namespace: _,
-        } => symtab
-            .lookup_thing(path, true)
-            .ok()
-            .and_then(
-                |original @ (_, thing)| match follow_aliases(symtab, thing) {
-                    None => Some(original),
-                    new => new,
-                },
-            ),
-        spade_hir::symbol_table::Thing::Struct(_)
-        | spade_hir::symbol_table::Thing::EnumVariant(_)
-        | spade_hir::symbol_table::Thing::Unit(_)
-        | spade_hir::symbol_table::Thing::Variable(_)
-        | spade_hir::symbol_table::Thing::ArrayLabel(_)
-        | spade_hir::symbol_table::Thing::Module(_, _)
-        | spade_hir::symbol_table::Thing::Macro(_, _)
-        | spade_hir::symbol_table::Thing::Trait(_)
-        | spade_hir::symbol_table::Thing::Dummy => None,
+        ThingOrType::Thing(thing) => match thing {
+            Thing::Alias {
+                loc: _,
+                path,
+                in_namespace: _,
+            } => symtab
+                .lookup_thing(path, true)
+                .ok()
+                .and_then(|(name, thing)| {
+                    match follow_aliases(symtab, &ThingOrType::Thing(thing)) {
+                        None => Some((name, ThingOrType::Thing(thing))),
+                        Some((name, t)) => Some((name, t)),
+                    }
+                })
+                .or_else(|| {
+                    symtab
+                        .lookup_type_symbol(path, true)
+                        .ok()
+                        .map(|(name, ty)| (name, ThingOrType::Type(ty)))
+                }),
+            Thing::Struct(_)
+            | Thing::EnumVariant(_)
+            | Thing::Unit(_)
+            | Thing::Variable(_)
+            | Thing::ArrayLabel(_)
+            | Thing::Module(_, _)
+            | Thing::Macro(_, _)
+            | Thing::Trait(_)
+            | Thing::Dummy => None,
+        },
+        ThingOrType::Type(_) => None,
     }
 }
 
@@ -280,24 +218,33 @@ pub(crate) struct CompletionData {
     pub snippet: String,
 }
 
-pub(crate) fn completion_data(
-    name: &str,
-    thing: &spade_hir::symbol_table::Thing,
-) -> CompletionData {
+pub(crate) fn completion_data(name: &str, thing: &ThingOrType) -> CompletionData {
     let kind = match thing {
-        spade_hir::symbol_table::Thing::Struct(_) => CompletionItemKind::STRUCT,
-        spade_hir::symbol_table::Thing::EnumVariant(_) => CompletionItemKind::ENUM,
-        spade_hir::symbol_table::Thing::Unit(_) => CompletionItemKind::FUNCTION,
-        spade_hir::symbol_table::Thing::Variable(_) => CompletionItemKind::VALUE,
-        spade_hir::symbol_table::Thing::Alias { .. } => CompletionItemKind::REFERENCE,
-        spade_hir::symbol_table::Thing::ArrayLabel(_) => CompletionItemKind::PROPERTY,
-        spade_hir::symbol_table::Thing::Module(_, _) => CompletionItemKind::MODULE,
-        spade_hir::symbol_table::Thing::Macro(_, _) => CompletionItemKind::FUNCTION,
-        spade_hir::symbol_table::Thing::Trait(_) => CompletionItemKind::INTERFACE,
-        spade_hir::symbol_table::Thing::Dummy => CompletionItemKind::MODULE,
+        ThingOrType::Thing(thing) => match thing {
+            Thing::Struct(_) => CompletionItemKind::STRUCT,
+            Thing::EnumVariant(_) => CompletionItemKind::ENUM,
+            Thing::Unit(_) => CompletionItemKind::FUNCTION,
+            Thing::Variable(_) => CompletionItemKind::VALUE,
+            Thing::Alias { .. } => CompletionItemKind::REFERENCE,
+            Thing::ArrayLabel(_) => CompletionItemKind::PROPERTY,
+            Thing::Module(_, _) => CompletionItemKind::MODULE,
+            Thing::Macro(_, _) => CompletionItemKind::FUNCTION,
+            Thing::Trait(_) => CompletionItemKind::INTERFACE,
+            Thing::Dummy => CompletionItemKind::MODULE,
+        },
+        ThingOrType::Type(ty) => match ty {
+            TypeSymbol::Declared(_, _, TypeDeclKind::Struct) => CompletionItemKind::STRUCT,
+            TypeSymbol::Declared(_, _, TypeDeclKind::Enum) => CompletionItemKind::ENUM,
+            TypeSymbol::Declared(_, _, TypeDeclKind::Primitive { .. }) => {
+                CompletionItemKind::STRUCT
+            }
+            TypeSymbol::Declared(_, _, TypeDeclKind::Alias) => CompletionItemKind::STRUCT,
+            TypeSymbol::GenericArg { .. } => CompletionItemKind::TYPE_PARAMETER,
+            TypeSymbol::GenericMeta { .. } => CompletionItemKind::TYPE_PARAMETER,
+        },
     };
 
-    let is_enum_variant = matches!(thing, spade_hir::symbol_table::Thing::EnumVariant(_));
+    let is_enum_variant = matches!(thing, ThingOrType::Thing(Thing::EnumVariant(_)));
 
     let mut sb = SnippetBuilder::new();
     let mut unit_like = |params: &ParameterList, _kind: &UnitKind| {
@@ -313,23 +260,26 @@ pub(crate) fn completion_data(
     };
 
     let (label, snippet) = match thing {
-        spade_hir::symbol_table::Thing::Struct(t) => unit_like(
-            &t.params,
-            &UnitKind::Function(spade_hir::FunctionKind::Struct),
-        ),
-        spade_hir::symbol_table::Thing::EnumVariant(t) => unit_like(
-            &t.params,
-            &UnitKind::Function(spade_hir::FunctionKind::Enum),
-        ),
-        spade_hir::symbol_table::Thing::Unit(t) => unit_like(&t.inputs, &t.unit_kind.inner),
-        spade_hir::symbol_table::Thing::Macro(_, _) => (format!("{name}"), format!("{name}!")),
+        ThingOrType::Thing(thing) => match thing {
+            Thing::Struct(t) => unit_like(
+                &t.params,
+                &UnitKind::Function(spade_hir::FunctionKind::Struct),
+            ),
+            Thing::EnumVariant(t) => unit_like(
+                &t.params,
+                &UnitKind::Function(spade_hir::FunctionKind::Enum),
+            ),
+            Thing::Unit(t) => unit_like(&t.inputs, &t.unit_kind.inner),
+            Thing::Macro(_, _) => (format!("{name}"), format!("{name}!")),
 
-        spade_hir::symbol_table::Thing::Variable(_)
-        | spade_hir::symbol_table::Thing::Alias { .. }
-        | spade_hir::symbol_table::Thing::ArrayLabel(_)
-        | spade_hir::symbol_table::Thing::Module(_, _)
-        | spade_hir::symbol_table::Thing::Trait(_)
-        | spade_hir::symbol_table::Thing::Dummy => (format!("{name}"), format!("{name}")),
+            Thing::Variable(_)
+            | Thing::Alias { .. }
+            | Thing::ArrayLabel(_)
+            | Thing::Module(_, _)
+            | Thing::Trait(_)
+            | Thing::Dummy => (format!("{name}"), format!("{name}")),
+        },
+        ThingOrType::Type(_) => (format!("{name}"), format!("{name}")),
     };
 
     CompletionData {

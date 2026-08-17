@@ -16,11 +16,12 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     let mut id = std::u64::MAX;
 
     let mut add_type =
-        |name: &str, args: Vec<Loc<GenericArg>>, primitive: PrimitiveType, is_inout: bool| {
+        |name_str: &str, args: Vec<Loc<GenericArg>>, primitive: PrimitiveType, is_inout: bool| {
+            let path = Path::from_strs(&[name_str]).nowhere();
             let name = symtab
                 .add_type_with_id(
                     id,
-                    Path::from_strs(&[name]).nowhere(),
+                    path,
                     TypeSymbol::Declared(args.clone(), 0, TypeDeclKind::Primitive { is_inout })
                         .nowhere(),
                     None,
@@ -30,6 +31,10 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
             id -= 1;
 
             symtab.new_scope();
+            // Create a dummy namespace to put the parameters in to aid completion. Slight hack :)
+            symtab.push_namespace(spade_common::name::PathSegment::Named(
+                Identifier::intern(name_str).nowhere(),
+            ));
             let args = args
                 .iter()
                 .map(|arg| {
@@ -75,6 +80,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                     result
                 })
                 .collect();
+            symtab.pop_namespace();
             symtab.close_scope();
 
             item_list.types.insert(

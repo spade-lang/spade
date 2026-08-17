@@ -384,6 +384,7 @@ pub fn visit_type_spec(
         ast::TypeSpec::Named(path, params) => {
             // Lookup the referenced type
             let (base_id, base_t) = ctx.symtab.lookup_type_symbol(path, true)?;
+            let base_t = base_t.clone();
 
             // Check if the type is a declared type or a generic argument.
             match &base_t.inner {
@@ -970,7 +971,7 @@ pub fn visit_const_generic(
                         ),
                     )
                         .primary_label(format!("Expected type level integer"))
-                    .secondary_label(&sym, format!("{name} is defined here")))
+                    .secondary_label(sym, format!("{name} is defined here")))
                 }
                 TypeSymbol::GenericArg { traits: _ }=> {
                     return Err(Diagnostic::error(
@@ -979,15 +980,15 @@ pub fn visit_const_generic(
                             "{name} is not a type level integer but is used in a const generic expression."
                         ))
                         .primary_label("Expected type level integer")
-                        .secondary_label(&sym, format!("{name} is defined here"))
+                        .secondary_label(sym, format!("{name} is defined here"))
                         .span_suggest_insert_before(
                             "Try making the generic an integer",
-                        &sym,
+                        sym,
                         "#int ",
                     )
                     .span_suggest_insert_before(
                         "or an unsigned integer",
-                            &sym,
+                            sym,
                             "#uint ",
                         ))
                 }
@@ -1217,12 +1218,12 @@ pub fn visit_where_clauses(
                                 )
                                 .span_suggest_insert_before(
                                     "Try making the generic an integer",
-                                    &sym,
+                                    sym,
                                     "#int ",
                                 )
                                 .span_suggest_insert_before(
                                     "or an unsigned integer",
-                                    &sym,
+                                    sym,
                                     "#uint ",
                                 ),
                         );
@@ -2586,15 +2587,15 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                                 format!("Generic type {name} is a type but it is used as a value"),
                             )
                             .primary_label(format!("{name} is a type"))
-                            .secondary_label(ty, format!("{name} is declared here"))
+                            .secondary_label(*ty, format!("{name} is declared here"))
                             .span_suggest_insert_before(
                                 format!("Consider making `{name}` a type level integer"),
-                                ty,
+                                *ty,
                                 "#int ",
                             )
                             .span_suggest_insert_before(
                                 format!("or a type level uint"),
-                                ty,
+                                *ty,
                                 "#uint ",
                             ))
                         }

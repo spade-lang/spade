@@ -522,3 +522,51 @@ test_completion! {
         }
     "
 }
+
+test_completion! {
+    associated_calls_complete,
+    "
+        struct S {}
+        impl S {
+            fn meth() {}
+        }
+
+        fn main() {
+            S::
+            // ^[1] completion
+        }
+    "
+}
+
+test_completion! {
+    associated_incomplete_calls_complete,
+    "
+        struct S {}
+        impl S {
+            fn meth() {}
+        }
+
+        fn main() {
+            S::me
+              // ^[1] completion
+        }
+    "
+}
+
+
+
+test_completion! {
+    associated_complete_calls_complete,
+    "
+        struct S {}
+        impl S {
+            fn meth() {}
+        }
+
+        fn main() {
+            S::me()
+              // ^[1] completion
+        }
+    "
+}
+

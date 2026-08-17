@@ -21,13 +21,13 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-A	-
-Memory	-
-bool	-
-clock	-
-inout	-
-int	-
+A [proj::A]	A
+Memory [Memory]	Memory
+bool [bool]	bool
+clock [clock]	clock
+inout [inout]	inout
+int [int]	int
 main() [proj::main]	main()$0
 proj [proj]	proj
-tri	-
-uint	-
+tri [tri]	tri
+uint [uint]	uint
