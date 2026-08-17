@@ -298,7 +298,10 @@ pub enum TypeSpecKind {
     PipelineInstDepth,
     TraitBound,
     TypeLevelIf,
-    AssociatedFn,
+    /// When calling an associated fn we strip a path line `path::to::Type::func`, and
+    /// split it into `path::to::Type` and `func` where the former becomes a TypeSpec
+    /// which we visit. This is the kind of that type
+    AssociatedFnBase,
 }
 
 fn visit_default_type_expression(
@@ -342,7 +345,7 @@ pub fn visit_type_expression(
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bounds", "trait bound")
                 }
-                TypeSpecKind::AssociatedFn => {
+                TypeSpecKind::AssociatedFnBase => {
                     default_error("Associated functions", "associated fn")
                 }
                 TypeSpecKind::Alias
@@ -576,7 +579,7 @@ pub fn visit_type_spec(
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bound", "trait bound")
                 }
-                TypeSpecKind::AssociatedFn => {
+                TypeSpecKind::AssociatedFnBase => {
                     default_error("Associated functions", "associated fn")
                 }
                 TypeSpecKind::PipelineInstDepth
@@ -2542,7 +2545,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                         let tyspec = ast::TypeSpec::Named(ty, None);
 
                         if let Ok(tyspec) =
-                            visit_type_spec(&tyspec.at_loc(&loc), &TypeSpecKind::AssociatedFn, ctx)
+                            visit_type_spec(&tyspec.at_loc(&loc), &TypeSpecKind::AssociatedFnBase, ctx)
                         {
                             let callee_ty = ctx.idtracker.next();
                             Ok(hir::ExprKind::AssociatedCall {

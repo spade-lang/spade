@@ -1077,11 +1077,11 @@ impl AttributeList {
 
 #[derive(PartialEq, Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialOrd, Ord)]
 pub enum Selfness {
-    // Pure self, e.g. `fn inner(self)`
+    /// Pure self, e.g. `fn inner(self)`
     Value,
-    // CopyView self, e.g. `fn is_some(&self)`
+    /// CopyView self, e.g. `fn is_some(&self)`
     CopyView,
-    // No self, e.g. `fn default()`
+    /// No self, e.g. `fn default()`
     Static,
 }
 
