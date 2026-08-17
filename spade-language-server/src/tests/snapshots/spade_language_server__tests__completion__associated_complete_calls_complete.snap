@@ -1,6 +1,5 @@
 ---
 source: spade-language-server/src/tests/completion.rs
-assertion_line: 79
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
@@ -15,14 +14,4 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
-Memory [Memory]	Memory
-S [proj::S]	S
-S() [proj::S]	S()$0
-bool [bool]	bool
-clock [clock]	clock
-inout [inout]	inout
-int [int]	int
-main() [proj::main]	main()$0
-proj [proj]	proj
-tri [tri]	tri
-uint [uint]	uint
+meth()	meth()$0

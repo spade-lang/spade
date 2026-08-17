@@ -548,12 +548,10 @@ test_completion! {
 
         fn main() {
             S::me
-              // ^[1] completion
+             // ^[1] completion
         }
     "
 }
-
-
 
 test_completion! {
     associated_complete_calls_complete,
@@ -569,4 +567,3 @@ test_completion! {
         }
     "
 }
-

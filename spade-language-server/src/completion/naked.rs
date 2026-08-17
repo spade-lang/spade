@@ -99,9 +99,9 @@ impl ServerBackend {
 
                     // Massive hack to get rid of a bunch of false positive Self parameters
                     if local_name == "Self" {
-                        return None
+                        return None;
                     }
-                    
+
                     let full_path = thing_name
                         .1
                         .to_named_strs()

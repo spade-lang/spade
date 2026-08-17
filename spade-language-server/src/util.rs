@@ -14,7 +14,9 @@ use spade_hir::{
 };
 use spade_query::QueryThing;
 use spade_typeinference::{
-    HasType, TypeState, equation::{TypeVar, TypeVarID, TypedExpression}, method_resolution::select_method
+    equation::{TypeVar, TypeVarID, TypedExpression},
+    method_resolution::select_method,
+    HasType, TypeState,
 };
 use tower_lsp::lsp_types::{Location, Position, Range, Url};
 
@@ -255,10 +257,19 @@ impl ServerBackend {
                         None
                     }
                 }
-                ExprKind::AssociatedCall { kind: _, callee: _, callee_ty, name, args: _, turbofish: _, safety: _ } => {
+                ExprKind::AssociatedCall {
+                    kind: _,
+                    callee: _,
+                    callee_ty,
+                    name,
+                    args: _,
+                    turbofish: _,
+                    safety: _,
+                } => {
                     if name.contains_start(loc) {
                         unit_type_state.as_ref().and_then(|ts| {
-                            let Some(target_ty) = TypedExpression::Id(*callee_ty).try_get_type(ts) else {
+                            let Some(target_ty) = TypedExpression::Id(*callee_ty).try_get_type(ts)
+                            else {
                                 return None;
                             };
 

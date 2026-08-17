@@ -1,7 +1,14 @@
+use std::sync::{Arc, Mutex};
+
 use itertools::Itertools;
-use spade_common::name::Path;
+use spade_common::{
+    location_info::Loc,
+    name::{NameID, Path, PathSegment},
+};
 use spade_hir::{
-    expression::IncompleteExpression, symbol_table::SymbolTable, ParameterList, UnitKind,
+    expression::IncompleteExpression,
+    symbol_table::{FrozenSymtab, SymbolTable, Thing, ThingOrType, TypeSymbol},
+    ImplTarget, ParameterList, UnitKind,
 };
 use spade_query::QueryThing;
 use spade_typeinference::{
@@ -68,7 +75,7 @@ impl ServerBackend {
                     .0
                     .iter()
                     .filter_map(|segment| match segment {
-                        spade_common::name::PathSegment::Named(name) => {
+                        PathSegment::Named(name) => {
                             if name.ends_before(cursor) {
                                 Some(name)
                             } else {
@@ -99,7 +106,9 @@ impl ServerBackend {
                     result
                 };
 
-                symtab
+                // Things that are plainly in the symtab, as opposed to associated functions
+                // which are handled differently
+                let symtab_matches = symtab
                     .symtab()
                     .things_and_types()
                     .iter()
@@ -113,12 +122,10 @@ impl ServerBackend {
                                     .cloned()
                                     .collect::<Vec<_>>();
 
-
                                 if !name.1 .0.is_empty() && name.1.prelude().0 == full_path {
                                     let thing = follow_aliases(symtab.symtab(), thing)
                                         .map(|(_, thing)| thing)
                                         .unwrap_or(thing.clone());
-
 
                                     let name = name.1.tail();
                                     let Some(name) = name.to_named_str() else {
@@ -157,7 +164,24 @@ impl ServerBackend {
                             .collect::<Vec<_>>()
                     })
                     .flatten()
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+
+                let associated_fns = symtab
+                    .symtab()
+                    .types
+                    .iter()
+                    .map(|ty| {
+                        Self::complete_associated_fns(
+                            ty,
+                            &candidate_paths,
+                            &path_until_cursor,
+                            symtab,
+                            &self.trait_impls,
+                        )
+                    })
+                    .flatten();
+
+                symtab_matches.into_iter().chain(associated_fns).collect()
             })
             .flatten()
             .collect::<Vec<_>>();
@@ -167,6 +191,88 @@ impl ServerBackend {
         } else {
             Some(CompletionResponse::Array(completions))
         }
+    }
+
+    fn complete_associated_fns(
+        (name, _ty): (&NameID, &Loc<TypeSymbol>),
+        candidate_paths: &Vec<Vec<PathSegment>>,
+        path_until_cursor: &Path,
+        symtab: &FrozenSymtab,
+        self_trait_impls: &Arc<Mutex<TraitImplList>>,
+    ) -> Vec<CompletionItem> {
+        candidate_paths
+            .iter()
+            .map(|candidate| {
+                let full_path = candidate
+                    .iter()
+                    .chain(path_until_cursor.0.iter())
+                    .cloned()
+                    .collect::<Vec<_>>();
+
+                let matches_candidate = !name.1 .0.is_empty() && name.1 .0 == full_path;
+
+                if !matches_candidate {
+                    return vec![];
+                }
+
+                let impls = self_trait_impls.lock().unwrap();
+
+                impls
+                    .inner
+                    .iter()
+                    .filter(|(target, _impls)| *target == &ImplTarget::Named(name.clone()))
+                    .map(|(_target, impls)| {
+                        impls
+                            .iter()
+                            .map(|r#impl| {
+                                r#impl
+                                    .impl_block
+                                    .fns
+                                    .iter()
+                                    .filter(|(_n, unit)| {
+                                        matches!(unit.selfness, spade_hir::Selfness::Static)
+                                    })
+                                    .map(|(n, unit)| {
+                                        let target = symtab.symtab().unit_by_id(&unit.name);
+
+                                        let CompletionData {
+                                            kind,
+                                            label,
+                                            snippet,
+                                        } = completion_data(
+                                            n.as_str(),
+                                            &ThingOrType::Thing(&Thing::Unit(target)),
+                                        );
+
+                                        CompletionItem {
+                                            label: label.clone(),
+                                            label_details: None,
+                                            kind: Some(kind),
+                                            detail: None,
+                                            documentation: None, // FIXME: Docs
+                                            deprecated: None,    // FIXME
+                                            preselect: None,
+                                            sort_text: Some(label.clone()),
+                                            filter_text: Some(label),
+                                            insert_text: Some(snippet),
+                                            insert_text_format: Some(InsertTextFormat::SNIPPET),
+                                            insert_text_mode: None,
+                                            text_edit: None,
+                                            additional_text_edits: None,
+                                            command: None,
+                                            commit_characters: None,
+                                            data: None,
+                                            tags: None,
+                                        }
+                                    })
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                    .collect()
+            })
+            .flatten()
+            .collect()
     }
 
     async fn get_type_completions(
@@ -216,10 +322,7 @@ impl ServerBackend {
                                     (target, true, true)
                                 }
                             }),
-                            spade_hir::ExprKind::AssociatedCall { .. } => {
-                                // TODO: We shuold complete these
-                                None
-                            }
+                            spade_hir::ExprKind::AssociatedCall { .. } => None,
                             spade_hir::ExprKind::FieldAccess(target, _) => {
                                 Some((target, false, false))
                             }
@@ -444,7 +547,7 @@ fn type_field_completions(
     let field_like = match ty.resolve(type_state) {
         spade_typeinference::equation::TypeVar::Known(_, known_type, params) => match known_type {
             spade_types::KnownType::Named(name) => match symtab.thing_by_id(&name) {
-                Some(spade_hir::symbol_table::Thing::Struct(s)) => s
+                Some(Thing::Struct(s)) => s
                     .params
                     .0
                     .iter()

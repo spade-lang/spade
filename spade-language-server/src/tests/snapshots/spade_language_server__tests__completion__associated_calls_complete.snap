@@ -1,6 +1,5 @@
 ---
 source: spade-language-server/src/tests/completion.rs
-assertion_line: 79
 expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
 ---
 
@@ -10,8 +9,8 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
 
         fn main() {
-            S::me
-              // ^[1] completion
+            S::
+            // ^[1] completion
         }
     
 ---code ⬆️ completion ⬇️ ---

@@ -2545,9 +2545,11 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
 
                         let tyspec = ast::TypeSpec::Named(ty, None);
 
-                        if let Ok(tyspec) =
-                            visit_type_spec(&tyspec.at_loc(&loc), &TypeSpecKind::AssociatedFnBase, ctx)
-                        {
+                        if let Ok(tyspec) = visit_type_spec(
+                            &tyspec.at_loc(&loc),
+                            &TypeSpecKind::AssociatedFnBase,
+                            ctx,
+                        ) {
                             let callee_ty = ctx.idtracker.next();
                             Ok(hir::ExprKind::AssociatedCall {
                                 kind,

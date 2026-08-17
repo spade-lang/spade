@@ -621,8 +621,6 @@ impl SymbolTable {
             .collect()
     }
 
-    
-
     /// Push an identifier onto the current namespace
     ///
     /// Prefer using `ctx.in_namespace` over calling these methods directly
