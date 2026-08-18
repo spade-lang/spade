@@ -12,7 +12,7 @@ error: Generic `extern`s can only be instantiated with number or string paramete
   ┌─ testinput:4:5
   │
 1 │ extern fn a<T>() -> T;
-  │        --------------- Because this generic `extern` has a type parameter
+  │ ---------------------- Because this generic `extern` has a type parameter
   ·
 4 │     a()
   │     ^^^ Invalid instance

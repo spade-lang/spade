@@ -1999,8 +1999,8 @@ impl<'a> Parser<'a> {
         Ok(Some(
             UnitHead {
                 visibility: visibility.clone(),
-                unsafe_token: unsafe_token.map(|token| token.loc()),
-                extern_token: extern_token.map(|token| token.loc()),
+                unsafe_token: unsafe_token.clone().map(|token| token.loc()),
+                extern_token: extern_token.clone().map(|token| token.loc()),
                 attributes: attributes.clone(),
                 unit_kind,
                 name,
@@ -2009,7 +2009,11 @@ impl<'a> Parser<'a> {
                 type_params,
                 where_clauses,
             }
-            .between(self.file_id(), &start_token, &end),
+            .between(
+                self.file_id(),
+                &unsafe_token.or(extern_token).unwrap_or(start_token),
+                &end,
+            ),
         ))
     }
 

@@ -8,9 +8,9 @@ impl X {
 
 
 error: Methods cannot be `extern`
-  ┌─ testinput:3:12
+  ┌─ testinput:3:5
   │
 3 │     extern fn x(self, x: bool) -> bool;
-  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   │
   = help: Consider defining a free-standing function

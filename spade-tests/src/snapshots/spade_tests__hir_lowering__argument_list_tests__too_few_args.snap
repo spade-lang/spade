@@ -11,7 +11,7 @@ error: Too few arguments. Expected 2, got 1
   ┌─ testinput:3:10
   │
 1 │ extern fn test(a: bool, b: bool) -> bool;
-  │        ---------------------------------- function defined here
+  │ ----------------------------------------- function defined here
 2 │ fn main() -> bool {
 3 │     test(true)
   │          ^^^^ Missing 1 argument

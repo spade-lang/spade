@@ -12,7 +12,7 @@ error: a specified multiple times
   ┌─ testinput:4:14
   │
 1 │ extern fn test(a: bool, b: bool) -> bool;
-  │        ---------------------------------- function defined here
+  │ ----------------------------------------- function defined here
   ·
 4 │     test$(a, a, b)
   │           -  ^ Later specified here

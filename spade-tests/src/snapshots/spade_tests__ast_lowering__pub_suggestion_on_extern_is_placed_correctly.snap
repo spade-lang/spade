@@ -1,0 +1,29 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+pub mod child {
+    extern fn inner();
+}
+
+fn test() {
+    child::inner()
+}
+
+
+error: inner is inaccessible
+  ┌─ testinput:6:12
+  │
+2 │     extern fn inner();
+  │     ------------------ The inaccessible item is defined here
+  ·
+6 │     child::inner()
+  │            ^^^^^ inner is inaccessible
+  │
+  = Consider adding `pub`
+  │
+2 │     pub extern fn inner();
+  │     ++++
+  = Or a more limited visibility like pub(lib) or pub(super)
+  │
+2 │     pub(lib) extern fn inner();
+  │     +++++++++

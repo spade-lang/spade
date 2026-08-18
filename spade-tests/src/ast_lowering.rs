@@ -2407,6 +2407,20 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    pub_suggestion_on_extern_is_placed_correctly,
+    "
+        pub mod child {
+            extern fn inner();
+        }
+
+        fn test() {
+            child::inner()
+        }
+    ",
+    false
+}
+
+snapshot_error! {
     bare_mod_recommends_correct_pub,
     {
         {
