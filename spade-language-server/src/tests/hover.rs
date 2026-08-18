@@ -318,3 +318,22 @@ test_hover! {
         }
     "#
 }
+
+test_hover! {
+    lambda_hover_works,
+    "
+        struct S {}
+        impl S {
+            fn meth(self) {}
+        }
+
+        fn test() {
+            let _ = fn || {
+                let x = S();
+
+                x
+             // ^[1] hover
+            };
+        }
+    "
+}

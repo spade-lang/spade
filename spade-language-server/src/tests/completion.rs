@@ -567,3 +567,23 @@ test_completion! {
         }
     "
 }
+
+test_completion! {
+    completion_with_obvious_type_works_in_lambda,
+    "
+        struct S {}
+        impl S {
+            fn meth(self) {}
+        }
+
+        fn test() {
+            let _ = 
+            fn || {
+                let x = S();
+
+                x.
+               // ^[1] completion
+            };
+        }
+    "
+}
