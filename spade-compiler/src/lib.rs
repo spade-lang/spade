@@ -337,6 +337,13 @@ pub fn run_local_compilation_steps(
 
                     let result = type_state.visit_unit(u, &type_inference_ctx).report(errors);
 
+                    type_state.emit_trace_if_enabled(
+                        || {
+                            println!("Pre mono of {}", u.inner.name);
+                        },
+                        &u.name,
+                    );
+
                     let failures = type_state.owned.diags.errors.len() != 0;
                     errors.drain_diag_list(&mut type_state.owned.diags);
 

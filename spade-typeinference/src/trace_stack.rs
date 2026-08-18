@@ -15,7 +15,6 @@ use crate::{
 impl TypeState {
     pub fn emit_trace_if_enabled(&self, before: impl Fn(), current_uint: &UnitName) {
         if let Ok(path) = std::env::var("SPADE_TRACE_TYPEINFERENCE") {
-            before();
             if path
                 == current_uint
                     .name_id()
@@ -25,6 +24,7 @@ impl TypeState {
                     .filter_map(|s| *s)
                     .join("::")
             {
+                before();
                 self.print_equations();
                 println!("{}", format_trace_stack(&self));
             }

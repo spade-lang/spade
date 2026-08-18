@@ -402,7 +402,11 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 let u = item.assume_unit();
                 ctx.item_list.add_executable(
                     u.name.name_id().clone(),
-                    hir::ExecutableItem::Unit(u.clone().at_loc(&loc)),
+                    // NOTE: This `nowhere` is important for completion. If it is not present,
+                    // we run the risk of lambda units being query targets instead of the outer
+                    // unit which is what we want. If it turns out that we see diagnostic::bug
+                    // from lambda units too often, we may have to reconsider the implementation of this
+                    hir::ExecutableItem::Unit(u.clone().nowhere()),
                 )?;
 
                 Ok::<_, Diagnostic>(u.clone())

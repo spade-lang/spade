@@ -1,0 +1,22 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+        struct S {}
+        impl S {
+            fn meth(self) {}
+        }
+
+        fn test() {
+            let _ = 
+            fn || {
+                let x = S();
+
+                x.
+               // ^[1] completion
+            };
+        }
+    
+---code ⬆️ completion ⬇️ ---
+meth()	meth()$0

@@ -9,7 +9,7 @@ use crate::{
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
     Generic, Input, Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression,
     TypeParam, TypeSpec, Unit, UnitHead, WhereClause,
-    expression::{NamedArgument, OuterLambdaParam, Safety},
+    expression::{IncompleteExpression, NamedArgument, OuterLambdaParam, Safety},
 };
 
 pub trait PrettyDebug {
@@ -270,8 +270,10 @@ impl PrettyDebug for ExprKind {
             crate::ExprKind::Index(base, idx) => {
                 format!("{}[{}]", base.pretty_debug(), idx.pretty_debug())
             }
-            crate::ExprKind::Incomplete(_, _) => {
-                "{incomplete}".to_string()
+            crate::ExprKind::Incomplete(_, inner) => {
+                match inner {
+                    IncompleteExpression::IncompleteDot { base, has_inst: _, has_depth: _ } => format!("{}.(incomplete)", base.pretty_debug())
+                }
             }
             crate::ExprKind::RangeIndex { target, start, end } => {
                 format!(
@@ -389,7 +391,7 @@ impl PrettyDebug for ExprKind {
                 clock: _,
             } => {
                 code!{
-                    [0] format!("{unit_kind:?} ({}) {{", arguments.iter().map(PrettyDebug::pretty_debug).join(", "));
+                    [0] format!("lambda: {unit_kind:?} ({}) {{", arguments.iter().map(PrettyDebug::pretty_debug).join(", "));
                     [1]     body.pretty_debug();
                     [0] "}";
                     [2] format!("Lambda creates {}", lambda_unit.pretty_debug());

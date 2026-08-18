@@ -1,0 +1,22 @@
+---
+source: spade-language-server/src/tests/hover.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ hover ⬇️ ---\\n\" + & s"
+---
+struct S {}
+impl S {
+    fn meth(self) {}
+}
+
+fn test() {
+    let _ = fn || {
+        let x = S();
+
+        x
+     // ^[1] hover
+    };
+}
+
+---code ⬆️ hover ⬇️ ---
+```spade
+let x: proj::S
+```

@@ -1,3 +1,5 @@
+use itertools::Itertools;
+use spade_hir::pretty_debug::PrettyDebug;
 use tower_lsp::lsp_types::{
     CompletionParams, CompletionResponse, TextDocumentIdentifier, TextDocumentPositionParams,
 };
@@ -40,7 +42,27 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
                 let qq = server.backend.query_cache.lock().unwrap();
                 let things_around = qq.things_around(&details.loc);
 
-                println!("The things around are :\n{:?}", things_around);
+                println!(
+                    "The things around are :\n  {}",
+                    things_around
+                        .iter()
+                        .map(|t| {
+                            match t.inner {
+                                spade_query::QueryThing::Pattern(pattern) => pattern.pretty_debug(),
+                                spade_query::QueryThing::Expr(expression) => {
+                                    expression.pretty_debug()
+                                }
+                                spade_query::QueryThing::Statement(statement) => {
+                                    statement.pretty_debug()
+                                }
+                                spade_query::QueryThing::Executable(_) => {
+                                    "<executable item>".to_string()
+                                }
+                            }
+                            .replace("\n", "\n  ")
+                        })
+                        .join("\n ----\n  ")
+                );
                 println!(
                     "The paths around are :\n{:?}",
                     qq.paths_around(&details.loc)
