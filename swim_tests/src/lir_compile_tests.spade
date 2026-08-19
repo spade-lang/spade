@@ -1,0 +1,7 @@
+struct S {
+    b: inv int<8>,
+}
+
+entity small_set_if(a: bool, b: inv int<8>, c: int<8>) {
+    set b = if a { c } else { c };
+}

@@ -301,7 +301,9 @@ fn forward_expression_code(
             elem_size,
             reversed,
         } => {
-            let array_len = types.lookup(&binding.operands[0])?;
+            let Type::BitVector(array_len) = types.lookup(&binding.operands[0])? else {
+                diag_bail!(binding, "Found non-bit vector target for array index")
+            };
             if !*reversed {
                 if elem_size == &BigUint::one() {
                     format!("{}[{}]", op_names[0], op_names[1])
@@ -336,7 +338,7 @@ fn forward_expression_code(
             } else {
                 // Strange indexing explained here https://stackoverflow.com/questions/18067571/indexing-vectors-and-arrays-with#18068296
                 format!(
-                    "{}[{}-:{}]",
+                    "{}[{}:{}]",
                     op_names[0],
                     end_exclusive.checked_sub(&BigUint::one()).ok_or_else(|| {
                         diag_anyhow!(
@@ -833,19 +835,23 @@ pub fn entity_code(
                     (true, _) => name.clone(),
                     (_, ValueName::Forward(_)) => format!("{name}_i"),
                     (_, ValueName::Backward(_)) => format!("{name}_o"),
-                    (_, ValueName::OutputFwd) => name.clone(),
-                    (_, ValueName::OutputBack) => name.clone(),
+                    (_, ValueName::OutputFwd) => val_name.unescaped_var_name(),
+                    (_, ValueName::OutputBack) => val_name.unescaped_var_name(),
                 };
 
-                // __input and __output don't need translation from the external
-                // to the internal name, and neither does no_mangle params
-                let assignment = if val_name.is_output() || no_mangle.is_some() {
+
+                let alias_assignment = if val_name.is_output() || no_mangle.is_some() {
                     vec![]
                 } else {
-                    vec![match direction {
-                        Dir::Input => assign(&val_name.var_name(), &name),
-                        Dir::Output => assign(&name, &val_name.var_name()),
-                    }]
+                    vec![
+                        logic(&val_name.var_name(), &ty.size().near_loc(val_name))?,
+                        // TODO: We can replace `val_name.is_output` with an if let to get rid
+                        // of this match
+                        match direction {
+                            Dir::Input => assign(&val_name.var_name(), &name),
+                            Dir::Output => assign(&name, &val_name.var_name()),
+                        },
+                    ]
                 };
 
                 Ok((
@@ -859,7 +865,7 @@ pub fn entity_code(
                         size_spec(&ty.size().near_loc(val_name))?,
                         name
                     ),
-                    assignment,
+                    alias_assignment,
                 ))
             },
         )
