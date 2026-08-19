@@ -21,8 +21,8 @@ impl ValueName {
             }
             ValueName::Forward(mir::ValueName::Expr(id)) => format!("_e_{}", id.0),
             ValueName::Backward(mir::ValueName::Expr(id)) => format!("_e_{}_mut", id.0),
-            ValueName::OutputFwd => "__output".to_string(),
-            ValueName::OutputBack => "__input".to_string(),
+            ValueName::OutputFwd => "output__".to_string(),
+            ValueName::OutputBack => "input__".to_string(),
         }
     }
 

@@ -192,15 +192,15 @@ impl StatementExt for Loc<mir::Statement> {
                     loc: None,
                 })
                 .at_loc(self),
-                lir::Statement::Binding(lir::Binding {
-                    name: value.lower_fwd(),
-                    operator: spade_lir::Operator::Alias,
-                    operands: vec![target.map_ref(|v| v.lower_back())],
-                    ty: lir::Type::BitVector(types[target].backward_size()),
-                    // TODO: If we don't remove this field, set it to the statement loc
-                    loc: None,
-                })
-                .at_loc(self),
+                // lir::Statement::Binding(lir::Binding {
+                //     name: value.lower_fwd(),
+                //     operator: spade_lir::Operator::Alias,
+                //     operands: vec![target.map_ref(|v| v.lower_back())],
+                //     ty: lir::Type::BitVector(types[target].backward_size()),
+                //     // TODO: If we don't remove this field, set it to the statement loc
+                //     loc: None,
+                // })
+                // .at_loc(self),
             ]),
             mir::Statement::Error => Ok(vec![lir::Statement::Error.at_loc(self)]),
         }
@@ -632,7 +632,7 @@ impl BindingExt for Loc<&mir::Binding> {
                             name: extracted_tag.clone(),
                             operator: lir::Operator::RangeSlice {
                                 start: tag_start,
-                                end_exclusive: tag_end,
+                                end_exclusive: tag_end + BigUint::one(),
                             },
                             operands: lowered_fwd(),
                             ty: lir::Type::BitVector(tag_size.to_biguint()),
@@ -765,12 +765,12 @@ impl BindingExt for Loc<&mir::Binding> {
                     .unzip();
 
                 inputs.push((
-                    "__input".to_string(),
+                    "input__".to_string(),
                     back,
                     self.name.map_ref(|n| n.lower_back()).clone(),
                 ));
                 outputs.push((
-                    "__output".to_string(),
+                    "output__".to_string(),
                     fwd,
                     self.name.map_ref(|n| n.lower_fwd()).clone(),
                 ));

@@ -48,8 +48,8 @@ impl std::fmt::Display for ValueName {
         match self {
             ValueName::Forward(value_name) => write!(f, "{value_name}"),
             ValueName::Backward(value_name) => write!(f, "back({value_name})"),
-            ValueName::OutputFwd => write!(f, "__output"),
-            ValueName::OutputBack => write!(f, "__input"),
+            ValueName::OutputFwd => write!(f, "output__"),
+            ValueName::OutputBack => write!(f, "input__"),
         }
     }
 }

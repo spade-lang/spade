@@ -24,6 +24,7 @@ mod inout_read_write;
 mod int_bit_conversion;
 mod inv_in_match;
 mod inv_thru_cond_blocks;
+mod lir_compile_tests;
 mod match_if;
 mod no_mangle_params;
 mod parametrized_externs;
