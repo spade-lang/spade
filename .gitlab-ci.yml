@@ -406,7 +406,7 @@ build:wheel-manylinux:
   before_script:
     - apk add git musl-dev g++ openssl-dev openssl-libs-static jemalloc-static make
   script:
-    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-surfer-plugin --exclude spade-cxx --target x86_64-unknown-linux-musl --exclude spade-simulation-ext
+    - cargo build --locked --release --workspace --exclude spade-python --exclude spade-surfer-plugin --exclude spade-cxx --target x86_64-unknown-linux-musl --exclude spade-simulation-ext --features jemalloc
     - strip $CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/spade
     - mkdir -p spade/bin
     - cp ${CARGO_TARGET_DIR}/x86_64-unknown-linux-musl/release/spade spade/bin

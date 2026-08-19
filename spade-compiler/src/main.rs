@@ -13,10 +13,10 @@ use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 
-#[cfg(all(any(target_os = "linux", target_os = "macos")))]
+#[cfg(all(feature = "jemalloc", any(target_os = "linux", target_os = "macos")))]
 use tikv_jemallocator::Jemalloc;
 
-#[cfg(all(any(target_os = "linux", target_os = "macos")))]
+#[cfg(all(feature = "jemalloc", any(target_os = "linux", target_os = "macos")))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 

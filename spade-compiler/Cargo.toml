@@ -53,10 +53,13 @@ spade-types.workspace = true
 spade-query.workspace = true
 
 [target.'cfg(all(any(target_os = "linux", target_os = "macos")))'.dependencies]
-tikv-jemallocator.workspace = true
+tikv-jemallocator = {workspace = true, optional = true}
 
 
 
 [dev-dependencies]
 prettydiff.workspace = true
 pretty_assertions.workspace = true
+
+[features]
+jemalloc = ["tikv-jemallocator"]
