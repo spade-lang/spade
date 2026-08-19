@@ -20,7 +20,7 @@ use spade_lir::passes::backflip::{FlipBackConcat, FlipBackRangeIndex};
 use spade_lir::passes::drop_back_nops::DropBackNops;
 use spade_lir::passes::forbid_back_operators::ForbidBackOperators;
 use spade_lir::passes::legalize::Legalize;
-use spade_lir::passes::{run_pass};
+use spade_lir::passes::run_pass;
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
 use spade_mir::passes::MirPass;
 use spade_mir::passes::deduplicate_mut_wires::DeduplicateMutWires;
@@ -798,6 +798,12 @@ fn codegen(
                         Legalize,
                         ForbidBackOperators,
                     ];
+
+                    if std::env::var("SPADE_TRACE_LIR")
+                        .is_ok_and(|v| codegenable.0.name.source.1.to_strings().join("::").contains(&v))
+                    {
+                        println!("{lir}")
+                    }
 
                     let (code, _) = spade_lir::codegen::entity_code(
                         &lir,
