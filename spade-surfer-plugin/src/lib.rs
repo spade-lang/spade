@@ -623,7 +623,7 @@ fn translate_concrete(
                 let tag = usize::from_str_radix(tag_section, 2)
                     .with_context(|| format!("Unexpected characters in enum tag {tag_section}"))?;
 
-                if tag > options.len() {
+                if tag >= options.len() {
                     *problematic = true;
                     TranslationResult {
                         val: ValueRepr::String(format!("?TAG(0b{tag_section})")),
