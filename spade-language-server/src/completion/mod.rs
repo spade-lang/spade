@@ -296,6 +296,7 @@ impl ServerBackend {
 
         things_around
             .iter()
+            .rev()
             .filter_map(|thing| {
                 let info = match &thing.inner {
                     // FIXME: We can probably complete fields here

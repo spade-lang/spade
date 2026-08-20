@@ -1,0 +1,39 @@
+---
+source: spade-language-server/src/tests/completion.rs
+expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n\" + &result"
+---
+
+    struct Option<T> {}
+
+    impl<T> Option<T> {
+        fn map<F, O>(self, f: F) -> Option<O>
+        where F: Fn(T) -> O
+        {
+            Option()
+        }
+    }
+    
+    fn fir_filter(samples: Option<uint<8>>) {
+        samples
+            .map(fn |inner| {
+                inner.
+                   // ^[1] completion
+            })
+    }
+    
+---code ⬆️ completion ⬇️ ---
+bit_and(…)	bit_and(${1:rhs})$0
+bit_not()	bit_not()$0
+bit_or(…)	bit_or(${1:rhs})$0
+bit_xor(…)	bit_xor(${1:rhs})$0
+eq(…)	eq(${1:rhs})$0
+ge(…)	ge(${1:rhs})$0
+gt(…)	gt(${1:rhs})$0
+le(…)	le(${1:rhs})$0
+lt(…)	lt(${1:rhs})$0
+ne(…)	ne(${1:rhs})$0
+wrapping_add(…)	wrapping_add(${1:rhs})$0
+wrapping_mul(…)	wrapping_mul(${1:rhs})$0
+wrapping_shl(…)	wrapping_shl(${1:rhs})$0
+wrapping_shr(…)	wrapping_shr(${1:rhs})$0
+wrapping_sub(…)	wrapping_sub(${1:rhs})$0

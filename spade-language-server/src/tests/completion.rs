@@ -609,3 +609,26 @@ test_completion! {
         }
     "
 }
+
+test_completion! {
+    completion_inside_lambda_completes_inner,
+    "
+    struct Option<T> {}
+
+    impl<T> Option<T> {
+        fn map<F, O>(self, f: F) -> Option<O>
+        where F: Fn(T) -> O
+        {
+            Option()
+        }
+    }
+    
+    fn fir_filter(samples: Option<uint<8>>) {
+        samples
+            .map(fn |inner| {
+                inner.
+                   // ^[1] completion
+            })
+    }
+    "
+}
