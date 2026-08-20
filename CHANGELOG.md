@@ -9,9 +9,33 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.20.0] - 2026-08-20
+
+### Added
+- [!686][!686] LSP Autocompletion
+- [!677][!677] Associated functions (e.g. `MyStruct::default()`) so "methods" without (self). Calling doesn't work over the trait name or when the type has generics. Use a trampoline function and the generic for naming instead.
+
+### Fixed
+- [!693][!693] Fixed type inference sometimes being unable to infer argument types
+- [!695][!695] Improve error message when lambdas capture consumed linear types
+- [!697][!697] `unzip` not working on wires with `inv` components
+- [!702][!702] Suggest `pub` before `extern` and `unsafe`
+
+### Changed
+- [!698][!698] Tweaked array methods to make linear checking more precise
+
+
+[!686]: https://gitlab.com/spade-lang/spade/-/merge_requests/686
+[!693]: https://gitlab.com/spade-lang/spade/-/merge_requests/693
+[!695]: https://gitlab.com/spade-lang/spade/-/merge_requests/695
+[!697]: https://gitlab.com/spade-lang/spade/-/merge_requests/697
+[!698]: https://gitlab.com/spade-lang/spade/-/merge_requests/698
+[!702]: https://gitlab.com/spade-lang/spade/-/merge_requests/702
+[!677]: https://gitlab.com/spade-lang/spade/-/merge_requests/677
+
 ## [0.19.0] - 2026-05-28
 
-## Added
+### Added
 - [!618][!618] Added `include!` built-in macro that injects an expression from an external file
 - [!618][!618] Added `include_bytes!` built-in macro that creates an array literal from the contents of a file read at compile time
 - [!648][!648] Added `inv [T; N]::transpose` and `[inv T; N]::transpose` methods to convert between both representations
@@ -31,13 +55,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!671][!671] Added a `Default` trait with a preluded `default` shorthand function to build default values
 - [!673][!673] Added `core::ports::port` built-in function to create a connected pair of `(T, inv T)` ports.
 
-## Fixed
+### Fixed
 - [!649][!649] Fix codegen of `inout<bool>::read_write`
 
-## Changed
+### Changed
 - [!647][!647] `transmute` and `[T; N]::concat` among others now support `inv` values
 
-## Removed
+### Removed
 - [!673][!673] Removed `port` keyword in favor of `core::ports::port`.
 
 [!618]: https://gitlab.com/spade-lang/spade/-/merge_requests/618
@@ -53,20 +77,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.18.0] - 2026-04-16
 
-## Added
+### Added
 
 - [!637][!637] Refine standard library
 - [!577][!577] Added trait associated types
 - [!612][!612] Added `int::bits_for` and `uint::bits_for` type-level functions
 - [!624][!624] Types can now be defined inside units
 
-## Fixed
+### Fixed
 - [!609][!609] Fix alias flattening system to avoid codegen bugs with inlining enabled
 - [!610][!610] Enforce trait requirements on types even if they are not explicitly instantiated
 - [!622][!622] Fixed handling of `-.` by the compiler, now it can be used in code
 - [!629][!629] Fix codegen bug with aliases and resets
 
-## Changed
+### Changed
 - [!607][!607] Remove the `port` type distinction. This is superseded by a `Data` trait.
 - [!611][!611] Missing `mod name;` extern module declarations now produce warnings instead of errors
 - [!612][!612] `uint_bits_to_fit` type-level functions emit a deprecation warning
@@ -86,7 +110,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.17.0] - 2026-03-05
 
-## Added
+### Added
 - [!553][!553] Add `#[inline]` attribute
 - [!564][!564] Added `impl Trait` syntax to declare unit parameters with implicit, bounded generic types
 - [!571][!571] Added `#[deprecated = "..."]` and `#[deprecated(...)]` attributes that allow deprecating items.
@@ -115,13 +139,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!597][!597] Added `inout<[T; N]>::read_write_items` to access `inout` arrays element-wise
 - [!598][!598] Allow methods to be implemented on tuples
 
-## Fixed
+### Fixed
 - [!565][!565] Fixed incorrect behaviour when capturing a variable more than once in a lambda.
 - [!568][!568] Fixed warnings not being shown unless errors were produced too
 - [!594][!594] Reduce the chance of seeing `Number<_> has no method <x>` errors
 - [!599][!599] Fixed compiler panic when declaring variables inside pipelines using `decl` syntax
 
-## Changed
+### Changed
 - [!553][!553] Automatically inline `gen_if` temporary units
 - [!569][!569] `#[verilog_attrs(...)]` can annotate call statements, both standalone and as `let` bindings
 - [!593][!593] Integer literals can now specify a type suffix with no size (e.g., `120u`, `33i`)
@@ -153,7 +177,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.16.0] - 2026-01-22
 
-## Added
+### Added
 - [!523][!523] Add `inout<T>::read_write` method (equivalent to `read_write_inout`)
 - [!525][!525] Added `self` and `super` support for paths
 - [!526][!526] Added command line flag to not include standard library and prelude before compilation
@@ -166,7 +190,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!549][!549] Add string literals
 - [!566][!566] Added support for boolean conditions alongside `match` arms
 
-## Fixed
+### Fixed
 - [!525][!525] Strengthen path resolution, especially around `use` aliases
 - [!545][!545] Fixed panic if `main.spade` has a syntax error and other files contain `mod`
 - [!545][!545] Don't print missing `mod` errors as often when other errors are present
@@ -174,7 +198,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!557][!557] Made `Self` usable as both pattern inside `match` blocks and constructors for its target type inside `impl` blocks
 - [!563][!563] Fix const generic handling inside traits and `impl` blocks
 
-## Changed
+### Changed
 - [!533][!533] `use` can now import multiple paths using braces to describe a path tree (e.g., `use std::{array::{zip, interleave_arrays}, conv::transmute}`
 - [!537][!537] Changed tuple indexing syntax from `tuple#N` to `tuple.N`
 
@@ -199,7 +223,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.15.0] - 2025-11-20
 
-## Added
+### Added
 - [!469][!469] Expose `zip` as a standalone function
 - [!469][!469] Added `interleave` and `interleave_arrays`
 - [!469][!469] Added `interleave` to `uint`
@@ -217,7 +241,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!502][!502] Allow lambda units to capture
 - [!519][!519] Added `bool_to_int`, `bool_to_uint`, `bool::to_int` and `bool::to_uint`.
 
-## Fixed
+### Fixed
 - [!469][!469] Use `N == 0` as base case for `zip`
 - [!470][!470] `add_changelog` now creates `changelogs` if it does not exist
 - [!473][!473] `inout` is now forbidden inside structs, enums and wires
@@ -235,7 +259,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!395][!395] Fix a panic when there are non-fatal AST errors that cause codegen problems
 - [!395][!395] Stop emitting errors for missing methods on unknown types
 
-## Changed
+### Changed
 - [!476][!476] **Breaking change** make `set` handle all port types, not only wires, which now need `&`
 - [!477][!477] Every `std::MOD::unsafe::*` method is now `unsafe` and lives in `std::MOD`
 - [!477][!477] `std::conv::unsafe::unsafe_cast` is now called `std::conv::transmute` and also is marked `unsafe`
@@ -281,7 +305,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.14.0] - 2025-06-26
 
-## Added
+### Added
 - [!451][!451] Add lambda functions
 - [!442][!442] Add `unwrap_or`, `unwrap_or_undef` and `sliding_window` to `Option`
 - [!442][!442] Add `zip` to arrays
@@ -294,12 +318,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [!462][!462] Added surfer translation plugin
 - [!464][!464] Add `#[surfer_translator("...")]` on struct fields
 
-## Fixed
+### Fixed
 - [!450][!450] Emit an error on creating recursive types
 - [!431][!431] Fix miscompilation on units with only output inv wires
 - [!465][!465] Add locations to pattern parts in translators
 
-## Changed
+### Changed
 - [!440][!440] **Breaking change**: Use Rust syntax for exclusive ranges (`[start..end]` replaces `[start:end]`)
 - [!441][!441] Refactored type inferrer to be faster and support late trait resolution
 - [!458][!458] Lift the restriction on functions not containing wires
@@ -788,7 +812,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.19.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.20.0...main
+[0.20.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.20.0...v0.19.0
 [0.19.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.19.0...v0.18.0
 [0.18.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.18.0...v0.17.0
 [0.17.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.17.0...v0.16.0
