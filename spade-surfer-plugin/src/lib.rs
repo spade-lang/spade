@@ -6,7 +6,7 @@ use extism_pdk::{FnResult, Json, WithReturnCode, plugin_fn};
 use rustc_hash::FxHashMap as HashMap;
 
 use itertools::Itertools;
-use log::{error, info, warn};
+use log::{error, info};
 use num::ToPrimitive;
 use serde::Deserialize;
 use spade::compiler_state::{CompilerState, StoredCompilerState};
@@ -126,17 +126,16 @@ impl SpadeTranslator {
             .with_context(|| format!("Failed to read {surfer_ron_file}"))?;
 
         let (top_name, state_file) = ron::from_str::<SpadeTestInfo>(&surfer_ron_content)
-            .map_err(|e| error!("Failed to decode {surfer_ron_file}. {e}"))
-            .ok()
+            .map_err(|e| anyhow!("Failed to decode {surfer_ron_file}. {e}"))
             .and_then(|info| {
                 if let Some(top) = info.top_names.get(wave_file) {
-                    Some((top.clone(), info.state_file.clone()))
+                    Ok((top.clone(), info.state_file.clone()))
                 } else {
-                    warn!("Found no spade info for {wave_file}. Disabling spade translation");
-                    None
+                    Err(anyhow!(
+                        "Found no spade info for {wave_file}. Disabling spade translation"
+                    ))
                 }
-            })
-            .ok_or_else(|| anyhow!("Failed to initialize Spade translator"))?;
+            })?;
 
         Self::new_from_state_bytes(&top_name, &read_file(&state_file)?)
             .context(format!("When loading Spade state from {state_file}"))

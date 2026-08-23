@@ -342,6 +342,11 @@ pub fn source_of_hierarchical_value<'a>(
     mir_contexts: &'a HashMap<NameID, MirContext>,
 ) -> color_eyre::Result<(&'a VerilogNameSource, &'a MirContext)> {
     let mut hierarchy = Vec::from(hierarchy);
+    if hierarchy.len() == 0 {
+        return Err(anyhow!(
+            "Asked to get the type of a value without hierarchy"
+        ));
+    }
     let value_name = hierarchy.pop().unwrap();
     hierarchy.reverse();
 
