@@ -5,6 +5,7 @@
     --color-pipeline: rgb(173, 124, 55);
     --color-struct: rgb(173, 55, 138);
     --color-enum: rgb(173, 55, 138);
+    --color-macro: rgb(6, 128, 0);
     --color-primitive: rgb(173, 55, 138);
     --color-type-alias: rgb(173, 55, 138);
     --color-trait: rgb(110, 79, 201);
@@ -28,6 +29,7 @@
         --color-pipeline: rgb(253, 214, 135);
         --color-struct: rgb(255, 160, 165);
         --color-enum: rgb(255, 160, 165);
+        --color-macro: rgb(9, 189, 0);
         --color-primitive: rgb(255, 160, 165);
         --color-type-alias: rgb(255, 160, 165);
         --color-trait: rgb(57, 175, 215);
@@ -226,6 +228,9 @@ details[open] > summary::before {
 }
 .color-enum {
     color: var(--color-enum);
+}
+.color-macro {
+    color: var(--color-macro);
 }
 .color-primitive {
     color: var(--color-primitive);

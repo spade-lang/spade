@@ -5,8 +5,9 @@ use crate::{
     html::Node,
 };
 use spade_ast::{
-    BinaryOperator, Enum, Expression, ParameterList, Struct, TraitDef, TraitSpec, TypeExpression,
-    TypeParam, TypeSpec, UnaryOperator, UnitHead, WhereClause,
+    BinaryOperator, Enum, Expression, MacroDef, MacroPattern, MacroRepetitions, ParameterList,
+    Struct, TraitDef, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnaryOperator, UnitHead,
+    WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -92,6 +93,60 @@ impl Generator {
             fwrite!(b, "<br>}");
         }
 
+        Ok(())
+    }
+
+    pub fn print_macro_def(&self, b: &mut Node<'_>, m: &MacroDef) -> DResult<()> {
+        self.print_visibility(b, &m.visibility)?;
+
+        fwrite!(b, "macro ");
+
+        fwrite!(b, m.name.as_str());
+
+        fwrite!(b, " {<br>");
+
+        for (pat, _) in &m.rules {
+            fwrite!(b, "    ");
+            self.print_macro_pattern(b, &pat.inner)?;
+            fwrite!(b, " => { /* .. */ },<br>");
+        }
+
+        fwrite!(b, "}");
+
+        Ok(())
+    }
+
+    fn print_macro_pattern(&self, b: &mut Node<'_>, p: &MacroPattern) -> DResult<()> {
+        match p {
+            MacroPattern::Token(tok) => fwrite!(b, tok.as_str()),
+            MacroPattern::RepeatedSubpattern { parts, delim, reps } => {
+                fwrite!(b, "$(");
+                separated(b, " ", parts.iter(), |b, p| self.print_macro_pattern(b, p))?;
+                let reps = match reps.inner {
+                    MacroRepetitions::Optional => "?",
+                    MacroRepetitions::Many0 => "*",
+                    MacroRepetitions::Many1 => "+",
+                };
+                fwrite!(
+                    b,
+                    ")",
+                    delim.as_ref().map(|d| d.as_str()).unwrap_or(""),
+                    reps
+                );
+            }
+            MacroPattern::EnclosedSubpattern {
+                parts,
+                open_delim,
+                close_delim,
+            } => {
+                fwrite!(b, open_delim.as_str(), " ");
+                separated(b, " ", parts.iter(), |b, p| self.print_macro_pattern(b, p))?;
+                fwrite!(b, " ", close_delim.as_str());
+            }
+            MacroPattern::Fragment { name, kind } => {
+                fwrite!(b, "$", name.as_str(), ":", kind.as_str())
+            }
+        }
         Ok(())
     }
 

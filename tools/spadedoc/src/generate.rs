@@ -1,7 +1,7 @@
 use camino::Utf8PathBuf;
 use itertools::Itertools;
 use spade_ast::{
-    self as ast, Attribute, AttributeList, ExternalMod, ModuleBody, TraitDef, TraitSpec,
+    self as ast, Attribute, AttributeList, ExternalMod, MacroDef, ModuleBody, TraitDef, TraitSpec,
     TypeDeclKind, TypeDeclaration, TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
 };
 use spade_common::{
@@ -245,8 +245,15 @@ impl Generator {
 
                     self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u, &docs))?;
                 }
-                ast::Item::MacroDef(_) => {
-                    // FIXME: Once macros become user-definable, we should handle them
+                ast::Item::MacroDef(m) => {
+                    let name = m.name.as_str();
+                    let docs = m.attributes.merge_docs();
+                    contents
+                        .entry(ItemKind::Macro)
+                        .or_default()
+                        .push(ItemListEntry::new(name, &docs));
+
+                    self.describe(FileName::Item(name), |g, b| g.doc_macro(b, &m, &docs))?;
                 }
                 ast::Item::TraitDef(t) => {
                     let name = t.name.as_str();
@@ -550,6 +557,20 @@ impl Generator {
             write_title(body, ItemKind::Trait, t.name.as_str())?;
             self.in_codeblock(body, |b| self.print_trait_def(b, &t))?;
             if let Some(dep) = get_deprecation(&t.attributes) {
+                self.deprecation_note(body, dep)?;
+            }
+            write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
+
+            Ok(())
+        })
+    }
+
+    fn doc_macro(&mut self, body: &mut Node<'_>, m: &Loc<MacroDef>, docs: &str) -> DResult<()> {
+        main(body, |body| {
+            self.path_breadcrumbs(body)?;
+            write_title(body, ItemKind::Macro, m.name.as_str())?;
+            self.in_codeblock(body, |b| self.print_macro_def(b, &m))?;
+            if let Some(dep) = get_deprecation(&m.attributes) {
                 self.deprecation_note(body, dep)?;
             }
             write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
