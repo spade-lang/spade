@@ -3,6 +3,10 @@
 /// documentation
 struct S {}
 
+impl S {
+    fn hehe(&self, other: &S) {}
+}
+
 /// As the name suggests, it does nothing.
 fn do_nothing() { }
 

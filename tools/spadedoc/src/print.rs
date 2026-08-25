@@ -428,24 +428,24 @@ impl Generator {
                     BinaryOperator::Mod => fwrite!(b, " % "),
                     BinaryOperator::Eq => fwrite!(b, " == "),
                     BinaryOperator::Neq => fwrite!(b, " != "),
-                    BinaryOperator::Lt => fwrite!(b, " < "),
-                    BinaryOperator::Gt => fwrite!(b, " > "),
-                    BinaryOperator::Le => fwrite!(b, " <= "),
-                    BinaryOperator::Ge => fwrite!(b, " >= "),
-                    BinaryOperator::LogicalAnd => fwrite!(b, " & "),
+                    BinaryOperator::Lt => fwrite!(b, " &lt; "),
+                    BinaryOperator::Gt => fwrite!(b, " &gt; "),
+                    BinaryOperator::Le => fwrite!(b, " &lt;= "),
+                    BinaryOperator::Ge => fwrite!(b, " &gt;= "),
+                    BinaryOperator::LogicalAnd => fwrite!(b, " &amp; "),
                     BinaryOperator::LogicalOr => fwrite!(b, " | "),
                     BinaryOperator::LogicalXor => fwrite!(b, " ^ "),
-                    BinaryOperator::LeftShift => fwrite!(b, " << "),
-                    BinaryOperator::RightShift => fwrite!(b, " >> "),
-                    BinaryOperator::ArithmeticRightShift => fwrite!(b, " >>> "),
-                    BinaryOperator::BitwiseAnd => fwrite!(b, " && "),
+                    BinaryOperator::LeftShift => fwrite!(b, " &lt;&lt; "),
+                    BinaryOperator::RightShift => fwrite!(b, " &gt;&gt; "),
+                    BinaryOperator::ArithmeticRightShift => fwrite!(b, " &gt;&gt;&gt; "),
+                    BinaryOperator::BitwiseAnd => fwrite!(b, " &amp;&amp; "),
                     BinaryOperator::BitwiseOr => fwrite!(b, " || "),
                     BinaryOperator::BitwiseXor => fwrite!(b, " ^^ "),
                     BinaryOperator::WrappingAdd => fwrite!(b, " +. "),
                     BinaryOperator::WrappingSub => fwrite!(b, " -. "),
                     BinaryOperator::WrappingMul => fwrite!(b, " *. "),
-                    BinaryOperator::WrappingLeftShift => fwrite!(b, " <<. "),
-                    BinaryOperator::WrappingRightShift => fwrite!(b, " >>. "),
+                    BinaryOperator::WrappingLeftShift => fwrite!(b, " &lt;&lt;. "),
+                    BinaryOperator::WrappingRightShift => fwrite!(b, " &gt;&gt;. "),
                 }
                 self.print_expr(b, rhs)
             }
@@ -456,7 +456,7 @@ impl Generator {
                     UnaryOperator::BitwiseNot => fwrite!(b, " ~ "),
                     UnaryOperator::WrappingSub => fwrite!(b, " -. "),
                     UnaryOperator::Dereference => fwrite!(b, " * "),
-                    UnaryOperator::Reference => fwrite!(b, " & "),
+                    UnaryOperator::Reference => fwrite!(b, " &amp; "),
                 };
                 self.print_expr(b, inner)
             }
@@ -493,7 +493,13 @@ impl Generator {
 
     fn print_parameter_list(&self, b: &mut Node<'_>, list: &ParameterList) -> DResult<()> {
         let mut started = false;
-        if let Some(_) = list.self_ {
+        if let Some((_, wire, amp)) = list.self_ {
+            if wire.is_some() {
+                fwrite!(b, "wire ");
+            }
+            if amp.is_some() {
+                fwrite!(b, "&amp;");
+            }
             fwrite!(b, "self");
             started = true;
         }
