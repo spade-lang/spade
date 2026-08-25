@@ -1,8 +1,8 @@
 use camino::Utf8PathBuf;
 use itertools::Itertools;
 use spade_ast::{
-    self as ast, ExternalMod, ModuleBody, TraitDef, TraitSpec, TypeDeclKind, TypeDeclaration,
-    TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
+    self as ast, Attribute, AttributeList, ExternalMod, ModuleBody, TraitDef, TraitSpec,
+    TypeDeclKind, TypeDeclaration, TypeParam, TypeSpec, Unit, UnitKind, WhereClause,
 };
 use spade_common::{
     location_info::{Loc, WithLocation},
@@ -140,6 +140,8 @@ impl<'a> ItemListEntry<'a> {
         }
     }
 }
+
+type Deprecation<'a> = (&'a Option<Loc<String>>, &'a Option<Loc<String>>);
 
 pub(crate) struct Generator {
     pub(crate) symtab: SymbolTable,
@@ -389,6 +391,12 @@ impl Generator {
             .lookup_id(&Path::ident(t.name.clone()).nowhere(), true)
             .unwrap();
 
+        let attrs = match &t.inner.kind {
+            TypeDeclKind::Enum(e) => &e.attributes,
+            TypeDeclKind::Struct(s) => &s.attributes,
+            TypeDeclKind::Alias(a) => &a.attributes,
+        };
+
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, kind, t.inner.name.as_str())?;
@@ -397,6 +405,9 @@ impl Generator {
                 TypeDeclKind::Struct(s) => self.print_struct(b, s, &t.visibility, &t.generic_args),
                 TypeDeclKind::Alias(_) => Ok(()),
             })?;
+            if let Some(dep) = get_deprecation(attrs) {
+                self.deprecation_note(body, dep)?;
+            }
             write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             // (Trait) implementation blocks
@@ -483,22 +494,27 @@ impl Generator {
                 body.styled_tag("div", &["impl-items"], |body| {
                     for u in units {
                         let doc = u.head.attributes.merge_docs();
+                        let dep = get_deprecation(&u.head.attributes);
 
-                        if !doc.is_empty() {
-                            body.open_details(
-                                |body| {
-                                    body.styled_tag("span", &["impl-unit-head"], |body| {
-                                        self.print_unit_head(body, &u.head)
-                                    })
-                                },
-                                |body| write_djot(&doc, |md| (md.write())(body)),
-                            )?;
-                        } else {
-                            body.tag("div", |body| {
-                                body.styled_tag("span", &["impl-unit-head"], |body| {
-                                    self.print_unit_head(body, &u.head)
-                                })
+                        // The signature head part
+                        let head = |body: &mut Node<'_>| {
+                            body.styled_tag("span", &["impl-unit-head"], |body| {
+                                self.print_unit_head(body, &u.head)
+                            })
+                        };
+
+                        if dep.is_some() || !doc.is_empty() {
+                            body.open_details(head, |body| {
+                                if let Some(dep) = dep {
+                                    self.deprecation_note(body, dep)?;
+                                }
+                                if !doc.is_empty() {
+                                    write_djot(&doc, |md| (md.write())(body))?;
+                                }
+                                Ok(())
                             })?;
+                        } else {
+                            body.tag("div", head)?;
                         }
                     }
                     Ok(())
@@ -518,6 +534,9 @@ impl Generator {
             self.path_breadcrumbs(body)?;
             write_title(body, kind, u.head.name.as_str())?;
             self.in_codeblock(body, |b| self.print_unit_head(b, &u.head))?;
+            if let Some(dep) = get_deprecation(&u.head.attributes) {
+                self.deprecation_note(body, dep)?;
+            }
             write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
@@ -529,6 +548,9 @@ impl Generator {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Trait, t.name.as_str())?;
             self.in_codeblock(body, |b| self.print_trait_def(b, &t))?;
+            if let Some(dep) = get_deprecation(&t.attributes) {
+                self.deprecation_note(body, dep)?;
+            }
             write_djot(docs, |md| collapsible(body, &["main_desc"], md.write()))?;
 
             Ok(())
@@ -768,6 +790,29 @@ impl Generator {
 
         Ok(())
     }
+
+    fn deprecation_note(&self, b: &mut Node<'_>, (_since, note): Deprecation) -> DResult<()> {
+        b.styled_tag("blockquote", &["deprecation"], |b| {
+            if let Some(note) = note {
+                write_djot(&note.inner, |md| (md.write())(b))?;
+            }
+            Ok(())
+        })
+    }
+}
+
+fn get_deprecation<'d>(attrs: &'d AttributeList) -> Option<Deprecation<'d>> {
+    attrs
+        .0
+        .iter()
+        .filter_map(|attr| {
+            if let Attribute::Deprecated { since, note } = &**attr {
+                Some((since, note))
+            } else {
+                None
+            }
+        })
+        .next()
 }
 
 enum FileName<'s> {

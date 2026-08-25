@@ -164,6 +164,28 @@ details > summary {
     cursor: pointer;
 }
 
+.deprecation {
+    padding: 5px 10px;
+    background-color: #fff8a7;
+    display: inline-block;
+    margin-bottom: 0;
+}
+main > .deprecation {
+    margin: 0;
+    position: relative;
+    top: -0.5em;
+}
+.deprecation > :last-child {
+    margin-bottom: 0;
+}
+.deprecation::before {
+    content: "🕸️ Deprecated";
+    color: #444;
+    position: relative;
+    top: -3px;
+    left: -4px;
+}
+
 /* These are taken straight from rustdoc */
 details > summary::before {
     content: "";
