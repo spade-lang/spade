@@ -141,11 +141,18 @@ impl<'a> ItemListEntry<'a> {
     }
 }
 
-type Deprecation<'a> = (&'a Option<Loc<String>>, &'a Option<Loc<String>>);
+struct Deprecation<'a> {
+    _since: &'a Option<Loc<String>>,
+    note: &'a Option<Loc<String>>,
+}
 
 pub(crate) struct Generator {
     pub(crate) symtab: SymbolTable,
     pub(crate) current_dir: Utf8PathBuf,
+    /// Depth of the current directory relative to the root doc gen dir.
+    ///
+    /// Used for generating a relative path back to the root styles.css
+    pub(crate) depth: u16,
     pub(crate) impls: ImplsNDocs,
     pub(crate) diags: Arc<Mutex<DiagList>>,
     /// Used to determine if we need an additional ../ in a path.
@@ -154,7 +161,6 @@ pub(crate) struct Generator {
     /// `a/b/item.c.html` for a non-module.
     pub(crate) is_module: bool,
     pub(crate) primitives: ModuleBody,
-    pub(crate) depth: u16,
 }
 
 impl Generator {
@@ -809,9 +815,9 @@ impl Generator {
         Ok(())
     }
 
-    fn deprecation_note(&self, b: &mut Node<'_>, (_since, note): Deprecation) -> DResult<()> {
+    fn deprecation_note(&self, b: &mut Node<'_>, dep: Deprecation) -> DResult<()> {
         b.styled_tag("blockquote", &["deprecation"], |b| {
-            if let Some(note) = note {
+            if let Some(note) = dep.note {
                 write_djot(&note.inner, |md| (md.write())(b))?;
             }
             Ok(())
@@ -825,7 +831,10 @@ fn get_deprecation<'d>(attrs: &'d AttributeList) -> Option<Deprecation<'d>> {
         .iter()
         .filter_map(|attr| {
             if let Attribute::Deprecated { since, note } = &**attr {
-                Some((since, note))
+                Some(Deprecation {
+                    _since: since,
+                    note,
+                })
             } else {
                 None
             }
