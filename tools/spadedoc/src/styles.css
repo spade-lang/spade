@@ -85,7 +85,11 @@ h3 {
     border-bottom: 1px solid #ddd;
 }
 
-section {
+:target {
+    background: #fcffd7;
+}
+
+.section_padding {
     padding-bottom: 10pt;
 }
 

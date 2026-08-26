@@ -77,6 +77,21 @@ impl<'b> Node<'b> {
         Ok(())
     }
 
+    pub fn tag_with_id(
+        &mut self,
+        tag: impl FastWrite,
+        id: impl FastWrite,
+        inner: impl FnOnce(&mut Node<'_>) -> DResult<()>,
+    ) -> DResult<()> {
+        fwrite!(self, "<", &tag, " id=\"", &id, "\">");
+
+        inner(self)?;
+
+        fwrite!(self, "</", &tag, ">");
+
+        Ok(())
+    }
+
     pub fn tag_with_values(
         &mut self,
         tag: impl FastWrite,

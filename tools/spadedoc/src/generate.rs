@@ -316,7 +316,7 @@ impl Generator {
                 write_djot(&docs, |md| collapsible(b, &["main_desc"], md.write()))?;
                 for (kind, mut entries) in contents {
                     entries.sort_by_key(|e| e.name);
-                    b.tag("section", |b| {
+                    b.styled_tag("section", &["section_padding"], |b| {
                         b.tag("h3", |b| {
                             fwrite!(b, kind.plural());
                             Ok(())
@@ -512,8 +512,12 @@ impl Generator {
 
                         // The signature head part
                         let head = |body: &mut Node<'_>| {
-                            body.styled_tag("span", &["impl-unit-head"], |body| {
-                                self.print_unit_head(body, &u.head)
+                            // FIXME: check for same id and add a `.{alt}` suffix with alt count (how do we do mutable state here?! ;c)
+                            let id = format!("method.{}", u.head.name.as_str());
+                            body.tag_with_id("section", id.as_str(), |body| {
+                                body.styled_tag("span", &["impl-unit-head"], |body| {
+                                    self.print_unit_head(body, &u.head, Some(&id))
+                                })
                             })
                         };
 
@@ -547,7 +551,7 @@ impl Generator {
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, kind, u.head.name.as_str())?;
-            self.in_codeblock(body, |b| self.print_unit_head(b, &u.head))?;
+            self.in_codeblock(body, |b| self.print_unit_head(b, &u.head, None))?;
             if let Some(dep) = get_deprecation(&u.head.attributes) {
                 self.deprecation_note(body, dep)?;
             }

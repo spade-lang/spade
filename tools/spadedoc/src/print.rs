@@ -178,7 +178,7 @@ impl Generator {
 
         for method in &def.methods {
             fwrite!(b, "<br>    ");
-            self.print_unit_head(b, method)?;
+            self.print_unit_head(b, method, None)?;
             fwrite!(b, ";");
         }
 
@@ -191,7 +191,12 @@ impl Generator {
         Ok(())
     }
 
-    pub fn print_unit_head(&self, b: &mut Node<'_>, unit: &UnitHead) -> DResult<()> {
+    pub fn print_unit_head(
+        &self,
+        b: &mut Node<'_>,
+        unit: &UnitHead,
+        anchor_id: Option<&str>,
+    ) -> DResult<()> {
         self.print_visibility(b, &unit.visibility)?;
 
         if let Some(_) = unit.unsafe_token {
@@ -218,10 +223,16 @@ impl Generator {
             }
         };
 
+        if let Some(id) = anchor_id {
+            fwrite!(b, "<a href=\"#", id, "\">");
+        }
         b.styled_tag("span", &[kind.color_class()], |b| {
             fwrite!(b, unit.name.as_str());
             Ok(())
         })?;
+        if let Some(_) = anchor_id {
+            fwrite!(b, "</a>");
+        }
         self.print_type_params(b, &unit.type_params)?;
         fwrite!(b, "(");
         self.print_parameter_list(b, &unit.inputs)?;
