@@ -1,6 +1,6 @@
 use core::macros::{include, include_bytes};
 
-use core::marker::Data;
+use core::marker::{Copy, Data};
 
 use core::ops::Number;
 use core::ops::{Entity, Fn, Pipeline};

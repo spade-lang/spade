@@ -1,0 +1,6 @@
+entity main() -> ((), ()) {
+    let (x, x_inv) = port();
+    set x_inv = ();
+
+    (*&(), *x_inv.inspect())
+}

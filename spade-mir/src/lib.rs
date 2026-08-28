@@ -234,6 +234,13 @@ pub enum Operator {
     },
     IndexArray,
     IndexMemory,
+    /// Inspect a copy viewed `inv` wire. If the underlying type has both forward and backward
+    /// components, flip the bit layout accordingly during codegen (copy views expose both forward
+    /// and backward wires of the underlying value as readable forward wires, with the forward part
+    /// occupying the lower bits and the backward part occupying the upper bits. Inspection removes
+    /// an `inv` layer, so it needs to flip their positions).
+    /// For more info, see the `Inspect` branch on `forward_expression_code`.
+    Inspect,
     /// Indexes an array to extract a range of elements
     RangeIndexArray {
         start: BigUint,
@@ -394,6 +401,7 @@ impl std::fmt::Display for Operator {
             ),
             Operator::IndexArray => write!(f, "IndexArray"),
             Operator::IndexTuple(idx) => write!(f, "IndexTuple({})", idx),
+            Operator::Inspect => write!(f, "Inspect"),
             Operator::RangeIndexArray {
                 start,
                 end_exclusive: end,

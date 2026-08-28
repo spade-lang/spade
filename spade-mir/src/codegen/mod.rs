@@ -189,7 +189,41 @@ fn statement_declaration(
     }
 }
 
-fn compute_tuple_index(idx: u64, sizes: &[BigUint]) -> TupleIndex {
+fn compute_forward_tuple_index(tuple_type: &Type, idx: u64) -> TupleIndex {
+    let is_single_bit = tuple_type.size().is_one();
+    let inner_types = tuple_type.strip_copy_view_layers().assume_tuple_like();
+    let sizes = inner_types.iter().map(|t| t.size()).collect::<Vec<_>>();
+    compute_tuple_index(idx, &sizes, BigUint::zero(), is_single_bit)
+}
+
+fn compute_backward_tuple_index(tuple_type: &Type, idx: u64) -> TupleIndex {
+    let is_single_bit = tuple_type.backward_size().is_one();
+    let inner_types = tuple_type.strip_copy_view_layers().assume_tuple_like();
+    let sizes = inner_types
+        .iter()
+        .map(|t| t.backward_size())
+        .collect::<Vec<_>>();
+    compute_tuple_index(idx, &sizes, BigUint::zero(), is_single_bit)
+}
+
+fn compute_copied_backward_tuple_index(tuple_type: &Type, idx: u64) -> TupleIndex {
+    let is_single_bit = tuple_type.size().is_one();
+    let stripped_type = tuple_type.strip_copy_view_layers();
+    let inner_types = stripped_type.assume_tuple_like();
+    let sizes = inner_types
+        .iter()
+        .map(|t| t.backward_size())
+        .collect::<Vec<_>>();
+    let offset = stripped_type.size();
+    compute_tuple_index(idx, &sizes, offset, is_single_bit)
+}
+
+fn compute_tuple_index(
+    idx: u64,
+    sizes: &[BigUint],
+    offset: BigUint,
+    is_single_bit: bool,
+) -> TupleIndex {
     // Compute the start index of the element we're looking for
     let mut start_bit = BigUint::zero();
     for i in 0..idx {
@@ -200,12 +234,12 @@ fn compute_tuple_index(idx: u64, sizes: &[BigUint]) -> TupleIndex {
 
     let end_bit = &start_bit + target_width;
 
-    let total_width: BigUint = sizes.iter().sum();
+    let total_width: BigUint = sizes.iter().sum::<BigUint>() + offset;
 
     // Check if this is a single bit, if so, index using just it
     if target_width == &0u32.to_biguint() {
         TupleIndex::ZeroWidth
-    } else if sizes.iter().sum::<BigUint>() == 1u32.to_biguint() {
+    } else if is_single_bit {
         TupleIndex::None
     } else if target_width == &1u32.to_biguint() {
         TupleIndex::Single(total_width - start_bit - 1u32.to_biguint())
@@ -444,17 +478,26 @@ fn forward_expression_code(
             format!("{} ? {} : {}", op_names[0], op_names[1], op_names[2])
         }
         Operator::IndexTuple(idx) => {
-            let inner_types = match &types[&ops[0]].strip_copy_view_layers() {
-                Type::Tuple(fields) => fields.clone(),
-                Type::Struct(fields) => fields.iter().map(|(_name, ty)| ty.clone()).collect(),
-                Type::Array { inner, length } => {
-                    vec![(**inner).clone(); length.to_usize().unwrap()]
-                }
-                _ => panic!("Tuple index with non-tuple input"),
+            let is_copy_view = matches!(&types[&ops[0]], Type::CopyView(_));
+            let tuple_type = &types[&ops[0]];
+            let fwd_idx = compute_forward_tuple_index(&tuple_type, *idx);
+            let back_idx = if is_copy_view {
+                compute_copied_backward_tuple_index(&tuple_type, *idx)
+            } else {
+                TupleIndex::ZeroWidth
             };
-            let sizes = inner_types.iter().map(|t| t.size()).collect::<Vec<_>>();
-            let idx = compute_tuple_index(*idx, &sizes);
-            format!("{}{}", op_names[0], idx.verilog_code())
+            match (fwd_idx, back_idx) {
+                (TupleIndex::ZeroWidth, idx) | (idx, TupleIndex::ZeroWidth) => {
+                    format!("{}{}", op_names[0], idx.verilog_code())
+                }
+                (l_idx, r_idx) => format!(
+                    "{{{}{}, {}{}}}",
+                    op_names[0],
+                    r_idx.verilog_code(),
+                    op_names[0],
+                    l_idx.verilog_code()
+                ),
+            }
         }
         Operator::ConstructArray { .. } => {
             // NOTE: Reversing because we declare the array as logic[SIZE:0] and
@@ -608,6 +651,19 @@ fn forward_expression_code(
             }
             .to_string()
         }
+        Operator::Inspect => {
+            let inner = types[&ops[0]].strip_copy_view_layers();
+            let size = inner.size();
+            let backward_size = inner.backward_size();
+            if size.is_zero() || backward_size.is_zero() {
+                format!("{}", op_names[0])
+            } else {
+                format!(
+                    "{{{}[0+:{}], {}[{}+:{}]}}",
+                    op_names[0], size, op_names[0], size, backward_size
+                )
+            }
+        }
         Operator::ConstructEnum { variant } => {
             let Type::Enum(options) = &binding.ty else {
                 panic!("Attempted enum construction of non-enum");
@@ -666,7 +722,8 @@ fn forward_expression_code(
             if enum_type.size() == BigUint::ZERO {
                 "1".to_string()
             } else {
-                let tag_size = enum_util::tag_size(enum_type.assume_enum().len());
+                let tag_size =
+                    enum_util::tag_size(enum_type.strip_copy_view_layers().assume_enum().len());
                 let total_size = enum_type.size();
 
                 let tag_end = &total_size - 1u32.to_biguint();
@@ -692,7 +749,7 @@ fn forward_expression_code(
         } => {
             let enum_type = &types[&ops[0]];
 
-            let variant_list = enum_type.assume_enum();
+            let variant_list = enum_type.strip_copy_view_layers().assume_enum();
             let tag_size = enum_util::tag_size(variant_list.len());
             let full_size = enum_type.size();
 
@@ -736,10 +793,25 @@ fn forward_expression_code(
         }
         Operator::ConstructCopyView => {
             assert!(
-                op_names.len() == 1,
+                ops.len() == 1,
                 "Expected exactly 1 operand to copy view operator"
             );
-            format!("{}", op_names[0])
+            let ty = &types[&ops[0]];
+            if ty.size() == BigUint::zero() {
+                format!("{}", ops[0].backward_var_name())
+            } else if ty.backward_size() == BigUint::zero() {
+                format!("{}", ops[0].var_name())
+            } else {
+                // This layout may be unintuitive, so pay extra attention when handling copy view
+                // data. In particular:
+                //
+                // `&(uint<2>, inv uint<3>, uint<4>)` ≢ `(uint<2>, uint<3>, uint<4>)`
+                //
+                // but
+                //
+                // `&(uint<2>, inv uint<3>, uint<4>)` ≡ `(uint<3>, uint<2>, uint<4>)`
+                format!("{{{}, {}}}", ops[0].backward_var_name(), ops[0].var_name())
+            }
         }
         Operator::Instance { .. } => {
             // NOTE: dummy. Set in the next match statement
@@ -811,6 +883,7 @@ fn backward_expression_code(
         | Operator::EnumMember { .. }
         | Operator::RangeIndexBits { .. }
         | Operator::IndexMemory
+        | Operator::Inspect
         | Operator::Select
         | Operator::Match
         | Operator::ReadPort
@@ -879,23 +952,11 @@ fn backward_expression_code(
             format!("{{{}}}", members.join(", "))
         }
         Operator::IndexTuple(index) => {
-            let inner_types = match &types[&ops[0]].strip_copy_view_layers() {
-                Type::Tuple(fields) => fields.clone(),
-                Type::Struct(fields) => fields.iter().map(|(_name, ty)| ty.clone()).collect(),
-                Type::Array { inner, length } => {
-                    vec![(**inner).clone(); length.to_usize().unwrap()]
-                }
-                _ => panic!("Tuple index with non-tuple input"),
-            };
-
             // NOTE: Disabled assertion because it triggers issues in the LSP
             // assert_eq!(&inner_types[*index as usize], self_type);
 
-            let sizes = inner_types
-                .iter()
-                .map(|t| t.backward_size())
-                .collect::<Vec<_>>();
-            let index = compute_tuple_index(*index, &sizes);
+            let tuple_type = &types[&ops[0]];
+            let index = compute_backward_tuple_index(&tuple_type, *index);
             format!("{}{}", op_names[0], index.verilog_code())
         }
         Operator::ConstructCopyView => String::new(),
@@ -2542,15 +2603,68 @@ mod expression_tests {
             expected
         );
     }
+
     #[test]
     fn tuple_indexing_works() {
         let ty = Type::Tuple(vec![Type::int(6), Type::int(3)]);
-        let stmt = statement!(e(0); Type::int(6); IndexTuple((1)); e(1));
+        let stmt = statement!(e(0); Type::int(3); IndexTuple((1)); e(1));
+
+        let expected = indoc!(
+            r#"
+            logic[2:0] _e_0;
+            assign _e_0 = _e_1[2:0];"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn tuple_indexing_works_through_copy_views() {
+        let ty = Type::CopyView(Box::new(Type::Tuple(vec![
+            Type::int(6),
+            Type::backward(Type::int(3)),
+            Type::int(2),
+        ])));
+        let stmt = statement!(e(0); Type::int(6); IndexTuple((0)); e(1));
 
         let expected = indoc!(
             r#"
             logic[5:0] _e_0;
-            assign _e_0 = _e_1[2:0];"#
+            assign _e_0 = _e_1[7:2];"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
+                &CodeBundle::new("".to_string())
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn tuple_indexing_works_through_copy_views_with_inv() {
+        let ty = Type::CopyView(Box::new(Type::Tuple(vec![
+            Type::int(6),
+            Type::backward(Type::int(3)),
+            Type::int(2),
+        ])));
+        let stmt = statement!(e(0); Type::int(3); IndexTuple((1)); e(1));
+
+        let expected = indoc!(
+            r#"
+            logic[2:0] _e_0;
+            assign _e_0 = _e_1[10:8];"#
         );
 
         assert_same_code!(
@@ -3480,16 +3594,16 @@ mod expression_tests {
     #[test]
     #[should_panic]
     fn compute_index_regression() {
-        let result = compute_tuple_index(
+        let result = compute_forward_tuple_index(
+            &Type::Tuple(vec![
+                Type::uint(24),
+                Type::uint(17),
+                Type::uint(0),
+                Type::uint(2),
+                Type::uint(1),
+                Type::uint(1),
+            ]),
             2,
-            &[
-                24u32.to_biguint(),
-                17u32.to_biguint(),
-                0u32.to_biguint(),
-                2u32.to_biguint(),
-                1u32.to_biguint(),
-                1u32.to_biguint(),
-            ],
         );
 
         result.verilog_code();

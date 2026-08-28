@@ -3,16 +3,16 @@ source: spade-tests/src/inline.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test () -> () {
-	const e409: uint<8> = 0
-	let addr_n525: uint<8> = Alias(e409)
-	const e413: bool = true
-	const e411: uint<8> = 0
-	let e421: bool = Eq(addr_n525, e411)
-	let e410: bool = Alias(e421)
-	let e408: bool = Match(e413, e410)
-	let self_has_value_n526: bool = Alias(e408)
-	let e412: () = Nop()
-	let e406: () = Alias(e412)
-	let result_n523: () = Alias(e406)
-	let e22: () = Alias(result_n523)
+	const e413: uint<8> = 0
+	let addr_n534: uint<8> = Alias(e413)
+	const e417: bool = true
+	const e415: uint<8> = 0
+	let e425: bool = Eq(addr_n534, e415)
+	let e414: bool = Alias(e425)
+	let e412: bool = Match(e417, e414)
+	let self_has_value_n535: bool = Alias(e412)
+	let e416: () = Nop()
+	let e410: () = Alias(e416)
+	let result_n532: () = Alias(e410)
+	let e22: () = Alias(result_n532)
 } => e22

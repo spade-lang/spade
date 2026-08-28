@@ -102,6 +102,7 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::ReadMutWires
         | Operator::Instance { .. }
         | Operator::BlackBoxAlias
+        | Operator::Inspect
         | Operator::Nop => false,
     }
 }

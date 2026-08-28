@@ -1420,6 +1420,17 @@ fn map_type_spec_to_trait(
             )?;
             Ok(hir::TypeSpec::Inverted(Box::from(mono_inner)).at_loc(ty))
         }
+        hir::TypeSpec::CopyView(inner) => {
+            let mono_inner = map_type_spec_to_trait(
+                inner,
+                trait_type_params,
+                trait_method_type_params,
+                impl_type_params,
+                impl_method_type_params,
+                ctx,
+            )?;
+            Ok(hir::TypeSpec::CopyView(Box::from(mono_inner)).at_loc(ty))
+        }
         _ => Ok(ty.clone()),
     }
 }

@@ -6,6 +6,8 @@ mod bidirectional_set;
 mod bool_memory;
 mod cocotb_sample;
 mod copy_view;
+mod copy_view_layers;
+mod copy_view_empty;
 mod cxx;
 mod deduplicated_mut_wires;
 mod div_and_mod;

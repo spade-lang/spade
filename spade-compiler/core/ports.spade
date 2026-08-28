@@ -1,3 +1,15 @@
+/// Retrieves the contents of an `inv` wire.
+///
+/// # Examples
+///
+/// ```spade
+/// let (fwd, back) = port();
+/// let peek = core::ports::inspect(&back);
+/// set back = true;
+/// assert *peek == true;
+/// ```
+pub extern fn inspect<T>(w: &inv T) -> &T;
+
 /// Creates a pair of connected forward and backward wires.
 ///
 /// # Examples
@@ -8,3 +20,20 @@
 /// assert fwd == 3u8;
 /// ```
 pub extern fn port<T>() -> (T, inv T);
+
+impl<T> inv T {
+    /// Retrieves the contents of an `inv` wire.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let (fwd, back) = port();
+    /// let peek = back.inspect();
+    /// set back = true;
+    /// assert *peek == true;
+    /// ```
+    #[inline]
+    pub fn inspect(&self) -> &T {
+        unsafe { inspect(self) }
+    }
+}

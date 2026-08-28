@@ -4,7 +4,7 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> uint<9> {
 	const e7: uint<8> = 1
-	const e384: uint<8> = 2
-	let e383: uint<9> = UnsignedAdd(e7, e384)
-	let e6: uint<9> = Alias(e383)
+	const e388: uint<8> = 2
+	let e387: uint<9> = UnsignedAdd(e7, e388)
+	let e6: uint<9> = Alias(e387)
 } => e6

@@ -290,6 +290,7 @@ pub fn eval_statements(statements: &[Loc<Statement>]) -> Value {
                     Operator::DeclClockedMemory { .. } => todo!(),
                     Operator::IndexArray => todo!(),
                     Operator::IndexMemory => todo!(),
+                    Operator::Inspect => todo!(),
                     Operator::RangeIndexArray { .. } => todo!(),
                     Operator::RangeIndexBits { .. } => todo!(),
                     Operator::ConstructTuple => {

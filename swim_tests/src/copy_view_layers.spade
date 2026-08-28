@@ -1,0 +1,22 @@
+struct S {
+    a: bool,
+    b: inv T,
+    c: int<8>,
+}
+
+struct T {
+    x: bool,
+    y: inv uint<4>,
+}
+
+entity main() -> (bool, bool, uint<4>, int<8>) {
+    let (b, b_inv) = port();
+    let s = S(false, b_inv, 11);
+
+    set s.b.x = true;
+    set b.y = 10;
+
+    let vs = &s;
+    let vt = vs.b;
+    (*vs.a, *vt.inspect().x, *vt.inspect().y.inspect(), *vs.c)
+}

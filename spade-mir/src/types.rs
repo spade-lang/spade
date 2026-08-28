@@ -1,4 +1,4 @@
-use num::{BigUint, Zero};
+use num::{BigUint, ToPrimitive, Zero};
 use spade_common::num_ext::InfallibleToBigUint;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -59,8 +59,8 @@ impl Type {
             }
             Type::Array { inner, length } => inner.size() * length,
             Type::Memory { inner, length } => inner.size() * length,
-            Type::Backward(_) => BigUint::zero(),
-            Type::CopyView(inner) => inner.size(),
+            Type::Backward(inner) => inner.backward_size(),
+            Type::CopyView(inner) => inner.size() + inner.backward_size(),
             Type::InOut(inner) => inner.size(),
         }
     }
@@ -93,6 +93,17 @@ impl Type {
                 .map(|(_, t)| t.backward_size())
                 .sum::<BigUint>(),
             Type::InOut(_) => BigUint::zero(),
+        }
+    }
+
+    pub fn assume_tuple_like(&self) -> Vec<Type> {
+        match self {
+            Type::Tuple(fields) => fields.clone(),
+            Type::Struct(fields) => fields.iter().map(|(_name, ty)| ty.clone()).collect(),
+            Type::Array { inner, length } => {
+                vec![(**inner).clone(); length.to_usize().unwrap()]
+            }
+            _ => panic!("Assumed tuple-like for a type which was not"),
         }
     }
 

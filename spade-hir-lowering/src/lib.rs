@@ -2297,6 +2297,7 @@ impl ExprLocal for Loc<Expression> {
             ["core", "ops", "intrinsics", "le"] => handle_le,
             ["core", "ops", "intrinsics", "gt"] => handle_gt,
             ["core", "ops", "intrinsics", "ge"] => handle_ge,
+            ["core", "ports", "inspect"] => handle_inspect,
             ["core", "ports", "port"] => handle_port,
             ["core", "undef", "undef"] => handle_undef,
             // std
@@ -3170,6 +3171,35 @@ impl ExprLocal for Loc<Expression> {
             mir::Operator::UnsignedGe,
             ctx,
         )
+    }
+
+    fn handle_inspect(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        let self_type = ctx
+            .types
+            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+            .to_mir_type();
+
+        result.push_primary(
+            mir::Statement::Binding(mir::Binding {
+                name: self.variable(ctx)?,
+                operator: mir::Operator::Inspect,
+                operands: vec![args[0].value.variable(ctx)?],
+                ty: self_type,
+                loc: None,
+            })
+            .at_loc(&self),
+            self,
+        );
+
+        Ok(result)
     }
 
     fn handle_port(

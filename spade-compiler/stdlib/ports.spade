@@ -48,31 +48,3 @@ pub extern fn read_write_inout<T>(#[no_mangle] p: inout<T>) -> (Option<T>, inv O
 pub extern fn read_write_items_inout<T, #uint N>(
     #[no_mangle] p: inout<[T; N]>,
 ) -> [(Option<T>, inv Option<T>); N];
-
-impl<T> inv T {
-    /// Retrieves the contents of an `inv` wire alongside a copy of itself.
-    ///
-    /// Most of the time `port` should be preferred, as it provides both directions at the same
-    /// place and those can be passed around wherever they are needed. But sometimes, passing the
-    /// forward value along through a deep hierarchy to where it is needed pollutes type signatures
-    /// for little benefit. As a practical solution, `(inv T)::inspect` can be used instead to tap
-    /// into an existing `inv` wire by connecting a new `port` to it, consuming it and getting both
-    /// the forward value and a fresh `inv` value.
-    ///
-    /// # Examples
-    ///
-    /// ```spade
-    /// let (fwd, back) = port();
-    /// let (new_fwd, new_back) = back.inspect();
-    /// set new_back = true;
-    /// assert fwd == true;
-    /// assert new_fwd == true;
-    /// ```
-    #[inline]
-    pub fn inspect(self) -> (T, Self) {
-        let (fwd, back) = port();
-        set self = fwd;
-
-        (fwd, back)
-    }
-}
