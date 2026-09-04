@@ -781,6 +781,14 @@ impl Generator {
         };
         let file = File::create(self.current_dir.as_path()).unwrap();
         self.current_dir.pop();
+        std::fs::write(
+            &self.current_dir.join("styles.css"),
+            include_str!("./styles.css"),
+        )
+        .expect(&format!(
+            "Failed to write style.css into {}",
+            self.current_dir
+        ));
         let mut buf = BufWriter::new(file);
         let mut node = Node::new(&mut buf);
 
@@ -792,11 +800,7 @@ impl Generator {
                     head,
                     r#"<meta name="viewport" content="width=device-width,initial-scale=1">"#
                 );
-                fwrite!(head, r#"<link rel="stylesheet" href="./"#);
-                for _ in 0..self.depth {
-                    fwrite!(head, "../");
-                }
-                fwrite!(head, r#"styles.css">"#);
+                fwrite!(head, r#"<link rel="stylesheet" href="styles.css">"#);
                 head.tag("title", |t| {
                     let ns = &self.symtab.current_namespace().0;
                     if ns.is_empty() {

@@ -250,11 +250,8 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
     };
 
     std::fs::create_dir_all(&gen_dir).or_report(&mut errors);
-    std::fs::write(&gen_dir.join("styles.css"), include_str!("./styles.css"))
-        .expect(&format!("Failed to write style.css into {}", gen_dir));
     for (namespace, module_ast) in &module_asts {
         generator.current_dir = gen_dir.clone();
-        generator.depth = namespace.namespace.0.len() as u16;
         for seg in &namespace.namespace.0 {
             let PathSegment::Named(ident) = seg else {
                 panic!(
