@@ -325,6 +325,7 @@ fn visit_expression(
                     visit_expression(if_cond, linear_state, ctx)?;
                 }
                 visit_expression(expr, linear_state, ctx)?;
+                linear_state.consume_expression(expr)?;
             }
         }
         spade_hir::ExprKind::Block(b) => {
@@ -387,8 +388,12 @@ fn visit_expression(
             on_false,
         } => {
             visit_expression(cond, linear_state, ctx)?;
+
             visit_expression(on_true, linear_state, ctx)?;
+            linear_state.consume_expression(on_true)?;
+
             visit_expression(on_false, linear_state, ctx)?;
+            linear_state.consume_expression(on_false)?;
         }
         spade_hir::ExprKind::PipelineRef {
             stage: _,

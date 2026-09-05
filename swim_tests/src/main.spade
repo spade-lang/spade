@@ -21,6 +21,7 @@ mod include;
 mod include_bytes;
 mod inout_read_write;
 mod int_bit_conversion;
+mod inv_thru_cond_blocks;
 mod match_if;
 mod no_mangle_params;
 mod parametrized_externs;

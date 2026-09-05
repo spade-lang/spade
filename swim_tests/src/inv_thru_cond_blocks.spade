@@ -1,0 +1,28 @@
+fn thru_if(cond: bool, val: uint<4>) -> uint<4> {
+    let value = if cond {
+        let (x, xi) = port();
+        (x +. 1u4, xi)
+    } else {
+        let (x, xi) = port();
+        (x -. 1u4, xi)
+    };
+
+    set value.1 = val;
+    value.0
+}
+
+fn thru_match(cond: bool, val: uint<4>) -> uint<4> {
+    let value = match cond {
+        true => {
+            let (x, xi) = port();
+            (x +. 1u4, xi)
+        },
+        false => {
+            let (x, xi) = port();
+            (x -. 1u4, xi)
+        },
+    };
+
+    set value.1 = val;
+    value.0
+}

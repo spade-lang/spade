@@ -884,13 +884,19 @@ fn backward_expression_code(
         | Operator::RangeIndexBits { .. }
         | Operator::IndexMemory
         | Operator::Inspect
-        | Operator::Select
-        | Operator::Match
         | Operator::ReadPort
         | Operator::Truncate => panic!(
             "{} cannot be used on types with backward size",
             binding.operator
         ),
+        Operator::Match => {
+            // NOTE: Set in statement_code
+            String::new()
+        }
+        Operator::Select => {
+            // NOTE: Set in statement_code
+            String::new()
+        }
         Operator::ConstructArray => {
             // NOTE: Reversing because we declare the array as logic[SIZE:0] and
             // we want the [x*width+:width] indexing to work
@@ -1090,7 +1096,43 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                         [0] backward_expression.map(|_| format!("assign {} = {};", back_ops[0], back_name));
                     }.to_string()
                 },
-                Operator::Match => forward_expression.unwrap(),
+                Operator::Match => {
+                    let mut snippets = vec![];
+
+                    if binding.ty.size() != BigUint::zero() {
+                        snippets.push(code! {
+                            [0] forward_expression.unwrap();
+                        }.to_string());
+                    }
+
+                    if binding.ty.backward_size() != BigUint::zero() {
+                        for back_pair in back_ops.chunks_exact(2) {
+                            snippets.push(code! {
+                                [0] format!("assign {} = {};", back_pair[1], back_name);
+                            }.to_string());
+                        }
+                    }
+
+                    snippets.join("\n")
+                },
+                Operator::Select => {
+                    let mut snippets = vec![];
+
+                    if binding.ty.size() != BigUint::zero() {
+                        snippets.push(code! {
+                            [0] forward_expression.map(|f| format!("assign {} = {};", name, f))
+                        }.to_string());
+                    }
+
+                    if binding.ty.backward_size() != BigUint::zero() {
+                        snippets.push(code! {
+                            [0] format!("assign {} = {};", back_ops[1], back_name);
+                            [0] format!("assign {} = {};", back_ops[2], back_name);
+                        }.to_string());
+                    }
+
+                    snippets.join("\n")
+                }
                 Operator::DivPow2 => forward_expression.unwrap(),
                 Operator::Nop => String::new(),
                 Operator::FlipPort => {
