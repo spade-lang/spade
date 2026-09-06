@@ -45,7 +45,7 @@ impl MirTypeList {
                     self.inner.insert(idx.inner.clone(), ty.clone());
                 }
                 Statement::Assert(_) => {}
-                Statement::Set { .. } => {
+                Statement::Set { .. } | Statement::Seal { .. } => {
                     // No new types introduced
                 }
                 Statement::Error => {}

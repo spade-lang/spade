@@ -8,12 +8,12 @@ entity x(b: inv bool) -> bool {
 }
 
 
-error: x is unused
+error: Unused value with inverted wires
   ┌─ testinput:1:25
   │
 1 │ entity takes_generic<T>(x: T) -> bool {true}
-  │                         ^ x is unused
+  │                         ^ `x` is unused
   │
-  = note: x is an inverted wire (`inv`) which must be set
+  = note: Inverted wires must be set exactly once
   = The error is in a generic unit instantiated at
     ╰ testinput:4 takes_generic<inv bool>

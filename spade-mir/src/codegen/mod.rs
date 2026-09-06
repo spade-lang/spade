@@ -16,7 +16,7 @@ use crate::renaming::{VerilogNameMap, make_names_predictable};
 use crate::type_list::MirTypeList;
 use crate::types::Type;
 use crate::unit_name::{InstanceMap, InstanceNameTracker};
-use crate::verilog::{self, assign, localparam_size_spec, logic, size_spec};
+use crate::verilog::{self, assign, localparam_size_spec, logic, size_spec, slice};
 use crate::{
     Binding, ConstantValue, Entity, MirInput, Operator, ParamName, Statement, ValueName, enum_util,
 };
@@ -178,6 +178,9 @@ fn statement_declaration(
             code! {}
         }
         Statement::Set { .. } => {
+            code! {}
+        }
+        Statement::Seal { .. } => {
             code! {}
         }
         Statement::Error => {
@@ -763,14 +766,8 @@ fn forward_expression_code(
                     .sum::<BigUint>();
 
             let member_end = &member_start + variant_list[*variant][*member_index].size();
-
-            let upper_idx = &full_size - &member_start - 1u32.to_biguint();
-            let lower_idx = full_size - &member_end;
-            if upper_idx == lower_idx && tag_size == 0 {
-                op_names[0].clone()
-            } else {
-                format!("{}[{}:{}]", op_names[0], upper_idx, lower_idx)
-            }
+            let slice_text = slice(full_size, member_start, member_end);
+            format!("{}{}", op_names[0], slice_text)
         }
         Operator::ReadWriteItemsInOut(_) => {
             // NOTE Dummy. Set in statement_code
@@ -875,9 +872,7 @@ fn backward_expression_code(
         | Operator::ZeroExtend
         | Operator::Concat
         | Operator::DeclClockedMemory { .. }
-        | Operator::ConstructEnum { .. }
         | Operator::IsEnumVariant { .. }
-        | Operator::EnumMember { .. }
         | Operator::RangeIndexBits { .. }
         | Operator::IndexMemory
         | Operator::Inspect
@@ -960,6 +955,29 @@ fn backward_expression_code(
             let tuple_type = &types[&ops[0]];
             let index = compute_backward_tuple_index(&tuple_type, *index);
             format!("{}{}", op_names[0], index.verilog_code())
+        }
+        Operator::ConstructEnum { .. } => {
+            // NOTE Dummy. Set in statement_code
+            String::new()
+        }
+        Operator::EnumMember {
+            variant,
+            member_index,
+        } => {
+            let enum_type = &types[&ops[0]];
+
+            let variant_list = enum_type.assume_enum();
+            let full_size = enum_type.backward_size();
+
+            let member_start = variant_list[*variant][0..*member_index]
+                .iter()
+                .map(|t| t.backward_size())
+                .sum::<BigUint>();
+
+            let member_end = &member_start + variant_list[*variant][*member_index].backward_size();
+            let slice_text = slice(full_size, member_start, member_end);
+
+            format!("{}{}", op_names[0], slice_text)
         }
         Operator::ConstructCopyView => String::new(),
         Operator::FlipPort => {
@@ -1245,6 +1263,55 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     .to_string();
                     c
                 }
+                .to_string(),
+                Operator::ConstructEnum { variant } => {
+                    let Type::Enum(options) = &binding.ty else {
+                        panic!("Attempted enum construction of non-enum");
+                    };
+
+                    let mut snippets = vec![];
+
+                    snippets.push(code! {
+                        [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
+                    }.to_string());
+
+                    let back_members = &options[*variant];
+
+                    let included_back_members = back_members
+                        .iter()
+                        .zip(back_ops)
+                        .filter_map(|(ty, name)| {
+                            if ty.backward_size() != BigUint::ZERO {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Compute the amount of unused bits to discard.
+                    // First compute the size of this variant
+                    let variant_back_member_size = back_members.iter().map(|t| t.backward_size()).sum::<BigUint>();
+
+                    if variant_back_member_size != BigUint::zero() {
+                        let back_padding_size = binding.ty.backward_size() - &variant_back_member_size;
+
+                        let slice_text = if back_padding_size != BigUint::zero() {
+                            format!("[{}+:{}]", back_padding_size, variant_back_member_size)
+                        } else {
+                            String::new()
+                        };
+
+                        let ops_text = included_back_members.iter().join(", ");
+
+                        snippets.push(code! {
+                            [0] format!("assign {{{}}} = {{{}{}}};", ops_text, back_name, slice_text);
+                        }
+                        .to_string());
+                    }
+
+                    snippets.join("\n")
+                },
                 _ => code! {
                     [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
                     [0] backward_expression.map(|b| format!("assign {} = {};", b, back_name));
@@ -1366,6 +1433,34 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                 [0] assignments;
             }
         }
+        Statement::Seal { name, ty, variant } => match ty {
+            Type::Enum(options) => {
+                let back_members = &options[*variant];
+                let enum_back_size = ty.backward_size();
+
+                let variant_back_size = back_members
+                    .iter()
+                    .map(Type::backward_size)
+                    .sum::<BigUint>();
+
+                if variant_back_size != BigUint::ZERO {
+                    if enum_back_size > variant_back_size {
+                        let back_name = name.backward_var_name();
+                        let padding = enum_back_size - variant_back_size;
+                        let end = &padding - BigUint::ONE;
+
+                        code! {
+                            [0] format!("assign {back_name}[{end}:0] = {padding}'bX;");
+                        }
+                    } else {
+                        code! {}
+                    }
+                } else {
+                    code! {}
+                }
+            }
+            _ => panic!("Attempted seal of non-enum"),
+        },
         Statement::Error => {
             code! {
                 [0] "// Codegen ran for an error node"

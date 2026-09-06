@@ -486,6 +486,12 @@ impl PatternLocal for Loc<Pattern> {
             }
             hir::PatternKind::Type(path, args) => {
                 let patternable = ctx.symtab.symtab().patternable_type_by_id(path);
+
+                let ty = ctx
+                    .types
+                    .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
+                    .to_mir_type();
+
                 match patternable.kind {
                     PatternableKind::Struct => {
                         let s = ctx.symtab.symtab().struct_by_id(path);
@@ -517,7 +523,7 @@ impl PatternLocal for Loc<Pattern> {
                                 value,
                             );
 
-                            result.append(value.lower_no_initial_binding(value.value_name(), ctx)?)
+                            result.append(value.lower_no_initial_binding(value.value_name(), ctx)?);
                         }
                     }
                     PatternableKind::Enum => {
@@ -551,6 +557,17 @@ impl PatternLocal for Loc<Pattern> {
                                     .lower_no_initial_binding(p.value.value_name(), ctx)?,
                             )
                         }
+
+                        result.push_secondary(
+                            mir::Statement::Seal {
+                                name: self_name,
+                                ty,
+                                variant: enum_variant.option,
+                            }
+                            .at_loc(&self),
+                            self,
+                            "Seal local alias' backward wires",
+                        );
                     }
                 }
             }

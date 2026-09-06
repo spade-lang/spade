@@ -286,3 +286,80 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    match_consumes_input_2,
+    "
+        fn e(p: Option<inv bool>) -> Option<inv bool> {
+            let _ = match p {
+                None => {
+                    false
+                },
+                Some(p) => {
+                    set p = true;
+                    true
+                },
+            };
+
+            p
+        }
+    "
+}
+
+snapshot_error! {
+    match_needs_to_consume_input,
+    "
+        fn e(p: (uint<1>, inv bool)) {
+            let _ = match p {
+                (0, pi) => {
+                    false
+                },
+                (1, pi) => {
+                    true
+                },
+            };
+        }
+    "
+}
+
+snapshot_error! {
+    match_needs_to_consume_input_2,
+    "
+        fn e(p: Option<inv bool>) {
+            let _ = match p {
+                None => {
+                    false
+                },
+                Some(p) => {
+                    true
+                },
+            };
+        }
+    "
+}
+
+snapshot_error! {
+    match_wildcard_rejects_inv_matches,
+    "
+        fn e(p: Option<inv bool>) {
+            let _ = match p {
+                _ => false,
+            };
+        }
+    "
+}
+
+snapshot_error! {
+    match_wildcard_rejects_inv_matches_2,
+    "
+        fn e(p: Option<inv bool>) {
+            let _ = match p {
+                Some(p) => {
+                    set p = true;
+                    true
+                },
+                _ => false,
+            };
+        }
+    "
+}

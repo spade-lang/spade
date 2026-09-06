@@ -124,6 +124,7 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
 
             true
         }
+        (Statement::Binding(_), _) => false,
         (Statement::Register(r1), Statement::Register(r2)) => {
             let Register {
                 name: _,
@@ -171,6 +172,7 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
 
             true
         }
+        (Statement::Register(_), _) => false,
         (Statement::Constant(_, t1, v1), Statement::Constant(_, t2, v2)) => {
             if t1 != t2 {
                 return false;
@@ -180,10 +182,12 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
             }
             true
         }
+        (Statement::Constant(_, _, _), _) => false,
         (Statement::Assert(v1), Statement::Assert(v2)) => {
             check_name!(v1, v2);
             true
         }
+        (Statement::Assert(_), _) => false,
         (
             Statement::Set {
                 target: tl,
@@ -198,7 +202,30 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
             check_name!(vl, vr);
             true
         }
-        _ => false,
+        (Statement::Set { .. }, _) => false,
+        (
+            Statement::Seal {
+                name: n1,
+                ty: t1,
+                variant: v1,
+            },
+            Statement::Seal {
+                name: n2,
+                ty: t2,
+                variant: v2,
+            },
+        ) => {
+            check_name!(n1, n2);
+            if t1 != t2 {
+                return false;
+            }
+            if v1 != v2 {
+                return false;
+            }
+            true
+        }
+        (Statement::Seal { .. }, _) => false,
+        (Statement::Error, _) => false,
     }
 }
 
@@ -216,15 +243,24 @@ fn populate_var_map(
             (Statement::Binding(b1), Statement::Binding(b2)) => {
                 var_map.try_update_name(&b1.name, &b2.name)
             }
+            (Statement::Binding(_), _) => Err(()),
             (Statement::Register(r1), Statement::Register(r2)) => {
                 var_map.try_update_name(&r1.name, &r2.name)
             }
+            (Statement::Register(_), _) => Err(()),
             (Statement::Constant(e1, _, _), Statement::Constant(e2, _, _)) => {
                 var_map.try_update_name(&*e1, &*e2)
             }
+            (Statement::Constant { .. }, _) => Err(()),
             (Statement::Assert(_), Statement::Assert(_)) => Ok(()),
+            (Statement::Assert(_), _) => Err(()),
             (Statement::Set { .. }, Statement::Set { .. }) => Ok(()),
-            _ => Err(()),
+            (Statement::Set { .. }, _) => Err(()),
+            (Statement::Seal { name: e1, .. }, Statement::Seal { name: e2, .. }) => {
+                var_map.try_update_name(e1, e2)
+            }
+            (Statement::Seal { .. }, _) => Err(()),
+            (Statement::Error, _) => Err(()),
         })
 }
 

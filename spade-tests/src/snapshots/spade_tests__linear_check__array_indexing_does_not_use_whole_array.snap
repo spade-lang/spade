@@ -7,10 +7,10 @@ entity test() {
 }
 
 
-error: a[1] is unused
+error: Unused value with inverted wires
   ┌─ testinput:2:9
   │
 2 │     let a = [port().1, port().1];
-  │         ^ a[1] is unused
+  │         ^ `a[1]` is unused
   │
-  = note: a[1] is an inverted wire (`inv`) which must be set
+  = note: Inverted wires must be set exactly once

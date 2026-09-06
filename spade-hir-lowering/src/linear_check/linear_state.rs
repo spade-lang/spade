@@ -16,35 +16,55 @@ use spade_types::ConcreteType;
 use super::LinearCtx;
 
 /// A witness for a type having a mut wire
-#[derive(Debug, Clone)]
-pub enum MutWireWitness {
-    /// This type itself is a &mut
+#[derive(Debug, Clone, PartialEq)]
+pub enum InvComponentWitness {
+    /// This type itself is a `inv`
     This,
-    /// This type has a field which is &mut or has its own &mut subfield
-    Field(Identifier, Box<MutWireWitness>),
-    /// This type has a tuple member which is &mut or has its own &mut subtuple
-    TupleIndex(usize, Box<MutWireWitness>),
-    /// This type has a array member which is &mut or has its own &mut subtuple
-    ArrayIndex(usize, Box<MutWireWitness>),
+    /// This type has a field which is `inv` or has its own `inv` component
+    Field(Identifier, Box<InvComponentWitness>),
+    /// This type has a tuple member which is `inv` or has its own `inv` component
+    TupleIndex(usize, Box<InvComponentWitness>),
+    /// This type has a array member which is `inv` or has its own `inv` component
+    ArrayIndex(usize, Box<InvComponentWitness>),
 }
 
-impl MutWireWitness {
-    /// Formats the path which motivates something at the witness being &mut.
-    /// Expected to be used in a sentence like `Because A{motivation} is of type &mut _`
+impl InvComponentWitness {
+    /// Formats the path which motivates something at the witness being `inv`.
+    /// Expected to be used in a sentence like "Because A{motivation} is of type `inv`"
     ///
     /// Examples:
-    /// This => Because A <is of type &mut _>
-    /// Field => Because A<.x is of type &mut _>
-    /// Tuple => Because A<#0 is of type &mut _>
-    /// Array => Because A<[..] is of type &mut _>
-    /// Array,Field => Because A<[..].a is of type &mut _>
-    pub fn motivation(&self) -> String {
-        match self {
-            MutWireWitness::This => String::new(),
-            MutWireWitness::Field(ident, rest) => format!(".{}{}", ident, rest.motivation()),
-            MutWireWitness::TupleIndex(idx, rest) => format!(".{}{}", idx, rest.motivation()),
-            MutWireWitness::ArrayIndex(idx, rest) => format!("[{}]{}", idx, rest.motivation()),
+    /// This => Because A <is of type `inv`>
+    /// Field => Because A<.x is of type `inv`>
+    /// Tuple => Because A<.0 is of type `inv`>
+    /// Array => Because A<[..] is of type `inv`>
+    /// Array,Field => Because A<[..].a is of type `inv`>
+    pub fn motivation(&self) -> (&'static str, String) {
+        let mut kind = "";
+        let mut path = String::new();
+        let mut cur = self;
+
+        loop {
+            match cur {
+                InvComponentWitness::This => break,
+                InvComponentWitness::Field(ident, rest) => {
+                    kind = "field";
+                    path = format!("{path}.{ident}");
+                    cur = rest.as_ref();
+                }
+                InvComponentWitness::TupleIndex(idx, rest) => {
+                    kind = "field";
+                    path = format!("{path}.{idx}");
+                    cur = rest.as_ref();
+                }
+                InvComponentWitness::ArrayIndex(idx, rest) => {
+                    kind = "element";
+                    path = format!("{path}[{idx}]");
+                    cur = rest.as_ref();
+                }
+            }
         }
+
+        (kind, path)
     }
 }
 
@@ -58,7 +78,11 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
             field_translators: _,
         } => members.iter().any(|(_, ty)| is_linear(ty)),
         ConcreteType::Array { inner, size: _ } => is_linear(inner),
-        ConcreteType::Enum { .. } => false,
+        ConcreteType::Enum { options } => options
+            .iter()
+            .map(|o| &o.1)
+            .flatten()
+            .any(|(_, ty)| is_linear(ty)),
         ConcreteType::Single { base, params: _ } => match base {
             spade_types::PrimitiveType::Int
             | spade_types::PrimitiveType::Uint
@@ -173,7 +197,7 @@ enum LinearTreeKind {
     CopyView(Rc<RefCell<LinearTree>>),
 }
 
-pub type ConsumptionError = (MutWireWitness, Loc<()>);
+pub type ConsumptionError = (InvComponentWitness, Loc<()>);
 
 impl LinearTree {
     /// Attempts to mark this node as consumed, returning a witness to a node
@@ -189,12 +213,15 @@ impl LinearTree {
                     *state = new_state.clone();
                     Ok(())
                 }
-                UsageInfo::Consumed(prev) => Err((MutWireWitness::This, *prev)),
+                UsageInfo::Consumed(prev) => Err((InvComponentWitness::This, *prev)),
             },
             LinearTreeKind::Struct(members) => {
                 members.iter().try_for_each(|(ident, sub)| {
                     sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (MutWireWitness::Field(ident.clone(), Box::new(witness)), loc)
+                        (
+                            InvComponentWitness::Field(ident.clone(), Box::new(witness)),
+                            loc,
+                        )
                     })
                 })?;
                 Ok(())
@@ -202,7 +229,7 @@ impl LinearTree {
             LinearTreeKind::Tuple(members) => {
                 members.iter().enumerate().try_for_each(|(i, sub)| {
                     sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (MutWireWitness::TupleIndex(i, Box::new(witness)), loc)
+                        (InvComponentWitness::TupleIndex(i, Box::new(witness)), loc)
                     })
                 })?;
                 Ok(())
@@ -210,7 +237,7 @@ impl LinearTree {
             LinearTreeKind::Array(members) => {
                 members.iter().enumerate().try_for_each(|(i, sub)| {
                     sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (MutWireWitness::ArrayIndex(i, Box::new(witness)), loc)
+                        (InvComponentWitness::ArrayIndex(i, Box::new(witness)), loc)
                     })
                 })?;
                 Ok(())
@@ -285,11 +312,11 @@ impl LinearTree {
         }
     }
 
-    pub fn check_unused(&self) -> Result<(), MutWireWitness> {
+    pub fn check_unused(&self) -> Result<(), InvComponentWitness> {
         match &self.kind {
             LinearTreeKind::Leaf(usage) => match usage {
                 UsageInfo::Unlimited => Ok(()),
-                UsageInfo::Unused => Err(MutWireWitness::This),
+                UsageInfo::Unused => Err(InvComponentWitness::This),
                 UsageInfo::Consumed(_) => Ok(()),
             },
             LinearTreeKind::Struct(fields) => {
@@ -297,7 +324,10 @@ impl LinearTree {
                     match sub.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(MutWireWitness::Field(name.clone(), Box::new(witness)));
+                            return Err(InvComponentWitness::Field(
+                                name.clone(),
+                                Box::new(witness),
+                            ));
                         }
                     }
                 }
@@ -308,7 +338,7 @@ impl LinearTree {
                     match member.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(MutWireWitness::TupleIndex(i, Box::new(witness)));
+                            return Err(InvComponentWitness::TupleIndex(i, Box::new(witness)));
                         }
                     }
                 }
@@ -319,7 +349,7 @@ impl LinearTree {
                     match member.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(MutWireWitness::ArrayIndex(i, Box::new(witness)));
+                            return Err(InvComponentWitness::ArrayIndex(i, Box::new(witness)));
                         }
                     }
                 }
@@ -366,7 +396,13 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
                 LinearTree::leaf(false)
             }
         }
-        ConcreteType::Enum { .. } => LinearTree::leaf(false),
+        ConcreteType::Enum { options } => {
+            let any_field_is_linear = options
+                .iter()
+                .flat_map(|(_, variant)| variant)
+                .any(|(_, ty)| is_linear(ty));
+            LinearTree::leaf(any_field_is_linear)
+        }
         ConcreteType::Single { base, params: _ } => match base {
             spade_types::PrimitiveType::Int => LinearTree::leaf(false),
             spade_types::PrimitiveType::Uint => LinearTree::leaf(false),
@@ -428,7 +464,7 @@ impl LinearState {
     ///
     /// The item reference is chosen to be as useful to the user as possible. If there
     /// is a name alias for this item, it is used, if not, an expression reference is used
-    pub fn check_unused(&self) -> Result<(), (Loc<ItemReference>, MutWireWitness)> {
+    pub fn check_unused(&self) -> Result<(), (Loc<ItemReference>, InvComponentWitness)> {
         for tree in self.trees.values() {
             let tree = tree.borrow();
             match tree.check_unused() {

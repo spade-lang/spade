@@ -108,10 +108,18 @@ macro_rules! statement {
     };
     // Set statement
     (set; $lhs_kind:ident $lhs_name:tt; $rhs_kind:ident $rhs_name:tt) => {
-        spade_mir::Statement::Set{
-            target: spade_mir::value_name!($lhs_kind $lhs_name).nowhere(),
-            value: spade_mir::value_name!($rhs_kind $rhs_name).nowhere()
-        }
+        spade_common::location_info::WithLocation::nowhere(spade_mir::Statement::Set {
+            target: spade_mir::value_name!($lhs_kind $lhs_name),
+            value: spade_mir::value_name!($rhs_kind $rhs_name),
+        })
+    };
+    // Seal statement
+    (seal $id:expr; $ty:expr; $variant:expr) => {
+        spade_common::location_info::WithLocation::nowhere(spade_mir::Statement::Seal {
+            name: spade_common::location_info::WithLocation::nowhere(spade_mir::ValueName::Expr(spade_common::id_tracker::ExprID($id))),
+            ty: $ty,
+            variant: $variant,
+        })
     };
     (
         assert; $name_kind:ident $name:tt
@@ -187,7 +195,7 @@ macro_rules! assert_same_mir {
                 "{}",
                 "==============================================".green()
             );
-            println!("{}", prettydiff::diff_chars(&got, &expected));
+            println!("{}", prettydiff::diff_words(&got, &expected));
             println!(
                 "{}",
                 "==============================================".yellow()

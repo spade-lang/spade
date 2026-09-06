@@ -491,6 +491,12 @@ pub enum Statement {
         target: Loc<ValueName>,
         value: Loc<ValueName>,
     },
+    /// Fill all padding inv wires with `'X`
+    Seal {
+        name: Loc<ValueName>,
+        ty: Type,
+        variant: usize,
+    },
     Error,
 }
 
@@ -502,6 +508,9 @@ impl std::fmt::Display for Statement {
             Statement::Constant(id, ty, val) => write!(f, "const {id}: {ty} = {val}"),
             Statement::Assert(val) => write!(f, "assert {val}"),
             Statement::Set { target, value } => write!(f, "set {target} = {value}"),
+            Statement::Seal { name, ty, variant } => {
+                write!(f, "seal {name}: {ty} (variant {variant})")
+            }
             Statement::Error => write!(f, "Error"),
         }
     }

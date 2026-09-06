@@ -80,8 +80,8 @@ snapshot_error! {
     false
 }
 
-snapshot_error! {
-    enum_cannot_contain_inv,
+code_compiles! {
+    enum_can_contain_inv,
     "
         enum Type {
             V0,
@@ -94,8 +94,8 @@ snapshot_error! {
     "
 }
 
-snapshot_error! {
-    enum_cannot_contain_inv_recursive,
+code_compiles! {
+    enum_can_contain_inv_recursive,
     "
         struct RecursivelyInv {
             x: inv bool

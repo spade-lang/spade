@@ -23,3 +23,16 @@ pub fn logic(name: &str, size: &BigUint) -> String {
 pub fn reg(name: &str, size: &BigUint) -> String {
     format!("reg{} {};", size_spec(size), name)
 }
+
+pub fn slice(full_size: BigUint, start: BigUint, end: BigUint) -> String {
+    let upper_idx = &full_size - &start - 1u32.to_biguint();
+    let lower_idx = &full_size - &end;
+
+    if (&upper_idx, &lower_idx) == (&(&full_size - 1usize), &BigUint::ZERO) {
+        String::new()
+    } else if upper_idx == lower_idx {
+        format!("[{}]", lower_idx)
+    } else {
+        format!("[{}:{}]", upper_idx, lower_idx)
+    }
+}

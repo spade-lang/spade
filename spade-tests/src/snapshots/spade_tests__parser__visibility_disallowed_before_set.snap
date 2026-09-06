@@ -14,10 +14,10 @@ error: invalid visibility marker location
   │     │    
   │     visibility markers are not allowed here
 
-error: x is unused
+error: Unused value with inverted wires
   ┌─ testinput:1:13
   │
 1 │ entity test(x: inv bool) {
-  │             ^ x is unused
+  │             ^ `x` is unused
   │
-  = note: x is an inverted wire (`inv`) which must be set
+  = note: Inverted wires must be set exactly once

@@ -71,16 +71,11 @@ impl Type {
             Type::CopyView(_) => BigUint::zero(),
             Type::Int(_) | Type::UInt(_) | Type::Bool => BigUint::zero(),
             Type::Array { inner, length } => inner.backward_size() * length,
-            Type::Enum(inner) => {
-                for v in inner {
-                    for i in v {
-                        if i.backward_size() != BigUint::zero() {
-                            eprintln!("WARNING: Found an enum with backward size != 0. {inner:?}");
-                        }
-                    }
-                }
-                BigUint::zero()
-            }
+            Type::Enum(inner) => inner
+                .iter()
+                .map(|m| m.iter().map(|t| t.backward_size()).sum())
+                .max()
+                .unwrap_or(BigUint::zero()),
             Type::Memory { inner, .. } => {
                 if inner.backward_size() != BigUint::zero() {
                     unreachable!("Memory cannot contain output wires")

@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+fn e(p: Option<inv bool>) -> Option<inv bool> {
+    let _ = match p {
+        None => {
+            false
+        },
+        Some(p) => {
+            set p = true;
+            true
+        },
+    };
+
+    p
+}
+
+
+error: Use of consumed resource
+   ┌─ testinput:12:5
+   │
+ 2 │     let _ = match p {
+   │                   - Previously used here
+   ·
+12 │     p
+   │     ^ Use of consumed resource

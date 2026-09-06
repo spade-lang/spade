@@ -13,10 +13,10 @@ entity x(resource: B) -> bool {
 }
 
 
-error: resource.a.x is unused
+error: Unused value with inverted wires
   ┌─ testinput:8:10
   │
 8 │ entity x(resource: B) -> bool {
-  │          ^^^^^^^^ resource.a.x is unused
+  │          ^^^^^^^^ `resource.a.x` is unused
   │
-  = note: resource.a.x is an inverted wire (`inv`) which must be set
+  = note: Inverted wires must be set exactly once

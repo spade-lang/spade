@@ -9,10 +9,10 @@ entity t() -> X {
 }
 
 
-error: b.x is unused
+error: Unused value with inverted wires
   ┌─ testinput:4:13
   │
 4 │     let (a, b) = port();
-  │             ^ b.x is unused
+  │             ^ `b.x` is unused
   │
-  = note: b.x is an inverted wire (`inv`) which must be set
+  = note: Inverted wires must be set exactly once

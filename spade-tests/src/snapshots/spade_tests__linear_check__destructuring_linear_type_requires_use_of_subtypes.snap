@@ -7,10 +7,10 @@ entity x(a: (inv bool, inv bool)) -> inv bool {
 }
 
 
-error: y is unused
+error: Unused value with inverted wires
   ┌─ testinput:2:13
   │
 2 │     let (x, y) = a;
-  │             ^ y is unused
+  │             ^ `y` is unused
   │
-  = note: y is an inverted wire (`inv`) which must be set
+  = note: Inverted wires must be set exactly once

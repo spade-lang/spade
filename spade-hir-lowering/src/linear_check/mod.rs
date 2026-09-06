@@ -55,16 +55,20 @@ pub fn check_linear_types(
 
     linear_state.check_unused().map_err(|(alias, witness)| {
         let self_description = match &alias.inner {
-            linear_state::ItemReference::Name(n) => format!("{n}{}", witness.motivation()),
+            linear_state::ItemReference::Name(n) => format!("`{n}{}`", witness.motivation().1),
             linear_state::ItemReference::Anonymous(_) => {
-                format!("This has a field {} that", witness.motivation())
+                let (kind, path) = witness.motivation();
+
+                if kind == "" {
+                    format!("This is a value containing inverted wires that")
+                } else {
+                    format!("This has a {kind} `{path}` that")
+                }
             }
         };
-        Diagnostic::error(&alias, format!("{self_description} is unused"))
+        Diagnostic::error(&alias, format!("Unused value with inverted wires"))
             .primary_label(format!("{self_description} is unused"))
-            .note(format!(
-                "{self_description} is an inverted wire (`inv`) which must be set"
-            ))
+            .note("Inverted wires must be set exactly once")
     })?;
 
     Ok(())

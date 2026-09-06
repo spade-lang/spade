@@ -22,6 +22,7 @@ mod include;
 mod include_bytes;
 mod inout_read_write;
 mod int_bit_conversion;
+mod inv_enum;
 mod inv_in_match;
 mod inv_thru_cond_blocks;
 mod match_if;

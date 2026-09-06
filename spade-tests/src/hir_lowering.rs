@@ -883,6 +883,7 @@ mod tests {
                 (e(20); mir_type.clone(); Alias; e(19));
                 // Conditions for branches
                 (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0}); e(19));
+                (seal 19; mir_type.clone(); 1);
                 (e(2); Type::Bool; IsEnumVariant({variant: 1}); e(19));
                 (const 10; Type::Bool; ConstantValue::Bool(true));
                 (e(11); Type::Bool; LogicalAnd; e(2), e(10));
@@ -1017,6 +1018,7 @@ mod tests {
                 (e(100); mir_type.clone(); Alias; e(99));
                 // Conditions for branch 1
                 (e(11); Type::int(16); EnumMember({variant: 1, member_index: 0}); e(99));
+                (seal 99; mir_type.clone(); 1);
                 (e(15); Type::Bool; IsEnumVariant({variant: 1}); e(99));
                 (const 10; Type::int(16); ConstantValue::int(10));
                 (e(12); Type::Bool; Eq; e(11), e(10));
@@ -1027,6 +1029,7 @@ mod tests {
                 (e(101); mir_type.clone(); Alias; e(98));
                 // Condition for branch 2
                 (n(1, "x"); Type::int(16); EnumMember({variant: 1, member_index: 0}); e(98));
+                (seal 98; mir_type.clone(); 1);
                 (e(2); Type::Bool; IsEnumVariant({variant: 1}); e(98));
                 (const 3; Type::Bool; ConstantValue::Bool(true));
                 (e(20); Type::Bool; LogicalAnd; e(2), e(3));
@@ -2804,6 +2807,15 @@ code_compiles! {
         fn test() -> [bool; 1] {
             let x = [false; 3];
             (*&x)[0..1]
+        }
+    "
+}
+
+snapshot_error! {
+    inv_value_fed_to_copy_view_enum_complains_about_unused_value,
+    "
+        fn test() -> &Option<inv bool> {
+            &Some(port().1)
         }
     "
 }

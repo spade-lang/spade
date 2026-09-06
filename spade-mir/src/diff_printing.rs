@@ -146,7 +146,7 @@ where
             format!("reg {name}: {ty} clock {clock}{reset}{initial} {value}",)
         }
         Statement::Constant(name, ty, value) => {
-            let name = translate_val_name(name, &lhs_trans, &rhs_trans);
+            let name = translate_val_name(name, lhs_trans, rhs_trans);
 
             format!("const {}: {} = {}", name, ty, value)
         }
@@ -158,6 +158,10 @@ where
             let value = translate_val_name(value, lhs_trans, rhs_trans);
             let target = translate_val_name(target, lhs_trans, rhs_trans);
             format!("set {target} = {value}")
+        }
+        Statement::Seal { name, ty, variant } => {
+            let name = translate_val_name(name, lhs_trans, rhs_trans);
+            format!("seal {name}: {ty} (variant {variant})")
         }
         Statement::Error => {
             format!("Error")

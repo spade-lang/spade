@@ -142,6 +142,11 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     target: _,
                     value: _,
                 } => {}
+                crate::Statement::Seal {
+                    name: _,
+                    ty: _,
+                    variant: _,
+                } => {}
                 crate::Statement::Error => {}
             }
         }
@@ -209,6 +214,11 @@ pub fn make_names_predictable(e: &mut Entity) -> NameState {
                     *target = state.get(target);
                     *value = state.get(value);
                 }
+                crate::Statement::Seal {
+                    name,
+                    ty: _,
+                    variant: _,
+                } => *name = state.get(name),
                 crate::Statement::Error => {}
             }
         }

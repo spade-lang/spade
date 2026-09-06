@@ -5,6 +5,7 @@ expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 entity \uwu ((e, e_n109, enum option [], option [])) -> bool {
 	let e791: enum option [], option [] = Nop()
 	let e4: enum option [], option [] = Alias(e791)
+	seal e791: enum option [], option [] (variant 0)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
 	let e798: bool = Eq(e6, e7)

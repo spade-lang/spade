@@ -227,23 +227,12 @@ impl TyExt for Loc<TypeDeclaration> {
     }
 }
 
-pub fn enforce_enum_data_copy(ctx: &mut Context) {
+pub fn enforce_enum_data(ctx: &mut Context) {
     for (_, ty) in &ctx.item_list.types {
         match &ty.kind {
             spade_hir::TypeDeclKind::Enum(e) => {
                 for (_, parameters) in &e.options {
                     for param in &parameters.0 {
-                        if let Some(witness) = param.ty.get_copy_witness(ctx) {
-                            Diagnostic::error(&param.ty, "Enum members must be `Copy`")
-                                .primary_label("Non-`Copy` enum member")
-                                .secondary_label(witness.loc(), "This type is not `Copy`")
-                                .help("Typically, a type not being Data means it has an `inv` part")
-                                .help(format!(
-                                    "You can learn more about `Copy` here: {}",
-                                    WIRE_DOCS
-                                ))
-                                .handle_in(&mut ctx.diags.lock().unwrap());
-                        }
                         if let Some(witness) = param.ty.get_data_witness(ctx) {
                             Diagnostic::error(&param.ty, "Enum members must be `Data`")
                                 .primary_label("Non-`Data` enum member")
@@ -367,7 +356,7 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
             ty.get_data_witness(ctx).is_none()
         })?;
 
-        enforce_enum_data_copy(ctx);
+        enforce_enum_data(ctx);
         Ok(())
     })
 }

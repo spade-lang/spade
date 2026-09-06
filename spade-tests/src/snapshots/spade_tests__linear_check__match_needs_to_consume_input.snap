@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+fn e(p: (uint<1>, inv bool)) {
+    let _ = match p {
+        (0, pi) => {
+            false
+        },
+        (1, pi) => {
+            true
+        },
+    };
+}
+
+
+error: Unused value with inverted wires
+  ┌─ testinput:3:13
+  │
+3 │         (0, pi) => {
+  │             ^^ `pi` is unused
+  │
+  = note: Inverted wires must be set exactly once

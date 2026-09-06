@@ -79,6 +79,11 @@ impl<'a> InlinedStatements<'a> {
                             target: get_final_name(target),
                             value: get_final_name(value),
                         },
+                        Statement::Seal { name, ty, variant } => Statement::Seal {
+                            name: get_final_name(name),
+                            ty: ty.clone(),
+                            variant: variant.clone(),
+                        },
                     };
                     new_statements.push(new.at_loc(stmt));
                 }
@@ -283,6 +288,7 @@ fn perform_inlining<'a>(
                                     Statement::Error => None,
                                     Statement::Assert(_) => None,
                                     Statement::Set { .. } => None,
+                                    Statement::Seal { .. } => None,
                                 })
                                 .collect::<Vec<_>>();
 

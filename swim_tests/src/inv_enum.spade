@@ -1,0 +1,43 @@
+enum Enoom<T> {
+    A,
+    B { data: inv T },
+    C { foo: inv bool },
+}
+
+fn sub(e: Enoom<uint<4>>, cond: bool) {
+    let _ = match e {
+        Enoom::A => {
+            false
+        },
+        Enoom::B { data } => {
+            set data = 8u4;
+            false
+        },
+        Enoom::C { foo } => {
+            set foo = cond;
+            false
+        },
+    };
+}
+
+fn main(sel: uint<2>, cond: bool) -> uint<4> {
+    let (e, w) = match sel {
+        0 => {
+            (Enoom::A, 4)
+        },
+        1 => {
+            (Enoom::A, 5)
+        },
+        2 => {
+            let (p, pi) = port();
+            (Enoom::B(pi), p)
+        },
+        3 => {
+            let (p, pi) = port();
+            (Enoom::C(pi), if p { 6 } else { 7 })
+        },
+    };
+
+    sub(e, cond);
+    w
+}
