@@ -9,26 +9,26 @@ enum Maybe<L, R, #uint N> {
 impl<T> Maybe<T, bool, 2> {
     fn foo(self, t: T) -> ([T; 2], [(); 2]) {
         match self {
-            Self::Left$(val) => (val, [(), ()]),
-            Self::Right$(val) => ([t, t], val),
+            Self::Left { val } => (val, [(), ()]),
+            Self::Right { val } => ([t, t], val),
         }
     }
 }
 
 
 error: Match branches have incompatible type
-   ┌─ testinput:10:34
+   ┌─ testinput:10:36
    │
  6 │ impl<T> Maybe<T, bool, 2> {
    │                  ---- Type bool inferred here
    ·
- 9 │             Self::Left$(val) => (val, [(), ()]),
-   │                                 ---------------
-   │                                 │      │
-   │                                 │      Type () inferred here
-   │                                 But this one has type ([core::marker::Data + core::marker::Copy; 2], [bool; 2])
-10 │             Self::Right$(val) => ([t, t], val),
-   │                                  ^^^^^^^^^^^^^ This branch has type ([core::marker::Data + core::marker::Copy; 2], [(); 2])
+ 9 │             Self::Left { val } => (val, [(), ()]),
+   │                                   ---------------
+   │                                   │      │
+   │                                   │      Type () inferred here
+   │                                   But this one has type ([core::marker::Data + core::marker::Copy; 2], [bool; 2])
+10 │             Self::Right { val } => ([t, t], val),
+   │                                    ^^^^^^^^^^^^^ This branch has type ([core::marker::Data + core::marker::Copy; 2], [(); 2])
    │
    = note: Expected: bool
                  in: ([core::marker::Data + core::marker::Copy; 2], [bool; 2])

@@ -250,9 +250,9 @@ mod tests {
             }
         fn test(in: A) -> bool {
             match in {
-                A$(y:true, x: true) => true,
-                A$(y:true, x: false) => true,
-                A$(y:false, x: false) => true,
+                A { y:true, x: true } => true,
+                A { y:true, x: false } => true,
+                A { y:false, x: false } => true,
             }
         }
         "

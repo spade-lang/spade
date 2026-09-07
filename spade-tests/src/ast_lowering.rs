@@ -688,7 +688,7 @@ code_compiles! {
         impl<T> Foo<T, bool, 2> {
             fn foo(self) -> (T, [bool; 2]) {
                 match self {
-                    Self$(t, u) => (t, u),
+                    Self { t, u } => (t, u),
                 }
             }
         }
@@ -706,7 +706,7 @@ snapshot_error! {
         impl<T> Foo<T, bool, 2> {
             fn foo(self) -> (T, [bool; 2]) {
                 match self {
-                    Self$(t, u: [(), ()]) => (t, false),
+                    Self { t, u: [(), ()] } => (t, false),
                 }
             }
         }
@@ -756,8 +756,8 @@ code_compiles! {
         impl<T> Maybe<T, bool, 2> {
             fn foo(self, t: T) -> ([T; 2], [bool; 2]) {
                 match self {
-                    Self::Left$(val) => (val, [true, false]),
-                    Self::Right$(val) => ([t, t], val),
+                    Self::Left { val } => (val, [true, false]),
+                    Self::Right { val } => ([t, t], val),
                 }
             }
         }
@@ -775,8 +775,8 @@ snapshot_error! {
         impl<T> Maybe<T, bool, 2> {
             fn foo(self, t: T) -> ([T; 2], [(); 2]) {
                 match self {
-                    Self::Left$(val) => (val, [(), ()]),
-                    Self::Right$(val) => ([t, t], val),
+                    Self::Left { val } => (val, [(), ()]),
+                    Self::Right { val } => ([t, t], val),
                 }
             }
         }
@@ -1245,7 +1245,7 @@ snapshot_error! {
     struct A {x: bool}
 
     fn test(a: A) -> bool {
-        let A$() = a;
+        let A {} = a;
         true
     }
     "
@@ -1257,7 +1257,7 @@ snapshot_error! {
     struct A {x: bool}
 
     fn test(a: A) -> bool {
-        let A$(y) = a;
+        let A { y } = a;
         true
     }
     "
@@ -1269,7 +1269,7 @@ snapshot_error! {
     struct A {x: bool}
 
     fn test(a: A) -> bool {
-        let A$(x, x) = a;
+        let A { x, x } = a;
         true
     }
     "

@@ -4,15 +4,15 @@ source: spade-tests/src/ast_lowering.rs
 struct A {x: bool}
 
 fn test(a: A) -> bool {
-    let A$(x, x) = a;
+    let A { x, x } = a;
     true
 }
 
 
 error: x specified multiple times
-  ┌─ testinput:4:15
+  ┌─ testinput:4:16
   │
-4 │     let A$(x, x) = a;
-  │            -  ^ Later specified here
-  │            │   
-  │            First specified here
+4 │     let A { x, x } = a;
+  │             -  ^ Later specified here
+  │             │   
+  │             First specified here

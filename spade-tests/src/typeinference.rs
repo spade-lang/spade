@@ -536,7 +536,7 @@ fn destructuring_a_read_mut_wire_gives_real_values() {
     extern entity consumer(x: HasA) -> bool;
 
     entity uut(val: HasA) -> bool {
-        let A$(x, y) = inst std::ports::read_mut_wire(val.inner);
+        let A { x, y } = inst std::ports::read_mut_wire(val.inner);
         let _ = inst consumer(val);
         takes_normal(x, y)
     }
@@ -1011,7 +1011,7 @@ snapshot_error! {
     entity main() -> bool {
         let x = X$(b: true);
         match x {
-            X$(b: 0) => true,
+            X { b: 0 } => true,
             _ => false,
         }
     }
@@ -1028,7 +1028,7 @@ snapshot_error! {
     entity main() {
         decl b;
         let x: int<8> = b;
-        let X$(b) = X(true);
+        let X { b } = X(true);
     }
     "
 }

@@ -17,5 +17,5 @@ error: Expected argument list
   │             +++++
   = or named arguments
   │
-2 │     a.inst b$(...)
-  │             ++++++
+2 │     a.inst b { ... }
+  │             ++++++++

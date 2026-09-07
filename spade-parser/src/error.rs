@@ -45,7 +45,7 @@ impl ExpectedArgumentList {
             || self.next_token.kind == TokenKind::OpenBracket
         {
             diag.help("Positional argument lists start with`(`.")
-                .help("Named argument lists start with `$(`.")
+                .help("Named argument lists start with `{`.")
         } else {
             // If not, we'll suggest inserting the argument list after the base expression. We
             // *could* suggest it at the next token, but if the next token is on a new line,
@@ -55,7 +55,7 @@ impl ExpectedArgumentList {
                 self.base_expr,
                 "(...)",
             )
-            .span_suggest_insert_after("or named arguments", self.base_expr, "$(...)")
+            .span_suggest_insert_after("or named arguments", self.base_expr, " { ... }")
         }
     }
 }

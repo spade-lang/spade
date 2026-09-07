@@ -9,7 +9,7 @@ struct Foo<T, U, #uint N> {
 impl<T> Foo<T, bool, 2> {
     fn foo(self) -> (T, [bool; 2]) {
         match self {
-            Self$(t, u: [(), ()]) => (t, false),
+            Self { t, u: [(), ()] } => (t, false),
         }
     }
 }
@@ -21,10 +21,10 @@ error: Expected type Foo<_, bool, 2>, got Foo<_, (), 2>
 6 │ impl<T> Foo<T, bool, 2> {
   │                ---- Type bool inferred here
   ·
-9 │             Self$(t, u: [(), ()]) => (t, false),
-  │             ^^^^^^^^^^^^^^^^^^^^^
-  │             │            │
-  │             │            Type () inferred here
+9 │             Self { t, u: [(), ()] } => (t, false),
+  │             ^^^^^^^^^^^^^^^^^^^^^^^
+  │             │             │
+  │             │             Type () inferred here
   │             Expected Foo<_, bool, 2>
   │
   = note: Expected: bool

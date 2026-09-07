@@ -4,13 +4,13 @@ source: spade-tests/src/ast_lowering.rs
 struct A {x: bool}
 
 fn test(a: A) -> bool {
-    let A$() = a;
+    let A {} = a;
     true
 }
 
 
 error: Missing argument: x
-  ┌─ testinput:4:10
+  ┌─ testinput:4:11
   │
-4 │     let A$() = a;
-  │          ^^^ Missing argument: x
+4 │     let A {} = a;
+  │           ^^ Missing argument: x

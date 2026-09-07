@@ -1118,7 +1118,7 @@ mod tests {
         struct X{a: int<16>, b: int<8>}
 
         entity name(clk: clock, a: X) -> int<16> {
-            reg(clk) X$(b: y, a: x) = a;
+            reg(clk) X { b: y, a: x } = a;
             x
         }
         "#;

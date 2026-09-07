@@ -18,5 +18,5 @@ error: Expected argument list
   │                    +++++
   = or named arguments
   │
-2 │     a.field::<bool>$(...)
-  │                    ++++++
+2 │     a.field::<bool> { ... }
+  │                    ++++++++

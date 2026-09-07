@@ -1471,6 +1471,33 @@ impl<'a> Parser<'a> {
                         )
                         .between(s.file_id(), &path_span, &end_brace.span),
                     ))
+                } else if let Some(start_brace) = s.peek_and_eat(&TokenKind::OpenBrace)? {
+                    let inner_parser = |s: &mut Self| {
+                        let lhs = s.identifier()?;
+                        let rhs = if s.peek_and_eat(&TokenKind::Colon)?.is_some() {
+                            Some(s.pattern()?)
+                        } else {
+                            None
+                        };
+
+                        Ok((lhs, rhs))
+                    };
+                    let inner = s
+                        .comma_separated(inner_parser, &TokenKind::CloseBrace)
+                        .extra_expected(vec![":"])?;
+                    let end_brace = s.eat(&TokenKind::CloseBrace)?;
+
+                    Ok(Some(
+                        Pattern::Type(
+                            path,
+                            ArgumentPattern::Named(inner).between(
+                                s.file_id(),
+                                &start_brace.span,
+                                &end_brace.span,
+                            ),
+                        )
+                        .between(s.file_id(), &path_span, &end_brace.span),
+                    ))
                 } else {
                     Ok(Some(
                         Pattern::Path {
@@ -3757,7 +3784,7 @@ mod tests {
 
     #[test]
     fn named_type_patterns_work() {
-        let code = "SomeType$(x: a, y)";
+        let code = "SomeType { x: a, y }";
 
         let expected = Pattern::Type(
             ast_path("SomeType"),

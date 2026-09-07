@@ -18,7 +18,7 @@ error: Expected argument list
   │     ^^^^^^^^ Expected argument list for this instantiation
   │
   = help: Positional argument lists start with`(`.
-  = help: Named argument lists start with `$(`.
+  = help: Named argument lists start with `{`.
 
 error: Use of undeclared name clk
   ┌─ testinput:1:17

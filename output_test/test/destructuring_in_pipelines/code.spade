@@ -6,10 +6,9 @@ struct X {
 }
 
 pipeline(3) delay_3(clk: clock, input: X) -> int<4> {
-        let X$(x, y, z, w) = input;
+        let X { x, y, z, w } = input;
     reg;
     reg;
     reg;
         x
 }
-

@@ -596,9 +596,9 @@ where
     fn pretty_debug(&self) -> String {
         match self {
             ArgumentList::Named(args) => code! {
-                [0] "$(";
+                [0] "{ ";
                 [1] args.iter().map(|arg| arg.pretty_debug()).join("\n");
-                [0] ")";
+                [0] " }";
             }
             .to_string(),
             ArgumentList::Positional(args) => code! {

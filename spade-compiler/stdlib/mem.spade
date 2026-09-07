@@ -36,7 +36,7 @@ pub struct WritePort<#uint W, D> {
 
 impl<#uint W, D> WritePort<W, D> {
     pub fn write(self, addr: uint<W>, write: Option<D>) {
-        let WritePort$(addr: saddr, write: swrite) = self;
+        let WritePort { addr: saddr, write: swrite } = self;
         set saddr = addr;
         set swrite = write;
     }

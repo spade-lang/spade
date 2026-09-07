@@ -166,11 +166,11 @@ async fn enum_match_pattern_usage() {
 
         fn top(e: E) -> int<2> {
           match e {
-            E::A$(a) =>
-          //      ^[2] goto-target
+            E::A { a } =>
+          //       ^[2] goto-target
               a,
           //  ^[1] goto
-            E::B$(b) => b,
+            E::B { b } => b,
           }
         }
     "#,
@@ -192,9 +192,9 @@ async fn enum_match_pattern_variant() {
 
         fn top(e: E) -> int<2> {
           match e {
-            E::A$(a) => a,
+            E::A { a } => a,
           //   ^[1] goto
-            E::B$(b) => b,
+            E::B { b } => b,
           }
         }
     "#,
