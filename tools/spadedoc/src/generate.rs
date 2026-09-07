@@ -149,10 +149,6 @@ struct Deprecation<'a> {
 pub(crate) struct Generator {
     pub(crate) symtab: SymbolTable,
     pub(crate) current_dir: Utf8PathBuf,
-    /// Depth of the current directory relative to the root doc gen dir.
-    ///
-    /// Used for generating a relative path back to the root styles.css
-    pub(crate) depth: u16,
     pub(crate) impls: ImplsNDocs,
     pub(crate) diags: Arc<Mutex<DiagList>>,
     /// Used to determine if we need an additional ../ in a path.

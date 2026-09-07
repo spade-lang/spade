@@ -19,4 +19,4 @@ error: Trait bound not satisfied. inv bool does not implement core::marker::Data
   │   ╰─────' The result of a match-expression must be Data.
   │    
   = help: An expression not being Data typically means it contains at least one `inv` type
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

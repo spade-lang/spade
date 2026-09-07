@@ -242,7 +242,6 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
     let mut generator = generate::Generator {
         symtab: ctx.symtab,
         current_dir: gen_dir.clone(),
-        depth: 0,
         impls,
         diags: ctx.diags,
         is_module: true, // this is irrelevant as it is always set before creating a file

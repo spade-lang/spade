@@ -21,4 +21,4 @@ error: Enum members must be Data
   │           This type is not Data
   │
   = help: Typically, a type not being Data means it has an `inv` part
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

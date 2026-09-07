@@ -301,6 +301,7 @@ fn visit_expression(
         }
         spade_hir::ExprKind::TypeCast(base, _) => {
             visit_expression(base, linear_state, ctx)?;
+            linear_state.consume_expression(base)?;
         }
         spade_hir::ExprKind::BinaryOperator(lhs, _, rhs) => {
             visit_expression(lhs, linear_state, ctx)?;

@@ -131,6 +131,7 @@ pre > code {
     box-sizing: border-box;
     width: 100%;
     overflow-x: scroll;
+    line-height: 1.2;
 }
 code {
     font-family: var(--font-code);

@@ -18,4 +18,4 @@ error: Trait bound not satisfied. inout<int<8>> does not implement core::marker:
   │     Required because of the trait bound specified here
   │
   = help: An expression not being Data typically means it contains at least one `inv` type
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/typst/wires.html
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
