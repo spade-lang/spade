@@ -4,7 +4,7 @@ source: spade-tests/src/hir_lowering.rs
 struct Test{a: bool, b: bool}
 
 fn main() -> Test {
-    Test$(a: true)
+    Test { a: true }
 }
 
 
@@ -14,5 +14,5 @@ error: Missing argument: b
 1 │ struct Test{a: bool, b: bool}
   │ ----------------------------- struct defined here
   ·
-4 │     Test$(a: true)
-  │          ^^^^^^^^^ Missing argument: b
+4 │     Test { a: true }
+  │          ^^^^^^^^^^^ Missing argument: b

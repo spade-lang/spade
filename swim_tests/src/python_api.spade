@@ -9,5 +9,5 @@ fn type_casts(
     i: int<8>,
     array: [int<8>; 8]
 ) -> Types {
-    Types$(b, i, array)
+    Types { b, i, array }
 }

@@ -4,17 +4,17 @@ source: spade-tests/src/hir_lowering.rs
 struct Test{a: bool, b: bool}
 
 fn main() -> Test {
-    Test$(a: true, a: true, b: true)
+    Test { a: true, a: true, b: true }
 }
 
 
 error: a specified multiple times
-  ┌─ testinput:4:20
+  ┌─ testinput:4:21
   │
 1 │ struct Test{a: bool, b: bool}
   │ ----------------------------- struct defined here
   ·
-4 │     Test$(a: true, a: true, b: true)
-  │           -        ^ Later specified here
-  │           │         
-  │           First specified here
+4 │     Test { a: true, a: true, b: true }
+  │            -        ^ Later specified here
+  │            │         
+  │            First specified here

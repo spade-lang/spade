@@ -29,7 +29,7 @@ use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{CodeBundle, Diagnostic, codespan::Span, diag_anyhow, diag_bail};
 use spade_hir::{Selfness, expression::Safety, symbol_table::TypeDeclKind};
-use spade_parser::Parser;
+use spade_parser::{ExprBraces, Parser};
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
 use type_level_if::expand_type_level_if;
@@ -2970,7 +2970,7 @@ fn handle_include(
         .unwrap()
         .add_file(path.clone(), src.clone());
     let mut parser = Parser::new(&src, file_id, Some(new_working_dir));
-    let expr = parser.expression()?;
+    let expr = parser.expression(ExprBraces::Allow)?;
 
     visit_expression_result(&expr, ctx)
 }

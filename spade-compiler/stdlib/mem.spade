@@ -84,7 +84,7 @@ pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (W
 
     reg(read_clk) read_result = inst read_memory(mem, r_addr.0);
 
-    (WritePort$(addr: w_addr.1, write: w_write.1), ReadPort$(addr: r_addr.1, out: read_result))
+    (WritePort { addr: w_addr.1, write: w_write.1 }, ReadPort { addr: r_addr.1, out: read_result })
 }
 
 
@@ -167,11 +167,11 @@ mod fifo_impl {
 
         set to_w.read_ptr = read_ptr;
 
-        FifoRead$(
+        FifoRead {
             read: if !empty { Some(out) } else { None },
             ack: ack.1,
             num_elements: num_elements,
-        )
+        }
     }
 
     pub(super) entity fifo_write<#uint W, D>(
@@ -207,10 +207,10 @@ mod fifo_impl {
         };
 
         set from_w.write_ptr = write_ptr;
-        FifoWrite$(
+        FifoWrite {
             full: full,
             write: write_value.1
-        )
+        }
     }
 }
 

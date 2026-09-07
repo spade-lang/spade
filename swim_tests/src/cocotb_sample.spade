@@ -5,10 +5,10 @@ struct Output {
 }
 
 pipeline(1) add_mul(clk: clock, a: int<8>, b: int<8>) -> Output {
-        let result = Output$(
+        let result = Output {
             sum: a+b,
             product: a*b
-        );
+        };
     reg;
         result
 }

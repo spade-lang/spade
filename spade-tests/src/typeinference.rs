@@ -958,7 +958,7 @@ snapshot_error! {
     }
 
     entity main() -> bool {
-        let x = X$(b: true);
+        let x = X { b: true };
         match x {
             X(0) => true,
             _ => false,
@@ -1009,7 +1009,7 @@ snapshot_error! {
     }
 
     entity main() -> bool {
-        let x = X$(b: true);
+        let x = X { b: true };
         match x {
             X { b: 0 } => true,
             _ => false,
@@ -1415,7 +1415,7 @@ snapshot_error! {
             ram_read: ReadPort_<W>,
             read_ptr_wire: inv uint<W>,
         ) -> FifoRead<W> {
-            FifoRead$()
+            FifoRead {}
         }
 
         entity fifo<#uint W>(

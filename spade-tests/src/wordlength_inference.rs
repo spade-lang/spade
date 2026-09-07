@@ -213,7 +213,7 @@ snapshot_inference_error!(
         }
 
         entity main(clk: clock, rst: bool) -> int<4> {
-          f( X$( x: 0 ) )
+          f( X { x: 0 } )
         }
     "#
 );
@@ -234,7 +234,7 @@ snapshot_inference_error!(
         }
 
         entity main(clk: clock, rst: bool) -> int<4> {
-          f( X$( x: 0 ) )
+          f( X { x: 0 } )
         }
     "#
 );
@@ -327,7 +327,7 @@ snapshot_inference_error!(
         }
 
         entity main(clk: clock, rst: bool) -> int<4> {
-          f( X$( x: 0 ) )
+          f( X { x: 0 } )
         }
     "#
 );

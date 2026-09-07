@@ -44,5 +44,5 @@ fn test_match_if(input: (int<8>, bool, Color), cond: bool) -> MatchIfOut {
         (_, _) => 2,
     };
 
-    MatchIfOut$(mi0, mi1, mi2, mi3, mi4)
+    MatchIfOut { mi0, mi1, mi2, mi3, mi4 }
 }

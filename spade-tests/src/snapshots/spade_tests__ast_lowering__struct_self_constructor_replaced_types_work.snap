@@ -8,7 +8,7 @@ struct Foo<T, U, #uint N> {
 
 impl<T> Foo<T, bool, 2> {
     fn foo(self, t: T) -> Self {
-        Self$(t, u: [(), ()])
+        Self { t, u: [(), ()] }
     }
 }
 
@@ -19,8 +19,8 @@ error: Output type mismatch. Expected Foo<_, bool, 2>, got Foo<_, (), 2>
 7 │       fn foo(self, t: T) -> Self {
   │                             ---- Foo<_, bool, 2> type specified here
   │ ╭────────────────────────────────^
-8 │ │         Self$(t, u: [(), ()])
-  │ │                      -- Type () inferred here
+8 │ │         Self { t, u: [(), ()] }
+  │ │                       -- Type () inferred here
 9 │ │     }
   │ ╰─────^ Found type Foo<_, (), 2>
   │  

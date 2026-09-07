@@ -7,8 +7,8 @@ use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_macros::trace_parser;
 
 use crate::{
-    KeywordPeekingParser, ParseStackEntry, Parser, Token, error::Result, item_type::UnitKindLocal,
-    peek_for,
+    ExprBraces, KeywordPeekingParser, ParseStackEntry, Parser, Token, error::Result,
+    item_type::UnitKindLocal, peek_for,
 };
 
 pub(crate) struct BindingParser {}
@@ -36,7 +36,7 @@ impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
         };
 
         parser.eat(&TokenKind::Assignment)?;
-        let (value, end_span) = parser.expression()?.separate();
+        let (value, end_span) = parser.expression(ExprBraces::Allow)?.separate();
 
         Ok(Statement::Binding(Binding {
             pattern,
@@ -71,7 +71,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
                 parser
                     .surrounded(
                         &TokenKind::OpenBracket,
-                        Parser::expression,
+                        |p| p.expression(ExprBraces::Allow),
                         &TokenKind::CloseBracket,
                     )?
                     .0,
@@ -111,7 +111,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
         // Clock selection
         let (clock, _clock_paren_span) = parser.surrounded(
             &TokenKind::OpenParen,
-            |s| s.expression().map(Some),
+            |s| s.expression(ExprBraces::Allow).map(Some),
             &TokenKind::CloseParen,
         )?;
 
@@ -149,7 +149,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
 
         // Value
         parser.eat(&TokenKind::Assignment)?;
-        let (value, end_span) = parser.expression()?.separate();
+        let (value, end_span) = parser.expression(ExprBraces::Allow)?.separate();
 
         let span = lspan(start_token.span.clone()).merge(end_span);
         let result = Statement::Register(
@@ -173,9 +173,9 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
 impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn register_reset_definition(&mut self) -> Result<(Loc<Expression>, Loc<Expression>)> {
-        let condition = self.expression()?;
+        let condition = self.expression(ExprBraces::Allow)?;
         self.eat(&TokenKind::Colon)?;
-        let value = self.expression()?;
+        let value = self.expression(ExprBraces::Allow)?;
 
         Ok((condition, value))
     }
@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
         peek_for!(self, &TokenKind::Initial);
         let (reset, _) = self.surrounded(
             &TokenKind::OpenParen,
-            Self::expression,
+            |p| p.expression(ExprBraces::Allow),
             &TokenKind::CloseParen,
         )?;
         Ok(Some(reset))
@@ -293,7 +293,7 @@ impl KeywordPeekingParser<Loc<Statement>> for AssertParser {
         parser.disallow_attributes(attributes, &tok)?;
         parser.disallow_visibility(visibility, &tok)?;
 
-        let expr = parser.expression()?;
+        let expr = parser.expression(ExprBraces::Allow)?;
 
         Ok(Statement::Assert(expr.clone()).between(parser.file_id(), &tok.span, &expr))
     }
@@ -316,11 +316,11 @@ impl KeywordPeekingParser<Loc<Statement>> for SetParser {
         parser.disallow_attributes(attributes, &tok)?;
         parser.disallow_visibility(visibility, &tok)?;
 
-        let target = parser.expression()?;
+        let target = parser.expression(ExprBraces::Allow)?;
 
         parser.eat(&TokenKind::Assignment)?;
 
-        let value = parser.expression()?;
+        let value = parser.expression(ExprBraces::Allow)?;
 
         Ok(Statement::Set {
             target,

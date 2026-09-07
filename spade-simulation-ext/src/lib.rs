@@ -33,7 +33,7 @@ use spade_hir_lowering::substitution::Substitutions;
 use spade_hir_lowering::{MirLowerable, expr_to_mir};
 use spade_mir::codegen::{mangle_input, mangle_output};
 use spade_mir::eval::{Value, eval_statements};
-use spade_parser::Parser;
+use spade_parser::{ExprBraces, Parser};
 use spade_typeinference::equation::{KnownTypeVar, TypedExpression};
 use spade_typeinference::error::UnificationErrorExt;
 use spade_typeinference::traits::TraitImplList;
@@ -477,7 +477,7 @@ impl Spade {
         let mut parser = Parser::new(&expr, file_id, None);
 
         // Parse the expression
-        let ast = parser.expression().report_and_convert(
+        let ast = parser.expression(ExprBraces::Allow).report_and_convert(
             &mut self.error_buffer,
             &code,
             &mut self.diag_handler,
@@ -829,7 +829,7 @@ impl Spade {
         let mut parser = Parser::new(expr, file_id, None);
 
         // Parse the expression
-        let ast = parser.expression().report_and_convert(
+        let ast = parser.expression(ExprBraces::Allow).report_and_convert(
             &mut self.error_buffer,
             &code,
             &mut self.diag_handler,

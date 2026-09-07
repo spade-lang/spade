@@ -13,12 +13,12 @@ entity dut(fwd: uint<8>, back: inv &uint<4>, nested: Nested) -> Nested {
     set nested.back = &0;
     set nested.inner.back = &0;
 
-    Nested$(
+    Nested {
         fwd: &0,
         back: port().1,
-        inner: Inner$(
+        inner: Inner {
             fwd: &0,
             back: port().1
-        )
-    )
+        }
+    }
 }

@@ -16,6 +16,5 @@ fn test_array_pattern(input: [uint<8>; 4]) -> ArrayPatternOut {
         _ => false,
     };
 
-    ArrayPatternOut$(at0, at1, at2, at3, is_1234)
+    ArrayPatternOut { at0, at1, at2, at3, is_1234 }
 }
-

@@ -6,7 +6,7 @@ struct X {
 }
 
 entity main() -> bool {
-    let x = X$(b: true);
+    let x = X { b: true };
     match x {
         X(0) => true,
         _ => false,

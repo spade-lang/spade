@@ -723,7 +723,7 @@ code_compiles! {
 
         impl<T> Foo<T, bool, 2> {
             fn foo(self, t: T) -> Self {
-                Self$(t, u: [true, false])
+                Self { t, u: [true, false] }
             }
         }
     "
@@ -739,7 +739,7 @@ snapshot_error! {
 
         impl<T> Foo<T, bool, 2> {
             fn foo(self, t: T) -> Self {
-                Self$(t, u: [(), ()])
+                Self { t, u: [(), ()] }
             }
         }
     "
@@ -1854,10 +1854,10 @@ code_compiles! {
         type Top = Mid<bool>;
 
         fn test() {
-            let _: Base<bool, uint<8>> = Mid$(t: true, u: 8u8);
-            let _: Base<bool, uint<8>> = Top$(t: true, u: 8u8);
-            let _: Mid<bool> = Base$(t: true, u: 8u8);
-            let _: Top = Top$(t: true, u: 8u8);
+            let _: Base<bool, uint<8>> = Mid { t: true, u: 8u8 };
+            let _: Base<bool, uint<8>> = Top { t: true, u: 8u8 };
+            let _: Mid<bool> = Base { t: true, u: 8u8 };
+            let _: Top = Top { t: true, u: 8u8 };
         }
     "
 }
@@ -1870,10 +1870,10 @@ code_compiles! {
         type Top = Mid<bool>;
 
         fn test() {
-            let _: Base<bool, uint<8>> = Mid::Variant$(t: true, u: 8u8);
-            let _: Base<bool, uint<8>> = Top::Variant$(t: true, u: 8u8);
-            let _: Mid<bool> = Base::Variant$(t: true, u: 8u8);
-            let _: Top = Top::Variant$(t: true, u: 8u8);
+            let _: Base<bool, uint<8>> = Mid::Variant { t: true, u: 8u8 };
+            let _: Base<bool, uint<8>> = Top::Variant { t: true, u: 8u8 };
+            let _: Mid<bool> = Base::Variant { t: true, u: 8u8 };
+            let _: Top = Top::Variant { t: true, u: 8u8 };
         }
     "
 }
@@ -2089,7 +2089,7 @@ code_compiles! {
     struct S<T, U = bool> { t: T, u: U }
 
     fn test() {
-        let _ = S::<()>$(t: (), u: false);
+        let _ = S::<()> { t: (), u: false };
     }
     "
 }
@@ -2100,7 +2100,7 @@ code_compiles! {
     struct S<T, U = bool> { t: T, u: U }
 
     fn test() {
-        let _ = S::$<T: ()>$(t: (), u: false);
+        let _ = S::$<T: ()> { t: (), u: false };
     }
     "
 }
@@ -2111,7 +2111,7 @@ code_compiles! {
     struct S<T, U = bool> { t: T, u: U }
 
     fn test() {
-        let _ = S::<(), ()>$(t: (), u: ());
+        let _ = S::<(), ()> { t: (), u: () };
     }
     "
 }
@@ -2122,7 +2122,7 @@ code_compiles! {
     struct S<T, U = bool> { t: T, u: U }
 
     fn test() {
-        let _ = S::$<T: (), U: ()>$(t: (), u: ());
+        let _ = S::$<T: (), U: ()> { t: (), u: () };
     }
     "
 }
@@ -2133,7 +2133,7 @@ snapshot_error! {
     struct S<T = bool> { val: T }
 
     fn test() {
-        let _ = S$(val: ());
+        let _ = S { val: () };
     }
     "
 }
@@ -2144,7 +2144,7 @@ snapshot_error! {
     struct S<T, U, V = bool> { t: T, u: U, v: V }
 
     fn test() {
-        let _ = S::<()>$(t: (), u: (), v: ());
+        let _ = S::<()> { t: (), u: (), v: () };
     }
     "
 }

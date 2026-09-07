@@ -20,9 +20,9 @@ TEST_CASE(it_works, {
     ctx->timeInc(1);
     dut->eval();
 
-    ASSERT_EQ(s.o, "FieldOut$(a: 5, sub: FieldOutSub$(b: 10, c: 20))");
+    ASSERT_EQ(s.o, "FieldOut { a: 5, sub: FieldOutSub { b: 10, c: 20 } }");
     ASSERT_EQ(s.o->a, "5");
-    ASSERT_EQ(s.o->sub, "FieldOutSub$(b: 10, c: 20)");
+    ASSERT_EQ(s.o->sub, "FieldOutSub { b: 10, c: 20 }");
     ASSERT_EQ(s.o->sub->b, "10");
     ASSERT_EQ(s.o->sub->c, "20");
     return 0;

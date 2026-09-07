@@ -21,9 +21,9 @@ entity fifo_test_harness(
     set w.write = write;
     set r.ack = ack;
 
-    FifoTestHarnessOut$(
+    FifoTestHarnessOut {
         w_full: w.full,
         r_read: r.read,
         r_num_elements: r.num_elements,
-    )
+    }
 }

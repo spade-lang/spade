@@ -118,6 +118,14 @@ impl<'source> TokenSource<'source> {
     }
 }
 
+// Whether brace named argument syntax is allowed (the normal setting) or not (for expressions
+// preceding braces themselves, like `if` conditions and `match` operands).
+#[derive(Debug, Copy, Clone)]
+pub enum ExprBraces {
+    Allow,
+    Forbid,
+}
+
 // Clone for when you want to call a parse function but maybe discard the new parser state
 // depending on some later condition.
 #[derive(Clone)]
@@ -409,11 +417,14 @@ impl<'a> Parser<'a> {
 
         // non-empty array => must be an expression
         let first_label = self.array_label()?;
-        let first = self.expression()?;
+        let first = self.expression(ExprBraces::Allow)?;
 
         let expr = if self.peek_and_eat(&TokenKind::Semi).unwrap().is_some() {
             // array shorthand ([<expr>; N])
-            Expression::ArrayShorthandLiteral(Box::new(first), Box::new(self.expression()?))
+            Expression::ArrayShorthandLiteral(
+                Box::new(first),
+                Box::new(self.expression(ExprBraces::Allow)?),
+            )
         } else {
             // eat comma, if any
             let _ = self.peek_and_eat(&TokenKind::Comma)?;
@@ -421,7 +432,7 @@ impl<'a> Parser<'a> {
             // now we can continue with the rest of the elements
             let mut inner = self
                 .comma_separated(
-                    |s| Ok((s.array_label()?, s.expression()?)),
+                    |s| Ok((s.array_label()?, s.expression(ExprBraces::Allow)?)),
                     &TokenKind::CloseBracket,
                 )
                 .no_context()?;
@@ -575,7 +586,7 @@ impl<'a> Parser<'a> {
             )));
         }
 
-        let first = self.expression()?;
+        let first = self.expression(ExprBraces::Allow)?;
         let first_sep = self.eat_unconditional()?;
 
         match &first_sep.kind {
@@ -589,7 +600,7 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Comma => {
                 let rest = self
-                    .comma_separated(Self::expression, &TokenKind::CloseParen)
+                    .comma_separated(|p| p.expression(ExprBraces::Allow), &TokenKind::CloseParen)
                     .no_context()?;
 
                 let end = self.eat(&TokenKind::CloseParen)?;
@@ -609,7 +620,7 @@ impl<'a> Parser<'a> {
 
     #[trace_parser]
     #[tracing::instrument(skip(self))]
-    fn entity_instance(&mut self) -> Result<Option<Loc<Expression>>> {
+    fn entity_instance(&mut self, braces: ExprBraces) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Instance);
         let start_loc = ().at(self.file_id(), &start);
 
@@ -637,7 +648,7 @@ impl<'a> Parser<'a> {
         })?;
         let next_token = self.peek()?;
 
-        let args = self.argument_list()?.ok_or_else(|| {
+        let args = self.argument_list(braces)?.ok_or_else(|| {
             ExpectedArgumentList {
                 next_token,
                 base_expr: ().between(self.file_id(), &start, &name),
@@ -690,7 +701,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let cond = self.expression()?;
+        let cond = self.expression(ExprBraces::Forbid)?;
 
         let on_true = if let Some(block) = self.block(allow_stages)? {
             block.map(Box::new).map(Expression::Block)
@@ -807,7 +818,7 @@ impl<'a> Parser<'a> {
     pub fn match_expression(&mut self) -> Result<Option<Loc<Expression>>> {
         let start = peek_for!(self, &TokenKind::Match);
 
-        let expression = self.expression()?;
+        let expression = self.expression(ExprBraces::Forbid)?;
 
         let (patterns, body_loc) = self.surrounded(
             &TokenKind::OpenBrace,
@@ -817,12 +828,12 @@ impl<'a> Parser<'a> {
                         let pattern = s.pattern()?;
                         let if_condition = if s.peek_kind(&TokenKind::If)? {
                             s.eat_unconditional()?;
-                            Some(s.expression()?)
+                            Some(s.expression(ExprBraces::Allow)?)
                         } else {
                             None
                         };
                         s.eat(&TokenKind::FatArrow)?;
-                        let value = s.expression()?;
+                        let value = s.expression(ExprBraces::Allow)?;
 
                         Ok((pattern, if_condition, value))
                     },
@@ -1028,7 +1039,7 @@ impl<'a> Parser<'a> {
         let reference = match next.kind {
             TokenKind::Plus => {
                 let start = self.eat_unconditional()?;
-                let offset = self.expression()?;
+                let offset = self.expression(ExprBraces::Allow)?;
                 let result = PipelineStageReference::Relative(
                     TypeExpression::ConstGeneric(Box::new(offset.clone())).between(
                         self.file_id(),
@@ -1040,7 +1051,7 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Minus => {
                 let start = self.eat_unconditional()?;
-                let offset = self.expression()?;
+                let offset = self.expression(ExprBraces::Allow)?;
                 let texpr = TypeExpression::ConstGeneric(Box::new(
                     Expression::UnaryOperator(
                         spade_ast::UnaryOperator::Sub.at(self.file_id(), &next.span),
@@ -1109,13 +1120,23 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    fn argument_list(&mut self) -> Result<Option<Loc<ArgumentList>>> {
-        let is_named = self.peek_and_eat(&TokenKind::Dollar)?.is_some();
-        let opener = peek_for!(self, &TokenKind::OpenParen);
+    fn argument_list(&mut self, braces: ExprBraces) -> Result<Option<Loc<ArgumentList>>> {
+        let (closer_kind, is_named) = match (self.peek()?.kind, braces) {
+            (TokenKind::Dollar, _) => {
+                self.eat_unconditional()?;
+                (TokenKind::CloseParen, true)
+            }
+            (TokenKind::OpenBrace, ExprBraces::Forbid) => return Ok(None),
+            (TokenKind::OpenBrace, ExprBraces::Allow) => (TokenKind::CloseBrace, true),
+            (TokenKind::OpenParen, _) => (TokenKind::CloseParen, false),
+            _ => return Ok(None),
+        };
+
+        let opener = self.eat_unconditional()?;
 
         let argument_list = if is_named {
             let args = self
-                .comma_separated(Self::named_argument, &TokenKind::CloseParen)
+                .comma_separated(Self::named_argument, &closer_kind)
                 .extra_expected(vec![":"])
                 .map_err(|e| {
                     debug!("check named arguments =");
@@ -1141,12 +1162,12 @@ impl<'a> Parser<'a> {
             ArgumentList::Named(args)
         } else {
             let args = self
-                .comma_separated(Self::expression, &TokenKind::CloseParen)
+                .comma_separated(|p| p.expression(ExprBraces::Allow), &closer_kind)
                 .no_context()?;
 
             ArgumentList::Positional(args)
         };
-        let end = self.eat(&TokenKind::CloseParen)?;
+        let end = self.eat_unconditional()?;
         let span = lspan(opener.span).merge(lspan(end.span));
         Ok(Some(argument_list.at(self.file_id(), &span)))
     }
@@ -1155,7 +1176,7 @@ impl<'a> Parser<'a> {
         // This is a named arg
         let name = self.identifier()?;
         if self.peek_and_eat(&TokenKind::Colon)?.is_some() {
-            let value = self.expression()?;
+            let value = self.expression(ExprBraces::Allow)?;
 
             let span = name.span.merge(value.span);
 
@@ -1176,7 +1197,7 @@ impl<'a> Parser<'a> {
         } else if self.peek_kind(&TokenKind::OpenBrace)? {
             let (expr, span) = self.surrounded(
                 &TokenKind::OpenBrace,
-                |s| s.expression(),
+                |s| s.expression(ExprBraces::Allow),
                 &TokenKind::CloseBrace,
             )?;
             Ok(TypeExpression::ConstGeneric(Box::new(expr)).at(self.file_id(), &span))
@@ -1632,7 +1653,9 @@ impl<'a> Parser<'a> {
                     parser.disallow_attributes(&attrs, &start_token)?;
                     return Ok(None);
                 }
-                let (expr, loc) = parser.non_comptime_expression()?.separate_loc();
+                let (expr, loc) = parser
+                    .non_comptime_expression(ExprBraces::Allow)?
+                    .separate_loc();
                 if matches!(semi_validator(parser.peek()?)?, TokenKind::Semi) {
                     parser.eat_unconditional()?;
                     Ok(Some(Statement::Expression(expr, attrs).at_loc(&loc)))
@@ -2060,7 +2083,7 @@ impl<'a> Parser<'a> {
                                     let expression = s
                                         .surrounded(
                                             &TokenKind::OpenBrace,
-                                            Self::expression,
+                                            |p| p.expression(ExprBraces::Allow),
                                             &TokenKind::CloseBrace,
                                         )?
                                         .0;
@@ -2113,7 +2136,7 @@ impl<'a> Parser<'a> {
                                     }
                                 };
 
-                                let expression = s.expression()?;
+                                let expression = s.expression(ExprBraces::Forbid)?;
 
                                 let if_unsatisfied =
                                     if let Some(_) = s.peek_and_eat(&TokenKind::Else)? {
@@ -3512,7 +3535,7 @@ mod tests {
     fn literals_are_expressions() {
         check_parse!(
             "123",
-            expression,
+            expression(ExprBraces::Allow),
             Ok(Expression::int_literal_signed(123).nowhere())
         );
     }
@@ -3690,7 +3713,12 @@ mod tests {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected), Parser::set_parsing_entity);
+        check_parse!(
+            code,
+            expression(ExprBraces::Allow),
+            Ok(expected),
+            Parser::set_parsing_entity
+        );
     }
 
     #[test]

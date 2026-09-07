@@ -4,15 +4,15 @@ source: spade-tests/src/hir_lowering.rs
 struct Test{a: bool, b: bool}
 
 fn main() -> Test {
-    Test$(a: true, b: true, c: true)
+    Test { a: true, b: true, c: true }
 }
 
 
 error: No such argument: c
-  ┌─ testinput:4:29
+  ┌─ testinput:4:30
   │
 1 │ struct Test{a: bool, b: bool}
   │ ----------------------------- struct defined here
   ·
-4 │     Test$(a: true, b: true, c: true)
-  │                             ^ No such argument
+4 │     Test { a: true, b: true, c: true }
+  │                              ^ No such argument

@@ -126,7 +126,7 @@ async fn struct_declaration() {
         struct S { a: int<2> }
     //  ^^^^^^^^^^^^^^^^^^^^^^[2] goto-target
         fn top() -> int<2> {
-            let s = S$(a: 1);
+            let s = S { a: 1 };
             //      ^[1] goto
             s.a
         }
@@ -144,7 +144,7 @@ async fn struct_field_from_usage() {
         struct S { a: int<2> }
         //         ^[2] goto-target
         fn top() -> int<2> {
-            let s = S$(a: 1);
+            let s = S { a: 1 };
             s.a
         //    ^[1] goto
         }

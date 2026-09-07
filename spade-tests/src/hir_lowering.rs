@@ -741,7 +741,7 @@ mod tests {
             struct X {payload: bool}
 
             entity test(payload: bool) -> X {
-                X$(payload)
+                X { payload }
             }
         "#;
 
@@ -763,7 +763,7 @@ mod tests {
         struct X {a: int<16>, b: int<8>}
 
         entity name(a: int<16>, b: int<8>) -> int<8> {
-            let compound = X$(a, b);
+            let compound = X { a, b };
             compound.b
         }
         "#;
@@ -2305,7 +2305,7 @@ mod argument_list_tests {
         "struct Test{a: bool, b: bool}
 
         fn main() -> Test {
-            Test$(a: true)
+            Test { a: true }
         }
         "
     }
@@ -2315,7 +2315,7 @@ mod argument_list_tests {
         "struct Test{a: bool, b: bool}
 
         fn main() -> Test {
-            Test$()
+            Test {}
         }
         "
     }
@@ -2325,7 +2325,7 @@ mod argument_list_tests {
         "struct Test{a: bool, b: bool}
 
         fn main() -> Test {
-            Test$(a: true, b: true, c: true)
+            Test { a: true, b: true, c: true }
         }
         "
     }
@@ -2335,7 +2335,7 @@ mod argument_list_tests {
         "struct Test{a: bool, b: bool}
 
         fn main() -> Test {
-            Test$(a: true, a: true, b: true)
+            Test { a: true, a: true, b: true }
         }
         "
     }

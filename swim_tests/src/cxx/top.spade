@@ -23,13 +23,13 @@ struct FieldOut {
 }
 #[no_mangle]
 fn fields(a: int<20>, b: int<30>, c: int<70>) -> FieldOut {
-    FieldOut$(
+    FieldOut {
         a,
-        sub: FieldOutSub$(
+        sub: FieldOutSub {
             b,
             c
-        )
-    )
+        }
+    }
 }
 
 #[no_mangle]

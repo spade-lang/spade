@@ -6,8 +6,8 @@ struct Out {
 #[optimize(enum_clock_gating)]
 entity enum_gating(clk: clock, rst: bool, x: Option<uint<8>>) -> Out {
     reg(clk) result reset(rst: None()) = x;
-    Out$(
+    Out {
         raw: unsafe { std::conv::transmute(result) },
         cooked: result,
-    )
+    }
 }

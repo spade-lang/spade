@@ -4,18 +4,18 @@ source: spade-tests/src/ast_lowering.rs
 struct S<T = bool> { val: T }
 
 fn test() {
-    let _ = S$(val: ());
+    let _ = S { val: () };
 }
 
 
 error: Argument type mismatch. Expected bool got ()
-  ┌─ testinput:4:21
+  ┌─ testinput:4:22
   │
 1 │ struct S<T = bool> { val: T }
   │              ---- Type bool inferred here
   ·
-4 │     let _ = S$(val: ());
-  │                     ^^ Expected bool
+4 │     let _ = S { val: () };
+  │                      ^^ Expected bool
   │
   = note: Expected: bool
                Got: ()

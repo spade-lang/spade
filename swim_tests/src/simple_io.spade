@@ -25,14 +25,14 @@ struct SubStructWithInv {
 
 entity simple_io() -> SimpleIO {
     let (fwd, back) = port();
-    SimpleIO$(fwd, back)
+    SimpleIO { fwd, back }
 }
 
 
 entity substruct() -> SubStruct {
     let (fwd, back) = port();
     let (raw_fwd, raw_back) = port();
-    SubStruct$(raw_fwd, raw_back, inner: SimpleIO$(fwd, back))
+    SubStruct { raw_fwd, raw_back, inner: SimpleIO$(fwd, back) }
 }
 
 struct Fields {
@@ -48,7 +48,7 @@ entity fields(
     z: uint<4>,
     w: bool
 ) -> Fields {
-    Fields$(x, y, z, w)
+    Fields { x, y, z, w }
 }
 
 
@@ -59,5 +59,5 @@ struct InvArgsOut {
     b: uint<6>
 }
 entity inv_args(x_inv: inv uint<8>, y_inv: inv bool, a: uint<4>, b: uint<6>) -> InvArgsOut {
-    InvArgsOut$(x_inv, y_inv, a, b)
+    InvArgsOut { x_inv, y_inv, a, b }
 }

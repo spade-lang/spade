@@ -11,7 +11,7 @@ use spade_macros::trace_parser;
 
 use crate::error::{CSErrorTransformations, ExpectedArgumentList, Result, UnexpectedToken};
 use crate::item_type::UnitKindLocal;
-use crate::{ParseStackEntry, Parser};
+use crate::{ExprBraces, ParseStackEntry, Parser};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
 enum OpBindingPower {
@@ -120,19 +120,19 @@ impl<'a> Parser<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn expression(&mut self) -> Result<Loc<Expression>> {
-        self.non_comptime_expression()
+    pub fn expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
+        self.non_comptime_expression(braces)
     }
 
     /// We need a function like this in order to not run into parser conflicts when
     /// parsing blocks, since both statements and expressions can start with $if.
     #[tracing::instrument(skip(self))]
-    pub fn non_comptime_expression(&mut self) -> Result<Loc<Expression>> {
-        self.custom_infix_operator()
+    pub fn non_comptime_expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
+        self.custom_infix_operator(braces)
     }
 
-    fn custom_infix_operator(&mut self) -> Result<Loc<Expression>> {
-        let lhs_val = self.expr_bp(OpBindingPower::None)?;
+    fn custom_infix_operator(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
+        let lhs_val = self.expr_bp(OpBindingPower::None, braces)?;
 
         if self.peek_kind(&TokenKind::InfixOperatorSeparator)? {
             let (Some((callee, _, turbofish)), _) = self.surrounded(
@@ -147,7 +147,7 @@ impl<'a> Parser<'a> {
                 }));
             };
 
-            let rhs_val = self.custom_infix_operator()?;
+            let rhs_val = self.custom_infix_operator(braces)?;
 
             Ok(Expression::Call {
                 kind: CallKind::Function,
@@ -212,17 +212,21 @@ impl<'a> Parser<'a> {
 
     // Based on matklads blog post on pratt parsing:
     // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
-    fn expr_bp(&mut self, min_power: OpBindingPower) -> Result<Loc<Expression>> {
+    fn expr_bp(
+        &mut self,
+        min_power: OpBindingPower,
+        braces: ExprBraces,
+    ) -> Result<Loc<Expression>> {
         let next_tok = self.peek()?;
         let mut lhs = if let Some((tok, op)) =
             Self::unop_from_kind(&next_tok.kind).map(|op| (next_tok, op))
         {
             self.eat_unconditional()?;
             let op_power = unop_binding_power(&op);
-            let rhs = self.expr_bp(op_power)?;
+            let rhs = self.expr_bp(op_power, braces)?;
             self.inline_negative_literal(op.at_loc(&tok.loc()), rhs)?
         } else {
-            self.base_expression()?
+            self.base_expression(braces)?
         };
 
         while let Some(op) = Self::binop_from_kind(&self.peek()?.kind) {
@@ -234,7 +238,7 @@ impl<'a> Parser<'a> {
 
             let op_tok = self.eat_unconditional()?;
 
-            let rhs = self.expr_bp(op_power)?;
+            let rhs = self.expr_bp(op_power, braces)?;
             lhs = Expression::BinaryOperator(
                 Box::new(lhs.clone()),
                 op.at(self.file_id(), &op_tok),
@@ -249,14 +253,14 @@ impl<'a> Parser<'a> {
     // Expression parsing
 
     #[trace_parser]
-    fn base_expression(&mut self) -> Result<Loc<Expression>> {
+    fn base_expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
         let expr = if let Some(tuple) = self.tuple_literal()? {
             Ok(tuple)
         } else if let Some(lambda) = self.lambda()? {
             Ok(lambda)
         } else if let Some(array) = self.array_literal()? {
             Ok(array)
-        } else if let Some(instance) = self.entity_instance()? {
+        } else if let Some(instance) = self.entity_instance(braces)? {
             Ok(instance)
         } else if let Some(val) = self.bool_literal()? {
             Ok(Expression::BoolLiteral(val).at_loc(&val))
@@ -314,7 +318,7 @@ impl<'a> Parser<'a> {
                 .between(self.file_id(), &path, &end_loc))
             } else {
                 let span = path.span;
-                match (turbofish, self.argument_list()?) {
+                match (turbofish, self.argument_list(braces)?) {
                     (None, None) => Ok(Expression::Identifier(path).at(self.file_id(), &span)),
                     (Some(tf), None) => {
                         return Err(Diagnostic::error(self.peek()?, "Expected argument list")
@@ -347,7 +351,7 @@ impl<'a> Parser<'a> {
             .primary_label("expected expression here"))
         }?;
 
-        self.expression_suffix(expr)
+        self.expression_suffix(expr, braces)
     }
 
     #[trace_parser]
@@ -380,7 +384,7 @@ impl<'a> Parser<'a> {
             // condition.
             self.block(unit_kind.is_pipeline())?.unwrap()
         } else {
-            let expr = self.expression().map_err(|diag| {
+            let expr = self.expression(ExprBraces::Allow).map_err(|diag| {
                 diag.primary_label("expected lambda body here")
                     .span_suggest_insert_after(
                         "you might have meant to place the body there",
@@ -412,7 +416,11 @@ impl<'a> Parser<'a> {
     }
 
     #[trace_parser]
-    fn expression_suffix(&mut self, expr: Loc<Expression>) -> Result<Loc<Expression>> {
+    fn expression_suffix(
+        &mut self,
+        expr: Loc<Expression>,
+        braces: ExprBraces,
+    ) -> Result<Loc<Expression>> {
         let base = if let Some(hash) = self.peek_and_eat(&TokenKind::Hash)? {
             if let Some(index) = self.int_literal()? {
                 let index = index
@@ -516,7 +524,7 @@ impl<'a> Parser<'a> {
                         .handle_in(&mut self.diags);
                 }
 
-                if let Some(args) = self.argument_list()? {
+                if let Some(args) = self.argument_list(braces)? {
                     Ok(Expression::MethodCall {
                         target: Box::new(expr.clone()),
                         name: field.clone(),
@@ -569,7 +577,7 @@ impl<'a> Parser<'a> {
                         let end = if s.peek_kind(&TokenKind::CloseBracket)? {
                             None
                         } else {
-                            Some(s.expression()?)
+                            Some(s.expression(ExprBraces::Allow)?)
                         };
 
                         Ok(Expression::RangeIndex {
@@ -583,13 +591,13 @@ impl<'a> Parser<'a> {
                         //
                         // - an array index (`a[2]`) which allows an expression (`a[2+offset]`)
                         // - a range index (`a[1..2]`) which does not allow an expression
-                        let start = s.expression()?;
+                        let start = s.expression(braces)?;
 
                         if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
                             let end = if s.peek_kind(&TokenKind::CloseBracket)? {
                                 None
                             } else {
-                                Some(s.expression()?)
+                                Some(s.expression(ExprBraces::Allow)?)
                             };
 
                             Ok(Expression::RangeIndex {
@@ -615,7 +623,7 @@ impl<'a> Parser<'a> {
             return Ok(expr);
         }?;
 
-        self.expression_suffix(base)
+        self.expression_suffix(base, braces)
     }
 }
 
@@ -640,7 +648,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a + b", expression, Ok(expected_value));
+        check_parse!("a + b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -651,7 +659,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("- b", expression, Ok(expected_value));
+        check_parse!("- b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -662,7 +670,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("!b", expression, Ok(expected_value));
+        check_parse!("!b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -674,7 +682,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a & b", expression, Ok(expected_value));
+        check_parse!("a & b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -686,7 +694,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a | b", expression, Ok(expected_value));
+        check_parse!("a | b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -698,7 +706,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a * b", expression, Ok(expected_value));
+        check_parse!("a * b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -717,7 +725,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a*b + c", expression, Ok(expected_value));
+        check_parse!("a*b + c", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -736,7 +744,11 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a+b == c", expression, Ok(expected_value));
+        check_parse!(
+            "a+b == c",
+            expression(ExprBraces::Allow),
+            Ok(expected_value)
+        );
     }
 
     #[test]
@@ -756,7 +768,11 @@ mod test {
             )
             .nowhere();
 
-            check_parse!("a == b && c", expression, Ok(expected_value));
+            check_parse!(
+                "a == b && c",
+                expression(ExprBraces::Allow),
+                Ok(expected_value)
+            );
         }
         {
             let expected_value = Expression::BinaryOperator(
@@ -773,7 +789,11 @@ mod test {
             )
             .nowhere();
 
-            check_parse!("a && b == c", expression, Ok(expected_value));
+            check_parse!(
+                "a && b == c",
+                expression(ExprBraces::Allow),
+                Ok(expected_value)
+            );
         }
     }
 
@@ -796,7 +816,11 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a + (b + c)", expression, Ok(expected_value));
+        check_parse!(
+            "a + (b + c)",
+            expression(ExprBraces::Allow),
+            Ok(expected_value)
+        );
     }
 
     #[test]
@@ -821,7 +845,11 @@ mod test {
         ))
         .nowhere();
 
-        check_parse!("((b + c) + a)", expression, Ok(expected_value));
+        check_parse!(
+            "((b + c) + a)",
+            expression(ExprBraces::Allow),
+            Ok(expected_value)
+        );
     }
 
     #[test]
@@ -840,11 +868,30 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
-    fn functions_with_named_arguments_work() {
+    fn functions_with_brace_named_arguments_work() {
+        let code = "test { a, b }";
+
+        let expected = Expression::Call {
+            kind: CallKind::Function,
+            callee: ast_path("test"),
+            args: ArgumentList::Named(vec![
+                NamedArgument::Short(ast_ident("a")),
+                NamedArgument::Short(ast_ident("b")),
+            ])
+            .nowhere(),
+            turbofish: None,
+        }
+        .nowhere();
+
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
+    }
+
+    #[test]
+    fn functions_with_dollar_named_arguments_work() {
         let code = "test$(a, b)";
 
         let expected = Expression::Call {
@@ -859,7 +906,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -872,7 +919,7 @@ mod test {
         ])
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -885,7 +932,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -899,7 +946,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -911,7 +958,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -928,7 +975,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -945,11 +992,31 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
-    fn method_call_with_named_args_works() {
+    fn method_call_with_brace_named_args_works() {
+        let code = "a.b { x: y }";
+
+        let expected = Expression::MethodCall {
+            target: Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+            name: ast_ident("b"),
+            args: ArgumentList::Named(vec![NamedArgument::Full(
+                ast_ident("x"),
+                Expression::Identifier(ast_path("y")).nowhere(),
+            )])
+            .nowhere(),
+            kind: CallKind::Function,
+            turbofish: None,
+        }
+        .nowhere();
+
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
+    }
+
+    #[test]
+    fn method_call_with_dollar_named_args_works() {
         let code = "a.b$(x: y)";
 
         let expected = Expression::MethodCall {
@@ -965,7 +1032,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -993,7 +1060,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1025,7 +1092,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1070,7 +1137,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1120,7 +1187,7 @@ mod test {
         }))
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1141,7 +1208,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1180,7 +1247,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1199,7 +1266,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1219,7 +1286,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1240,7 +1307,7 @@ mod test {
         }
         .nowhere();
 
-        check_parse!(code, expression, Ok(expected));
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
     }
 
     // Precedence related tests
@@ -1260,7 +1327,11 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a - b - c", expression, Ok(expected_value));
+        check_parse!(
+            "a - b - c",
+            expression(ExprBraces::Allow),
+            Ok(expected_value)
+        );
     }
 
     #[test]
@@ -1279,7 +1350,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("!a()", expression, Ok(expected_value));
+        check_parse!("!a()", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -1296,7 +1367,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("a[b][c]", expression, Ok(expected_value));
+        check_parse!("a[b][c]", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -1313,7 +1384,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("!a[b]", expression, Ok(expected_value));
+        check_parse!("!a[b]", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -1331,7 +1402,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("-a + b", expression, Ok(expected_value));
+        check_parse!("-a + b", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -1349,7 +1420,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("b+-a", expression, Ok(expected_value));
+        check_parse!("b+-a", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -1361,7 +1432,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("b-a", expression, Ok(expected_value));
+        check_parse!("b-a", expression(ExprBraces::Allow), Ok(expected_value));
     }
 
     #[test]
@@ -1372,7 +1443,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("*a", expression, Ok(expected));
+        check_parse!("*a", expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1390,7 +1461,7 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("*a + b", expression, Ok(expected));
+        check_parse!("*a + b", expression(ExprBraces::Allow), Ok(expected));
     }
 
     #[test]
@@ -1401,6 +1472,6 @@ mod test {
         )
         .nowhere();
 
-        check_parse!("&a", expression, Ok(expected));
+        check_parse!("&a", expression(ExprBraces::Allow), Ok(expected));
     }
 }

@@ -6,12 +6,12 @@ struct SignedOut {
 }
 
 fn signed_div_and_mod(x: int<8>) -> SignedOut {
-    SignedOut $(
+    SignedOut {
         div_4: x / 4,
         mod_4: x % 4,
         div_3: x `std::ops::comb_div` 3,
         mod_3: x `std::ops::comb_mod` 3,
-    )
+    }
 }
 
 
@@ -23,10 +23,10 @@ struct UnsignedOut {
 }
 
 fn unsigned_div_and_mod(x: uint<8>) -> UnsignedOut {
-    UnsignedOut $(
+    UnsignedOut {
         div_4: x / 4,
         mod_4: x % 4,
         div_3: x `std::ops::comb_div` 3,
         mod_3: x `std::ops::comb_mod` 3,
-    )
+    }
 }
