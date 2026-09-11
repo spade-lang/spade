@@ -45,6 +45,9 @@ impl Value {
     pub fn as_string(&self) -> String {
         match self {
             Value::Bit(val) => format!("{}", if *val { 1 } else { 0 }),
+            // Zero-width integer fields contribute no bits to the encoded value.
+            Value::Int { size, val } if size.is_zero() && val.is_zero() => String::new(),
+            Value::UInt { size, val } if size.is_zero() && val.is_zero() => String::new(),
             Value::Int { size, val } => {
                 if *val >= 0i64.into() {
                     let val_str = format!("{val:b}");
@@ -418,6 +421,12 @@ mod string_value_tests {
         let expected = "00001000";
 
         assert_eq!(value.as_string(), expected)
+    }
+
+    #[test]
+    fn zero_width_integers_have_no_bits() {
+        assert_eq!(Value::int(0, 0).as_string(), "");
+        assert_eq!(Value::uint(0, 0).as_string(), "");
     }
 
     #[test]

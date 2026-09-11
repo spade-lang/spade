@@ -102,8 +102,27 @@ impl<VarId, ScopeId> VariableRefExt for VariableRef<VarId, ScopeId> {
 /// Same as the swim::SurferInfo struct
 #[derive(Deserialize, Clone)]
 pub struct SpadeTestInfo {
+    // Special deserialiser to handle both state representations
+    #[serde(deserialize_with = "deserialize_state_file")]
     pub state_file: Utf8PathBuf,
     pub top_names: HashMap<Utf8PathBuf, String>,
+}
+
+fn deserialize_state_file<'de, D>(deserializer: D) -> Result<Utf8PathBuf, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // We want to accept both "build/state.bincode" and ("build/state.bincode")
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StateFile {
+        Plain(Utf8PathBuf),
+        Wrapped((Utf8PathBuf,)),
+    }
+
+    Ok(match StateFile::deserialize(deserializer)? {
+        StateFile::Plain(path) | StateFile::Wrapped((path,)) => path,
+    })
 }
 
 pub struct SpadeTranslator {

@@ -152,6 +152,15 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
     }
 
     if type_size == BigUint::zero() {
+        if matches!(
+            t,
+            ConcreteType::Single {
+                base: PrimitiveType::Int | PrimitiveType::Uint,
+                ..
+            }
+        ) {
+            result.push('0');
+        }
         return;
     }
 
@@ -342,6 +351,17 @@ mod tests {
     use spade_ast::testutil::ast_ident;
 
     use Value::{V0, V1, X, Z};
+
+    #[test]
+    fn zero_width_integers_display_as_zero() {
+        for base in [PrimitiveType::Int, PrimitiveType::Uint] {
+            let ty = ConcreteType::Single {
+                base,
+                params: vec![ConcreteType::Integer(0u32.to_bigint())],
+            };
+            assert_eq!(translate_value(&ty, &[]), "0");
+        }
+    }
 
     #[test]
     fn positive_integers_parse_correctly() {
