@@ -13,9 +13,8 @@ spade-marlin-macro.workspace = true
 
 camino = "1.2.1"
 glob = "0.3.3"
-libloading = "0.8.9"
-log = "0.4.29"
 marlin-verilator.workspace = true
+marlin-verilator-stable.workspace = true
 toml = "0.9.8"
 snafu = "0.8.9"
 marlin.workspace = true

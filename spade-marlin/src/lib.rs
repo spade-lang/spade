@@ -20,7 +20,7 @@ use snafu::{whatever, ResultExt, Whatever};
 
 #[doc(hidden)]
 pub mod __reexports {
-    pub use libloading;
+    pub use marlin_verilator_stable::reexports::libloading;
     pub use marlin_verilator as verilator;
 }
 
@@ -69,12 +69,27 @@ impl Default for SpadeRuntimeOptions {
 }
 
 impl SpadeRuntimeOptions {
-    /// The same as the [`Default`] implementation except that the log crate is
-    /// used.
-    pub fn default_logging() -> Self {
+    pub fn swim_executable(self, swim_executable: OsString) -> Self {
         Self {
-            verilator_options: VerilatorRuntimeOptions::default_logging(),
-            ..Default::default()
+            swim_executable,
+            ..self
+        }
+    }
+
+    pub fn call_swim_build(self, call_swim_build: bool) -> Self {
+        Self {
+            call_swim_build,
+            ..self
+        }
+    }
+
+    pub fn with_inner(
+        self,
+        f: impl FnOnce(VerilatorRuntimeOptions) -> VerilatorRuntimeOptions,
+    ) -> Self {
+        Self {
+            verilator_options: f(self.verilator_options),
+            ..self
         }
     }
 }
@@ -85,6 +100,17 @@ impl SpadeRuntimeOptions {
 pub struct SpadeModelConfig {
     /// See [`VerilatedModelConfig`].
     pub verilator_config: VerilatedModelConfig,
+}
+
+impl SpadeModelConfig {
+    pub fn with_inner(
+        self,
+        f: impl FnOnce(VerilatedModelConfig) -> VerilatedModelConfig,
+    ) -> Self {
+        Self {
+            verilator_config: f(self.verilator_config),
+        }
+    }
 }
 
 /// Runtime for Spade code.
@@ -98,9 +124,6 @@ impl SpadeRuntime {
     /// thread safe. You can enable this with [`SwimRuntimeOptions`] or just
     /// run it beforehand.
     pub fn new(options: SpadeRuntimeOptions) -> Result<Self, Whatever> {
-        if options.verilator_options.log {
-            log::info!("Searching for swim project root");
-        }
         let Some(swim_toml_path) = search_for_swim_toml(
             current_dir()
                 .whatever_context("Failed to get current directory")?
@@ -117,9 +140,6 @@ impl SpadeRuntime {
         swim_project_path.pop();
 
         if options.call_swim_build {
-            if options.verilator_options.log {
-                log::info!("Invoking `swim build` (this may take a while)");
-            }
             let swim_output = Command::new(options.swim_executable)
                 .arg("build")
                 .current_dir(&swim_project_path)
@@ -202,9 +222,9 @@ impl SpadeRuntime {
         }
 
         Ok(Self {
-            verilator_runtime: VerilatorRuntime::new(
+            verilator_runtime: VerilatorRuntime::new2(
                 // https://discord.com/channels/962274366043873301/962296357018828822/1332274022280466503
-                &swim_project_path.join("build/thirdparty/marlin"),
+                swim_project_path.join("build/thirdparty/marlin"),
                 &source_files,
                 &include_files,
                 [],
@@ -225,7 +245,7 @@ impl SpadeRuntime {
     /// [`VerilatorRuntime::create_model`].
     pub fn create_model<'ctx, M: AsVerilatedModel<'ctx>>(
         &'ctx self,
-        config: SpadeModelConfig,
+        config: &SpadeModelConfig,
     ) -> Result<M, Whatever> {
         self.verilator_runtime
             .create_model(&config.verilator_config)

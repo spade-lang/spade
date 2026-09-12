@@ -174,6 +174,8 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     }
     let type_state = compiler_state
         .mir_context
+        .as_ref()
+        .expect("This was made an Option I guess")
         .get(top_unit.name.name_id())
         .expect("Expected to find a mir_context for the top module")
         .type_state

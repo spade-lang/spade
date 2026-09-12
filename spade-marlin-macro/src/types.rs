@@ -145,6 +145,7 @@ impl TypeSpecExt for TypeSpec {
             TypeSpec::Wildcard(_) => {
                 quote!()
             }
+            TypeSpec::CopyView(_) => { quote!() }
         }
     }
 }

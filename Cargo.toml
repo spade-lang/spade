@@ -51,10 +51,10 @@ itertools = "0.14"
 local-impl = "0.1.2"
 logos = "0.16.0"
 num = {version = "0.4.0", features = ["serde"]}
-# TODO: Use upstream marlin
-marlin-verilator = {git = "https://github.com/thezoq2/marlin", branch = "mangling"}
-marlin = {git = "https://github.com/thezoq2/marlin", branch = "mangling"}
-marlin-verilog-macro-builder = {git = "https://github.com/thezoq2/marlin", branch = "mangling"}
+marlin-verilator = "0.20.2"
+marlin = "0.20.2"
+marlin-verilog-macro-builder = "0.20.2"
+marlin-verilator-stable = "2.0.0"
 pretty_assertions = "1.4.1"
 prettydiff = { version = "0.9", default-features = false }
 pyo3 = { version = "0.28", features = ["extension-module", "eyre", "abi3-py38"] }
