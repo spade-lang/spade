@@ -23,7 +23,7 @@ at [https://docs.spade-lang.org](https://docs.spade-lang.org)
 ## Getting started
 
 To get started with Spade, see
-[https://docs.spade-lang.org/introduction.html](https://docs.spade-lang.org/blinky.html).
+[https://docs.spade-lang.org/](https://docs.spade-lang.org/).
 You should start by [installing Spade](https://docs.spade-lang.org/installation.html) and then [setting up your editor](https://docs.spade-lang.org/editor_setup.html).
 
 ## Development and Community
