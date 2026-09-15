@@ -505,28 +505,22 @@ impl BindingExt for Loc<&mir::Binding> {
                 Ok([
                     maybe_fwd_operator(&|_ty| {
                         let member_size = inner.size();
-                        let num_elems = end - start;
-                        let end_index = end * &member_size;
-                        let offset = member_size * num_elems;
 
                         (
                             lir::Operator::RangeSlice {
-                                start: &end_index * offset,
-                                end_exclusive: end_index,
+                                start: start * &member_size,
+                                end_exclusive: end * member_size,
                             },
                             lowered_fwd(),
                         )
                     })?,
                     maybe_fwd_operator(&|_ty| {
                         let member_size = inner.backward_size();
-                        let num_elems = end - start;
-                        let end_index = end * &member_size;
-                        let offset = member_size * num_elems;
 
                         (
                             lir::Operator::Back(BackOperator::RangeSlice {
-                                start: &end_index * offset,
-                                end_exclusive: end_index,
+                                start: start * &member_size,
+                                end_exclusive: end * member_size,
                             }),
                             lowered_back(),
                         )

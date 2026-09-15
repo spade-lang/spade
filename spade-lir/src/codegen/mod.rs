@@ -796,7 +796,7 @@ pub fn cocotb_code() -> Code {
 /// In actual compilation this should be Some
 ///
 /// Before prerforming codegen, `prepare_codegen` should be run
-pub fn entity_code(
+pub fn unit_code(
     entity: &Entity,
     instance_map: &mut InstanceMap,
     source_code: &Option<CodeBundle>,
@@ -831,6 +831,7 @@ pub fn entity_code(
                     ValueName::OutputBack => Dir::Input,
                 };
 
+                // TODO: This is sort of duplicated with instantiaion
                 let name = match (no_mangle.is_some(), &val_name.inner) {
                     (true, _) => name.clone(),
                     (_, ValueName::Forward(_)) => format!("{name}_i"),

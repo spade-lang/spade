@@ -822,7 +822,7 @@ fn codegen(
                         ForbidBackOperators,
                     ];
 
-                    let (code, _) = spade_lir::codegen::entity_code(
+                    let (code, _) = spade_lir::codegen::unit_code(
                         &lir,
                         &mut local_instance_map,
                         &Some(code.read().unwrap().clone()),
