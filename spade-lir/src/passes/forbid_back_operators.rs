@@ -12,7 +12,7 @@ impl Pass for ForbidBackOperators {
         "ForbidBackOperators"
     }
 
-    fn visit_entity(&mut self, _entity: &mut crate::Entity) -> Result<Self::Payload> {
+    fn visit_unit(&mut self, _entity: &mut crate::Entity) -> Result<Self::Payload> {
         Ok(())
     }
 

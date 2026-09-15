@@ -22,7 +22,7 @@ pub trait Pass {
     ///
     /// For modifying the body of the entity, it is better to do so in `visit_statement` which is called after
     /// this function.
-    fn visit_entity(&mut self, _entity: &mut Entity) -> Result<Self::Payload>;
+    fn visit_unit(&mut self, _entity: &mut Entity) -> Result<Self::Payload>;
 
     /// Called on each statement in each entity. If the statement should remain in place, `Ok(None)` should
     /// be returned. If the statement should be replaced with one or more statements, return `Ok(<statements>)`
@@ -70,7 +70,7 @@ pub fn run_pass(entity: &mut Entity, mut pass: impl Pass) -> Result<()> {
     let types = LirTypeList::from_entity(entity);
 
     maybe_trace(&|| println!("Visiting entity"));
-    let mut payload = pass.visit_entity(entity)?;
+    let mut payload = pass.visit_unit(entity)?;
 
 
     entity.statements = entity

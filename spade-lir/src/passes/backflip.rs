@@ -17,7 +17,7 @@ impl Pass for FlipBackConcat {
         "FlipBackConcat"
     }
 
-    fn visit_entity(&mut self, _entity: &mut crate::Entity) -> Result<()> {
+    fn visit_unit(&mut self, _entity: &mut crate::Entity) -> Result<()> {
         Ok(())
     }
 
@@ -142,7 +142,7 @@ impl Pass for FlipBackRangeIndex {
         "FlipBackRangeIndex"
     }
 
-    fn visit_entity(&mut self, entity: &mut crate::Entity) -> Result<Self::Payload> {
+    fn visit_unit(&mut self, entity: &mut crate::Entity) -> Result<Self::Payload> {
         let segments = entity.statements.iter().filter_map(|stmt| {
             let Statement::Binding(Binding {
                 name,

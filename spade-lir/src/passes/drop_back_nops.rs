@@ -16,7 +16,7 @@ impl Pass for DropBackNops {
         "DropBackNops"
     }
 
-    fn visit_entity(&mut self, entity: &mut crate::Entity) -> crate::Result<Self::Payload> {
+    fn visit_unit(&mut self, entity: &mut crate::Entity) -> crate::Result<Self::Payload> {
         let mut result = HashMap::default();
         for statement in &entity.statements {
             match &statement.inner {

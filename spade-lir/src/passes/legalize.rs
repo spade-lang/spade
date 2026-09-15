@@ -26,7 +26,7 @@ impl Pass for Legalize {
         "legalize"
     }
 
-    fn visit_entity(&mut self, entity: &mut crate::Entity) -> Result<()> {
+    fn visit_unit(&mut self, entity: &mut crate::Entity) -> Result<()> {
         let Entity {
             name: _,
             inputs,
