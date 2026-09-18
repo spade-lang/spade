@@ -1,3 +1,7 @@
+> # Repository Moved
+>
+> Development of Spade has moved to https://codeberg.org/spade-lang/spade
+
 <img src="misc/spadefish.svg" />
 
 [![Gitlab pipeline status](https://img.shields.io/gitlab/pipeline-status/spade-lang/spade?branch=master)](https://img.shields.io/gitlab/pipeline-status/spade-lang/spade?branch=master)
