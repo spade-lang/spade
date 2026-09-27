@@ -46,6 +46,7 @@ mod host {
     extern "ExtismHost" {
         pub fn read_file(filename: String) -> Vec<u8>;
         pub fn file_exists(filename: String) -> bool;
+        pub fn absolute_path(path: String) -> String;
     }
 }
 
@@ -61,6 +62,12 @@ fn read_file_to_string(filename: &Utf8Path) -> Result<String> {
 fn file_exists(filename: &Utf8Path) -> Result<bool> {
     unsafe { host::file_exists(filename.to_string()) }
         .map_err(|e| anyhow!("Failed to check if {filename} exists {e}"))
+}
+
+fn absolute_path(path: &Utf8Path) -> Result<Utf8PathBuf> {
+    unsafe { host::absolute_path(path.to_string()) }
+        .map(Utf8PathBuf::from)
+        .map_err(|e| anyhow!("Failed to get absolute path of {path}. {e}"))
 }
 
 trait ResultExt<T> {
@@ -147,7 +154,7 @@ impl SpadeTranslator {
         let (top_name, state_file) = ron::from_str::<SpadeTestInfo>(&surfer_ron_content)
             .map_err(|e| anyhow!("Failed to decode {surfer_ron_file}. {e}"))
             .and_then(|info| {
-                if let Some(top) = info.top_names.get(wave_file) {
+                if let Some(top) = info.top_names.get(&absolute_path(&wave_file).unwrap()) {
                     Ok((top.clone(), info.state_file.clone()))
                 } else {
                     Err(anyhow!(
