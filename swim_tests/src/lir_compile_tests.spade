@@ -5,3 +5,8 @@ struct S {
 entity small_set_if(a: bool, b: inv int<8>, c: int<8>) {
     set b = if a { c } else { c };
 }
+
+entity simple_inspect(a: inv bool) -> bool {
+    set a = true;
+    *a.inspect()
+}

@@ -266,7 +266,9 @@ pub enum Operator {
     /// and backward wires of the underlying value as readable forward wires, with the forward part
     /// occupying the lower bits and the backward part occupying the upper bits. Inspection removes
     /// an `inv` layer, so it needs to flip their positions).
-    /// For more info, see the `Inspect` branch on `forward_expression_code`.
+    ///
+    /// `&(inv uint<8>, uint<4>)` is initially represented as `(uint<8>, uint<4>)`, and `Inspect`
+    /// re-orders it to become `(uint<4>, uint<8>)`
     Inspect,
     /// Indexes an array to extract a range of elements
     RangeIndexArray {
