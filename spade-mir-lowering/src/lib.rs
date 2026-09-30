@@ -153,7 +153,7 @@ impl StatementExt for Loc<mir::Statement> {
                     // we'll warn instead of bailing here, but this naturally means that tests requiring
                     // initial will fail
                     let err = diag_anyhow!(self, "Register intial is unsupported in LIR");
-                    return Err(err.level(spade_diagnostics::diagnostic::DiagnosticLevel::Warning))
+                    return Err(err.level(spade_diagnostics::diagnostic::DiagnosticLevel::Warning));
                 }
                 let (fwd, back) = ty.lower();
                 if back.size() != BigUint::ZERO {
@@ -335,19 +335,36 @@ impl BindingExt for Loc<&mir::Binding> {
             mir::Operator::DivPow2 => trivial_fwd_operator(lir::Operator::DivPow2),
 
             mir::Operator::Select => trivial_fwd_operator(lir::Operator::Select),
-            mir::Operator::Match => trivial_fwd_operator(lir::Operator::Match),
             mir::Operator::BitwiseNot => trivial_fwd_operator(lir::Operator::BitwiseNot),
 
-            mir::Operator::ReadPort => Ok(vec![
-                lir::Statement::Binding(lir::Binding {
-                    name: self.name.lower_fwd(),
-                    operator: lir::Operator::Alias,
-                    operands: vec![self.operands[0].map_ref(|op| op.lower_back())],
-                    ty: fwd,
-                    loc: self.loc,
-                })
-                .at_loc(self),
-            ]),
+            // TODO: This does not handle our new fancy bidirectional match statements
+            mir::Operator::Match => {
+                let fwd_operands = self.operands.iter().skip(1).cloned().collect::<Vec<_>>();
+
+                let fwd_operands = fwd_operands
+                    .chunks(3)
+                    .map(|chunk| {
+                        let [_, cond, val] = chunk else {
+                            diag_bail!(self, "Found non-mod 3 operands to match")
+                        };
+                        Ok([cond.lower_fwd().at_loc(&cond), val.lower_fwd().at_loc(&val)])
+                    })
+                    .collect::<Result<Vec<_>>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: spade_lir::Operator::Match,
+                        operands: fwd_operands,
+                        ty: fwd,
+                        loc: self.loc,
+                    })
+                    .at_loc(&self),
+                ])
+            }
 
             mir::Operator::SignExtend => {
                 let msb_name = lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
@@ -472,7 +489,7 @@ impl BindingExt for Loc<&mir::Binding> {
             }
 
             mir::Operator::IndexArray => {
-                let target_ty = &types[&self.operands[0]];
+                let target_ty = &types[&self.operands[0]].strip_copy_view_layers();
                 let mir::types::Type::Array { inner, length: _ } = target_ty else {
                     diag_bail!(self, "IndexArray invoked on non-array ({})", target_ty);
                 };
@@ -588,7 +605,74 @@ impl BindingExt for Loc<&mir::Binding> {
                 ])
             }
             mir::Operator::ConstructCopyView => {
-                maybe_fwd_operator(&|_ty| (lir::Operator::Alias, lowered_fwd()))
+                if self.operands.len() != 1 {
+                    diag_bail!(self, "Expected exactly one operand for Inspect");
+                }
+                // Safe index, we check the length above
+                let op = &self.operands[0];
+
+                Ok(vec![
+                    lir::Statement::Binding(spade_lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: spade_lir::Operator::Concat,
+                        operands: vec![op.lower_fwd().at_loc(&op), op.lower_back().at_loc(&op)],
+                        ty: spade_lir::Type::BitVector(fwd.size() + back.size()),
+                        loc: self.loc,
+                    })
+                    .at_loc(self),
+                ])
+            }
+            mir::Operator::Inspect => {
+                if self.operands.len() != 1 {
+                    diag_bail!(self, "Expected exactly one operand for Inspect");
+                }
+                // Safe index, we check the length above
+                let op = &self.operands[0];
+
+                let ty = self.ty.strip_copy_view_layers();
+
+                let size = ty.size();
+                let backward_size = ty.backward_size();
+
+                // TODO: A function for these creations would be nice to have
+                let new_left_name =
+                    lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
+                let new_right_name =
+                    lir::ValueName::Forward(mir::ValueName::Expr(ctx.idtracker.next()));
+
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
+                        name: new_left_name.clone(),
+                        operator: lir::Operator::RangeSlice {
+                            start: BigUint::zero(),
+                            end_exclusive: backward_size.clone(),
+                        },
+                        operands: vec![op.lower_fwd().at_loc(&op)],
+                        ty: spade_lir::Type::BitVector(backward_size.clone()),
+                        loc: None,
+                    })
+                    .near_loc(self),
+                    lir::Statement::Binding(lir::Binding {
+                        name: new_right_name.clone(),
+                        operator: lir::Operator::RangeSlice {
+                            start: backward_size.clone(),
+                            end_exclusive: size.clone() + backward_size.clone(),
+                        },
+                        operands: vec![op.lower_fwd().at_loc(&op)],
+                        ty: spade_lir::Type::BitVector(size),
+                        loc: None,
+                    })
+
+                    .near_loc(self),
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: spade_lir::Operator::Concat,
+                        operands: vec![new_left_name.near_loc(self), new_right_name.near_loc(self)],
+                        ty: spade_lir::Type::BitVector(fwd.size() + back.size()),
+                        loc: self.loc,
+                    })
+                    .at_loc(self),
+                ])
             }
             mir::Operator::IsEnumVariant { variant } => {
                 let enum_type = &types[&self.operands[0]];
@@ -726,10 +810,6 @@ impl BindingExt for Loc<&mir::Binding> {
                         lowered_fwd(),
                     )
                 })
-            }
-            mir::Operator::ReadMutWires => {
-                // TODO
-                Ok(vec![])
             }
             mir::Operator::Instance {
                 name,
