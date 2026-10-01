@@ -1,21 +1,21 @@
-entity u48_passthrough(x: uint<48>, result: inv &uint<48>) {
-    set result = &x;
+entity u48_passthrough(x: uint<48>, result: inv uint<48>) {
+    set result = x;
 }
 
-entity add(x: uint<48>, y: uint<48>, result: inv &uint<49>) {
-    set result = &(x + y);
+entity add(x: uint<48>, y: uint<48>, result: inv uint<49>) {
+    set result = (x + y);
 }
 
-entity option_out(valid: bool, x: uint<6>, result: inv &Option<uint<6>>) {
-    set result = &if valid {Some(x)} else {None};
+entity option_out(valid: bool, x: uint<6>, result: inv Option<uint<6>>) {
+    set result = if valid {Some(x)} else {None};
 }
 
-entity option_passthrough(input: Option<uint<6>>, result: inv &Option<uint<6>>) {
-    set result = &input;
+entity option_passthrough(input: Option<uint<6>>, result: inv Option<uint<6>>) {
+    set result = input;
 }
 
-entity tuple_out(x: uint<8>, y: uint<16>, result: inv &(uint<8>, uint<16>)) {
-    set result = &(x, y);
+entity tuple_out(x: uint<8>, y: uint<16>, result: inv (uint<8>, uint<16>)) {
+    set result = (x, y);
 }
 
 enum EnumOut {
@@ -24,8 +24,8 @@ enum EnumOut {
     Two{y: uint<16>},
     Three{x: uint<8>, y: uint<16>}
 }
-entity enum_out(variant: uint<2>, x: uint<8>, y: uint<16>, result: inv &EnumOut) {
-    set result = &match variant {
+entity enum_out(variant: uint<2>, x: uint<8>, y: uint<16>, result: inv EnumOut) {
+    set result = match variant {
         0 => EnumOut::Zero,
         1 => EnumOut::One(x),
         2 => EnumOut::Two(y),
@@ -33,9 +33,9 @@ entity enum_out(variant: uint<2>, x: uint<8>, y: uint<16>, result: inv &EnumOut)
     };
 }
 
-entity int_add(x: int<48>, y: int<48>, result: inv &int<49>) {
+entity int_add(x: int<48>, y: int<48>, result: inv int<49>) {
     // TODO: Actual test
-    set result = &(x + y);
+    set result = (x + y);
 }
 
 

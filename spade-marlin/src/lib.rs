@@ -30,6 +30,7 @@ pub mod prelude {
     pub use spade_marlin_macro::spade_marlin;
     pub use spade_marlin_macro::spade_types;
     pub use marlin::verilator::AsDynamicVerilatedModel;
+    pub use marlin::verilator::tracing::OpenTrace;
     pub use marlin;
 }
 
