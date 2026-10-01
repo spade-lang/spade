@@ -24,7 +24,7 @@ impl NameIDExt for NameID {
     fn mirror_global(&self, primitives: &PrimitiveMap) -> TokenStream {
         primitives.get(self).cloned().unwrap_or_else(|| {
             let full = format_ident!("spade_types");
-            let here = self.1 .0.iter().map(|segment| {
+            let here = self.1.0.iter().map(|segment| {
                 let s = format_ident!("{}", &segment.unwrap_named().as_str());
                 quote!(#s)
             });
@@ -37,7 +37,7 @@ impl NameIDExt for NameID {
             "{}",
             &self
                 .1
-                 .0
+                .0
                 .last()
                 .expect("Found a NameID with 0 path segments")
                 .unwrap_named()
@@ -140,12 +140,14 @@ impl TypeSpecExt for TypeSpec {
             }
 
             TypeSpec::TraitSelf(_) => {
-                quote!()
+                todo!("traitself")
             }
             TypeSpec::Wildcard(_) => {
-                quote!()
+                todo!("wildcard")
             }
-            TypeSpec::CopyView(_) => { quote!() }
+            TypeSpec::CopyView(_) => {
+                todo!("copyview")
+            }
         }
     }
 }
@@ -220,19 +222,22 @@ impl TypeDeclarationExt for TypeDeclaration {
                     }
                 });
 
-                let variant_sizes = e.options.iter().map(|(_, members)| {
-                    if members.0.len() == 0 {
-                        quote! {0}
-                    } else {
-                        let members = members.0.iter().map(|m| {
-                            let ty = m.ty.mirror_with_turbofish(primitive_map);
-                            quote!(#ty :: size())
-                        });
+                let variant_sizes = e
+                    .options
+                    .iter()
+                    .map(|(_, members)| {
+                        if members.0.len() == 0 {
+                            quote! {0}
+                        } else {
+                            let members = members.0.iter().map(|m| {
+                                let ty = m.ty.mirror_with_turbofish(primitive_map);
+                                quote!(#ty :: size())
+                            });
 
-                        quote! {#(#members)+*}
-                    }
-                })
-                .collect::<Vec<_>>();
+                            quote! {#(#members)+*}
+                        }
+                    })
+                    .collect::<Vec<_>>();
                 let payload_size =
                     quote!([#(#variant_sizes),*].into_iter().max().unwrap_or_default());
                 let tag_size = (e.options.len() as f32).log2().floor() as usize;
@@ -320,23 +325,19 @@ impl TypeDeclarationExt for TypeDeclaration {
                 let phantom_args = self
                     .generic_args
                     .iter()
-                    .filter_map(|arg| {
-                        match arg.meta {
-                            spade_types::meta_types::MetaType::Type => {
-                                Some(arg.name
-                                    .name_id()
-                                    .expect("Found hidden generic in type")
-                                    .mirror_local())
-                            },
-                            spade_types::meta_types::MetaType::Any |
-                            spade_types::meta_types::MetaType::Number |
-                            spade_types::meta_types::MetaType::Int |
-                            spade_types::meta_types::MetaType::Uint |
-                            spade_types::meta_types::MetaType::Bool |
-                            spade_types::meta_types::MetaType::Str => {
-                                None
-                            }
-                        }
+                    .filter_map(|arg| match arg.meta {
+                        spade_types::meta_types::MetaType::Type => Some(
+                            arg.name
+                                .name_id()
+                                .expect("Found hidden generic in type")
+                                .mirror_local(),
+                        ),
+                        spade_types::meta_types::MetaType::Any
+                        | spade_types::meta_types::MetaType::Number
+                        | spade_types::meta_types::MetaType::Int
+                        | spade_types::meta_types::MetaType::Uint
+                        | spade_types::meta_types::MetaType::Bool
+                        | spade_types::meta_types::MetaType::Str => None,
                     })
                     .collect::<Vec<_>>();
 
@@ -530,7 +531,7 @@ pub fn mirror_types(compiler_state: &CompilerState) -> TokenStream {
 
     for (name, def) in all_defs {
         let mut module = &mut modules;
-        for segment in &name.1 .0[0..(name.1 .0.len() - 1)] {
+        for segment in &name.1.0[0..(name.1.0.len() - 1)] {
             let ModEntry::Submod(_, next) = module
                 .entry(segment.unwrap_named().as_str())
                 .or_insert(ModEntry::Submod(
