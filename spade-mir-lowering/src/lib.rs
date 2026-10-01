@@ -73,13 +73,13 @@ impl EntityExt for mir::Entity {
                 (
                     LirArg {
                         name: name.clone(),
-                        val_name: lir::ValueName::Forward(val_name.clone().inner).at_loc(val_name),
+                        val_name: val_name.lower_fwd().at_loc(val_name),
                         ty: fwd.clone(),
                         no_mangle: *no_mangle,
                     },
                     LirArg {
                         name: name.clone(),
-                        val_name: lir::ValueName::Forward(val_name.clone().inner).at_loc(val_name),
+                        val_name: val_name.lower_back().at_loc(val_name),
                         ty: back.clone(),
                         no_mangle: *no_mangle,
                     },

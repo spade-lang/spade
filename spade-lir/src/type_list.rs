@@ -29,6 +29,15 @@ impl LirTypeList {
         {
             result.inner.insert(val_name.inner.clone(), ty.clone());
         }
+        for LirArg {
+            val_name,
+            name: _,
+            ty,
+            no_mangle: _,
+        } in &e.outputs
+        {
+            result.inner.insert(val_name.inner.clone(), ty.clone());
+        }
         result.add_statements(&e.statements);
 
         result
