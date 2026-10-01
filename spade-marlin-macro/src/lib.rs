@@ -278,7 +278,7 @@ pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
     let top_name = top_name.without_escapes();
     let verilator = build_verilated_struct(
         "spade",
-        syn::LitStr::new(mangle_verilator_name_hack(top_name).unwrap().as_ref().as_str(), args.top.span()),
+        syn::LitStr::new(top_name, args.top.span()),
         verilog_source_path,
         ports,
         item.clone().into(),
