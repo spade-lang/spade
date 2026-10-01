@@ -106,7 +106,7 @@ pub fn spade_types(_args: TokenStream) -> TokenStream {
 #[proc_macro_error]
 #[proc_macro_attribute]
 // TODO: This name is forced by the macro assuming that crate_name == macro name
-pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
+pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
     let args = syn::parse_macro_input!(args as MacroArgs);
 
     let SpadeInfo {
