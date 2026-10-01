@@ -194,7 +194,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     for (Input{name, ty: hir_type, wire: _}, param) in top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone()) {
         let ty = type_state
             .concrete_type_of_name(
-                &name,
+                name,
                 compiler_state.symtab.symtab(),
                 &compiler_state.item_list.types,
             )
@@ -270,13 +270,13 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let top_name = top_name.without_escapes();
     let verilator = build_verilated_struct(
         "spade",
-        syn::LitStr::new(&mangle_verilator_name(&top_name).unwrap(), args.top.span()),
+        syn::LitStr::new(&mangle_verilator_name(top_name).unwrap(), args.top.span()),
         verilog_source_path,
         ports,
         item.clone().into(),
     );
 
-    let item = match syn::parse::<syn::ItemStruct>(item.into()) {
+    let item = match syn::parse::<syn::ItemStruct>(item) {
         Ok(item) => item,
         Err(error) => {
             return error.into_compile_error().into();
@@ -288,7 +288,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let top = args.top;
 
-    let project_dir_lit = LitStr::new(&project_dir.to_string(), top.span());
+    let project_dir_lit = LitStr::new(project_dir.as_ref(), top.span());
 
     let spade_wrapper = quote! {
         struct Inputs {
