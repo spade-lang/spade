@@ -804,6 +804,9 @@ fn codegen(
                     macro_rules! run_passes {
                         () => {};
                         ($name:ident, $($rest:ident),* $(,)?) => {
+                            if trace_this {
+                                println!("Running pass {}", stringify!($name))
+                            }
                             run_pass(&mut lir, $name{})?;
                             if trace_this {
                                 println!("After {}\n\n{lir}\n------------\n", stringify!($name))
