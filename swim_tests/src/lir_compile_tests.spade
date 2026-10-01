@@ -10,3 +10,10 @@ entity simple_inspect(a: inv bool) -> bool {
     set a = true;
     *a.inspect()
 }
+
+entity simple_match(x: [uint<2>; 2]) -> bool {
+    match x {
+        [0, 0] => true,
+        _ => false,
+    }
+}

@@ -108,13 +108,22 @@ impl EntityExt for mir::Entity {
             .flatten()
             .collect::<Vec<_>>();
 
-        // TODO
         statements.push(
             lir::Statement::Binding(lir::Binding {
                 name: spade_lir::ValueName::OutputFwd,
                 operator: spade_lir::Operator::BlackBoxAlias,
                 operands: vec![output.map_ref(|v| v.lower_fwd())],
                 ty: output_fwd,
+                loc: None,
+            })
+            .at_loc(&self.output),
+        );
+        statements.push(
+            lir::Statement::Binding(lir::Binding {
+                name: output.lower_back(),
+                operator: spade_lir::Operator::BlackBoxAlias,
+                operands: vec![lir::ValueName::OutputBack.at_loc(output)],
+                ty: output_back,
                 loc: None,
             })
             .at_loc(&self.output),
@@ -230,6 +239,14 @@ impl BindingExt for Loc<&mir::Binding> {
 
                 Ok(vec![
                     lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_back(),
+                        operator: lir::Operator::Nop,
+                        operands: vec![],
+                        ty: back.clone(),
+                        loc: self.loc.clone(),
+                    })
+                    .at_loc(self),
+                    lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: operator,
                         operands: operands,
@@ -263,6 +280,14 @@ impl BindingExt for Loc<&mir::Binding> {
                 let (operator, operands) = inner(&fwd);
 
                 Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_back(),
+                        operator: lir::Operator::Nop,
+                        operands: vec![],
+                        ty: back.clone(),
+                        loc: self.loc.clone(),
+                    })
+                    .at_loc(self),
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: operator,
@@ -341,29 +366,43 @@ impl BindingExt for Loc<&mir::Binding> {
             mir::Operator::Match => {
                 let fwd_operands = self.operands.iter().skip(1).cloned().collect::<Vec<_>>();
 
-                let fwd_operands = fwd_operands
+                let (fwd_copies, fwd_operands): (Vec<_>, Vec<_>) = fwd_operands
                     .chunks(3)
                     .map(|chunk| {
-                        let [_, cond, val] = chunk else {
+                        let [alias, cond, val] = chunk else {
                             diag_bail!(self, "Found non-mod 3 operands to match")
                         };
-                        Ok([cond.lower_fwd().at_loc(&cond), val.lower_fwd().at_loc(&val)])
+                        Ok((
+                            // TODO: There will now be `Nop` copies of these bindings since the MIR
+                            // introduces them but does not make use of them
+                            lir::Statement::Binding(lir::Binding {
+                                name: alias.lower_fwd(),
+                                operator: lir::Operator::Alias,
+                                operands: vec![
+                                    self.operands[0].lower_fwd().at_loc(&self.operands[0]),
+                                ],
+                                ty: types[&self.operands[0]].lower().0,
+                                loc: None,
+                            })
+                            .near_loc(self),
+                            [cond.lower_fwd().at_loc(&cond), val.lower_fwd().at_loc(&val)],
+                        ))
                     })
                     .collect::<Result<Vec<_>>>()?
                     .into_iter()
-                    .flatten()
-                    .collect();
+                    .unzip();
 
-                Ok(vec![
-                    lir::Statement::Binding(lir::Binding {
+                Ok(fwd_copies
+                    .into_iter()
+                    .chain([lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: spade_lir::Operator::Match,
-                        operands: fwd_operands,
+                        operands: fwd_operands.into_iter().flatten().collect(),
                         ty: fwd,
                         loc: self.loc,
                     })
-                    .at_loc(&self),
-                ])
+                    .at_loc(&self)])
+                    .collect())
             }
 
             mir::Operator::SignExtend => {
@@ -499,7 +538,7 @@ impl BindingExt for Loc<&mir::Binding> {
                         (
                             lir::Operator::Slice {
                                 elem_size: inner.size(),
-                                reversed: true,
+                                direction: lir::SliceDirection::ZerothRight,
                             },
                             lowered_fwd(),
                         )
@@ -662,7 +701,6 @@ impl BindingExt for Loc<&mir::Binding> {
                         ty: spade_lir::Type::BitVector(size),
                         loc: None,
                     })
-
                     .near_loc(self),
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
@@ -849,16 +887,31 @@ impl BindingExt for Loc<&mir::Binding> {
                     self.name.map_ref(|n| n.lower_fwd()).clone(),
                 ));
 
-                Ok(vec![
-                    lir::Statement::Instance {
+                let output_declarations = outputs
+                    .iter()
+                    .map(|(_, ty, value_name)| {
+                        lir::Statement::Binding(lir::Binding {
+                            name: value_name.inner.clone(),
+                            operator: lir::Operator::DeclareInstantiationOutput,
+                            operands: vec![],
+                            ty: ty.clone(),
+                            loc: None,
+                        })
+                        .near_loc(value_name)
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(output_declarations
+                    .into_iter()
+                    .chain([lir::Statement::Instance {
                         name: name.clone(),
                         params: params.clone(),
                         inputs: inputs.into_iter().collect(),
                         outputs: outputs.into_iter().collect(),
                         verilog_attr_groups: verilog_attr_groups.clone(),
                     }
-                    .at_loc(self),
-                ])
+                    .at_loc(self)])
+                    .collect())
             }
 
             mir::Operator::CreatePort => {

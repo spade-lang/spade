@@ -805,11 +805,10 @@ fn codegen(
                         () => {};
                         ($name:ident, $($rest:ident),* $(,)?) => {
                             run_pass(&mut lir, $name{})?;
-                            run_passes!($($rest,)*);
                             if trace_this {
                                 println!("After {}\n\n{lir}\n------------\n", stringify!($name))
                             }
-
+                            run_passes!($($rest,)*);
                         }
                     }
 

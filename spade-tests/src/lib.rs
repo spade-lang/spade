@@ -38,6 +38,8 @@ mod typeinference;
 mod usefulness;
 #[cfg(test)]
 mod verilator_wrapper;
+#[cfg(test)]
+pub mod lir_processing;
 
 // NOTE: word length inference tests no longer work after adding `int` and `uint`
 // #[cfg(test)]

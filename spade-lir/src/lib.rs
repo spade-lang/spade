@@ -92,6 +92,29 @@ pub struct ParamName {
     pub no_mangle: Option<Loc<()>>,
 }
 
+/// The packing to use when slicing a bit vector with a runtime value.
+///
+/// Arrays in are packed with the 0th index on the right, i.e. `[a,b,c,d]` is packed
+/// as
+/// ```verilog
+/// logic[7:0] a =  {dd, cc, bb, aa}
+/// ```
+///
+/// while most other types, like tuples, are packed with the 0th element on the left.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub enum SliceDirection {
+    ZerothRight,
+    ZerothLeft,
+}
+impl std::fmt::Display for SliceDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SliceDirection::ZerothRight => write!(f, "ZerothRight"),
+            SliceDirection::ZerothLeft => write!(f, "ZerothLeft"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Operator {
     // Binary arithmetic operators
@@ -141,7 +164,7 @@ pub enum Operator {
     /// `op[0](size - op[0] - elem_size .. size - op[0])
     Slice {
         elem_size: BigUint,
-        reversed: bool,
+        direction: SliceDirection,
     },
     RangeSlice {
         start: BigUint,
@@ -176,7 +199,13 @@ pub enum Operator {
 
     Back(BackOperator),
 
-    /// Define a variable for the value but don't do anything with it. Useful for creating ports
+    /// Define a variable but don't do anything with it. Unlike `Nop` which is gradually replaced,
+    /// these variables are not replaced by other bindings. Their variables isntead come out of instantiations
+    DeclareInstantiationOutput,
+
+    /// Define a variable, but don't do anything with it. These are there as placeholders and LIR passes
+    /// will generally create copies of variables defined by Nop, after which they will be dropped by
+    /// the `DropBackNops` pass
     Nop,
 }
 
@@ -270,8 +299,8 @@ impl std::fmt::Display for Operator {
             Operator::Concat => write!(f, "Concat"),
             Operator::Slice {
                 elem_size,
-                reversed,
-            } => write!(f, "Slice({elem_size}, {reversed})"),
+                direction,
+            } => write!(f, "Slice({elem_size}, {direction})"),
             Operator::Replicate { copies } => write!(f, "Replicate({copies})"),
             Operator::RangeSlice {
                 start,
@@ -300,6 +329,7 @@ impl std::fmt::Display for Operator {
             }
             Operator::Back(BackOperator::BlackBoxAlias) => write!(f, "BackBlackBoxAlias"),
             Operator::Back(BackOperator::Alias) => write!(f, "Alias"),
+            Operator::DeclareInstantiationOutput => write!(f, "DeclareInstantiationOutput"),
             Operator::Nop => write!(f, "Nop"),
             Operator::ReadWriteItemsInOut(n) => write!(f, "ReadWriteInOut({})", n),
         }

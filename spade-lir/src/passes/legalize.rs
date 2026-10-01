@@ -284,8 +284,8 @@ impl Binding {
                 }
             }
             Operator::Slice {
-                elem_size,
-                reversed,
+                elem_size: _,
+                direction: _,
             } => {
                 if types.lookup(&self.operands[0])?.size() == BigUint::ZERO {
                     diag_bail!(
@@ -399,6 +399,7 @@ impl Binding {
                 }
                 Ok(None)
             }
+            Operator::DeclareInstantiationOutput => Ok(None),
             Operator::Nop => Ok(None),
             // TODO: We should have another pass that ensures that we don't have any back wires remaining
             // crate::Operator::Back(_) => Ok(None),

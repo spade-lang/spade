@@ -472,7 +472,7 @@ impl std::fmt::Display for TypeSpec {
                 )
             }
             TypeSpec::Array { inner, size } => format!("[{inner}; {size}]"),
-            TypeSpec::Inverted(inner) => format!("~{inner}"),
+            TypeSpec::Inverted(inner) => format!("inv {inner}"),
             TypeSpec::CopyView(inner) => format!("&{inner}"),
             TypeSpec::TraitSelf(_) => "Self".into(),
             TypeSpec::Wildcard(_) => "_".into(),
