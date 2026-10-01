@@ -15,7 +15,7 @@ mod u48_passthrough {
 
     #[test]
     #[snafu::report]
-    fn u48_passhtrough() -> Result<(), Whatever> {
+    fn u48_passthrough() -> Result<(), Whatever> {
         let runtime = SpadeRuntime::new(Default::default())?;
 
         let mut main = Uut::new_simple(&runtime)?;

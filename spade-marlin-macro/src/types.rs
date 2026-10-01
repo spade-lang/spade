@@ -453,10 +453,10 @@ impl TypeParamExt for TypeParam {
                 panic!("Strings in type parameters are unsupported")
             }
             spade_types::meta_types::MetaType::Any => {
-                panic!("Found an any meta-type in a type defintion")
+                panic!("Found an any meta-type in a type definition")
             }
             spade_types::meta_types::MetaType::Number => {
-                panic!("Found a number meta-type in a type defintion")
+                panic!("Found a number meta-type in a type definition")
             }
         }
     }

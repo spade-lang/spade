@@ -118,8 +118,8 @@ pub struct SpadeRuntime {
 
 impl SpadeRuntime {
     /// Creates a new runtime for instantiating Spade units as Rust objects.
-    /// Does NOT call `swim build` by defaul because `swim build` is not
-    /// thread safe. You can enable this with [`SwimRuntimeOptions`] or just
+    /// Does NOT call `swim build` by default because `swim build` is not
+    /// thread safe. You can enable this with [`SpadeRuntimeOptions`] or just
     /// run it beforehand.
     pub fn new(options: SpadeRuntimeOptions) -> Result<Self, Whatever> {
         let Some(swim_toml_path) = search_for_swim_toml(
