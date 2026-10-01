@@ -338,14 +338,14 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 &self.verilator
             }
 
-            pub fn open_vcd(&mut self, path: impl AsRef<std::path::Path>) -> spade_marlin::prelude::marlin::verilator::vcd::Vcd<'a> {
-                let vcd_path = format!(
+            pub fn open_trace(&mut self, path: impl AsRef<std::path::Path>) -> spade_marlin::prelude::marlin::verilator::tracing::TraceFile<'a> {
+                let tracefile_path = format!(
                     "{}/{}",
                     std::env::current_dir().expect("Failed to get current working directory").to_string_lossy(),
                     path.as_ref().to_string_lossy()
                 );
                 let surfer_ron_content = format!(
-                    r#"(state_file:"{}/build/state.bincode",top_names:{{"{vcd_path}": "{}"}})"#,
+                    r#"(state_file:"{}/build/state.bincode",top_names:{{"{tracefile_path}": "{}"}})"#,
                     self.project_dir,
                     #top,
                 );
@@ -354,9 +354,9 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 // TODO: This will clash if there are multiple tests.
                 std::fs::write(&surfer_ron_path, surfer_ron_content).expect(&format!("Failed to write surfer ron file to {surfer_ron_path}"));
 
-                println!("Opening VCD file {vcd_path}");
+                println!("Opening trace file {tracefile_path}");
 
-                self.verilator.open_vcd(path)
+                self.verilator.open_trace(path)
             }
         }
     };
