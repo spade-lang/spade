@@ -24,7 +24,6 @@ pub type EData = u32;
 /// (used as pointer)."
 pub type WData = EData;
 
-
 /// Fills the provided buffer with the value of the signal with msb first. The caller
 /// is responsible for ensuring that the buffer is wide enough to fit all digits, otherwise
 /// it panics
@@ -45,7 +44,7 @@ macro_rules! small_into {
                 *self = buffer[0] as Self;
             }
         }
-    }
+    };
 }
 
 small_into!(CData);
@@ -61,5 +60,3 @@ impl IntoU32s for QData {
         *self = (buffer[1] as u64) << 32 | buffer[0] as u64
     }
 }
-
-

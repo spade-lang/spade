@@ -60,7 +60,10 @@ fn u32_shift_to_be(bits: &[u32], shift_amount: usize, out: &mut [u32]) {
 }
 
 fn replace_in_u32s(source: &[u32], bit_offset: usize, width: usize, dest: &mut [u32]) {
-    let masks = (0..(width / 32)).map(|_| !0u32).chain([((1u64 << width % 32) - 1) as u32]).collect::<Vec<_>>();
+    let masks = (0..(width / 32))
+        .map(|_| !0u32)
+        .chain([((1u64 << width % 32) - 1) as u32])
+        .collect::<Vec<_>>();
     let mut shift_buffer = vec![0; dest.len()];
     let mut mask_buffer = vec![0; dest.len()];
     u32_shift_to_be(source, bit_offset, &mut shift_buffer);
@@ -167,8 +170,6 @@ impl<const N: u64> SpadeType for SpadeInt<N> {
     }
 }
 
-
-
 impl SpadeType for bool {
     fn size() -> usize {
         1
@@ -274,14 +275,13 @@ impl<T: SpadeType> SpadeType for Option<T> {
             Some(val) => {
                 val.to_verilator_value(bit_offset, target);
                 target[valid_word] |= 1 << valid_in_word;
-            },
+            }
             None => {
                 target[valid_word] &= !(1 << valid_in_word);
             }
         }
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -324,6 +324,5 @@ mod test {
         //  0x0000_0003 e000_0000 0000_0000
         u32_shift_to_be(&input, 33, &mut buff);
         assert_eq!(buff, [0, 0xe000_0000, 0x0000_0003].as_slice());
-       
     }
 }

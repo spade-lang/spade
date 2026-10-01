@@ -1,12 +1,12 @@
 use snafu::Whatever;
-use spade_marlin_macro::spade as spade;
+use spade_marlin_macro::spade;
 
 mod types;
 
 use spade_marlin::prelude::*;
 
-use types::spade_types;
 use crate::types::spade_types::spade_marlin::EnumOut;
+use types::spade_types;
 
 mod u48_passthrough {
     use super::*;

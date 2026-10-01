@@ -6,32 +6,31 @@
 
 //! Spade integration for Marlin.
 
-pub mod type_translation;
 pub mod type_ext;
+pub mod type_translation;
 
 use std::{env::current_dir, ffi::OsString, fs, process::Command};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use marlin_verilator::{
-    AsVerilatedModel, VerilatedModelConfig, VerilatorRuntime,
-    VerilatorRuntimeOptions,
+    AsVerilatedModel, VerilatedModelConfig, VerilatorRuntime, VerilatorRuntimeOptions,
 };
-use snafu::{whatever, ResultExt, Whatever};
+use snafu::{ResultExt, Whatever, whatever};
 
 #[doc(hidden)]
 pub mod __reexports {
-    pub use marlin_verilator_stable::reexports::libloading;
     pub use marlin_verilator as verilator;
+    pub use marlin_verilator_stable::reexports::libloading;
 }
 
 pub mod prelude {
     pub use crate as spade;
     pub use crate::{SpadeRuntime, SpadeRuntimeOptions};
-    pub use spade_marlin_macro::spade;
-    pub use spade_marlin_macro::spade_types;
+    pub use marlin;
     pub use marlin::verilator::AsDynamicVerilatedModel;
     pub use marlin::verilator::tracing::OpenTrace;
-    pub use marlin;
+    pub use spade_marlin_macro::spade;
+    pub use spade_marlin_macro::spade_types;
 }
 
 fn search_for_swim_toml(mut start: Utf8PathBuf) -> Option<Utf8PathBuf> {
@@ -105,10 +104,7 @@ pub struct SpadeModelConfig {
 }
 
 impl SpadeModelConfig {
-    pub fn with_inner(
-        self,
-        f: impl FnOnce(VerilatedModelConfig) -> VerilatedModelConfig,
-    ) -> Self {
+    pub fn with_inner(self, f: impl FnOnce(VerilatedModelConfig) -> VerilatedModelConfig) -> Self {
         Self {
             verilator_config: f(self.verilator_config),
         }
@@ -130,13 +126,9 @@ impl SpadeRuntime {
             current_dir()
                 .whatever_context("Failed to get current directory")?
                 .try_into()
-                .whatever_context(
-                    "Failed to convert current directory to UTF-8",
-                )?,
+                .whatever_context("Failed to convert current directory to UTF-8")?,
         ) else {
-            whatever!(
-                "Failed to find swim.toml searching from current directory"
-            );
+            whatever!("Failed to find swim.toml searching from current directory");
         };
         let mut swim_project_path = swim_toml_path.clone();
         swim_project_path.pop();
@@ -160,14 +152,11 @@ impl SpadeRuntime {
 
         let spade_sv_path = swim_project_path.join("build/spade.sv");
 
-        let swim_toml_contents = fs::read_to_string(&swim_toml_path)
-            .whatever_context(format!(
-                "Failed to read contents of swim.toml at {swim_toml_path}"
-            ))?;
+        let swim_toml_contents = fs::read_to_string(&swim_toml_path).whatever_context(format!(
+            "Failed to read contents of swim.toml at {swim_toml_path}"
+        ))?;
         let swim_toml: toml::Value = toml::from_str(&swim_toml_contents)
-            .whatever_context(
-                "Failed to parse swim.toml as a valid TOML file",
-            )?;
+            .whatever_context("Failed to parse swim.toml as a valid TOML file")?;
 
         let extra_verilog = swim_toml.get("verilog").map(|verilog| {
             (
@@ -176,16 +165,10 @@ impl SpadeRuntime {
                     .and_then(|sources| sources.as_array())
                     .map(|sources| {
                         let mut result = vec![];
-                        for source in
-                            sources.iter().flat_map(|source| source.as_str())
-                        {
-                            if let Ok(paths) = glob::glob(
-                                swim_project_path.join(source).as_str(),
-                            ) {
+                        for source in sources.iter().flat_map(|source| source.as_str()) {
+                            if let Ok(paths) = glob::glob(swim_project_path.join(source).as_str()) {
                                 for path in paths.flatten() {
-                                    if let Ok(path) =
-                                        Utf8PathBuf::try_from(path)
-                                    {
+                                    if let Ok(path) = Utf8PathBuf::try_from(path) {
                                         result.push(path);
                                     }
                                 }
@@ -200,9 +183,7 @@ impl SpadeRuntime {
                         sources
                             .iter()
                             .flat_map(|source| source.as_str())
-                            .flat_map(|source| {
-                                Utf8Path::new(source).canonicalize_utf8()
-                            })
+                            .flat_map(|source| Utf8Path::new(source).canonicalize_utf8())
                             .collect::<Vec<_>>()
                     }),
             )
@@ -213,13 +194,10 @@ impl SpadeRuntime {
 
         if let Some(extra_verilog) = &extra_verilog {
             if let Some(sources) = &extra_verilog.0 {
-                source_files
-                    .extend(sources.iter().map(|source| source.as_path()));
+                source_files.extend(sources.iter().map(|source| source.as_path()));
             }
             if let Some(include) = &extra_verilog.1 {
-                include_files.extend(
-                    include.iter().map(|directory| directory.as_path()),
-                );
+                include_files.extend(include.iter().map(|directory| directory.as_path()));
             }
         }
 
@@ -237,9 +215,7 @@ impl SpadeRuntime {
 
     /// Instantiates a new Spade unit. This function simply wraps
     /// [`VerilatorRuntime::create_model_simple`].
-    pub fn create_model_simple<'ctx, M: AsVerilatedModel<'ctx>>(
-        &'ctx self,
-    ) -> Result<M, Whatever> {
+    pub fn create_model_simple<'ctx, M: AsVerilatedModel<'ctx>>(&'ctx self) -> Result<M, Whatever> {
         self.verilator_runtime.create_model_simple()
     }
 
