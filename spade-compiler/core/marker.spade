@@ -1,12 +1,13 @@
 /// The `Data` trait is implemented by any type whose bit representation can be interpreted as data.
 ///
-/// For now, this means that the value can be stored in a register and passed through a multiplexer.
+/// For now, this means that the value can be passed through a multiplexer.
 ///
 /// `Data` is automatically implemented by the compiler, analogous to an auto trait in Rust. It
 /// should not be implemented manually.
-pub trait Data: Copy {}
+pub trait Data {}
 
 impl Data for () {}
+impl<T: Data> Data for inv T {}
 impl<T0: Data> Data for (T0) {}
 impl<T0: Data, T1: Data> Data for (T0, T1) {}
 impl<T0: Data, T1: Data, T2: Data> Data for (T0, T1, T2) {}
@@ -15,7 +16,6 @@ impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data> Data for (T0, T1, T2, T3,
 impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data> Data for (T0, T1, T2, T3, T4, T5) {}
 impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data> Data for (T0, T1, T2, T3, T4, T5, T6) {}
 impl<T0: Data, T1: Data, T2: Data, T3: Data, T4: Data, T5: Data, T6: Data, T7: Data> Data for (T0, T1, T2, T3, T4, T5, T6, T7) {}
-
 impl<T: Data, #uint N> Data for [T; N] {}
 
 /// The `Copy` trait is implemented by any type which can be used an infinite number of times and
@@ -37,5 +37,4 @@ impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy> Copy for (T0, T1, T2, T3,
 impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy, T5: Copy> Copy for (T0, T1, T2, T3, T4, T5) {}
 impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy, T5: Copy, T6: Copy> Copy for (T0, T1, T2, T3, T4, T5, T6) {}
 impl<T0: Copy, T1: Copy, T2: Copy, T3: Copy, T4: Copy, T5: Copy, T6: Copy, T7: Copy> Copy for (T0, T1, T2, T3, T4, T5, T6, T7) {}
-
 impl<T: Copy, #uint N> Copy for [T; N] {}

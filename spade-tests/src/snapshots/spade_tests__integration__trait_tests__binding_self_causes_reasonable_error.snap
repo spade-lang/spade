@@ -7,7 +7,7 @@ impl X {
 }
 
 fn main(x: X) -> bool {
-    x.test$(self: X())
+    x.test(self: X())
 }
 
 
@@ -17,7 +17,7 @@ error: self specified multiple times
 3 │     fn test(self, x: bool) -> bool {true}
   │     ------------------------------------- function defined here
   ·
-7 │     x.test$(self: X())
-  │     ^       ---- First specified here
-  │     │        
+7 │     x.test(self: X())
+  │     ^      ---- First specified here
+  │     │       
   │     Later specified here

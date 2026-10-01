@@ -1,0 +1,252 @@
+name: builds and tests
+on:
+  push:
+    # On non-main branches we'll end up duplicating the run if we run on all pushes
+    # This way we only run on PRs or main.
+    branches:
+      - main
+  pull_request:
+jobs:
+  test:
+    runs-on: ["fbs", "xlarge", "debian-13-x86_64"]
+    container:
+      image: rust:1.88
+    steps:
+      - name: "Pre-clone checkout"
+        run: |
+          apt-get update
+          apt-get install -y nodejs
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      - name: dependencies
+        run: |
+          apt-get install build-essential
+      # - uses: https://github.com/Swatinem/rust-cache@v2
+      - name: cargo test
+        run: |
+          cargo test --locked --color=always
+
+  fmt:
+    runs-on: ["fbs", "medium", "debian-13-x86_64"]
+    container:
+      image: rust:1.88-alpine
+    steps:
+      - name: "Pre-clone checkout"
+        run: |
+          apk add nodejs git
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      - name: install fmt
+        run: |
+            rustup component add rustfmt
+      - name: cargo fmt
+        run: |
+            cargo fmt -- --check
+
+  swim-test:
+    runs-on: ["fbs", "xlarge", "debian-13-x86_64"]
+    container:
+      # It would be more normal to use alpine or debian here. However,
+      # our wheels are rejected by alpine (we should fix this)
+      # and apt is _extremely_ slow on the lysator runners. For now, just doing
+      # the CI on arch is the easiest option
+      image: archlinux:latest
+    steps:
+      ### Checkout
+      - name: "Pre-clone dependencies"
+        run: |
+          pacman -Sy
+          pacman -S --noconfirm nodejs git tar
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      ####
+      - name: dependencies
+        run: |
+            pacman -S --noconfirm python-virtualenv uv iverilog jq wget unzip rustup gcc make
+            rustup install stable
+      - name: download-swim
+        run: |
+          wget $(curl https://codeberg.org/api/v1/repos/spade-lang/swim/actions/artifacts?name=swim | jq .[0].archive_download_url -r) -O swim.zip
+          unzip swim.zip
+          chmod +x swim
+      # - uses: https://github.com/Swatinem/rust-cache@v2
+      - name: run swim tests
+        run: |
+          cd swim_tests && RUST_BACKTRACE=full ../swim --skip-surfer-plugin test
+
+  check:typos:
+    runs-on: lysator
+    container:
+      image: rust:1.88-alpine
+    steps:
+      ### Checkout
+      - name: "Pre-clone dependencies"
+        run: |
+          apk add nodejs git tar
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      ####
+      - name: dependencies
+        run: |
+            wget https://github.com/crate-ci/typos/releases/download/v1.42.0/typos-v1.42.0-x86_64-unknown-linux-musl.tar.gz -O typos.tar.gz
+            # Extract only the typos executable to not get a docs folder which the typo checker
+            # will find typos in
+            tar xzf typos.tar.gz ./typos
+      - name: typos
+        run: |
+          ./typos
+
+  check:todos:
+    runs-on: lysator
+    container:
+      image: rust:1.88-alpine
+    steps:
+      ### Checkout
+      - name: "Pre-clone dependencies"
+        run: |
+          apk add nodejs git tar
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      ####
+      - name: todos
+        run: |
+          # invert exit code of grep while still printing all matches
+          set -e; find . -name "*.rs" | xargs grep -Ei "// *TODO" || exit 0 && exit 1
+          set -e; find . -name "*.spade" | xargs grep -Ei "// *TODO" || exit 0 && exit 1
+
+  yowasp:build:
+    runs-on: ["fbs", "medium", "debian-13-x86_64"]
+    container:
+      image: rust:1.88-alpine
+    steps:
+      ### Checkout
+      - name: "Pre-clone dependencies"
+        run: |
+          apk add nodejs git tar
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      ####
+      - name: dependencies
+        run: |
+            apk add git musl-dev g++ openssl-dev openssl-libs-static jemalloc-static make python3 npm
+      - name: install toolchain
+        run: |
+          rustup toolchain install stable
+          rustup target add wasm32-wasip1
+      # - uses: https://github.com/Swatinem/rust-cache@v2
+      - name: Yowasp things
+        working-directory: yowasp
+        run: |
+          ./build.sh
+          ./package-npmjs.sh
+
+
+  build:surfer-plugin:
+    runs-on: ["fbs", "medium", "debian-13-x86_64"]
+    container:
+      image: rust:1.88-alpine
+    steps:
+      ### Checkout
+      - name: "Pre-clone dependencies"
+        run: |
+          apk add nodejs git tar
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      ####
+      - name: dependencies
+        run: |
+            apk add git musl-dev g++ openssl-dev openssl-libs-static jemalloc-static
+      # - uses: https://github.com/Swatinem/rust-cache@v2
+      - name: install toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+      - name: build
+        run: |
+          cargo build --locked --target wasm32-unknown-unknown -p spade-surfer-plugin --release
+          cp target/wasm32-unknown-unknown/release/spade_surfer_plugin.wasm .
+      - name: upload
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: spade_surfer_plugin
+          path: spade_surfer_plugin.wasm
+
+  build:wheel-manylinux:
+    runs-on: ["fbs", "medium", "debian-13-x86_64"]
+    container:
+      image: quay.io/pypa/manylinux_2_34_x86_64
+    steps:
+      ### Checkout
+      - name: "Pre-clone dependencies"
+        run: |
+          yum install nodejs --assumeyes
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      ####
+      - name: setup
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          source ${HOME}/.cargo/env && /opt/python/cp39-cp39/bin/pip install maturin
+      - name: build
+        run: |
+          source ${HOME}/.cargo/env && /opt/python/cp39-cp39/bin/maturin build -i /opt/python/cp39-cp39/bin/python -m spade-python/Cargo.toml
+      - name: upload
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: wheels
+          path: target/wheels/*.whl
+
+  build:static:
+    runs-on: ["fbs", "xlarge", "debian-13-x86_64"]
+    container:
+      image: rust:1.88-alpine
+    steps:
+      - name: "Pre-clone checkout"
+        run: |
+          apk add nodejs git
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      - name: dependencies
+        run: |
+            apk add git musl-dev g++ openssl-dev openssl-libs-static jemalloc-static make tar
+      # - uses: https://github.com/Swatinem/rust-cache@v2
+      - name: cargo build
+        run: |
+          cargo build --locked --release --workspace --exclude spade-python --exclude spade-surfer-plugin --exclude spade-cxx --target x86_64-unknown-linux-musl --exclude spade-simulation-ext --features jemalloc
+          strip target/x86_64-unknown-linux-musl/release/spade
+          mkdir -p spade/bin
+          cp target/x86_64-unknown-linux-musl/release/spade spade/bin
+          cp target/x86_64-unknown-linux-musl/release/spade-language-server spade/bin
+          cp target/x86_64-unknown-linux-musl/release/spadedoc spade/bin
+      - name: upload
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: spade
+          path: spade/bin/*
+          
+
+        
+        
+# yowasp:publish:
+# trawler:
+
+
+# .build:static:
+

@@ -1,0 +1,20 @@
+fn main(a: bool, b: bool, n: int<8>) -> int<8> {
+    let (p, pi) = port();
+
+    let foo = match (a, pi) {
+        (true, i) if b => {
+            set i = 10;
+            false
+        },
+        (true, i) => {
+            set i = 20;
+            false
+        },
+        (false, i) => {
+            set i = 30;
+            false
+        }
+    };
+
+    p +. n
+}

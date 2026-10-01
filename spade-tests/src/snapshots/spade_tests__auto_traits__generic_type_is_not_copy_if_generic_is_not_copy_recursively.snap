@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/auto_traits.rs
+---
+struct A<T> {
+    x: bool,
+    y: T,
+}
+
+struct B<T> {
+    payload: T
+}
+
+fn needs_copy<T: Copy>(x: T) {}
+
+fn test1(x: B<A<inv bool>>) {
+    needs_copy(x)
+}
+
+
+error: Argument type mismatch. Expected core::marker::Copy got B<A<inv bool>>
+   ┌─ testinput:13:16
+   │
+10 │ fn needs_copy<T: Copy>(x: T) {}
+   │                  ---- Required because of the trait bound specified here
+   ·
+13 │     needs_copy(x)
+   │                ^ B<A<inv bool>> does not implement core::marker::Copy

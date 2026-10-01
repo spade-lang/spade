@@ -4,6 +4,6 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> uint<8> {
 	const e385: uint<8> = 0
-	let x_n526: uint<8> = Alias(e385)
-	let e6: uint<8> = Alias(x_n526)
+	let x_n529: uint<8> = Alias(e385)
+	let e6: uint<8> = Alias(x_n529)
 } => e6

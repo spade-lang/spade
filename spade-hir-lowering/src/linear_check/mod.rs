@@ -1,10 +1,7 @@
 use num::ToPrimitive;
 use tracing::trace;
 
-use spade_common::{
-    location_info::{Loc, WithLocation},
-    name::Path,
-};
+use spade_common::location_info::{Loc, WithLocation};
 use spade_diagnostics::diagnostic::Subdiagnostic;
 use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::{
@@ -176,10 +173,12 @@ fn visit_expression(
         | spade_hir::ExprKind::BinaryOperator(_, _, _)
         | spade_hir::ExprKind::UnaryOperator(_, _)
         | spade_hir::ExprKind::Match(_, _)
+        | spade_hir::ExprKind::ConstTypeExpr(_)
         | spade_hir::ExprKind::Block(_)
         | spade_hir::ExprKind::Call { .. }
         | spade_hir::ExprKind::If { .. }
         | spade_hir::ExprKind::TypeLevelIf { .. }
+        | spade_hir::ExprKind::TypeLevelMatch { .. }
         | spade_hir::ExprKind::StageValid
         | spade_hir::ExprKind::StageReady => true,
         spade_hir::ExprKind::LambdaDef { .. } => diag_bail!(
@@ -320,6 +319,8 @@ fn visit_expression(
         }
         spade_hir::ExprKind::Match(cond, variants) => {
             visit_expression(cond, linear_state, ctx)?;
+            linear_state.consume_expression(cond)?;
+
             for (pat, if_cond, expr) in variants {
                 linear_state.push_pattern(pat, ctx)?;
                 if let Some(if_cond) = if_cond {
@@ -329,6 +330,7 @@ fn visit_expression(
                 linear_state.consume_expression(expr)?;
             }
         }
+        spade_hir::ExprKind::ConstTypeExpr(_) => {}
         spade_hir::ExprKind::Block(b) => {
             for statement in &b.statements {
                 visit_statement(statement, linear_state, ctx)?;
@@ -341,48 +343,29 @@ fn visit_expression(
         }
         spade_hir::ExprKind::Call {
             kind: _,
-            callee,
+            callee: _,
             args: list,
             turbofish: _,
             safety: _,
             verilog_attr_groups: _,
-        } => {
-            // The read_mut_wire function is special and should not consume the port
-            // it is reading.
-            // FIXME: When spade is more generic and can handle the * operator
-            // doing more fancy things, we should consider getting rid of this function
-            let consume = ctx
-                .symtab
-                .try_lookup_id(
-                    &Path::from_strs(&["std", "ports", "read_mut_wire"]).nowhere(),
-                    false,
-                )
-                .map(|n| n != callee.inner)
-                .unwrap_or(true);
-
-            match &list.inner {
-                ArgumentList::Named(args) => {
-                    for arg in args {
-                        match arg {
-                            NamedArgument::Full(_, expr) | NamedArgument::Short(_, expr) => {
-                                visit_expression(expr, linear_state, ctx)?;
-                                if consume {
-                                    linear_state.consume_expression(expr)?;
-                                }
-                            }
-                        }
-                    }
-                }
-                ArgumentList::Positional(args) => {
-                    for arg in args {
-                        visit_expression(arg, linear_state, ctx)?;
-                        if consume {
-                            linear_state.consume_expression(arg)?;
+        } => match &list.inner {
+            ArgumentList::Named(args) => {
+                for arg in args {
+                    match arg {
+                        NamedArgument::Full(_, expr) | NamedArgument::Short(_, expr) => {
+                            visit_expression(expr, linear_state, ctx)?;
+                            linear_state.consume_expression(expr)?;
                         }
                     }
                 }
             }
-        }
+            ArgumentList::Positional(args) => {
+                for arg in args {
+                    visit_expression(arg, linear_state, ctx)?;
+                    linear_state.consume_expression(arg)?;
+                }
+            }
+        },
         spade_hir::ExprKind::If {
             cond,
             on_true,
@@ -409,6 +392,9 @@ fn visit_expression(
         }
         spade_hir::ExprKind::TypeLevelIf { .. } => {
             diag_bail!(expr, "Type level if should have been lowered")
+        }
+        spade_hir::ExprKind::TypeLevelMatch { .. } => {
+            diag_bail!(expr, "Type level match should have been lowered")
         }
         spade_hir::ExprKind::MethodCall { .. } => diag_bail!(
             expr,

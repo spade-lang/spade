@@ -8,14 +8,14 @@ entity test(clk: clock, #[no_mangle] t: inout<int<8>>) {
     inst consumer(t_)
 }
 
-error: Trait bound not satisfied. inout<int<8>> does not implement core::marker::Data
+error: Trait bound not satisfied. inout<int<8>> does not implement core::marker::Data and core::marker::Copy
   ┌─ testinput:4:14
   │
 4 │     reg(clk) t_ = t;
-  │     ---      ^^   - The type of this expression is not Data which means it cannot be stored in a register.
+  │     ---      ^^   - The type of this expression is not `Data + Copy` which means it cannot be stored in a register.
   │     │        │     
-  │     │        inout<int<8>> does not implement core::marker::Data
+  │     │        inout<int<8>> does not implement core::marker::Data and core::marker::Copy
   │     Required because of the trait bound specified here
   │
-  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: An expression not being `Data + Copy` means it contains at least one `inv` or `clock` type
   = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

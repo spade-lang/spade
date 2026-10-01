@@ -9,7 +9,7 @@ fn test(x: uint<8>) -> bool {
 }
 
 
-error: Integer value does not fit in int<8>
+error: Integer value does not fit in uint<8>
   ┌─ testinput:3:9
   │
 3 │         512 => false,

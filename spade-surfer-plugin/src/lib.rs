@@ -875,9 +875,11 @@ fn descriptive_loc(expr: &Loc<Expression>) -> Option<Loc<()>> {
         | spade_hir::ExprKind::TypeCast(_, _)
         | spade_hir::ExprKind::UnaryOperator(_, _)
         | spade_hir::ExprKind::Match(_, _)
+        | spade_hir::ExprKind::ConstTypeExpr(_)
         | spade_hir::ExprKind::Block(_)
         | spade_hir::ExprKind::If { .. }
         | spade_hir::ExprKind::TypeLevelIf { .. }
+        | spade_hir::ExprKind::TypeLevelMatch { .. }
         | spade_hir::ExprKind::PipelineRef { .. }
         | spade_hir::ExprKind::StageValid
         | spade_hir::ExprKind::StageReady

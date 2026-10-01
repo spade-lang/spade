@@ -101,34 +101,47 @@ pub enum PathSegment {
     Impl(u64),
     IfT,
     IfF,
+    MatchCase(u64),
 }
 
 impl PathSegment {
     pub fn is_named(&self) -> bool {
         match self {
             PathSegment::Named(_) => true,
-            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => false,
+            PathSegment::Impl(_)
+            | PathSegment::IfT
+            | PathSegment::IfF
+            | PathSegment::MatchCase(_) => false,
         }
     }
 
     pub fn to_named_str(&self) -> Option<&str> {
         match self {
             PathSegment::Named(s) => Some(s.0),
-            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => None,
+            PathSegment::Impl(_)
+            | PathSegment::IfT
+            | PathSegment::IfF
+            | PathSegment::MatchCase(_) => None,
         }
     }
 
     pub fn loc(&self) -> Loc<()> {
         match self {
             PathSegment::Named(ident) => ident.loc(),
-            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => ().nowhere(),
+            PathSegment::Impl(_)
+            | PathSegment::IfT
+            | PathSegment::IfF
+            | PathSegment::MatchCase(_) => ().nowhere(),
         }
     }
 
     pub fn unwrap_named(&self) -> &Loc<Identifier> {
         match self {
             PathSegment::Named(ident) => ident,
-            PathSegment::Impl(_) | PathSegment::IfT | PathSegment::IfF => {
+            PathSegment::Impl(_)
+            | PathSegment::IfT
+            | PathSegment::IfF
+            | PathSegment::MatchCase(_) => {
                 panic!("called `PathSegment::unwrap_named()` on a generated path segment")
             }
         }
@@ -142,6 +155,7 @@ impl std::fmt::Display for PathSegment {
             PathSegment::Impl(n) => write!(f, "impl#{n}"),
             PathSegment::IfT => write!(f, "if#true"),
             PathSegment::IfF => write!(f, "if#false"),
+            PathSegment::MatchCase(n) => write!(f, "match#{n}"),
         }
     }
 }

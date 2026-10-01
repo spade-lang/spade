@@ -3,15 +3,15 @@ source: spade-tests/src/hir_lowering.rs
 ---
 extern fn test(a: bool, b: bool) -> bool;
 fn main() -> bool {
-    test$(a: true, c: true, b: true)
+    test(a: true, c: true, b: true)
 }
 
 
 error: No such argument: c
-  ┌─ testinput:3:20
+  ┌─ testinput:3:19
   │
 1 │ extern fn test(a: bool, b: bool) -> bool;
   │ ----------------------------------------- function defined here
 2 │ fn main() -> bool {
-3 │     test$(a: true, c: true, b: true)
-  │                    ^ No such argument
+3 │     test(a: true, c: true, b: true)
+  │                   ^ No such argument

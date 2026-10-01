@@ -349,6 +349,9 @@ impl PrettyDebug for ExprKind {
                     [0] "}"
                 }.to_string()
             },
+            crate::ExprKind::ConstTypeExpr(block) => {
+                format!("{{ {} }}", block.pretty_debug())
+            },
             crate::ExprKind::Block(block) => {
                 code!{
                     [0] "{";
@@ -370,6 +373,17 @@ impl PrettyDebug for ExprKind {
                     [1]    on_true.pretty_debug();
                     [0] "} else {";
                     [1]    on_false.pretty_debug();
+                    [0] "}";
+                }.to_string()
+            }
+            crate::ExprKind::TypeLevelMatch { expression, branches } => {
+                code!{
+                    [0] format!("gen match {} {{", expression.pretty_debug());
+                    [1]     branches.iter().map(|(pat, expr)| format!(
+                                "{} => {},",
+                                pat.pretty_debug(),
+                                expr.pretty_debug(),
+                            )).join("\n");
                     [0] "}";
                 }.to_string()
             }

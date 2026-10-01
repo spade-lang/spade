@@ -1,22 +1,22 @@
 ---
 source: spade-tests/src/data_requirements.rs
 ---
-fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
+fn test(sel: bool, x: clock, y: clock) -> clock {
     match sel {
         _ => x
     }
 }
 
 
-error: Trait bound not satisfied. inv bool does not implement core::marker::Data
+error: Trait bound not satisfied. clock does not implement core::marker::Data
   ┌─ testinput:3:14
   │    
 2 │ ╭ ╭     match sel {
 3 │ │ │         _ => x
-  │ │ │              ^ inv bool does not implement core::marker::Data
+  │ │ │              ^ clock does not implement core::marker::Data
 4 │ │ │     }
   │ ╰─│─────' Required because of the trait bound specified here
   │   ╰─────' The result of a match-expression must be Data.
   │    
-  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: An expression not being `Data` typically means it contains at least one `clock` type
   = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

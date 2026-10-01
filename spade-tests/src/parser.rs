@@ -444,12 +444,15 @@ code_compiles! {
 snapshot_error! {
     incorrect_named_args_gives_good_error,
     "
-        fn f(x: bool) -> bool {
-            x
+        struct S { a: bool }
+        fn f(a: bool) -> bool {
+            a
         }
-        fn top() -> bool {
-            let a = true;
-            f$(x = a)
+        fn s() -> S {
+            S { a = true }
+        }
+        fn c() -> bool {
+            f(a = true)
         }
     "
 }
@@ -795,8 +798,6 @@ snapshot_error! {
 snapshot_error! {
     item_contexts_are_cleared_on_error_recovery,
     "
-    use std::ports;
-
     entity test() {}
 
     entity int32_to_float32(input: int<32>) -> uint<32> {
@@ -1166,6 +1167,31 @@ snapshot_error! {
 
         fn bar() -> bool {
             foo()
+        }
+    "
+}
+
+snapshot_error! {
+    parser_error_for_bodiless_fn,
+    "
+        struct A { }
+        impl A {
+          fn test(self);
+        }
+
+        fn top(a: A) {
+          a.test();
+        }
+    "
+}
+
+snapshot_error! {
+    parser_error_for_bodiful_extern_fn,
+    "
+        extern fn test() {}
+
+        fn top() {
+          test();
         }
     "
 }

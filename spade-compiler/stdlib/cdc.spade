@@ -182,7 +182,7 @@ mod sync_wide_impl {
 pub entity sync_wide<T>(source_clk: clock, rst: bool, input: T, init: T, dest_clk: clock) -> T {
     let (from_tx, to_tx) = port();
 
-    let _ = inst sync_wide_impl::sender$(source_clk, rst, data_in: input, to_tx);
+    let _ = inst sync_wide_impl::sender(source_clk:, rst:, data_in: input, to_tx:);
 
-    inst sync_wide_impl::receiver$(dest_clk, rst, from_tx, init)
+    inst sync_wide_impl::receiver(dest_clk:, rst:, from_tx:, init:)
 }

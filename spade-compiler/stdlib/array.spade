@@ -13,10 +13,9 @@
 /// assert unfold::<uint<8>, 5>(1u8, fn |x| 2 *. x) == [1u8, 2u8, 4u8, 8u8, 16u8];
 /// ```
 pub fn unfold<T, #uint N>(seed: T, f: impl Fn(T) -> T) -> [T; N] {
-    gen if N == 0 {
-        []
-    } else {
-        [seed].concat(unfold::<T, {N-1}>(f.call((seed,)), f))
+    gen match N {
+        0 => [],
+        _ => [seed].concat(unfold::<T, {N-1}>(f.call((seed,)), f)),
     }
 }
 
@@ -80,10 +79,9 @@ impl<T, #uint N> [T; N] {
     /// assert [7u8, 10u8, 13u8].all(fn |x| x > 20) == false;
     /// ```
     fn all(self, f: impl Fn(T) -> bool) -> bool {
-        gen if N == 0 {
-            true
-        } else {
-            self.map(f).reduce_and()
+        gen match N {
+            0 => false,
+            _ => self.map(f).reduce_and(),
         }
     }
 
@@ -101,10 +99,9 @@ impl<T, #uint N> [T; N] {
     /// assert [7u8, 10u8, 13u8].any(fn |x| x > 20) == false;
     /// ```
     fn any(self, f: impl Fn(T) -> bool) -> bool {
-        gen if N == 0 {
-            false
-        } else {
-            self.map(f).reduce_or()
+        gen match N {
+            0 => false,
+            _ => self.map(f).reduce_or(),
         }
     }
 
@@ -131,11 +128,12 @@ impl<T, #uint N> [T; N] {
     where
         N == N / ChunkSize * ChunkSize else "The size of the input array must be a multiple of the chunk size"
     {
-        gen if N == 0 {
-            []
-        } else {
-            let (l, r) = self.split_at::<ChunkSize>();
-            [l].concat(r.chunks())
+        gen match N {
+            0 => [],
+            _ => {
+                let (l, r) = self.split_at::<ChunkSize>();
+                [l].concat(r.chunks())
+            },
         }
     }
 
@@ -192,11 +190,12 @@ impl<T, #uint N> [T; N] {
     /// assert [1u8, 2u8, 3u8, 4u8].fold(true, fn |acc, val| acc && val != 4) == false;
     /// ```
     fn fold<B>(self, init: B, f: impl Fn(B, T) -> B) -> B {
-        gen if N == 0 {
-            init
-        } else {
-            let v = f.call((init, self[0]));
-            self[1..].fold(v, f)
+        gen match N {
+            0 => init,
+            _ => {
+                let v = f.call((init, self[0]));
+                self[1..].fold(v, f)
+            }
         }
     }
 
@@ -231,13 +230,13 @@ impl<T, #uint N> [T; N] {
     /// assert array.map(fn |x| x < 4) == [true, true, true, false];
     /// ```
     fn map<O>(self, f: impl Fn(T) -> O) -> [O; N] {
-        gen if N == 0 {
-            []
-        } else if N == 1 {
-            [f.call((self[0],))]
-        } else {
-            let (l, r) = self.split_at::<{N/2}>();
-            l.map(f).concat(r.map(f))
+        gen match N {
+            0 => [],
+            1 => [f.call((self[0],))],
+            _ => {
+                let (l, r) = self.split_at::<{N/2}>();
+                l.map(f).concat(r.map(f))
+            },
         }
     }
 
@@ -300,10 +299,9 @@ impl<T, #uint N> [T; N] {
     where
         M <= N else "Window size is larger than array size"
     {
-        gen if N == M {
-            [self]
-        } else {
-            [self[..M]].concat(self[1..].sliding_window())
+        gen match N {
+            {M} => [self],
+            _ => [self[..M]].concat(self[1..].sliding_window()),
         }
     }
 
@@ -349,18 +347,18 @@ impl<T, #uint N> [T; N] {
     /// assert [].zip([]) == empty;
     /// ```
     fn zip<O>(self, other: [O; N]) -> [(T, O); N] {
-        gen if N == 0 {
-            []
-        } else if N == 1 {
-            [(self[0], other[0])]
-        } else {
-            let (ll, lr) = self.split_at::<{N/2}>();
-            let (rl, rr) = other.split_at::<{N/2}>();
+        gen match N {
+            0 => [],
+            1 => [(self[0], other[0])],
+            _ => {
+                let (ll, lr) = self.split_at::<{N/2}>();
+                let (rl, rr) = other.split_at::<{N/2}>();
 
-            let l = ll `zip` rl;
-            let r = lr `zip` rr;
+                let l = ll `zip` rl;
+                let r = lr `zip` rr;
 
-            l.concat(r)
+                l.concat(r)
+            }
         }
     }
 
@@ -479,16 +477,16 @@ impl<S, T, #uint N> [(S, T); N] {
     /// assert empty.unzip() == ([], []);
     /// ```
     fn unzip(self) -> ([S; N], [T; N]) {
-        gen if N == 0 {
-            ([], [])
-        } else if N == 1 {
-            ([self[0].0], [self[0].1])
-        } else {
-            let (l, r) = self.split_at::<{N/2}>();
-            let (ll, lr) = l.unzip();
-            let (rl, rr) = r.unzip();
+        gen match N {
+            0 => ([], []),
+            1 => ([self[0].0], [self[0].1]),
+            _ => {
+                let (l, r) = self.split_at::<{N/2}>();
+                let (ll, lr) = l.unzip();
+                let (rl, rr) = r.unzip();
 
-            (ll.concat(rl), lr.concat(rr))
+                (ll.concat(rl), lr.concat(rr))
+            },
         }
     }
 }
@@ -551,13 +549,13 @@ impl<T, #uint N, #uint M> [[T; M]; N] {
     /// assert [[[1u8], [2u8]], [[3u8], [4u8]]].flatten() == [[1u8], [2u8], [3u8], [4u8]];
     /// ```
     fn flatten(self) -> [T; {N * M}] {
-        gen if N == 0 {
-            []
-        } else if N == 1 {
-            self[0]
-        } else {
-            let (l, r) = self.split_at::<{N/2}>();
-            l.flatten().concat(r.flatten())
+        gen match N {
+            0 => [],
+            1 => self[0],
+            _ => {
+                let (l, r) = self.split_at::<{N/2}>();
+                l.flatten().concat(r.flatten())
+            },
         }
     }
 }

@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn main() -> uint<2> {
+    const type { 300 / 7 }
+}
+
+
+error: Integer value does not fit in uint<2>
+  ┌─ testinput:2:5
+  │
+2 │     const type { 300 / 7 }
+  │     ^^^^^^^^^^^^^^^^^^^^^^ 42 does not fit in an uint<2>
+  │
+  = note: uint<2> fits unsigned integers in the range (0, 3)

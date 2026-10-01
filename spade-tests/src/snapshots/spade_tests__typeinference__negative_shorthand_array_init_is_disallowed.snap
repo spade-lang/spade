@@ -19,4 +19,4 @@ error: Expected type #uint, got -1
                 in: #uint
                Got: -1
                 in: -1
-  = note: The number of array elements must  match
+  = note: The number of array elements must match

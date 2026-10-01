@@ -44,8 +44,8 @@ impl ExpectedArgumentList {
         if self.next_token.kind == TokenKind::OpenBrace
             || self.next_token.kind == TokenKind::OpenBracket
         {
-            diag.help("Positional argument lists start with`(`.")
-                .help("Named argument lists start with `{` or `$(`.")
+            diag.help("Positional argument lists start with `(`.")
+                .help("Named argument lists may start with `{` or `(`.")
         } else {
             // If not, we'll suggest inserting the argument list after the base expression. We
             // *could* suggest it at the next token, but if the next token is on a new line,

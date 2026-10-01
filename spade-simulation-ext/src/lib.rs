@@ -377,6 +377,7 @@ impl Spade {
                 owned_state.symtab.symtab(),
                 &owned_state.item_list.types,
             )
+            .map_err(|d| anyhow!("Failed to ungenerify type: {d:?}"))?
             .unwrap();
 
         let fwd_size = concrete.to_mir_type().size();
@@ -435,9 +436,10 @@ impl Spade {
         let ty = &field.ty;
         let ty_id = ty.insert(&mut self.type_state);
 
-        let concrete =
-            self.type_state
-                .ungenerify_type(&ty_id, &symtab, &owned_state.item_list.types);
+        let concrete = self
+            .type_state
+            .ungenerify_type(&ty_id, &symtab, &owned_state.item_list.types)
+            .map_err(|d| anyhow!("Failed to ungenerify type: {d:?}"))?;
         let has_field = concrete
             .map(|c| concrete_ty_has_field(&c, next))
             .unwrap_or_default();
@@ -666,6 +668,7 @@ impl Spade {
                 owned_state.symtab.symtab(),
                 &owned_state.item_list.types,
             )
+            .map_err(|d| anyhow!("Failed to ungenerify type: {d:?}"))?
             .unwrap();
 
         let fwd_size = concrete.to_mir_type().size();
@@ -728,6 +731,7 @@ impl Spade {
                 owned_state.symtab.symtab(),
                 &owned_state.item_list.types,
             )
+            .map_err(|d| anyhow!("Failed to ungenerify type: {d:?}"))?
             .unwrap();
 
         let relevant_bits =

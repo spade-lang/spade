@@ -5,7 +5,7 @@ use spade_common::location_info::FullSpan;
 
 const INTERNAL_BUG_NOTE: &str = r#"This is an internal bug in the compiler.
 We would appreciate if you opened an issue in the repository:
-https://gitlab.com/spade-lang/spade/-/issues/new?issuable_template=Internal%20bug"#;
+https://codeberg.org/spade-lang/spade/issues/new"#;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Message {

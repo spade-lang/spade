@@ -13,10 +13,10 @@ fn index_internal_array_2(i: uint<2>) -> int<8> {
 entity index_via_mut_wire(i: uint<2>) -> int<8> {
     let a = [0, 1, 2, 3];
 
-    let a_wire = inst std::ports::new_mut_wire();
+    let a_wire = port().1;
     set a_wire = a;
 
-    let a_out = inst std::ports::read_mut_wire(a_wire);
+    let a_out = *a_wire.inspect();
 
     a_out[i]
 }

@@ -11,14 +11,14 @@ entity test(clk: clock) {
 }
 
 
-error: Trait bound not satisfied. inv uint<32> does not implement core::marker::Data
+error: Trait bound not satisfied. inv uint<32> does not implement core::marker::Copy
   ┌─ testinput:2:32
   │    
 2 │         let pl = pipeline(1) |clk, x| {
   │                                    ^
   │                                    │
-  │                                    inv uint<32> does not implement core::marker::Data
-  │                                    The type of this expression is not Data which means it cannot be stored in a register.
+  │                                    inv uint<32> does not implement core::marker::Copy
+  │                                    The type of this expression is not `Data + Copy` which means it cannot be stored in a register.
   │ ╭─────────────────────────────────────'
   │ │ ╭───────────────────────────────────'
 3 │ │ │         reg;
@@ -27,10 +27,10 @@ error: Trait bound not satisfied. inv uint<32> does not implement core::marker::
   │ ╰─│─────' Required because of the trait bound specified here
   │   ╰─────' The value needs to be in a register because it is in this pipeline
   │    
-  = help: An expression not being Data typically means it contains at least one `inv` type
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
+  = help: An expression not being `Data + Copy` typically means it contains at least one `inv` type
+  = help: You can learn more about `Data` and `Copy` here: https://docs.spade-lang.org/wires.html
   = The error is in a generic unit instantiated at
-    ╰ testinput:7 impl#43::call<inv uint<32>, inv uint<32>>
+    ╰ testinput:7 impl#44::call<inv uint<32>, inv uint<32>>
   = Consider making the binding a wire
   │
 2 │     let pl = pipeline(1) |clk, wire x| {

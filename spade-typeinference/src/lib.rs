@@ -648,6 +648,40 @@ impl TypeState {
         ))
     }
 
+    pub fn new_generic_data_copy(&mut self, loc: Loc<()>, ctx: &Context) -> TypeVarID {
+        let id = self.new_typeid();
+        let t_data = TraitReq {
+            name: TraitName::Named(
+                None,
+                ctx.symtab
+                    .lang_item(LangItem::DataTrait)
+                    .clone()
+                    .at_loc(&loc),
+            ),
+            type_params: vec![],
+        }
+        .at_loc(&loc);
+
+        let t_copy = TraitReq {
+            name: TraitName::Named(
+                None,
+                ctx.symtab
+                    .lang_item(LangItem::CopyTrait)
+                    .clone()
+                    .at_loc(&loc),
+            ),
+            type_params: vec![],
+        }
+        .at_loc(&loc);
+
+        self.add_type_var(TypeVar::Unknown(
+            loc,
+            id,
+            TraitList::from_vec(vec![t_data, t_copy]),
+            MetaType::Type,
+        ))
+    }
+
     pub fn new_generic_copy_view(&mut self, loc: Loc<()>, ctx: &Context) -> TypeVarID {
         let id = self.new_typeid();
         let t = TraitReq {
@@ -844,7 +878,7 @@ impl TypeState {
             match (pipeline_loc, wire) {
                 (Some(pipeline_loc), None) => {
                     TypedExpression::Name(name.inner.clone())
-                        .unify_with(&self.new_generic_data(pipeline_loc, ctx), self)
+                        .unify_with(&self.new_generic_data_copy(pipeline_loc, ctx), self)
                         .commit(self, ctx)
                         .into_diagnostic(
                             name,
@@ -852,13 +886,14 @@ impl TypeState {
                                 diag.secondary_label(
                                     name,
                                     format!(
-                                        "The type of this argument is not Data which means it cannot be stored in a register."
+                                        "The type of this argument is not `Data + Copy` which means it cannot be stored in a register."
                                     ),
                                 )
                                 .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
                                 .span_suggest_insert_before("Consider making the argument a wire", name, "wire ")
-                                .help("An value not being Data typically means it contains at least one `inv` type")
-                                .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
+                                .help("An value not being `Data` typically means it contains at least one `clock` type")
+                                .help("An value not being `Copy` typically means it contains at least one `inv` type")
+                                .help(format!("You can learn more about `Data` and `Copy` here: {}", WIRE_DOCS))
                             },
                             self,
                         )?;
@@ -896,7 +931,7 @@ impl TypeState {
             Statement::Expression(e) => self.expression_data_constraints(e, pipeline_loc, ctx)?,
             Statement::Register(reg) => {
                 TypedExpression::Id(reg.value.id)
-                    .unify_with(&self.new_generic_data(reg.keyword, ctx), self)
+                    .unify_with(&self.new_generic_data_copy(reg.keyword, ctx), self)
                     .commit(self, ctx)
                     .into_diagnostic(
                         &reg.pattern,
@@ -904,10 +939,10 @@ impl TypeState {
                             diag.secondary_label(
                                 &reg.value,
                                 format!(
-                                    "The type of this expression is not Data which means it cannot be stored in a register."
+                                    "The type of this expression is not `Data + Copy` which means it cannot be stored in a register."
                                 ),
                             )
-                            .help("An expression not being Data typically means it contains at least one `inv` type")
+                            .help("An expression not being `Data + Copy` means it contains at least one `inv` or `clock` type")
                                 .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                         },
                         self,
@@ -942,7 +977,7 @@ impl TypeState {
                 match (pipeline_loc, wire) {
                     (Some(pipeline_loc), None) => {
                         TypedExpression::Name(name.inner.clone())
-                            .unify_with(&self.new_generic_data(*pipeline_loc, ctx), self)
+                            .unify_with(&self.new_generic_data_copy(*pipeline_loc, ctx), self)
                             .commit(self, ctx)
                             .into_diagnostic(
                                 name,
@@ -950,13 +985,13 @@ impl TypeState {
                                     diag.secondary_label(
                                         name,
                                         format!(
-                                            "The type of this expression is not Data which means it cannot be stored in a register."
+                                            "The type of this expression is not `Data + Copy` which means it cannot be stored in a register."
                                         ),
                                     )
                                     .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
                                     .span_suggest_insert_before("Consider making the binding a wire", name, "wire ")
-                                    .help("An expression not being Data typically means it contains at least one `inv` type")
-                                    .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
+                                    .help("An expression not being `Data + Copy` typically means it contains at least one `inv` type")
+                                    .help(format!("You can learn more about `Data` and `Copy` here: {}", WIRE_DOCS))
                                 },
                                 self,
                             )?;
@@ -1025,7 +1060,14 @@ impl TypeState {
                 self.expression_data_constraints(&on_true, pipeline_loc, ctx)?;
                 self.expression_data_constraints(&on_false, pipeline_loc, ctx)?;
             }
-
+            ExprKind::TypeLevelMatch {
+                expression: _,
+                branches,
+            } => {
+                for (_, expr) in branches {
+                    self.expression_data_constraints(expr, pipeline_loc, ctx)?;
+                }
+            }
             ExprKind::If {
                 cond: _,
                 on_true,
@@ -1043,7 +1085,7 @@ impl TypeState {
                                     "The result of an if-expression must be Data."
                                 ),
                             )
-                            .help("An expression not being Data typically means it contains at least one `inv` type")
+                            .help("An expression not being `Data` typically means it contains at least one `clock` type")
                                 .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                         },
                         self,
@@ -1064,7 +1106,7 @@ impl TypeState {
                                     "The result of a match-expression must be Data."
                                 ),
                             )
-                            .help("An expression not being Data typically means it contains at least one `inv` type")
+                            .help("An expression not being `Data` typically means it contains at least one `clock` type")
                             .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
                         },
                         self,
@@ -1087,6 +1129,7 @@ impl TypeState {
             | ExprKind::TupleIndex(_, _)
             | ExprKind::FieldAccess(_, _)
             | ExprKind::TypeCast(_, _)
+            | ExprKind::ConstTypeExpr(_)
             | ExprKind::MethodCall { .. }
             | ExprKind::Call { .. }
             | ExprKind::AssociatedCall { .. }
@@ -1234,7 +1277,7 @@ impl TypeState {
             ExprKind::Error => {
                 new_type
                     .unify_with(&self.t_err(expression.loc()), self)
-                    .commit(self, ctx)
+                    .commit_without_checking_constraints(self, ctx)
                     .unwrap();
             }
             ExprKind::Identifier(_) => self.visit_identifier(expression, ctx)?,
@@ -1265,7 +1308,7 @@ impl TypeState {
 
                 new_type
                     .unify_with(&self.t_err(expression.loc()), self)
-                    .commit(self, ctx)
+                    .commit_without_checking_constraints(self, ctx)
                     .unwrap();
             }
             ExprKind::FieldAccess(_, _) => {
@@ -1278,6 +1321,7 @@ impl TypeState {
             }
             ExprKind::RangeIndex { .. } => self.visit_range_index(expression, ctx, generic_list)?,
             ExprKind::Index(_, _) => self.visit_index(expression, ctx, generic_list)?,
+            ExprKind::ConstTypeExpr(_) => self.visit_const_type(expression, ctx, generic_list)?,
             ExprKind::Block(_) => self.visit_block_expr(expression, ctx, generic_list)?,
             ExprKind::If { .. } => self.visit_if(expression, ctx, generic_list)?,
             ExprKind::Match(_, _) => self.visit_match(expression, ctx, generic_list)?,
@@ -1321,7 +1365,6 @@ impl TypeState {
                     .commit(self, ctx)
                     .into_default_diagnostic(expression, self)?;
             }
-
             ExprKind::TypeLevelIf {
                 cond,
                 on_true,
@@ -1330,7 +1373,7 @@ impl TypeState {
                 let cond_var = self.visit_const_generic_with_id(
                     cond,
                     generic_list,
-                    ConstraintSource::TypeLevelIf,
+                    ConstraintSource::GenExpr,
                     ctx,
                 )?;
                 let t_bool = self.new_generic_tlbool(cond.loc());
@@ -1348,6 +1391,48 @@ impl TypeState {
 
                 self.unify_expression_generic_error(expression, on_true.as_ref(), ctx)?;
                 self.unify_expression_generic_error(expression, on_false.as_ref(), ctx)?;
+            }
+            ExprKind::TypeLevelMatch {
+                expression: e,
+                branches,
+            } => {
+                let extract_meta = |s: &mut Self, c: &Loc<ConstGenericWithId>| {
+                    let var = s.visit_const_generic_with_id(
+                        c,
+                        generic_list,
+                        ConstraintSource::GenExpr,
+                        ctx,
+                    )?;
+
+                    let meta = match var.resolve(s) {
+                        TypeVar::Unknown(_, _, _, m) => m,
+                        TypeVar::Known(_, _, _) => {
+                            return Err(Diagnostic::bug(
+                                c,
+                                "Const generic resolved to known type var",
+                            ));
+                        }
+                    };
+
+                    Ok(meta)
+                };
+
+                let emeta = extract_meta(self, e)?;
+
+                for (pat, expr) in branches {
+                    if let Some(ty) = &pat.inner {
+                        let ty = ty.clone().at_loc(pat);
+                        let tmeta = extract_meta(self, &ty)?;
+
+                        let tgen = self.new_generic_with_meta(ty.loc(), tmeta);
+                        let egen = self.new_generic_with_meta(e.loc(), emeta.clone());
+                        self.unify(&tgen, &egen, ctx)
+                            .into_default_diagnostic(expression, self)?;
+                    }
+
+                    self.visit_expression(expr, ctx, generic_list);
+                    self.unify_expression_generic_error(expr, expression, ctx)?;
+                }
             }
             ExprKind::LambdaDef { .. } => {
                 self.visit_lambda_def(expression, ctx, generic_list)?;
@@ -1374,10 +1459,18 @@ impl TypeState {
             match self.visit_expression_result(expression, ctx, generic_list, new_type) {
                 Ok(_) => {}
                 Err(e) => {
-                    new_type
+                    // NOTE: At first thought, it might seem like this unification is infallible
+                    // and that we could use `.commit_without_checking_constraints`. However,
+                    // expression unification pushes struct constraints, and those are sometimes
+                    // not caught until this unification. Therefore, we have to run normal unificaiton
+                    // to get good "error occurred when unifying types here" errors.
+                    if let Err(d) = new_type
                         .unify_with(&self.t_err(expression.loc()), self)
                         .commit(self, ctx)
-                        .unwrap();
+                        .into_diagnostic(expression.loc(), |d, _| d, self)
+                    {
+                        self.owned.diags.errors.push(d);
+                    }
 
                     self.owned.diags.errors.push(e);
                 }
@@ -1702,7 +1795,8 @@ impl TypeState {
         );
 
         // NOTE: Unwrap is safe, size is still generic at this point
-        self.unify(&addr_size, &addr_size_arg, ctx).unwrap();
+        self.unify_without_checking_constraints(&addr_size, &addr_size_arg, ctx)
+            .unwrap();
         self.unify_expression_generic_error(args[1].value, &port_type, ctx)?;
 
         Ok(())
@@ -1726,7 +1820,8 @@ impl TypeState {
         );
 
         // NOTE: Unwrap is safe, size is still generic at this point
-        self.unify(&addr_size, &addr_size_arg, ctx).unwrap();
+        self.unify_without_checking_constraints(&addr_size, &addr_size_arg, ctx)
+            .unwrap();
 
         Ok(())
     }
@@ -2377,7 +2472,7 @@ impl TypeState {
                 {
                     current_stage_depth
                         .unify_with(&self.t_err(stmt.loc()), self)
-                        .commit(self, ctx)
+                        .commit_without_checking_constraints(self, ctx)
                         .unwrap();
                 }
                 Ok(())
@@ -2506,7 +2601,7 @@ impl TypeState {
                     var
                 };
                 // Safe unwrap, unifying with a fresh var
-                self.unify(
+                self.unify_without_checking_constraints(
                     &var,
                     &self.get_pipeline_state(name)?.current_stage_depth.clone(),
                     ctx,
@@ -2843,31 +2938,23 @@ impl TypeState {
         Ok(var)
     }
 
-    #[trace_typechecker]
-    pub fn visit_const_generic(
-        &self,
-        constraint: &ConstGeneric,
-        generic_list: &GenericListToken,
+    pub(crate) fn const_generic_to_constraint_expr(
+        cg: &ConstGeneric,
+        resolve_name: &dyn Fn(&Loc<NameID>) -> Result<ConstraintExpr>,
     ) -> Result<ConstraintExpr> {
         let wrap = |lhs,
                     rhs,
                     wrapper: fn(Box<ConstraintExpr>, Box<ConstraintExpr>) -> ConstraintExpr|
          -> Result<_> {
             Ok(wrapper(
-                Box::new(self.visit_const_generic(lhs, generic_list)?),
-                Box::new(self.visit_const_generic(rhs, generic_list)?),
+                Box::new(Self::const_generic_to_constraint_expr(lhs, resolve_name)?),
+                Box::new(Self::const_generic_to_constraint_expr(rhs, resolve_name)?),
             ))
         };
-        let constraint = match constraint {
-            ConstGeneric::Name(n) => {
-                let gl = self
-                    .get_generic_list(generic_list)
-                    .ok_or_else(|| diag_anyhow!(n, "Found no generic list"))?;
-                let var = gl.get(&Generic::Named(n.clone())).ok_or_else(|| {
-                    Diagnostic::bug(n, "Found non-generic argument in where clause")
-                })?;
-                ConstraintExpr::Var(*var)
-            }
+
+        let constraint = match cg {
+            ConstGeneric::Name(n) => resolve_name(n)?,
+
             ConstGeneric::Bool(val) => ConstraintExpr::Bool(*val),
             ConstGeneric::Int(val) => ConstraintExpr::Integer(val.clone()),
             ConstGeneric::Str(val) => ConstraintExpr::String(val.clone()),
@@ -2882,20 +2969,38 @@ impl TypeState {
             ConstGeneric::Gt(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Gt)?,
             ConstGeneric::Le(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Le)?,
             ConstGeneric::Ge(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::Ge)?,
-            ConstGeneric::LogicalNot(a) => {
-                ConstraintExpr::LogicalNot(Box::new(self.visit_const_generic(a, generic_list)?))
-            }
+            ConstGeneric::LogicalNot(a) => ConstraintExpr::LogicalNot(Box::new(
+                Self::const_generic_to_constraint_expr(a, resolve_name)?,
+            )),
             ConstGeneric::LogicalAnd(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalAnd)?,
             ConstGeneric::LogicalOr(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalOr)?,
             ConstGeneric::LogicalXor(lhs, rhs) => wrap(lhs, rhs, ConstraintExpr::LogicalXor)?,
             ConstGeneric::IntBitsFor(a) => ConstraintExpr::IntBitsToRepresent(Box::new(
-                self.visit_const_generic(a, generic_list)?,
+                Self::const_generic_to_constraint_expr(a, resolve_name)?,
             )),
             ConstGeneric::UintBitsFor(a) => ConstraintExpr::UintBitsToRepresent(Box::new(
-                self.visit_const_generic(a, generic_list)?,
+                Self::const_generic_to_constraint_expr(a, resolve_name)?,
             )),
         };
+
         Ok(constraint)
+    }
+
+    #[trace_typechecker]
+    pub fn visit_const_generic(
+        &self,
+        constraint: &ConstGeneric,
+        generic_list: &GenericListToken,
+    ) -> Result<ConstraintExpr> {
+        Self::const_generic_to_constraint_expr(constraint, &|n| {
+            let gl = self
+                .get_generic_list(generic_list)
+                .ok_or_else(|| diag_anyhow!(n, "Found no generic list"))?;
+            let var = gl
+                .get(&Generic::Named(n.clone()))
+                .ok_or_else(|| Diagnostic::bug(n, "Found non-generic argument in where clause"))?;
+            Ok(ConstraintExpr::Var(*var))
+        })
     }
 }
 
@@ -3340,6 +3445,22 @@ impl TypeState {
         result
     }
 
+    /// Unify without checking constraints. This is intended to be used when doing "infallible"
+    /// unification, such as unifying with `t_error` or `new_generic`. Unlike `unify`, unwrapping
+    /// the result of this is safe assuming that the unification is safe.
+    ///
+    /// Since constraints are not checked, this should be used sparingly. Especially since the unification
+    /// point of the next unification with constraints is going to be the one reported for all failing
+    /// constraints.
+    pub fn unify_without_checking_constraints(
+        &mut self,
+        e1: &impl HasType,
+        e2: &impl HasType,
+        ctx: &Context,
+    ) -> std::result::Result<TypeVarID, UnificationError> {
+        self.unify_inner(e1, e2, ctx)
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn unify(
         &mut self,
@@ -3355,11 +3476,21 @@ impl TypeState {
             trace!("Updating constraints");
             // NOTE: Cloning here is kind of ugly
             let new_info;
-            (self.owned.constraints, new_info) = self
+            let mut diagnostics;
+            (self.owned.constraints, new_info, diagnostics) = self
                 .owned
                 .constraints
                 .clone()
                 .update_type_level_value_constraints(self);
+
+            // Even if we get multiple diagnostics from updating type level constraints, we can
+            // only report a <the error occurred while unifying types here> message on one of them
+            // since we don't currently support adding context to more than one error. Alternatively we could
+            // just put the diagnostic into `self.owned.errors`, but that might be more confusing than helpful
+            // without the added context.
+            if let Some(diag) = diagnostics.pop() {
+                return Err(UnificationError::Specific(diag));
+            }
 
             if new_info.is_empty() {
                 break;
@@ -3811,6 +3942,14 @@ pub struct UnificationBuilder {
     rhs: TypeVarID,
 }
 impl UnificationBuilder {
+    /// See the documentation on `unify_without_checking_constraints` for details on when to use this
+    pub fn commit_without_checking_constraints(
+        self,
+        state: &mut TypeState,
+        ctx: &Context,
+    ) -> std::result::Result<TypeVarID, UnificationError> {
+        state.unify_without_checking_constraints(&self.lhs, &self.rhs, ctx)
+    }
     pub fn commit(
         self,
         state: &mut TypeState,

@@ -1,0 +1,13 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn main() -> bool {
+    const type { "evil" }
+}
+
+
+error: Type-level strings have no value-level equivalent
+  ┌─ testinput:2:5
+  │
+2 │     const type { "evil" }
+  │     ^^^^^^^^^^^^^^^^^^^^^ Type-level string cannot be converted to a value

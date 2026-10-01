@@ -265,6 +265,7 @@ pub enum ExprKind {
         Box<Loc<Expression>>,
         Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>,
     ),
+    ConstTypeExpr(Loc<ConstGenericWithId>),
     Block(Box<Block>),
     If {
         cond: Box<Loc<Expression>>,
@@ -276,6 +277,10 @@ pub enum ExprKind {
         cond: Loc<ConstGenericWithId>,
         on_true: Box<Loc<Expression>>,
         on_false: Box<Loc<Expression>>,
+    },
+    TypeLevelMatch {
+        expression: Loc<ConstGenericWithId>,
+        branches: Vec<(Loc<Option<ConstGenericWithId>>, Loc<Expression>)>,
     },
     PipelineRef {
         stage: Loc<PipelineRefKind>,

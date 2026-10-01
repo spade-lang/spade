@@ -7,5 +7,5 @@ entity \test ((clk, clk_n101, bool), (x, x_n102, (uint<8>, uint<8>))) -> (uint<8
 	reg(clk_n101) e382: uint<8> = e381
 	let e383: uint<8> = IndexTuple(1)(x_n102)
 	reg(clk_n101) e384: uint<8> = e383
-	let s1_x_n525: (uint<8>, uint<8>) = ConstructTuple(e382, e384)
-} => s1_x_n525
+	let s1_x_n528: (uint<8>, uint<8>) = ConstructTuple(e382, e384)
+} => s1_x_n528

@@ -436,17 +436,19 @@ fn forward_expression_code(
         }
         Operator::Match => {
             assert!(
-                op_names.len() % 2 == 0,
-                "Match statements must have an even number of operands"
+                op_names.len() % 3 == 1,
+                "Match statements must be divisible into one variable pat + groups of 3 (op, cond, result)"
             );
 
-            let num_branches = op_names.len() / 2;
+            let branch_ops = &op_names[1..];
+            let num_branches = branch_ops.len() / 3;
 
             let mut conditions = vec![];
             let mut cases = vec![];
             for i in 0..num_branches {
-                let cond = &op_names[i * 2];
-                let result = &op_names[i * 2 + 1];
+                let _op = &branch_ops[i * 3]; // unused here
+                let cond = &branch_ops[i * 3 + 1];
+                let result = &branch_ops[i * 3 + 2];
 
                 conditions.push(cond.clone());
 
@@ -513,7 +515,8 @@ fn forward_expression_code(
             )
         }
         Operator::IndexArray => {
-            let Type::Array { length, .. } = &types[&ops[0]] else {
+            let stripped_type = types[&ops[0]].strip_copy_view_layers();
+            let Type::Array { length, .. } = stripped_type else {
                 panic!("Array index with non-array input");
             };
             let member_size = self_type.size();
@@ -583,16 +586,17 @@ fn forward_expression_code(
             let initial_block = if let Some(vals) = initial {
                 let assignments = vals
                     .iter()
-                    .enumerate()
-                    .map(|(i, v)| {
+                    .map(|v| {
                         let val = eval_statements(v).as_string();
 
-                        format!("{}[{i}] = 'b{val};", name)
+                        format!("'b{val},")
                     })
                     .collect::<Vec<_>>();
                 code! {
                     [0] "initial begin";
-                    [1]     assignments;
+                    [1]     format!("{name} = '{{");
+                    [2]         assignments;
+                    [1]     "};";
                     [0] "end";
                 }
             } else {
@@ -769,16 +773,11 @@ fn forward_expression_code(
                 format!("{}[{}:{}]", op_names[0], upper_idx, lower_idx)
             }
         }
-        Operator::ReadPort => ops[0].backward_var_name(),
         Operator::ReadWriteItemsInOut(_) => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
         Operator::FlipPort => {
-            // NOTE Dummy. Set in statement_code
-            String::new()
-        }
-        Operator::ReadMutWires => {
             // NOTE Dummy. Set in statement_code
             String::new()
         }
@@ -884,7 +883,6 @@ fn backward_expression_code(
         | Operator::RangeIndexBits { .. }
         | Operator::IndexMemory
         | Operator::Inspect
-        | Operator::ReadPort
         | Operator::Truncate => panic!(
             "{} cannot be used on types with backward size",
             binding.operator
@@ -968,10 +966,6 @@ fn backward_expression_code(
         Operator::ConstructCopyView => String::new(),
         Operator::FlipPort => {
             // NOTE: Set in statement_code
-            String::new()
-        }
-        Operator::ReadMutWires => {
-            // NOTE Dummy. Set in statement_code
             String::new()
         }
         Operator::ReadWriteItemsInOut(_) => {
@@ -1097,7 +1091,15 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     }.to_string()
                 },
                 Operator::Match => {
+                    assert!(
+                        ops.len() % 3 == 1,
+                        "Match statements must be divisible into one variable pat + groups of 3 (op, cond, result)"
+                    );
+
                     let mut snippets = vec![];
+                    let global_pat = &binding.operands[0];
+                    let global_pat_name = &global_pat.var_name();
+                    let global_pat_back_name = &global_pat.backward_var_name();
 
                     if binding.ty.size() != BigUint::zero() {
                         snippets.push(code! {
@@ -1106,11 +1108,56 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     }
 
                     if binding.ty.backward_size() != BigUint::zero() {
-                        for back_pair in back_ops.chunks_exact(2) {
+                        let triplets = back_ops[1..].as_chunks::<3>().0;
+                        for [_, _, branch_back_name] in triplets {
                             snippets.push(code! {
-                                [0] format!("assign {} = {};", back_pair[1], back_name);
+                                [0] format!("assign {} = {};", branch_back_name, back_name);
                             }.to_string());
                         }
+                    }
+
+                    if ctx.types[&binding.operands[0]].size() != BigUint::zero() {
+                        let triplets = ops[1..].as_chunks::<3>().0;
+                        for [local_pat_name, _, _] in triplets {
+                            snippets.push(code! {
+                                [0] format!("assign {} = {};", local_pat_name, global_pat_name);
+                            }.to_string());
+                        }
+                    }
+
+                    if ctx.types[&binding.operands[0]].backward_size() != BigUint::zero() {
+                        let branch_ops = &ops[1..];
+                        let branch_back_ops = &back_ops[1..];
+                        let num_branches = branch_ops.len() / 3;
+
+                        let mut conditions = vec![];
+                        let mut cases = vec![];
+                        for i in 0..num_branches {
+                            let back_op = &branch_back_ops[i * 3];
+                            let cond = &branch_ops[i * 3 + 1];
+                            let _result = &branch_ops[i * 3 + 2];
+
+                            conditions.push(cond.clone());
+
+                            let zeros = (0..i).map(|_| '0').collect::<String>();
+                            let unknowns = (0..(num_branches - i - 1)).map(|_| '?').collect::<String>();
+                            cases.push(format!(
+                                "{}'b{}1{}: {} = {};",
+                                num_branches, zeros, unknowns, global_pat_back_name, back_op
+                            ))
+                        }
+
+                        let fallback = format!("{}'dx", ctx.types[&global_pat].backward_size());
+
+                        snippets.push(code! (
+                            [0] "always_comb begin";
+                            [1]     format!("priority casez ({{{}}})", conditions.join(", "));
+                            [2]         cases;
+                            [2]         format!("{num_branches}'b?: {global_pat_back_name} = {fallback};");
+                            [1]     "endcase";
+                            [0] "end";
+                        )
+                        .to_string());
                     }
 
                     snippets.join("\n")
@@ -1143,14 +1190,6 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     code! {
                         [0] has_fwd.then(|| format!("assign {} = {};", name, back_ops[0]));
                         [0] has_back.then(|| format!("assign {} = {};", ops[0], back_name));
-                    }
-                    .to_string()
-                }
-                Operator::ReadMutWires => {
-                    // The forward ports of the flipped port (op[0]) and and the original (self)
-                    // should be mapped to the backward ports of the opposite port
-                    code! {
-                        [0] format!("assign {} = {};", name, back_ops[0]);
                     }
                     .to_string()
                 }
@@ -2441,24 +2480,26 @@ mod expression_tests {
 
     #[test]
     fn match_operator_works() {
-        let stmt = statement!(e(0); Type::int(2); Match; e(1), e(2), e(3), e(4));
+        let stmt = statement!(e(0); Type::int(2); Match; e(1), e(2), e(3), e(4), e(5), e(6), e(7));
 
         let expected = indoc!(
             r#"
             logic[1:0] _e_0;
             always_comb begin
-                priority casez ({_e_1, _e_3})
-                    2'b1?: _e_0 = _e_2;
-                    2'b01: _e_0 = _e_4;
+                priority casez ({_e_3, _e_6})
+                    2'b1?: _e_0 = _e_4;
+                    2'b01: _e_0 = _e_7;
                     2'b?: _e_0 = 2'dx;
                 endcase
-            end"#
+            end
+            assign _e_2 = _e_1;
+            assign _e_5 = _e_1;"#
         );
 
         assert_same_code!(
             &statement_code_and_declaration(
                 &stmt,
-                &MirTypeList::empty(),
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), Type::int(2)),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),
@@ -3271,8 +3312,10 @@ mod expression_tests {
             r#"
             logic[6-1:0] _e_0[16-1:0];
             initial begin
-                _e_0[0] = 'b001010;
-                _e_0[1] = 'b000101;
+                _e_0 = '{
+                    'b001010,
+                    'b000101,
+                };
             end
             always @(posedge _e_1) begin
                 if (_e_2[10]) begin
@@ -3458,34 +3501,6 @@ mod expression_tests {
     }
 
     #[test]
-    fn div_pow2_works() {
-        let stmt = statement!(e(0); Type::int(3); DivPow2; e(1), e(2));
-
-        let expected = indoc! {
-            r#"
-            logic[2:0] _e_0;
-            always_comb begin
-                if (_e_2 == 0) begin
-                    _e_0 = _e_1;
-                end
-                else begin
-                    _e_0 = $signed($signed(_e_1) + $signed(1 << (_e_2 - 1))) >>> $signed(_e_2);
-                end
-            end"#
-        };
-
-        assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
-            expected
-        )
-    }
-
-    #[test]
     fn concat_works() {
         let stmt = statement!(e(0); Type::int(8); Concat; e(1), e(2));
 
@@ -3585,27 +3600,6 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::backward(Type::Bool))
                     .with(ValueName::Expr(ExprID(1)), Type::Bool),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
-            expected
-        );
-    }
-
-    #[test]
-    fn read_mut_wire_codegen_works() {
-        let stmt = statement!(e(0); Type::int(8); ReadPort; e(1));
-
-        let expected = indoc! {
-            r#"
-            logic[7:0] _e_0;
-            assign _e_0 = _e_1_mut;"#
-        };
-
-        assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
                 &CodeBundle::new("".to_string())
             )
             .to_string(),

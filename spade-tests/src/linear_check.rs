@@ -1,4 +1,4 @@
-use crate::{build_items, build_items_with_stdlib, snapshot_error};
+use crate::{build_items, snapshot_error};
 
 snapshot_error! {
     double_consumption_of_identifier_produces_error,
@@ -175,7 +175,7 @@ snapshot_error! {
     entity test() -> bool {
         decl x;
         let _ = inst consume(x);
-        let x = inst new_mut_wire();
+        let x = port().1;
         let _ = inst consume(x);
         true
     }
@@ -188,24 +188,10 @@ snapshot_error! {
         extern entity consumer(x: inv bool) -> bool;
 
         entity test() -> (bool, bool) {
-            let p = inst new_mut_wire();
+            let p = port().1;
             (inst consumer(p), inst consumer(p))
         }
     "
-}
-
-#[test]
-fn reading_from_a_port_does_not_consume_it() {
-    let code = "
-        extern entity consumer(x: inv bool) -> bool;
-
-        entity test() -> (bool, bool) {
-            let p = inst new_mut_wire();
-            let _ = inst consumer(p);
-            (inst read_mut_wire(p), inst read_mut_wire(p))
-        }
-    ";
-    build_items_with_stdlib(code);
 }
 
 #[test]
@@ -223,7 +209,7 @@ snapshot_error! {
     array_indexing_does_not_use_whole_array,
     "
         entity test() {
-            let a = [inst new_mut_wire(), inst new_mut_wire()];
+            let a = [port().1, port().1];
             set a[0] = 0u8;
         }
     "
@@ -233,7 +219,7 @@ snapshot_error! {
     double_use_of_linear_array_is_wrong,
     "
         entity test() {
-            let a = [inst new_mut_wire(), inst new_mut_wire()];
+            let a = [port().1, port().1];
             set a[0] = 0u8;
             set a[0] = 0u8;
             set a[1] = 0;
@@ -246,7 +232,7 @@ snapshot_error! {
     "
         entity test() {
             let idx = 0;
-            let a = [inst new_mut_wire(), inst new_mut_wire()];
+            let a = [port().1, port().1];
             set a[idx] = 0u8;
         }
     "
@@ -277,6 +263,26 @@ snapshot_error! {
         entity e(p: inv bool) {
             let q @ r = p;
             set r = false;
+        }
+    "
+}
+
+snapshot_error! {
+    match_consumes_input,
+    "
+        fn e(p: (uint<1>, inv bool)) {
+            let _ = match p {
+                (0, pi) => {
+                    set pi = false;
+                    false
+                },
+                (1, pi) => {
+                    set pi = true;
+                    true
+                },
+            };
+
+            set p.1 = false;
         }
     "
 }

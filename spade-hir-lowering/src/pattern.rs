@@ -25,32 +25,33 @@ use crate::{Context, MirLowerable};
 ///    |---|--||-|---|---|---|--|
 /// ```
 fn split_int_range(
-    min: BigInt,
-    max: BigInt,
-    other_ctors: impl Iterator<Item = Constructor> + Clone,
+    first: BigInt,
+    last: BigInt,
+    other_ctors: impl IntoIterator<Item = impl std::borrow::Borrow<Constructor>>,
 ) -> Vec<Constructor> {
     let mut edges = other_ctors
+        .into_iter()
         .flat_map(|other| {
-            let (min, max) = other.as_range();
-            [min, max]
+            let (first, last) = other.borrow().as_range();
+            [first, last + 1]
         })
         .collect::<Vec<_>>();
     edges.sort();
     edges.dedup();
 
     let mut result = vec![];
-    let mut current_low = min.clone();
+    let mut current_low = first.clone();
 
-    for edge in edges.into_iter().filter(|e| e > &min && e < &max) {
+    for edge in edges.into_iter().filter(|e| e > &first && e <= &last) {
         result.push(Constructor::IntRange {
-            min: current_low,
-            max: &edge - 1u32.to_bigint(),
+            first: current_low,
+            last: &edge - 1,
         });
         current_low = edge;
     }
     result.push(Constructor::IntRange {
-        min: current_low,
-        max,
+        first: current_low,
+        last,
     });
     result
 }
@@ -84,15 +85,15 @@ pub(crate) fn split_wildcard(
 
                 if bits == 0 {
                     vec![Constructor::IntRange {
-                        min: BigInt::ZERO,
-                        max: BigInt::ZERO,
+                        first: BigInt::ZERO,
+                        last: BigInt::ZERO,
                     }]
                 } else {
-                    let min = -(1.to_bigint() << (bits - 1));
-                    let max = (1.to_bigint() << (bits - 1)) - 1;
+                    let first = -(1.to_bigint() << (bits - 1));
+                    let last = (1.to_bigint() << (bits - 1)) - 1;
                     split_int_range(
-                        min,
-                        max,
+                        first,
+                        last,
                         // Recursively split wildcards into ranges
                         other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
                     )
@@ -110,15 +111,15 @@ pub(crate) fn split_wildcard(
 
                 if bits == 0 {
                     vec![Constructor::IntRange {
-                        min: BigInt::ZERO,
-                        max: BigInt::ZERO,
+                        first: BigInt::ZERO,
+                        last: BigInt::ZERO,
                     }]
                 } else {
-                    let min = 0.to_bigint();
-                    let max = (1.to_bigint() << (bits)) - 1;
+                    let first = 0.to_bigint();
+                    let last = (1.to_bigint() << (bits)) - 1;
                     split_int_range(
-                        min,
-                        max,
+                        first,
+                        last,
                         // Recursively split wildcards into ranges
                         other_ctors.flat_map(|ctor| ctor.split(ty, vec![].into_iter())),
                     )
@@ -181,7 +182,7 @@ pub fn group_missing_constructors(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Constructor {
     /// Patterns that only have a single constructor, like tuples and struct patterns
     Single,
@@ -191,9 +192,10 @@ pub enum Constructor {
     Bool(bool),
     /// Enum variant constructor
     Variant(usize),
+    /// Inclusive range (first..=last)
     IntRange {
-        min: BigInt,
-        max: BigInt,
+        first: BigInt,
+        last: BigInt,
     },
     Missing {
         all_missing: Vec<Constructor>,
@@ -213,9 +215,54 @@ impl Constructor {
     ) -> Vec<Self> {
         match self {
             Self::Wildcard => split_wildcard(ty, other_ctors),
-            Self::IntRange { min, max } => split_int_range(min.clone(), max.clone(), other_ctors),
+            Self::IntRange { first, last } => {
+                split_int_range(first.clone(), last.clone(), other_ctors)
+            }
             _ => vec![self.clone()],
         }
+    }
+
+    #[cfg(test)]
+    fn union(mut ctors: Vec<Constructor>) -> Vec<Constructor> {
+        ctors.sort_by(|ctor_a, ctor_b| {
+            let first_a = match ctor_a {
+                Constructor::IntRange { first, .. } => first,
+                _ => unimplemented!(),
+            };
+            let first_b = match ctor_b {
+                Constructor::IntRange { first, .. } => first,
+                _ => unimplemented!(),
+            };
+            first_a.cmp(first_b)
+        });
+        let mut ctors_drain = ctors.drain(..);
+
+        let mut out_ctors = match ctors_drain.next() {
+            Some(ctor) => vec![ctor],
+            None => return vec![],
+        };
+
+        for ctor in ctors_drain {
+            let prev_ctor = out_ctors.last_mut().unwrap();
+            let Constructor::IntRange {
+                last: prev_last, ..
+            } = prev_ctor
+            else {
+                unreachable!()
+            };
+            let Constructor::IntRange { first, last } = ctor else {
+                unreachable!()
+            };
+            if (&first - 1) <= *prev_last {
+                // Ranges can be merged
+                *prev_last = last;
+            } else {
+                // No overlap, add it to the list
+                out_ctors.push(Constructor::IntRange { first, last });
+            }
+        }
+
+        out_ctors
     }
 
     /// Returns true if self is covered by other
@@ -230,14 +277,14 @@ impl Constructor {
             (Variant(self_id), Variant(other_id)) => self_id == other_id,
             (
                 IntRange {
-                    min: smin,
-                    max: smax,
+                    first: sfirst,
+                    last: slast,
                 },
                 IntRange {
-                    min: omin,
-                    max: omax,
+                    first: ofirst,
+                    last: olast,
                 },
-            ) => smin >= omin && smax <= omax,
+            ) => sfirst >= ofirst && slast <= olast,
             (Bool(b1), Bool(b2)) => b1 == b2,
             // Type inference will make sure that we only have comparable
             // constructors to check here.
@@ -291,8 +338,8 @@ impl Constructor {
 
     fn as_range(&self) -> (BigInt, BigInt) {
         match self {
-            Constructor::IntRange { min, max } => (min.clone(), max.clone()),
-            other => panic!("Interprerting {other:?} constructor as range"),
+            Constructor::IntRange { first, last } => (first.clone(), last.clone()),
+            other => panic!("Interpreting {other:?} constructor as range"),
         }
     }
 }
@@ -326,8 +373,8 @@ impl DeconstructedPattern {
         let (ctor, fields) = match &pat.kind {
             spade_hir::PatternKind::Integer(val) => (
                 Constructor::IntRange {
-                    min: val.clone(),
-                    max: (val + 1),
+                    first: val.clone(),
+                    last: val.clone(),
                 },
                 vec![],
             ),
@@ -435,7 +482,7 @@ impl std::fmt::Display for DeconstructedPattern {
                 ConcreteType::Integer(_) => unreachable!("Pattern on type level integer"),
                 ConcreteType::Bool(_) => unreachable!("Pattern on type level bool"),
                 ConcreteType::String(_) => unreachable!("Pattern on a type level string"),
-                ConcreteType::Backward(_) => unreachable!("Pattern on backward type"),
+                ConcreteType::Backward(_) => write!(f, "_"),
                 ConcreteType::CopyView(_) => unreachable!("Pattern on copy view"),
             },
             Constructor::Variant(idx) => match &self.ty {
@@ -460,11 +507,98 @@ impl std::fmt::Display for DeconstructedPattern {
                 _ => unreachable!(),
             },
             Constructor::Bool(val) => write!(f, "{val}"),
-            Constructor::IntRange { min, max } => write!(f, "{min}..{max}"),
+            Constructor::IntRange { first, last } => {
+                assert!(first <= last);
+                if first == last {
+                    write!(f, "{first}")
+                } else {
+                    write!(f, "{first}..={last}")
+                }
+            }
             Constructor::Missing { .. } => {
                 unreachable!("Missing should have been removed by Usefulness::apply_constructor")
             }
             Constructor::Wildcard => write!(f, "_"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pattern::{Constructor, split_int_range};
+    use num::BigInt;
+    use spade_common::num_ext::InfallibleToBigInt;
+    use std::ops::RangeInclusive;
+
+    #[test]
+    fn split_int_range_invariants() {
+        let main_range = (BigInt::from(0), BigInt::from(10));
+        let test_cases: &[&[RangeInclusive<i32>]] = &[
+            // Single range fully inside main_range
+            &[3..=5],
+            // Subranges do not lie fully in main range
+            &[-2..=3, 8..=20],
+            // Overlapping subranges
+            &[1..=3, 2..=5],
+            // Single element subrange
+            &[1..=2],
+            // Just go bonkers with it yk
+            &[-2..=20, -1..=5, 2..=3, 0..=10],
+        ];
+
+        for test_case in test_cases {
+            let subranges = test_case
+                .into_iter()
+                .map(|range| Constructor::IntRange {
+                    first: range.start().to_bigint(),
+                    last: range.end().to_bigint(),
+                })
+                .collect::<Vec<_>>();
+            eprintln!("Splitting main range {main_range:?} with subranges {subranges:?}");
+            let split_ranges =
+                split_int_range(main_range.0.clone(), main_range.1.clone(), subranges.iter());
+
+            // Requirement 1: union of all split ranges is exactly the main range
+            assert_eq!(
+                Constructor::union(split_ranges.clone()),
+                vec![Constructor::IntRange {
+                    first: main_range.0.clone(),
+                    last: main_range.1.clone()
+                }]
+            );
+
+            // Requirement 2: a split range is either entirely inside or entirely
+            // outside a given input subrange
+            for split in split_ranges {
+                let Constructor::IntRange {
+                    first: split_first,
+                    last: split_last,
+                } = split.clone()
+                else {
+                    unreachable!()
+                };
+                for input_subrange in subranges.iter() {
+                    let Constructor::IntRange {
+                        first: input_first,
+                        last: input_last,
+                    } = input_subrange.clone()
+                    else {
+                        unreachable!()
+                    };
+
+                    if split_first < input_first && split_last < input_first {
+                        eprintln!("Split subrange {split:?} is entirely before {input_subrange:?}");
+                    } else if split_first >= input_first && split_last <= input_last {
+                        eprintln!("Split subrange {split:?} is entirely inside {input_subrange:?}");
+                    } else if split_first > input_last && split_last >= split_first {
+                        eprintln!("Split subrange {split:?} is entirely after {input_subrange:?}");
+                    } else {
+                        panic!(
+                            "Split range {split:?} must be either fully inside or fully outside input subrange {input_subrange:?}"
+                        );
+                    }
+                }
+            }
         }
     }
 }

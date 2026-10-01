@@ -118,8 +118,9 @@ impl TyExt for Loc<TypeSpec> {
                 // the impl blocks we generate.
                 None
             }
-            // As soon as we see an `inv`, we know for sure we're not dealing with Data
-            TypeSpec::Inverted(_) => Some(DataWitness::Here(self.loc())),
+            TypeSpec::Inverted(inner) => {
+                inner.get_data_witness(ctx).map(|w| w.recurse(&inner.loc()))
+            }
             TypeSpec::CopyView(inner) => {
                 inner.get_data_witness(ctx).map(|w| w.recurse(&inner.loc()))
             }
@@ -138,7 +139,7 @@ impl TyExt for Loc<TypeSpec> {
 impl TyExt for Loc<TypeDeclaration> {
     fn get_copy_witness(&self, ctx: &Context) -> Option<CopyWitness> {
         match &self.kind {
-            // Enums never impl !Copy because their members must impl data.
+            // Enums never impl `!Copy` because their members must impl `Copy`.
             spade_hir::TypeDeclKind::Enum(_) => None,
             spade_hir::TypeDeclKind::Primitive(inner) => match inner {
                 spade_types::PrimitiveType::Int => None,
@@ -183,7 +184,7 @@ impl TyExt for Loc<TypeDeclaration> {
 
     fn get_data_witness(&self, ctx: &Context) -> Option<DataWitness> {
         match &self.kind {
-            // Enums never impl !Data because their members must impl data.
+            // Enums never impl `!Data` because their members must impl `Data`.
             spade_hir::TypeDeclKind::Enum(_) => None,
             spade_hir::TypeDeclKind::Primitive(inner) => match inner {
                 spade_types::PrimitiveType::Int => None,
@@ -226,17 +227,30 @@ impl TyExt for Loc<TypeDeclaration> {
     }
 }
 
-pub fn enforce_enum_data(ctx: &mut Context) {
+pub fn enforce_enum_data_copy(ctx: &mut Context) {
     for (_, ty) in &ctx.item_list.types {
         match &ty.kind {
             spade_hir::TypeDeclKind::Enum(e) => {
                 for (_, parameters) in &e.options {
                     for param in &parameters.0 {
-                        if let Some(witness) = param.ty.get_data_witness(ctx) {
-                            Diagnostic::error(&param.ty, "Enum members must be Data")
-                                .primary_label("Non-data enum member")
-                                .secondary_label(witness.loc(), "This type is not Data")
+                        if let Some(witness) = param.ty.get_copy_witness(ctx) {
+                            Diagnostic::error(&param.ty, "Enum members must be `Copy`")
+                                .primary_label("Non-`Copy` enum member")
+                                .secondary_label(witness.loc(), "This type is not `Copy`")
                                 .help("Typically, a type not being Data means it has an `inv` part")
+                                .help(format!(
+                                    "You can learn more about `Copy` here: {}",
+                                    WIRE_DOCS
+                                ))
+                                .handle_in(&mut ctx.diags.lock().unwrap());
+                        }
+                        if let Some(witness) = param.ty.get_data_witness(ctx) {
+                            Diagnostic::error(&param.ty, "Enum members must be `Data`")
+                                .primary_label("Non-`Data` enum member")
+                                .secondary_label(witness.loc(), "This type is not `Data`")
+                                .help(
+                                    "Typically, a type not being Data means it has a `clock` field",
+                                )
                                 .help(format!(
                                     "You can learn more about `Data` here: {}",
                                     WIRE_DOCS
@@ -353,7 +367,7 @@ pub fn impl_auto_traits(ctx: &mut Context) -> Result<()> {
             ty.get_data_witness(ctx).is_none()
         })?;
 
-        enforce_enum_data(ctx);
+        enforce_enum_data_copy(ctx);
         Ok(())
     })
 }

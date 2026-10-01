@@ -26,9 +26,9 @@ use crate::name_map::NameSourceMap;
 use crate::passes::disallow_inout_bindings::InOutChecks;
 use crate::passes::disallow_zero_size::DisallowZeroSize;
 use crate::passes::flatten_regs::FlattenRegs;
+use crate::passes::lower_gen_expr::LowerGenExpr;
 use crate::passes::lower_lambda_defs::{LambdaReplacement, LowerLambdaDefs};
 use crate::passes::lower_methods::LowerMethods;
-use crate::passes::lower_type_level_if::LowerTypeLevelIf;
 use crate::passes::pass::Passable;
 
 /// An item to be monomorphised
@@ -494,7 +494,7 @@ fn monomorphize_item(
                 impls: trait_impls,
                 idtracker: &idtracker,
             });
-            run_pass!(LowerTypeLevelIf {
+            run_pass!(LowerGenExpr {
                 type_state: &type_state,
                 items: item_list,
                 symtab,

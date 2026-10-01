@@ -1,4 +1,0 @@
----
-source: spade-tests/src/mod_namespacing.rs
----
-mod submod;

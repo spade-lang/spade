@@ -2,7 +2,7 @@
 source: spade-tests/src/linear_check.rs
 ---
 entity test() {
-    let a = [inst new_mut_wire(), inst new_mut_wire()];
+    let a = [port().1, port().1];
     set a[0] = 0u8;
 }
 
@@ -10,7 +10,7 @@ entity test() {
 error: a[1] is unused
   ┌─ testinput:2:9
   │
-2 │     let a = [inst new_mut_wire(), inst new_mut_wire()];
+2 │     let a = [port().1, port().1];
   │         ^ a[1] is unused
   │
   = note: a[1] is an inverted wire (`inv`) which must be set

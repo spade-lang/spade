@@ -1,0 +1,26 @@
+---
+source: spade-tests/src/parser.rs
+---
+extern fn test() {}
+
+fn top() {
+  test();
+}
+
+
+error: `extern` units cannot have a body
+  ┌─ testinput:1:1
+  │
+1 │ extern fn test() {}
+  │ ^^^^^^
+  │
+  = Remove this body
+  │
+1 │ extern fn test() {}
+  │                  --
+
+error: Use of undeclared name test
+  ┌─ testinput:4:3
+  │
+4 │   test();
+  │   ^^^^ Undeclared name

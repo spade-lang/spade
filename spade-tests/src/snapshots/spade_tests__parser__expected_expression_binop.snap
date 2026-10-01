@@ -7,11 +7,11 @@ fn top() -> bool {
 }
 
 
-error: Unexpected `#`, expected expression
+error: Unexpected `#`, expected `expression`
   ┌─ testinput:2:17
   │
 2 │     let abc = 1+#;
-  │                 ^ expected expression here
+  │                 ^ expected `expression`
 
 error: Output type mismatch. Expected bool, got ()
   ┌─ testinput:1:18

@@ -3,17 +3,19 @@ source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \uwu ((e, e_n101, int<16>)) -> bool {
-	let e4: int<16> = Alias(e_n101)
+	let e388: int<16> = Nop()
+	let e4: int<16> = Alias(e388)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e393: bool = Eq(e6, e7)
-	let e5: bool = Alias(e393)
-	const e389: int<16> = 0
-	let e390: bool = Eq(e_n101, e389)
-	let e388: bool = LogicalAnd(e390, e5)
+	let e395: bool = Eq(e6, e7)
+	let e5: bool = Alias(e395)
+	const e390: int<16> = 0
+	let e391: bool = Eq(e388, e390)
+	let e389: bool = LogicalAnd(e391, e5)
 	const e8: bool = true
-	let __n102: int<16> = Alias(e_n101)
-	const e391: bool = true
+	let e392: int<16> = Nop()
+	let __n102: int<16> = Alias(e392)
+	const e393: bool = true
 	const e10: bool = false
-	let e2: bool = Match(e388, e8, e391, e10)
+	let e2: bool = Match(e_n101, e388, e389, e8, e392, e393, e10)
 } => e2

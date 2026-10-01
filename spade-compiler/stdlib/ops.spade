@@ -1,20 +1,5 @@
 use lib::num::Gray;
 
-/// Divides `x` by 2 to the power of `pow`, rounding towards positive infinity.
-///
-/// # Examples
-///
-/// ```spade,notest
-/// assert div_pow2(2i8, 2i8) == 1i8;
-/// assert div_pow2(3i8, 2i8) == 2i8;
-/// assert div_pow2(-3i8, 2i8) == -1i8;
-/// assert div_pow2(-3i8, 2i8) == -3i8 / 2i8;
-/// ```
-// lifeguard spade#140
-// FIXME: pow and result should not be `N` but type inference is not good enough for that yet.
-#[deprecated = "Use `/` instead"]
-pub extern fn div_pow2<#uint N>(x: int<N>, pow: int<N>) -> int<N>;
-
 /// Computes the absolute value of a signed integer, truncated to fit the output type bounds.
 ///
 /// Such truncation means that the most negative value (whose absolute value cannot be represented
@@ -169,7 +154,7 @@ pub extern fn comb_div<T>(x: T, y: T) -> T;
 /// assert (6u8 `comb_mod` 3) == 0;
 /// assert (7u8 `comb_mod` 3) == 1;
 /// ```
-/// 
+///
 /// Requires T to be `Number`. This requirement is enforced by the compiler but not part of the type
 /// signature for now
 pub extern fn comb_mod<T>(x: T, y: T) -> T;

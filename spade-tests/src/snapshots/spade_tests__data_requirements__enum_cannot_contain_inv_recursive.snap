@@ -14,14 +14,14 @@ fn test() -> Type {
 }
 
 
-error: Enum members must be Data
+error: Enum members must be `Copy`
   ┌─ testinput:6:11
   │
 2 │     x: inv bool
-  │        -------- This type is not Data
+  │        -------- This type is not `Copy`
   ·
 6 │     V1{x: RecursivelyInv}
-  │           ^^^^^^^^^^^^^^ Non-data enum member
+  │           ^^^^^^^^^^^^^^ Non-`Copy` enum member
   │
   = help: Typically, a type not being Data means it has an `inv` part
-  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html
+  = help: You can learn more about `Copy` here: https://docs.spade-lang.org/wires.html

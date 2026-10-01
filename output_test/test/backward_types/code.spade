@@ -1,5 +1,5 @@
 entity assign_through_mut_wire(val: int<10>) -> int<10> {
-    let p = inst new_mut_wire();
+    let p = port().1;
     set p = &val;
-    inst read_mut_wire(p)
+    *p.inspect()
 }

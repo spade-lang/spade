@@ -1,6 +1,4 @@
 use std::mem::fifo;
-use std::ports::read_mut_wire;
-use std::ports::new_mut_wire;
 
 struct FifoTestHarnessOut {
     w_full: bool,
@@ -16,7 +14,7 @@ entity fifo_test_harness(
     write: Option<int<8>>,
     ack: bool,
 ) -> FifoTestHarnessOut {
-    let (w, r) = inst fifo::<4, int<8>, 16>$(write_clk, write_rst, read_clk, read_rst);
+    let (w, r) = inst fifo::<4, int<8>, 16>(write_clk:, write_rst:, read_clk:, read_rst:);
 
     set w.write = write;
     set r.ack = ack;

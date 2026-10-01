@@ -519,54 +519,6 @@ snapshot_error! {
     "
 }
 
-#[test]
-fn destructuring_a_read_mut_wire_gives_real_values() {
-    let code = "
-    struct A {
-        x: bool,
-        y: int<3>
-    }
-
-    struct HasA {
-        inner: inv A
-    }
-
-    extern fn takes_normal(x: bool, y: int<3>) -> bool;
-
-    extern entity consumer(x: HasA) -> bool;
-
-    entity uut(val: HasA) -> bool {
-        let A { x, y } = inst std::ports::read_mut_wire(val.inner);
-        let _ = inst consumer(val);
-        takes_normal(x, y)
-    }
-    ";
-
-    build_items_with_stdlib(code);
-}
-
-snapshot_error! {
-    reading_from_tuple_members_is_an_error,
-    "
-    extern fn takes_normal(x: bool, y: int<3>) -> bool;
-
-    entity uut(val: inv (bool, int<3>)) -> bool {
-        let x = inst read_mut_wire(val.0);
-        let y = inst read_mut_wire(val.1);
-        takes_normal(x, y)
-    }
-    "
-}
-
-snapshot_error! {
-    dereference_requires_target_type,
-    "
-    entity x(a: bool) -> int<8> {
-        a
-    }
-    "
-}
-
 snapshot_error! {
     type_error_on_registers_are_useful,
     "
@@ -931,7 +883,7 @@ snapshot_error! {
 
     entity main(clk: clock) -> bool {
         let b: int<3> = 0;
-        inst e$(clk, a: b)
+        inst e(clk:, a: b)
     }
     "
 }
@@ -945,7 +897,7 @@ snapshot_error! {
 
     entity main(clk: clock) -> bool {
         let a: int<3> = 0;
-        inst e$(clk, a)
+        inst e(clk:, a:)
     }
     "
 }
@@ -1421,26 +1373,24 @@ snapshot_error! {
         entity fifo<#uint W>(
             ram_read: ReadPort_<W>
         ) -> FifoRead<W> {
-            let read_ptr_wire = inst new_mut_wire();
-
-            let read_ptr_w = inst read_mut_wire(read_ptr_wire);
+            let (read_ptr_w, read_ptr_wire) = port();
 
             let write_ptr_w  = 0;
 
             let full_w = read_ptr_w == 0;
 
 
-            inst fifo_read_side$(
-                    write_ptr_w,
-                    ram_read,
-                    read_ptr_wire,
+            inst fifo_read_side(
+                    write_ptr_w:,
+                    ram_read:,
+                    read_ptr_wire:,
                 )
         }
 
         entity fifo_test_harness(
             ram_read: ReadPort_<4>
         ) {
-            let _ = inst fifo::<4>$(ram_read);
+            let _ = inst fifo::<4>(ram_read:);
         }
     "
 }
@@ -2040,6 +1990,42 @@ snapshot_error! {
         fn test() {
             gen if 0 {}
             else {}
+        }
+    "
+}
+
+snapshot_error! {
+    type_level_match_must_have_matching_patterns,
+    "
+        fn test() {
+            gen match 17 {
+                15 => {},
+                false => {},
+            }
+        }
+    "
+}
+
+code_compiles! {
+    type_level_match_can_skip_fallback_if_it_returns_unit,
+    "
+        fn test() {
+            gen match 17 {
+                15 => {},
+                16 => {},
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    type_level_match_must_have_fallback_if_it_returns_non_unit,
+    "
+        fn test() -> bool {
+            gen match 17 {
+                15 => true,
+                16 => false,
+            }
         }
     "
 }
@@ -2772,6 +2758,60 @@ code_compiles! {
             let outer = S(AAAAAA());
             outer
                 .with_output(MockLambda());
+        }
+    "
+}
+
+code_compiles! {
+    type_inference_works_for_const_type_expr,
+    "
+        fn main() -> uint<8> {
+            const type { 300 / 7 }
+        }
+    "
+}
+
+snapshot_error! {
+    const_type_expr_must_match_target_type,
+    "
+        fn main() -> bool {
+            const type { 300 / 7 }
+        }
+    "
+}
+
+snapshot_error! {
+    string_const_type_expr_are_rejected,
+    r#"
+        fn main() -> bool {
+            const type { "evil" }
+        }
+    "#
+}
+
+snapshot_error! {
+    numeric_const_type_expr_must_fit_target_type,
+    "
+        fn main() -> uint<2> {
+            const type { 300 / 7 }
+        }
+    "
+}
+
+snapshot_error! {
+    numeric_const_type_expr_must_fit_target_type_2,
+    "
+        fn main() -> uint<8> {
+            const type { -300 / 7 }
+        }
+    "
+}
+
+snapshot_error! {
+    int_literal_too_large,
+    "
+        fn main() -> int<4> {
+            8
         }
     "
 }

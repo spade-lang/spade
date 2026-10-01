@@ -12,7 +12,7 @@ entity test_struct(_struct: Outer, x: bool, y: bool) -> (bool, bool) {
     set _struct.w.y = y;
 
     (
-        inst std::ports::read_mut_wire(_struct.w.x),
-        inst std::ports::read_mut_wire(_struct.w.y)
+        *_struct.w.x.inspect(),
+        *_struct.w.y.inspect()
     )
 }

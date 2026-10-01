@@ -1,0 +1,15 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn main() -> uint<8> {
+    const type { -300 / 7 }
+}
+
+
+error: Integer value does not fit in uint<8>
+  ┌─ testinput:2:5
+  │
+2 │     const type { -300 / 7 }
+  │     ^^^^^^^^^^^^^^^^^^^^^^^ -42 does not fit in an uint<8>
+  │
+  = note: uint<8> fits unsigned integers in the range (0, 255)

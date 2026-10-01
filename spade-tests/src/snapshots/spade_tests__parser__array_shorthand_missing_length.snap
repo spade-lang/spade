@@ -7,11 +7,11 @@ fn test() {
 }
 
 
-error: Unexpected `]`, expected expression
+error: Unexpected `]`, expected `expression`
   ┌─ testinput:3:18
   │
 3 │     let _ = [1u2;];
-  │                  ^ expected expression here
+  │                  ^ expected `expression`
 
 error: Type of expression is not fully known
   ┌─ testinput:2:18

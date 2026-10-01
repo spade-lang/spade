@@ -32,7 +32,7 @@ use spade_hir::{Selfness, expression::Safety, symbol_table::TypeDeclKind};
 use spade_parser::{ExprBraces, Parser};
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
-use type_level_if::expand_type_level_if;
+use type_level_if::expand_gen_expr;
 
 use crate::attributes::AttributeListExt;
 use crate::global_symbols::{
@@ -297,7 +297,7 @@ pub enum TypeSpecKind {
     PipelineRegCount,
     PipelineInstDepth,
     TraitBound,
-    TypeLevelIf,
+    GenExpr,
     /// When calling an associated fn we strip a path line `path::to::Type::func`, and
     /// split it into `path::to::Type` and `func` where the former becomes a TypeSpec
     /// which we visit. This is the kind of that type
@@ -341,18 +341,18 @@ pub fn visit_type_expression(
                 TypeSpecKind::ImplTrait => default_error("Implemented traits", "implemented trait"),
                 TypeSpecKind::ImplTarget => default_error("Impl targets", "impl target"),
                 TypeSpecKind::EnumMember => default_error("Enum members", "enum member"),
-                TypeSpecKind::StructMember => default_error("Struct members", "struct member"),
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bounds", "trait bound")
                 }
                 TypeSpecKind::AssociatedFnBase => {
                     default_error("Associated functions", "associated fn")
                 }
-                TypeSpecKind::Alias
+                TypeSpecKind::StructMember
+                | TypeSpecKind::Alias
                 | TypeSpecKind::Argument
                 | TypeSpecKind::OutputType
                 | TypeSpecKind::Turbofish
-                | TypeSpecKind::TypeLevelIf
+                | TypeSpecKind::GenExpr
                 | TypeSpecKind::BindingType
                 | TypeSpecKind::TypeCast
                 | TypeSpecKind::PipelineInstDepth
@@ -585,7 +585,7 @@ pub fn visit_type_spec(
                 }
                 TypeSpecKind::PipelineInstDepth
                 | TypeSpecKind::TypeCast
-                | TypeSpecKind::TypeLevelIf
+                | TypeSpecKind::GenExpr
                 | TypeSpecKind::Turbofish
                 | TypeSpecKind::BindingType => Ok(hir::TypeSpec::Wildcard(t.loc())),
             }
@@ -1434,7 +1434,7 @@ pub fn visit_unit(
     ctx.symtab.close_scope();
     ctx.current_unit = None;
 
-    Ok(hir::Item::Unit(expand_type_level_if(
+    Ok(hir::Item::Unit(expand_gen_expr(
         hir::Unit {
             name: unit_name,
             head: head.clone().inner,
@@ -2458,6 +2458,59 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 on_false: Box::new(on_false),
             })
         }
+        ast::Expression::TypeLevelMatch {
+            expression,
+            branches,
+        } => {
+            let expression =
+                visit_const_generic(expression, ctx)?.map(|c| c.with_id(ctx.idtracker.next()));
+
+            let branches = branches
+                .iter()
+                .map(|(pat, result)| {
+                    let pat = match visit_type_expression(pat, &TypeSpecKind::GenExpr, ctx)? {
+                        hir::TypeExpression::TypeSpec(hir::TypeSpec::Wildcard(loc)) => {
+                            None.at_loc(&loc)
+                        }
+                        hir::TypeExpression::TypeSpec(_) => {
+                            return Err(Diagnostic::error(
+                                pat,
+                                "Types cannot be matched inside `gen match` blocks",
+                            ));
+                        }
+                        hir::TypeExpression::Bool(b) => {
+                            let id = ctx.idtracker.next();
+                            let c = hir::ConstGeneric::Bool(b).with_id(id);
+                            Some(c).at_loc(pat)
+                        }
+                        hir::TypeExpression::Integer(i) => {
+                            let id = ctx.idtracker.next();
+                            let c = hir::ConstGeneric::Int(i).with_id(id);
+                            Some(c).at_loc(pat)
+                        }
+                        hir::TypeExpression::String(s) => {
+                            let id = ctx.idtracker.next();
+                            let c = hir::ConstGeneric::Str(s).with_id(id);
+                            Some(c).at_loc(pat)
+                        }
+                        hir::TypeExpression::ConstGeneric(cg) => {
+                            let id = ctx.idtracker.next();
+                            let c = cg.inner.clone().with_id(id);
+                            Some(c).at_loc(pat)
+                        }
+                    };
+
+                    let result = result.visit(visit_expression, ctx);
+
+                    Ok((pat, result))
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            Ok(hir::ExprKind::TypeLevelMatch {
+                expression,
+                branches,
+            })
+        }
         ast::Expression::Match {
             expression,
             branches,
@@ -2485,6 +2538,10 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 .collect::<Result<Vec<_>>>()?;
 
             Ok(hir::ExprKind::Match(Box::new(e), b))
+        }
+        ast::Expression::ConstTypeExpr(e) => {
+            let c = visit_const_generic(e, ctx)?.map(|cg| cg.with_id(ctx.idtracker.next()));
+            Ok(hir::ExprKind::ConstTypeExpr(c))
         }
         ast::Expression::Block(block) => {
             Ok(hir::ExprKind::Block(Box::new(visit_block(block, ctx)?)))
@@ -2912,9 +2969,11 @@ fn inject_verilog_attrs(
         | ExprKind::BinaryOperator(_, _, _)
         | ExprKind::UnaryOperator(_, _)
         | ExprKind::Match(_, _)
+        | ExprKind::ConstTypeExpr(_)
         | ExprKind::Block(_)
         | ExprKind::If { .. }
         | ExprKind::TypeLevelIf { .. }
+        | ExprKind::TypeLevelMatch { .. }
         | ExprKind::PipelineRef { .. }
         | ExprKind::LambdaDef { .. }
         | ExprKind::StageValid

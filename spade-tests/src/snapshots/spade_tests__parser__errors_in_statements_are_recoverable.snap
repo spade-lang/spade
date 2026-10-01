@@ -8,11 +8,11 @@ fn test() {
 }
 
 
-error: Unexpected `;`, expected expression
+error: Unexpected `;`, expected `expression`
   ┌─ testinput:2:13
   │
 2 │     let x = ;
-  │             ^ expected expression here
+  │             ^ expected `expression`
 
 error: Unexpected `;`, expected `=`
   ┌─ testinput:3:11

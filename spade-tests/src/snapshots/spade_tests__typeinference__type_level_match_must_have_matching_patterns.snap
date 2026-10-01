@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() {
+    gen match 17 {
+        15 => {},
+        false => {},
+    }
+}
+
+
+error: Expected type #number, got #bool
+  ┌─ testinput:1:11
+  │  
+1 │   fn test() {
+  │ ╭───────────^
+2 │ │     gen match 17 {
+  │ │               -- Type #number inferred here
+3 │ │         15 => {},
+4 │ │         false => {},
+  │ │         ----- Type #bool inferred here
+5 │ │     }
+6 │ │ }
+  │ ╰─^ Expected #number
+  │  
+  = note: Expected: #number
+               Got: #bool

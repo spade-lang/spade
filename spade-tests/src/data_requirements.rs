@@ -4,6 +4,15 @@ snapshot_error! {
     reg_requires_data,
     "
         entity test(clk: clock) {
+            reg(clk) r = clk;
+        }
+    "
+}
+
+snapshot_error! {
+    reg_requires_copy,
+    "
+        entity test(clk: clock) {
             reg(clk) r = port();
         }
     "
@@ -11,6 +20,16 @@ snapshot_error! {
 
 snapshot_error! {
     pipeline_binding_requires_data,
+    "
+        pipeline(0) test(clk: clock) {
+            let r = clk;
+        }
+    ",
+    false
+}
+
+snapshot_error! {
+    pipeline_binding_requires_copy,
     "
         pipeline(0) test(clk: clock) {
             let r = port();
@@ -28,7 +47,7 @@ snapshot_error! {
             B,
         }
 
-        fn test(p: inv bool) {
+        fn test(p: clock) {
             let _ = E::A(p);
         }
     ",
@@ -38,7 +57,7 @@ snapshot_error! {
 snapshot_error! {
     if_statements_require_data,
     "
-        fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
+        fn test(sel: bool, x: clock, y: clock) -> clock {
             if sel {
                 x
             } else {
@@ -52,7 +71,7 @@ snapshot_error! {
 snapshot_error! {
     match_statement_requires_data,
     "
-        fn test(sel: bool, x: inv bool, y: inv bool) -> inv bool {
+        fn test(sel: bool, x: clock, y: clock) -> clock {
             match sel {
                 _ => x
             }

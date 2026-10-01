@@ -10,7 +10,7 @@ fn uwu(a: int<8>) -> bool {
 }
 
 
-error: Non-exhaustive match: patterns -128..-1, 2..3 and 1 more not covered
+error: Non-exhaustive match: patterns -128..=-1, 2..=3 and 1 more not covered
   ┌─ testinput:2:5
   │  
 2 │ ╭     match a {
@@ -18,4 +18,4 @@ error: Non-exhaustive match: patterns -128..-1, 2..3 and 1 more not covered
 4 │ │         1 => true,
 5 │ │         4 => true,
 6 │ │     }
-  │ ╰─────^ patterns -128..-1, 2..3 and 1 more not covered
+  │ ╰─────^ patterns -128..=-1, 2..=3 and 1 more not covered

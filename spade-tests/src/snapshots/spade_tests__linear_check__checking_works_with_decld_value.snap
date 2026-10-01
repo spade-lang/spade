@@ -6,7 +6,7 @@ extern entity consume(p: inv bool) -> bool;
 entity test() -> bool {
     decl x;
     let _ = inst consume(x);
-    let x = inst new_mut_wire();
+    let x = port().1;
     let _ = inst consume(x);
     true
 }
@@ -17,6 +17,6 @@ error: Use of consumed resource
   │
 5 │     let _ = inst consume(x);
   │                          - Previously used here
-6 │     let x = inst new_mut_wire();
+6 │     let x = port().1;
 7 │     let _ = inst consume(x);
   │                          ^ Use of consumed resource

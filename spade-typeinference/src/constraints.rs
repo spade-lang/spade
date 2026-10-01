@@ -1,9 +1,10 @@
-use num::{BigInt, Signed};
+use num::{BigInt, Signed, Zero};
 use serde::{Deserialize, Serialize};
 use spade_common::{
     location_info::{Loc, WithLocation},
     num_ext::InfallibleToBigInt,
 };
+use spade_diagnostics::Diagnostic;
 use spade_types::KnownType;
 
 use crate::{
@@ -163,124 +164,152 @@ impl ConstraintExpr {
 }
 
 impl ConstraintExpr {
-    /// Evaluates the ConstraintExpr returning a new simplified form
-    fn evaluate(&self, type_state: &TypeState) -> ConstraintExpr {
+    /// Evaluates the ConstraintExpr returning a new simplified form or a diagnostic if the expression is invalid.
+    pub(crate) fn evaluate(
+        &self,
+        resolve: &dyn Fn(&TypeVarID) -> Option<KnownType>,
+        loc: &Loc<()>,
+    ) -> Result<ConstraintExpr, Diagnostic> {
         let int_binop =
-            |lhs: &ConstraintExpr, rhs: &ConstraintExpr, op: &dyn Fn(BigInt, BigInt) -> BigInt| {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+            |lhs: &ConstraintExpr,
+             rhs: &ConstraintExpr,
+             op: &dyn Fn(BigInt, BigInt) -> Result<BigInt, Diagnostic>| {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Integer(op(l, r))
+                        Ok(ConstraintExpr::Integer(op(l, r)?))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             };
-        let bool_binop = |lhs: &ConstraintExpr,
-                          rhs: &ConstraintExpr,
-                          op: &dyn Fn(bool, bool) -> bool| {
-            match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
-                (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
-                    ConstraintExpr::Bool(op(l, r))
+        let bool_binop =
+            |lhs: &ConstraintExpr,
+             rhs: &ConstraintExpr,
+             op: &dyn Fn(bool, bool) -> Result<bool, Diagnostic>| {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
+                    (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
+                        Ok(ConstraintExpr::Bool(op(l, r)?))
+                    }
+                    _ => Ok(self.clone()),
                 }
-                _ => self.clone(),
-            }
-        };
+            };
         match self {
-            ConstraintExpr::Integer(_) => self.clone(),
-            ConstraintExpr::Bool(_) => self.clone(),
-            ConstraintExpr::String(_) => self.clone(),
-            ConstraintExpr::Var(v) => match v.resolve(type_state) {
-                TypeVar::Known(_, known_type, _) => match known_type {
-                    KnownType::Integer(i) => ConstraintExpr::Integer(i.clone()),
-                    KnownType::Bool(b) => ConstraintExpr::Bool(b.clone()),
-                    KnownType::String(s) => ConstraintExpr::String(s.clone()),
-                    KnownType::Error => self.clone(),
+            ConstraintExpr::Integer(_) => Ok(self.clone()),
+            ConstraintExpr::Bool(_) => Ok(self.clone()),
+            ConstraintExpr::String(_) => Ok(self.clone()),
+            ConstraintExpr::Var(v) => match resolve(v) {
+                Some(KnownType::Integer(i)) => Ok(ConstraintExpr::Integer(i)),
+                Some(KnownType::Bool(b)) => Ok(ConstraintExpr::Bool(b)),
+                Some(KnownType::String(s)) => Ok(ConstraintExpr::String(s)),
+                Some(KnownType::Error) => Ok(self.clone()),
+                Some(
                     KnownType::Named(_)
                     | KnownType::Tuple
                     | KnownType::Array
                     | KnownType::Inverted
-                    | KnownType::CopyView => {
-                        panic!("Inferred non-integer or bool for constraint variable")
-                    }
-                },
-                TypeVar::Unknown(_, _, _, _) => self.clone(),
+                    | KnownType::CopyView,
+                ) => Err(Diagnostic::bug(
+                    loc,
+                    "Inferred non-integer or bool for constraint variable",
+                )),
+                None => Ok(self.clone()),
             },
-            ConstraintExpr::Sum(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l + r),
-            ConstraintExpr::Difference(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l - r),
-            ConstraintExpr::Product(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l * r),
-            ConstraintExpr::Div(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l / r),
-            ConstraintExpr::Mod(lhs, rhs) => int_binop(lhs, rhs, &|l, r| l % r),
-            ConstraintExpr::Sub(inner) => match inner.evaluate(type_state) {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(-val),
-                _ => self.clone(),
+            ConstraintExpr::Sum(lhs, rhs) => int_binop(lhs, rhs, &|l, r| Ok(l + r)),
+            ConstraintExpr::Difference(lhs, rhs) => int_binop(lhs, rhs, &|l, r| Ok(l - r)),
+            ConstraintExpr::Product(lhs, rhs) => int_binop(lhs, rhs, &|l, r| Ok(l * r)),
+            ConstraintExpr::Div(lhs, rhs) => int_binop(lhs, rhs, &|l, r| {
+                if r.is_zero() {
+                    Err(Diagnostic::error(
+                        loc,
+                        "Could not perform division during constraint evaluation",
+                    )
+                    .primary_label("Division by zero"))
+                } else {
+                    Ok(l / r)
+                }
+            }),
+            ConstraintExpr::Mod(lhs, rhs) => int_binop(lhs, rhs, &|l, r| {
+                if r.is_zero() {
+                    Err(Diagnostic::error(
+                        loc,
+                        "Could not perform modulo during constraint evaluation",
+                    )
+                    .primary_label("Modulo by zero"))
+                } else {
+                    Ok(l % r)
+                }
+            }),
+            ConstraintExpr::Sub(inner) => match inner.evaluate(resolve, loc)? {
+                ConstraintExpr::Integer(val) => Ok(ConstraintExpr::Integer(-val)),
+                _ => Ok(self.clone()),
             },
             ConstraintExpr::Eq(lhs, rhs) => {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
-                        ConstraintExpr::Bool(l == r)
+                        Ok(ConstraintExpr::Bool(l == r))
                     }
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Bool(l == r)
+                        Ok(ConstraintExpr::Bool(l == r))
                     }
                     (ConstraintExpr::String(l), ConstraintExpr::String(r)) => {
-                        ConstraintExpr::Bool(l == r)
+                        Ok(ConstraintExpr::Bool(l == r))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             }
             ConstraintExpr::NotEq(lhs, rhs) => {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Bool(l), ConstraintExpr::Bool(r)) => {
-                        ConstraintExpr::Bool(l != r)
+                        Ok(ConstraintExpr::Bool(l != r))
                     }
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Bool(l != r)
+                        Ok(ConstraintExpr::Bool(l != r))
                     }
                     (ConstraintExpr::String(l), ConstraintExpr::String(r)) => {
-                        ConstraintExpr::Bool(l != r)
+                        Ok(ConstraintExpr::Bool(l != r))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             }
             ConstraintExpr::Lt(lhs, rhs) => {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Bool(l < r)
+                        Ok(ConstraintExpr::Bool(l < r))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             }
             ConstraintExpr::Gt(lhs, rhs) => {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Bool(l > r)
+                        Ok(ConstraintExpr::Bool(l > r))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             }
             ConstraintExpr::Le(lhs, rhs) => {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Bool(l <= r)
+                        Ok(ConstraintExpr::Bool(l <= r))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             }
             ConstraintExpr::Ge(lhs, rhs) => {
-                match (lhs.evaluate(type_state), rhs.evaluate(type_state)) {
+                match (lhs.evaluate(resolve, loc)?, rhs.evaluate(resolve, loc)?) {
                     (ConstraintExpr::Integer(l), ConstraintExpr::Integer(r)) => {
-                        ConstraintExpr::Bool(l >= r)
+                        Ok(ConstraintExpr::Bool(l >= r))
                     }
-                    _ => self.clone(),
+                    _ => Ok(self.clone()),
                 }
             }
-            ConstraintExpr::LogicalNot(inner) => match inner.evaluate(type_state) {
-                ConstraintExpr::Bool(b) => ConstraintExpr::Bool(!b),
-                _ => self.clone(),
+            ConstraintExpr::LogicalNot(inner) => match inner.evaluate(resolve, loc)? {
+                ConstraintExpr::Bool(b) => Ok(ConstraintExpr::Bool(!b)),
+                _ => Ok(self.clone()),
             },
-            ConstraintExpr::LogicalAnd(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l && r),
-            ConstraintExpr::LogicalOr(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l || r),
-            ConstraintExpr::LogicalXor(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| l != r),
-            ConstraintExpr::IntBitsToRepresent(inner) => match inner.evaluate(type_state) {
+            ConstraintExpr::LogicalAnd(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| Ok(l && r)),
+            ConstraintExpr::LogicalOr(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| Ok(l || r)),
+            ConstraintExpr::LogicalXor(lhs, rhs) => bool_binop(lhs, rhs, &|l, r| Ok(l != r)),
+            ConstraintExpr::IntBitsToRepresent(inner) => match inner.evaluate(resolve, loc)? {
                 ConstraintExpr::Integer(val) => {
                     let bits = if val.is_negative() {
                         (-val - BigInt::from(1)).bits().to_bigint()
@@ -288,15 +317,30 @@ impl ConstraintExpr {
                         val.bits().to_bigint()
                     };
 
-                    ConstraintExpr::Integer(bits + BigInt::from(1))
+                    Ok(ConstraintExpr::Integer(bits + BigInt::from(1)))
                 }
-                _ => self.clone(),
+                _ => Ok(self.clone()),
             },
-            ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate(type_state) {
-                ConstraintExpr::Integer(val) => ConstraintExpr::Integer(val.bits().into()),
-                _ => self.clone(),
+            ConstraintExpr::UintBitsToRepresent(inner) => match inner.evaluate(resolve, loc)? {
+                ConstraintExpr::Integer(val) => Ok(ConstraintExpr::Integer(val.bits().into())),
+                _ => Ok(self.clone()),
             },
         }
+    }
+
+    /// Evaluate the ConstraintExpr using the provided TypeState to resolve any type variables.
+    fn evaluate_in(
+        &self,
+        type_state: &TypeState,
+        loc: &Loc<()>,
+    ) -> Result<ConstraintExpr, Diagnostic> {
+        self.evaluate(
+            &|v| match v.resolve(type_state) {
+                TypeVar::Known(_, kt, _) => Some(kt),
+                TypeVar::Unknown(..) => None,
+            },
+            loc,
+        )
     }
 
     pub fn with_context(
@@ -354,6 +398,7 @@ pub fn ce_int(v: BigInt) -> ConstraintExpr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstraintSource {
+    Const,
     AdditionOutput,
     MultOutput,
     ArrayIndexing,
@@ -365,13 +410,14 @@ pub enum ConstraintSource {
     RangeIndex,
     RangeIndexOutputSize,
     ArraySize,
-    TypeLevelIf,
+    GenExpr,
     Where,
 }
 
 impl std::fmt::Display for ConstraintSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ConstraintSource::Const => write!(f, "Const"),
             ConstraintSource::AdditionOutput => write!(f, "AdditionOutput"),
             ConstraintSource::MultOutput => write!(f, "MultiplicationOutput"),
             ConstraintSource::ArrayIndexing => write!(f, "ArrayIndexing"),
@@ -384,7 +430,7 @@ impl std::fmt::Display for ConstraintSource {
             ConstraintSource::PipelineRegOffset { .. } => write!(f, "PipelineRegOffset"),
             ConstraintSource::PipelineRegCount { .. } => write!(f, "PipelineRegOffset"),
             ConstraintSource::PipelineAvailDepth => write!(f, "PipelineAvailDepth"),
-            ConstraintSource::TypeLevelIf => write!(f, "TypeLevelIf"),
+            ConstraintSource::GenExpr => write!(f, "GenExpr"),
         }
     }
 }
@@ -419,20 +465,31 @@ impl TypeConstraints {
 
     /// Calls `evaluate` on all constraints. If any constraints are now `T = Integer(val)`,
     /// those updated values are returned. Such constraints are then removed
+    /// Returns the updated constraints, the new known values, and any diagnostic errors that
+    /// occurred during evaluation.
     pub fn update_type_level_value_constraints(
         self,
         type_state: &TypeState,
     ) -> (
         TypeConstraints,
         Vec<Loc<(TypeVarID, ConstraintReplacement)>>,
+        Vec<Diagnostic>,
     ) {
         let mut new_known = vec![];
+        let mut diagnostics = vec![];
         let remaining = self
             .inner
             .into_iter()
             .filter_map(|(expr, rhs)| {
                 let mut rhs = rhs.clone();
-                rhs.constraint = rhs.constraint.evaluate(type_state);
+                let loc = ().at_loc(&rhs);
+                rhs.constraint = match rhs.constraint.evaluate_in(type_state, &loc) {
+                    Ok(constraint) => constraint,
+                    Err(diag) => {
+                        diagnostics.push(diag);
+                        return None;
+                    }
+                };
 
                 match &rhs.constraint {
                     ConstraintExpr::Integer(val) => {
@@ -495,7 +552,7 @@ impl TypeConstraints {
             })
             .collect();
 
-        (TypeConstraints { inner: remaining }, new_known)
+        (TypeConstraints { inner: remaining }, new_known, diagnostics)
     }
 }
 

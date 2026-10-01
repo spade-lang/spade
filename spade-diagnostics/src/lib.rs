@@ -3,7 +3,7 @@
 //!
 //! At the time of writing we are in the process of porting old diagnostics to
 //! these structured diagnostics, which is [tracked in spade#190 on
-//! GitLab](https://gitlab.com/spade-lang/spade/-/issues/190).
+//! Codeberg](https://codeberg.org/spade-lang/spade/issues/190).
 //!
 //! ## Diagnostics
 //!
@@ -264,11 +264,11 @@
 //!
 //! [`CodespanEmitter`]: emitter::CodespanEmitter
 //!
-//! > If you use the compiler as a library (like we do for the [Spade Language
-//! > Server](https://gitlab.com/spade-lang/spade-language-server/)) you can define
+//! > If you use the compiler as a library (like we do for the Spade Language
+//! > Server) you can define
 //! > your own emitter that formats the diagnostics. The language server, for
 //! > example, has [its own
-//! > emitter](https://gitlab.com/spade-lang/spade-language-server/-/blob/5eccf6c71724ec1074f69f535132a5b298d583ba/src/main.rs#L75)
+//! > emitter](https://codeberg.org/spade-lang/spade/src/commit/ee5962a5969178123b5404ab120afb44cde0f105/spade-language-server/src/compile.rs#L64)
 //! > that sends LSP-friendly diagnostics to the connected Language Server Client.
 //!
 //! When writing diagnostics in the compiler you usually don't have to care about

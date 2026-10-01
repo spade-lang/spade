@@ -1,8 +1,6 @@
 ---
 source: spade-tests/src/parser.rs
 ---
-use std::ports;
-
 entity test() {}
 
 entity int32_to_float32(input: int<32>) -> uint<32> {
@@ -15,37 +13,37 @@ entity top(input: int<32>) -> uint<32> {}
 
 
 error: Expected a `;` after this expression.
-  ┌─ testinput:6:5
+  ┌─ testinput:4:5
   │
-6 │     test()
+4 │     test()
   │     ^^^^^^
-7 │     test()
+5 │     test()
   │     ------ Required because it is followed by this
   │
   = help: Only the last expression to be returned can be without a semicolon
 
 error: Output type mismatch. Expected uint<32>, got ()
-  ┌─ testinput:5:53
+  ┌─ testinput:3:53
   │  
-5 │   entity int32_to_float32(input: int<32>) -> uint<32> {
+3 │   entity int32_to_float32(input: int<32>) -> uint<32> {
   │                                              -------- uint<32> type specified here
   │ ╭─────────────────────────────────────────────────────^
-6 │ │     test()
-7 │ │     test()
+4 │ │     test()
+5 │ │     test()
   │ │     ------ Type () inferred here
-8 │ │ }
+6 │ │ }
   │ ╰─^ Found type ()
   │  
   = note: Expected: uint<32>
                Got: ()
 
 error: Output type mismatch. Expected uint<32>, got ()
-   ┌─ testinput:10:40
-   │
-10 │ entity top(input: int<32>) -> uint<32> {}
-   │                               -------- ^^ Found type ()
-   │                               │         
-   │                               uint<32> type specified here
-   │
-   = note: Expected: uint<32>
-                Got: ()
+  ┌─ testinput:8:40
+  │
+8 │ entity top(input: int<32>) -> uint<32> {}
+  │                               -------- ^^ Found type ()
+  │                               │         
+  │                               uint<32> type specified here
+  │
+  = note: Expected: uint<32>
+               Got: ()

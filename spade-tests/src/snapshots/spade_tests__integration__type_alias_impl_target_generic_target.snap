@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct A {}
+
+type B = A;
+
+impl B<true> { }
+
+
+error: Wrong number of generic type parameters
+  ┌─ testinput:5:7
+  │
+3 │ type B = A;
+  │ ----------- Because this has 0 type parameters
+4 │ 
+5 │ impl B<true> { }
+  │       ^^^^^^ Expected 0 type parameters

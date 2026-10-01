@@ -1,0 +1,28 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct A {}
+
+type B = A;
+
+type C = B;
+
+type D = C;
+
+impl C {
+    fn test(self) -> Self { D {} }
+}
+
+entity main(a: A) {
+    let _: B = a.test();
+}
+
+
+error: Impl on type alias is currently not supported
+  ┌─ testinput:9:6
+  │
+5 │ type C = B;
+  │ ----------- C defined here
+  ·
+9 │ impl C {
+  │      ^ Type alias as impl target

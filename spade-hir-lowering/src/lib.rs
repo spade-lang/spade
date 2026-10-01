@@ -169,9 +169,11 @@ impl LocExprExt for Loc<hir::Expression> {
                 }
             }
             ExprKind::Match(_, _) => Some(self.clone()),
+            ExprKind::ConstTypeExpr(_) => None,
             ExprKind::Block(_) => Some(self.clone()),
             ExprKind::If { .. } => Some(self.clone()),
             ExprKind::TypeLevelIf { .. } => Some(self.clone()),
+            ExprKind::TypeLevelMatch { .. } => Some(self.clone()),
             ExprKind::PipelineRef { .. } => Some(self.clone()),
             ExprKind::StageReady => Some(self.clone()),
             ExprKind::StageValid => Some(self.clone()),
@@ -1169,6 +1171,7 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::ArrayShorthandLiteral { .. } => Ok(None),
             ExprKind::RangeIndex { .. } => Ok(None),
             ExprKind::Index(_, _) => Ok(None),
+            ExprKind::ConstTypeExpr(_) => Ok(None),
             ExprKind::Block(block) => {
                 if let Some(result) = &block.result {
                     result.variable(ctx).map(Some)
@@ -1229,6 +1232,10 @@ impl ExprLocal for Loc<Expression> {
             ExprKind::TypeLevelIf { .. } => diag_bail!(
                 self,
                 "Type level if should have been lowered to function by this point"
+            ),
+            ExprKind::TypeLevelMatch { .. } => diag_bail!(
+                self,
+                "Type level match should have been lowered to function by this point"
             ),
             ExprKind::MethodCall { .. } => diag_bail!(
                 self,
@@ -1300,7 +1307,7 @@ impl ExprLocal for Loc<Expression> {
                         &value,
                         ctx.symtab.symtab(),
                         &ctx.item_list.types,
-                    ) {
+                    )? {
                         Some(ConcreteType::Integer(value)) => value,
                         Some(other) => diag_bail!(self, "Inferred {other} for type level integer"),
                         None => {
@@ -1354,7 +1361,7 @@ impl ExprLocal for Loc<Expression> {
                         &value,
                         ctx.symtab.symtab(),
                         &ctx.item_list.types,
-                    ) {
+                    )? {
                         Some(ConcreteType::Bool(value)) => value,
                         Some(other) => diag_bail!(self, "Inferred {other} for type level bool"),
                         None => {
@@ -1544,7 +1551,7 @@ impl ExprLocal for Loc<Expression> {
                     hir::expression::UnaryOperator::Not => unop_builder(Not)?,
                     hir::expression::UnaryOperator::BitwiseNot => unop_builder(BitwiseNot)?,
                     // Dereferences do nothing for codegen of the actual operator. It only
-                    // prevents pipelining, hence Alias is fine here
+                    // strips copy views, hence Alias is fine here
                     hir::expression::UnaryOperator::Dereference => unop_builder(Alias)?,
                     hir::expression::UnaryOperator::Reference => unop_builder(ConstructCopyView)?,
                 };
@@ -1759,6 +1766,36 @@ impl ExprLocal for Loc<Expression> {
                     self,
                 )
             }
+            ExprKind::ConstTypeExpr(c) => {
+                let ty =
+                    ctx.types
+                        .concrete_type_of(c, ctx.symtab.symtab(), &ctx.item_list.types)?;
+
+                let val = match ty {
+                    ConcreteType::Integer(i) => mir::ConstantValue::Int(i),
+                    ConcreteType::Bool(b) => mir::ConstantValue::Bool(b),
+                    // Those are not possible const generic expression results
+                    ConcreteType::Error
+                    | ConcreteType::Tuple(_)
+                    | ConcreteType::Struct { .. }
+                    | ConcreteType::Array { .. }
+                    | ConcreteType::Enum { .. }
+                    | ConcreteType::Single { .. }
+                    | ConcreteType::String(_)
+                    | ConcreteType::Backward(_)
+                    | ConcreteType::CopyView(_) => {
+                        return Err(Diagnostic::bug(
+                            c,
+                            "Invalid concrete type for const generic",
+                        ));
+                    }
+                };
+
+                result.push_primary(
+                    mir::Statement::Constant(self.variable(ctx)?, self_type, val).at_loc(&self),
+                    self,
+                )
+            }
             ExprKind::Block(block) => {
                 for statement in &block.statements {
                     result.append(statement.lower(ctx)?);
@@ -1887,13 +1924,31 @@ impl ExprLocal for Loc<Expression> {
                 }
 
                 result.append(operand.lower(ctx)?);
-                let mut operands = vec![];
+                let mut operands = vec![operand.variable(ctx)?];
                 for (pat, if_cond, result_expr) in branches {
                     let pat_ty = ctx
                         .types
                         .concrete_type_of(pat, ctx.symtab.symtab(), &ctx.item_list.types)?
                         .to_mir_type();
-                    result.append(pat.lower(operand.variable(ctx)?, pat_ty, ctx)?);
+
+                    let local_op_name = mir::ValueName::Expr(ctx.idtracker.next()).near_loc(&self);
+
+                    result.append_secondary(
+                        vec![
+                            mir::Statement::Binding(mir::Binding {
+                                name: local_op_name.clone(),
+                                operator: mir::Operator::Nop,
+                                operands: vec![],
+                                ty: pat_ty.clone(),
+                                loc: Some(self.loc()),
+                            })
+                            .near_loc(&self),
+                        ],
+                        self,
+                        "Local operand",
+                    );
+
+                    result.append(pat.lower(local_op_name.clone(), pat_ty, ctx)?);
 
                     let if_cond = match if_cond {
                         Some(c) => {
@@ -1903,12 +1958,13 @@ impl ExprLocal for Loc<Expression> {
                         None => None,
                     };
 
-                    let cond = pat.condition(&operand.variable(ctx)?, if_cond, ctx)?;
+                    let cond = pat.condition(&local_op_name, if_cond, ctx)?;
 
                     result.append_secondary(cond.statements, pat, "Pattern condition");
 
                     result.append(result_expr.lower(ctx)?);
 
+                    operands.push(local_op_name);
                     operands.push(cond.result_name);
                     operands.push(result_expr.variable(ctx)?);
                 }
@@ -2162,6 +2218,12 @@ impl ExprLocal for Loc<Expression> {
                     "Type level if should already have been lowered at this point"
                 )
             }
+            ExprKind::TypeLevelMatch { .. } => {
+                diag_bail!(
+                    self,
+                    "Type level match should already have been lowered at this point"
+                )
+            }
             ExprKind::MethodCall { .. } => {
                 diag_bail!(
                     self,
@@ -2238,7 +2300,7 @@ impl ExprLocal for Loc<Expression> {
 
             if ctx
                 .types
-                .ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types)
+                .ungenerify_type(var, ctx.symtab.symtab(), &ctx.item_list.types)?
                 .is_none()
             {
                 return Err(Diagnostic::error(
@@ -2286,7 +2348,7 @@ impl ExprLocal for Loc<Expression> {
 
         handle_special_functions! {
             // core
-            ["core", "conv", "transmute"] => handle_transmute {allow_port},
+            ["core", "conv", "transmute"] => handle_transmute { allow_port },
             ["core", "ops", "intrinsics", "eq"] => handle_eq,
             ["core", "ops", "intrinsics", "ne"] => handle_ne,
             ["core", "ops", "intrinsics", "bit_not"] => handle_bit_not,
@@ -2314,15 +2376,11 @@ impl ExprLocal for Loc<Expression> {
             ["std", "num", "sext"] => handle_sext,
             ["std", "num", "zext"] => handle_zext,
             ["std", "num", "concat"] => handle_concat,
-            ["std", "ops", "div_pow2"] => handle_div_pow2,
             ["std", "ops", "reduce_and"] => handle_reduce_and,
             ["std", "ops", "reduce_or"] => handle_reduce_or,
             ["std", "ops", "reduce_xor"] => handle_reduce_xor,
             ["std", "ops", "comb_div"] => handle_comb_div,
-            ["std", "ops", "comb_mod"] => handle_comb_mod,
-            ["std", "ports", "read_mut_wire"] => handle_read_mut_wire,
-            ["std", "ports", "read_write_inout"] => handle_read_write_inout,
-            ["std", "ports", "read_write_items_inout"] => handle_read_write_items_inout
+            ["std", "ops", "comb_mod"] => handle_comb_mod
         }
 
         // Look up the name in the executable list to see if this is a type instantiation
@@ -3356,35 +3414,6 @@ impl ExprLocal for Loc<Expression> {
         }
     }
 
-    fn handle_div_pow2(
-        &self,
-        _path: &Loc<NameID>,
-        result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
-        ctx: &mut Context,
-    ) -> Result<StatementList> {
-        let mut result = result;
-
-        let self_type = ctx
-            .types
-            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-            .to_mir_type();
-
-        result.push_primary(
-            mir::Statement::Binding(mir::Binding {
-                name: self.variable(ctx)?,
-                operator: mir::Operator::DivPow2,
-                operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
-                ty: self_type,
-                loc: Some(self.loc()),
-            })
-            .at_loc(&self),
-            self,
-        );
-
-        Ok(result)
-    }
-
     fn handle_reduce_and(
         &self,
         _path: &Loc<NameID>,
@@ -3544,37 +3573,6 @@ impl ExprLocal for Loc<Expression> {
                 operands: vec![args[0].value.variable(ctx)?, args[1].value.variable(ctx)?],
                 ty: self_type,
                 loc: Some(self.loc()),
-            })
-            .at_loc(&self),
-            self,
-        );
-
-        Ok(result)
-    }
-
-    fn handle_read_mut_wire(
-        &self,
-        path: &Loc<NameID>,
-        result: StatementList,
-        args: &[Argument<Expression, TypeSpec>],
-        ctx: &mut Context,
-    ) -> Result<StatementList> {
-        let mut result = result;
-
-        assert_eq!(args.len(), 1);
-
-        let self_type = ctx
-            .types
-            .concrete_type_of(self, ctx.symtab.symtab(), &ctx.item_list.types)?
-            .to_mir_type();
-
-        result.push_primary(
-            mir::Statement::Binding(mir::Binding {
-                name: self.variable(ctx)?,
-                operator: mir::Operator::ReadPort,
-                operands: vec![args[0].value.variable(ctx)?],
-                ty: self_type,
-                loc: Some(path.loc()),
             })
             .at_loc(&self),
             self,

@@ -4,7 +4,7 @@ source: spade-tests/src/linear_check.rs
 extern entity consumer(x: inv bool) -> bool;
 
 entity test() -> (bool, bool) {
-    let p = inst new_mut_wire();
+    let p = port().1;
     (inst consumer(p), inst consumer(p))
 }
 

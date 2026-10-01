@@ -32,7 +32,7 @@ entity simple_io() -> SimpleIO {
 entity substruct() -> SubStruct {
     let (fwd, back) = port();
     let (raw_fwd, raw_back) = port();
-    SubStruct { raw_fwd, raw_back, inner: SimpleIO$(fwd, back) }
+    SubStruct { raw_fwd, raw_back, inner: SimpleIO { fwd, back } }
 }
 
 struct Fields {

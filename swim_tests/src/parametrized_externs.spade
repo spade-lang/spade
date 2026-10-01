@@ -1,5 +1,3 @@
-use std::ports;
-
 mod verilog {
     #[no_mangle(all)]
     pub extern entity add_constant<#uint N, #uint M>(
@@ -10,12 +8,12 @@ mod verilog {
 
 entity harness(input: int<8>, named: bool) -> int<8> {
     if named {
-        let out = inst ports::new_mut_wire();
+        let out = port().1;
         let _ = inst verilog::add_constant::$<N: 1, M: 2>(input, out);
-        inst ports::read_mut_wire(out)
+        *out.inspect()
     } else {
-        let out = inst ports::new_mut_wire();
+        let out = port().1;
         let _ = inst verilog::add_constant::<1, 2>(input, out);
-        inst ports::read_mut_wire(out)
+        *out.inspect()
     }
 }

@@ -8,10 +8,10 @@ fn test(in: (int<8>, bool)) -> bool {
 }
 
 
-error: Non-exhaustive match: pattern (-128..127, false) not covered
+error: Non-exhaustive match: pattern (-128..=127, false) not covered
   ┌─ testinput:2:5
   │  
 2 │ ╭     match in {
 3 │ │         (val, true) => true,
 4 │ │     }
-  │ ╰─────^ pattern (-128..127, false) not covered
+  │ ╰─────^ pattern (-128..=127, false) not covered

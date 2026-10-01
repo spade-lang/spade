@@ -1,6 +1,0 @@
-use std::ops::div_pow2;
-
-fn counter(x: int<8>, y: int<8>) -> int<8> {
-    x `div_pow2` y
-}
-

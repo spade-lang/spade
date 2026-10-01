@@ -1,0 +1,7 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> int<8> {
+	const e2: int<8> = 7
+} => e2

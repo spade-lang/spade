@@ -1,0 +1,36 @@
+---
+source: spade-tests/src/parser.rs
+---
+struct A { }
+impl A {
+  fn test(self);
+}
+
+fn top(a: A) {
+  a.test();
+}
+
+
+error: This fn is missing a body
+  ┌─ testinput:3:3
+  │
+3 │   fn test(self);
+  │   ^^^^^^^^^^^^^
+  │
+  = Did you forget to add the fn's body?
+  │
+3 │   fn test(self) {}
+  │                ~~~
+  = Or did you mean to declare an `extern` fn?
+  │
+3 │   extern fn test(self);
+  │   +++++++
+
+error: `A` has no method `test`
+  ┌─ testinput:7:5
+  │
+7 │   a.test();
+  │   --^^^^--
+  │   │ │
+  │   │ No such method
+  │   This has type `A`

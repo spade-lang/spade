@@ -3,23 +3,26 @@ source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \uwu ((e, e_n101, bool)) -> bool {
-	let e4: bool = Alias(e_n101)
+	let e393: bool = Nop()
+	let e4: bool = Alias(e393)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e399: bool = Eq(e6, e7)
-	let e5: bool = Alias(e399)
-	let e393: bool = LogicalAnd(e_n101, e5)
+	let e402: bool = Eq(e6, e7)
+	let e5: bool = Alias(e402)
+	let e394: bool = LogicalAnd(e393, e5)
 	const e8: bool = true
-	let e9: bool = Alias(e_n101)
+	let e395: bool = Nop()
+	let e9: bool = Alias(e395)
 	const e11: int<7> = 0
 	const e12: int<7> = 1
-	let e401: bool = Eq(e11, e12)
-	let e10: bool = Alias(e401)
-	let e395: bool = LogicalNot(e_n101)
-	let e394: bool = LogicalAnd(e395, e10)
+	let e404: bool = Eq(e11, e12)
+	let e10: bool = Alias(e404)
+	let e397: bool = LogicalNot(e395)
+	let e396: bool = LogicalAnd(e397, e10)
 	const e13: bool = false
-	let __n102: bool = Alias(e_n101)
-	const e396: bool = true
+	let e398: bool = Nop()
+	let __n102: bool = Alias(e398)
+	const e399: bool = true
 	const e15: bool = false
-	let e2: bool = Match(e393, e8, e394, e13, e396, e15)
+	let e2: bool = Match(e_n101, e393, e394, e8, e395, e396, e13, e398, e399, e15)
 } => e2

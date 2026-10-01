@@ -202,7 +202,6 @@ pub enum Operator {
     ReduceXor,
     USub,
     Not,
-    ReadPort,
     ReadWriteItemsInOut(BigUint),
     BitwiseNot,
     // Divide op[0] by 2**op[1] rounding towards 0
@@ -217,9 +216,18 @@ pub enum Operator {
     Concat,
     /// Select [1] if [0] else [2]
     Select,
-    /// Corresponds to a match statement. If value [0] is true, select [1], if [2] holds, select
-    /// [3] and so on. Values are priorotized in order, i.e. if both [0] and [2] hold, [1] is
-    /// selected
+    /// Corresponds to a match statement.
+    ///
+    /// `[0]` contains the value to match on. The subsequent values are a triple of branches, i.e. for every branch `i`
+    ///
+    /// - `[1 + i]`: Local copy of `[0]` which is used for inv signals.
+    /// - `[1 + i+1]`: The condition for this branch to be selected
+    /// - `[1 + i+2]`: The value to select when the branch is selected. If it contains inv
+    ///   wires, those are connected to the local copy
+    ///
+    /// The backward wires of `[0]` are connected to the first local copy of the branch that was selected
+    ///
+    /// Branches are prioritized in order, so if more than one branch matches, the earlier one wins.
     // NOTE: We may want to add a MatchUnique for cases where we can guarantee uniqueness,
     // typically match statements with no wildcards
     Match,
@@ -275,16 +283,6 @@ pub enum Operator {
     /// Inverts the direction of all bits of a port. I.e. the forward ports
     /// become backward ports. This is only valid when converting from T to ~T
     FlipPort,
-
-    /// Given a struct or tuple consisting of mut and non-mut wires, create a new
-    /// struct or tuple with the non-mut copies of the mut wires
-    ///
-    /// As an example `(&mut T1, T2, &mut T3)` becomes `(T1, T3)`
-    // NOTE: For now this variant is a bit of a hack used during wal_trace_lowering
-    // A saner implementation that also solves #252 would be nice
-    // In particular, a dedicated `ReadMutTuple` might be useful
-    // lifeguard spade#252
-    ReadMutWires,
 
     /// Instantiation of another module with the specified name. The operands are passed
     /// by name to the entity. The operand name mapping is decided by the `argument_names` field of
@@ -415,9 +413,7 @@ impl std::fmt::Display for Operator {
             Operator::Alias => write!(f, "Alias"),
             Operator::BlackBoxAlias => write!(f, "BlackBoxAlias"),
             Operator::FlipPort => write!(f, "FlipPort"),
-            Operator::ReadMutWires => write!(f, "ReadMutWires"),
             Operator::Nop => write!(f, "Nop"),
-            Operator::ReadPort => write!(f, "ReadPort"),
             Operator::ReadWriteItemsInOut(n) => write!(f, "ReadWriteInOut({})", n),
         }
     }

@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/auto_traits.rs
+---
+entity test(clk: clock) {
+    reg(clk) r = port().1;
+}
+
+
+error: Trait bound not satisfied. inv _ does not implement core::marker::Copy
+  ┌─ testinput:2:14
+  │
+2 │     reg(clk) r = port().1;
+  │     ---      ^   -------- The type of this expression is not `Data + Copy` which means it cannot be stored in a register.
+  │     │        │    
+  │     │        inv _ does not implement core::marker::Copy
+  │     Required because of the trait bound specified here
+  │
+  = help: An expression not being `Data + Copy` means it contains at least one `inv` or `clock` type
+  = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

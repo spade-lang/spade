@@ -45,7 +45,7 @@ pub enum TokenKind {
     // Unholy regex for unicode identifiers. Stolen from Repnop who stole it from Evrey
     #[regex(r#"(r#)?(?x:
         [\p{XID_Start}_]
-        \p{XID_Continue}* 
+        \p{XID_Continue}*
     )"#, |lex| process_ident(lex.slice()))]
     Identifier(Identifier),
 
@@ -144,6 +144,8 @@ pub enum TokenKind {
     #[token("gen")]
     Gen,
 
+    #[token("const")]
+    Const,
     #[token("extern")]
     Extern,
     #[token("unsafe")]
@@ -337,6 +339,7 @@ impl TokenKind {
 
             TokenKind::Gen => "gen",
 
+            TokenKind::Const => "const",
             TokenKind::Extern => "extern",
             TokenKind::Unsafe => "unsafe",
 

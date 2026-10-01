@@ -11,16 +11,30 @@ fn test() -> Type {
 }
 
 
-error: Enum members must be Data
+error: Enum members must be `Copy`
   ┌─ testinput:3:11
   │
 3 │     V1{x: inout<bool>}
-  │           ^^^^^^^^^^^ Non-data enum member
+  │           ^^^^^^^^^^^ Non-`Copy` enum member
   │
   ┌─ <str>:1:1
   │
 1 │ 
-  │ - This type is not Data
+  │ - This type is not `Copy`
   │
   = help: Typically, a type not being Data means it has an `inv` part
+  = help: You can learn more about `Copy` here: https://docs.spade-lang.org/wires.html
+
+error: Enum members must be `Data`
+  ┌─ testinput:3:11
+  │
+3 │     V1{x: inout<bool>}
+  │           ^^^^^^^^^^^ Non-`Data` enum member
+  │
+  ┌─ <str>:1:1
+  │
+1 │ 
+  │ - This type is not `Data`
+  │
+  = help: Typically, a type not being Data means it has a `clock` field
   = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

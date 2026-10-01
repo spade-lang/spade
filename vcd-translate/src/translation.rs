@@ -190,6 +190,7 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
                 offset = end;
                 if i != inner.len() - 1 {
                     result.push(',');
+                    result.push(' ');
                 }
             }
             result.push(')')
@@ -209,19 +210,21 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
                 offset = end;
                 if i != members.len() - 1 {
                     result.push(',');
+                    result.push(' ');
                 }
             }
             result.push('}');
         }
         ConcreteType::Array { inner, size } => {
-            let mut offset = 0;
+            let item_size = inner.to_mir_type().size().to_bit_count();
             result.push('[');
-            for i in 0..size.to_bit_count() {
-                let end = offset + inner.to_mir_type().size().to_bit_count();
+            for i in (0..size.to_bit_count()).rev() {
+                let offset = i * item_size;
+                let end = offset + item_size;
                 inner_translate_value(result, &value[offset..end], inner);
-                offset = end;
-                if i != size.to_bit_count() - 1 {
-                    result.push(',')
+                if i != 0 {
+                    result.push(',');
+                    result.push(' ');
                 }
             }
             result.push(']');
@@ -251,7 +254,8 @@ pub fn inner_translate_value(result: &mut String, in_value: &[Value], t: &Concre
                                 offset = end;
 
                                 if i != inner_types.len() - 1 {
-                                    result.push(',')
+                                    result.push(',');
+                                    result.push(' ');
                                 }
                             }
 
@@ -461,7 +465,7 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "{a:8,b:-4}");
+        assert_eq!(translated, "{a:8, b:-4}");
     }
 
     #[test]
@@ -481,7 +485,7 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "(9,-3)");
+        assert_eq!(translated, "(9, -3)");
     }
 
     #[test]
@@ -501,7 +505,7 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "(UNDEF,UNDEF)");
+        assert_eq!(translated, "(UNDEF, UNDEF)");
     }
 
     fn enum_ty() -> ConcreteType {
@@ -548,7 +552,7 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "A(9,-3)");
+        assert_eq!(translated, "A(9, -3)");
     }
 
     #[test]
@@ -609,11 +613,11 @@ mod tests {
             size: 2u32.to_bigint(),
         };
 
-        let value = vec![V0, V0, V1, V0, V1, V0];
+        let value = vec![V0, V1, V0, V0, V0, V1];
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "[1,2]");
+        assert_eq!(translated, "[1, 2]");
     }
 
     #[test]
@@ -633,7 +637,7 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "(UNDEF,UNDEF)");
+        assert_eq!(translated, "(UNDEF, UNDEF)");
     }
 
     #[test]
@@ -653,6 +657,6 @@ mod tests {
         let mut translated = String::new();
         inner_translate_value(&mut translated, &value, &ty);
 
-        assert_eq!(translated, "(HIGHIMP,HIGHIMP)");
+        assert_eq!(translated, "(HIGHIMP, HIGHIMP)");
     }
 }

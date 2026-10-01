@@ -1,6 +1,91 @@
 use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 
 snapshot_error!(
+    type_alias_impl_target_generic_both,
+    r#"
+        struct A<#bool B> {}
+
+        type B<#bool B> = A<B>;
+
+        impl B<true> { }
+    "#
+);
+
+snapshot_error!(
+    type_alias_impl_target_generic_target,
+    r#"
+        struct A {}
+
+        type B = A;
+
+        impl B<true> { }
+    "#
+);
+
+snapshot_error!(
+    type_alias_impl_target_generic_spec,
+    r#"
+        struct A<#bool B> {}
+
+        type B<#bool B> = A<B>;
+
+        impl B { }
+    "#
+);
+
+snapshot_error!(
+    basic_type_alias_impl_target,
+    r#"
+        struct A {}
+
+        type B = A;
+
+        impl B {
+            fn test(self) -> (Self, Self) { (A {}, B {}) }
+        }
+
+        entity main(a: A, b: B) {
+            let _: (B, A) = a.test();
+            let _: (A, B) = b.test();
+        }
+    "#
+);
+
+snapshot_error!(
+    nested_type_alias_impl_target,
+    r#"
+        struct A {}
+
+        type B = A;
+
+        type C = B;
+
+        type D = C;
+
+        impl C {
+            fn test(self) -> Self { D {} }
+        }
+
+        entity main(a: A) {
+            let _: B = a.test();
+        }
+    "#
+);
+
+snapshot_error!(
+    forbidden_impl_targets,
+    r#"
+        impl Self {
+            fn test(self) -> Self { Self {} }
+        }
+
+        impl impl Data {
+            fn test(self) -> Self { Self {} }
+        }
+    "#
+);
+
+snapshot_error!(
     trait_self_wrong_impl_return_type,
     r#"
         trait X {
@@ -551,6 +636,39 @@ snapshot_mir! {
 }
 
 code_compiles! {
+    field_access_through_view_of_inverted_struct,
+    "
+        struct S {
+            a: bool,
+            b: inv bool,
+        }
+
+        entity top(s: &inv S) -> bool {
+            let _ = s.a;
+            *s.b
+        }
+    "
+}
+
+code_compiles! {
+    nested_field_access_through_view_of_inverted_struct,
+    "
+        struct Inner {
+            a: inv bool,
+        }
+
+        struct Outer {
+            inner: Inner,
+            flag: bool,
+        }
+
+        entity top(s: &inv Outer) -> bool {
+            *s.inner.a
+        }
+    "
+}
+
+code_compiles! {
     wires_are_allowed_in_fn_args,
     "
         fn a(x: &bool) {}
@@ -694,6 +812,18 @@ snapshot_error! {
 
 snapshot_error! {
     lambdas_that_capture_non_data_are_non_data,
+    "
+        entity test(clk: clock) {
+            let l = fn || {
+                let _ = clk;
+            };
+            reg(clk) r = l;
+        }
+    "
+}
+
+snapshot_error! {
+    lambdas_that_capture_non_copy_are_non_copy,
     "
         entity test(clk: clock) {
             let w = port().1;
@@ -1234,7 +1364,7 @@ mod trait_tests {
             }
 
             fn main(x: X) -> bool {
-                x.test$(y: 1)
+                x.test(y: 1)
             }
         "
     }
@@ -1248,7 +1378,7 @@ mod trait_tests {
             }
 
             fn main(x: X) -> bool {
-                x.test$(self: X())
+                x.test(self: X())
             }
         "
     }

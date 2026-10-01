@@ -2,7 +2,6 @@ use spade_common::location_info::Loc;
 use spade_common::location_info::WithLocation;
 use spade_common::name::Identifier;
 use spade_common::name::PathSegment;
-use spade_diagnostics::Diagnostic;
 use spade_diagnostics::diag_bail;
 use spade_hir::ArgumentList;
 use spade_hir::Attribute;
@@ -59,6 +58,21 @@ pub fn absorb_statements(
             on_false: Box::new(absorb_statements(on_false, outer_statements, ctx)?),
         }
         .with_id(ctx.idtracker.next())),
+        ExprKind::TypeLevelMatch {
+            expression,
+            branches,
+        } => Ok(ExprKind::TypeLevelMatch {
+            expression: expression.clone(),
+            branches: branches
+                .iter()
+                .map(|(pat, expr)| {
+                    let p = pat.clone();
+                    let e = absorb_statements(expr, outer_statements, ctx)?;
+                    Ok((p, e))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        }
+        .with_id(ctx.idtracker.next())),
         ExprKind::Block(block) => Ok(ExprKind::Block(Box::new(Block {
             statements: outer_statements
                 .iter()
@@ -69,15 +83,15 @@ pub fn absorb_statements(
         }))
         .with_id(ctx.idtracker.next())),
         ExprKind::Error => Ok(ExprKind::Error.with_id(ctx.idtracker.next())),
-        _ => Err(Diagnostic::bug(
-            body,
-            "The body of a gen if can only be a block or another gen if",
-        )
-        .primary_label(format!("Invalid body of gen if"))),
+        _ => Ok(ExprKind::Block(Box::new(Block {
+            statements: vec![],
+            result: Some(expr.clone().at_loc(body)),
+        }))
+        .with_id(ctx.idtracker.next())),
     })
 }
 
-pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Unit>> {
+pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Unit>> {
     let Ok(body) = unit.body.assume_block() else {
         unit.body.kind = ExprKind::Error;
         return Ok(unit);
@@ -89,7 +103,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             let absorbed = absorb_statements(&new_body, &body.statements, ctx)?;
             new_unit.attributes.0.push(Attribute::Inline.at_loc(&unit));
             new_unit.body = match &absorbed.kind {
-                ExprKind::TypeLevelIf { .. } => {
+                ExprKind::TypeLevelIf { .. } | ExprKind::TypeLevelMatch { .. } => {
                     let loc = absorbed.loc();
                     ExprKind::Block(Box::new(Block {
                         statements: vec![],
@@ -112,7 +126,7 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             );
             new_unit.name = UnitName::WithID(new_nameid.clone().at_loc(&unit.head.name));
 
-            let new_unit = expand_type_level_if(new_unit, ctx)?;
+            let new_unit = expand_gen_expr(new_unit, ctx)?;
             ctx.item_list.add_executable(
                 new_nameid.clone().at_loc(&unit.head.name),
                 ExecutableItem::Unit(new_unit),
@@ -260,7 +274,89 @@ pub fn expand_type_level_if(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Lo
             let loc = unit.loc();
             unit.attributes.0.push(Attribute::Inline.at_loc(&loc));
 
-            Ok(expand_type_level_if(unit, ctx)?)
+            Ok(expand_gen_expr(unit, ctx)?)
+        }
+        Some(ExprKind::TypeLevelMatch {
+            expression,
+            branches,
+        }) => {
+            let branches = branches
+                .iter()
+                .enumerate()
+                .map(|(idx, (pat, expr))| {
+                    let p = pat.clone();
+                    let e = expand_body(&expr, PathSegment::MatchCase(idx as u64), ctx)?;
+                    let new_e = call_expanded(e, ctx);
+
+                    Ok((p, new_e))
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            let new_result = ExprKind::TypeLevelMatch {
+                expression: expression.clone(),
+                branches,
+            }
+            .with_id(ctx.idtracker.next())
+            .at_loc(&unit.body);
+
+            let result_name = ctx
+                .symtab
+                .add_local_variable(Identifier::intern("result").at_loc(&unit));
+
+            let result_binding = Statement::Binding(Binding {
+                pattern: PatternKind::Bound {
+                    name: result_name.clone().at_loc(&unit),
+                    inner: None,
+                    pre_declared: false,
+                    wire: None,
+                }
+                .with_id(ctx.idtracker.next())
+                .at_loc(&unit),
+                ty: None,
+                value: new_result,
+            })
+            .at_loc(&unit);
+
+            let pipeline_depth = match &unit.head.unit_kind.inner {
+                UnitKind::Function(_) => None,
+                UnitKind::Entity => None,
+                UnitKind::Pipeline {
+                    depth,
+                    depth_typeexpr_id: _,
+                } => Some(depth),
+            };
+            let pipeline_reg = pipeline_depth
+                .map(|depth| {
+                    vec![
+                        Statement::PipelineRegMarker(Some(
+                            spade_hir::PipelineRegMarkerExtra::Count {
+                                count: depth.clone(),
+                                count_typeexpr_id: ctx.idtracker.next(),
+                            },
+                        ))
+                        .at_loc(&depth),
+                    ]
+                })
+                .unwrap_or_default();
+
+            unit.body = ExprKind::Block(Box::new(Block {
+                statements: vec![result_binding]
+                    .into_iter()
+                    .chain(pipeline_reg)
+                    .collect(),
+                result: Some(
+                    ExprKind::Identifier(result_name)
+                        .with_id(ctx.idtracker.next())
+                        .at_loc(&unit),
+                ),
+            }))
+            .with_id(ctx.idtracker.next())
+            .at_loc(&unit.body);
+
+            let loc = unit.loc();
+            unit.attributes.0.push(Attribute::Inline.at_loc(&loc));
+
+            Ok(expand_gen_expr(unit, ctx)?)
         }
         _ => Ok(unit),
     }

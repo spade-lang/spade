@@ -4,24 +4,24 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> uint<8> {
 	const e411: uint<10> = 3
-	let x_n539: uint<10> = Alias(e411)
+	let x_n542: uint<10> = Alias(e411)
 	const e427: uint<10> = 2
-	let x_n550: uint<10> = Alias(e427)
+	let x_n553: uint<10> = Alias(e427)
 	const e449: uint<10> = 1
-	let x_n565: uint<10> = Alias(e449)
+	let x_n568: uint<10> = Alias(e449)
 	const e477: uint<10> = 0
-	let x_n584: uint<10> = Alias(e477)
+	let x_n587: uint<10> = Alias(e477)
 	const e476: uint<8> = 0
 	let e461: uint<8> = Alias(e476)
-	let result_n575: uint<8> = Alias(e461)
-	let e450: uint<8> = Alias(result_n575)
+	let result_n578: uint<8> = Alias(e461)
+	let e450: uint<8> = Alias(result_n578)
 	let e439: uint<8> = Alias(e450)
-	let result_n558: uint<8> = Alias(e439)
-	let e428: uint<8> = Alias(result_n558)
+	let result_n561: uint<8> = Alias(e439)
+	let e428: uint<8> = Alias(result_n561)
 	let e420: uint<8> = Alias(e428)
-	let result_n545: uint<8> = Alias(e420)
-	let e412: uint<8> = Alias(result_n545)
+	let result_n548: uint<8> = Alias(e420)
+	let e412: uint<8> = Alias(result_n548)
 	let e409: uint<8> = Alias(e412)
-	let result_n537: uint<8> = Alias(e409)
-	let e19: uint<8> = Alias(result_n537)
+	let result_n540: uint<8> = Alias(e409)
+	let e19: uint<8> = Alias(result_n540)
 } => e19

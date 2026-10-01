@@ -73,6 +73,8 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
             }
         };
 
+        parser.clear_item_context();
+
         if head.extern_token.is_some() && block.is_some() {
             return Err(Diagnostic::error(
                 head.extern_token.unwrap(),
@@ -95,8 +97,6 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
                 "extern ",
             ));
         }
-
-        parser.clear_item_context();
 
         Ok(Unit {
             head: head.inner.clone(),

@@ -132,9 +132,15 @@ impl ConcreteType {
                 inner: Box::new(inner.resolve_recursive_inversions(invert)),
                 size: size,
             },
-            s @ ConcreteType::Enum { .. }
-            | s @ ConcreteType::Single { .. }
-            | s @ ConcreteType::CopyView(_) => {
+            ConcreteType::CopyView(inner) => {
+                let inner = Box::new(inner.resolve_recursive_inversions(false));
+                if invert {
+                    ConcreteType::Backward(Box::new(ConcreteType::CopyView(inner)))
+                } else {
+                    ConcreteType::CopyView(inner)
+                }
+            }
+            s @ ConcreteType::Enum { .. } | s @ ConcreteType::Single { .. } => {
                 if invert {
                     ConcreteType::Backward(Box::new(s))
                 } else {

@@ -1,22 +1,36 @@
 ---
 source: spade-tests/src/parser.rs
 ---
-fn f(x: bool) -> bool {
-    x
+struct S { a: bool }
+fn f(a: bool) -> bool {
+    a
 }
-fn top() -> bool {
-    let a = true;
-    f$(x = a)
+fn s() -> S {
+    S { a = true }
+}
+fn c() -> bool {
+    f(a = true)
 }
 
 
-error: Unexpected `=`, expected `:`, `,`, or `)`
-  ┌─ testinput:6:10
+error: Unexpected `=`, expected `:`, `,`, or `}`
+  ┌─ testinput:6:11
   │
-6 │     f$(x = a)
-  │          ^ expected `:`, `,`, or `)`
+6 │     S { a = true }
+  │           ^ expected `:`, `,`, or `}`
   │
   = named arguments are specified with `:`
   │
-6 │     f$(x : a)
-  │          ~
+6 │     S { a : true }
+  │           ~
+
+error: Unexpected `=`, expected `:`, `,`, or `)`
+  ┌─ testinput:9:9
+  │
+9 │     f(a = true)
+  │         ^ expected `:`, `,`, or `)`
+  │
+  = named arguments are specified with `:`
+  │
+9 │     f(a : true)
+  │         ~

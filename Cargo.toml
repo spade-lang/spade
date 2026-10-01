@@ -17,7 +17,7 @@ edition = "2024"
 rust-version = "1.88"
 readme = "README.md"
 homepage = "https://spade-lang.org"
-repository = "https://gitlab.com/spade-lang/spade"
+repository = "https://codeberg.org/spade-lang/spade"
 
 [workspace.dependencies]
 spade-lang = {path = "spade-compiler", version = "0.20.0"}

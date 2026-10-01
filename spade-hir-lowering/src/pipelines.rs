@@ -709,6 +709,7 @@ impl PipelineAvailability for Expression {
                     .collect::<Vec<_>>(),
                 ctx,
             ),
+            ExprKind::ConstTypeExpr(_) => Ok(None),
             ExprKind::Block(inner) => {
                 // NOTE: Do we want to allow delayed values inside blocks? That could lead to some
                 // strange issues like
@@ -773,6 +774,10 @@ impl PipelineAvailability for Expression {
             ExprKind::TypeLevelIf { cond, .. } => diag_bail!(
                 cond,
                 "Type level if should already have been lowered by this point"
+            ),
+            ExprKind::TypeLevelMatch { expression, .. } => diag_bail!(
+                expression,
+                "Type level match should already have been lowered by this point"
             ),
             ExprKind::MethodCall { name, .. } => diag_bail!(
                 name,

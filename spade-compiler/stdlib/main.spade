@@ -1,4 +1,5 @@
 pub mod array;
+pub mod bool;
 pub mod cdc;
 pub mod conv;
 pub mod default;
@@ -7,5 +8,4 @@ pub mod mem;
 pub mod num;
 pub mod ops;
 pub mod option;
-pub mod ports;
 pub mod undef;

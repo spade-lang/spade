@@ -433,6 +433,10 @@ pub enum Expression {
         on_true: Box<Loc<Expression>>,
         on_false: Box<Loc<Expression>>,
     },
+    TypeLevelMatch {
+        expression: Box<Loc<Expression>>,
+        branches: Loc<Vec<(Loc<TypeExpression>, Loc<Expression>)>>,
+    },
     Match {
         expression: Box<Loc<Expression>>,
         branches: Loc<Vec<(Loc<Pattern>, Option<Loc<Expression>>, Loc<Expression>)>>,
@@ -445,6 +449,7 @@ pub enum Expression {
         Box<Loc<Expression>>,
     ),
     Block(Box<Block>),
+    ConstTypeExpr(Box<Loc<Expression>>),
     Unsafe(Box<Loc<Block>>),
     /// E.g. `stage(-5).x`, `stage('b).y`
     PipelineReference {
@@ -520,7 +525,8 @@ impl Expression {
             Expression::Incomplete { .. } => "incomplete",
             Expression::TypeCast(_, _) => "type cast",
             Expression::If { .. } => "if",
-            Expression::TypeLevelIf { .. } => "type level if",
+            Expression::TypeLevelIf { .. } => "type-level if",
+            Expression::TypeLevelMatch { .. } => "type-level match",
             Expression::Match { if_let: false, .. } => "match",
             Expression::Match { if_let: true, .. } => "if let",
             Expression::Lambda { .. } => "lambda",
@@ -529,6 +535,7 @@ impl Expression {
             Expression::MacroCall { .. } => "macro call",
             Expression::UnaryOperator(_, _) => "unary operator",
             Expression::BinaryOperator(_, _, _) => "binary operator",
+            Expression::ConstTypeExpr(_) => "const type expression",
             Expression::Block(_) => "block",
             Expression::Unsafe(_) => "unsafe",
             Expression::PipelineReference { .. } => "pipeline reference",

@@ -12,9 +12,9 @@ error: Argument type mismatch. Expected Number<#uint> got bool
   2 │     true `std::ops::comb_div` true
     │     ^^^^ Expected Number<_>
     │
-    ┌─ <compiler dir>/stdlib/ops.spade:159:24
+    ┌─ <compiler dir>/stdlib/ops.spade:144:24
     │
-159 │ pub extern fn comb_div<T>(x: T, y: T) -> T;
+144 │ pub extern fn comb_div<T>(x: T, y: T) -> T;
     │                        - Type Number<_> inferred here
     │
     = note: Expected: Number<_>

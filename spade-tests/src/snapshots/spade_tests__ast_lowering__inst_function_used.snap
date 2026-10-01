@@ -1,7 +1,6 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-// See https://gitlab.com/spade-lang/spade/-/issues/160
 mod a {
     pub fn foo() -> bool { true }
 }
@@ -14,17 +13,17 @@ entity test() -> bool {
 
 
 error: Unexpected `inst` for function call
-  ┌─ testinput:9:5
+  ┌─ testinput:8:5
   │
-3 │     pub fn foo() -> bool { true }
+2 │     pub fn foo() -> bool { true }
   │         -- foo is defined as a function here
   ·
-9 │     inst foo()
+8 │     inst foo()
   │     ^^^^ --- Because foo is a function
   │     │     
   │     Unexpected `inst`
   │
   = Consider removing the `inst`
   │
-9 │     inst foo()
+8 │     inst foo()
   │     ----

@@ -4,15 +4,15 @@ source: spade-tests/src/hir_lowering.rs
 extern fn test(a: bool, b: bool) -> bool;
 fn main() -> bool {
     let (a, b, c) = (true, true, true);
-    test$(a)
+    test(a:)
 }
 
 
 error: Missing argument: b
-  ┌─ testinput:4:10
+  ┌─ testinput:4:9
   │
 1 │ extern fn test(a: bool, b: bool) -> bool;
   │ ----------------------------------------- function defined here
   ·
-4 │     test$(a)
-  │          ^^^ Missing argument: b
+4 │     test(a:)
+  │         ^^^^ Missing argument: b

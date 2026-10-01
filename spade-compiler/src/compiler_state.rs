@@ -440,6 +440,7 @@ pub fn type_of_hierarchical_value(
     let concrete = mir_ctx
         .type_state
         .ungenerify_type(&ty, symtab, &item_list.types)
+        .map_err(|d| anyhow!("Failed to ungenerify type: {d:?}"))?
         .ok_or_else(|| {
             anyhow!(
                 "Tried to ungenerify generic type {ty}",

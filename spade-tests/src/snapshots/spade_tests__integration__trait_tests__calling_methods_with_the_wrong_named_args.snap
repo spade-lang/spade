@@ -7,15 +7,15 @@ impl X {
 }
 
 fn main(x: X) -> bool {
-    x.test$(y: 1)
+    x.test(y: 1)
 }
 
 
 error: No such argument: y
-  ┌─ testinput:7:13
+  ┌─ testinput:7:12
   │
 3 │     fn test(self, x: bool) -> bool {true}
   │     ------------------------------------- function defined here
   ·
-7 │     x.test$(y: 1)
-  │             ^ No such argument
+7 │     x.test(y: 1)
+  │            ^ No such argument

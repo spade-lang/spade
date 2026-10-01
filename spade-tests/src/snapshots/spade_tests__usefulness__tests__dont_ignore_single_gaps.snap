@@ -1,0 +1,28 @@
+---
+source: spade-tests/src/usefulness.rs
+---
+fn foo(a: uint<3>) -> bool {
+  match a {
+    0 => true,
+    // 1 => true,
+    2 => true,
+    3 => true,
+    // 4 => true,
+    5 => true,
+    6 => true,
+    // 7 => true,
+  }
+}
+
+
+error: Non-exhaustive match: patterns 1, 4 and 1 more not covered
+   ┌─ testinput:2:3
+   │  
+ 2 │ ╭   match a {
+ 3 │ │     0 => true,
+ 4 │ │     // 1 => true,
+ 5 │ │     2 => true,
+   · │
+10 │ │     // 7 => true,
+11 │ │   }
+   │ ╰───^ patterns 1, 4 and 1 more not covered

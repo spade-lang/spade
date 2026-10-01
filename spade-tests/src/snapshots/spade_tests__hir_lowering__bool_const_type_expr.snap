@@ -1,0 +1,7 @@
+---
+source: spade-tests/src/hir_lowering.rs
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
+---
+entity \test () -> bool {
+	const e2: bool = true
+} => e2

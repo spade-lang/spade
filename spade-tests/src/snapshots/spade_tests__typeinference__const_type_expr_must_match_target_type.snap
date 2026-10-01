@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn main() -> bool {
+    const type { 300 / 7 }
+}
+
+
+error: Output type mismatch. Expected bool, got Number<_>
+  ┌─ testinput:1:19
+  │  
+1 │   fn main() -> bool {
+  │                ---- bool type specified here
+  │ ╭───────────────────^
+2 │ │     const type { 300 / 7 }
+3 │ │ }
+  │ ╰─^ Found type Number<_>
+  │  
+  = note: Expected: bool
+               Got: Number<_>

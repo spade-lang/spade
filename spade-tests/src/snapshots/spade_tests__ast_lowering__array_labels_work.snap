@@ -1,6 +1,6 @@
 ---
 source: spade-tests/src/ast_lowering.rs
-expression: "format! (\"{}\", items [0])"
+expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test () -> [uint<8>; 4] {
 	const e3: uint<8> = 0

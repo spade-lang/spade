@@ -5,7 +5,7 @@ This package provides [Spade][] binaries built for [WebAssembly][]. This is usin
 
 At the moment, this package only provides an API allowing to run Spade in a virtual filesystem; no binaries are provided.
 
-[Spade]: https://gitlab.com/spade-lang/spade/
+[Spade]: https://codeberg.org/spade-lang/spade/
 [webassembly]: https://webassembly.org/
 [yowasp]: https://yowasp.github.io/
 

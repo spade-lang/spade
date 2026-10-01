@@ -7,10 +7,10 @@
     "homepage": "https://spade-lang.org/",
     "repository": {
         "type": "git",
-        "url": "git+https://gitlab.com/spade-lang/yowasp.git"
+        "url": "git+https://codeberg.org/spade-lang/spade.git"
     },
     "bugs": {
-        "url": "https://github.com/spade-lang/spade/issues"
+        "url": "https://codeberg.org/spade-lang/spade/issues"
     },
     "type": "module",
     "files": [

@@ -6,7 +6,7 @@ fn test() -> uint<8> {
 }
 
 
-error: Integer value does not fit in int<8>
+error: Integer value does not fit in uint<8>
   ┌─ testinput:2:5
   │
 2 │     -1

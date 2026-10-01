@@ -6,9 +6,9 @@ entity \test () -> () {
 	let e2: {} = ConstructTuple()
 	let x_n101: {} = Alias(e2)
 	let e9: () = ConstructTuple()
-	let e7: () = Instance(\impl#0::call[534] )(x_n101, e9)
+	let e7: () = Instance(\impl#0::call[537] )(x_n101, e9)
 	let e1: () = Nop()
 } => e1
-entity \impl#0::call[534] ((self, self_n108, {}), (args, args_n109, ())) -> () {
+entity \impl#0::call[537] ((self, self_n108, {}), (args, args_n109, ())) -> () {
 	let e3: () = Nop()
 } => e3

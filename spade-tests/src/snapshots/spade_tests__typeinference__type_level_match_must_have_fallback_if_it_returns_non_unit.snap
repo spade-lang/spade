@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/typeinference.rs
+---
+fn test() -> bool {
+    gen match 17 {
+        15 => true,
+        16 => false,
+    }
+}
+
+
+error: `gen match` is not exhaustive but is required to return a value
+  ┌─ testinput:1:19
+  │  
+1 │   fn test() -> bool {
+  │ ╭───────────────────^
+2 │ │     gen match 17 {
+3 │ │         15 => true,
+4 │ │         16 => false,
+5 │ │     }
+6 │ │ }
+  │ ╰─^ `17` is not covered

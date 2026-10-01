@@ -1,0 +1,98 @@
+fn if_addone<#uint N>(seq: [uint<8>; N]) -> [uint<9>; N] {
+    gen if N != 0 {
+        [seq[0] + 1].concat(if_addone(seq[1..N]))
+    } else {
+        []
+    }
+}
+
+fn if_addone_test(seq: [uint<8>; 4]) -> [uint<9>; 4] {
+    if_addone(seq)
+}
+
+fn match_addone<#uint N>(seq: [uint<8>; N]) -> [uint<9>; N] {
+    gen match N {
+        0 => [],
+        _ => [seq[0] + 1].concat(match_addone(seq[1..N])),
+    }
+}
+
+fn match_addone_test(seq: [uint<8>; 4]) -> [uint<9>; 4] {
+    match_addone(seq)
+}
+
+fn if_nested<#uint N>() -> uint<8> {
+    gen if N == 0 {
+        0
+    } else {
+        gen if N != 1 {
+            2
+        } else {
+            1
+        }
+    }
+}
+
+fn match_nested<#uint N>() -> uint<8> {
+    gen match N {
+        0 => 0,
+        _ => gen match N {
+            1 => 1,
+            _ => 2,
+        }
+    }
+}
+
+struct Methodee<#uint M> {}
+impl<#uint M> Methodee<M> {
+    fn if_inner<#uint N>(self) -> uint<8> {
+        gen if M != 0 {
+            gen if N != 0 {
+                2
+            } else {
+                1
+            }
+        } else {
+            0
+        }
+    }
+
+    fn match_inner<#uint N>(self) -> uint<8> {
+        gen match N {
+            1 => 1,
+            _ => gen match N {
+                0 => 0,
+                _ => 2,
+            }
+        }
+    }
+}
+
+struct MultOut {
+    nested: (uint<8>, uint<8>, uint<8>),
+    method: (uint<8>, uint<8>, uint<8>, uint<8>)
+}
+
+fn if_multiple_tests() -> MultOut {
+    MultOut(
+        (if_nested::<0>(), if_nested::<1>(), if_nested::<2>()),
+        (
+            Methodee::<0>().if_inner::<0>(),
+            Methodee::<0>().if_inner::<1>(),
+            Methodee::<1>().if_inner::<0>(),
+            Methodee::<1>().if_inner::<1>(),
+        )
+    )
+}
+
+fn match_multiple_tests() -> MultOut {
+    MultOut(
+        (match_nested::<0>(), match_nested::<1>(), match_nested::<2>()),
+        (
+            Methodee::<0>().match_inner::<0>(),
+            Methodee::<0>().match_inner::<1>(),
+            Methodee::<1>().match_inner::<0>(),
+            Methodee::<1>().match_inner::<1>(),
+        )
+    )
+}

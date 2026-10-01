@@ -339,6 +339,7 @@ impl ExprKindExt for ExprKind {
             | ExprKind::Match(_, _)
             | ExprKind::If { .. }
             | ExprKind::TypeLevelIf { .. }
+            | ExprKind::TypeLevelMatch { .. }
             | ExprKind::BoolLiteral(_)
             | ExprKind::TypeLevelBool(_)
             | ExprKind::TriLiteral(_)
@@ -352,6 +353,7 @@ impl ExprKindExt for ExprKind {
             | ExprKind::Incomplete(_, _)
             | ExprKind::TypeCast(_, _)
             | ExprKind::UnaryOperator(_, _)
+            | ExprKind::ConstTypeExpr(_)
             | ExprKind::Block(_)
             | ExprKind::PipelineRef { .. }
             | ExprKind::LambdaDef { .. }

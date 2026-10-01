@@ -120,19 +120,46 @@ impl<'a> Parser<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn maybe_expression(&mut self, braces: ExprBraces) -> Result<Option<Loc<Expression>>> {
+        self.maybe_non_comptime_expression(braces)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
-        self.non_comptime_expression(braces)
+        match self.maybe_expression(braces)? {
+            Some(expr) => Ok(expr),
+            None => Err(Diagnostic::from(UnexpectedToken {
+                got: self.peek()?,
+                expected: vec!["expression"],
+            })),
+        }
     }
 
     /// We need a function like this in order to not run into parser conflicts when
     /// parsing blocks, since both statements and expressions can start with $if.
     #[tracing::instrument(skip(self))]
-    pub fn non_comptime_expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
+    pub fn maybe_non_comptime_expression(
+        &mut self,
+        braces: ExprBraces,
+    ) -> Result<Option<Loc<Expression>>> {
         self.custom_infix_operator(braces)
     }
 
-    fn custom_infix_operator(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
-        let lhs_val = self.expr_bp(OpBindingPower::None, braces)?;
+    #[tracing::instrument(skip(self))]
+    pub fn non_comptime_expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
+        match self.maybe_non_comptime_expression(braces)? {
+            Some(expr) => Ok(expr),
+            None => Err(Diagnostic::from(UnexpectedToken {
+                got: self.peek()?,
+                expected: vec!["expression"],
+            })),
+        }
+    }
+
+    fn custom_infix_operator(&mut self, braces: ExprBraces) -> Result<Option<Loc<Expression>>> {
+        let Some(lhs_val) = self.maybe_expr_bp(OpBindingPower::None, braces)? else {
+            return Ok(None);
+        };
 
         if self.peek_kind(&TokenKind::InfixOperatorSeparator)? {
             let (Some((callee, _, turbofish)), _) = self.surrounded(
@@ -147,21 +174,28 @@ impl<'a> Parser<'a> {
                 }));
             };
 
-            let rhs_val = self.custom_infix_operator(braces)?;
+            let rhs_val = self.custom_infix_operator(braces)?.ok_or_else(|| {
+                Diagnostic::from(UnexpectedToken {
+                    got: self.peek().unwrap(),
+                    expected: vec!["expression"],
+                })
+            })?;
 
-            Ok(Expression::Call {
-                kind: CallKind::Function,
-                callee,
-                args: ArgumentList::Positional(vec![lhs_val.clone(), rhs_val.clone()]).between(
-                    self.file_id(),
-                    &lhs_val,
-                    &rhs_val,
-                ),
-                turbofish,
-            }
-            .between(self.file_id(), &lhs_val, &rhs_val))
+            Ok(Some(
+                Expression::Call {
+                    kind: CallKind::Function,
+                    callee,
+                    args: ArgumentList::Positional(vec![lhs_val.clone(), rhs_val.clone()]).between(
+                        self.file_id(),
+                        &lhs_val,
+                        &rhs_val,
+                    ),
+                    turbofish,
+                }
+                .between(self.file_id(), &lhs_val, &rhs_val),
+            ))
         } else {
-            Ok(lhs_val)
+            Ok(Some(lhs_val))
         }
     }
 
@@ -210,84 +244,104 @@ impl<'a> Parser<'a> {
         Ok(expr?.at_loc(&expr_loc))
     }
 
-    // Based on matklads blog post on pratt parsing:
-    // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
     fn expr_bp(
         &mut self,
         min_power: OpBindingPower,
         braces: ExprBraces,
     ) -> Result<Loc<Expression>> {
+        match self.maybe_expr_bp(min_power, braces)? {
+            Some(expr) => Ok(expr),
+            None => Err(Diagnostic::from(UnexpectedToken {
+                got: self.peek()?,
+                expected: vec!["expression"],
+            })),
+        }
+    }
+
+    // Based on matklads blog post on pratt parsing:
+    // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+    fn maybe_expr_bp(
+        &mut self,
+        min_power: OpBindingPower,
+        braces: ExprBraces,
+    ) -> Result<Option<Loc<Expression>>> {
         let next_tok = self.peek()?;
-        let mut lhs = if let Some((tok, op)) =
+        let lhs = if let Some((tok, op)) =
             Self::unop_from_kind(&next_tok.kind).map(|op| (next_tok, op))
         {
             self.eat_unconditional()?;
             let op_power = unop_binding_power(&op);
             let rhs = self.expr_bp(op_power, braces)?;
-            self.inline_negative_literal(op.at_loc(&tok.loc()), rhs)?
+            Some(self.inline_negative_literal(op.at_loc(&tok.loc()), rhs)?)
         } else {
             self.base_expression(braces)?
         };
 
-        while let Some(op) = Self::binop_from_kind(&self.peek()?.kind) {
-            let op_power = binop_binding_power(&op);
+        if let Some(mut lhs) = lhs {
+            while let Some(op) = Self::binop_from_kind(&self.peek()?.kind) {
+                let op_power = binop_binding_power(&op);
 
-            if op_power <= min_power {
-                break;
+                if op_power <= min_power {
+                    break;
+                }
+
+                let op_tok = self.eat_unconditional()?;
+
+                let rhs = self.expr_bp(op_power, braces)?;
+                lhs = Expression::BinaryOperator(
+                    Box::new(lhs.clone()),
+                    op.at(self.file_id(), &op_tok),
+                    Box::new(rhs.clone()),
+                )
+                .between(self.file_id(), &lhs, &rhs)
             }
 
-            let op_tok = self.eat_unconditional()?;
-
-            let rhs = self.expr_bp(op_power, braces)?;
-            lhs = Expression::BinaryOperator(
-                Box::new(lhs.clone()),
-                op.at(self.file_id(), &op_tok),
-                Box::new(rhs.clone()),
-            )
-            .between(self.file_id(), &lhs, &rhs)
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
         }
-
-        Ok(lhs)
     }
 
     // Expression parsing
 
     #[trace_parser]
-    fn base_expression(&mut self, braces: ExprBraces) -> Result<Loc<Expression>> {
+    fn base_expression(&mut self, braces: ExprBraces) -> Result<Option<Loc<Expression>>> {
         let expr = if let Some(tuple) = self.tuple_literal()? {
-            Ok(tuple)
+            tuple
         } else if let Some(lambda) = self.lambda()? {
-            Ok(lambda)
+            lambda
         } else if let Some(array) = self.array_literal()? {
-            Ok(array)
+            array
         } else if let Some(instance) = self.entity_instance(braces)? {
-            Ok(instance)
+            instance
         } else if let Some(val) = self.bool_literal()? {
-            Ok(Expression::BoolLiteral(val).at_loc(&val))
+            Expression::BoolLiteral(val).at_loc(&val)
         } else if let Some(val) = self.str_literal()? {
-            Ok(Expression::StrLiteral(val.clone()).at_loc(&val))
+            Expression::StrLiteral(val.clone()).at_loc(&val)
         } else if let Some(val) = self.tri_literal()? {
-            Ok(Expression::TriLiteral(val.clone()).at_loc(&val))
+            Expression::TriLiteral(val.clone()).at_loc(&val)
         } else if let Some(val) = self.int_literal()? {
-            Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
+            Expression::IntLiteral(val.clone()).at_loc(&val)
         } else if let Some(val) = self.ascii_char_literal()? {
-            Ok(Expression::IntLiteral(val.clone()).at_loc(&val))
+            Expression::IntLiteral(val.clone()).at_loc(&val)
         } else if let Some(val) = self.ascii_string_literal()? {
-            Ok(val)
+            val
         } else if let Some(block) = self.block(false)? {
-            Ok(block.map(Box::new).map(Expression::Block))
+            block.map(Box::new).map(Expression::Block)
         } else if let Some(if_expr) = self.if_expression(false, true, false)? {
-            Ok(if_expr)
-        } else if let Some(if_expr) = self.type_level_if()? {
-            Ok(if_expr)
+            if_expr
+        } else if let Some(gen_expr) = self.gen_expression()? {
+            gen_expr
         } else if let Some(match_expr) = self.match_expression()? {
-            Ok(match_expr)
+            match_expr
         } else if let Some(stageref) = self.pipeline_reference()? {
-            Ok(stageref)
+            stageref
         } else if let Some(label_access) = self.label_access()? {
-            Ok(label_access)
+            label_access
         } else if let Some(unsafe_expr) = self.unsafe_block()? {
-            Ok(unsafe_expr)
+            unsafe_expr
+        } else if let Some(const_expr) = self.const_block()? {
+            const_expr
         } else if let Some((path, is_macro, turbofish)) = self.path_with_turbofish()? {
             if is_macro {
                 let opening_token = self.peek()?;
@@ -310,16 +364,16 @@ impl<'a> Parser<'a> {
                 let tokens = self.enclosed_token_stream(&opening_token.kind, &closing_delimiter)?;
                 let end_loc = tokens.loc();
 
-                Ok(Expression::MacroCall {
+                Expression::MacroCall {
                     callee: path.clone(),
                     tokens: tokens.inner,
                     parse_ctx: self.parse_ctx.clone(),
                 }
-                .between(self.file_id(), &path, &end_loc))
+                .between(self.file_id(), &path, &end_loc)
             } else {
                 let span = path.span;
                 match (turbofish, self.argument_list(braces)?) {
-                    (None, None) => Ok(Expression::Identifier(path).at(self.file_id(), &span)),
+                    (None, None) => Expression::Identifier(path).at(self.file_id(), &span),
                     (Some(tf), None) => {
                         return Err(Diagnostic::error(self.peek()?, "Expected argument list")
                             .primary_label("Expected argument list")
@@ -332,26 +386,21 @@ impl<'a> Parser<'a> {
                         // Doing this avoids cloning result and args
                         let span = ().between(self.file_id(), &path, &args);
 
-                        Ok(Expression::Call {
+                        Expression::Call {
                             kind: CallKind::Function,
                             callee: path,
                             args,
                             turbofish: tf,
                         }
-                        .at_loc(&span))
+                        .at_loc(&span)
                     }
                 }
             }
         } else {
-            let got = self.peek()?;
-            Err(Diagnostic::error(
-                got.loc(),
-                format!("Unexpected `{}`, expected expression", got.kind.as_str()),
-            )
-            .primary_label("expected expression here"))
-        }?;
+            return Ok(None);
+        };
 
-        self.expression_suffix(expr, braces)
+        self.expression_suffix(expr, braces).map(Some)
     }
 
     #[trace_parser]
@@ -891,6 +940,25 @@ mod test {
     }
 
     #[test]
+    fn functions_with_paren_named_arguments_work() {
+        let code = "test(a:, b:)";
+
+        let expected = Expression::Call {
+            kind: CallKind::Function,
+            callee: ast_path("test"),
+            args: ArgumentList::Named(vec![
+                NamedArgument::Short(ast_ident("a")),
+                NamedArgument::Short(ast_ident("b")),
+            ])
+            .nowhere(),
+            turbofish: None,
+        }
+        .nowhere();
+
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
+    }
+
+    #[test]
     fn functions_with_dollar_named_arguments_work() {
         let code = "test$(a, b)";
 
@@ -998,6 +1066,26 @@ mod test {
     #[test]
     fn method_call_with_brace_named_args_works() {
         let code = "a.b { x: y }";
+
+        let expected = Expression::MethodCall {
+            target: Box::new(Expression::Identifier(ast_path("a")).nowhere()),
+            name: ast_ident("b"),
+            args: ArgumentList::Named(vec![NamedArgument::Full(
+                ast_ident("x"),
+                Expression::Identifier(ast_path("y")).nowhere(),
+            )])
+            .nowhere(),
+            kind: CallKind::Function,
+            turbofish: None,
+        }
+        .nowhere();
+
+        check_parse!(code, expression(ExprBraces::Allow), Ok(expected));
+    }
+
+    #[test]
+    fn method_call_with_paren_named_args_works() {
+        let code = "a.b$(x: y)";
 
         let expected = Expression::MethodCall {
             target: Box::new(Expression::Identifier(ast_path("a")).nowhere()),

@@ -1,6 +1,7 @@
 ---
 source: spade-tests/src/compiler_state.rs
 ---
+
         fn sub() -> bool {
             false
         }

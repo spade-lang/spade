@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+fn e(p: (uint<1>, inv bool)) {
+    let _ = match p {
+        (0, pi) => {
+            set pi = false;
+            false
+        },
+        (1, pi) => {
+            set pi = true;
+            true
+        },
+    };
+
+    set p.1 = false;
+}
+
+
+error: Use of consumed resource
+   ┌─ testinput:13:9
+   │
+ 2 │     let _ = match p {
+   │                   - Previously used here
+   ·
+13 │     set p.1 = false;
+   │         ^^^ Use of consumed resource

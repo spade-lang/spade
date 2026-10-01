@@ -1,0 +1,27 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test<T>() {
+    gen match T {
+        uint<_> => {},
+        bool => {},
+    }
+}
+
+
+error: T is not a type level integer but is used in a const generic expression.
+  ┌─ testinput:2:15
+  │
+1 │ fn test<T>() {
+  │         - T is defined here
+2 │     gen match T {
+  │               ^ Expected type level integer
+  │
+  = Try making the generic an integer
+  │
+1 │ fn test<#int T>() {
+  │         +++++
+  = or an unsigned integer
+  │
+1 │ fn test<#uint T>() {
+  │         ++++++

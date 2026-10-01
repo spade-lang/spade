@@ -2,7 +2,7 @@
 source: spade-tests/src/linear_check.rs
 ---
 entity test() {
-    let a = [inst new_mut_wire(), inst new_mut_wire()];
+    let a = [port().1, port().1];
     set a[0] = 0u8;
     set a[0] = 0u8;
     set a[1] = 0;

@@ -222,6 +222,7 @@ impl<'a> QueryCache {
                     self.visit_expression(expr);
                 }
             }
+            crate::ExprKind::ConstTypeExpr(_) => {}
             crate::ExprKind::Block(b) => {
                 for stmt in &b.statements {
                     self.visit_statements(&stmt)
@@ -247,6 +248,14 @@ impl<'a> QueryCache {
                 // FIXME: Visit cond
                 self.visit_expression(on_true);
                 self.visit_expression(on_false);
+            }
+            crate::ExprKind::TypeLevelMatch {
+                expression: _,
+                branches,
+            } => {
+                for (_ty, expr) in branches {
+                    self.visit_expression(expr);
+                }
             }
             crate::ExprKind::PipelineRef {
                 stage: _,

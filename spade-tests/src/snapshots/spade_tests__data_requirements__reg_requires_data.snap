@@ -2,18 +2,18 @@
 source: spade-tests/src/data_requirements.rs
 ---
 entity test(clk: clock) {
-    reg(clk) r = port();
+    reg(clk) r = clk;
 }
 
 
-error: Trait bound not satisfied. (_, inv _) does not implement core::marker::Data
+error: Trait bound not satisfied. clock does not implement core::marker::Data
   ┌─ testinput:2:14
   │
-2 │     reg(clk) r = port();
-  │     ---      ^   ------ The type of this expression is not Data which means it cannot be stored in a register.
+2 │     reg(clk) r = clk;
+  │     ---      ^   --- The type of this expression is not `Data + Copy` which means it cannot be stored in a register.
   │     │        │    
-  │     │        (_, inv _) does not implement core::marker::Data
+  │     │        clock does not implement core::marker::Data
   │     Required because of the trait bound specified here
   │
-  = help: An expression not being Data typically means it contains at least one `inv` type
+  = help: An expression not being `Data + Copy` means it contains at least one `inv` or `clock` type
   = help: You can learn more about `Data` here: https://docs.spade-lang.org/wires.html

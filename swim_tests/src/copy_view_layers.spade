@@ -18,5 +18,5 @@ entity main() -> (bool, bool, uint<4>, int<8>) {
 
     let vs = &s;
     let vt = vs.b;
-    (*vs.a, *vt.inspect().x, *vt.inspect().y.inspect(), *vs.c)
+    (*vs.a, *vt.x.inspect(), *vt.y, *vs.c)
 }

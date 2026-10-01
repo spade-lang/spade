@@ -404,7 +404,7 @@ impl Requirement {
                                 if value < contained_range.0 || value > contained_range.1 {
                                     let diagnostic = Diagnostic::error(
                                         target_type,
-                                        format!("Integer value does not fit in int<{size}>"),
+                                        format!("Integer value does not fit in {name}<{size}>"),
                                     )
                                     .primary_label(format!(
                                         "{value} does not fit in an {name}<{size}>"

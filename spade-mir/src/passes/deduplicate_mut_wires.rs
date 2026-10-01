@@ -87,7 +87,6 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::ReduceXor
         | Operator::USub
         | Operator::Not
-        | Operator::ReadPort
         | Operator::ReadWriteItemsInOut(_)
         | Operator::BitwiseNot
         | Operator::DivPow2
@@ -99,7 +98,6 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::ConstructArray
         | Operator::DeclClockedMemory { .. }
         | Operator::FlipPort
-        | Operator::ReadMutWires
         | Operator::Instance { .. }
         | Operator::BlackBoxAlias
         | Operator::Inspect

@@ -5,7 +5,7 @@ This package provides [Spade][] binaries built for [WebAssembly][]. This is usin
 
 For more details, see the [JavaScript](npmjs/README.md) readme.
 
-[Spade]: https://gitlab.com/spade-lang/spade/
+[Spade]: https://codeberg.org/spade-lang/spade/
 [webassembly]: https://webassembly.org/
 [yowasp]: https://yowasp.github.io/
 

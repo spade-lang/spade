@@ -37,7 +37,7 @@ take the opportunity to highlight other stuff that normally doesn't fit in a blo
 - [ ] Push tags
     - [ ] Spade
     - [ ] Swim
-- [ ] Do a release on gitlab
+- [ ] Do a release on codeberg
 - [ ] Upload Spade release to zenodo
 - [ ] Update release blog post MR with link to relevant changelog section. Merge blog
 - [ ] Release on crates.io using `./release.sh`

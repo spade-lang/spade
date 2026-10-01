@@ -1,8 +1,0 @@
----
-source: spade-tests/src/ast_lowering.rs
----
-struct port A {}
-
-impl A {
-    fn test(self) -> bool {true}
-}

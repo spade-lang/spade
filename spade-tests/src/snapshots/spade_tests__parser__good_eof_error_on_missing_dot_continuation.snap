@@ -3,8 +3,8 @@ source: spade-tests/src/parser.rs
 ---
 fn a() -> bool { a.
 
-error: Unexpected `end of file`, expected expression
+error: Unexpected `end of file`, expected `expression`
   ┌─ testinput:1:20
   │
 1 │ fn a() -> bool { a.
-  │                    ^ expected expression here
+  │                    ^ expected `expression`
