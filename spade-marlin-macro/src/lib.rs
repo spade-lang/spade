@@ -9,7 +9,7 @@ mod types;
 use std::env;
 
 use camino::Utf8PathBuf;
-use marlin_verilator::{mangle_verilator_name, PortDirection};
+use marlin_verilator::{PortDirection, mangle_verilator_name};
 use marlin_verilog_macro_builder::build_verilated_struct;
 use num::ToPrimitive;
 use proc_macro::TokenStream;
@@ -23,7 +23,7 @@ use spade_hir_lowering::{MirLowerable, UnitNameExt};
 use syn::LitStr;
 use types::mirror_types;
 
-use crate::types::{primitive_map, TypeSpecExt};
+use crate::types::{TypeSpecExt, primitive_map};
 
 // TODO: Move into a more general place
 struct MacroArgs {
@@ -191,7 +191,15 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
     let mut extra_init = vec![];
     let mut pre_hooks = vec![];
     let mut post_hooks = vec![];
-    for (Input{name, ty: hir_type, wire: _}, param) in top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone()) {
+    for (
+        Input {
+            name,
+            ty: hir_type,
+            wire: _,
+        },
+        param,
+    ) in top_unit.inputs.iter().zip(top_unit.head.inputs.0.clone())
+    {
         let ty = type_state
             .concrete_type_of_name(
                 name,
