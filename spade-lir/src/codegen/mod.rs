@@ -14,7 +14,9 @@ use crate::codegen::assertion::AssertedExpression;
 use crate::name_map::VerilogNameMap;
 use crate::type_list::LirTypeList;
 use crate::verilog::{self, assign, localparam_size_spec, logic, size_spec};
-use crate::{Binding, ConstantValue, Entity, LirArg, Operator, Statement, Type, ValueName};
+use crate::{
+    Binding, ConstantValue, Entity, LirArg, Operator, SliceDirection, Statement, Type, ValueName,
+};
 
 mod assertion;
 pub mod util;
@@ -90,7 +92,7 @@ fn statement_declaration(
                     [0] &forward_declaration;
                 }
             } else {
-                // IO is declared in the input 
+                // IO is declared in the input
                 code! {}
             }
         }
@@ -299,30 +301,23 @@ fn forward_expression_code(
         }
         Operator::Slice {
             elem_size,
-            reversed,
+            direction,
         } => {
-            let Type::BitVector(array_len) = types.lookup(&binding.operands[0])? else {
-                diag_bail!(binding, "Found non-bit vector target for array index")
-            };
-            if !*reversed {
-                if elem_size == &BigUint::one() {
-                    format!("{}[{}]", op_names[0], op_names[1])
-                } else {
-                    format!(
-                        "{}[{} + {elem_size} - 1 : {}]",
-                        op_names[0], op_names[1], op_names[1]
-                    )
+            match direction {
+                SliceDirection::ZerothRight => {
+                    if elem_size == &BigUint::one() {
+                        format!("{}[{}]", op_names[0], op_names[1])
+                    } else {
+                        format!(
+                            "{}[{elem_size} * {} +: {elem_size}]",
+                            op_names[0], op_names[1]
+                        )
+                    }
                 }
-            } else {
-                if elem_size == &BigUint::one() {
-                    format!(
-                        "{}[{array_len} - {}]",
-                        op_names[0], op_names[1]
-                    )
-                } else {
-                    format!(
-                        "{}[{array_len} - {} + {elem_size} - 1 : {array_len} - {}]",
-                        op_names[0], op_names[1], op_names[1]
+                SliceDirection::ZerothLeft => {
+                    diag_bail!(
+                        binding,
+                        "Currently, SliceDirection::ZerothLeft is unimplemented"
                     )
                 }
             }
@@ -489,10 +484,9 @@ fn forward_expression_code(
             // NOTE Dummy. Set in statement_code
             String::new()
         }
-        Operator::Alias | Operator::BlackBoxAlias => {
-            op_names[0].clone()
-        }
+        Operator::Alias | Operator::BlackBoxAlias => op_names[0].clone(),
         Operator::Nop => String::new(),
+        Operator::DeclareInstantiationOutput => String::new(),
 
         Operator::Back(op) => {
             diag_bail!(
@@ -839,7 +833,6 @@ pub fn unit_code(
                     (_, ValueName::OutputFwd) => val_name.unescaped_var_name(),
                     (_, ValueName::OutputBack) => val_name.unescaped_var_name(),
                 };
-
 
                 let alias_assignment = if val_name.is_output() || no_mangle.is_some() {
                     vec![]

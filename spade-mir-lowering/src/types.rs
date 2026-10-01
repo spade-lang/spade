@@ -16,9 +16,11 @@ impl TypeExt for mir::types::Type {
             | mir::types::Type::Struct(_)
             | mir::types::Type::Array { .. }
             | mir::types::Type::Memory { .. }
-            | mir::types::Type::Enum(_)
-            | mir::types::Type::CopyView(_) => {
-                (lir::Type::BitVector(self.size()), lir::Type::unit())
+            | mir::types::Type::Enum(_) => {
+                (lir::Type::BitVector(self.size()), lir::Type::BitVector(self.backward_size()))
+            }
+            mir::types::Type::CopyView(_) => {
+                (lir::Type::BitVector(self.size() + self.backward_size()), lir::Type::unit())
             }
             mir::types::Type::InOut(inner) => {
                 let (fwd, back) = inner.lower();

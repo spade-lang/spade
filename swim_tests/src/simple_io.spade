@@ -5,6 +5,11 @@ struct SimpleIO {
     back: inv int<8>,
 }
 
+entity simple_io() -> SimpleIO {
+    let (fwd, back) = port();
+    SimpleIO { fwd, back }
+}
+
 // On return .raw_fwd and inner.fwd should be readable, raw_back and inner.back should
 // be writable. Requires partial writes to the signal.
 // `inv SubStructs` should be sufficient for typeinference
@@ -22,13 +27,6 @@ struct SubStructWithInv {
     raw_back: inv int<12>,
     inner: inv SimpleIO,
 }
-
-entity simple_io() -> SimpleIO {
-    let (fwd, back) = port();
-    SimpleIO { fwd, back }
-}
-
-
 entity substruct() -> SubStruct {
     let (fwd, back) = port();
     let (raw_fwd, raw_back) = port();
