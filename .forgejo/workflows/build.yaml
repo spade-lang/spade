@@ -151,6 +151,24 @@ jobs:
         run: |
           ./build.sh
           ./package-npmjs.sh
+      - name: publish
+        if: ${{ forgejo.event_name == 'push' && forgejo.ref_name == 'main' }}
+        run: |
+            # NOTE: If NPM_ACCESS_TOKEN is set to protected and the CI flow is running on a non-protected
+            # branch, it will silently fail. Make sure to use a protected branch for this step
+            npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_ACCESS_TOKEN }}
+            npm publish --tag latest yowasp/npmjs/dist/$(ls yowasp/npmjs/dist)
+      - name: trigger-playground-rebuild
+        if: ${{ forgejo.event_name == 'push' && forgejo.ref_name == 'main' }}
+        run: |
+          apk add curl
+          curl -X 'POST' \
+            'https://codeberg.org/api/v1/repos/spade-lang/playground/actions/workflows/publish.yml/dispatches' \
+            -H 'accept: application/json' \
+            -H "Authorization: token ${{ secrets.PLAYGROUND_DISPATCH_TOKEN }}" \
+            -H 'Content-Type: application/json' \
+            -d '{"ref": "main"}'
+
 
 
   build:surfer-plugin:
