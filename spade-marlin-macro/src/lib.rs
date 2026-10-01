@@ -317,7 +317,7 @@ pub fn spade_marlin(args: TokenStream, item: TokenStream) -> TokenStream {
                 })
             }
 
-            pub fn new(runtime: &'a SpadeRuntime, config: crate::spade::SpadeModelConfig) -> Result<Self, snafu::Whatever> {
+            pub fn new(runtime: &'a SpadeRuntime, config: &crate::spade::SpadeModelConfig) -> Result<Self, snafu::Whatever> {
                 let model = runtime.create_model(config)?;
                 Ok(Self {
                     verilator: model,
