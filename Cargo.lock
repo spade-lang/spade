@@ -1969,9 +1969,9 @@ dependencies = [
 
 [[package]]
 name = "marlin-verilator"
-version = "0.20.3"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef97e9a56e339f9f586be46e44f37b1c973d86cef7595c34856751d216bd6fc"
+checksum = "e7c312e09262dbeaa0f0887204917bf3a99a8e04882cec0a1f225575375c4098"
 dependencies = [
  "boxcar",
  "camino",
@@ -1985,9 +1985,9 @@ dependencies = [
 
 [[package]]
 name = "marlin-verilator-stable"
-version = "2.0.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e96b1b2170fb0963a13e66a7927adbb29f46193247ad718273cff7e1e368b6aa"
+checksum = "4d152987f89fec54d2be78a26d8ce3bcf8118275fc61a026c09bf6522bfda354"
 dependencies = [
  "libloading",
  "snafu",
@@ -1995,9 +1995,9 @@ dependencies = [
 
 [[package]]
 name = "marlin-verilog-macro-builder"
-version = "0.20.3"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "792d59b04594796a46feea173aa219b4379948a484df66a22d2404851722e4a9"
+checksum = "edd15be9b9fd4bc230c4dd0f1a78ba83acb5b1336cf3cfeff56f273b43d0c16a"
 dependencies = [
  "marlin-verilator",
  "proc-macro2",
