@@ -258,7 +258,7 @@ pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
             let num_u32_chunks = size / 32 + 1;
             pre_hooks.push(quote!{
                 let mut buffer = [0; #num_u32_chunks];
-                crate::spade::type_translation::SpadeType::to_verilator_value(&mut self.i.#field_name, 0, &mut buffer);
+                spade::type_translation::SpadeType::to_verilator_value(&mut self.i.#field_name, 0, &mut buffer);
                 spade_marlin::type_ext::IntoU32s::update_from_u32(&mut self.verilator.#verilog_name, &buffer);
             });
         }
@@ -269,7 +269,7 @@ pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
             post_hooks.push(quote!{
                 let mut buffer = [0; #num_u32_chunks];
                 spade_marlin::type_ext::IntoU32s::populate_u32(&self.verilator.#verilog_name, &mut buffer);
-                crate::spade::type_translation::SpadeType::from_verilator_value(&mut self.i.#field_name, 0, &mut buffer)
+                spade::type_translation::SpadeType::from_verilator_value(&mut self.i.#field_name, 0, &mut buffer)
             });
         }
     }
@@ -314,7 +314,7 @@ pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl<'a> #struct_name<'a> {
-            pub fn new_simple(runtime: &'a SpadeRuntime) -> Result<Self, snafu::Whatever> {
+            pub fn new_simple(runtime: &'a SpadeRuntime) -> Result<Self, spade::prelude::VerilatorError> {
                 let model = runtime.create_model_simple()?;
                 Ok(Self {
                     verilator: model,
@@ -325,7 +325,7 @@ pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
                 })
             }
 
-            pub fn new(runtime: &'a SpadeRuntime, config: &crate::spade::SpadeModelConfig) -> Result<Self, snafu::Whatever> {
+            pub fn new(runtime: &'a SpadeRuntime, config: &spade::SpadeModelConfig) -> Result<Self, spade::prelude::VerilatorError> {
                 let model = runtime.create_model(config)?;
                 Ok(Self {
                     verilator: model,

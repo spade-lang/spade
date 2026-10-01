@@ -1,4 +1,3 @@
-use snafu::Whatever;
 use spade_marlin_macro::spade;
 
 mod types;
@@ -15,7 +14,7 @@ mod u48_passthrough {
 
     #[test]
     #[snafu::report]
-    fn u48_passthrough() -> Result<(), Whatever> {
+    fn u48_passthrough() -> Result<(), VerilatorError> {
         let runtime = SpadeRuntime::new(Default::default())?;
 
         let mut main = Uut::new_simple(&runtime)?;
@@ -32,7 +31,7 @@ mod u48_passthrough {
 
 #[test]
 #[snafu::report]
-fn option_out_works() -> Result<(), Whatever> {
+fn option_out_works() -> Result<(), VerilatorError> {
     #[spade(top = "spade_marlin::option_out")]
     struct OptionOut;
 
@@ -58,7 +57,7 @@ fn option_out_works() -> Result<(), Whatever> {
 
 #[test]
 #[snafu::report]
-fn option_in_works() -> Result<(), Whatever> {
+fn option_in_works() -> Result<(), VerilatorError> {
     #[spade(top = "spade_marlin::option_passthrough")]
     struct Uut;
     let runtime = SpadeRuntime::new(Default::default())?;
@@ -76,7 +75,7 @@ fn option_in_works() -> Result<(), Whatever> {
 
 #[test]
 #[snafu::report]
-fn tuple_out_works() -> Result<(), Whatever> {
+fn tuple_out_works() -> Result<(), VerilatorError> {
     #[spade(top = "spade_marlin::tuple_out")]
     struct TupleOut;
 
@@ -96,7 +95,7 @@ fn tuple_out_works() -> Result<(), Whatever> {
 
 #[test]
 #[snafu::report]
-fn enum_out_works() -> Result<(), Whatever> {
+fn enum_out_works() -> Result<(), VerilatorError> {
     #[spade(top = "spade_marlin::enum_out")]
     struct Uut;
 
