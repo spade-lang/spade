@@ -1960,9 +1960,9 @@ dependencies = [
 
 [[package]]
 name = "marlin"
-version = "0.20.3"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6d6303a5576c46d75884aa5e9bdedea088ccfab1b0bae3b5801565ef78de36"
+checksum = "a43ce9f4f34ed3c4cc1b37c50dbd799c1503337177f8b7582d30c15d4c4543d7"
 dependencies = [
  "marlin-verilator",
 ]

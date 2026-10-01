@@ -9,7 +9,7 @@ mod types;
 use std::env;
 
 use camino::Utf8PathBuf;
-use marlin_verilator::{PortDirection, mangle_verilator_name};
+use marlin_verilator::{PortDirection, mangle_verilator_name, mangle_verilator_name_hack};
 use marlin_verilog_macro_builder::build_verilated_struct;
 use num::ToPrimitive;
 use proc_macro::TokenStream;
@@ -278,7 +278,7 @@ pub fn spade(args: TokenStream, item: TokenStream) -> TokenStream {
     let top_name = top_name.without_escapes();
     let verilator = build_verilated_struct(
         "spade",
-        syn::LitStr::new(&mangle_verilator_name(top_name).unwrap(), args.top.span()),
+        syn::LitStr::new(mangle_verilator_name_hack(top_name).unwrap().as_ref().as_str(), args.top.span()),
         verilog_source_path,
         ports,
         item.clone().into(),
