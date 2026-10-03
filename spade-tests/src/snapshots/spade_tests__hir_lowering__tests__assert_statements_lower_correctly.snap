@@ -3,7 +3,7 @@ source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \name ((x, x_n106, int<16>), (y, y_n107, int<16>)) -> int<16> {
-	let e611: bool = Eq(x_n106, y_n107)
-	let e2: bool = Alias(e611)
+	let e787: bool = Eq(x_n106, y_n107)
+	let e2: bool = Alias(e787)
 	assert e2
 } => x_n106

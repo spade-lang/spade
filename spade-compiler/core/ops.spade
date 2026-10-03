@@ -84,7 +84,7 @@ impl PartialEq for () {
     }
 }
 
-impl<T1: PartialEq> PartialEq for (T1) {
+impl<T0: PartialEq> PartialEq for (T0) {
     #[inline]
     fn eq(self, rhs: Self) -> bool {
         self.0 == rhs.0
@@ -96,7 +96,7 @@ impl<T1: PartialEq> PartialEq for (T1) {
     }
 }
 
-impl<T1: PartialEq, T2: PartialEq> PartialEq for (T1, T2) {
+impl<T0: PartialEq, T1: PartialEq> PartialEq for (T0, T1) {
     #[inline]
     fn eq(self, rhs: Self) -> bool {
         self.0 == rhs.0 && self.1 == rhs.1
@@ -108,7 +108,7 @@ impl<T1: PartialEq, T2: PartialEq> PartialEq for (T1, T2) {
     }
 }
 
-impl<T1: PartialEq, T2: PartialEq, T3: PartialEq> PartialEq for (T1, T2, T3) {
+impl<T0: PartialEq, T1: PartialEq, T2: PartialEq> PartialEq for (T0, T1, T2) {
     #[inline]
     fn eq(self, rhs: Self) -> bool {
         self.0 == rhs.0 && self.1 == rhs.1 && self.2 == rhs.2
@@ -120,7 +120,7 @@ impl<T1: PartialEq, T2: PartialEq, T3: PartialEq> PartialEq for (T1, T2, T3) {
     }
 }
 
-impl<T1: PartialEq, T2: PartialEq, T3: PartialEq, T4> PartialEq for (T1, T2, T3, T4) {
+impl<T0: PartialEq, T1: PartialEq, T2: PartialEq, T3: PartialEq> PartialEq for (T0, T1, T2, T3) {
     #[inline]
     fn eq(self, rhs: Self) -> bool {
         self.0 == rhs.0 && self.1 == rhs.1 && self.2 == rhs.2 && self.3 == rhs.3
@@ -132,7 +132,53 @@ impl<T1: PartialEq, T2: PartialEq, T3: PartialEq, T4> PartialEq for (T1, T2, T3,
     }
 }
 
+impl<T0: PartialEq, T1: PartialEq, T2: PartialEq, T3: PartialEq, T4: PartialEq> PartialEq for (T0, T1, T2, T3, T4) {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        self.0 == rhs.0 && self.1 == rhs.1 && self.2 == rhs.2 && self.3 == rhs.3 && self.4 == rhs.4
+    }
 
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
+
+impl<T0: PartialEq, T1: PartialEq, T2: PartialEq, T3: PartialEq, T4: PartialEq, T5: PartialEq> PartialEq for (T0, T1, T2, T3, T4, T5) {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        self.0 == rhs.0 && self.1 == rhs.1 && self.2 == rhs.2 && self.3 == rhs.3 && self.4 == rhs.4 && self.5 == rhs.5
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
+
+impl<T0: PartialEq, T1: PartialEq, T2: PartialEq, T3: PartialEq, T4: PartialEq, T5: PartialEq, T6: PartialEq> PartialEq for (T0, T1, T2, T3, T4, T5, T6) {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        self.0 == rhs.0 && self.1 == rhs.1 && self.2 == rhs.2 && self.3 == rhs.3 && self.4 == rhs.4 && self.5 == rhs.5 && self.6 == rhs.6
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
+
+impl<T0: PartialEq, T1: PartialEq, T2: PartialEq, T3: PartialEq, T4: PartialEq, T5: PartialEq, T6: PartialEq, T7: PartialEq> PartialEq for (T0, T1, T2, T3, T4, T5, T6, T7) {
+    #[inline]
+    fn eq(self, rhs: Self) -> bool {
+        self.0 == rhs.0 && self.1 == rhs.1 && self.2 == rhs.2 && self.3 == rhs.3 && self.4 == rhs.4 && self.5 == rhs.5 && self.6 == rhs.6 && self.7 == rhs.7
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !self.eq(rhs)
+    }
+}
 
 pub trait WrappingNeg {
     fn wrapping_neg(self) -> Self;

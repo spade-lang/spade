@@ -3,25 +3,25 @@ source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \uwu ((e, e_n106, int<16>)) -> bool {
-	let e620: int<16> = Nop()
-	let x_n107: int<16> = Alias(e620)
+	let e796: int<16> = Nop()
+	let x_n107: int<16> = Alias(e796)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e628: bool = Eq(e6, e7)
-	let e5: bool = Alias(e628)
-	let e621: bool = Alias(e5)
+	let e804: bool = Eq(e6, e7)
+	let e5: bool = Alias(e804)
+	let e797: bool = Alias(e5)
 	const e8: bool = true
-	let e622: int<16> = Nop()
-	let __n108: int<16> = Alias(e622)
+	let e798: int<16> = Nop()
+	let __n108: int<16> = Alias(e798)
 	const e11: int<7> = 0
 	const e12: int<7> = 1
-	let e630: bool = Eq(e11, e12)
-	let e10: bool = Alias(e630)
-	let e623: bool = Alias(e10)
+	let e806: bool = Eq(e11, e12)
+	let e10: bool = Alias(e806)
+	let e799: bool = Alias(e10)
 	const e13: bool = false
-	let e624: int<16> = Nop()
-	let __n109: int<16> = Alias(e624)
-	const e625: bool = true
+	let e800: int<16> = Nop()
+	let __n109: int<16> = Alias(e800)
+	const e801: bool = true
 	const e15: bool = false
-	let e2: bool = Match(e_n106, e620, e621, e8, e622, e623, e13, e624, e625, e15)
+	let e2: bool = Match(e_n106, e796, e797, e8, e798, e799, e13, e800, e801, e15)
 } => e2

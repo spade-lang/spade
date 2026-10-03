@@ -132,7 +132,7 @@ expression: build_items(code)
                 Binding {
                     name: Expr(
                         ExprID(
-                            610,
+                            786,
                         ),
                     ),
                     operator: Nop,
@@ -156,7 +156,7 @@ expression: build_items(code)
                     operands: [
                         Expr(
                             ExprID(
-                                610,
+                                786,
                             ),
                         ),
                     ],

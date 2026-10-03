@@ -6,7 +6,7 @@ entity \use_regfile ((clk, clk_n111, bool), (regfile, regfile_n112, {write: inv 
 	let e2: inv (enum option [], option [uint<5>]) = IndexTuple(0)(regfile_n112)
 	let e4: enum option [], option [uint<5>] = ConstructEnum(0)()
 	set e2 = e4
-	let e611: () = Nop()
-	let e5: () = Alias(e611)
+	let e787: () = Nop()
+	let e5: () = Alias(e787)
 	let e1: () = Nop()
 } => e1

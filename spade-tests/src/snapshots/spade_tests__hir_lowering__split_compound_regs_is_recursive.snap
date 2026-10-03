@@ -3,13 +3,13 @@ source: spade-tests/src/hir_lowering.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test ((clk, clk_n106, bool), (x, x_n107, ((uint<8>, uint<8>), uint<8>))) -> ((uint<8>, uint<8>), uint<8>) {
-	let e608: (uint<8>, uint<8>) = IndexTuple(0)(x_n107)
-	let e610: uint<8> = IndexTuple(0)(e608)
-	reg(clk_n106) e611: uint<8> = e610
-	let e612: uint<8> = IndexTuple(1)(e608)
-	reg(clk_n106) e613: uint<8> = e612
-	let e609: (uint<8>, uint<8>) = ConstructTuple(e611, e613)
-	let e614: uint<8> = IndexTuple(1)(x_n107)
-	reg(clk_n106) e615: uint<8> = e614
-	let s1_x_n666: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e609, e615)
-} => s1_x_n666
+	let e784: (uint<8>, uint<8>) = IndexTuple(0)(x_n107)
+	let e786: uint<8> = IndexTuple(0)(e784)
+	reg(clk_n106) e787: uint<8> = e786
+	let e788: uint<8> = IndexTuple(1)(e784)
+	reg(clk_n106) e789: uint<8> = e788
+	let e785: (uint<8>, uint<8>) = ConstructTuple(e787, e789)
+	let e790: uint<8> = IndexTuple(1)(x_n107)
+	reg(clk_n106) e791: uint<8> = e790
+	let s1_x_n724: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e785, e791)
+} => s1_x_n724

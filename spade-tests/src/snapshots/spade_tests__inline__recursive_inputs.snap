@@ -5,14 +5,14 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 entity \test () -> uint<9> {
 	const e14: uint<8> = 1
 	let val_n112: uint<8> = Alias(e14)
-	const e629: uint<8> = 2
-	let e632: uint<9> = UnsignedAdd(val_n112, e629)
-	let e628: uint<9> = Alias(e632)
-	let e16: uint<9> = Alias(e628)
+	const e805: uint<8> = 2
+	let e808: uint<9> = UnsignedAdd(val_n112, e805)
+	let e804: uint<9> = Alias(e808)
+	let e16: uint<9> = Alias(e804)
 } => e16
 entity \test_inner () -> uint<9> {
 	const e7: uint<8> = 0
 	const e8: uint<8> = 1
-	let e626: uint<9> = UnsignedAdd(e7, e8)
-	let e6: uint<9> = Alias(e626)
+	let e802: uint<9> = UnsignedAdd(e7, e8)
+	let e6: uint<9> = Alias(e802)
 } => e6
