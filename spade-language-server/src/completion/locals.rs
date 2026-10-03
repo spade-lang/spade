@@ -50,7 +50,6 @@ impl ServerBackend {
                         spade_hir::Statement::PipelineRegMarker(_) => vec![],
                         spade_hir::Statement::Label(_) => vec![],
                         spade_hir::Statement::Assert(_) => vec![],
-                        spade_hir::Statement::Set { .. } => vec![],
                     })
                     .collect()
             })

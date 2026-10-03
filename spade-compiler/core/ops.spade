@@ -132,7 +132,7 @@ impl<T1: PartialEq, T2: PartialEq, T3: PartialEq, T4> PartialEq for (T1, T2, T3,
     }
 }
 
-    
+
 
 pub trait WrappingNeg {
     fn wrapping_neg(self) -> Self;
@@ -470,6 +470,113 @@ impl<#uint N> PartialOrd for uint<N> {
     }
 }
 
+pub trait Set<Rhs> {
+    fn connect(self, rhs: Rhs);
+}
+
+impl<T> Set<T> for inv T {
+    #[inline]
+    fn connect(self, rhs: T) {
+        intrinsics::connect(self, rhs);
+    }
+}
+
+impl<T, S: Set<T>, #uint N> Set<[T; N]> for [S; N] {
+    #[inline]
+    fn connect(self, rhs: [T; N]) {
+        gen if N != 0 {
+            let (ls, l0): ([S; {N - 1}], S) = unsafe { lib::conv::transmute(self) };
+            let (rs, r0): ([T; {N - 1}], T) = unsafe { lib::conv::transmute(rhs) };
+            l0.connect(r0);
+            ls.connect(rs);
+        }
+    }
+}
+
+impl<T0, S0: Set<T0>> Set<(T0)> for (S0) {
+    #[inline]
+    fn connect(self, rhs: (T0)) {
+        self.0.connect(rhs.0);
+    }
+}
+
+impl<T0, T1, S0: Set<T0>, S1: Set<T1>> Set<(T0, T1)> for (S0, S1) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+    }
+}
+
+impl<T0, T1, T2, S0: Set<T0>, S1: Set<T1>, S2: Set<T2>> Set<(T0, T1, T2)> for (S0, S1, S2) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1, T2)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+        self.2.connect(rhs.2);
+    }
+}
+
+impl<T0, T1, T2, T3, S0: Set<T0>, S1: Set<T1>, S2: Set<T2>, S3: Set<T3>> Set<(T0, T1, T2, T3)> for (S0, S1, S2, S3) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1, T2, T3)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+        self.2.connect(rhs.2);
+        self.3.connect(rhs.3);
+    }
+}
+
+impl<T0, T1, T2, T3, T4, S0: Set<T0>, S1: Set<T1>, S2: Set<T2>, S3: Set<T3>, S4: Set<T4>> Set<(T0, T1, T2, T3, T4)> for (S0, S1, S2, S3, S4) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1, T2, T3, T4)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+        self.2.connect(rhs.2);
+        self.3.connect(rhs.3);
+        self.4.connect(rhs.4);
+    }
+}
+
+impl<T0, T1, T2, T3, T4, T5, S0: Set<T0>, S1: Set<T1>, S2: Set<T2>, S3: Set<T3>, S4: Set<T4>, S5: Set<T5>> Set<(T0, T1, T2, T3, T4, T5)> for (S0, S1, S2, S3, S4, S5) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1, T2, T3, T4, T5)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+        self.2.connect(rhs.2);
+        self.3.connect(rhs.3);
+        self.4.connect(rhs.4);
+        self.5.connect(rhs.5);
+    }
+}
+
+impl<T0, T1, T2, T3, T4, T5, T6, S0: Set<T0>, S1: Set<T1>, S2: Set<T2>, S3: Set<T3>, S4: Set<T4>, S5: Set<T5>, S6: Set<T6>> Set<(T0, T1, T2, T3, T4, T5, T6)> for (S0, S1, S2, S3, S4, S5, S6) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1, T2, T3, T4, T5, T6)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+        self.2.connect(rhs.2);
+        self.3.connect(rhs.3);
+        self.4.connect(rhs.4);
+        self.5.connect(rhs.5);
+        self.6.connect(rhs.6);
+    }
+}
+
+impl<T0, T1, T2, T3, T4, T5, T6, T7, S0: Set<T0>, S1: Set<T1>, S2: Set<T2>, S3: Set<T3>, S4: Set<T4>, S5: Set<T5>, S6: Set<T6>, S7: Set<T7>> Set<(T0, T1, T2, T3, T4, T5, T6, T7)> for (S0, S1, S2, S3, S4, S5, S6, S7) {
+    #[inline]
+    fn connect(self, rhs: (T0, T1, T2, T3, T4, T5, T6, T7)) {
+        self.0.connect(rhs.0);
+        self.1.connect(rhs.1);
+        self.2.connect(rhs.2);
+        self.3.connect(rhs.3);
+        self.4.connect(rhs.4);
+        self.5.connect(rhs.5);
+        self.6.connect(rhs.6);
+        self.7.connect(rhs.7);
+    }
+}
+
 mod intrinsics {
     pub(super) extern fn eq<T>(lhs: T, rhs: T) -> bool;
     pub(super) extern fn ne<T>(lhs: T, rhs: T) -> bool;
@@ -497,4 +604,6 @@ mod intrinsics {
     pub(super) extern fn le<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
     pub(super) extern fn gt<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
     pub(super) extern fn ge<#uint N, T: Number<N>>(lhs: T, rhs: T) -> bool;
+
+    pub(super) extern fn connect<T>(lhs: inv T, rhs: T);
 }

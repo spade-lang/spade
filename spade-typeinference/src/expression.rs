@@ -431,7 +431,7 @@ impl TypeState {
 
                 // At the time of writing:
                 //
-                //   1. All operator traits operate over expressions with all have the same type.
+                //   1. Some operator traits operate over expressions with all have the same type.
                 //   2. Trait method selection is unable to operate on unknown target types.
                 //
                 // The code below emulates how operands were handled previously to mitigate #2,

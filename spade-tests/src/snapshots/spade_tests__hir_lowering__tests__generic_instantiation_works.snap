@@ -2,8 +2,8 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \identity[530] ((x, x_n103, bool)) -> bool {
-} => x_n103
-entity \x ((x, x_n104, bool)) -> bool {
-	let e4: bool = Instance(\identity[530] )(x_n104)
+entity \identity[668] ((x, x_n108, bool)) -> bool {
+} => x_n108
+entity \x ((x, x_n109, bool)) -> bool {
+	let e4: bool = Instance(\identity[668] )(x_n109)
 } => e4

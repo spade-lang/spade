@@ -954,7 +954,6 @@ impl TypeState {
             }
             Statement::Label(_) => {}
             Statement::Assert(_) => {}
-            Statement::Set { .. } => {}
         }
         Ok(())
     }
@@ -2616,19 +2615,6 @@ impl TypeState {
                     .commit(self, ctx)
                     .into_default_diagnostic(expr, self)
                     .handle_in(&mut self.owned.diags);
-                Ok(())
-            }
-            Statement::Set { target, value } => {
-                self.visit_expression(target, ctx, generic_list);
-                self.visit_expression(value, ctx, generic_list);
-
-                let inner_type = self.new_generic_type(value.loc());
-                let outer_type = TypeVar::inverted(stmt.loc(), inner_type.clone()).insert(self);
-                self.unify_expression_generic_error(target, &outer_type, ctx)
-                    .handle_in(&mut self.owned.diags);
-                self.unify_expression_generic_error(value, &inner_type, ctx)
-                    .handle_in(&mut self.owned.diags);
-
                 Ok(())
             }
         }

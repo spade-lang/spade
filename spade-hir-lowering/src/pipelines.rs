@@ -204,9 +204,6 @@ pub fn handle_statement(
         Statement::Assert(_) => {
             // Assertions have no effect on pipeline state
         }
-        Statement::Set { .. } => {
-            // Set have no effect on pipeline state
-        }
     }
     Ok(())
 }

@@ -373,10 +373,6 @@ impl<'a> QueryCache {
                 self.handle_nameid(l.clone());
             }
             Statement::Assert(expr) => self.visit_expression(expr),
-            Statement::Set { target, value } => {
-                self.visit_expression(target);
-                self.visit_expression(value);
-            }
         }
     }
 

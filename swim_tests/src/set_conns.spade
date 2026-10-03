@@ -1,0 +1,5 @@
+fn test_set(x: inv uint<3>, y: inv uint<4>, z: inv uint<5>, w: inv uint<6>, t: inv uint<6>) {
+    set x = 1;
+    set (y, z) = (2, 3);
+    set [w, t] = [4, 5];
+}

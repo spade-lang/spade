@@ -582,9 +582,6 @@ impl PrettyDebug for Statement {
             Statement::PipelineRegMarker(_) => format!("[pipeline reg marker]"),
             Statement::Label(name) => format!("'{};", name.pretty_debug()),
             Statement::Assert(loc) => format!("assert {};", loc.pretty_debug()),
-            Statement::Set { target, value } => {
-                format!("set {} = {}", target.pretty_debug(), value.pretty_debug())
-            }
         }
     }
 }

@@ -8,16 +8,16 @@ expression: build_items(code)
             kind: Unescaped(
                 "x",
             ),
-            source: x#59,
+            source: x#61,
         },
         inputs: [
             MirInput {
                 name: "a",
                 val_name: Named(
-                    101,
+                    106,
                     "a",
                     Name(
-                        a#101,
+                        a#106,
                     ),
                 ),
                 ty: Int(
@@ -30,10 +30,10 @@ expression: build_items(code)
             MirInput {
                 name: "b",
                 val_name: Named(
-                    102,
+                    107,
                     "b",
                     Name(
-                        b#102,
+                        b#107,
                     ),
                 ),
                 ty: Backward(
@@ -48,10 +48,10 @@ expression: build_items(code)
             MirInput {
                 name: "c",
                 val_name: Named(
-                    103,
+                    108,
                     "c",
                     Name(
-                        c#103,
+                        c#108,
                     ),
                 ),
                 ty: Bool,
@@ -62,10 +62,10 @@ expression: build_items(code)
             MirInput {
                 name: "d",
                 val_name: Named(
-                    104,
+                    109,
                     "d",
                     Name(
-                        d#104,
+                        d#109,
                     ),
                 ),
                 ty: Bool,
@@ -76,10 +76,10 @@ expression: build_items(code)
             MirInput {
                 name: "e",
                 val_name: Named(
-                    105,
+                    110,
                     "e",
                     Name(
-                        e#105,
+                        e#110,
                     ),
                 ),
                 ty: Array {
@@ -116,10 +116,10 @@ expression: build_items(code)
             ),
             Set {
                 target: Named(
-                    102,
+                    107,
                     "b",
                     Name(
-                        b#102,
+                        b#107,
                     ),
                 ),
                 value: Expr(
@@ -128,6 +128,46 @@ expression: build_items(code)
                     ),
                 ),
             },
+            Binding(
+                Binding {
+                    name: Expr(
+                        ExprID(
+                            610,
+                        ),
+                    ),
+                    operator: Nop,
+                    operands: [],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
+            Binding(
+                Binding {
+                    name: Expr(
+                        ExprID(
+                            4,
+                        ),
+                    ),
+                    operator: Alias,
+                    operands: [
+                        Expr(
+                            ExprID(
+                                610,
+                            ),
+                        ),
+                    ],
+                    ty: Tuple(
+                        [],
+                    ),
+                    loc: Some(
+                        (),
+                    ),
+                },
+            ),
             Binding(
                 Binding {
                     name: Expr(

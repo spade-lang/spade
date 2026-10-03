@@ -33,6 +33,7 @@ mod python;
 mod python_api;
 mod range_indexing;
 mod reg_initial;
+mod set_conns;
 mod simple_io;
 mod single_variant_enum;
 mod single_variant_recursive_enum;

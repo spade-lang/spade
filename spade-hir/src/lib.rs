@@ -212,10 +212,6 @@ pub enum Statement {
     PipelineRegMarker(Option<PipelineRegMarkerExtra>),
     Label(Loc<NameID>),
     Assert(Loc<Expression>),
-    Set {
-        target: Loc<Expression>,
-        value: Loc<Expression>,
-    },
 }
 
 impl Statement {

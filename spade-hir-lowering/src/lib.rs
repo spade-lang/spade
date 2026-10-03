@@ -1083,17 +1083,6 @@ impl StatementLocal for Loc<Statement> {
                 result.append(expr.lower(ctx)?);
                 result.push_anonymous(mir::Statement::Assert(expr.variable(ctx)?).at_loc(&self))
             }
-            Statement::Set { target, value } => {
-                result.append(target.lower(ctx)?);
-                result.append(value.lower(ctx)?);
-                result.push_anonymous(
-                    mir::Statement::Set {
-                        target: target.variable(ctx)?,
-                        value: value.variable(ctx)?,
-                    }
-                    .near_loc(&self),
-                )
-            }
         }
         Ok(result)
     }
@@ -2357,6 +2346,7 @@ impl ExprLocal for Loc<Expression> {
             ["core", "ops", "intrinsics", "le"] => handle_le,
             ["core", "ops", "intrinsics", "gt"] => handle_gt,
             ["core", "ops", "intrinsics", "ge"] => handle_ge,
+            ["core", "ops", "intrinsics", "connect"] => handle_connect,
             ["core", "ports", "inspect"] => handle_inspect,
             ["core", "ports", "port"] => handle_port,
             ["core", "undef", "undef"] => handle_undef,
@@ -3227,6 +3217,27 @@ impl ExprLocal for Loc<Expression> {
             mir::Operator::UnsignedGe,
             ctx,
         )
+    }
+
+    fn handle_connect(
+        &self,
+        _path: &Loc<NameID>,
+        result: StatementList,
+        args: &[Argument<Expression, TypeSpec>],
+        ctx: &mut Context,
+    ) -> Result<StatementList> {
+        let mut result = result;
+
+        result.push_primary(
+            mir::Statement::Set {
+                target: args[0].value.variable(ctx)?,
+                value: args[1].value.variable(ctx)?,
+            }
+            .at_loc(&self),
+            self,
+        );
+
+        Ok(result)
     }
 
     fn handle_inspect(

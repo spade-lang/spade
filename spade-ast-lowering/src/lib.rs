@@ -2005,7 +2005,24 @@ fn try_visit_statement(
             let target = target.visit(visit_expression, ctx);
             let value = value.visit(visit_expression, ctx);
 
-            Ok(vec![hir::Statement::Set { target, value }.at_loc(s)])
+            Ok(vec![
+                hir::Statement::Expression(
+                    hir::Expression {
+                        kind: hir::ExprKind::MethodCall {
+                            target: Box::new(target.clone()),
+                            op_trait: None,
+                            name: Identifier::intern("connect").at_loc(s),
+                            turbofish: None,
+                            args: hir::ArgumentList::Positional(vec![value.clone()]).at_loc(&value),
+                            call_kind: hir::expression::CallKind::Function,
+                            safety: Safety::Default,
+                        },
+                        id: ctx.idtracker.next(),
+                    }
+                    .at_loc(s),
+                )
+                .at_loc(s),
+            ])
         }
         ast::Statement::Type(ty) => {
             visit_type_declaration(None, ty, ctx)?;

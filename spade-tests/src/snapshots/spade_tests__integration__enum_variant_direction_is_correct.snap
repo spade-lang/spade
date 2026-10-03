@@ -2,8 +2,10 @@
 source: spade-tests/src/integration.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
-entity \test ((o0, o0_n105, inv (enum option [], option [uint<8>]))) -> () {
+entity \test ((o0, o0_n110, inv (enum option [], option [uint<8>]))) -> () {
 	let e3: enum option [], option [uint<8>] = ConstructEnum(0)()
-	set o0_n105 = e3
+	set o0_n110 = e3
+	let e610: () = Nop()
+	let e4: () = Alias(e610)
 	let e1: () = Nop()
 } => e1

@@ -2,19 +2,19 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n104, enum option [], option [])) -> bool {
-	let e388: enum option [], option [] = Nop()
-	let e4: enum option [], option [] = Alias(e388)
+entity \uwu ((e, e_n109, enum option [], option [])) -> bool {
+	let e615: enum option [], option [] = Nop()
+	let e4: enum option [], option [] = Alias(e615)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e395: bool = Eq(e6, e7)
-	let e5: bool = Alias(e395)
-	let e390: bool = IsEnumVariant(0)(e388)
-	let e391: bool = LogicalAnd(e390, e5)
+	let e622: bool = Eq(e6, e7)
+	let e5: bool = Alias(e622)
+	let e617: bool = IsEnumVariant(0)(e615)
+	let e618: bool = LogicalAnd(e617, e5)
 	const e8: bool = true
-	let e392: enum option [], option [] = Nop()
-	let __n105: enum option [], option [] = Alias(e392)
-	const e393: bool = true
+	let e619: enum option [], option [] = Nop()
+	let __n110: enum option [], option [] = Alias(e619)
+	const e620: bool = true
 	const e10: bool = false
-	let e2: bool = Match(e_n104, e388, e391, e8, e392, e393, e10)
+	let e2: bool = Match(e_n109, e615, e618, e8, e619, e620, e10)
 } => e2
