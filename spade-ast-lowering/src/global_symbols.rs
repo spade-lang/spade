@@ -50,12 +50,12 @@ pub fn gather_macro_rules(module: &ast::ModuleBody, ctx: &mut Context) -> Result
                         deprecation_note = Some(note.clone());
                         Ok(None)
                     }
+                    ast::Attribute::Documentation { .. } => Ok(None),
                     ast::Attribute::SpadecParenSugar
                     | ast::Attribute::VerilogAttrs { .. }
                     | ast::Attribute::Optimize { .. }
                     | ast::Attribute::NoMangle { .. }
                     | ast::Attribute::Fsm { .. }
-                    | ast::Attribute::Documentation { .. }
                     | ast::Attribute::Inline
                     | ast::Attribute::SurferTranslator(_) => Err(attr.report_unused("macro")),
                 })?;
