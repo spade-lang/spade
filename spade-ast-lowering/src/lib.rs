@@ -28,7 +28,11 @@ use recursive::recursive;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{CodeBundle, Diagnostic, codespan::Span, diag_anyhow, diag_bail};
-use spade_hir::{Selfness, expression::Safety, symbol_table::TypeDeclKind};
+use spade_hir::{
+    Selfness,
+    expression::{Safety, SugarInfo},
+    symbol_table::TypeDeclKind,
+};
 use spade_parser::{ExprBraces, Parser};
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
@@ -2005,12 +2009,31 @@ fn try_visit_statement(
             let target = target.visit(visit_expression, ctx);
             let value = value.visit(visit_expression, ctx);
 
+            let trait_spec = ast::TraitSpec {
+                path: Path::from_strs(&["Set"]).at_loc(s),
+                type_params: Some(
+                    vec![
+                        ast::TypeExpression::TypeSpec(Box::new(ast::TypeSpec::Wildcard.nowhere()))
+                            .nowhere(),
+                    ]
+                    .nowhere(),
+                ),
+                paren_syntax: false,
+            };
+
             Ok(vec![
                 hir::Statement::Expression(
                     hir::Expression {
                         kind: hir::ExprKind::MethodCall {
                             target: Box::new(target.clone()),
-                            op_trait: None,
+                            sugar_info: Some(SugarInfo {
+                                op_trait: visit_trait_spec(
+                                    &trait_spec.at_loc(s),
+                                    &TypeSpecKind::Turbofish,
+                                    ctx,
+                                )?,
+                                unify_args: false,
+                            }),
                             name: Identifier::intern("connect").at_loc(s),
                             turbofish: None,
                             args: hir::ArgumentList::Positional(vec![value.clone()]).at_loc(&value),
@@ -2200,11 +2223,14 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
 
                     Result::Ok(hir::ExprKind::MethodCall {
                         target: Box::new(lhs.clone()),
-                        op_trait: Some(visit_trait_spec(
-                            &trait_spec.at_loc(tok),
-                            &TypeSpecKind::Turbofish,
-                            ctx,
-                        )?),
+                        sugar_info: Some(SugarInfo {
+                            op_trait: visit_trait_spec(
+                                &trait_spec.at_loc(tok),
+                                &TypeSpecKind::Turbofish,
+                                ctx,
+                            )?,
+                            unify_args: true,
+                        }),
                         name: Identifier::intern(op).at_loc(tok),
                         turbofish: None,
                         args: hir::ArgumentList::Positional(vec![rhs.clone()]).at_loc(&rhs_loc),
@@ -2274,11 +2300,14 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
 
                     Result::Ok(hir::ExprKind::MethodCall {
                         target: Box::new(operand.clone()),
-                        op_trait: Some(visit_trait_spec(
-                            &trait_spec.at_loc(operator),
-                            &TypeSpecKind::Turbofish,
-                            ctx,
-                        )?),
+                        sugar_info: Some(SugarInfo {
+                            op_trait: visit_trait_spec(
+                                &trait_spec.at_loc(operator),
+                                &TypeSpecKind::Turbofish,
+                                ctx,
+                            )?,
+                            unify_args: true,
+                        }),
                         name: Identifier::intern(op).at_loc(operator),
                         turbofish: None,
                         args: hir::ArgumentList::empty().nowhere(),
@@ -2403,7 +2432,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::MethodCall {
                 target: Box::new(target),
-                op_trait: None,
+                sugar_info: None,
                 name: name.clone(),
                 args: args.try_map_ref(|args| visit_argument_list(args, ctx))?,
                 call_kind: visit_call_kind(kind, ctx)?,

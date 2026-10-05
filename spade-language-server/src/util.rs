@@ -218,7 +218,7 @@ impl ServerBackend {
                 }
                 ExprKind::MethodCall {
                     target,
-                    op_trait: _,
+                    sugar_info: _,
                     name,
                     args: _,
                     call_kind: _,

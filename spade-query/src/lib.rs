@@ -157,7 +157,7 @@ impl<'a> QueryCache {
             crate::ExprKind::TypeCast(target, _) => self.visit_expression(target),
             crate::ExprKind::MethodCall {
                 target,
-                op_trait: _,
+                sugar_info: _,
                 name: _,
                 args,
                 call_kind: _,

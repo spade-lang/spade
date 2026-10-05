@@ -203,6 +203,12 @@ pub enum IncompleteExpression {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct SugarInfo {
+    pub op_trait: Loc<TraitSpec>,
+    pub unify_args: bool,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Error,
     Identifier(NameID),
@@ -225,7 +231,7 @@ pub enum ExprKind {
     TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     MethodCall {
         target: Box<Loc<Expression>>,
-        op_trait: Option<Loc<TraitSpec>>,
+        sugar_info: Option<SugarInfo>,
         name: Loc<Identifier>,
         args: Loc<ArgumentList<Expression>>,
         call_kind: CallKind,

@@ -3696,10 +3696,13 @@ impl TypeState {
                                             let l = l.make_copy(self);
                                             self.unify(&l, r, ctx).is_ok()
                                         });
+                                    self.restore();
 
                                     if trait_impl.target_type_params.len() != params.len() {
                                         return None;
                                     }
+
+                                    self.checkpoint();
                                     let impl_params_match =
                                         trait_impl.target_type_params.iter().zip(params).all(
                                             |(l, r)| {
