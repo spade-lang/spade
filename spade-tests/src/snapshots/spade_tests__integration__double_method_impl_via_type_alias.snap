@@ -1,0 +1,22 @@
+---
+source: spade-tests/src/integration.rs
+---
+struct A {}
+type B = A;
+
+impl A {
+    fn doubled(self) {}
+}
+impl B {
+    fn doubled(self) {}
+}
+
+
+error: A already has a method named doubled
+  ┌─ testinput:8:5
+  │
+5 │     fn doubled(self) {}
+  │     ------------------- Previous definition here
+  ·
+8 │     fn doubled(self) {}
+  │     ^^^^^^^^^^^^^^^^^^^ Duplicate method

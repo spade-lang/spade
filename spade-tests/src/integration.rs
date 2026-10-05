@@ -1,7 +1,7 @@
 use crate::{build_items, code_compiles, snapshot_error, snapshot_mir};
 
-snapshot_error!(
-    type_alias_impl_target_generic_both,
+code_compiles!(
+    type_alias_impl_target_generic_both_works,
     r#"
         struct A<#bool B> {}
 
@@ -33,8 +33,8 @@ snapshot_error!(
     "#
 );
 
-snapshot_error!(
-    basic_type_alias_impl_target,
+code_compiles!(
+    basic_type_alias_impl_target_works,
     r#"
         struct A {}
 
@@ -51,8 +51,8 @@ snapshot_error!(
     "#
 );
 
-snapshot_error!(
-    nested_type_alias_impl_target,
+code_compiles!(
+    nested_type_alias_impl_target_works,
     r#"
         struct A {}
 
@@ -68,6 +68,21 @@ snapshot_error!(
 
         entity main(a: A) {
             let _: B = a.test();
+        }
+    "#
+);
+
+snapshot_error!(
+    double_method_impl_via_type_alias,
+    r#"
+        struct A {}
+        type B = A;
+
+        impl A {
+            fn doubled(self) {}
+        }
+        impl B {
+            fn doubled(self) {}
         }
     "#
 );

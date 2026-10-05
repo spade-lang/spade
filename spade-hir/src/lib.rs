@@ -322,6 +322,22 @@ impl TypeExpression {
             TypeExpression::ConstGeneric(_) => self,
         }
     }
+
+    fn replace_expr_in(self, from: &TypeExpression, to: &TypeExpression) -> Self {
+        if &self == from {
+            to.clone()
+        } else {
+            match self {
+                TypeExpression::TypeSpec(type_spec) => {
+                    TypeExpression::TypeSpec(type_spec.replace_expr_in(from, to))
+                }
+                TypeExpression::Bool(_) => self,
+                TypeExpression::Integer(_) => self,
+                TypeExpression::String(_) => self,
+                TypeExpression::ConstGeneric(_) => self,
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for TypeExpression {
@@ -459,6 +475,37 @@ impl TypeSpec {
                 TypeSpec::TraitSelf(_) => self,
                 TypeSpec::Wildcard(_) => self,
             }
+        }
+    }
+
+    pub fn replace_expr_in(self, from: &TypeExpression, to: &TypeExpression) -> Self {
+        match self {
+            TypeSpec::Declared(base, inner) => TypeSpec::Declared(
+                base.clone(),
+                inner
+                    .into_iter()
+                    .map(|expr| expr.map(|s| s.replace_expr_in(from, to)))
+                    .collect(),
+            ),
+            TypeSpec::Generic(_) => self.clone(),
+            TypeSpec::Tuple(inner) => TypeSpec::Tuple(
+                inner
+                    .into_iter()
+                    .map(|s| s.map(|s| s.replace_expr_in(from, to)))
+                    .collect(),
+            ),
+            TypeSpec::Array { inner, size } => TypeSpec::Array {
+                inner: Box::new(inner.map(|s| s.replace_expr_in(from, to))),
+                size: Box::new(size.map(|s| s.replace_expr_in(from, to))),
+            },
+            TypeSpec::Inverted(inner) => {
+                TypeSpec::Inverted(Box::new(inner.map(|s| s.replace_expr_in(from, to))))
+            }
+            TypeSpec::CopyView(inner) => {
+                TypeSpec::CopyView(Box::new(inner.map(|s| s.replace_expr_in(from, to))))
+            }
+            TypeSpec::TraitSelf(_) => self,
+            TypeSpec::Wildcard(_) => self,
         }
     }
 }

@@ -12,7 +12,7 @@ use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::impl_tab::type_specs_overlap;
 use spade_hir::pretty_debug::PrettyDebug;
 use spade_hir::symbol_table::{Thing, TypeDeclKind, TypeSymbol};
-use spade_hir::{self as hir, TraitName, TraitUnitImpl, TypeExpression};
+use spade_hir::{self as hir, TraitName, TraitUnitImpl, TypeDeclaration, TypeExpression};
 use spade_types::meta_types::MetaType;
 
 use crate::error::Result;
@@ -78,7 +78,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         );
     }
 
-    let (target, target_args) = canonicalize_impl_target(target_type.clone(), ctx)?;
+    let (target_type, target, target_args) = canonicalize_impl_target(target_type, ctx)?;
 
     let visited_where_clauses = visit_where_clauses(&block.where_clauses, ctx)?;
 
@@ -322,43 +322,45 @@ pub fn get_or_create_trait(
 pub fn canonicalize_impl_target(
     target_spec: Loc<hir::TypeSpec>,
     ctx: &mut Context,
-) -> Result<(hir::ImplTarget, Vec<hir::TypeExpression>)> {
+) -> Result<(
+    Loc<hir::TypeSpec>,
+    hir::ImplTarget,
+    Vec<hir::TypeExpression>,
+)> {
+    let canon = target_spec.clone();
     match target_spec.inner {
         hir::TypeSpec::Array { inner, size } => Ok((
+            canon,
             hir::ImplTarget::Array,
-            vec![hir::TypeExpression::TypeSpec(inner.inner), size.inner],
+            vec![
+                hir::TypeExpression::TypeSpec(inner.inner.clone()),
+                size.inner.clone(),
+            ],
         )),
         hir::TypeSpec::Declared(name, args) => {
-            let sym = ctx.symtab.type_symbol_by_id(&name);
-
             // If we impl on a type alias, we need to canonicalize it to the base type
-            if let TypeSymbol::Declared(_, _, TypeDeclKind::Alias) = &sym.inner {
-                // FIXME: support true matching and canonicalizing to the base type under a type alias,
-                // but that requires also resolving stuff like `type Heh<T: Trait> = T::Assoc;` and
-                // I have no clue how I'd resolve that here. We also have to propagate that canonicalized
-                // target to the real implblock spec for the type inferer to see overlapping specs
-                return Err(Diagnostic::error(
-                    &name,
-                    "Impl on type alias is currently not supported",
-                )
-                .primary_label("Type alias as impl target")
-                .secondary_label(&sym, format!("{name} defined here")));
-            }
-
-            if let TypeSymbol::GenericArg { traits: _ } | TypeSymbol::GenericMeta { .. } =
-                &sym.inner
+            if let Some(td) = ctx.item_list.types.get(&name.inner)
+                && let TypeDeclaration {
+                    name: _,
+                    kind: spade_hir::TypeDeclKind::Alias(ta),
+                    generic_args,
+                } = &td.inner
             {
-                return Err(
-                    Diagnostic::error(&name, "Impl target must be a concrete type")
-                        .primary_label("Impl on generic type")
-                        .secondary_label(sym, format!("{name} defined here")),
-                );
+                let mut new_canon = ta.type_spec.clone();
+                for (ga, passed) in generic_args.iter().zip(args.iter()) {
+                    let from =
+                        TypeExpression::TypeSpec(spade_hir::TypeSpec::Generic(ga.name.clone()));
+                    let to = passed;
+                    new_canon = new_canon.map(|spec| spec.replace_expr_in(&from, to));
+                }
+                canonicalize_impl_target(new_canon, ctx)
+            } else {
+                Ok((
+                    canon,
+                    hir::ImplTarget::Named(name.inner),
+                    args.into_iter().map(|arg| arg.inner).collect(),
+                ))
             }
-
-            Ok((
-                hir::ImplTarget::Named(name.inner),
-                args.into_iter().map(|arg| arg.inner).collect(),
-            ))
         }
         hir::TypeSpec::Generic(generic) => match generic {
             hir::Generic::Named(name) => {
@@ -372,14 +374,17 @@ pub fn canonicalize_impl_target(
             hir::Generic::Hidden(_) => unreachable!(),
         },
         hir::TypeSpec::Inverted(inner) => Ok((
+            canon,
             hir::ImplTarget::Inverted,
             vec![hir::TypeExpression::TypeSpec(inner.inner)],
         )),
         hir::TypeSpec::CopyView(inner) => Ok((
+            canon,
             hir::ImplTarget::CopyView,
             vec![hir::TypeExpression::TypeSpec(inner.inner)],
         )),
         hir::TypeSpec::Tuple(inner) => Ok((
+            canon,
             hir::ImplTarget::Tuple,
             inner
                 .into_iter()
