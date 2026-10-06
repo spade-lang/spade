@@ -2,7 +2,7 @@
 
 import math
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 def verilog_like_div(x, y):

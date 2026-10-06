@@ -1,7 +1,7 @@
 #top = range_indexing::upper_range_bool
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()

@@ -127,7 +127,7 @@ class Field(object):
             bit_string = self.spade__.compile_field_value(self.field_ref__, value)
             fwd_range = self.field_ref__.write_dir_range()
             bits = LogicArray(bit_string.inner())
-            signal = self.dut__._id(self.field_ref__.source.fwd_mangled(), extended=False)
+            signal = self.dut__[self.field_ref__.source.fwd_mangled()]
             downto_range = fwd_range.as_downto(len(signal))
             if fwd_range.is_full():
                 signal.value = bits
@@ -143,7 +143,7 @@ class Field(object):
             # This shares a bit of code with is_eq, but since we need access to intermediate
             # values, we'll duplicate things for now
             r = self.spade__.compare_field(
-                self.field_ref__, expected, BitString(self.dut__._id(self.field_ref__.source.back_mangled(), extended=False).value.binstr)
+                self.field_ref__, expected, BitString(str(self.dut__[self.field_ref__.source.back_mangled()].value))
             )
 
             expected_bits = r.expected_bits.inner()
@@ -167,7 +167,7 @@ class Field(object):
         # This shares a bit of code with is_eq, but since we need access to intermediate
         # values, we'll duplicate things for now
         return self.spade__.field_value(
-            self.field_ref__, BitString(self.dut__._id(self.field_ref__.source.back_mangled(), extended=False).value.binstr)
+            self.field_ref__, BitString(str(self.dut__[self.field_ref__.source.back_mangled()].value))
         )
 
     def is_eq(self, other: object) -> bool:
@@ -180,7 +180,7 @@ class Field(object):
         try:
             value = to_spade_value(typing.cast(object, value))
             r = self.spade__.compare_field(
-                self.field_ref__, value, BitString(self.dut__._id(self.field_ref__.source.back_mangled(), extended=False).value.binstr)
+                self.field_ref__, value, BitString(str(self.dut__[self.field_ref__.source.back_mangled()].value))
             )
             expected_bits = r.expected_bits.inner()
             got_bits = r.got_bits.inner()

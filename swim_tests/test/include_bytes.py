@@ -1,7 +1,7 @@
 # top=include_bytes::test
 
 import cocotb
-from cocotb.scheduler import Timer
+from cocotb.triggers import Timer
 from spade import SpadeExt
 
 @cocotb.test()

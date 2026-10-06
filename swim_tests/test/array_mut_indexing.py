@@ -1,7 +1,7 @@
 #top = array_mut_indexing::mutable_array_indexing
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()

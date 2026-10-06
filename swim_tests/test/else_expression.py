@@ -1,7 +1,7 @@
 #top = else_expression::operator_after_else
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()

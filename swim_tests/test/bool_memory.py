@@ -1,7 +1,7 @@
 #top = bool_memory::test
 
 import cocotb
-from cocotb.scheduler import Timer
+from cocotb.triggers import Timer
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
 from spade import SpadeExt

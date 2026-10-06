@@ -1,6 +1,6 @@
 # top=entity_without_return::void_return
 
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 from spade import SpadeExt
 

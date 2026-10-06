@@ -1,7 +1,7 @@
 #top = simple_io::substruct
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()

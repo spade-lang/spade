@@ -1,7 +1,7 @@
 # top=zero_sized_struct::test
 
 import cocotb
-from cocotb.scheduler import Timer
+from cocotb.triggers import Timer
 from spade import SpadeExt
 
 @cocotb.test()

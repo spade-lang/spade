@@ -3,7 +3,7 @@
 from typing import List
 from cocotb.clock import Clock
 from spade import SpadeExt
-from cocotb import cocotb, random
+import cocotb, random
 from cocotb.triggers import FallingEdge
 
 async def initial_setup(s, write_clk, read_clk):

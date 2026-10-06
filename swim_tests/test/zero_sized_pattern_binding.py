@@ -2,7 +2,7 @@
 # top = zero_size_pattern_binding::match_zs
 
 import cocotb
-from cocotb.scheduler import Timer
+from cocotb.triggers import Timer
 from spade import SpadeExt
 
 @cocotb.test()

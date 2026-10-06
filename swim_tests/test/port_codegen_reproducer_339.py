@@ -1,7 +1,7 @@
 #top = port_codegen_reproducer_339::broken
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()

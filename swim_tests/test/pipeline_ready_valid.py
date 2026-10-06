@@ -2,7 +2,7 @@
 
 from cocotb.triggers import FallingEdge, NextTimeStep
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.clock import Clock
 
 @cocotb.test()

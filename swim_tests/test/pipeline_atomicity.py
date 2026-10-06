@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import List
 from cocotb.triggers import FallingEdge, NextTimeStep
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.clock import Clock
 import random
 

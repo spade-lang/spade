@@ -1,6 +1,6 @@
 # top=entity_without_return::also_no_output
 
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()

@@ -1,7 +1,7 @@
 # top = inout_read_write::test
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 from cocotb.handle import Force
 

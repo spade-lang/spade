@@ -1,7 +1,7 @@
 # top = parametrized_externs::harness
 
 from spade import SpadeExt
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 

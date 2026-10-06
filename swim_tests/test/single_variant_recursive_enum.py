@@ -1,7 +1,7 @@
 #top = single_variant_recursive_enum::match_one_variant
 
 import cocotb
-from cocotb.scheduler import Timer
+from cocotb.triggers import Timer
 from spade import SpadeExt
 
 @cocotb.test()

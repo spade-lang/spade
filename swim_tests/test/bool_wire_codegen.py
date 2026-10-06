@@ -1,6 +1,6 @@
 # top=test_bool_wire_codegen::harness
 
-from cocotb import cocotb
+import cocotb
 
 @cocotb.test()
 async def test(dut):

@@ -1,6 +1,6 @@
 # top=no_mangle_params::no_mangle_input
 
-from cocotb import cocotb
+import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()
