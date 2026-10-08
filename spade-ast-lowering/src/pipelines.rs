@@ -62,7 +62,9 @@ pub fn maybe_perform_pipelining_tasks(
                 scope: ctx.symtab.current_scope() + 1,
             };
 
-            if head.inputs.0.is_empty() {
+            let clock_index = if head.is_nonstatic_method { 1 } else { 0 };
+
+            if head.inputs.0.len() <= clock_index {
                 return Err(Diagnostic::error(
                     ast_inputs.loc(),
                     "Missing clock argument for pipeline",
