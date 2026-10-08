@@ -530,12 +530,12 @@ snapshot_error! {
 code_compiles! {
     const_generic_in_struct_works,
     "
-    struct foo<#uint A> {
+    struct Foo<#uint A> {
         bar: [uint<{A + 5}>; {A * 2}],
     }
 
     fn test() {
-        let _ = foo::<2>([0; 4]);
+        let _ = Foo::<2>([0; 4]);
     }
     "
 }
@@ -543,12 +543,12 @@ code_compiles! {
 snapshot_error! {
     const_generic_in_struct_catches_errors,
     "
-    struct foo<#uint A> {
+    struct Foo<#uint A> {
         bar: uint<{A / 0}>,
     }
 
     fn test() {
-        let _ = foo::<2>(1);
+        let _ = Foo::<2>(1);
     }
     "
 }
@@ -556,12 +556,51 @@ snapshot_error! {
 snapshot_error! {
     const_generic_in_struct_catches_errors2,
     "
-    struct foo<#uint A> {
+    struct Foo<#uint A> {
         bar: uint<{1 / A}>,
     }
 
     fn test() {
-        let _ = foo::<0>(1);
+        let _ = Foo::<0>(1);
+    }
+    "
+}
+
+code_compiles! {
+    const_generic_in_enum_works,
+    "
+    enum Foo<#uint A> {
+        Oof { bar: [uint<{A + 5}>; {A * 2}] },
+    }
+
+    fn test() {
+        let _ = Foo::Oof::<2>([0; 4]);
+    }
+    "
+}
+
+snapshot_error! {
+    const_generic_in_enum_catches_errors,
+    "
+    enum Foo<#uint A> {
+        Oof { bar: uint<{A / 0}> },
+    }
+
+    fn test() {
+        let _ = Foo::Oof::<2>(1);
+    }
+    "
+}
+
+snapshot_error! {
+    const_generic_in_enum_catches_errors2,
+    "
+    enum Foo<#uint A> {
+        Oof { bar: uint<{1 / A}> },
+    }
+
+    fn test() {
+        let _ = Foo::Oof::<0>(1);
     }
     "
 }

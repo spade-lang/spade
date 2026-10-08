@@ -1,12 +1,12 @@
 ---
 source: spade-tests/src/const_generics.rs
 ---
-struct foo<#uint A> {
+struct Foo<#uint A> {
     bar: uint<{A / 0}>,
 }
 
 fn test() {
-    let _ = foo::<2>(1);
+    let _ = Foo::<2>(1);
 }
 
 
@@ -16,13 +16,13 @@ error: Could not perform division during constraint evaluation
 2 │     bar: uint<{A / 0}>,
   │                ^^^^^ Division by zero
   ·
-6 │     let _ = foo::<2>(1);
+6 │     let _ = Foo::<2>(1);
   │             ----------- The error occurred when unifying types here
 
 error: Argument type mismatch. Expected uint<#any> got Number<#uint>
   ┌─ testinput:6:22
   │
-6 │     let _ = foo::<2>(1);
+6 │     let _ = Foo::<2>(1);
   │                      ^ Expected uint<_>
   │
   = note: Expected: uint<_>

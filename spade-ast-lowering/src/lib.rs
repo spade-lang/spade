@@ -344,7 +344,6 @@ pub fn visit_type_expression(
             match kind {
                 TypeSpecKind::ImplTrait => default_error("Implemented traits", "implemented trait"),
                 TypeSpecKind::ImplTarget => default_error("Impl targets", "impl target"),
-                TypeSpecKind::EnumMember => default_error("Enum members", "enum member"),
                 TypeSpecKind::TraitBound => {
                     default_error("Traits used in trait bounds", "trait bound")
                 }
@@ -352,6 +351,7 @@ pub fn visit_type_expression(
                     default_error("Associated functions", "associated fn")
                 }
                 TypeSpecKind::StructMember
+                | TypeSpecKind::EnumMember
                 | TypeSpecKind::Alias
                 | TypeSpecKind::Argument
                 | TypeSpecKind::OutputType
