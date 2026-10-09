@@ -7,11 +7,11 @@ entity \test () -> () {
 	let x_n106: uint<8> = Alias(e2)
 	let e5: {x: uint<8>} = ConstructTuple(x_n106)
 	let e11: () = ConstructTuple()
-	let e4: () = Instance(\impl#0::call[739] )(e5, e11)
+	let e4: () = Instance(\impl#0::call[745] )(e5, e11)
 	let l_n118: () = Alias(e4)
 	let e1: () = Nop()
 } => e1
-entity \impl#0::call[739] ((self, self_n116, {x: uint<8>}), (args, args_n117, ())) -> () {
+entity \impl#0::call[745] ((self, self_n116, {x: uint<8>}), (args, args_n117, ())) -> () {
 	let e796: uint<8> = IndexTuple(0)(self_n116)
 	let x_n106: uint<8> = Alias(e796)
 	let y_n107: uint<8> = Alias(x_n106)

@@ -9,11 +9,11 @@ entity \test ((clk, clk_n113, bool)) -> () {
 	let e6: () = Instance(\impl#0::a )(e7, clk_n113, e10)
 } => e6
 entity \impl#0::a ((self, self_n110, {x: uint<8>}), (clk, clk_n111, bool), (val, val_n112, uint<16>)) -> () {
-	reg(clk_n111) s1_self_n730: {x: uint<8>} = self_n110
-	reg(clk_n111) s1_val_n731: uint<16> = val_n112
-	reg(clk_n111) s2_self_n732: {x: uint<8>} = s1_self_n730
-	reg(clk_n111) s2_val_n733: uint<16> = s1_val_n731
-	reg(clk_n111) s3_self_n734: {x: uint<8>} = s2_self_n732
-	reg(clk_n111) s3_val_n735: uint<16> = s2_val_n733
+	reg(clk_n111) s1_self_n736: {x: uint<8>} = self_n110
+	reg(clk_n111) s1_val_n737: uint<16> = val_n112
+	reg(clk_n111) s2_self_n738: {x: uint<8>} = s1_self_n736
+	reg(clk_n111) s2_val_n739: uint<16> = s1_val_n737
+	reg(clk_n111) s3_self_n740: {x: uint<8>} = s2_self_n738
+	reg(clk_n111) s3_val_n741: uint<16> = s2_val_n739
 	let e3: () = Nop()
 } => e3
