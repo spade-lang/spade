@@ -32,10 +32,23 @@ fn stage_ref_in(what: &str, at: Loc<()>, kw_loc: Loc<()>) -> Diagnostic {
 
 #[local_impl]
 impl UnitKindLocal for Option<Loc<UnitKind>> {
-    fn allows_reg(&self, at: Loc<()>) -> Result<(), Diagnostic> {
+    fn ensure_unit_allows_memory(&self, at: Loc<()>) -> Result<(), Diagnostic> {
         match self.as_ref().map(|x| x.split_loc_ref()) {
             Some((UnitKind::Function, kw_loc)) => Err(not_allowed_in_function(
-                "register declared in function",
+                "Memory declared in function",
+                at,
+                "memory",
+                kw_loc,
+            )),
+            Some((UnitKind::Entity | UnitKind::Pipeline(_), _)) => Ok(()),
+            None => Err(bug_no_item_context(at)),
+        }
+    }
+
+    fn ensure_unit_allows_reg(&self, at: Loc<()>) -> Result<(), Diagnostic> {
+        match self.as_ref().map(|x| x.split_loc_ref()) {
+            Some((UnitKind::Function, kw_loc)) => Err(not_allowed_in_function(
+                "Register declared in function",
                 at,
                 "register",
                 kw_loc,
@@ -45,7 +58,7 @@ impl UnitKindLocal for Option<Loc<UnitKind>> {
         }
     }
 
-    fn allows_inst(&self, at: Loc<()>) -> Result<(), Diagnostic> {
+    fn ensure_unit_allows_inst(&self, at: Loc<()>) -> Result<(), Diagnostic> {
         match self.as_ref().map(|x| x.split_loc_ref()) {
             // FIXME: Choose "entities" or "pipelines" depending on what we try to instantiate
             Some((UnitKind::Function, kw_loc)) => Err(not_allowed_in_function(
@@ -59,7 +72,7 @@ impl UnitKindLocal for Option<Loc<UnitKind>> {
         }
     }
 
-    fn allows_pipeline_ref(&self, at: Loc<()>) -> Result<(), Diagnostic> {
+    fn ensure_unit_allows_pipeline_ref(&self, at: Loc<()>) -> Result<(), Diagnostic> {
         match self.as_ref().map(|x| x.split_loc_ref()) {
             Some((UnitKind::Function, kw_loc)) => Err(stage_ref_in("function", at, kw_loc)),
             Some((UnitKind::Entity, kw_loc)) => Err(stage_ref_in("entity", at, kw_loc)),

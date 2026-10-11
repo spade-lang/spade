@@ -1,0 +1,67 @@
+//! Utils to instantiate and interact with fixed-latency memories.
+//!
+//! Spade provides a built-in `memory` statement to construct memories with an arbitrary number of
+//! heterogeneous ports.
+//!
+//! For example, the following snippet defines a memory containing 4 `uint<8>` elements. It exposes
+//! two ports: a read-only port named `read_port` and a write-only named `write_port`. Both have an
+//! access latency of 1 clock cycle.
+//!
+//! ```spade,notest
+//! memory: [uint<8>: 4] {
+//!     read_port: Ro<_, _, 1>,
+//!     write_port: Wo<_, _, 1>,
+//! }
+//! ```
+//!
+//! This mechanism is intentionally permissive: there is no guarantee that any defined memory will
+//! be synthesizable.
+
+// Memory port trait, implemented only by supported memory types the compiler recognizes.
+// `Port` is kept private to prevent unsound implementations external to this module.
+trait Port<T, #uint N> {}
+type Addr<#uint N> = uint<{uint::bits_for(N - 1)}>;
+
+/// Read-only memory port.
+pub struct Ro<T, #uint N, #uint Latency> {
+    clk: inv clock,
+    req: inv Option<Addr<N>>,
+    res: Option<T>,
+}
+
+impl<T, #uint N, #uint Latency> Port<T, N> for Ro<T, N, Latency> {}
+
+impl<T, #uint N> Ro<T, N, 0> {
+    pub fn read_comb(self, req: Option<Addr<N>>) -> Option<T> {
+        set self.clk = unsafe { lib::conv::transmute(undef::<bool>()) };
+        set self.req = req;
+
+        self.res
+    }
+}
+
+impl<T, #uint N, #uint Latency> Ro<T, N, Latency> {
+    pub pipeline({Latency}) read(wire self, clk: clock, req: Option<Addr<N>>) -> Option<T> {
+        let wire res = self.res;
+        set self.clk = clk;
+        set self.req = req;
+
+    reg * Latency;
+        res
+    }
+}
+
+/// Write-only memory port.
+pub struct Wo<T, #uint N, #uint W> {
+    clk: inv clock,
+    req: inv Option<(Addr<N>, T)>,
+}
+
+impl<T, #uint N, #uint Latency> Port<T, N> for Wo<T, N, Latency> {}
+
+impl<T, #uint N, #uint Latency> Wo<T, N, Latency> where Latency > 0 {
+    pub fn write(self, clk: clock, req: Option<(Addr<N>, T)>) {
+        set self.clk = clk;
+        set self.req = req;
+    }
+}

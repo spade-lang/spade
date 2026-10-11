@@ -624,6 +624,7 @@ pub enum Statement {
     Declaration(Vec<Loc<Identifier>>),
     Binding(Binding),
     Expression(Loc<Expression>, AttributeList),
+    Memory(Loc<Memory>),
     PipelineRegMarker(Option<Loc<TypeExpression>>, Option<Loc<Expression>>),
     Register(Loc<Register>),
     /// Sets the value of the target expression, which must be a Backward port to
@@ -858,6 +859,15 @@ pub struct Unit {
     /// The body is an expression for ID assignment purposes, but semantic analysis
     /// ensures that it is always a block. If body is `None`, the entity is `extern`.
     pub body: Option<Loc<Expression>>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Memory {
+    pub keyword: Loc<()>,
+    // Backing array type
+    pub ty: Option<Loc<TypeSpec>>,
+    pub initial: Option<Loc<Expression>>,
+    pub members: Loc<ParameterList>,
 }
 
 #[derive(PartialEq, Debug, Clone)]

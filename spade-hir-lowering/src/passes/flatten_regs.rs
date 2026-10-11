@@ -29,6 +29,7 @@ impl<'a> Pass for FlattenRegs<'a> {
             Statement::Error => Ok(None),
             Statement::Binding(_) => Ok(None),
             Statement::Expression(_) => Ok(None),
+            Statement::Memory(_) => Ok(None),
             Statement::Register(_) => Ok(None),
             Statement::Declaration(_) => Ok(None),
             Statement::PipelineRegMarker(extra) => match extra {

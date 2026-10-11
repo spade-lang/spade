@@ -30,7 +30,7 @@ use typeinference::TypeState;
 
 use spade_ast::{FloatingNodes, MacroRules, ModuleBody};
 use spade_ast_lowering::{
-    Context as AstLoweringCtx, SelfContext, auto_traits, ensure_unique_anonymous_traits,
+    Context as AstLoweringCtx, ParamContext, auto_traits, ensure_unique_anonymous_traits,
     global_symbols, visit_module_body,
 };
 use spade_common::id_tracker::{GenericIdTracker, ImplIdTracker};
@@ -139,7 +139,7 @@ pub fn run_global_compilation_tasks(
         impl_idtracker: ImplIdTracker::new(),
         generic_idtracker: GenericIdTracker::new(),
         pipeline_ctx: None,
-        self_ctx: SelfContext::FreeStanding,
+        param_ctx: ParamContext::FreeStanding,
         current_unit: None,
         diags: diags.clone(),
         safety: Safety::Default,
@@ -257,7 +257,7 @@ pub fn run_global_compilation_tasks(
         impl_idtracker,
         generic_idtracker,
         pipeline_ctx: _,
-        self_ctx: _,
+        param_ctx: _,
         current_unit: _,
         diags,
         safety: _,
@@ -868,6 +868,7 @@ pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
         (["core"], ["core", "conv"], "../core/conv.spade"),
         (["core"], ["core", "macros"], "../core/macros.spade"),
         (["core"], ["core", "marker"], "../core/marker.spade"),
+        (["core"], ["core", "mem"], "../core/mem.spade"),
         (["core"], ["core", "ops"], "../core/ops.spade"),
         (["core"], ["core", "option"], "../core/option.spade"),
         (["core"], ["core", "ports"], "../core/ports.spade"),

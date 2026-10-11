@@ -1,4 +1,6 @@
-use spade_ast::{AttributeList, Binding, Expression, Register, Statement, token::TokenKind};
+use spade_ast::{
+    AttributeList, Binding, Expression, Memory, Register, Statement, token::TokenKind,
+};
 use spade_common::{
     location_info::{AsLabel, Loc, WithLocation, lspan},
     name::Visibility,
@@ -45,6 +47,55 @@ impl KeywordPeekingParser<Loc<Statement>> for BindingParser {
             attrs: attributes.clone(),
         })
         .between(parser.file_id(), &start_span, &end_span))
+    }
+}
+
+pub(crate) struct MemoryParser {}
+
+impl KeywordPeekingParser<Loc<Statement>> for MemoryParser {
+    fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
+        |kind| kind == &TokenKind::Memory
+    }
+
+    fn parse(
+        &self,
+        parser: &mut Parser,
+        attributes: &AttributeList,
+        visibility: &Loc<Visibility>,
+    ) -> Result<Loc<Statement>> {
+        let start_token = parser.eat_unconditional()?;
+        parser.disallow_attributes(attributes, &start_token)?;
+        parser.disallow_visibility(visibility, &start_token)?;
+
+        parser
+            .unit_context
+            .ensure_unit_allows_memory(().at(parser.file_id(), &start_token.span()))?;
+
+        let ty = parser
+            .peek_and_eat(&TokenKind::Colon)?
+            .map(|_| parser.type_spec(false))
+            .transpose()?;
+        let initial = parser.register_initial()?;
+
+        let (members, members_loc) = parser.surrounded(
+            &TokenKind::OpenBrace,
+            Parser::type_parameter_list,
+            &TokenKind::CloseBrace,
+        )?;
+
+        let members = members.at_loc(&members_loc);
+        let span = ().between(parser.file_id(), &start_token, &members_loc);
+
+        Ok(Statement::Memory(
+            Memory {
+                keyword: start_token.loc(),
+                ty,
+                initial,
+                members,
+            }
+            .at(parser.file_id(), &span),
+        )
+        .at(parser.file_id(), &span))
     }
 }
 
@@ -106,7 +157,7 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
 
         parser
             .unit_context
-            .allows_reg(().at(parser.file_id(), &start_token.span()))?;
+            .ensure_unit_allows_reg(().at(parser.file_id(), &start_token.span()))?;
 
         // Clock selection
         let (clock, _clock_paren_span) = parser.surrounded(

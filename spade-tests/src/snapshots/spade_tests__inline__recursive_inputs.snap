@@ -4,15 +4,15 @@ expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | for
 ---
 entity \test () -> uint<9> {
 	const e14: uint<8> = 1
-	let val_n120: uint<8> = Alias(e14)
-	const e805: uint<8> = 2
-	let e808: uint<9> = UnsignedAdd(val_n120, e805)
-	let e804: uint<9> = Alias(e808)
-	let e16: uint<9> = Alias(e804)
+	let val_n134: uint<8> = Alias(e14)
+	const e843: uint<8> = 2
+	let e846: uint<9> = UnsignedAdd(val_n134, e843)
+	let e842: uint<9> = Alias(e846)
+	let e16: uint<9> = Alias(e842)
 } => e16
 entity \test_inner () -> uint<9> {
 	const e7: uint<8> = 0
 	const e8: uint<8> = 1
-	let e802: uint<9> = UnsignedAdd(e7, e8)
-	let e6: uint<9> = Alias(e802)
+	let e840: uint<9> = UnsignedAdd(e7, e8)
+	let e6: uint<9> = Alias(e840)
 } => e6

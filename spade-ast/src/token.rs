@@ -81,6 +81,8 @@ pub enum TokenKind {
     // Keywords
     #[token("reg")]
     Reg,
+    #[token("memory")]
+    Memory,
     #[token("let")]
     Let,
     #[token("decl")]
@@ -307,6 +309,7 @@ impl TokenKind {
             TokenKind::HighImp => "HIGHIMP",
 
             TokenKind::Let => "let",
+            TokenKind::Memory => "memory",
             TokenKind::Reg => "reg",
             TokenKind::Decl => "decl",
             TokenKind::Entity => "entity",

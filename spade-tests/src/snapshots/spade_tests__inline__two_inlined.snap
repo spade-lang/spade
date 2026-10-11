@@ -3,17 +3,17 @@ source: spade-tests/src/inline.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test () -> () {
-	const e798: bool = true
-	let x_n744: bool = Alias(e798)
-	let e797: () = Nop()
-	let e795: () = Alias(e797)
-	let e7: () = Alias(e795)
-	let __n117: () = Alias(e7)
-	const e806: bool = true
-	let x_n746: bool = Alias(e806)
-	let e805: () = Nop()
-	let e803: () = Alias(e805)
-	let e9: () = Alias(e803)
-	let __n118: () = Alias(e9)
+	const e836: bool = true
+	let x_n804: bool = Alias(e836)
+	let e835: () = Nop()
+	let e833: () = Alias(e835)
+	let e7: () = Alias(e833)
+	let __n131: () = Alias(e7)
+	const e844: bool = true
+	let x_n806: bool = Alias(e844)
+	let e843: () = Nop()
+	let e841: () = Alias(e843)
+	let e9: () = Alias(e841)
+	let __n132: () = Alias(e9)
 	let e6: () = Nop()
 } => e6

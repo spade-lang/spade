@@ -4,7 +4,7 @@ use spade_ast as ast;
 use spade_diagnostics::diag_bail;
 use spade_hir as hir;
 
-use crate::{Context, Result, SelfContext};
+use crate::{Context, ParamContext, Result};
 
 pub trait IsInOut {
     fn is_inout(&self, symtab: &Context) -> Result<bool>;
@@ -44,13 +44,13 @@ impl IsInOut for hir::TypeSpec {
             spade_hir::TypeSpec::Array { .. } => false,
             spade_hir::TypeSpec::Inverted(_) => false,
             spade_hir::TypeSpec::CopyView(_) => false,
-            spade_hir::TypeSpec::TraitSelf(s) => match &ctx.self_ctx {
-                SelfContext::FreeStanding => diag_bail!(
+            spade_hir::TypeSpec::TraitSelf(s) => match &ctx.param_ctx {
+                ParamContext::FreeStanding | ParamContext::MemoryPorts => diag_bail!(
                     s,
                     "Called is_inout on self type but no self type was present"
                 ),
-                SelfContext::ImplBlock(target) => target.is_inout(ctx)?,
-                SelfContext::TraitDefinition(_) => {
+                ParamContext::ImplMethod(target) => target.is_inout(ctx)?,
+                ParamContext::TraitMethod(_) => {
                     diag_bail!(
                         s,
                         "Called is_inout on self type while in a trait definition"

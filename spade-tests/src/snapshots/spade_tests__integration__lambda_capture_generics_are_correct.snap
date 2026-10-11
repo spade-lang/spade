@@ -2,14 +2,14 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \generic[754] () -> uint<8> {
+entity \generic[814] () -> uint<8> {
 	let e3: {} = ConstructTuple()
 	let e8: () = ConstructTuple()
-	let e2: uint<8> = Instance(\impl#0::call[755] )(e3, e8)
+	let e2: uint<8> = Instance(\impl#0::call[815] )(e3, e8)
 } => e2
 entity \test () -> uint<8> {
-	let e10: uint<8> = Instance(\generic[754] )()
+	let e10: uint<8> = Instance(\generic[814] )()
 } => e10
-entity \impl#0::call[755] ((self, self_n124, {}), (args, args_n125, ())) -> uint<8> {
+entity \impl#0::call[815] ((self, self_n138, {}), (args, args_n139, ())) -> uint<8> {
 	const e4: uint<8> = 10
 } => e4

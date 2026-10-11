@@ -1,3 +1,5 @@
+pub use core::mem::{Ro, Wo};
+
 use lib::cdc as cdc;
 
 /// Define a memory where values are written on the rising edge of the clock.
@@ -8,6 +10,7 @@ use lib::cdc as cdc;
 /// `write enable`, `address` and `data` field. When WE is enabled, data is written
 /// to address. Otherwise no change takes effect
 /// NOTE: We when possible, we should make compute AddrWidth from NumElements
+#[deprecated = "Use a `memory` declaration instead"]
 pub extern entity clocked_memory<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
     clk: clock,
     writes: [(bool, uint<AddrWidth>, D); WritePorts],
@@ -16,6 +19,7 @@ pub extern entity clocked_memory<#uint NumElements, #uint WritePorts, #uint Addr
 
 /// Same as `clocked_memory` but initializes the memory with the values specified in `initial_values`.
 /// The initial values must be evaluatable at compile time, otherwise an error is thrown
+#[deprecated = "Use a `memory` declaration instead"]
 pub extern entity clocked_memory_init<#uint NumElements, #uint WritePorts, #uint AddrWidth, D>(
     clk: clock,
     writes: [(bool, uint<AddrWidth>, D); WritePorts],
@@ -70,21 +74,34 @@ reg;
 /// A dual port block RAM that supports read and write ports being in different domains.
 /// If writes and reads happen to the same address, the behaviour is undefined.
 pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>, ReadPort<W, D>) {
-    let w_addr = port();
-    let w_write = port();
-    let r_addr = port();
-
-    reg(write_clk) undef = undef;
-    let w = match w_write.0 {
-        Some(w) => (true, w_addr.0, w),
-        None => (false, w_addr.0, undef),
+    memory: [D; C] {
+        read_port: Ro<_, _, 1>,
+        write_port: Wo<_, _, 1>,
     };
 
-    let mem: Memory<D, C> = inst clocked_memory(write_clk, [w]);
+    let write_addr = port();
+    let write_data = port();
 
-    reg(read_clk) read_result = inst read_memory(mem, r_addr.0);
+    let write_req = match write_data.0 {
+        None => None,
+        Some(data) => Some((write_addr.0, data)),
+    };
 
-    (WritePort { addr: w_addr.1, write: w_write.1 }, ReadPort { addr: r_addr.1, out: read_result })
+    write_port.write(write_clk, write_req);
+
+    let read_addr = port();
+    let read_data = read_port.inst(1) read(read_clk, Some(read_addr.0));
+
+    (
+        WritePort {
+            addr: write_addr.1,
+            write: write_data.1,
+        },
+        ReadPort {
+            addr: read_addr.1,
+            out: read_data.unwrap_or_undef(),
+        },
+    )
 }
 
 
@@ -106,9 +123,6 @@ pub struct FifoRead<#uint W, D> {
 }
 
 mod fifo_impl {
-    use lib::mem::clocked_memory;
-    use lib::mem::read_memory;
-
     use lib::cdc as cdc;
 
     use lib::mem::FifoRead;

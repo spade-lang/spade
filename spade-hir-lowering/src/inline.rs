@@ -69,6 +69,22 @@ impl<'a> InlinedStatements<'a> {
                             constant_value.clone(),
                         ),
                         Statement::Assert(val) => Statement::Assert(get_final_name(val)),
+                        Statement::Memory {
+                            storage,
+                            ty,
+                            initial,
+                            ports,
+                        } => Statement::Memory {
+                            storage: get_final_name(storage),
+                            ty: ty.clone(),
+                            initial: initial.clone(),
+                            ports: ports
+                                .into_iter()
+                                .map(|(name, ty, kind)| {
+                                    (get_final_name(name), ty.clone(), kind.clone())
+                                })
+                                .collect(),
+                        },
                         Statement::Set { target, value } => Statement::Set {
                             target: get_final_name(target),
                             value: get_final_name(value),
@@ -269,21 +285,37 @@ fn perform_inlining<'a>(
                                 .statements
                                 .iter()
                                 .filter_map(|stmt| match &stmt.inner {
-                                    Statement::Binding(binding) => {
-                                        Some((binding.name.clone(), name_generator(&binding.name)))
-                                    }
-                                    Statement::Register(register) => Some((
+                                    Statement::Binding(binding) => Some(vec![(
+                                        binding.name.clone(),
+                                        name_generator(&binding.name),
+                                    )]),
+                                    Statement::Register(register) => Some(vec![(
                                         register.name.clone(),
                                         name_generator(&register.name),
-                                    )),
+                                    )]),
                                     Statement::Constant(name, _, _) => {
-                                        Some((name.clone(), name_generator(name)))
+                                        Some(vec![(name.clone(), name_generator(name))])
                                     }
+                                    Statement::Memory {
+                                        storage,
+                                        ty: _,
+                                        initial: _,
+                                        ports,
+                                    } => Some(
+                                        ports
+                                            .iter()
+                                            .map(|(name, _, _)| {
+                                                (name.clone(), name_generator(name))
+                                            })
+                                            .chain(Some((storage.clone(), name_generator(storage))))
+                                            .collect(),
+                                    ),
                                     Statement::Error => None,
                                     Statement::Assert(_) => None,
                                     Statement::Set { .. } => None,
                                     Statement::Seal { .. } => None,
                                 })
+                                .flatten()
                                 .collect::<Vec<_>>();
 
                             let mut type_map = vec![];

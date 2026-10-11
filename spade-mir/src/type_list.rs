@@ -45,6 +45,16 @@ impl MirTypeList {
                     self.inner.insert(idx.inner.clone(), ty.clone());
                 }
                 Statement::Assert(_) => {}
+                Statement::Memory {
+                    storage: _,
+                    ty: _,
+                    initial: _,
+                    ports,
+                } => {
+                    for (name, ty, _) in ports {
+                        self.inner.insert(name.inner.clone(), ty.clone());
+                    }
+                }
                 Statement::Set { .. } | Statement::Seal { .. } => {
                     // No new types introduced
                 }

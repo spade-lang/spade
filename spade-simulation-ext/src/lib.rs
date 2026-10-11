@@ -15,7 +15,7 @@ use spade_codespan_reporting::term::termcolor::Buffer;
 
 use range::UptoRange;
 use spade_ast::MacroRules;
-use spade_ast_lowering::SelfContext;
+use spade_ast_lowering::ParamContext;
 use spade_ast_lowering::id_tracker::{ExprIdTracker, ImplIdTracker};
 use spade_common::id_tracker::GenericIdTracker;
 use spade_common::location_info::{Loc, WithLocation};
@@ -496,7 +496,7 @@ impl Spade {
             impl_idtracker: owned_state.impl_idtracker,
             generic_idtracker: owned_state.generic_idtracker,
             pipeline_ctx: None,
-            self_ctx: SelfContext::FreeStanding,
+            param_ctx: ParamContext::FreeStanding,
             current_unit: None,
             diags: Arc::new(Mutex::new(DiagList::new())),
             safety: Safety::Default,
@@ -599,7 +599,7 @@ impl Spade {
             impl_idtracker,
             generic_idtracker,
             pipeline_ctx: _,
-            self_ctx: _,
+            param_ctx: _,
             current_unit: _,
             diags,
             safety: _,
@@ -863,7 +863,7 @@ impl Spade {
             impl_idtracker,
             generic_idtracker,
             pipeline_ctx: None,
-            self_ctx: SelfContext::FreeStanding,
+            param_ctx: ParamContext::FreeStanding,
             current_unit: None,
             diags: Arc::new(Mutex::new(DiagList::new())),
             safety: Safety::Default,
@@ -881,7 +881,7 @@ impl Spade {
             impl_idtracker,
             generic_idtracker,
             pipeline_ctx: _,
-            self_ctx: _,
+            param_ctx: _,
             current_unit: _,
             diags,
             safety: _,

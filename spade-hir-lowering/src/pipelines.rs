@@ -93,6 +93,9 @@ pub fn handle_statement(
             }
         }
         Statement::Expression(_) => {}
+        Statement::Memory(_) => {
+            // Memories have no effect on pipeline state
+        }
         Statement::Register(reg) => {
             let time = reg.value.available_in(ctx)?;
             for (name, wire) in reg.pattern.get_names_and_wireness() {

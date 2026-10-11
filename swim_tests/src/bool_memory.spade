@@ -1,5 +1,10 @@
 entity test(clk: clock, addr: uint<16>, we: bool, write: bool) -> bool {
-    let mem: Memory<bool, 65536> = inst std::mem::clocked_memory(clk, [(we, addr, write)]);
-    reg(clk) out = inst std::mem::read_memory(mem, addr);
-    out
+    memory: [bool; 65_536] {
+        read_port: std::mem::Ro<_, _, 0>,
+        write_port: std::mem::Wo<_, _, 1>,
+    };
+
+    let write_req = if we { Some((addr, write)) } else { None };
+    write_port.write(clk, write_req);
+    read_port.read_comb(Some(addr)).unwrap_or_undef()
 }

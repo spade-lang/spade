@@ -12,8 +12,8 @@ use spade_common::{
 
 use spade_hir::{
     ArgumentList, Binding, ConstGeneric, Enum, ExecutableItem, ExprKind, Expression, Generic,
-    ItemList, Pattern, PatternArgument, PatternKind, Register, Statement, Struct, TypeAlias,
-    TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
+    ItemList, Memory, Pattern, PatternArgument, PatternKind, Register, Statement, Struct,
+    TypeAlias, TypeDeclKind, TypeDeclaration, TypeExpression, TypeSpec,
     expression::{IncompleteExpression, NamedArgument},
 };
 
@@ -329,14 +329,27 @@ impl<'a> QueryCache {
     fn visit_statements(&mut self, stmt: &'a Loc<Statement>) {
         match &stmt.inner {
             Statement::Error => {}
-            Statement::Binding(Binding {
-                pattern,
-                ty: _,
-                value,
-            }) => {
+            Statement::Binding(Binding { pattern, ty, value }) => {
                 self.visit_pattern(pattern);
-                // FIXME: Handle ty
+                if let Some(ty) = ty {
+                    self.visit_type_spec(ty);
+                }
                 self.visit_expression(value)
+            }
+            Statement::Memory(Memory {
+                keyword: _,
+                ty,
+                array_typespec_id: _,
+                initial,
+                ports: _,
+            }) => {
+                if let Some(ty) = ty {
+                    self.visit_type_spec(ty);
+                }
+                if let Some(initial) = initial {
+                    self.visit_expression(initial)
+                }
+                // FIXME: handle ports
             }
             Statement::Register(Register {
                 keyword: _,

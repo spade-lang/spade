@@ -15,6 +15,7 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
     
 ---code ⬆️ completion ⬇️ ---
 A [proj::A]	A
+Addr [core::mem::Addr]	Addr
 Memory [Memory]	Memory
 bool [bool]	bool
 clock [clock]	clock

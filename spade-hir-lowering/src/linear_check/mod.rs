@@ -1,4 +1,5 @@
 use num::ToPrimitive;
+use spade_hir::Memory;
 use tracing::trace;
 
 use spade_common::location_info::{Loc, WithLocation};
@@ -93,13 +94,26 @@ pub fn visit_statement(
         Statement::Expression(expr) => {
             visit_expression(expr, linear_state, ctx)?;
         }
+        Statement::Memory(mem) => {
+            let Memory {
+                ty: _,
+                array_typespec_id: _,
+                keyword: _,
+                initial: _,
+                ports,
+            } = &mem;
+
+            for port in &ports.0 {
+                linear_state.push_new_name(&port.name, ctx);
+            }
+        }
         Statement::Register(reg) => {
             let Register {
                 keyword: _,
                 pattern,
                 clock,
                 reset,
-                initial,
+                initial: _,
                 value,
                 value_type: _,
                 attributes: _,
@@ -112,10 +126,6 @@ pub fn visit_statement(
                 visit_expression(trig, linear_state, ctx)?;
                 visit_expression(val, linear_state, ctx)?;
             }
-            initial
-                .as_ref()
-                .map(|i| visit_expression(i, linear_state, ctx))
-                .transpose()?;
 
             visit_expression(value, linear_state, ctx)?;
 

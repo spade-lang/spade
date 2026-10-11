@@ -110,6 +110,14 @@ impl Type {
         }
     }
 
+    pub fn assume_array(&self) -> (&Type, &BigUint) {
+        if let Type::Array { inner, length } = self {
+            (inner, length)
+        } else {
+            panic!("Assumed array for a type which was not")
+        }
+    }
+
     pub fn must_use(&self) -> bool {
         match self {
             Type::Tuple(unit) if unit.is_empty() => false,

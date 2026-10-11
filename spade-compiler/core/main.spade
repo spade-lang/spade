@@ -1,6 +1,7 @@
 pub mod conv;
 pub mod macros;
 pub mod marker;
+pub mod mem;
 pub mod ops;
 pub mod option;
 pub mod ports;

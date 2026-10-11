@@ -136,8 +136,9 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
                 seen_statements.insert((operator, operands, ty), name.inner.clone());
             }
             Statement::Register(_) => {
-                // Empty, registers cannot contain mut wires
+                // Empty, registers cannot contain inv wires
             }
+            Statement::Memory { .. } => {}
             Statement::Constant(_, _, _)
             | Statement::Assert(_)
             | Statement::Set { .. }
@@ -171,6 +172,23 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
                         }))
                     }
                 }
+                Statement::Memory {
+                    storage,
+                    ty,
+                    initial,
+                    ports,
+                } => {
+                    // Initial values cannot contain inv wires
+                    Some(Statement::Memory {
+                        storage,
+                        ty,
+                        initial,
+                        ports: ports
+                            .into_iter()
+                            .map(|(name, ty, kind)| (get_replacement(name), ty, kind))
+                            .collect(),
+                    })
+                }
                 // Unchanged things since they don't consume nor create mut wires
                 s @ Statement::Register(_)
                 | s @ Statement::Constant(_, _, _)
@@ -178,7 +196,7 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
                 | s @ Statement::Seal { .. }
                 | s @ Statement::Assert(_) => Some(s),
                 Statement::Set { target, value } => {
-                    // If we replaced a mut wire with another, the other one is going to do
+                    // If we replaced an inv wire with another, the other one is going to do
                     // the assignment. Doing it here is going to cause issues
                     if replaced_names.contains_key(&target) {
                         None

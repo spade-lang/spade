@@ -7,12 +7,12 @@ entity \test () -> () {
 	const e12: bool = true
 	let e11: {value: bool} = ConstructTuple(e12)
 	let e10: ({value: bool}) = ConstructTuple(e11)
-	let e2: bool = Instance(\impl#0::call[755] )(e3, e10)
-	let x_n126: bool = Alias(e2)
+	let e2: bool = Instance(\impl#0::call[815] )(e3, e10)
+	let x_n140: bool = Alias(e2)
 	let e1: () = Nop()
 } => e1
-entity \impl#0::call[755] ((self, self_n124, {}), (args, args_n125, ({value: bool}))) -> bool {
-	let e795: {value: bool} = IndexTuple(0)(args_n125)
-	let a_n115: {value: bool} = Alias(e795)
-	let e5: bool = IndexTuple(0)(a_n115)
+entity \impl#0::call[815] ((self, self_n138, {}), (args, args_n139, ({value: bool}))) -> bool {
+	let e833: {value: bool} = IndexTuple(0)(args_n139)
+	let a_n129: {value: bool} = Alias(e833)
+	let e5: bool = IndexTuple(0)(a_n129)
 } => e5

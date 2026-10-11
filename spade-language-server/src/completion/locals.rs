@@ -43,6 +43,7 @@ impl ServerBackend {
                     spade_hir::Statement::Error => vec![],
                     spade_hir::Statement::Binding(binding) => binding.pattern.get_names(),
                     spade_hir::Statement::Expression(_) => vec![],
+                    spade_hir::Statement::Memory(memory) => memory.ports.get_names(),
                     spade_hir::Statement::Register(register) => register.pattern.get_names(),
                     spade_hir::Statement::Declaration(names) => names.clone(),
                     spade_hir::Statement::PipelineRegMarker(_) => vec![],

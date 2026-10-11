@@ -150,6 +150,28 @@ where
 
             format!("const {}: {} = {}", name, ty, value)
         }
+        Statement::Memory {
+            storage: _,
+            ty,
+            initial,
+            ports,
+        } => {
+            let ports = ports
+                .iter()
+                .map(|(value, ty, _)| {
+                    let value = translate_val_name(value, lhs_trans, rhs_trans);
+                    format!("{}: {}", value, ty)
+                })
+                .join("\n");
+
+            // Initial contents omitted because they are likely very large
+            let initial = match initial {
+                Some(_) => " initial (...)",
+                None => "",
+            };
+
+            format!("memory: {ty}{initial} [{ports}]")
+        }
         Statement::Assert(value) => {
             let value = translate_val_name(value, lhs_trans, rhs_trans);
             format!("assert {value}")

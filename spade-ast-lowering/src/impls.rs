@@ -20,17 +20,17 @@ use crate::global_symbols::{
     self, re_visit_type_declaration, visit_meta_type, visit_type_declaration,
 };
 use crate::{
-    Context, SelfContext, TypeSpecKind, associated_type, unit_head, visit_default_type_expression,
+    Context, ParamContext, TypeSpecKind, associated_type, unit_head, visit_default_type_expression,
     visit_trait_spec, visit_trait_specs, visit_type_params, visit_type_spec, visit_unit,
     visit_where_clauses,
 };
 
 pub fn visit_impl(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Result<Vec<hir::Item>> {
-    let old_self_ctx = ctx.self_ctx.clone();
+    let old_param_ctx = ctx.param_ctx.clone();
     ctx.symtab.new_scope();
     let result = visit_impl_inner(block, ctx);
     ctx.symtab.close_scope();
-    ctx.self_ctx = old_self_ctx;
+    ctx.param_ctx = old_param_ctx;
     result
 }
 
@@ -103,7 +103,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
     let mut trait_members = vec![];
     let mut trait_impl = HashMap::<Identifier, TraitUnitImpl>::default();
 
-    ctx.self_ctx = SelfContext::ImplBlock(target_type.clone());
+    ctx.param_ctx = ParamContext::ImplMethod(target_type.clone());
 
     let mut missing_assoc_types = trait_def.assoc_types.keys().collect::<HashSet<_>>();
     let mut missing_methods = trait_methods.keys().collect::<HashSet<_>>();
@@ -408,7 +408,7 @@ pub fn create_trait_from_unit_heads(
     documentation: String,
     ctx: &mut Context,
 ) -> Result<()> {
-    let old_self_ctx = ctx.self_ctx.clone();
+    let old_param_ctx = ctx.param_ctx.clone();
     ctx.symtab.new_scope();
 
     let result = create_trait_from_unit_heads_inner(
@@ -424,7 +424,7 @@ pub fn create_trait_from_unit_heads(
     );
 
     ctx.symtab.close_scope();
-    ctx.self_ctx = old_self_ctx;
+    ctx.param_ctx = old_param_ctx;
     result
 }
 
@@ -439,7 +439,7 @@ pub fn create_trait_from_unit_heads_inner(
     documentation: String,
     ctx: &mut Context,
 ) -> Result<()> {
-    ctx.self_ctx = SelfContext::TraitDefinition(name.clone());
+    ctx.param_ctx = ParamContext::TraitMethod(name.clone());
 
     let visited_type_params = if let Some(params) = type_params {
         Some(params.try_map_ref(|params| {

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, RwLock};
 
-use crate::{Context, SelfContext};
+use crate::{Context, ParamContext};
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::id_tracker::{ExprIdTracker, GenericIdTracker, ImplIdTracker};
 use spade_diagnostics::{CodeBundle, diag_list::DiagList};
@@ -21,7 +21,7 @@ pub fn test_context() -> Context {
         impl_idtracker: ImplIdTracker::new(),
         generic_idtracker: GenericIdTracker::new(),
         pipeline_ctx: None,
-        self_ctx: SelfContext::FreeStanding,
+        param_ctx: ParamContext::FreeStanding,
         current_unit: None,
         diags,
         safety: Safety::Default,

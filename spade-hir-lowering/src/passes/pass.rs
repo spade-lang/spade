@@ -132,6 +132,7 @@ impl Passable for Loc<Expression> {
                             value,
                         }) => value.apply(pass)?,
                         Statement::Expression(expr) => expr.apply(pass)?,
+                        Statement::Memory(_) => {}
                         Statement::Register(reg) => {
                             let Register {
                                 keyword: _,

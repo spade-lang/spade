@@ -152,6 +152,13 @@ snapshot_error! {
 }
 
 snapshot_error! {
+    no_mem_in_function,
+    "fn a(clk: clock) {
+        memory: [bool; 4] {};
+    }"
+}
+
+snapshot_error! {
     lexer_error_unexpected_symbol,
     "fn a() {
         let x = ¤;

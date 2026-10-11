@@ -513,6 +513,9 @@ impl std::fmt::Debug for Scope {
 pub enum LangItem {
     CopyTrait,
     DataTrait,
+    PortTrait,
+    RoType,
+    WoType,
 }
 
 #[derive(Clone, Copy)]
@@ -655,18 +658,24 @@ impl SymbolTable {
     ) -> NameID {
         let full_name = self.namespace.join(name);
         let name_id = NameID(id, full_name.clone());
+        let segments = full_name.to_named_strs();
 
-        if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Copy")] {
+        if segments == [Some("core"), Some("marker"), Some("Copy")] {
             self.lang_items.insert(LangItem::CopyTrait, name_id.clone());
         }
 
-        if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Data")] {
+        if segments == [Some("core"), Some("marker"), Some("Data")] {
             self.lang_items.insert(LangItem::DataTrait, name_id.clone());
+        }
+
+        if segments == [Some("core"), Some("mem"), Some("Port")] {
+            self.lang_items.insert(LangItem::PortTrait, name_id.clone());
         }
 
         if self.things.contains_key(&name_id) {
             panic!("Duplicate nameID inserted, {}", id);
         }
+
         if offset > self.symbols.len() {
             panic!("Not enough scopes to add symbol at offset {}", offset);
         }
@@ -749,13 +758,22 @@ impl SymbolTable {
     ) -> NameID {
         let full_name = self.namespace.join(path.inner);
         let name_id = NameID(id, full_name.clone());
+        let segments = full_name.to_named_strs();
 
-        if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Copy")] {
+        if segments == [Some("core"), Some("marker"), Some("Copy")] {
             self.lang_items.insert(LangItem::CopyTrait, name_id.clone());
         }
 
-        if full_name.to_named_strs() == [Some("core"), Some("marker"), Some("Data")] {
+        if segments == [Some("core"), Some("marker"), Some("Data")] {
             self.lang_items.insert(LangItem::DataTrait, name_id.clone());
+        }
+
+        if segments == [Some("core"), Some("mem"), Some("Ro")] {
+            self.lang_items.insert(LangItem::RoType, name_id.clone());
+        }
+
+        if segments == [Some("core"), Some("mem"), Some("Wo")] {
+            self.lang_items.insert(LangItem::WoType, name_id.clone());
         }
 
         if self.types.contains_key(&name_id) {

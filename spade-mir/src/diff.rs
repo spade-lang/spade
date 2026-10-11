@@ -172,6 +172,45 @@ fn compare_statements(s1: &Statement, s2: &Statement, var_map: &mut VarMap) -> b
             true
         }
         (Statement::Register(_), _) => false,
+        (
+            Statement::Memory {
+                storage: _,
+                ty: ty1,
+                initial: initial1,
+                ports: ports1,
+            },
+            Statement::Memory {
+                storage: _,
+                ty: ty2,
+                initial: initial2,
+                ports: ports2,
+            },
+        ) => {
+            if ty1 != ty2 {
+                return false;
+            }
+
+            match (initial1, initial2) {
+                (Some(l), Some(r)) => {
+                    if l != r {
+                        return false;
+                    }
+                }
+                (None, None) => {}
+                _ => return false,
+            }
+
+            for ((name1, ty1, _), (name2, ty2, _)) in ports1.iter().zip(ports2) {
+                check_name!(name1, name2);
+
+                if ty1 != ty2 {
+                    return false;
+                }
+            }
+
+            true
+        }
+        (Statement::Memory { .. }, _) => false,
         (Statement::Constant(_, t1, v1), Statement::Constant(_, t2, v2)) => {
             if t1 != t2 {
                 return false;
@@ -247,6 +286,14 @@ fn populate_var_map(
                 var_map.try_update_name(&r1.name, &r2.name)
             }
             (Statement::Register(_), _) => Err(()),
+            (Statement::Memory { ports: p1, .. }, Statement::Memory { ports: p2, .. }) => {
+                for ((name1, _, _), (name2, _, _)) in p1.iter().zip(p2) {
+                    var_map.try_update_name(name1, name2)?;
+                }
+
+                Ok(())
+            }
+            (Statement::Memory { .. }, _) => Err(()),
             (Statement::Constant(e1, _, _), Statement::Constant(e2, _, _)) => {
                 var_map.try_update_name(&*e1, &*e2)
             }

@@ -550,10 +550,11 @@ pub fn visit_type_declaration(
         .push_ident(t.name)
         .at_loc(&t.name);
 
-    let visibility = match ctx.self_ctx {
-        crate::SelfContext::FreeStanding => Some(t.visibility.clone()),
-        crate::SelfContext::ImplBlock(_) => None,
-        crate::SelfContext::TraitDefinition(_) => None,
+    let visibility = match ctx.param_ctx {
+        crate::ParamContext::FreeStanding => Some(t.visibility.clone()),
+        crate::ParamContext::MemoryPorts => None,
+        crate::ParamContext::ImplMethod(_) => None,
+        crate::ParamContext::TraitMethod(_) => None,
     };
 
     let name_id = ctx.symtab.add_unique_type(

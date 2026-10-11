@@ -6,7 +6,7 @@ fn a(clk: clock) -> int<8> {
     x
 }
 
-error: register declared in function
+error: Register declared in function
   ┌─ testinput:2:5
   │
 1 │ fn a(clk: clock) -> int<8> {

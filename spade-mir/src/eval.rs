@@ -366,6 +366,7 @@ pub fn eval_statements(statements: &[Loc<Statement>]) -> Value {
                 name_types.insert(name.inner.clone(), ty.clone());
                 (name.clone(), val)
             }
+            Statement::Memory { .. } => panic!("trying to evaluate a memory statement"),
             Statement::Assert(_) => panic!("trying to evaluate an `assert` statement"),
             Statement::Set { .. } => panic!("trying to evaluate a `set` statement"),
             Statement::Seal { .. } => panic!("trying to evaluate a `seal` statement"),

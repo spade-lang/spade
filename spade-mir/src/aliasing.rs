@@ -46,6 +46,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
             }
             Statement::Register(_) => {}
             Statement::Constant(_, _, _) => {}
+            Statement::Memory { .. } => {}
             Statement::Assert(_) => {}
             Statement::Set { .. } => {}
             Statement::Seal { .. } => {}
@@ -156,6 +157,20 @@ pub fn flatten_aliases(entity: &mut Entity) {
             }
             Statement::Constant(name, _, _) => {
                 try_rename(name, &final_aliases);
+            }
+            Statement::Memory {
+                // Storage is used internally so it does not go through the
+                // aliasing process
+                storage: _,
+                ty: _,
+                // Initial values are not runtime values so they do not go
+                // through the aliasing process
+                initial: _,
+                ports,
+            } => {
+                for (name, _, _) in ports {
+                    try_rename(name, &final_aliases);
+                }
             }
             Statement::Assert(name) => try_rename(name, &final_aliases),
             Statement::Set { target, value } => {

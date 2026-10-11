@@ -121,6 +121,7 @@ impl<'a> Pass for InOutChecks<'a> {
                             }
                         }
                         spade_hir::Statement::Declaration(_)
+                        | spade_hir::Statement::Memory(_)
                         | spade_hir::Statement::PipelineRegMarker(_)
                         | spade_hir::Statement::Label(_)
                         | spade_hir::Statement::Assert(_)

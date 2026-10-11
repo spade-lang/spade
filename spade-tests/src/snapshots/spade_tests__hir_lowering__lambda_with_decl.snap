@@ -4,11 +4,11 @@ expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
 entity \test () -> () {
 	let e2: {} = ConstructTuple()
-	let x_n114: {} = Alias(e2)
+	let x_n128: {} = Alias(e2)
 	let e9: () = ConstructTuple()
-	let e7: () = Instance(\impl#0::call[749] )(x_n114, e9)
+	let e7: () = Instance(\impl#0::call[809] )(x_n128, e9)
 	let e1: () = Nop()
 } => e1
-entity \impl#0::call[749] ((self, self_n121, {}), (args, args_n122, ())) -> () {
+entity \impl#0::call[809] ((self, self_n135, {}), (args, args_n136, ())) -> () {
 	let e3: () = Nop()
 } => e3

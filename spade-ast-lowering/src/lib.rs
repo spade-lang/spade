@@ -76,7 +76,7 @@ pub struct Context {
     pub impl_idtracker: ImplIdTracker,
     pub generic_idtracker: GenericIdTracker,
     pub pipeline_ctx: Option<PipelineContext>,
-    pub self_ctx: SelfContext,
+    pub param_ctx: ParamContext,
     pub current_unit: Option<hir::UnitHead>,
     pub diags: Arc<Mutex<DiagList>>,
     pub safety: Safety,
@@ -85,7 +85,7 @@ pub struct Context {
 impl Context {
     fn in_fresh_unit<T>(&mut self, transform: impl FnOnce(&mut Context) -> T) -> T {
         let mut tmp_pipeline_ctx = None;
-        let mut tmp_self_ctx = SelfContext::FreeStanding;
+        let mut tmp_param_ctx = ParamContext::FreeStanding;
         let mut tmp_current_unit = None;
         {
             let Context {
@@ -97,13 +97,13 @@ impl Context {
                 impl_idtracker: _,
                 generic_idtracker: _,
                 pipeline_ctx,
-                self_ctx,
+                param_ctx,
                 current_unit,
                 diags: _,
                 safety: _,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
-            std::mem::swap(self_ctx, &mut tmp_self_ctx);
+            std::mem::swap(param_ctx, &mut tmp_param_ctx);
             std::mem::swap(current_unit, &mut tmp_current_unit);
         }
         let result = transform(self);
@@ -117,13 +117,13 @@ impl Context {
                 impl_idtracker: _,
                 generic_idtracker: _,
                 pipeline_ctx,
-                self_ctx,
+                param_ctx,
                 current_unit,
                 diags: _,
                 safety: _,
             } = self;
             std::mem::swap(pipeline_ctx, &mut tmp_pipeline_ctx);
-            std::mem::swap(self_ctx, &mut tmp_self_ctx);
+            std::mem::swap(param_ctx, &mut tmp_param_ctx);
             std::mem::swap(current_unit, &mut tmp_current_unit);
         }
         result
@@ -297,6 +297,7 @@ pub enum TypeSpecKind {
     BindingType,
     TypeCast,
     Turbofish,
+    MemoryPort,
     PipelineHeadDepth,
     PipelineRegCount,
     PipelineInstDepth,
@@ -359,6 +360,7 @@ pub fn visit_type_expression(
                 | TypeSpecKind::GenExpr
                 | TypeSpecKind::BindingType
                 | TypeSpecKind::TypeCast
+                | TypeSpecKind::MemoryPort
                 | TypeSpecKind::PipelineInstDepth
                 | TypeSpecKind::PipelineRegCount
                 | TypeSpecKind::PipelineHeadDepth => {
@@ -374,13 +376,13 @@ pub fn visit_type_spec(
     kind: &TypeSpecKind,
     ctx: &mut Context,
 ) -> Result<Loc<hir::TypeSpec>> {
-    let trait_loc = if let SelfContext::TraitDefinition(TraitName::Named(_, name)) = &ctx.self_ctx {
+    let trait_loc = if let ParamContext::TraitMethod(TraitName::Named(_, name)) = &ctx.param_ctx {
         name.loc()
     } else {
         ().nowhere()
     };
 
-    if matches!(ctx.self_ctx, SelfContext::TraitDefinition(_)) && t.is_self()? {
+    if matches!(ctx.param_ctx, ParamContext::TraitMethod(_)) && t.is_self()? {
         return Ok(hir::TypeSpec::TraitSelf(().at_loc(&trait_loc)).at_loc(t));
     };
 
@@ -589,7 +591,8 @@ pub fn visit_type_spec(
                 TypeSpecKind::AssociatedFnBase => {
                     default_error("Associated functions", "associated fn")
                 }
-                TypeSpecKind::PipelineInstDepth
+                TypeSpecKind::MemoryPort
+                | TypeSpecKind::PipelineInstDepth
                 | TypeSpecKind::TypeCast
                 | TypeSpecKind::GenExpr
                 | TypeSpecKind::Turbofish
@@ -602,19 +605,61 @@ pub fn visit_type_spec(
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum SelfContext {
-    /// `self` currently does not refer to anything
+pub enum ParamContext {
+    /// `self` does not refer to anything inside a freestanding unit
     FreeStanding,
+    /// `self` does not refer to anything inside a memory port list
+    MemoryPorts,
     /// `self` refers to `TypeSpec` in an impl block for that type
-    ImplBlock(Loc<hir::TypeSpec>),
+    ImplMethod(Loc<hir::TypeSpec>),
     /// `self` refers to a trait implementor
-    TraitDefinition(TraitName),
+    TraitMethod(TraitName),
+}
+
+fn visit_memory_port_list(
+    l: &Loc<ParameterList>,
+    ctx: &mut Context,
+) -> Result<Loc<hir::MemoryPortList>> {
+    let param_list = visit_parameter_list_impl(l, ctx, None, &TypeSpecKind::MemoryPort)?;
+
+    // Add ports to the symtab
+    let ports = param_list
+        .0
+        .iter()
+        .map(
+            |hir::Parameter {
+                 name: ident,
+                 ty,
+                 no_mangle: _,
+                 // `wire` is allowed for consistency but has no effect,
+                 // memory ports are implicitly handled as `wire` when needed.
+                 wire: _,
+                 field_translator: _,
+             }| {
+                hir::MemoryPort {
+                    name: ctx.symtab.add_local_variable(*ident).at_loc(ident),
+                    ty: ty.clone(),
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+
+    Ok(hir::MemoryPortList(ports).at_loc(l))
 }
 
 fn visit_parameter_list(
     l: &Loc<ParameterList>,
     ctx: &mut Context,
     no_mangle_all: Option<Loc<()>>,
+) -> Result<Loc<hir::ParameterList>> {
+    visit_parameter_list_impl(l, ctx, no_mangle_all, &TypeSpecKind::Argument)
+}
+
+fn visit_parameter_list_impl(
+    l: &Loc<ParameterList>,
+    ctx: &mut Context,
+    no_mangle_all: Option<Loc<()>>,
+    kind: &TypeSpecKind,
 ) -> Result<Loc<hir::ParameterList>> {
     let mut arg_names: HashSet<Loc<Identifier>> = HashSet::default();
     let mut result = vec![];
@@ -628,19 +673,25 @@ fn visit_parameter_list(
             .or(no_mangle_all);
         attrs.report_unused("`self` parameter")?;
 
-        let mut ty = match &ctx.self_ctx {
-            SelfContext::FreeStanding => {
+        let mut ty = match &ctx.param_ctx {
+            ParamContext::FreeStanding => {
                 return Err(Diagnostic::error(
                     self_,
                     "'self' cannot be used in free standing units",
                 )
                 .primary_label("not allowed here"));
             }
-            SelfContext::ImplBlock(spec) => spec.clone(),
+            ParamContext::MemoryPorts => {
+                return Err(
+                    Diagnostic::error(self_, "'self' cannot be used in memory port lists")
+                        .primary_label("not allowed here"),
+                );
+            }
+            ParamContext::ImplMethod(spec) => spec.clone(),
             // When visiting trait definitions, we don't need to add self to the
             // symtab at all since we won't be visiting unit bodies here.
             // NOTE: This will be incorrect if we add default impls for traits
-            SelfContext::TraitDefinition(_) => hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
+            ParamContext::TraitMethod(_) => hir::TypeSpec::TraitSelf(self_.loc()).at_loc(self_),
         };
 
         if let Some(start_loc) = amp {
@@ -669,13 +720,19 @@ fn visit_parameter_list(
             );
         }
         arg_names.insert(*name);
-        let t = visit_type_spec(input_type, &TypeSpecKind::Argument, ctx)?;
+        let t = visit_type_spec(input_type, kind, ctx)?;
 
         let mut attrs = attrs.clone();
-        let no_mangle = attrs
-            .consume_no_mangle()
-            .map(|ident| ident.loc())
-            .or(no_mangle_all);
+        let no_mangle = if let ParamContext::MemoryPorts = ctx.param_ctx {
+            // `#[no_mangle]` is not allowed for memory ports
+            None
+        } else {
+            attrs
+                .consume_no_mangle()
+                .map(|ident| ident.loc())
+                .or(no_mangle_all)
+        };
+
         let field_translator = attrs.consume_translator();
         attrs.report_unused("a parameter")?;
 
@@ -1958,6 +2015,7 @@ fn try_visit_statement(
             })?;
             Ok(vec![hir::Statement::Expression(value).at_loc(expr)])
         }
+        ast::Statement::Memory(inner) => visit_memory(inner, ctx),
         ast::Statement::Register(inner) => visit_register(inner, ctx),
         ast::Statement::PipelineRegMarker(count, cond) => {
             let cond = cond.as_ref().map(|cond| cond.visit(visit_expression, ctx));
@@ -2892,6 +2950,27 @@ fn visit_block(b: &ast::Block, ctx: &mut Context) -> Result<hir::Block> {
     ctx.symtab.close_scope();
 
     Ok(hir::Block { statements, result })
+}
+
+fn visit_memory(mem: &Loc<ast::Memory>, ctx: &mut Context) -> Result<Vec<Loc<hir::Statement>>> {
+    let ty = mem
+        .ty
+        .as_ref()
+        .map(|t| visit_type_spec(t, &TypeSpecKind::BindingType, ctx))
+        .transpose()?;
+    let initial = mem.initial.as_ref().map(|i| i.visit(visit_expression, ctx));
+    let ports = visit_memory_port_list(&mem.members, ctx)?;
+
+    Ok(vec![
+        hir::Statement::Memory(hir::Memory {
+            keyword: mem.keyword,
+            ty,
+            array_typespec_id: ctx.idtracker.next(),
+            initial,
+            ports,
+        })
+        .at_loc(mem),
+    ])
 }
 
 fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc<hir::Statement>>> {

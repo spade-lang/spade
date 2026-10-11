@@ -207,6 +207,7 @@ pub enum Statement {
     Error,
     Binding(Binding),
     Expression(Loc<Expression>),
+    Memory(Memory),
     Register(Register),
     Declaration(Vec<Loc<NameID>>),
     PipelineRegMarker(Option<PipelineRegMarkerExtra>),
@@ -231,6 +232,31 @@ impl Statement {
     ) -> Statement {
         Statement::Binding(Binding { pattern, ty, value })
     }
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryPort {
+    pub name: Loc<NameID>,
+    pub ty: Loc<TypeSpec>,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryPortList(pub Vec<MemoryPort>);
+
+impl MemoryPortList {
+    pub fn get_names(&self) -> Vec<Loc<NameID>> {
+        self.0.iter().map(|port| port.name.clone()).collect()
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct Memory {
+    // Backing array type
+    pub ty: Option<Loc<TypeSpec>>,
+    pub array_typespec_id: ExprID,
+    pub keyword: Loc<()>,
+    pub initial: Option<Loc<Expression>>,
+    pub ports: Loc<MemoryPortList>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]

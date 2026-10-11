@@ -7,8 +7,8 @@ use spade_common::{
 
 use crate::{
     ArgumentList, AttributeList, Binding, ConstGeneric, ConstGenericWithId, ExprKind, Expression,
-    Generic, Input, Pattern, PatternArgument, Register, Statement, TraitSpec, TypeExpression,
-    TypeParam, TypeSpec, Unit, UnitHead, WhereClause,
+    Generic, Input, Memory, Pattern, PatternArgument, Register, Statement, TraitSpec,
+    TypeExpression, TypeParam, TypeSpec, Unit, UnitHead, WhereClause,
     expression::{IncompleteExpression, NamedArgument, OuterLambdaParam, Safety},
 };
 
@@ -538,6 +538,33 @@ impl PrettyDebug for Statement {
                 )
             }
             Statement::Expression(expr) => format!("{};", expr.pretty_debug()),
+            Statement::Memory(Memory {
+                keyword: _,
+                ty,
+                array_typespec_id: _,
+                initial,
+                ports,
+            }) => code! [
+                [0] format!(
+                        "memory{} {}",
+                        if let Some(t) = ty { format!(": {}", t.pretty_debug()) } else { String::new() },
+                        initial
+                            .as_ref()
+                            .map(|val| format!("initial ({})", val.pretty_debug()))
+                            .unwrap_or(String::new()),
+                    );
+                [0] "{";
+                [1]     ports.0
+                            .iter()
+                            .map(|port| format!(
+                                "{}: {},",
+                                port.name.pretty_debug(),
+                                port.ty.pretty_debug(),
+                            ))
+                            .join("\n");
+                [0] "};";
+            ]
+            .to_string(),
             Statement::Register(Register {
                 keyword: _,
                 pattern,

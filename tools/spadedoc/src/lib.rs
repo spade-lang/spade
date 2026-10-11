@@ -15,7 +15,7 @@ use spade::{
     namespaced_file::NamespacedFile,
     parse, stdlib_files,
 };
-use spade_ast_lowering::{SelfContext, global_symbols};
+use spade_ast_lowering::{ParamContext, global_symbols};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::name::Path as SpadePath;
 use spade_common::{
@@ -141,7 +141,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
         impl_idtracker: ImplIdTracker::new(),
         generic_idtracker: GenericIdTracker::new(),
         pipeline_ctx: None,
-        self_ctx: SelfContext::FreeStanding,
+        param_ctx: ParamContext::FreeStanding,
         current_unit: None,
         diags: diags.clone(),
         safety: Safety::Default,

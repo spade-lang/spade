@@ -2,12 +2,12 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
-entity \test ((clk, clk_n114, bool), (x, x_n115, [uint<8>; 3])) -> [uint<8>; 3] {
-	let e784: uint<8> = IndexTuple(0)(x_n115)
-	reg(clk_n114) e785: uint<8> = e784
-	let e786: uint<8> = IndexTuple(1)(x_n115)
-	reg(clk_n114) e787: uint<8> = e786
-	let e788: uint<8> = IndexTuple(2)(x_n115)
-	reg(clk_n114) e789: uint<8> = e788
-	let s1_x_n740: [uint<8>; 3] = ConstructTuple(e785, e787, e789)
-} => s1_x_n740
+entity \test ((clk, clk_n128, bool), (x, x_n129, [uint<8>; 3])) -> [uint<8>; 3] {
+	let e822: uint<8> = IndexTuple(0)(x_n129)
+	reg(clk_n128) e823: uint<8> = e822
+	let e824: uint<8> = IndexTuple(1)(x_n129)
+	reg(clk_n128) e825: uint<8> = e824
+	let e826: uint<8> = IndexTuple(2)(x_n129)
+	reg(clk_n128) e827: uint<8> = e826
+	let s1_x_n800: [uint<8>; 3] = ConstructTuple(e823, e825, e827)
+} => s1_x_n800

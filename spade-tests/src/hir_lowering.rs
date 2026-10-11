@@ -1708,14 +1708,8 @@ mod tests {
     snapshot_error! {
         non_const_memory_elements_is_error,
         "
-            use std::mem::clocked_memory_init;
-            use std::mem::read_memory;
-
-            entity test(clk: clock, a: int<8>) -> int<8> {
-                // lifeguard spade#151
-                let idx: uint<1> = 0;
-                let mem = inst clocked_memory_init(clk, [(false, idx, 0)], [a, a]);
-                inst read_memory(mem, 0)
+            entity test(a: int<8>) {
+                memory initial([a]) {};
             }
         "
     }
@@ -2743,7 +2737,7 @@ snapshot_mir! {
             clk: clock,
             regfile: RegfilePort,
         ) {
-                set regfile.write = Option::None;
+            set regfile.write = Option::None;
         }
     "
 }
@@ -2842,6 +2836,15 @@ snapshot_error! {
     "
         fn test() -> &Option<inv bool> {
             &Some(port().1)
+        }
+    "
+}
+
+snapshot_error! {
+    memory_with_unresolved_types_fails_gracefully,
+    "
+        entity test() {
+            memory {};
         }
     "
 }

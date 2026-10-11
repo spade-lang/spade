@@ -36,6 +36,7 @@ use crate::error::{
 };
 use crate::item_type::UnitKindLocal;
 use crate::items::{EnumParser, StructParser, TypeAliasParser};
+use crate::statements::MemoryParser;
 
 pub use logos;
 
@@ -623,7 +624,7 @@ impl<'a> Parser<'a> {
 
         // inst is only allowed in entity/pipeline, so check that we are in one of those
         self.unit_context
-            .allows_inst(().at(self.file_id(), &start.span()))?;
+            .ensure_unit_allows_inst(().at(self.file_id(), &start.span()))?;
 
         // Check if this is a pipeline or not
         let pipeline_depth = if self.peek_kind(&TokenKind::OpenParen)? {
@@ -1085,7 +1086,8 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<Loc<Expression>>> {
         peek_for!(self, &TokenKind::OpenParen);
 
-        self.unit_context.allows_pipeline_ref(stage_keyword.loc())?;
+        self.unit_context
+            .ensure_unit_allows_pipeline_ref(stage_keyword.loc())?;
 
         let next = self.peek()?;
         let reference = match next.kind {
@@ -1806,6 +1808,7 @@ impl<'a> Parser<'a> {
         let members = self.keyword_peeking_parser_or_else_seq(
             vec![
                 Box::new(BindingParser {}.then(semi_continuation)),
+                Box::new(MemoryParser {}.then(semi_continuation)),
                 Box::new(RegisterParser {}.then(semi_continuation).then(
                     move |statement, _parser| {
                         if let Statement::PipelineRegMarker(_, _) = statement.inner

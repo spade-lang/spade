@@ -24,6 +24,7 @@ expression: "expected.to_string() + \"\\n---code ⬆️ completion ⬇️ ---\\n
         }
     
 ---code ⬆️ completion ⬇️ ---
+Addr [core::mem::Addr]	Addr
 Memory [Memory]	Memory
 argument	-
 before_decl	-

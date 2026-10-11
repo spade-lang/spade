@@ -485,9 +485,21 @@ impl std::fmt::Display for Register {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum MemoryPortKind {
+    Ro(BigUint),
+    Wo(BigUint),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Statement {
     Binding(Binding),
     Register(Register),
+    Memory {
+        storage: Loc<ValueName>,
+        ty: Type,
+        initial: Option<Vec<Vec<Loc<Statement>>>>,
+        ports: Vec<(Loc<ValueName>, Type, MemoryPortKind)>,
+    },
     /// A constant expression with the specified ID and value
     Constant(Loc<ValueName>, Type, ConstantValue),
     Assert(Loc<ValueName>),
@@ -511,6 +523,25 @@ impl std::fmt::Display for Statement {
             Statement::Register(r) => write!(f, "{r}"),
             Statement::Constant(id, ty, val) => write!(f, "const {id}: {ty} = {val}"),
             Statement::Assert(val) => write!(f, "assert {val}"),
+            Statement::Memory {
+                storage: _,
+                ty,
+                initial,
+                ports,
+            } => {
+                let ports = ports
+                    .iter()
+                    .map(|(value, ty, _)| format!("{}: {}", value, ty))
+                    .join("\n");
+
+                // Initial contents omitted because they are likely very large
+                let initial = match initial {
+                    Some(_) => " initial (...)",
+                    None => "",
+                };
+
+                write!(f, "memory: {ty}{initial} [{ports}]")
+            }
             Statement::Set { target, value } => write!(f, "set {target} = {value}"),
             Statement::Seal { name, ty, variant } => {
                 write!(f, "seal {name}: {ty} (variant {variant})")

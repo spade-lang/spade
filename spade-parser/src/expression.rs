@@ -583,7 +583,7 @@ impl<'a> Parser<'a> {
 
                 if let Some(inst) = &inst {
                     self.unit_context
-                        .allows_inst(().at(self.file_id(), inst))
+                        .ensure_unit_allows_inst(().at(self.file_id(), inst))
                         .handle_in(&mut self.diags);
                 }
 

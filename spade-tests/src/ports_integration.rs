@@ -65,17 +65,6 @@ snapshot_error! {
 }
 
 snapshot_error! {
-    memory_of_ports_is_disallowed,
-    "
-    entity A(clk: clock, p: bool) -> bool {
-        let idx: uint<10> = 0;
-        let mem: Memory<bool, 1024> = inst std::mem::clocked_memory(clk, [(true, idx, p)]);
-
-        true
-    }"
-}
-
-snapshot_error! {
     assigning_value_to_wire_causes_error,
     "
     entity x(x: bool) -> bool {

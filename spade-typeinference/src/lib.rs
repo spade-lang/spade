@@ -42,7 +42,8 @@ use spade_common::name::{Identifier, NameID, Path, PathSegment};
 use spade_hir::param_util::{Argument, match_args_with_params};
 use spade_hir::symbol_table::{LangItem, Patternable, PatternableKind, SymbolTable, TypeSymbol};
 use spade_hir::{
-    self as hir, ConstGenericWithId, Generic, ImplTarget, Input, PatternKind, TypeDeclaration,
+    self as hir, ConstGenericWithId, Generic, ImplTarget, Input, Memory, PatternKind,
+    TypeDeclaration,
 };
 use spade_hir::{
     ArgumentList, Block, ExprKind, Expression, ItemList, Pattern, PatternArgument, Register,
@@ -921,6 +922,7 @@ impl TypeState {
                 self.pattern_data_constraint(pattern, pipeline_loc, ctx)?;
             }
             Statement::Expression(e) => self.expression_data_constraints(e, pipeline_loc, ctx)?,
+            Statement::Memory(_) => {}
             Statement::Register(reg) => {
                 TypedExpression::Id(reg.value.id)
                     .unify_with(&self.new_generic_data_copy(reg.keyword, ctx), self)
@@ -2489,6 +2491,7 @@ impl TypeState {
                 self.visit_expression(expr, ctx, generic_list);
                 Ok(())
             }
+            Statement::Memory(mem) => self.visit_memory(mem, ctx, generic_list),
             Statement::Register(reg) => self.visit_register(reg, ctx, generic_list),
             Statement::Declaration(names) => {
                 for name in names {
@@ -2611,6 +2614,59 @@ impl TypeState {
         if let Err(e) = self.visit_statement_error(stmt, ctx, generic_list) {
             self.owned.diags.errors.push(e);
         }
+    }
+
+    #[trace_typechecker]
+    pub fn visit_memory(
+        &mut self,
+        mem: &Memory,
+        ctx: &Context,
+        generic_list: &GenericListToken,
+    ) -> Result<()> {
+        let elem = self.new_generic_data_copy(mem.keyword, ctx);
+        let size = self.new_generic_tluint(mem.keyword);
+
+        let array = self.add_type_var(TypeVar::array(mem.keyword, elem, size));
+
+        self.add_equation(TypedExpression::Id(mem.array_typespec_id), array);
+
+        if let Some(ty) = &mem.ty {
+            let tid = self.type_var_from_hir(ty.loc(), ty, generic_list, ctx)?;
+            self.unify(&tid, &array, ctx)
+                .into_default_diagnostic(ty.loc(), self)?;
+        }
+
+        if let Some(initial) = &mem.initial {
+            self.visit_expression(initial, ctx, generic_list);
+            self.unify_expression_generic_error(initial, &array, ctx)?;
+        }
+
+        for entry in &mem.ports.0 {
+            let port_trait = TraitReq {
+                name: TraitName::Named(
+                    None,
+                    ctx.symtab
+                        .lang_item(LangItem::PortTrait)
+                        .clone()
+                        .at_loc(&mem.keyword),
+                ),
+                type_params: vec![elem, size],
+            };
+
+            let traits = TraitList::from_vec(vec![port_trait.at_loc(&mem.keyword)]);
+            let port = self.new_generic_with_traits(mem.keyword, traits);
+            let ty = self.type_var_from_hir(entry.ty.loc(), &entry.ty, generic_list, ctx)?;
+
+            self.unify(&ty, &port, ctx)
+                .into_default_diagnostic(entry.ty.loc(), self)?;
+
+            self.add_equation(
+                TypedExpression::Name(entry.name.inner.clone()),
+                port.get_type(self),
+            );
+        }
+
+        Ok(())
     }
 
     #[trace_typechecker]

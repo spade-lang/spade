@@ -3,17 +3,17 @@ source: spade-tests/src/inline.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
 entity \test () -> () {
-	const e819: uint<8> = 0
-	let e823: uint<8> = Nop()
-	let addr_n750: uint<8> = Alias(e823)
-	const e824: bool = true
-	const e821: uint<8> = 0
-	let e832: bool = Eq(addr_n750, e821)
-	let e820: bool = Alias(e832)
-	let e818: bool = Match(e819, e823, e824, e820)
-	let self_has_value_n751: bool = Alias(e818)
-	let e822: () = Nop()
-	let e816: () = Alias(e822)
-	let result_n748: () = Alias(e816)
-	let e22: () = Alias(result_n748)
+	const e857: uint<8> = 0
+	let e861: uint<8> = Nop()
+	let addr_n810: uint<8> = Alias(e861)
+	const e862: bool = true
+	const e859: uint<8> = 0
+	let e870: bool = Eq(addr_n810, e859)
+	let e858: bool = Alias(e870)
+	let e856: bool = Match(e857, e861, e862, e858)
+	let self_has_value_n811: bool = Alias(e856)
+	let e860: () = Nop()
+	let e854: () = Alias(e860)
+	let result_n808: () = Alias(e854)
+	let e22: () = Alias(result_n808)
 } => e22

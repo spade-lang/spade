@@ -2,20 +2,20 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n114, int<16>)) -> bool {
-	let e791: int<16> = Nop()
-	let e4: int<16> = Alias(e791)
+entity \uwu ((e, e_n128, int<16>)) -> bool {
+	let e829: int<16> = Nop()
+	let e4: int<16> = Alias(e829)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e798: bool = Eq(e6, e7)
-	let e5: bool = Alias(e798)
-	const e793: int<16> = 0
-	let e794: bool = Eq(e791, e793)
-	let e792: bool = LogicalAnd(e794, e5)
+	let e836: bool = Eq(e6, e7)
+	let e5: bool = Alias(e836)
+	const e831: int<16> = 0
+	let e832: bool = Eq(e829, e831)
+	let e830: bool = LogicalAnd(e832, e5)
 	const e8: bool = true
-	let e795: int<16> = Nop()
-	let __n115: int<16> = Alias(e795)
-	const e796: bool = true
+	let e833: int<16> = Nop()
+	let __n129: int<16> = Alias(e833)
+	const e834: bool = true
 	const e10: bool = false
-	let e2: bool = Match(e_n114, e791, e792, e8, e795, e796, e10)
+	let e2: bool = Match(e_n128, e829, e830, e8, e833, e834, e10)
 } => e2

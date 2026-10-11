@@ -2,35 +2,35 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n114, (int<16>, bool))) -> bool {
-	let e800: (int<16>, bool) = Nop()
-	let e6: (int<16>, bool) = Alias(e800)
-	let e4: int<16> = IndexTuple(0)(e800)
-	let b_n115: bool = IndexTuple(1)(e800)
+entity \uwu ((e, e_n128, (int<16>, bool))) -> bool {
+	let e838: (int<16>, bool) = Nop()
+	let e6: (int<16>, bool) = Alias(e838)
+	let e4: int<16> = IndexTuple(0)(e838)
+	let b_n129: bool = IndexTuple(1)(e838)
 	const e8: int<7> = 6
 	const e9: int<7> = 8
-	let e817: bool = Eq(e8, e9)
-	let e7: bool = Alias(e817)
-	const e803: int<16> = 0
-	let e802: bool = Eq(e4, e803)
-	const e804: bool = true
-	let e805: bool = LogicalAnd(e802, e804)
-	let e806: bool = LogicalAnd(e805, e7)
-	let e807: (int<16>, bool) = Nop()
-	let e13: (int<16>, bool) = Alias(e807)
-	let x_n116: int<16> = IndexTuple(0)(e807)
-	let e12: bool = IndexTuple(1)(e807)
+	let e855: bool = Eq(e8, e9)
+	let e7: bool = Alias(e855)
+	const e841: int<16> = 0
+	let e840: bool = Eq(e4, e841)
+	const e842: bool = true
+	let e843: bool = LogicalAnd(e840, e842)
+	let e844: bool = LogicalAnd(e843, e7)
+	let e845: (int<16>, bool) = Nop()
+	let e13: (int<16>, bool) = Alias(e845)
+	let x_n130: int<16> = IndexTuple(0)(e845)
+	let e12: bool = IndexTuple(1)(e845)
 	const e15: int<7> = 0
 	const e16: int<7> = 1
-	let e819: bool = Eq(e15, e16)
-	let e14: bool = Alias(e819)
-	const e809: bool = true
-	let e811: bool = LogicalAnd(e809, e12)
-	let e812: bool = LogicalAnd(e811, e14)
+	let e857: bool = Eq(e15, e16)
+	let e14: bool = Alias(e857)
+	const e847: bool = true
+	let e849: bool = LogicalAnd(e847, e12)
+	let e850: bool = LogicalAnd(e849, e14)
 	const e17: bool = true
-	let e813: (int<16>, bool) = Nop()
-	let __n117: (int<16>, bool) = Alias(e813)
-	const e814: bool = true
+	let e851: (int<16>, bool) = Nop()
+	let __n131: (int<16>, bool) = Alias(e851)
+	const e852: bool = true
 	const e19: bool = false
-	let e2: bool = Match(e_n114, e800, e806, b_n115, e807, e812, e17, e813, e814, e19)
+	let e2: bool = Match(e_n128, e838, e844, b_n129, e845, e850, e17, e851, e852, e19)
 } => e2

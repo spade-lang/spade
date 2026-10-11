@@ -62,9 +62,12 @@ use spade_hir::Input;
 use spade_hir::UnitHead;
 use spade_hir::expression::Safety;
 use spade_hir::pretty_print::PrettyPrint;
+use spade_mir::MemoryPortKind;
 use spade_typeinference::GenericListToken;
 use spade_typeinference::HasType;
+use spade_typeinference::equation::KnownTypeVar;
 use spade_typeinference::traits::TraitImplList;
+use spade_types::KnownType;
 use spade_types::meta_types::MetaType;
 use statement_list::StatementList;
 use substitution::Substitution;
@@ -1009,6 +1012,149 @@ impl StatementLocal for Loc<Statement> {
                         "let _ = ",
                     ));
                 }
+            }
+            Statement::Memory(memory) => {
+                let hir::Memory {
+                    ty,
+                    array_typespec_id,
+                    keyword: _,
+                    initial,
+                    ports,
+                } = &memory;
+
+                let initial = if let Some(init) = initial {
+                    if let Some(witness) = init.runtime_requirement_witness(ctx) {
+                        return Err(Diagnostic::error(
+                            init,
+                            "Memory initial values must be known at compile time",
+                        )
+                        .primary_label("Value not known at compile time")
+                        .secondary_label(
+                            witness,
+                            "This subexpression cannot be computed at compile time",
+                        ));
+                    };
+
+                    match &init.kind {
+                        ExprKind::ArrayLiteral(elems) => {
+                            let values = elems
+                                .iter()
+                                .map(|e| Ok(e.lower(ctx)?.to_vec_no_source_map()))
+                                .collect::<Result<Vec<_>>>()?;
+
+                            Some(values)
+                        }
+                        ExprKind::ArrayShorthandLiteral(elem, amount) => {
+                            let value = elem.lower(ctx)?.to_vec_no_source_map();
+
+                            let amount = amount.resolve_int(ctx)?.to_usize().ok_or_else(|| {
+                                Diagnostic::error(
+                                    amount,
+                                    format!(
+                                        "Array using shorthand initialization cannot contain more than usize::max ({}) elements",
+                                        usize::MAX
+                                    ),
+                                )
+                            })?;
+
+                            Some(vec![value; amount])
+                        }
+                        _ => diag_bail!(init, "Memory initial value was not array"),
+                    }
+                } else {
+                    None
+                };
+
+                let ro_name = ctx
+                    .symtab
+                    .symtab()
+                    .lang_item(hir::symbol_table::LangItem::RoType);
+
+                let wo_name = ctx
+                    .symtab
+                    .symtab()
+                    .lang_item(hir::symbol_table::LangItem::WoType);
+
+                result.push_anonymous(
+                    mir::Statement::Memory {
+                        storage: ValueName::Expr(*array_typespec_id).at_loc(self),
+                        ty: ctx
+                            .types
+                            .concrete_type_of(
+                                array_typespec_id
+                                    .at_loc(&ty.as_ref().map(Loc::loc).unwrap_or(self.loc())),
+                                ctx.symtab.symtab(),
+                                &ctx.item_list.types,
+                            )?
+                            .to_mir_type(),
+                        initial,
+                        ports: ports
+                            .0
+                            .iter()
+                            .map(|port| {
+                                let name = port.name.value_name().at_loc(&port.name);
+
+                                let Some(KnownTypeVar(_, _, params)) = port
+                                    .name
+                                    .get_type(ctx.types)
+                                    .resolve(ctx.types)
+                                    .into_known(ctx.types)
+                                else {
+                                    return Err(Diagnostic::bug(
+                                        port.ty.loc(),
+                                        "Memory port type must be known at this point",
+                                    ));
+                                };
+
+                                let extract_latency_param = |idx: usize, kind: &'static str| match &params[idx].1 {
+                                    KnownType::Integer(i) => {
+                                        if i <= &BigInt::ONE {
+                                            Ok(i.to_biguint().unwrap())
+                                        } else {
+                                            // FIXME: codegen does not support memory latencies greater than one
+                                            Err(Diagnostic::error(
+                                                &port.ty,
+                                                "Memory latencies greater than one are not supported"
+                                            )
+                                            .primary_label(format!("{kind} latency is set to {i}")))
+                                        }
+                                    }
+                                    _ => Err(Diagnostic::bug(
+                                        &port.ty,
+                                        "Expected #uint type param but found something else",
+                                    )),
+                                };
+
+                                // Shortcuts to extract latency parameters from the params list
+                                let r = |idx: usize| extract_latency_param(idx, "Read");
+                                let w = |idx: usize| extract_latency_param(idx, "Write");
+
+                                let concrete_ty = ctx.types.concrete_type_of(
+                                    &port.name,
+                                    ctx.symtab.symtab(),
+                                    &ctx.item_list.types,
+                                )?;
+
+                                let ty_name = concrete_ty.assume_struct().0;
+                                let mir_ty = concrete_ty.to_mir_type();
+
+                                let kind = match () {
+                                    _ if ty_name == ro_name => MemoryPortKind::Ro(r(2)?),
+                                    _ if ty_name == wo_name => MemoryPortKind::Wo(w(2)?),
+                                    _ => {
+                                        return Err(Diagnostic::bug(
+                                            &port.ty,
+                                            "Unexpected memory port type",
+                                        ));
+                                    }
+                                };
+
+                                Ok((name, mir_ty, kind))
+                            })
+                            .collect::<Result<Vec<_>>>()?,
+                    }
+                    .at_loc(self),
+                )
             }
             Statement::Register(register) => {
                 let hir::Register {
@@ -3822,7 +3968,7 @@ pub fn generate_unit<'a>(
                 if let Some(pass) = pass_impls.get(new_pass.inner.as_str()) {
                     local_passes.push(pass.as_ref());
                 } else {
-                    return Err(Diagnostic::error(
+                    Err(Diagnostic::error(
                         new_pass,
                         format!("There is no optimization pass named {new_pass}"),
                     )

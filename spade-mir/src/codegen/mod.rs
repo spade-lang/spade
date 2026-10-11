@@ -16,9 +16,12 @@ use crate::renaming::{VerilogNameMap, make_names_predictable};
 use crate::type_list::MirTypeList;
 use crate::types::Type;
 use crate::unit_name::{InstanceMap, InstanceNameTracker};
-use crate::verilog::{self, assign, localparam_size_spec, logic, size_spec, slice};
+use crate::verilog::{
+    self, assign, index, localparam_size_spec, logic, logic_array, size_spec, slice,
+};
 use crate::{
-    Binding, ConstantValue, Entity, MirInput, Operator, ParamName, Statement, ValueName, enum_util,
+    Binding, ConstantValue, Entity, MemoryPortKind, MirInput, Operator, ParamName, Statement,
+    ValueName, enum_util,
 };
 
 pub mod util;
@@ -172,6 +175,45 @@ fn statement_declaration(
                 }
             } else {
                 code! {}
+            }
+        }
+        Statement::Memory {
+            storage,
+            ty,
+            initial: _,
+            ports,
+        } => {
+            let (inner, size) = ty.assume_array();
+            let elem_width = inner.size();
+            let mem_name = storage.var_name();
+            let mut port_snippets = vec![];
+
+            for (name, ty, _) in ports {
+                // Forward size may be zero (for write-only ports where no data is produced)
+                if ty.size() > BigUint::zero() {
+                    port_snippets.push(
+                        code! {
+                            [0] source_attribute(&Some(name.loc()), code);
+                            [0] logic(&name.var_name(), &ty.size());
+                        }
+                        .to_string(),
+                    );
+                }
+
+                // Backward size will always be non-zero (address inside an option is a must)
+                port_snippets.push(
+                    code! {
+                        [0] source_attribute(&Some(name.loc()), code);
+                        [0] logic(&name.backward_var_name(), &ty.backward_size());
+                    }
+                    .to_string(),
+                );
+            }
+
+            code! {
+                [0] source_attribute(&Some(storage.loc()), code);
+                [0] logic_array(&mem_name, &elem_width, size);
+                [0] port_snippets.iter().join("\n");
             }
         }
         Statement::Assert(_) => {
@@ -768,7 +810,11 @@ fn forward_expression_code(
                     .sum::<BigUint>();
 
             let member_end = &member_start + variant_list[*variant][*member_index].size();
-            let slice_text = slice(full_size, member_start, member_end);
+
+            let upper_idx = &full_size - &member_start - 1u32.to_biguint();
+            let lower_idx = &full_size - &member_end;
+            let slice_text = slice(&full_size, &upper_idx, &lower_idx);
+
             format!("{}{}", op_names[0], slice_text)
         }
         Operator::ReadWriteItemsInOut(_) => {
@@ -979,7 +1025,10 @@ fn backward_expression_code(
                 .sum::<BigUint>();
 
             let member_end = &member_start + variant_list[*variant][*member_index].backward_size();
-            let slice_text = slice(full_size, member_start, member_end);
+
+            let upper_idx = &full_size - &member_start - 1u32.to_biguint();
+            let lower_idx = &full_size - &member_end;
+            let slice_text = slice(&full_size, &upper_idx, &lower_idx);
 
             format!("{}{}", op_names[0], slice_text)
         }
@@ -1366,6 +1415,123 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
         Statement::Constant(_, _, _) => {
             // Constants are fully codegened at the definition
             code! {}
+        }
+        Statement::Memory {
+            storage,
+            ty,
+            initial,
+            ports,
+        } => {
+            let (inner, size) = ty.assume_array();
+            let elem_width = inner.size();
+            let addr_width = (size - 1usize).bits();
+            let mem_name = storage.var_name();
+
+            let initial_block = if let Some(initial) = initial {
+                let assignments = initial
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, val)| {
+                        let v = eval_statements(val).as_string();
+                        let s = v.len();
+                        format!(
+                            "{s}'b{v}{}",
+                            if idx == initial.len() - 1 { "" } else { "," }
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                code! {
+                    [0] "initial begin";
+                    [1]     format!("{mem_name} = '{{");
+                    [2]         assignments;
+                    [1]     "};";
+                    [0] "end";
+                }
+            } else {
+                code! {}
+            };
+
+            let mut accessors = vec![];
+
+            for (name, ty, kind) in ports {
+                let var = name.var_name();
+                let back_var = name.backward_var_name();
+
+                let width = ty.size();
+                let back_width = ty.backward_size();
+
+                let (read_info, write_info) = match kind {
+                    MemoryPortKind::Ro(latency) => {
+                        // valid + d_out
+                        assert_eq!(width, 1usize + &elem_width);
+                        // clk + re + addr
+                        assert_eq!(back_width, 1usize + 1usize + addr_width.to_biguint());
+
+                        let clk = index(&back_width, &(&back_width - 1usize));
+                        let re = index(&back_width, &(&back_width - 2usize));
+                        let addr = slice(&back_width, &(&back_width - 3usize), &BigUint::ZERO);
+
+                        let valid = index(&width, &(&width - 1usize));
+                        let d_out = slice(&width, &(&width - 2usize), &BigUint::ZERO);
+
+                        (Some((latency, clk, re, addr, valid, d_out)), None)
+                    }
+                    MemoryPortKind::Wo(latency) => {
+                        // clk + we + addr + d_in
+                        assert_eq!(back_width, 1 + 1 + addr_width + &elem_width);
+
+                        let clk = index(&back_width, &(&back_width - 1usize));
+                        let we = index(&back_width, &(&back_width - 2usize));
+                        let addr = slice(&back_width, &(&back_width - 3usize), &elem_width);
+                        let d_in = slice(&back_width, &(&elem_width - 1usize), &BigUint::ZERO);
+
+                        (None, Some((latency, clk, we, addr, d_in)))
+                    }
+                };
+
+                if let Some((latency, clk, re, addr, valid, d_out)) = read_info {
+                    let code = if latency.is_zero() {
+                        code! {
+                            [0] format!("assign {var}{valid} = {back_var}{re} ? 1'b1 : 1'b0;");
+                            [0] format!("assign {var}{d_out} = {back_var}{re} ? {mem_name}[{back_var}{addr}] : 'sbx;");
+                        }
+                    } else {
+                        // FIXME: support memory latencies greater than one
+                        code! {
+                            [0] format!("always @(posedge {back_var}{clk}) begin");
+                            [1]     format!("if ({back_var}{re}) begin");
+                            [2]         format!("{var}{valid} <= 1'b1;");
+                            [2]         format!("{var}{d_out} <= {mem_name}[{back_var}{addr}];");
+                            [1]     "end else begin";
+                            [2]         format!("{var}{valid} <= 1'b0;");
+                            [2]         format!("{var}{d_out} <= 'sbx;");
+                            [1]     "end";
+                            [0] "end";
+                        }
+                    };
+
+                    accessors.push(code.to_string());
+                }
+
+                if let Some((_latency, clk, we, addr, d_in)) = write_info {
+                    // FIXME: support memory latencies greater than one
+                    let code = code! {
+                        [0] format!("always @(posedge {back_var}{clk}) begin");
+                        [1]     format!("if ({back_var}{we}) begin");
+                        [2]         format!("{mem_name}[{back_var}{addr}] <= {back_var}{d_in};");
+                        [1]     "end";
+                        [0] "end";
+                    };
+
+                    accessors.push(code.to_string());
+                }
+            }
+
+            code! {
+                [0] initial_block;
+                [0] accessors.iter().join("\n");
+            }
         }
         Statement::Assert(val) => {
             // NOTE: Source code unwrap is semi-safe. Non-tests are expected to pass an actual
