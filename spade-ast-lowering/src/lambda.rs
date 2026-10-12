@@ -25,6 +25,7 @@ use crate::Result;
 use crate::global_symbols::re_visit_type_declaration;
 use crate::global_symbols::visit_type_declaration;
 use crate::impls::visit_impl;
+use crate::pipelines::perform_pipelining_tasks;
 use crate::visit_block;
 use crate::visit_pattern;
 use crate::visit_unit_kind;
@@ -128,6 +129,12 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .iter()
         .map(|arg| arg.try_visit(visit_pattern, ctx))
         .collect::<Result<Vec<_>>>()?;
+
+    if unit_kind.is_pipeline() {
+        // WHAT DO?
+        let context = perform_pipelining_tasks(0, args.len(), args.loc(), &body, ctx)?;
+    }
+
     let hir_body = body.try_map_ref(|body| visit_block(body, ctx));
     ctx.symtab.close_scope();
     let hir_body = Box::new(

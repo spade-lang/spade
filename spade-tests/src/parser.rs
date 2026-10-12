@@ -22,6 +22,22 @@ snapshot_error! {
     "
 }
 
+code_compiles! {
+    named_pipeline_stages_work_in_lambda,
+    "
+    pipeline(1) top(clk: clock) -> bool {
+        let p = pipeline(1) |clk, x| {
+            'a
+            reg;
+            stage(a).x
+        };
+        let wire y = p.inst(1) call(clk, (true,));
+        reg;
+        y
+    }
+    "
+}
+
 snapshot_error! {
     wrong_enum_variant_items_opener,
     "

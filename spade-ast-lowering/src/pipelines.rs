@@ -15,7 +15,7 @@ pub struct PipelineContext {
     pub scope: usize,
 }
 
-fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Result<()> {
+pub fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Result<()> {
     match &statement {
         ast::Statement::Label(name) => {
             ctx.symtab.add_unique_type(
@@ -35,6 +35,32 @@ fn visit_pipeline_statement(statement: &ast::Statement, ctx: &mut Context) -> Re
         ast::Statement::Type(_) => {}
     };
     Ok(())
+}
+
+pub fn perform_pipelining_tasks(
+    clock_index: usize,
+    arg_count: usize,
+    ast_inputs: Loc<()>,
+    body: &ast::Block,
+    ctx: &mut Context,
+) -> Result<Option<PipelineContext>> {
+    let context = PipelineContext {
+        scope: ctx.symtab.current_scope() + 1,
+    };
+
+    if arg_count <= clock_index {
+        return Err(Diagnostic::error(
+            ast_inputs,
+            "Missing clock argument for pipeline",
+        )
+        .note("All pipelines need to take at least a clock as an argument"));
+    }
+
+    for statement in &body.statements {
+        visit_pipeline_statement(statement, ctx)?;
+    }
+
+    Ok(Some(context))
 }
 
 /// Performs the pipelining tasks we need to do before visiting staements during
@@ -58,25 +84,9 @@ pub fn maybe_perform_pipelining_tasks(
         ast::UnitKind::Function => Ok(None),
         ast::UnitKind::Entity => Ok(None),
         ast::UnitKind::Pipeline(_) => {
-            let context = PipelineContext {
-                scope: ctx.symtab.current_scope() + 1,
-            };
-
             let clock_index = if head.is_nonstatic_method { 1 } else { 0 };
-
-            if head.inputs.0.len() <= clock_index {
-                return Err(Diagnostic::error(
-                    ast_inputs.loc(),
-                    "Missing clock argument for pipeline",
-                )
-                .note("All pipelines need to take at least a clock as an argument"));
-            }
-
-            for statement in &body.as_ref().unwrap().assume_block().statements {
-                visit_pipeline_statement(statement, ctx)?;
-            }
-
-            Ok(Some(context))
+            let body = body.as_ref().unwrap().assume_block();
+            perform_pipelining_tasks(clock_index, head.inputs.0.len(), ast_inputs.loc(), body, ctx)
         }
     }
 }
