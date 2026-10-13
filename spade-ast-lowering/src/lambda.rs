@@ -130,17 +130,21 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .map(|arg| arg.try_visit(visit_pattern, ctx))
         .collect::<Result<Vec<_>>>()?;
 
-    println!("{:?}", ctx.pipeline_ctx);
     let prev_pipeline_ctx = if unit_kind.is_pipeline() {
+        let new_context = perform_pipelining_tasks(0, args.len(), args.loc(), &body, ctx)?;
+
         let pipeline_ctx = ctx.pipeline_ctx.take();
-        ctx.pipeline_ctx = perform_pipelining_tasks(0, args.len(), args.loc(), &body, ctx)?;
+        ctx.pipeline_ctx = new_context;
         pipeline_ctx
     } else {
         None
     };
 
     let hir_body = body.try_map_ref(|body| visit_block(body, ctx));
-    ctx.pipeline_ctx = prev_pipeline_ctx;
+
+    if unit_kind.is_pipeline() {
+        ctx.pipeline_ctx = prev_pipeline_ctx;
+    }
     ctx.symtab.close_scope();
     let hir_body = Box::new(
         hir_body?.map(|body| hir::ExprKind::Block(Box::new(body)).with_id(ctx.idtracker.next())),
