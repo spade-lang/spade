@@ -38,6 +38,38 @@ code_compiles! {
     "
 }
 
+code_compiles! {
+    nested_lambda_pipeline_context_propagates,
+    "
+    pipeline(2) top(
+        clk: clock,
+        x: uint<8>,
+    ) -> (uint<8>, uint<8>, (uint<8>, uint<8>)) {
+        'a
+        let outer_before = stage(a).x;
+
+        let p = pipeline(1) |clk, x| {
+            // Forward reference to the inner label and variable.
+            let wire future = stage(a).later;
+
+            reg;
+            'a
+            let later = x;
+
+            (stage(a).x, future)
+        };
+
+        let wire inner = p.inst(1) call(clk, (x,));
+
+        reg;
+        let outer_after = stage(a).x;
+
+        reg;
+        (outer_before, outer_after, inner)
+    }
+    "
+}
+
 snapshot_error! {
     wrong_enum_variant_items_opener,
     "

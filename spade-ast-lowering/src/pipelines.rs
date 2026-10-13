@@ -49,11 +49,10 @@ pub fn perform_pipelining_tasks(
     };
 
     if arg_count <= clock_index {
-        return Err(Diagnostic::error(
-            ast_inputs,
-            "Missing clock argument for pipeline",
-        )
-        .note("All pipelines need to take at least a clock as an argument"));
+        return Err(
+            Diagnostic::error(ast_inputs, "Missing clock argument for pipeline")
+                .note("All pipelines need to take at least a clock as an argument"),
+        );
     }
 
     for statement in &body.statements {
@@ -86,7 +85,13 @@ pub fn maybe_perform_pipelining_tasks(
         ast::UnitKind::Pipeline(_) => {
             let clock_index = if head.is_nonstatic_method { 1 } else { 0 };
             let body = body.as_ref().unwrap().assume_block();
-            perform_pipelining_tasks(clock_index, head.inputs.0.len(), ast_inputs.loc(), body, ctx)
+            perform_pipelining_tasks(
+                clock_index,
+                head.inputs.0.len(),
+                ast_inputs.loc(),
+                body,
+                ctx,
+            )
         }
     }
 }
