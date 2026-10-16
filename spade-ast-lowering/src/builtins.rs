@@ -13,7 +13,7 @@ use spade_types::{PrimitiveType, meta_types::MetaType};
 /// not interfere with tests with hardcoded NameIDs
 pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
     // Add primitive data types
-    let mut id = std::u64::MAX;
+    let mut id = u64::MAX;
 
     let mut add_type =
         |name_str: &str, args: Vec<Loc<GenericArg>>, primitive: PrimitiveType, is_inout: bool| {
