@@ -5,4 +5,4 @@
 ///
 /// While 4-valued simulators preserve them, synthesis tools and 2-valued
 /// simulators like Verilator may set them to 0 or a random value.
-pub extern fn undef<T: Data>() -> T;
+pub extern fn undef<T: Copy>() -> T;
