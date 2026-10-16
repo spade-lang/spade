@@ -53,12 +53,10 @@ impl Pass for DropBackNops {
                     .filter(|op| op.operator != Operator::Nop)
                     .collect::<Vec<_>>();
 
+                // If we only found Nops, leave them be
                 if non_nops.len() == 0 {
-                    diag_bail!(
-                        statement,
-                        "Found multiple definitions of {}, but all were nops",
-                        b.name
-                    )
+                    Ok(None)
+                // Multiple non-nop definitions would be an error
                 } else if non_nops.len() > 1 {
                     diag_bail!(statement, "Found multiple non-nop defintions of {}", b.name)
                 } else {

@@ -187,6 +187,14 @@ impl StatementExt for Loc<mir::Statement> {
             mir::Statement::Constant(value_name, ty, val) => Ok(vec![
                 lir::Statement::Constant(value_name.lower_fwd(), ty.lower().0, val.clone())
                     .at_loc(self),
+                lir::Statement::Binding(lir::Binding {
+                    name: value_name.lower_back(),
+                    operator: lir::Operator::Nop,
+                    operands: vec![],
+                    ty: spade_lir::Type::BitVector(BigUint::ZERO),
+                    loc: Some(self.loc()),
+                })
+                .at_loc(self),
             ]),
             mir::Statement::Assert(value_name) => Ok(vec![
                 lir::Statement::Assert(value_name.map_ref(|v| v.lower_fwd())).at_loc(self),
@@ -523,8 +531,27 @@ impl BindingExt for Loc<&mir::Binding> {
                 Ok(vec![])
             }
             mir::Operator::IndexMemory => {
-                // TODO
-                Ok(vec![])
+                // TODO Placeholder to make it compile
+                Ok(vec![
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_fwd(),
+                        operator: spade_lir::Operator::Nop,
+                        operands: vec![],
+                        ty: fwd.clone(),
+                        loc: self.loc.clone(),
+                    })
+                    .at_loc(self),
+
+                    lir::Statement::Binding(lir::Binding {
+                        name: self.name.lower_back(),
+                        operator: spade_lir::Operator::Nop,
+                        operands: vec![],
+                        ty: back.clone(),
+                        loc: self.loc.clone(),
+                    })
+                    .at_loc(self),
+                    
+                ])
             }
 
             mir::Operator::IndexArray => {
@@ -843,7 +870,7 @@ impl BindingExt for Loc<&mir::Binding> {
                     (
                         lir::Operator::RangeSlice {
                             start: &total_width - end_bit,
-                            end_exclusive: &total_width - start_bit,
+                            end_exclusive: &total_width - start_bit + BigUint::ONE,
                         },
                         lowered_fwd(),
                     )
