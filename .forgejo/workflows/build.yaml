@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ["fbs", "xlarge", "debian-13-x86_64"]
     container:
-      image: rust:1.88
+      image: rust:1.89
     steps:
       - name: "Pre-clone checkout"
         run: |
@@ -31,7 +31,7 @@ jobs:
   fmt:
     runs-on: ["fbs", "medium", "debian-13-x86_64"]
     container:
-      image: rust:1.88-alpine
+      image: rust:1.89-alpine
     steps:
       - name: "Pre-clone checkout"
         run: |
@@ -83,7 +83,7 @@ jobs:
   check:typos:
     runs-on: lysator
     container:
-      image: rust:1.88-alpine
+      image: rust:1.89-alpine
     steps:
       ### Checkout
       - name: "Pre-clone dependencies"
@@ -107,7 +107,7 @@ jobs:
   check:todos:
     runs-on: lysator
     container:
-      image: rust:1.88-alpine
+      image: rust:1.89-alpine
     steps:
       ### Checkout
       - name: "Pre-clone dependencies"
@@ -127,7 +127,7 @@ jobs:
   yowasp:build:
     runs-on: ["fbs", "medium", "debian-13-x86_64"]
     container:
-      image: rust:1.88-alpine
+      image: rust:1.89-alpine
     steps:
       ### Checkout
       - name: "Pre-clone dependencies"
@@ -174,7 +174,7 @@ jobs:
   build:surfer-plugin:
     runs-on: ["fbs", "medium", "debian-13-x86_64"]
     container:
-      image: rust:1.88-alpine
+      image: rust:1.89-alpine
     steps:
       ### Checkout
       - name: "Pre-clone dependencies"
@@ -232,7 +232,7 @@ jobs:
   build:static:
     runs-on: ["fbs", "xlarge", "debian-13-x86_64"]
     container:
-      image: rust:1.88-alpine
+      image: rust:1.89-alpine
     steps:
       - name: "Pre-clone checkout"
         run: |
@@ -258,13 +258,12 @@ jobs:
         with:
           name: spade
           path: spade/bin/*
-          
 
-        
-        
+
+
+
 # yowasp:publish:
 # trawler:
 
 
 # .build:static:
-
