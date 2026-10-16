@@ -142,10 +142,123 @@ impl EntityExt for mir::Entity {
 
 trait StatementExt {
     fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>>;
+
+    fn lower_inner(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>>;
 }
 
 impl StatementExt for Loc<mir::Statement> {
     fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>> {
+        let mut initial_lowering = self.lower_inner(types, ctx)?;
+
+        // When we lower MIR operations to LIR, we only lower them into operations in the
+        // relevant direction for that operator. For example, `a + b` only lowers into a forward
+        // binding, not a backwards binding, since there is no backward `+`.
+        //
+        // However, in the initial phases of LIR passes, we need both forward and backward defintions
+        // for all variables since the `Legalize` will need to check the type of bindings to,
+        // for example, `BackConcat` in order to drop relevant components.
+        //
+        // I.e. `a = b.concat(c)` would lower to
+        //
+        // a = Concat(b, c);
+        // back(a) = BackConcat(back(b), back(c));
+        //
+        // But if `b` or `c` came out of a forward operator, there would be no binding for `back(b)`
+        // or `back(c)`.
+        //
+        // To avoid polluting the lowering step with a bunch of extra useless expressions, we'll insert
+        // them here, after checking if there are other bindings. As a bonus, we will also sanity
+        // check the sizes of the resulting bindings against the binding sizes in the MIR
+        let generated_vars = initial_lowering
+            .iter()
+            .filter_map(|statement| {
+                match &statement.inner {
+                    // This is a hack, since instantiations are weird and create some bindings
+                    // for their inv wires, it is needed to avoid creating a few duplicate
+                    // bindings, bindings which in the case of unit inputs and outputs are
+                    // defined elsewhere.
+                    //
+                    // TODO: Consider if we can do this in a better way
+                    spade_lir::Statement::Binding(lir::Binding {
+                        operator: spade_lir::Operator::DeclareInstantiationOutput,
+                        ..
+                    }) => None,
+                    spade_lir::Statement::Binding(binding) => Some(binding.name.clone()),
+                    spade_lir::Statement::Register(register) => Some(register.name.clone()),
+                    spade_lir::Statement::Constant(value_name, _, _) => Some(value_name.clone()),
+                    spade_lir::Statement::Assert(_) => None,
+                    spade_lir::Statement::Set(_, _) => None,
+                    spade_lir::Statement::Instance { .. } => {
+                        // Instance outputs are handled elsewhere
+                        None
+                    }
+                    spade_lir::Statement::Error => None,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let expected_vars = match &self.inner {
+            spade_mir::Statement::Binding(binding) => Some((&binding.name, &binding.ty)),
+            spade_mir::Statement::Register(register) => Some((&register.name, &register.ty)),
+            spade_mir::Statement::Constant(name, ty, _) => Some((name, ty)),
+            spade_mir::Statement::Assert(_) => None,
+            spade_mir::Statement::Set { .. } => None,
+            spade_mir::Statement::Error => None,
+        };
+
+        // NOTE(Performance): If this structure were larger, this would be an O(n) in the
+        // number of names created, but for all operations, `n` will be very small, so we
+        // will use a `Vec` here for predictability
+        let new_vars = expected_vars
+            .iter()
+            .map(|(var, ty)| [(var.lower_fwd(), ty.backward_size()), (var.lower_back(), ty.size())])
+            .flatten()
+            .filter_map(|(var, size)| {
+                match var {
+                    ValueName::Forward(value_name) => {
+                        let friend = ValueName::Backward(value_name.clone());
+                        if !generated_vars.contains(&&friend) {
+                            Some((friend, size))
+                        } else {
+                            None
+                        }
+                    }
+                    ValueName::Backward(value_name) => {
+                        let friend = ValueName::Forward(value_name.clone());
+                        if !generated_vars.contains(&&friend) {
+                            Some((friend, size))
+                        } else {
+                            None
+                        }
+                    }
+                    // Output variables are not handled here
+                    // TODO: Where are they handled?
+                    ValueName::OutputFwd => None,
+                    ValueName::OutputBack => None,
+                }
+            });
+
+        initial_lowering.extend(new_vars.into_iter().map(|(name, size)| {
+            lir::Statement::Binding(lir::Binding {
+                name,
+                operator: spade_lir::Operator::Nop,
+                operands: vec![],
+                // TODO: Ensure that the variable actually is 0 sized if it isn't
+                // an annonymous variable
+                ty: spade_lir::Type::BitVector(size),
+                loc: None,
+            })
+            .near_loc(&self.loc())
+        }));
+
+        Ok(initial_lowering)
+    }
+
+    fn lower_inner(
+        &self,
+        types: &MirTypeList,
+        ctx: &Context,
+    ) -> Result<Vec<Loc<spade_lir::Statement>>> {
         match &self.inner {
             mir::Statement::Binding(binding) => binding.at_loc(self).lower(types, ctx),
             mir::Statement::Register(mir::Register {
@@ -187,37 +300,21 @@ impl StatementExt for Loc<mir::Statement> {
             mir::Statement::Constant(value_name, ty, val) => Ok(vec![
                 lir::Statement::Constant(value_name.lower_fwd(), ty.lower().0, val.clone())
                     .at_loc(self),
-                lir::Statement::Binding(lir::Binding {
-                    name: value_name.lower_back(),
-                    operator: lir::Operator::Nop,
-                    operands: vec![],
-                    ty: spade_lir::Type::BitVector(BigUint::ZERO),
-                    loc: Some(self.loc()),
-                })
-                .at_loc(self),
             ]),
             mir::Statement::Assert(value_name) => Ok(vec![
                 lir::Statement::Assert(value_name.map_ref(|v| v.lower_fwd())).at_loc(self),
             ]),
             mir::Statement::Set { target, value } => Ok(vec![
-                lir::Statement::Binding(lir::Binding {
-                    name: target.lower_back(),
-                    operator: spade_lir::Operator::Alias,
-                    operands: vec![value.map_ref(|v| v.lower_fwd())],
-                    ty: lir::Type::BitVector(types[target].backward_size()),
-                    // TODO: If we don't remove this field, set it to the statement loc
-                    loc: None,
-                })
+                lir::Statement::Set(
+                    target.lower_back().at_loc(target),
+                    value.lower_fwd().at_loc(value),
+                )
                 .at_loc(self),
-                // lir::Statement::Binding(lir::Binding {
-                //     name: value.lower_fwd(),
-                //     operator: spade_lir::Operator::Alias,
-                //     operands: vec![target.map_ref(|v| v.lower_back())],
-                //     ty: lir::Type::BitVector(types[target].backward_size()),
-                //     // TODO: If we don't remove this field, set it to the statement loc
-                //     loc: None,
-                // })
-                // .at_loc(self),
+                lir::Statement::Set(
+                    target.lower_fwd().at_loc(target),
+                    value.lower_back().at_loc(value),
+                )
+                .at_loc(self),
             ]),
             mir::Statement::Error => Ok(vec![lir::Statement::Error.at_loc(self)]),
         }
@@ -232,6 +329,7 @@ impl BindingExt for Loc<&mir::Binding> {
     fn lower(&self, types: &MirTypeList, ctx: &Context) -> Result<Vec<Loc<lir::Statement>>> {
         let (fwd, back) = self.ty.lower();
 
+        // An operator which takes no backward components and produces no backward values
         let fwd_only_operator =
             |inner: &dyn Fn(&lir::Type) -> (lir::Operator, Vec<Loc<lir::ValueName>>)| {
                 if back.size() != BigUint::ZERO {
@@ -246,14 +344,6 @@ impl BindingExt for Loc<&mir::Binding> {
                 let (operator, operands) = inner(&fwd);
 
                 Ok(vec![
-                    lir::Statement::Binding(lir::Binding {
-                        name: self.name.lower_back(),
-                        operator: lir::Operator::Nop,
-                        operands: vec![],
-                        ty: back.clone(),
-                        loc: self.loc.clone(),
-                    })
-                    .at_loc(self),
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: operator,
@@ -288,14 +378,6 @@ impl BindingExt for Loc<&mir::Binding> {
                 let (operator, operands) = inner(&fwd);
 
                 Ok(vec![
-                    lir::Statement::Binding(lir::Binding {
-                        name: self.name.lower_back(),
-                        operator: lir::Operator::Nop,
-                        operands: vec![],
-                        ty: back.clone(),
-                        loc: self.loc.clone(),
-                    })
-                    .at_loc(self),
                     lir::Statement::Binding(lir::Binding {
                         name: self.name.lower_fwd(),
                         operator: operator,
@@ -541,16 +623,6 @@ impl BindingExt for Loc<&mir::Binding> {
                         loc: self.loc.clone(),
                     })
                     .at_loc(self),
-
-                    lir::Statement::Binding(lir::Binding {
-                        name: self.name.lower_back(),
-                        operator: spade_lir::Operator::Nop,
-                        operands: vec![],
-                        ty: back.clone(),
-                        loc: self.loc.clone(),
-                    })
-                    .at_loc(self),
-                    
                 ])
             }
 
@@ -870,7 +942,7 @@ impl BindingExt for Loc<&mir::Binding> {
                     (
                         lir::Operator::RangeSlice {
                             start: &total_width - end_bit,
-                            end_exclusive: &total_width - start_bit + BigUint::ONE,
+                            end_exclusive: &total_width - start_bit,
                         },
                         lowered_fwd(),
                     )

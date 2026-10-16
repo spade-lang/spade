@@ -2,6 +2,7 @@ pub mod backflip;
 pub mod legalize;
 pub mod drop_back_nops;
 pub mod forbid_back_operators;
+pub mod lower_set;
 
 use colored::Colorize;
 use itertools::Itertools;
@@ -66,12 +67,11 @@ pub fn run_pass(entity: &mut Entity, mut pass: impl Pass) -> Result<()> {
     });
 
 
-    maybe_trace(&|| println!("Gathering types"));
-    let types = LirTypeList::from_entity(entity);
-
     maybe_trace(&|| println!("Visiting entity"));
     let mut payload = pass.visit_unit(entity)?;
 
+    maybe_trace(&|| println!("Gathering types"));
+    let types = LirTypeList::from_entity(entity)?;
 
     entity.statements = entity
         .statements

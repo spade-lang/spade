@@ -20,6 +20,7 @@ use spade_lir::passes::backflip::{FlipBackConcat, FlipBackRangeIndex};
 use spade_lir::passes::drop_back_nops::DropBackNops;
 use spade_lir::passes::forbid_back_operators::ForbidBackOperators;
 use spade_lir::passes::legalize::Legalize;
+use spade_lir::passes::lower_set::LowerSet;
 use spade_lir::passes::run_pass;
 use spade_mir::codegen::{Codegenable, cocotb_code, prepare_codegen};
 use spade_mir::passes::MirPass;
@@ -817,6 +818,7 @@ fn codegen(
 
                     run_passes![
                         Legalize,
+                        LowerSet,
                         FlipBackConcat,
                         FlipBackRangeIndex,
                         DropBackNops,
