@@ -203,11 +203,6 @@ pub enum Operator {
     /// these variables are not replaced by other bindings. Their variables isntead come out of instantiations
     DeclareInstantiationOutput,
 
-    /// A placeholder for a value which we already know is 0 width. Because of how we do lowering
-    /// of things like `Concat`, at initial MIR creation we need _all_ MIR signals to have both
-    /// a forward and backward component, which we later drop.
-    ZeroWidth,
-
     /// Define a variable, but don't do anything with it. These are there as placeholders and LIR passes
     /// will generally create copies of variables defined by Nop, after which they will be dropped by
     /// the `DropBackNops` pass
@@ -411,6 +406,9 @@ pub enum Statement {
     /// A constant expression with the specified ID and value
     Constant(ValueName, Type, ConstantValue),
     Assert(Loc<ValueName>),
+
+    /// Set the value of .0 to that of .1
+    Set(Loc<ValueName>, Loc<ValueName>),
 
     Instance {
         name: UnitName,

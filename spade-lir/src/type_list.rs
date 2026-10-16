@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use spade_common::location_info::Loc;
-use spade_diagnostics::diag_anyhow;
+use spade_diagnostics::{diag_anyhow, diag_bail};
 
 use crate::{Entity, LirArg, Result, Statement, Type, ValueName};
 
@@ -17,7 +17,7 @@ impl LirTypeList {
         }
     }
 
-    pub fn from_entity(e: &Entity) -> Self {
+    pub fn from_entity(e: &Entity) -> Result<Self> {
         let mut result = Self::empty();
 
         for LirArg {
@@ -27,7 +27,7 @@ impl LirTypeList {
             no_mangle: _,
         } in &e.inputs
         {
-            result.inner.insert(val_name.inner.clone(), ty.clone());
+            result.insert(val_name, val_name.inner.clone(), ty.clone())?;
         }
         for LirArg {
             val_name,
@@ -36,27 +36,28 @@ impl LirTypeList {
             no_mangle: _,
         } in &e.outputs
         {
-            result.inner.insert(val_name.inner.clone(), ty.clone());
+            result.insert(val_name, val_name.inner.clone(), ty.clone())?;
         }
-        result.add_statements(&e.statements);
+        result.add_statements(&e.statements)?;
 
-        result
+        Ok(result)
     }
 
-    pub(crate) fn add_statements(&mut self, stmts: &[Loc<Statement>]) {
+    pub(crate) fn add_statements(&mut self, stmts: &[Loc<Statement>]) -> Result<()> {
         for stmt in stmts {
             match &stmt.inner {
                 Statement::Binding(b) => {
-                    self.inner.insert(b.name.clone(), b.ty.clone());
+                    self.insert(stmt, b.name.clone(), b.ty.clone())?;
                 }
                 Statement::Register(reg) => {
-                    self.inner.insert(reg.name.clone(), reg.ty.clone());
+                    self.insert(stmt, reg.name.clone(), reg.ty.clone())?;
                 }
                 Statement::Constant(idx, ty, _) => {
-                    self.inner.insert(idx.clone(), ty.clone());
+                    self.insert(stmt, idx.clone(), ty.clone())?;
                 }
                 Statement::Assert(_) => {}
                 Statement::Error => {}
+                Statement::Set(_, _) => {}
                 Statement::Instance {
                     name: _,
                     params: _,
@@ -65,11 +66,12 @@ impl LirTypeList {
                     verilog_attr_groups: _,
                 } => {
                     for (_, ty, name) in outputs {
-                        self.inner.insert(name.inner.clone(), ty.clone());
+                        self.insert(stmt, name.inner.clone(), ty.clone())?;
                     }
                 }
             }
         }
+        Ok(())
     }
 
     pub fn lookup(&self, name: &Loc<ValueName>) -> Result<Type> {
@@ -82,6 +84,19 @@ impl LirTypeList {
                 )
             })
             .cloned()
+    }
+
+    fn insert<T>(&mut self, loc: &Loc<T>, name: ValueName, ty: Type) -> Result<()> {
+        // NOTE(Performance) These clones are unfortunate, but make things easier for now
+        if let Some(prev) = self.inner.insert(name.clone(), ty.clone()) {
+            if prev != ty {
+                diag_bail!(
+                    loc,
+                    "Found multiple statements that define {name} but they give different types ({prev} vs {ty})"
+                );
+            }
+        }
+        Ok(())
     }
 
     /// Allows in place construction of a type list

@@ -162,6 +162,9 @@ fn statement_declaration(
                 }).collect::<Result<Vec<_>>>()?
             }
         }
+        Statement::Set(_, _) => {
+            diag_bail!(statement, "Found a `set` statement during LIR codegen");
+        }
         Statement::Error => {
             println!("WARNING: Running codegen on a Statement::Error");
             code! {
@@ -695,10 +698,8 @@ fn statement_code(
                 [0] format!("`endif")
             }
         }
-        Statement::Error => {
-            code! {
-                [0] "// Codegen ran for an error node"
-            }
+        Statement::Set(_, _) => {
+            diag_bail!(statement, "Found a `set` statement during LIR codegen");
         }
         Statement::Instance {
             name,
@@ -741,6 +742,12 @@ fn statement_code(
                     args
                 )
             }
+        }
+        Statement::Error => {
+            diag_bail!(statement, "Running codegen for an error node");
+            // code! {
+            //     [0] "// Codegen ran for an error node"
+            // }
         }
     };
     Ok(result)
@@ -874,7 +881,7 @@ pub fn unit_code(
         unit_nameid: &entity.name.source,
     };
 
-    let types = LirTypeList::from_entity(entity);
+    let types = LirTypeList::from_entity(entity)?;
 
     let mut body = Code::new();
 
