@@ -30,3 +30,36 @@ code_compiles! {
         }
     "    
 }
+
+code_compiles! {
+    copy_view_stuff,
+    "
+    struct S {
+        a: bool,
+        b: inv T,
+    }
+
+    struct T {
+        x: bool,
+    }
+
+    entity main() {
+        let (b, b_inv) = port();
+        let s = S(false, b_inv);
+        set s.b.x = false;
+    }
+    "
+}
+
+code_compiles! {
+    copy_view_tuple_can_be_indexed,
+    "
+        fn main() {
+            let t: (bool, inv bool) = (false, port().1);
+            set t.1 = true;
+
+            let x: &(bool, inv bool) = &t;
+            let b: &inv bool = x.1;
+        }
+    "
+}
