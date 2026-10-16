@@ -67,11 +67,14 @@ pub fn run_pass(entity: &mut Entity, mut pass: impl Pass) -> Result<()> {
     });
 
 
+    maybe_trace(&|| println!("Gathering types"));
+    let types = LirTypeList::from_entity(entity)?;
+
+    // We run the visit_unit pass _after_ types here, because otherwise it drops
+    // the inputs for which we need type knowledge from during Legalize.
     maybe_trace(&|| println!("Visiting entity"));
     let mut payload = pass.visit_unit(entity)?;
 
-    maybe_trace(&|| println!("Gathering types"));
-    let types = LirTypeList::from_entity(entity)?;
 
     entity.statements = entity
         .statements
