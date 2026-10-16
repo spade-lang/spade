@@ -915,7 +915,8 @@ impl BindingExt for Loc<&mir::Binding> {
                 }
             }
             mir::Operator::IndexTuple(idx) => {
-                let inner_types = match &types[&self.operands[0]].strip_copy_view_layers() {
+                let outer_type = &types[&self.operands[0]];
+                let inner_types = match &outer_type.strip_copy_view_layers() {
                     mir::types::Type::Tuple(fields) => fields.clone(),
                     mir::types::Type::Struct(fields) => {
                         fields.iter().map(|(_name, ty)| ty.clone()).collect()
@@ -925,7 +926,12 @@ impl BindingExt for Loc<&mir::Binding> {
                     }
                     _ => diag_bail!(self, "Tuple index on unsupported type ({})", self.ty),
                 };
+
+                let is_copy_view = matches!(outer_type, mir::types::Type::CopyView(_));
+
+                
                 // TODO: Also handle backward tuple indexinng
+                // TODO: If this TODO is still valid, why do no tests fail
                 maybe_fwd_operator(&|_| {
                     let sizes = inner_types.iter().map(|t| t.size()).collect::<Vec<_>>();
 
@@ -1134,3 +1140,51 @@ impl BindingExt for Loc<&mir::Binding> {
         }
     }
 }
+
+fn compute_forward_tuple_index(tuple_type: &mir::types::Type, idx: u64) -> std::ops::Range<BigUint> {
+    let inner_types = tuple_type.strip_copy_view_layers().assume_tuple_like();
+    let sizes = inner_types.iter().map(|t| t.size()).collect::<Vec<_>>();
+    compute_tuple_index(idx, &sizes, BigUint::zero())
+}
+
+fn compute_backward_tuple_index(tuple_type: &mir::types::Type, idx: u64) -> std::ops::Range<BigUint> {
+    let inner_types = tuple_type.strip_copy_view_layers().assume_tuple_like();
+    let sizes = inner_types
+        .iter()
+        .map(|t| t.backward_size())
+        .collect::<Vec<_>>();
+    compute_tuple_index(idx, &sizes, BigUint::zero())
+}
+
+fn compute_copied_backward_tuple_index(tuple_type: &mir::types::Type, idx: u64) -> std::ops::Range<BigUint> {
+    let stripped_type = tuple_type.strip_copy_view_layers();
+    let inner_types = stripped_type.assume_tuple_like();
+    let sizes = inner_types
+        .iter()
+        .map(|t| t.backward_size())
+        .collect::<Vec<_>>();
+    let offset = stripped_type.size();
+    compute_tuple_index(idx, &sizes, offset)
+}
+
+fn compute_tuple_index(
+    idx: u64,
+    sizes: &[BigUint],
+    offset: BigUint,
+) -> std::ops::Range<BigUint> {
+    // Compute the start index of the element we're looking for
+    let mut start_bit = BigUint::zero();
+    for i in 0..idx {
+        start_bit += &sizes[i as usize];
+    }
+
+    let target_width = &sizes[idx as usize];
+
+    let end_bit = &start_bit + target_width;
+
+    let total_width: BigUint = sizes.iter().sum::<BigUint>() + offset;
+
+    
+    total_width.clone() - start_bit - 1u32.to_biguint()..total_width.clone() - end_bit
+}
+
