@@ -6,8 +6,8 @@ use spade_common::{
 };
 use spade_diagnostics::{Diagnostic, diag_bail};
 use spade_hir::{
-    ImplBlock, Parameter, Struct, TraitName, TraitSpec, TypeAlias, TypeDeclaration, TypeExpression,
-    TypeSpec,
+    Enum, ImplBlock, Parameter, Struct, TraitName, TraitSpec, TypeAlias, TypeDeclaration,
+    TypeExpression, TypeSpec,
     auto_traits::{CopyWitness, DataWitness},
     symbol_table::{LangItem, TypeSymbol},
 };
@@ -139,8 +139,24 @@ impl TyExt for Loc<TypeSpec> {
 impl TyExt for Loc<TypeDeclaration> {
     fn get_copy_witness(&self, ctx: &Context) -> Option<CopyWitness> {
         match &self.kind {
-            // Enums never impl `!Copy` because their members must impl `Copy`.
-            spade_hir::TypeDeclKind::Enum(_) => None,
+            spade_hir::TypeDeclKind::Enum(e) => {
+                let Enum {
+                    documentation: _,
+                    options,
+                } = &e.inner;
+
+                options.iter().flat_map(|(_, fields)| &fields.0).find_map(
+                    |Parameter {
+                         no_mangle: _,
+                         name: _,
+                         ty,
+                         wire: _,
+                         field_translator: _,
+                     }| {
+                        ty.get_copy_witness(ctx).map(|w| w.recurse(&ty.loc()))
+                    },
+                )
+            }
             spade_hir::TypeDeclKind::Primitive(inner) => match inner {
                 spade_types::PrimitiveType::Int => None,
                 spade_types::PrimitiveType::Uint => None,
