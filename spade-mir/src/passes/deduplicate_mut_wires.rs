@@ -72,7 +72,9 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::Le
         | Operator::UnsignedLe
         | Operator::LeftShift
+        | Operator::UnsignedLeftShift
         | Operator::RightShift
+        | Operator::UnsignedRightShift
         | Operator::LogicalAnd
         | Operator::LogicalOr
         | Operator::LogicalXor

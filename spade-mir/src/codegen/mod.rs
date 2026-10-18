@@ -334,8 +334,10 @@ fn forward_expression_code(
         Operator::UnsignedGe => binop!(">="; zst => "1'b1"),
         Operator::Le => signed_binop!("<="; zst => "1'b1"),
         Operator::UnsignedLe => binop!("<="; zst => "1'b1"),
-        Operator::LeftShift => binop!("<<"),
-        Operator::RightShift => binop!(">>"),
+        Operator::LeftShift => binop!("<<<"),
+        Operator::UnsignedLeftShift => binop!("<<"),
+        Operator::RightShift => binop!(">>>"),
+        Operator::UnsignedRightShift => binop!(">>"),
         Operator::LogicalAnd => binop!("&&"),
         Operator::LogicalOr => binop!("||"),
         Operator::LogicalXor => binop!("^"),
@@ -853,7 +855,9 @@ fn backward_expression_code(
         | Operator::Le
         | Operator::UnsignedLe
         | Operator::LeftShift
+        | Operator::UnsignedLeftShift
         | Operator::RightShift
+        | Operator::UnsignedRightShift
         | Operator::LogicalAnd
         | Operator::LogicalOr
         | Operator::LogicalXor
@@ -2496,18 +2500,32 @@ mod expression_tests {
     signed_binop_test!(binop_sub_works, Type::int(2), "[1:0]", Sub, "-");
     signed_binop_test!(binop_mul_works, Type::int(2), "[1:0]", Mul, "*");
     binop_test!(
-        binop_left_shift_works,
-        Type::int(2),
+        binop_logical_left_shift_works,
+        Type::uint(2),
         "[1:0]",
-        LeftShift,
+        UnsignedLeftShift,
         "<<"
     );
     binop_test!(
-        binop_right_shift_works,
+        binop_arithmetic_left_shift_works,
+        Type::int(2),
+        "[1:0]",
+        LeftShift,
+        "<<<"
+    );
+    binop_test!(
+        binop_logical_right_shift_works,
+        Type::uint(2),
+        "[1:0]",
+        UnsignedRightShift,
+        ">>"
+    );
+    binop_test!(
+        binop_arithmetic_right_shift_works,
         Type::int(2),
         "[1:0]",
         RightShift,
-        ">>"
+        ">>>"
     );
     binop_test!(binop_eq_works, Type::Bool, "", Eq, "==");
     signed_binop_test!(binop_gt_works, Type::Bool, "", Gt, ">");

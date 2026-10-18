@@ -120,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn a_left_shifter_is_buildable() {
+    fn an_arithmetic_left_shifter_is_buildable() {
         let code = r#"
         entity name(a: int<16>, b: int<16>) -> int<16> {
             a << b
@@ -139,7 +139,26 @@ mod tests {
     }
 
     #[test]
-    fn a_right_shifter_is_buildable() {
+    fn a_logical_left_shifter_is_buildable() {
+        let code = r#"
+        entity name(a: uint<16>, b: uint<16>) -> uint<16> {
+            a << b
+        }
+        "#;
+
+        let expected = entity!(&["name"]; (
+                "a", n(0, "a"), Type::uint(16),
+                "b", n(1, "b"), Type::uint(16)
+            ) -> Type::uint(16); {
+                (e(0); Type::uint(16); UnsignedLeftShift; n(0, "a"), n(1, "b"))
+            } => e(0)
+        );
+
+        assert_same_mir!(&build_entity!(code), &expected);
+    }
+
+    #[test]
+    fn an_arithmetic_right_shifter_is_buildable() {
         let code = r#"
         entity name(a: int<16>, b: int<16>) -> int<16> {
             a >> b
@@ -151,6 +170,25 @@ mod tests {
                 "b", n(1, "b"), Type::int(16)
             ) -> Type::int(16); {
                 (e(0); Type::int(16); RightShift; n(0, "a"), n(1, "b"))
+            } => e(0)
+        );
+
+        assert_same_mir!(&build_entity!(code), &expected);
+    }
+
+    #[test]
+    fn a_logical_right_shifter_is_buildable() {
+        let code = r#"
+        entity name(a: uint<16>, b: uint<16>) -> uint<16> {
+            a >> b
+        }
+        "#;
+
+        let expected = entity!(&["name"]; (
+                "a", n(0, "a"), Type::uint(16),
+                "b", n(1, "b"), Type::uint(16)
+            ) -> Type::uint(16); {
+                (e(0); Type::uint(16); UnsignedRightShift; n(0, "a"), n(1, "b"))
             } => e(0)
         );
 

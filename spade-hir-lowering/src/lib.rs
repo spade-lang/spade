@@ -1408,24 +1408,6 @@ impl ExprLocal for Loc<Expression> {
                 );
             }
             ExprKind::BinaryOperator(lhs, op, rhs) => {
-                macro_rules! binop_builder {
-                    ($op:ident) => {{
-                        result.append(lhs.lower(ctx)?);
-                        result.append(rhs.lower(ctx)?);
-
-                        result.push_primary(
-                            mir::Statement::Binding(mir::Binding {
-                                name: self.variable(ctx)?,
-                                operator: $op,
-                                operands: vec![lhs.variable(ctx)?, rhs.variable(ctx)?],
-                                ty: self_type,
-                                loc: Some(self.loc()),
-                            })
-                            .at_loc(&self),
-                            self,
-                        );
-                    }};
-                }
                 macro_rules! dual_binop_builder {
                     ($sop:ident, $uop:ident) => {{
                         result.append(lhs.lower(ctx)?);
@@ -1460,8 +1442,8 @@ impl ExprLocal for Loc<Expression> {
                     BinaryOperator::Add => dual_binop_builder!(Add, UnsignedAdd),
                     BinaryOperator::Sub => dual_binop_builder!(Sub, UnsignedSub),
                     BinaryOperator::Mul => dual_binop_builder!(Mul, UnsignedMul),
-                    BinaryOperator::LeftShift => binop_builder!(LeftShift),
-                    BinaryOperator::RightShift => binop_builder!(RightShift),
+                    BinaryOperator::LeftShift => dual_binop_builder!(LeftShift, UnsignedLeftShift),
+                    BinaryOperator::RightShift => dual_binop_builder!(RightShift, UnsignedRightShift),
                     BinaryOperator::Div => {
                         match &rhs.inner.kind {
                             ExprKind::IntLiteral(val, _) => {
