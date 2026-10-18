@@ -27,3 +27,5 @@ pub use std::num::zext;
 
 #[deprecated = "Use `std::num::interleave` or `uint<N>::interleave` instead"]
 pub use std::ops::interleave;
+
+pub use std::undef::unused;

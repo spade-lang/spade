@@ -9,3 +9,12 @@
 pub fn undef<T>() -> T {
     core::undef::undef()
 }
+
+/// Returns an unconnected inverted signal of a given type.
+///
+/// This is equivalent to `port().1`, but the name better signals the design intent that the
+/// port is unused.
+#[inline]
+pub fn unused<T: Copy>() -> inv T {
+    port().1
+}
