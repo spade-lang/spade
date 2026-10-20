@@ -31,7 +31,7 @@ pub fn gather_macro_rules(module: &ast::ModuleBody, ctx: &mut Context) -> Result
         match item {
             ast::Item::ExternalMod(_) => {}
             ast::Item::Module(m) => {
-                ctx.in_named_namespace(m.name.clone(), |ctx| gather_macro_rules(&m.body, ctx))?
+                ctx.in_named_namespace(m.name, |ctx| gather_macro_rules(&m.body, ctx))?
             }
             ast::Item::Type(_) => {}
             ast::Item::ImplBlock(_) => {}
@@ -98,7 +98,7 @@ pub fn handle_external_modules(
                     // If we get an external module, we need to
                     // 1. check that there is an associated file
                     // 2. Replace the loc of that module with the source code
-                    let path = ctx.symtab.current_namespace().push_ident(name.clone());
+                    let path = ctx.symtab.current_namespace().push_ident(*name);
 
                     let mut deprecation_note = None;
                     em.attributes.lower(&mut |attr| match &attr.inner {
@@ -120,8 +120,8 @@ pub fn handle_external_modules(
 
                     // We're going to eagerly add the `mod` first in order to detect duplicates.
                     let name_id = ctx.symtab.add_unique_thing(
-                        Path::ident(name.clone()).at_loc(&name),
-                        Thing::Module(em.loc(), name.clone()),
+                        Path::ident(*name).at_loc(name),
+                        Thing::Module(em.loc(), *name),
                         Some(em.visibility.clone()),
                         deprecation_note,
                     )?;
@@ -129,7 +129,7 @@ pub fn handle_external_modules(
                     ctx.item_list.modules.insert(
                         name_id.clone(),
                         spade_hir::Module {
-                            name: name_id.at_loc(&name),
+                            name: name_id.at_loc(name),
                             documentation: String::new(),
                         },
                     );
@@ -156,7 +156,7 @@ pub fn handle_external_modules(
                     }
                 }
             }
-            ast::Item::Module(m) => ctx.in_named_namespace(m.name.clone(), |ctx| {
+            ast::Item::Module(m) => ctx.in_named_namespace(m.name, |ctx| {
                 handle_external_modules(this_file, Some(m), &m.body, namespaces, ctx)
             })?,
             ast::Item::Type(_) => {}
@@ -239,12 +239,12 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
                 })?;
 
                 ctx.symtab.add_unique_thing(
-                    Path::ident(m.name.clone()).at_loc(&m.name),
-                    Thing::Module(m.loc(), m.name.clone()),
+                    Path::ident(m.name).at_loc(&m.name),
+                    Thing::Module(m.loc(), m.name),
                     Some(m.visibility.clone()),
                     deprecation_note,
                 )?;
-                ctx.in_named_namespace(m.name.clone(), |ctx| {
+                ctx.in_named_namespace(m.name, |ctx| {
                     gather_traits_and_modules(&m.body, ctx)
                 })?
             }
@@ -273,8 +273,8 @@ pub fn gather_traits_and_modules(module: &ast::ModuleBody, ctx: &mut Context) ->
 
                 for u in &us.inner {
                     let new_name = match &u.alias {
-                        Some(name) => name.clone(),
-                        None => u.path.0.last().unwrap().unwrap_named().clone(),
+                        Some(name) => *name,
+                        None => *u.path.0.last().unwrap().unwrap_named(),
                     };
 
                     ctx.symtab.add_alias(
@@ -300,7 +300,7 @@ pub fn gather_types(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()> {
             }
             ast::Item::ExternalMod(_) => {}
             ast::Item::Module(m) => {
-                ctx.in_named_namespace(m.name.clone(), |ctx| gather_types(&m.body, ctx))?
+                ctx.in_named_namespace(m.name, |ctx| gather_types(&m.body, ctx))?
             }
             ast::Item::ImplBlock(_) => {}
             ast::Item::Unit(_) => {}
@@ -331,7 +331,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         ast::Item::TraitDef(def) => {
             validate_default_param_position(&def.type_params)?;
 
-            let path = Path::ident_with_loc(def.name.clone());
+            let path = Path::ident_with_loc(def.name);
             let (name, _) = ctx.symtab.lookup_trait(&path, false).map_err(|_| diag_anyhow!(def, "Did not find the trait in the trait list when looking it up during item visiting"))?;
 
             let mut paren_sugar = false;
@@ -369,7 +369,7 @@ pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
         }
         ast::Item::ExternalMod(_) => {}
         ast::Item::Module(m) => {
-            ctx.in_named_namespace(m.name.clone(), |ctx| gather_symbols(&m.body, ctx))?
+            ctx.in_named_namespace(m.name, |ctx| gather_symbols(&m.body, ctx))?
         }
         ast::Item::Use(_, _) => {}
     }
@@ -441,15 +441,15 @@ pub fn visit_generic_args(
                     traits,
                     default: _,
                 } => GenericArg::TypeName {
-                    name: name.inner.clone(),
-                    traits: visit_trait_specs(&traits, &TypeSpecKind::TraitBound, ctx)?,
+                    name: name.inner,
+                    traits: visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?,
                 },
                 ast::TypeParam::TypeWithMeta {
                     name,
                     meta,
                     default: _,
                 } => GenericArg::TypeWithMeta {
-                    name: name.inner.clone(),
+                    name: name.inner,
                     meta: visit_meta_type(meta)?,
                 },
             }
@@ -476,10 +476,10 @@ pub fn visit_trait(r#trait: &Loc<ast::TraitDef>, ctx: &mut Context) -> Result<()
         | ast::Attribute::Inline => Err(attr.report_unused("trait")),
     })?;
     ctx.symtab.add_unique_thing(
-        Path::ident(r#trait.name.clone()).at_loc(&r#trait.name.clone()),
+        Path::ident(r#trait.name).at_loc(&r#trait.name.clone()),
         Thing::Trait(
             TraitMarker {
-                name: r#trait.name.clone(),
+                name: r#trait.name,
                 paren_sugar: r#trait
                     .inner
                     .attributes
@@ -652,7 +652,7 @@ pub fn re_visit_type_declaration(
         // really messes symbol resolution up. It doesn't cause any problems
         // outside the type declaration, as it all happens inside a new scope.
         // It works fine inside the type declaration.
-        let path = Path::ident_with_loc(name.clone());
+        let path = Path::ident_with_loc(*name);
 
         ctx.symtab
             .add_type(path, symbol_type.at_loc(param), None, None);
@@ -665,7 +665,7 @@ pub fn re_visit_type_declaration(
     for arg in t.generic_args.as_ref().map(|l| &l.inner).unwrap_or(&vec![]) {
         let (name_id, _) = ctx
             .symtab
-            .lookup_type_symbol(&Path::ident_with_loc(arg.name().clone()), false)
+            .lookup_type_symbol(&Path::ident_with_loc(*arg.name()), false)
             .expect("Expected generic param to be in symtab");
         let expr = TypeExpression::TypeSpec(hir::TypeSpec::Generic(hir::Generic::Named(
             name_id.clone().at_loc(arg),
@@ -701,7 +701,7 @@ pub fn re_visit_type_declaration(
             } => hir::TypeParam {
                 name: hir::Generic::Named(name_id.clone().at_loc(name)),
                 trait_bounds: vec![],
-                meta: visit_meta_type(&meta)?,
+                meta: visit_meta_type(meta)?,
                 default: visit_default_type_expression(default, ctx)?.map(Box::new),
             },
         };
@@ -746,7 +746,7 @@ pub fn re_visit_type_declaration(
                             .secondary_label(prev, "Previously occurred here"),
                     );
                 }
-                member_names.insert(variant.name.clone());
+                member_names.insert(variant.name);
                 // Check the parameter list
                 let parameter_list = variant
                     .args
@@ -805,7 +805,7 @@ pub fn re_visit_type_declaration(
                 })?;
 
                 let variant_thing = EnumVariant {
-                    name: variant.name.clone(),
+                    name: variant.name,
                     output_type: hir::TypeSpec::Declared(
                         declaration_id.clone(),
                         output_type_exprs.clone(),
@@ -920,7 +920,7 @@ pub fn re_visit_type_declaration(
                 declaration_id.inner.clone(),
                 Thing::Struct(
                     StructCallable {
-                        name: t.name.clone(),
+                        name: t.name,
                         self_type,
                         params: members.clone(),
                         type_params: type_params.clone(),
@@ -964,7 +964,7 @@ pub fn re_visit_type_declaration(
 
             let type_spec = visit_type_spec(&a.type_spec, &TypeSpecKind::Alias, ctx)?;
 
-            if type_spec.is_inout(&ctx)? {
+            if type_spec.is_inout(ctx)? {
                 return Err(Diagnostic::error(type_spec, "Inout in alias")
                     .primary_label("This is an inout")
                     .secondary_label(&a.name, "This is an alias"));
@@ -1001,7 +1001,7 @@ pub fn re_visit_type_declaration(
                     current_name,
                     format!("... which is part of type declaration `{current_name}`"),
                 ));
-                current_name = visited_edges.get(&current_name).unwrap();
+                current_name = visited_edges.get(current_name).unwrap();
             }
 
             diag.push_subdiagnostic(Subdiagnostic::span_note(
@@ -1084,7 +1084,7 @@ fn add_type_spec_name_ids_to_graph(
     match ty {
         hir::TypeSpec::Declared(name, args) => {
             names.insert(name.inner.clone());
-            edges.insert(name.inner.clone(), prev_name.inner.clone().at_loc(&name));
+            edges.insert(name.inner.clone(), prev_name.inner.clone().at_loc(name));
             for arg in args {
                 if let hir::TypeExpression::TypeSpec(ts) = &arg.inner {
                     add_type_spec_name_ids_to_graph(ts, prev_name, names, edges);

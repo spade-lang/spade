@@ -354,7 +354,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
 
         let result = TypeDeclaration {
             visibility: visibility.clone(),
-            name: name.clone(),
+            name: name,
             kind: TypeDeclKind::Struct(
                 Struct {
                     name,
@@ -401,7 +401,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
 
         let result = TypeDeclaration {
             visibility: visibility.clone(),
-            name: name.clone(),
+            name: name,
             kind: TypeDeclKind::Enum(
                 Enum {
                     name,
@@ -493,7 +493,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
         let end = parser.eat(&TokenKind::Semi)?;
 
         Ok(TypeDeclaration {
-            name: name.clone(),
+            name: name,
             generic_args,
             kind: TypeDeclKind::Alias(
                 TypeAlias {

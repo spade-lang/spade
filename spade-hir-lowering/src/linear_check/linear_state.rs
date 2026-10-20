@@ -219,7 +219,7 @@ impl LinearTree {
                 members.iter().try_for_each(|(ident, sub)| {
                     sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
                         (
-                            InvComponentWitness::Field(ident.clone(), Box::new(witness)),
+                            InvComponentWitness::Field(*ident, Box::new(witness)),
                             loc,
                         )
                     })
@@ -325,7 +325,7 @@ impl LinearTree {
                         Ok(_) => {}
                         Err(witness) => {
                             return Err(InvComponentWitness::Field(
-                                name.clone(),
+                                *name,
                                 Box::new(witness),
                             ));
                         }
@@ -379,7 +379,7 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
                 .iter()
                 .map(|(name, ty)| {
                     (
-                        name.clone(),
+                        *name,
                         Rc::new(RefCell::new(build_linear_tree(source_loc, ty))),
                     )
                 })

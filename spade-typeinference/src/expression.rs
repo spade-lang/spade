@@ -92,7 +92,7 @@ impl TypeState {
                     diag_anyhow!(expression, "Found no entry for {value:?} in generic list. It has {generic_list:?}")
                 })?;
             Requirement::FitsIntLiteral {
-                value: ConstantInt::Generic(generic.clone()),
+                value: ConstantInt::Generic(*generic),
                 target_type: t.at_loc(expression)
             }.check_or_add(self, ctx)?;
         });
@@ -114,17 +114,17 @@ impl TypeState {
             }
 
             let depth = self.new_generic_tlint(stage.loc());
-            self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth.clone());
+            self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth);
             let depth = match &stage.inner {
                 spade_hir::expression::PipelineRefKind::Absolute(name) => {
                     let key = TypedExpression::Name(name.inner.clone());
                     let var = if !self.owned.equations.contains_key(&key) {
                         let var = self.new_generic_tlint(stage.loc());
-                        self.add_equation(key.clone(), var.clone());
+                        self.add_equation(key.clone(), var);
                         self.owned.trace_stack.push(|| TraceStackEntry::PreAddingPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     } else {
-                        let var = self.owned.equations.get(&key).unwrap().clone();
+                        let var = *self.owned.equations.get(&key).unwrap();
                         self.owned.trace_stack.push(|| TraceStackEntry::RecoveringPipelineLabel(name.inner.clone(), var.debug_resolve(self)));
                         var
                     };
@@ -135,11 +135,11 @@ impl TypeState {
                     let expr_var = self.hir_type_expr_to_var(expr, generic_list, ctx)?;
                     let total_offset = self.new_generic_tlint(stage.loc());
                     self.add_constraint(
-                        total_offset.clone(),
+                        total_offset,
                         ConstraintExpr::Sum(
                             Box::new(ConstraintExpr::Var(expr_var)),
                             Box::new(ConstraintExpr::Var(self.get_pipeline_state(expression)?
-                                .current_stage_depth.clone()))
+                                .current_stage_depth))
                         ),
                         stage.loc(),
                         &total_offset,
@@ -158,9 +158,8 @@ impl TypeState {
                 ))?;
             Requirement::ValidPipelineOffset {
                 definition_depth: pipeline_state
-                    .total_depth
-                    .clone(),
-                current_stage: pipeline_state.current_stage_depth.clone().nowhere(),
+                    .total_depth,
+                current_stage: pipeline_state.current_stage_depth.nowhere(),
                 reference_offset: depth.at_loc(stage)
             }.check_or_add(self, ctx)?;
 
@@ -326,7 +325,7 @@ impl TypeState {
             };
 
             if (index.inner as usize) < inner_types.len() {
-                let mut true_inner_type = inner_types[index.inner as usize].clone();
+                let mut true_inner_type = inner_types[index.inner as usize];
 
                 // Add layers of views again
                 for _ in 0..view_layers {
@@ -369,7 +368,7 @@ impl TypeState {
 
             let requirement = Requirement::HasField {
                 target_type: target_type.at_loc(target),
-                field: field.clone(),
+                field: *field,
                 expr: self_type.at_loc(expression)
             };
 
@@ -450,7 +449,7 @@ impl TypeState {
             let requirement = Requirement::HasMethod {
                 expr_id: expression.map_ref(|e| e.id),
                 target_type: target_type.at_loc(target),
-                method: name.clone(),
+                method: *name,
                 expr: self_type.at_loc(expression),
                 args: args_with_self,
                 turbofish: turbofish.clone(),
@@ -473,7 +472,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::AssociatedCall { kind, callee, callee_ty, name, args, turbofish, safety: _ } = &expression => {
-            self.visit_argument_list(&args, ctx, generic_list)?;
+            self.visit_argument_list(args, ctx, generic_list)?;
 
             let target_type = self.type_var_from_hir(callee.loc(), callee, generic_list, ctx)?;
             let self_type = self.type_of(&TypedExpression::Id(expression.id));
@@ -482,8 +481,8 @@ impl TypeState {
 
             let requirement = Requirement::HasMethod {
                 expr_id: expression.map_ref(|e| e.id),
-                target_type: target_type.at_loc(&callee),
-                method: name.clone(),
+                target_type: target_type.at_loc(callee),
+                method: *name,
                 expr: self_type.at_loc(expression),
                 args: args.clone(),
                 turbofish: turbofish.clone(),
@@ -611,12 +610,12 @@ impl TypeState {
             let array_type = TypeVar::array(
                 expression.loc(),
                 expression.get_type(self),
-                array_size.clone()
+                array_size
             ).insert(self);
             Requirement::ArrayIndexeeIsNonZero {
                 index: index.loc(),
-                array: array_type.clone().at_loc(target),
-                array_size: array_size.clone().at_loc(index)
+                array: array_type.at_loc(target),
+                array_size: array_size.at_loc(index)
             }.check_or_add(self, ctx)?;
             self.unify(&target.inner, &array_type, ctx)
                 .into_diagnostic(target.as_ref(), |diag, Tm{e: _expected, g: got}| {
@@ -647,9 +646,9 @@ impl TypeState {
             let inner_type = self.new_generic_type(target.loc());
 
             let in_array_size = self.new_generic_tluint(target.loc());
-            let in_array_type = TypeVar::array(expression.loc(), inner_type.clone(), in_array_size.clone()).insert(self);
+            let in_array_type = TypeVar::array(expression.loc(), inner_type, in_array_size).insert(self);
             let out_array_size = self.new_generic_tluint(target.loc());
-            let out_array_type = TypeVar::array(expression.loc(), inner_type.clone(), out_array_size.clone()).insert(self);
+            let out_array_type = TypeVar::array(expression.loc(), inner_type, out_array_size).insert(self);
 
             let (start_loc, start_var) = match start {
                 Some(c) => (c.loc(), self.visit_const_generic_with_id(c, generic_list, ConstraintSource::RangeIndex, ctx)?),
@@ -661,10 +660,10 @@ impl TypeState {
                 None => (().nowhere(), in_array_size),
             };
 
-            let out_size_constraint = ConstraintExpr::Var(end_var.clone()) - ConstraintExpr::Var(start_var.clone());
+            let out_size_constraint = ConstraintExpr::Var(end_var) - ConstraintExpr::Var(start_var);
             self.add_constraint(out_array_size, out_size_constraint, expression.loc(), &out_array_type, ConstraintSource::RangeIndex);
 
-            Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.clone().at_loc(&start_loc), end: end_var.clone().at_loc(&end_loc) }.check_or_add(self, ctx)?;
+            Requirement::RangeIndexEndAfterStart { expr: expression.loc(), start: start_var.at_loc(&start_loc), end: end_var.at_loc(&end_loc) }.check_or_add(self, ctx)?;
             Requirement::RangeIndexInArray { index: end_var.at_loc(&end_loc), size: in_array_size.at_loc(&target.loc()) }.check_or_add(self, ctx)?;
 
             self.unify(&expression.inner, &out_array_type, ctx)
@@ -698,18 +697,18 @@ impl TypeState {
 
             let (t, is_num) = match tid.resolve(self) {
                 TypeVar::Unknown(_, _, _, MetaType::Bool) => (
-                    self.t_bool(loc, &ctx.symtab),
+                    self.t_bool(loc, ctx.symtab),
                     false,
                 ),
                 TypeVar::Unknown(_, _, _, MetaType::Int) => (
-                    self.new_split_generic_int(loc, &ctx.symtab).0,
+                    self.new_split_generic_int(loc, ctx.symtab).0,
                     true,
                 ),
                 TypeVar::Unknown(_, _, _, MetaType::Uint) => (
-                    self.new_split_generic_uint(loc, &ctx.symtab).0,
+                    self.new_split_generic_uint(loc, ctx.symtab).0,
                     true,
                 ),
-                TypeVar::Unknown(_, _, _, MetaType::Number) => (self.new_generic_number(loc, &ctx).0, true),
+                TypeVar::Unknown(_, _, _, MetaType::Number) => (self.new_generic_number(loc, ctx).0, true),
                 TypeVar::Unknown(_, _, _, MetaType::Str) => {
                     return Err(Diagnostic::error(
                         loc,
@@ -731,7 +730,7 @@ impl TypeState {
                 });
             }
 
-            self.unify_expression_generic_error(expression, &t, &ctx)?;
+            self.unify_expression_generic_error(expression, &t, ctx)?;
         });
 
         Ok(())
@@ -876,14 +875,14 @@ impl TypeState {
                     let (result_t, result_size) = self.new_generic_number(expression.loc(), ctx);
 
                     self.add_constraint(
-                        result_size.clone(),
+                        result_size,
                         ce_var(&lhs_size) + ce_int(BigInt::one()),
                         expression.loc(),
                         &result_t,
                         ConstraintSource::AdditionOutput
                     );
                     self.add_constraint(
-                        lhs_size.clone(),
+                        lhs_size,
                         ce_var(&result_size) + -ce_int(BigInt::one()),
                         lhs.loc(),
                         &in_t,
@@ -907,20 +906,20 @@ impl TypeState {
 
                     // Result size is sum of input sizes
                     self.add_constraint(
-                        result_size.clone(),
+                        result_size,
                         ce_var(&lhs_size) + ce_var(&rhs_size),
                         expression.loc(),
                         &result_t,
                         ConstraintSource::MultOutput
                     );
                     self.add_constraint(
-                        lhs_size.clone(),
+                        lhs_size,
                         ce_var(&result_size) + -ce_var(&rhs_size),
                         lhs.loc(),
                         &lhs_t,
                         ConstraintSource::MultOutput
                     );
-                    self.add_constraint(rhs_size.clone(),
+                    self.add_constraint(rhs_size,
                         ce_var(&result_size) + -ce_var(&lhs_size),
                         rhs.loc(),
                         &rhs_t
@@ -987,13 +986,13 @@ impl TypeState {
                 }
                 UnaryOperator::Dereference => {
                     let inner_type = self.new_generic_copy_view(expression.loc(), ctx);
-                    let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type.clone()]).insert(self);
+                    let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type]).insert(self);
                     self.unify_expression_generic_error(expression, &inner_type, ctx)?;
                     self.unify_expression_generic_error(operand, &view_type, ctx)?
                 }
                 UnaryOperator::Reference => {
                     let inner_type = self.new_generic_type(expression.loc());
-                    let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type.clone()]).insert(self);
+                    let view_type = TypeVar::Known(expression.loc(), KnownType::CopyView, vec![inner_type]).insert(self);
                     self.unify_expression_generic_error(expression, &view_type, ctx)?;
                     self.unify_expression_generic_error(operand, &inner_type, ctx)?
                 }
@@ -1042,7 +1041,7 @@ impl TypeState {
                 self.setup_pipeline_state(
                     unit_kind,
                     body,
-                    &generic_list,
+                    generic_list,
                     depth,
                     depth_typeexpr_id,
                     ctx,
@@ -1072,7 +1071,7 @@ impl TypeState {
                                         cap.name_in_body
                                     )
                                 });
-                            Ok(t?.clone())
+                            Ok(*t?)
                         })
                         .collect::<Result<Vec<_>>>()?
                         .into_iter(),

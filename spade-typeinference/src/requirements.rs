@@ -112,12 +112,12 @@ impl Requirement {
                 expr,
             } => {
                 let mut raw_id = target_type.inner;
-                let mut raw_ty = raw_id.resolve(&type_state);
+                let mut raw_ty = raw_id.resolve(type_state);
                 let mut view_layers = 0;
 
                 while let TypeVar::Known(_, KnownType::CopyView, ref inner) = raw_ty {
                     raw_id = inner[0];
-                    raw_ty = raw_id.resolve(&type_state);
+                    raw_ty = raw_id.resolve(type_state);
                     view_layers += 1;
                 }
 
@@ -191,7 +191,7 @@ impl Requirement {
                         )?;
                         let mut field_type = if inverted {
                             match raw_field_type.resolve(type_state) {
-                                TypeVar::Known(_, KnownType::Inverted, inner) => inner[0].clone(),
+                                TypeVar::Known(_, KnownType::Inverted, inner) => inner[0],
                                 // If we were in an inverted context and we find
                                 // a type which is not a wire, we need to invert
                                 // it.
@@ -213,7 +213,7 @@ impl Requirement {
                         }
 
                         Ok(RequirementResult::Satisfied(vec![Replacement {
-                            from: expr.clone(),
+                            from: *expr,
                             to: field_type,
                             context: None,
                         }]))
@@ -253,7 +253,7 @@ impl Requirement {
                         target_type,
                         method,
                         *takes_self,
-                        &ctx.trait_impls,
+                        ctx.trait_impls,
                         type_state,
                     )?
                     else {
@@ -265,7 +265,7 @@ impl Requirement {
                     type_state.handle_function_like(
                         *expr_id,
                         &expr.inner,
-                        &FunctionLikeName::Method(method.inner.clone()),
+                        &FunctionLikeName::Method(method.inner),
                         &fn_head,
                         call_kind,
                         args,
@@ -664,7 +664,7 @@ impl Requirement {
                                 // parameters here. We know that the number of parameters should
                                 // be the same as the params of the first base we found
                                 Replacement {
-                                    from: ty.clone(),
+                                    from: *ty,
                                     to: TypeVar::Known(
                                         loc,
                                         base.inner.clone(),

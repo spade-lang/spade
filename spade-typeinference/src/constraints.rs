@@ -378,8 +378,8 @@ impl ConstraintExpr {
         ConstraintRhs {
             constraint: self,
             context: ConstraintContext {
-                replaces: replaces.clone(),
-                inside: inside.clone(),
+                replaces: *replaces,
+                inside: *inside,
                 source,
             },
         }
@@ -416,7 +416,7 @@ pub fn bits_to_store(inner: ConstraintExpr) -> ConstraintExpr {
 
 // Shorthand constructors for constraint_expr
 pub fn ce_var(v: &TypeVarID) -> ConstraintExpr {
-    ConstraintExpr::Var(v.clone())
+    ConstraintExpr::Var(*v)
 }
 pub fn ce_int(v: BigInt) -> ConstraintExpr {
     ConstraintExpr::Integer(v)
@@ -527,7 +527,7 @@ impl TypeConstraints {
                             context: rhs.context.clone(),
                         };
                         new_known
-                            .push(().at_loc(&rhs).map(|_| (expr.clone(), replacement.clone())));
+                            .push(().at_loc(&rhs).map(|_| (expr, replacement.clone())));
 
                         None
                     }
@@ -535,11 +535,11 @@ impl TypeConstraints {
                     // Integer
                     ConstraintExpr::Bool(val) => {
                         let replacement = ConstraintReplacement {
-                            val: KnownType::Bool(val.clone()),
+                            val: KnownType::Bool(*val),
                             context: rhs.context.clone(),
                         };
                         new_known
-                            .push(().at_loc(&rhs).map(|_| (expr.clone(), replacement.clone())));
+                            .push(().at_loc(&rhs).map(|_| (expr, replacement.clone())));
 
                         None
                     }
@@ -551,7 +551,7 @@ impl TypeConstraints {
                             context: rhs.context.clone(),
                         };
                         new_known
-                            .push(().at_loc(&rhs).map(|_| (expr.clone(), replacement.clone())));
+                            .push(().at_loc(&rhs).map(|_| (expr, replacement.clone())));
 
                         None
                     }
@@ -575,7 +575,7 @@ impl TypeConstraints {
                     | ConstraintExpr::Product(_, _)
                     | ConstraintExpr::IntBitsToRepresent(_)
                     | ConstraintExpr::UintBitsToRepresent(_)
-                    | ConstraintExpr::Sub(_) => Some((expr.clone(), rhs)),
+                    | ConstraintExpr::Sub(_) => Some((expr, rhs)),
                 }
             })
             .collect();

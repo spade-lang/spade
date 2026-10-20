@@ -73,7 +73,7 @@ pub fn methods_for_type<'a>(
                  impl_block: r#impl,
              }| {
                 r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
-                    let is_overlapping = spec_is_overlapping(&r#impl.target, &ty, type_state);
+                    let is_overlapping = spec_is_overlapping(&r#impl.target, ty, type_state);
                     match is_overlapping {
                         Overlap::Yes => Some((fn_name, actual_fn)),
                         Overlap::Maybe => None,
@@ -99,7 +99,7 @@ pub fn select_method(
     type_state: &TypeState,
 ) -> Result<Option<(Loc<NameID>, i32)>, Diagnostic> {
     let self_type = self_type_id.resolve(type_state);
-    let mut raw_self_type_id = self_type_id.clone();
+    let mut raw_self_type_id = *self_type_id;
     let mut raw_self_type = self_type.clone();
     let mut self_view_layers_delta = 0i32;
 

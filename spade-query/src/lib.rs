@@ -225,7 +225,7 @@ impl<'a> QueryCache {
             crate::ExprKind::ConstTypeExpr(_) => {}
             crate::ExprKind::Block(b) => {
                 for stmt in &b.statements {
-                    self.visit_statements(&stmt)
+                    self.visit_statements(stmt)
                 }
                 if let Some(result) = &b.result {
                     self.visit_expression(result)
@@ -299,17 +299,17 @@ impl<'a> QueryCache {
             } => {
                 self.handle_nameid(name.clone());
                 if let Some(pat) = inner {
-                    self.visit_pattern(&pat);
+                    self.visit_pattern(pat);
                 }
             }
             PatternKind::Tuple(inner) => {
                 for pat in inner {
-                    self.visit_pattern(&pat);
+                    self.visit_pattern(pat);
                 }
             }
             PatternKind::Array(inner) => {
                 for pat in inner {
-                    self.visit_pattern(&pat);
+                    self.visit_pattern(pat);
                 }
             }
             PatternKind::Type(base, args) => {

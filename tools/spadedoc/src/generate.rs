@@ -198,7 +198,7 @@ impl Generator {
                         .or_default()
                         .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_type(b, &t, &docs))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_type(b, t, &docs))?;
                 }
                 ast::Item::ExternalMod(m) => {
                     let name = m.name.as_str();
@@ -245,7 +245,7 @@ impl Generator {
                         .or_default()
                         .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_unit(b, &u, &docs))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_unit(b, u, &docs))?;
                 }
                 ast::Item::MacroDef(m) => {
                     let name = m.name.as_str();
@@ -255,7 +255,7 @@ impl Generator {
                         .or_default()
                         .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_macro(b, &m, &docs))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_macro(b, m, &docs))?;
                 }
                 ast::Item::TraitDef(t) => {
                     let name = t.name.as_str();
@@ -265,7 +265,7 @@ impl Generator {
                         .or_default()
                         .push(ItemListEntry::new(name, &docs));
 
-                    self.describe(FileName::Item(name), |g, b| g.doc_trait(b, &t, &docs))?;
+                    self.describe(FileName::Item(name), |g, b| g.doc_trait(b, t, &docs))?;
                 }
                 ast::Item::Use(_, _) => {}
             }
@@ -285,7 +285,7 @@ impl Generator {
                             .or_default()
                             .push(ItemListEntry::new(name, &docs));
 
-                        self.describe(FileName::Primitive(name), |g, b| g.doc_primitive(b, &m))?;
+                        self.describe(FileName::Primitive(name), |g, b| g.doc_primitive(b, m))?;
                     }
                     _ => {}
                 }
@@ -398,7 +398,7 @@ impl Generator {
 
         let nameid = self
             .symtab
-            .lookup_id(&Path::ident(t.name.clone()).nowhere(), true)
+            .lookup_id(&Path::ident(t.name).nowhere(), true)
             .unwrap();
 
         let attrs = match &t.inner.kind {
@@ -496,7 +496,7 @@ impl Generator {
                         fwrite!(body, " for ");
                     }
                     self.print_type_spec(body, target)?;
-                    self.print_where_clauses(body, &where_clauses)?;
+                    self.print_where_clauses(body, where_clauses)?;
                     Ok(())
                 })
             },
@@ -561,7 +561,7 @@ impl Generator {
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Trait, t.name.as_str())?;
-            self.in_codeblock(body, |b| self.print_trait_def(b, &t))?;
+            self.in_codeblock(body, |b| self.print_trait_def(b, t))?;
             if let Some(dep) = get_deprecation(&t.attributes) {
                 self.deprecation_note(body, dep)?;
             }
@@ -575,7 +575,7 @@ impl Generator {
         main(body, |body| {
             self.path_breadcrumbs(body)?;
             write_title(body, ItemKind::Macro, m.name.as_str())?;
-            self.in_codeblock(body, |b| self.print_macro_def(b, &m))?;
+            self.in_codeblock(body, |b| self.print_macro_def(b, m))?;
             if let Some(dep) = get_deprecation(&m.attributes) {
                 self.deprecation_note(body, dep)?;
             }

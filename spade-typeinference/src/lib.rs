@@ -334,7 +334,7 @@ impl TypeState {
 
                 let tvar = self.new_generic_any();
                 self.add_constraint(
-                    tvar.clone(),
+                    tvar,
                     constraint,
                     g.loc(),
                     &tvar,
@@ -408,7 +408,7 @@ impl TypeState {
                         let mappings = generic_args
                             .iter()
                             .zip(&params)
-                            .map(|(p, tv)| (p.name.clone(), tv.clone()));
+                            .map(|(p, tv)| (p.name.clone(), *tv));
 
                         gl.extend(mappings);
                     });
@@ -416,7 +416,7 @@ impl TypeState {
                     return self.type_var_from_hir_with_obligations(
                         loc,
                         &a.type_spec,
-                        &generic_list_token,
+                        generic_list_token,
                         ctx,
                     );
                 }
@@ -431,9 +431,9 @@ impl TypeState {
                 .ok_or_else(|| {
                     diag_anyhow!(loc, "Found no generic list for {}", name.pretty_print())
                 })?
-                .get(&name)
+                .get(name)
             {
-                Some(t) => t.clone(),
+                Some(t) => *t,
                 None => {
                     info!("Current source is {generic_list_token:?}");
                     panic!("No entry in generic list for {name:?}");
@@ -520,7 +520,7 @@ impl TypeState {
         symtab: &SymbolTable,
     ) -> (TypeVarID, TypeVarID) {
         let size = self.new_generic_tlint(loc);
-        let full = self.add_type_var(TypeVar::Known(loc, t_int(symtab), vec![size.clone()]));
+        let full = self.add_type_var(TypeVar::Known(loc, t_int(symtab), vec![size]));
         (full, size)
     }
 
@@ -530,7 +530,7 @@ impl TypeState {
         symtab: &SymbolTable,
     ) -> (TypeVarID, TypeVarID) {
         let size = self.new_generic_tluint(loc);
-        let full = self.add_type_var(TypeVar::Known(loc, t_uint(symtab), vec![size.clone()]));
+        let full = self.add_type_var(TypeVar::Known(loc, t_uint(symtab), vec![size]));
         (full, size)
     }
 
@@ -612,7 +612,7 @@ impl TypeState {
         let size = self.new_generic_tluint(loc);
         let t = TraitReq {
             name: TraitName::Named(Some(path.inner), number.nowhere()),
-            type_params: vec![size.clone()],
+            type_params: vec![size],
         }
         .nowhere();
         (
@@ -1044,7 +1044,7 @@ impl TypeState {
         match &expr.kind {
             ExprKind::Block(inner) => {
                 for stmt in &inner.statements {
-                    self.statement_data_constraints(&stmt, pipeline_loc, ctx)
+                    self.statement_data_constraints(stmt, pipeline_loc, ctx)
                         .handle_in(&mut self.owned.diags);
                 }
                 if let Some(result) = &inner.result {
@@ -1056,8 +1056,8 @@ impl TypeState {
                 on_true,
                 on_false,
             } => {
-                self.expression_data_constraints(&on_true, pipeline_loc, ctx)?;
-                self.expression_data_constraints(&on_false, pipeline_loc, ctx)?;
+                self.expression_data_constraints(on_true, pipeline_loc, ctx)?;
+                self.expression_data_constraints(on_false, pipeline_loc, ctx)?;
             }
             ExprKind::TypeLevelMatch {
                 expression: _,
@@ -1155,7 +1155,7 @@ impl TypeState {
         ctx: &Context,
     ) -> Result<()> {
         let depth_var = self.hir_type_expr_to_var(depth, generic_list, ctx)?;
-        self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth_var.clone());
+        self.add_equation(TypedExpression::Id(*depth_typeexpr_id), depth_var);
         self.owned.pipeline_state = Some(PipelineState {
             current_stage_depth: self.add_type_var(TypeVar::Known(
                 unit_kind.loc(),
@@ -1163,7 +1163,7 @@ impl TypeState {
                 vec![],
             )),
             pipeline_loc: body_loc.loc(),
-            total_depth: depth_var.clone().at_loc(depth),
+            total_depth: depth_var.at_loc(depth),
         });
         self.add_requirement(Requirement::PositivePipelineDepth {
             depth: depth_var.at_loc(depth),
@@ -1209,7 +1209,7 @@ impl TypeState {
             } = arg;
 
             let mut target_tv =
-                self.type_var_from_hir(value.loc(), &target_type, generic_list, ctx)?;
+                self.type_var_from_hir(value.loc(), target_type, generic_list, ctx)?;
 
             let mut value_tv = value.inner.get_type(self);
 
@@ -1532,7 +1532,7 @@ impl TypeState {
                 // NOTE: We're not adding udepth_typeexpr_id here as that would break
                 // in the future if we try to do recursion. We will also never need to look
                 // up the depth in the definition
-                self.add_equation(TypedExpression::Id(*cdepth_typeexpr_id), call_depth.clone());
+                self.add_equation(TypedExpression::Id(*cdepth_typeexpr_id), call_depth);
 
                 self.unify(&call_depth, &definition_depth, ctx)
                     .into_diagnostic_no_expected_source(
@@ -1550,7 +1550,7 @@ impl TypeState {
         }
 
         if visit_args {
-            self.visit_argument_list(args, ctx, &generic_list)?;
+            self.visit_argument_list(args, ctx, generic_list)?;
         }
 
         let type_params = &head.get_type_params();
@@ -1696,21 +1696,21 @@ impl TypeState {
 
         // Result size is sum of input sizes
         self.add_constraint(
-            result_size.clone(),
+            result_size,
             ce_var(&lhs_size) + ce_var(&rhs_size),
             expression_id.loc(),
             &result_size,
             ConstraintSource::Concatenation,
         );
         self.add_constraint(
-            lhs_size.clone(),
+            lhs_size,
             ce_var(&result_size) + -ce_var(&rhs_size),
             args[0].value.loc(),
             &lhs_size,
             ConstraintSource::Concatenation,
         );
         self.add_constraint(
-            rhs_size.clone(),
+            rhs_size,
             ce_var(&result_size) + -ce_var(&lhs_size),
             args[1].value.loc(),
             &rhs_size,
@@ -1786,7 +1786,7 @@ impl TypeState {
         .insert(self);
 
         self.add_constraint(
-            addr_size.clone(),
+            addr_size,
             bits_to_store(ce_var(&num_elements) - ce_int(1.to_bigint())),
             args[1].value.loc(),
             &port_type,
@@ -1811,7 +1811,7 @@ impl TypeState {
         let (addr_type, addr_size) = self.new_split_generic_uint(args[1].value.loc(), ctx.symtab);
 
         self.add_constraint(
-            addr_size.clone(),
+            addr_size,
             bits_to_store(ce_var(&num_elements) - ce_int(1.to_bigint())),
             args[1].value.loc(),
             &addr_type,
@@ -1874,7 +1874,7 @@ impl TypeState {
                                 default: _,
                             } => {
                                 if name.name_id().map(|p| p.1.tail())
-                                    == Some(PathSegment::Named(matched_param.target.clone()))
+                                    == Some(PathSegment::Named(*matched_param.target))
                                 {
                                     Some(i)
                                 } else {
@@ -2006,7 +2006,7 @@ impl TypeState {
             .into_iter()
             .chain(hidden_type_params.into_iter())
             .chain(scope_type_params.into_iter())
-            .map(|(name, t)| (name, t.clone()))
+            .map(|(name, t)| (name, t))
             .collect::<HashMap<_, _>>();
 
         self.owned.trace_stack.push(|| {
@@ -2042,7 +2042,7 @@ impl TypeState {
                         target,
                         Vec::from_iter(all_transitive_traits).as_slice(),
                         &token,
-                        &ctx,
+                        ctx,
                     )?;
                 }
                 WhereClause::Int {
@@ -2065,26 +2065,26 @@ impl TypeState {
                     match kind {
                         spade_hir::WhereClauseKind::Eq => {
                             self.add_constraint(
-                                tvar.clone(),
+                                *tvar,
                                 int_constraint,
                                 constraint.loc(),
-                                &tvar,
+                                tvar,
                                 ConstraintSource::Where,
                             );
                         }
                         _ => {
                             let rhsvar = self.new_generic_tlint(constraint.loc());
                             self.add_constraint(
-                                rhsvar.clone(),
+                                rhsvar,
                                 int_constraint,
                                 constraint.loc(),
-                                &tvar,
+                                tvar,
                                 ConstraintSource::Where,
                             );
 
                             self.add_requirement(Requirement::WhereInequality {
                                 var: target.clone(),
-                                lhs: tvar.clone().at_loc(&target.loc()),
+                                lhs: (*tvar).at_loc(&target.loc()),
                                 rhs: rhsvar.at_loc(&constraint.loc()),
                                 inequality: *kind,
                                 message: if_unsatisfied.clone(),
@@ -2190,7 +2190,7 @@ impl TypeState {
                                 let loc = trait_name
                                     .name_loc()
                                     .map(|n| ().at_loc(&n))
-                                    .unwrap_or(().at_loc(&impl_block));
+                                    .unwrap_or(().at_loc(impl_block));
 
                                 let trait_type_params = trait_args
                                     .iter()
@@ -2259,7 +2259,7 @@ impl TypeState {
                 let (num_t, _) = &self.new_generic_number(pattern.loc(), ctx);
                 self.add_requirement(Requirement::FitsIntLiteral {
                     value: ConstantInt::Literal(val.clone()),
-                    target_type: num_t.clone().at_loc(pattern),
+                    target_type: (*num_t).at_loc(pattern),
                 });
                 self.unify(pattern, num_t, ctx)
                     .expect("Failed to unify new_generic with int");
@@ -2546,7 +2546,7 @@ impl TypeState {
                         count_typeexpr_id,
                     }) => {
                         let var = self.hir_type_expr_to_var(count, generic_list, ctx)?;
-                        self.add_equation(TypedExpression::Id(*count_typeexpr_id), var.clone());
+                        self.add_equation(TypedExpression::Id(*count_typeexpr_id), var);
                         var
                     }
                     Some(PipelineRegMarkerExtra::Condition(_)) | None => self.add_type_var(
@@ -2562,10 +2562,10 @@ impl TypeState {
                     .pipeline_state
                     .as_mut()
                     .expect("Expected to have a pipeline state")
-                    .current_stage_depth = new_depth.clone();
+                    .current_stage_depth = new_depth;
 
                 self.add_constraint(
-                    new_depth.clone(),
+                    new_depth,
                     total_depth,
                     stmt.loc(),
                     &new_depth,
@@ -2587,10 +2587,10 @@ impl TypeState {
                             var.debug_resolve(self),
                         )
                     });
-                    self.add_equation(key.clone(), var.clone());
+                    self.add_equation(key.clone(), var);
                     var
                 } else {
-                    let var = self.owned.equations.get(&key).unwrap().clone();
+                    let var = *self.owned.equations.get(&key).unwrap();
                     self.owned.trace_stack.push(|| {
                         TraceStackEntry::RecoveringPipelineLabel(
                             name.inner.clone(),
@@ -2802,7 +2802,7 @@ impl TypeState {
                 )
             })?;
 
-            let Some(tvar) = generic_list.get(&target) else {
+            let Some(tvar) = generic_list.get(target) else {
                 return Err(Diagnostic::bug(
                     target.loc(),
                     "Couldn't find generic from where clause in generic list",
@@ -2852,7 +2852,7 @@ impl TypeState {
     ) -> Result<TypeVarID> {
         let var = match &generic.inner.inner {
             ConstGeneric::Name(name) => {
-                let ty = &ctx.symtab.type_symbol_by_id(&name);
+                let ty = &ctx.symtab.type_symbol_by_id(name);
                 match &ty.inner {
                     TypeSymbol::Declared(_, _, _) => {
                         return Err(Diagnostic::error(
@@ -2915,9 +2915,9 @@ impl TypeState {
             | ConstGeneric::LogicalXor(_, _) => self.new_generic_tlbool(generic.loc()),
         };
         let constraint = self.visit_const_generic(&generic.inner.inner, generic_list_token)?;
-        self.add_equation(TypedExpression::Id(generic.id), var.clone());
+        self.add_equation(TypedExpression::Id(generic.id), var);
         self.add_constraint(
-            var.clone(),
+            var,
             constraint,
             generic.loc(),
             &var,
@@ -3038,8 +3038,8 @@ impl TypeState {
         self.owned
             .trace_stack
             .push(|| TraceStackEntry::AddingEquation(expression.clone(), var.debug_resolve(self)));
-        if let Some(prev) = self.owned.equations.insert(expression.clone(), var.clone()) {
-            let var = var.clone();
+        if let Some(prev) = self.owned.equations.insert(expression.clone(), var) {
+            let var = var;
             let expr = expression.clone();
             println!("{}", format_trace_stack(self));
             panic!(
@@ -3059,8 +3059,8 @@ impl TypeState {
         inside: &TypeVarID,
         source: ConstraintSource,
     ) {
-        let replaces = lhs.clone();
-        let rhs = rhs.with_context(&replaces, &inside, source).at_loc(&loc);
+        let replaces = lhs;
+        let rhs = rhs.with_context(&replaces, inside, source).at_loc(&loc);
 
         self.owned
             .trace_stack
@@ -3149,7 +3149,7 @@ impl TypeState {
                         s.owned
                             .trace_stack
                             .push(|| TraceStackEntry::Message("Adding context".to_string()));
-                        return Err(e).add_context(v1.clone(), v2.clone());
+                        return Err(e).add_context(v1, v2);
                     }
                 };
             }
@@ -3193,7 +3193,7 @@ impl TypeState {
 
                                 let new_ts1 = ctx.symtab.type_symbol_by_id(n1).inner;
                                 let new_ts2 = ctx.symtab.type_symbol_by_id(n2).inner;
-                                unify_params(self, &p1, &p2)?;
+                                unify_params(self, p1, p2)?;
                                 unify_if!(new_ts1 == new_ts2, v1, vec![])
                             }
                             (TypeSymbol::Declared(_, _, _), TypeSymbol::GenericArg { traits }) => {
@@ -3235,7 +3235,7 @@ impl TypeState {
                         // Note, replacements should only occur when a variable goes from Unknown
                         // to Known, not when the base is the same. Replacements take care
                         // of parameters. Therefore, None is returned here
-                        unify_params(self, &p1, &p2)?;
+                        unify_params(self, p1, p2)?;
                         Ok((v1, vec![]))
                     }
                     (_, _) => Err(err_producer!()),
@@ -3360,7 +3360,7 @@ impl TypeState {
                     => {
                         let new = self.add_type_var(TypeVar::Known(*loc, base.clone(), new_params));
 
-                        Ok((new, vec![otherid.clone(), ukid.clone()]))
+                        Ok((new, vec![*otherid, *ukid]))
                     },
                     // Integers match uints but only if the concrete integer is >= 0
                     (KnownType::Integer(val), MetaType::Uint)
@@ -3370,7 +3370,7 @@ impl TypeState {
                         } else {
                             let new = self.add_type_var(TypeVar::Known(*loc, base.clone(), new_params));
 
-                            Ok((new, vec![otherid.clone(), ukid.clone()]))
+                            Ok((new, vec![*otherid, *ukid]))
                         }
                     },
 
@@ -3504,7 +3504,7 @@ impl TypeState {
 
                 // NOTE: safe unwrap. We already checked the constraint above
                 let expected_type = self.add_type_var(TypeVar::Known(loc, replacement.val, vec![]));
-                let result = self.unify_inner(&expected_type.clone().at_loc(&loc), &var, ctx);
+                let result = self.unify_inner(&expected_type.at_loc(&loc), &var, ctx);
                 let is_meta_error = matches!(result, Err(UnificationError::MetaMismatch { .. }));
                 match result {
                     Ok(_) => {}

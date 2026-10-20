@@ -235,7 +235,7 @@ impl KeywordPeekingParser<Loc<Statement>> for DeclParser {
                 .primary_label("this decl does not declare anything"));
         }
 
-        let last_ident = identifiers.last().unwrap().clone();
+        let last_ident = *identifiers.last().unwrap();
 
         Ok(Statement::Declaration(identifiers).between(
             parser.file_id(),
@@ -268,10 +268,10 @@ impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
                 "Label parser was called but it did not get a label"
             )
         };
-        parser.disallow_attributes(attributes, &tok)?;
-        parser.disallow_visibility(visibility, &tok)?;
+        parser.disallow_attributes(attributes, tok)?;
+        parser.disallow_visibility(visibility, tok)?;
 
-        Ok(Statement::Label(l.clone().at(parser.file_id(), &tok.span))
+        Ok(Statement::Label((*l).at(parser.file_id(), &tok.span))
             .at(parser.file_id(), &tok.span))
     }
 }

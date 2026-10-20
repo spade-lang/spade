@@ -301,7 +301,7 @@ impl TypeVar {
     pub fn into_known(&self, type_state: &TypeState) -> Option<KnownTypeVar> {
         match self {
             TypeVar::Known(loc, base, params) => Some(KnownTypeVar(
-                loc.clone(),
+                *loc,
                 base.clone(),
                 params
                     .iter()
@@ -552,7 +552,7 @@ impl KnownTypeVar {
     pub fn insert(&self, type_state: &mut TypeState) -> TypeVarID {
         let KnownTypeVar(loc, base, params) = self;
         TypeVar::Known(
-            loc.clone(),
+            *loc,
             base.clone(),
             params.into_iter().map(|p| p.insert(type_state)).collect(),
         )

@@ -53,15 +53,15 @@ impl<'a> Pass for LowerMethods<'a> {
                     &self_type,
                     name,
                     true,
-                    &self.impls,
-                    &self.type_state,
+                    self.impls,
+                    self.type_state,
                 )?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
                         format!(
                             "Incorrect method call. None or Multiple candidates exist for {self_type}",
-                            self_type = self_type.display(&self.type_state)
+                            self_type = self_type.display(self.type_state)
                         ),
                     ));
                 };
@@ -137,15 +137,15 @@ impl<'a> Pass for LowerMethods<'a> {
                     &callee_ty,
                     name,
                     false,
-                    &self.impls,
-                    &self.type_state,
+                    self.impls,
+                    self.type_state,
                 )?
                 else {
                     return Err(Diagnostic::bug(
                         expression.loc(),
                         format!(
                             "Incorrect method call. None or Multiple candidates exist for {self_type}",
-                            self_type = callee_ty.display(&self.type_state)
+                            self_type = callee_ty.display(self.type_state)
                         ),
                     ));
                 };

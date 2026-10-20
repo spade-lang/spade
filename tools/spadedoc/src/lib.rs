@@ -158,7 +158,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
                     ().nowhere(),
-                    namespace.namespace.0.last().unwrap().unwrap_named().clone(),
+                    *namespace.namespace.0.last().unwrap().unwrap_named(),
                 ),
                 Some(Visibility::Implicit.nowhere()),
                 None,
@@ -264,7 +264,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
             // be safe.
             generator
                 .symtab
-                .push_namespace(PathSegment::Named(ident.clone()));
+                .push_namespace(PathSegment::Named(*ident));
         }
         std::fs::create_dir_all(&generator.current_dir).or_report(&mut errors);
         generator

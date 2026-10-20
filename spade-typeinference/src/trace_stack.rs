@@ -26,7 +26,7 @@ impl TypeState {
             {
                 before();
                 self.print_equations();
-                println!("{}", format_trace_stack(&self));
+                println!("{}", format_trace_stack(self));
             }
         }
     }

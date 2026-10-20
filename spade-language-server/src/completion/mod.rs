@@ -125,7 +125,7 @@ impl ServerBackend {
                                 if !name.1 .0.is_empty() && name.1.prelude().0 == full_path {
                                     let thing = follow_aliases(symtab.symtab(), thing)
                                         .map(|(_, thing)| thing)
-                                        .unwrap_or(thing.clone());
+                                        .unwrap_or(*thing);
 
                                     let name = name.1.tail();
                                     let Some(name) = name.to_named_str() else {
@@ -502,7 +502,7 @@ fn type_field_completions(
     has_inst: bool,
     has_depth: bool,
 ) -> Option<CompletionResponse> {
-    let methods = methods_for_type(&trait_impls, &ty, type_state)
+    let methods = methods_for_type(trait_impls, ty, type_state)
         .into_iter()
         .filter_map(|(method, fn_info)| {
             let actual_fn = symtab.unit_by_id(&fn_info.name);

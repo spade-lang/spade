@@ -468,9 +468,9 @@ impl Generator {
                     fwrite!(b, "&gt;");
                 }
 
-                self.print_type_expr(b, &args)?;
+                self.print_type_expr(b, args)?;
                 fwrite!(b, " -&gt; ");
-                self.print_type_expr(b, &ret)?;
+                self.print_type_expr(b, ret)?;
             } else {
                 fwrite!(b, "&lt;");
                 separated(b, ", ", args.inner.iter(), |b, expr| {

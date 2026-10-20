@@ -47,7 +47,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
 
                             let id = symtab.add_type_with_id(
                                 id,
-                                Path::ident_with_loc(a.clone().nowhere()),
+                                Path::ident_with_loc((*a).nowhere()),
                                 TypeSymbol::GenericArg { traits: vec![] }.nowhere(),
                                 None,
                                 None,
@@ -62,7 +62,7 @@ pub fn populate_symtab(symtab: &mut SymbolTable, item_list: &mut ItemList) {
                         GenericArg::TypeWithMeta { name, meta } => {
                             let id = symtab.add_type_with_id(
                                 id,
-                                Path::ident_with_loc(name.clone().nowhere()),
+                                Path::ident_with_loc((*name).nowhere()),
                                 TypeSymbol::GenericMeta(meta.clone()).nowhere(),
                                 None,
                                 None,

@@ -156,7 +156,7 @@ pub fn run_global_compilation_tasks(
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
                     ().nowhere(),
-                    namespace.namespace.0.last().unwrap().unwrap_named().clone(),
+                    *namespace.namespace.0.last().unwrap().unwrap_named(),
                 ),
                 Some(Visibility::Implicit.nowhere()),
                 None,
@@ -380,7 +380,7 @@ pub fn run_local_compilation_steps(
         &global_state.idtracker,
         &name_source_map,
         &global_state.item_list,
-        &opt_passes,
+        opt_passes,
         &global_state.impl_type_state,
         &global_state.mapped_trait_impls,
     );

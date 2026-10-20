@@ -207,7 +207,7 @@ impl ServerBackend {
                             };
 
                             Some(FieldInfo::Field {
-                                name: param.name.clone(),
+                                name: param.name,
                                 st: s.clone(),
                                 field_ty: param.ty.inner.clone(),
                             })

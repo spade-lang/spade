@@ -160,7 +160,7 @@ impl Pattern {
                 pre_declared: _,
                 inner,
                 wire,
-            } => vec![(name.clone(), wire.clone())]
+            } => vec![(name.clone(), *wire)]
                 .into_iter()
                 .chain(inner.iter().flat_map(|i| i.get_names_and_wireness()))
                 .collect(),
@@ -492,9 +492,9 @@ impl TraitSpec {
             paren_syntax: self.paren_syntax,
             type_params: self.type_params.as_ref().map(|tp| {
                 tp.iter()
-                    .map(|e| e.inner.clone().replace_in(from, to).at_loc(&e))
+                    .map(|e| e.inner.clone().replace_in(from, to).at_loc(e))
                     .collect::<Vec<_>>()
-                    .at_loc(&tp)
+                    .at_loc(tp)
             }),
         }
     }

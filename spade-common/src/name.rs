@@ -187,7 +187,7 @@ impl Path {
         Path(
             elems
                 .iter()
-                .map(|x| PathSegment::Named((*x).clone()))
+                .map(|x| PathSegment::Named(*(*x)))
                 .collect(),
         )
     }

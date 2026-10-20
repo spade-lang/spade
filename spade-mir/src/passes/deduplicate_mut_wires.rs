@@ -189,7 +189,7 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
                     }
                 }
             }
-            .map(|s| s.at_loc(&stmt))
+            .map(|s| s.at_loc(stmt))
         })
         .collect::<Vec<_>>();
 

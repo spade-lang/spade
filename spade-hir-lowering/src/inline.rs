@@ -67,7 +67,7 @@ impl<'a> InlinedStatements<'a> {
                             },
                             initial: reg.initial.clone(),
                             value: get_final_name(&reg.value),
-                            loc: reg.loc.clone(),
+                            loc: reg.loc,
                         }),
                         Statement::Constant(value_name, ty, constant_value) => Statement::Constant(
                             get_final_name(value_name),
@@ -82,7 +82,7 @@ impl<'a> InlinedStatements<'a> {
                         Statement::Seal { name, ty, variant } => Statement::Seal {
                             name: get_final_name(name),
                             ty: ty.clone(),
-                            variant: variant.clone(),
+                            variant: *variant,
                         },
                     };
                     new_statements.push(new.at_loc(stmt));
@@ -140,12 +140,12 @@ impl<'a> InlinedStatements<'a> {
                 let result_binding = Statement::Binding(Binding {
                     name: name_map
                         .get(outer_output_name)
-                        .unwrap_or(&outer_output_name)
+                        .unwrap_or(outer_output_name)
                         .clone(),
                     operator: Operator::Alias,
                     operands: vec![
                         new_name_map
-                            .get(&inner_output_name)
+                            .get(inner_output_name)
                             .ok_or_else(|| {
                                 diag_anyhow!(
                                     *loc,
@@ -155,7 +155,7 @@ impl<'a> InlinedStatements<'a> {
                             .clone(),
                     ],
                     ty: (*ty).clone(),
-                    loc: Some((*loc).clone()),
+                    loc: Some(*loc ),
                 })
                 .at_loc(loc);
 
@@ -301,7 +301,7 @@ fn perform_inlining<'a>(
                                         // we're fine
                                         TypedExpression::Name(NameID(
                                             *id,
-                                            Path::from_strs(&[&name]),
+                                            Path::from_strs(&[name]),
                                         ))
                                     }
                                     ValueName::Expr(expr_id) => TypedExpression::Id(*expr_id),

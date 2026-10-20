@@ -772,7 +772,7 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
             subfields: members
                 .iter()
                 .map(|(f, inner)| {
-                    let inner = info_from_concrete(&inner)?;
+                    let inner = info_from_concrete(inner)?;
                     let inner = if let Some(translator) = field_translators.get(f) {
                         match inner {
                             VariableInfo::Bits => {

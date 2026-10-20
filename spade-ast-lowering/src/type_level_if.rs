@@ -100,7 +100,7 @@ pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Uni
     let expand_body =
         |new_body: &Loc<Expression>, name_segment: PathSegment, ctx: &mut Context| -> Result<_> {
             let mut new_unit = unit.clone();
-            let absorbed = absorb_statements(&new_body, &body.statements, ctx)?;
+            let absorbed = absorb_statements(new_body, &body.statements, ctx)?;
             new_unit.attributes.0.push(Attribute::Inline.at_loc(&unit));
             new_unit.body = match &absorbed.kind {
                 ExprKind::TypeLevelIf { .. } | ExprKind::TypeLevelMatch { .. } => {
@@ -160,7 +160,7 @@ pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Uni
                      }| {
                         ExprKind::Identifier(name.inner.clone())
                             .with_id(ctx.idtracker.next())
-                            .at_loc(&name)
+                            .at_loc(name)
                     },
                 )
                 .collect(),
@@ -203,8 +203,8 @@ pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Uni
             on_true,
             on_false,
         }) => {
-            let on_true = expand_body(&on_true, PathSegment::IfT, ctx)?;
-            let on_false = expand_body(&on_false, PathSegment::IfT, ctx)?;
+            let on_true = expand_body(on_true, PathSegment::IfT, ctx)?;
+            let on_false = expand_body(on_false, PathSegment::IfT, ctx)?;
 
             let new_on_true = call_expanded(on_true, ctx);
             let new_on_false = call_expanded(on_false, ctx);
@@ -252,7 +252,7 @@ pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Uni
                                 count_typeexpr_id: ctx.idtracker.next(),
                             },
                         ))
-                        .at_loc(&depth),
+                        .at_loc(depth),
                     ]
                 })
                 .unwrap_or_default();
@@ -285,7 +285,7 @@ pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Uni
                 .enumerate()
                 .map(|(idx, (pat, expr))| {
                     let p = pat.clone();
-                    let e = expand_body(&expr, PathSegment::MatchCase(idx as u64), ctx)?;
+                    let e = expand_body(expr, PathSegment::MatchCase(idx as u64), ctx)?;
                     let new_e = call_expanded(e, ctx);
 
                     Ok((p, new_e))
@@ -334,7 +334,7 @@ pub fn expand_gen_expr(mut unit: Loc<Unit>, ctx: &mut Context) -> Result<Loc<Uni
                                 count_typeexpr_id: ctx.idtracker.next(),
                             },
                         ))
-                        .at_loc(&depth),
+                        .at_loc(depth),
                     ]
                 })
                 .unwrap_or_default();
