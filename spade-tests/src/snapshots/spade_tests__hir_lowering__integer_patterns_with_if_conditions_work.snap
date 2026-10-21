@@ -2,7 +2,7 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n106, int<16>)) -> bool {
+entity \uwu ((e, e_n114, int<16>)) -> bool {
 	let e791: int<16> = Nop()
 	let e4: int<16> = Alias(e791)
 	const e6: int<7> = 6
@@ -14,8 +14,8 @@ entity \uwu ((e, e_n106, int<16>)) -> bool {
 	let e792: bool = LogicalAnd(e794, e5)
 	const e8: bool = true
 	let e795: int<16> = Nop()
-	let __n107: int<16> = Alias(e795)
+	let __n115: int<16> = Alias(e795)
 	const e796: bool = true
 	const e10: bool = false
-	let e2: bool = Match(e_n106, e791, e792, e8, e795, e796, e10)
+	let e2: bool = Match(e_n114, e791, e792, e8, e795, e796, e10)
 } => e2

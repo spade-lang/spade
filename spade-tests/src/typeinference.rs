@@ -36,12 +36,12 @@ fn type_inference_works_for_arrays() {
 #[test]
 fn type_inference_works_for_generics() {
     let code = r#"
-    enum Option<T> {
+    enum Opt<T> {
         Some{value: T},
         None
     }
-    entity name() -> Option<int<16>> {
-        Option::Some(0)
+    entity name() -> Opt<int<16>> {
+        Opt::Some(0)
     }
     "#;
     build_items(code);
@@ -2033,7 +2033,7 @@ snapshot_error! {
 code_compiles! {
     method_unknown_type_regression,
     "
-        struct Some<T> {val: T}
+        struct Something<T> {val: T}
 
         struct Command {}
         impl Command {
@@ -2041,10 +2041,10 @@ code_compiles! {
         }
 
         entity i2c_controller(
-            command: Some<Command>,
+            command: Something<Command>,
         ) {
             let _ = match command {
-                Some(command) => {
+                Something(command) => {
                     let _ = command.into_bytes();
                     true
                 },
@@ -2238,23 +2238,23 @@ code_compiles! {
             }
         }
         use std::conv::trunc;
-        enum Option<T> {
+        enum Opt<T> {
             Some{val: T},
             None
         }
 
-        impl<T> Option<T> {
-            fn map<F, O>(self, f: F) -> Option<O>
+        impl<T> Opt<T> {
+            fn map<F, O>(self, f: F) -> Opt<O>
                 where F: Fn(T) -> O
             {
-                Option::Some(f.call((0, )))
+                Opt::Some(f.call((0, )))
             }
         }
 
 
         fn test() {
-            let x = Option::Some(8u8);
-            let addr: Option<uint<4>> = x.map(fn |addr| {trunc(addr)});
+            let x = Opt::Some(8u8);
+            let addr: Opt<uint<4>> = x.map(fn |addr| {trunc(addr)});
         }
     "
 }

@@ -872,6 +872,7 @@ pub fn core_files() -> Vec<(ModuleNamespace, String, String)> {
         (["core"], ["core", "macros"], "../core/macros.spade"),
         (["core"], ["core", "marker"], "../core/marker.spade"),
         (["core"], ["core", "ops"], "../core/ops.spade"),
+        (["core"], ["core", "option"], "../core/option.spade"),
         (["core"], ["core", "ports"], "../core/ports.spade"),
         (["core"], ["core", "undef"], "../core/undef.spade")
     }

@@ -4,12 +4,12 @@ source: spade-tests/src/integration.rs
 enum Option<T> {}
 
 error: Multiple items with the same name
-  ┌─ testinput:1:6
-  │
-1 │ enum Option<T> {}
-  │      ^^^^^^ Option is defined multiple times
-  │
-  ┌─ <compiler dir>/stdlib/prelude.spade:4:9
-  │
-4 │ pub use std::option::Option;
-  │         ------------------- Previous definition here
+   ┌─ testinput:1:6
+   │
+ 1 │ enum Option<T> {}
+   │      ^^^^^^ Option is defined multiple times
+   │
+   ┌─ <compiler dir>/core/prelude.spade:16:5
+   │
+16 │ use core::option::Option;
+   │     -------------------- Previous definition here

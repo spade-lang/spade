@@ -2,11 +2,11 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n106, (int<16>, bool))) -> bool {
+entity \uwu ((e, e_n114, (int<16>, bool))) -> bool {
 	let e800: (int<16>, bool) = Nop()
 	let e6: (int<16>, bool) = Alias(e800)
 	let e4: int<16> = IndexTuple(0)(e800)
-	let b_n107: bool = IndexTuple(1)(e800)
+	let b_n115: bool = IndexTuple(1)(e800)
 	const e8: int<7> = 6
 	const e9: int<7> = 8
 	let e817: bool = Eq(e8, e9)
@@ -18,7 +18,7 @@ entity \uwu ((e, e_n106, (int<16>, bool))) -> bool {
 	let e806: bool = LogicalAnd(e805, e7)
 	let e807: (int<16>, bool) = Nop()
 	let e13: (int<16>, bool) = Alias(e807)
-	let x_n108: int<16> = IndexTuple(0)(e807)
+	let x_n116: int<16> = IndexTuple(0)(e807)
 	let e12: bool = IndexTuple(1)(e807)
 	const e15: int<7> = 0
 	const e16: int<7> = 1
@@ -29,8 +29,8 @@ entity \uwu ((e, e_n106, (int<16>, bool))) -> bool {
 	let e812: bool = LogicalAnd(e811, e14)
 	const e17: bool = true
 	let e813: (int<16>, bool) = Nop()
-	let __n109: (int<16>, bool) = Alias(e813)
+	let __n117: (int<16>, bool) = Alias(e813)
 	const e814: bool = true
 	const e19: bool = false
-	let e2: bool = Match(e_n106, e800, e806, b_n107, e807, e812, e17, e813, e814, e19)
+	let e2: bool = Match(e_n114, e800, e806, b_n115, e807, e812, e17, e813, e814, e19)
 } => e2

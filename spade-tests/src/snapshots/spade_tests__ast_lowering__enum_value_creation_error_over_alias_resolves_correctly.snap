@@ -1,28 +1,25 @@
 ---
 source: spade-tests/src/ast_lowering.rs
 ---
-enum Opt<T> {
-    Test1 {value: T},
-    Test2,
-}
+use Option::Some as Same;
 
-use Opt::Test1;
-
-entity main() -> Opt<int<8>> {
-    Test1
+entity main() -> Option<int<8>> {
+    Same
 }
 
 
-error: Expected Test1 to be a value
-  ┌─ testinput:9:5
-  │
-2 │     Test1 {value: T},
-  │     ----- Test1 is a enum variant
-  ·
-9 │     Test1
-  │     ^^^^^ Expected a value
-  │
-  = Consider specifying the arguments to the variant
-  │
-9 │     Test1(/* value */)
-  │          +++++++++++++
+error: Expected Same to be a value
+   ┌─ testinput:4:5
+   │
+ 4 │     Same
+   │     ^^^^ Expected a value
+   │
+   ┌─ <compiler dir>/core/option.spade:39:5
+   │
+39 │     Some { value: T },
+   │     ---- Same is a enum variant
+   │
+   = Consider specifying the arguments to the variant
+   │
+ 4 │     Same(/* value */)
+   │         +++++++++++++

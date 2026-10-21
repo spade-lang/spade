@@ -1,0 +1,40 @@
+//! Representing (Valid, Data)-pairs
+//!
+//! The `Option` type represents values which are not always present. In hardware terms
+//! it is used to represent a (valid, data)-pair. The compiler ensures that the invalid
+//! case is dealt with when an option type is used, preventing accidental reading of
+//! invalid values.
+//!
+//! Valid values are written as `Some(value)` while invalid values are written `None`.
+//!
+//! The primary way to interact with `Option` types is via `match` statements. For example,
+//! To transform the underlying data by adding one, you can write:
+//!
+//! ```spade,notest
+//! match option {
+//!     Some(value) => Some(value + 1),
+//!     None => None
+//! }
+//!
+//! ```
+
+/// Represents a (valid, data) pair.
+///
+/// The option type represents a value which may or may not be present, essentially a
+/// valid/invalid signal that comes bundled with the data that signal validates.
+///
+/// When a value is present and valid, it is `Some(value)` and when it is invalid, it is `None`.
+/// The primary way to interact with `Option` types is via `match` statements. For example,
+/// To transform the underlying data by adding one, you can write:
+///
+/// ```spade,notest
+/// match option {
+///     Some(value) => Some(value + 1),
+///     None => None
+/// };
+///
+/// ```
+pub enum Option<T> {
+    None,
+    Some { value: T },
+}

@@ -629,10 +629,6 @@ snapshot_error! {
 #[test]
 fn type_inference_works_for_declared_variables() {
     let code = r#"
-    enum Option<T> {
-        Some{val: T},
-        None
-    }
     fn test() -> bool {
         let x: Option<(int<8>, int<8>)> = Option::Some((0, 0));
 
@@ -819,7 +815,7 @@ snapshot_error! {
 fn global_use_statements_work_across_modules() {
     let code = r#"
         mod std {
-            pub enum Option<T> {
+            pub enum Opt<T> {
                 Some{val: T},
                 None
             }
@@ -827,10 +823,10 @@ fn global_use_statements_work_across_modules() {
 
 
         mod submod {
-            use std::Option;
+            use std::Opt;
 
-            fn x() -> Option<bool> {
-                Option::None()
+            fn x() -> Opt<bool> {
+                Opt::None()
             }
         }
         "#;
@@ -842,8 +838,8 @@ fn global_use_statements_work_across_modules() {
 fn use_statements_are_visible_before_appearing_in_source_code() {
     let code = r#"
         mod std {
-            pub mod option {
-                pub enum Option<T> {
+            pub mod Opt {
+                pub enum Opt<T> {
                     Some{val: T},
                     None
                 }
@@ -853,12 +849,12 @@ fn use_statements_are_visible_before_appearing_in_source_code() {
         mod mcp3002 {
             mod adc {
                 struct SpiOut {
-                    received_data: Option<int<16>>
+                    received_data: Opt<int<16>>
                 }
             }
         }
 
-        use std::option::Option;
+        use std::Opt::Opt;
         "#;
 
     build_items(code);
@@ -1338,15 +1334,10 @@ snapshot_error! {
 snapshot_error! {
     enum_value_creation_error_over_alias_resolves_correctly,
     "
-    enum Opt<T> {
-        Test1 {value: T},
-        Test2,
-    }
+    use Option::Some as Same;
 
-    use Opt::Test1;
-
-    entity main() -> Opt<int<8>> {
-        Test1
+    entity main() -> Option<int<8>> {
+        Same
     }
     "
 }

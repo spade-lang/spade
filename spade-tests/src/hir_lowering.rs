@@ -2742,11 +2742,6 @@ snapshot_mir! {
 snapshot_mir! {
     spadev_regfile_regression,
     "
-        enum Option<T> {
-            None,
-            Some{val: T}
-        }
-
         pub struct RegfilePort {
             write: inv Option<uint<5>>,
         }

@@ -2,7 +2,7 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n109, enum option [], option [])) -> bool {
+entity \uwu ((e, e_n117, enum option [], option [])) -> bool {
 	let e791: enum option [], option [] = Nop()
 	let e4: enum option [], option [] = Alias(e791)
 	seal e791: enum option [], option [] (variant 0)
@@ -14,8 +14,8 @@ entity \uwu ((e, e_n109, enum option [], option [])) -> bool {
 	let e794: bool = LogicalAnd(e793, e5)
 	const e8: bool = true
 	let e795: enum option [], option [] = Nop()
-	let __n110: enum option [], option [] = Alias(e795)
+	let __n118: enum option [], option [] = Alias(e795)
 	const e796: bool = true
 	const e10: bool = false
-	let e2: bool = Match(e_n109, e791, e794, e8, e795, e796, e10)
+	let e2: bool = Match(e_n117, e791, e794, e8, e795, e796, e10)
 } => e2

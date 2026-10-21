@@ -1067,11 +1067,6 @@ code_compiles! {
 snapshot_mir! {
     enum_variant_direction_is_correct,
     "
-        enum Option<T> {
-            None,
-            Some{val: T},
-        }
-
         fn test(
             o0: inv Option<uint<8>>,
         ) {
