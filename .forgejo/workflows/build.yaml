@@ -28,6 +28,29 @@ jobs:
         run: |
           cargo test --locked --color=always
 
+  clippy:
+    runs-on: ["fbs", "xlarge", "debian-13-x86_64"]
+    container:
+      image: rust:1.89
+    steps:
+      - name: "Pre-clone checkout"
+        run: |
+          apt-get update
+          apt-get install -y nodejs
+      - name: "Checkout"
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+      - name: dependencies
+        run: |
+          apt-get install build-essential
+      - name: install clippy
+        run: |
+            rustup component add clippy
+      - name: cargo clippy
+        run: |
+            cargo clippy --workspace         
+            
   fmt:
     runs-on: ["fbs", "medium", "debian-13-x86_64"]
     container:
