@@ -20,6 +20,7 @@ function run_tests {(
     cargo +stable fmt -- --check && \
     maybe_typos && \
     cargo test && \
+    cargo clippy --workspace && \
     sh -c "cd output_test && make" && \
     sh -c "cd swim_tests && swim test" && \
     sh -c "cd swim_test_errors && python3 snapshot.py"  && \
