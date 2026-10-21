@@ -1,8 +1,8 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use camino::Utf8Path;
 use color_eyre::eyre::{bail, Context};
-use rustc_hash::FxHashMap as HashMap;
 use spade::{Artefacts, CompilationResult, ModuleNamespace, UnfinishedArtefacts};
 use spade_codespan_reporting::term::termcolor::Buffer;
 use spade_common::location_info::{Loc, WithLocation};
@@ -101,7 +101,7 @@ impl ServerBackend {
         // be re-built
         modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
-    ) -> HashMap<Url, Vec<Diagnostic>> {
+    ) -> BTreeMap<Url, Vec<Diagnostic>> {
         macro_rules! try_or_warn {
             ($expr:expr, $prefix:expr $(,)?) => {
                 if let Err(e) = $expr {
@@ -109,7 +109,7 @@ impl ServerBackend {
                         .client_log_chan
                         .send((MessageType::ERROR, format!("Failed to compile. {e:?}")))
                         .await;
-                    return HashMap::default();
+                    return BTreeMap::default();
                 } else {
                     $expr.unwrap()
                 }
@@ -147,7 +147,7 @@ impl ServerBackend {
         root_dir: &RootDir,
         modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
-    ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
+    ) -> color_eyre::Result<BTreeMap<Url, Vec<Diagnostic>>> {
         let swim_toml = root_dir.swim_toml_file();
         if !swim_toml.0.exists() {
             bail!("swim.toml doesn't exist");
@@ -199,7 +199,7 @@ impl ServerBackend {
         files: &[SpadeFile],
         modified_file: Option<(&Utf8Path, &str)>,
         _version: Option<i32>,
-    ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
+    ) -> color_eyre::Result<BTreeMap<Url, Vec<Diagnostic>>> {
         let file_names: Vec<String> = files.iter().map(|f| f.path.to_string()).collect();
         let _ = self
             .client_log_chan
@@ -263,7 +263,7 @@ impl ServerBackend {
         );
         let diagnostics = std::mem::take(&mut *diagnostics.lock().unwrap());
 
-        let mut diagnostics_per_file: HashMap<Url, Vec<Diagnostic>> = files
+        let mut diagnostics_per_file: BTreeMap<Url, Vec<Diagnostic>> = files
             .iter()
             .map(|spade_file| {
                 (
@@ -341,7 +341,7 @@ impl ServerBackend {
         file: &Utf8Path,
         modified_file: Option<(&Utf8Path, &str)>,
         version: Option<i32>,
-    ) -> color_eyre::Result<HashMap<Url, Vec<Diagnostic>>> {
+    ) -> color_eyre::Result<BTreeMap<Url, Vec<Diagnostic>>> {
         self.try_compile_files(
             &[SpadeFile {
                 namespace: Namespace {

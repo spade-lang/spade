@@ -1,7 +1,6 @@
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering, collections::BTreeMap, rc::Rc};
 
 use num::ToPrimitive;
-use rustc_hash::FxHashMap as HashMap;
 use spade_diagnostics::Diagnostic;
 use tracing::trace;
 
@@ -191,7 +190,7 @@ struct LinearTree {
 #[derive(Debug)]
 enum LinearTreeKind {
     Leaf(UsageInfo),
-    Struct(HashMap<Identifier, Rc<RefCell<LinearTree>>>),
+    Struct(BTreeMap<Identifier, Rc<RefCell<LinearTree>>>),
     Tuple(Vec<Rc<RefCell<LinearTree>>>),
     Array(Vec<Rc<RefCell<LinearTree>>>),
     CopyView(Rc<RefCell<LinearTree>>),
@@ -273,7 +272,7 @@ impl LinearTree {
         }
     }
 
-    fn struct_(fields: HashMap<Identifier, Rc<RefCell<LinearTree>>>) -> Self {
+    fn struct_(fields: BTreeMap<Identifier, Rc<RefCell<LinearTree>>>) -> Self {
         Self {
             kind: LinearTreeKind::Struct(fields),
             aliases: vec![],
@@ -305,7 +304,7 @@ impl LinearTree {
         }
     }
 
-    pub fn assume_struct(&self) -> &HashMap<Identifier, Rc<RefCell<LinearTree>>> {
+    pub fn assume_struct(&self) -> &BTreeMap<Identifier, Rc<RefCell<LinearTree>>> {
         match &self.kind {
             LinearTreeKind::Struct(inner) => inner,
             _ => panic!("Assumed tree was tuple, got {:?}", self.kind),
@@ -422,7 +421,7 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
     }
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, PartialOrd, Ord)]
 pub enum ItemReference {
     Name(NameID),
     Anonymous(ExprID),
@@ -449,13 +448,13 @@ impl std::fmt::Display for ItemReference {
 pub struct LinearState {
     /// The trees visible via references, either names or expression IDs. Multiple
     /// references can refer to the same tree
-    trees: HashMap<ItemReference, Rc<RefCell<LinearTree>>>,
+    trees: BTreeMap<ItemReference, Rc<RefCell<LinearTree>>>,
 }
 
 impl LinearState {
     pub fn new() -> Self {
         Self {
-            trees: HashMap::default(),
+            trees: BTreeMap::default(),
         }
     }
 

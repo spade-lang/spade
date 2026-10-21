@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{Entity, MirInput, Operator, Register, Statement, ValueName};
 use itertools::Itertools;
@@ -57,7 +57,7 @@ pub fn flatten_aliases(entity: &mut Entity) {
     let mut alias_clusters = vec![];
 
     while let Some((source, _edges)) = edges.first_key_value() {
-        let mut this_cluster = HashSet::default();
+        let mut this_cluster = BTreeSet::default();
         let mut to_visit = VecDeque::new();
         to_visit.push_front(source.clone());
 

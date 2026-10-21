@@ -77,6 +77,9 @@ codegen-units=1
 rust.unknown_lints = "allow"
 
 [workspace.lints.clippy]
+
+iter_over_hash_type="warn"
+
 # Allow all lints that were hit at the start of the clippy linting initiative, to be gradually corrected
 bind_instead_of_map="allow"
 bool_comparison="allow"

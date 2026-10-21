@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use spade_common::location_info::Loc;
@@ -9,17 +11,17 @@ type TargetArgs = Vec<TypeExpression>;
 type TraitArgs = Vec<TypeExpression>;
 
 type ConcreteImpls = HashMap<TargetArgs, Vec<(TraitArgs, Loc<ImplBlock>)>>;
-type ImplementedTraits = HashMap<TraitName, ConcreteImpls>;
+type ImplementedTraits = BTreeMap<TraitName, ConcreteImpls>;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct ImplTab {
-    pub inner: HashMap<ImplTarget, ImplementedTraits>,
+    pub inner: BTreeMap<ImplTarget, ImplementedTraits>,
 }
 
 impl ImplTab {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::default(),
+            inner: BTreeMap::default(),
         }
     }
 

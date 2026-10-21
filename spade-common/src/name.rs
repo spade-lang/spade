@@ -21,7 +21,7 @@ pub enum Visibility {
     AtSuperSuper,
 }
 
-#[derive(Debug, Clone, Copy, Eq)]
+#[derive(Debug, Clone, Copy, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Identifier(&'static str);
 

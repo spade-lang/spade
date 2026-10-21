@@ -310,7 +310,7 @@ impl std::fmt::Display for TypeExpression {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialOrd, Ord)]
 pub enum Generic {
     Named(Loc<NameID>),
     Hidden(Loc<GenericID>),
@@ -947,7 +947,7 @@ pub enum ExecutableItem {
     ExternUnit(UnitName, Loc<UnitHead>),
 }
 
-pub type TypeList = HashMap<NameID, Loc<TypeDeclaration>>;
+pub type TypeList = BTreeMap<NameID, Loc<TypeDeclaration>>;
 
 // Helper to implement std traits for `TraitName`
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]

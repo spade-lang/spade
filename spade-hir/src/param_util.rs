@@ -323,6 +323,7 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                 })
                 .collect::<Result<Vec<_>, ArgumentError>>()?;
 
+            #[allow(clippy::iter_over_hash_type, reason = "sorted after the for loop")]
             for name in unbound.clone() {
                 // NOTE: Safe unwraps, all these are guaranteed to exist because they belong to an
                 // unbound parameter

@@ -1,4 +1,5 @@
-use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use spade_common::{id_tracker::ExprID, location_info::Loc, name::NameID};
 use spade_hir::{Expression, Pattern};
@@ -65,7 +66,7 @@ impl std::fmt::Display for NamedValue {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NameSourceMap {
-    pub inner: HashMap<ValueName, NamedValue>,
+    pub inner: BTreeMap<ValueName, NamedValue>,
 }
 
 impl Default for NameSourceMap {
@@ -77,7 +78,7 @@ impl Default for NameSourceMap {
 impl NameSourceMap {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::default(),
+            inner: BTreeMap::default(),
         }
     }
 

@@ -14,9 +14,9 @@ fn e(p: (uint<1>, inv bool)) {
 
 
 error: Unused value with inverted wires
-  ┌─ testinput:6:13
+  ┌─ testinput:3:13
   │
-6 │         (1, pi) => {
+3 │         (0, pi) => {
   │             ^^ `pi` is unused
   │
   = note: Inverted wires must be set exactly once

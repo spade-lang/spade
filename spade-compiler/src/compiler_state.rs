@@ -109,7 +109,7 @@ pub struct StoredCompilerState {
     pub floating_nodes: FloatingNodes,
 
     pub instance_map: Option<InstanceMap>,
-    pub mir_context: Option<HashMap<NameID, StoredMirContext>>,
+    pub mir_context: Option<BTreeMap<NameID, StoredMirContext>>,
 }
 
 impl StoredCompilerState {

@@ -2168,7 +2168,8 @@ impl TypeState {
 
         for (target, impls) in &item_list.impls.inner {
             for (trait_name, impls) in impls {
-                for (target_args, impls) in impls {
+                // to ensure static order sort this by the debug string, alphabetically
+                for (target_args, impls) in impls.iter().sorted_by_key(|e| format!("{e:?}")) {
                     for (trait_args, impl_block) in impls {
                         let result =
                             (|| {

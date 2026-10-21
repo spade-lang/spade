@@ -1553,17 +1553,18 @@ impl SymbolTable {
             let indent = (1..level + 1).map(|_| "\t").collect::<Vec<_>>().join("");
             println!(">>> new_scope",);
 
-            for (path, name) in &scope.vars {
-                println!(
-                    "{indent}{path} => {name}",
+            let text = scope.vars.iter().map(|(path, name)| {
+                format!(
+                    "{indent}{path} => {name}\n",
                     path = format!("{path}").cyan(),
                     name = format!("{name:?}").yellow()
-                );
-            }
+                )
+            });
+            print!("{}", text.sorted().collect::<String>());
         }
 
         println!("Things:");
-        for (name, thing) in &self.things {
+        for (name, thing) in self.things.iter().sorted_by_key(|a| a.0) {
             print!("{}: ", format!("{name:?}").purple());
             match thing {
                 Thing::Struct(_) => println!("struct"),
@@ -1586,7 +1587,7 @@ impl SymbolTable {
         }
 
         println!("Types:");
-        for name in self.types.keys() {
+        for name in self.types.keys().sorted_by_key(|a| a.0) {
             print!("{}: ", format!("{name:?}").purple());
             println!("type");
         }

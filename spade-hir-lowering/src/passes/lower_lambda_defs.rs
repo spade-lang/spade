@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, RwLock},
+};
 
 use rustc_hash::FxHashMap as HashMap;
 use spade_common::{
@@ -22,7 +25,7 @@ use super::pass::Pass;
 pub(crate) struct LambdaReplacement {
     pub new_body: Loc<Expression>,
     pub arguments: Vec<(Loc<Pattern>, KnownTypeVar)>,
-    pub outer_type_params: HashMap<Generic, Generic>,
+    pub outer_type_params: BTreeMap<Generic, Generic>,
     pub clock: Option<Loc<NameID>>,
     pub captures: Vec<(Loc<Identifier>, Loc<NameID>)>,
 }
