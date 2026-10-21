@@ -25,3 +25,6 @@ local-impl = "0.1.2"
 argh = "0.1.13"
 jotdown = "0.9.1"
 logos.workspace = true
+
+[lints]
+workspace = true

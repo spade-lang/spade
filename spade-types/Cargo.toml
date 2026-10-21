@@ -20,3 +20,6 @@ num.workspace = true
 rustc-hash.workspace = true
 
 spade-common.workspace = true
+
+[lints]
+workspace = true

@@ -22,3 +22,6 @@ proc-macro2 = "1.0"
 
 [dev-dependencies]
 trybuild = "1.0.71"
+
+[lints]
+workspace = true

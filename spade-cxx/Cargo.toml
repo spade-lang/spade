@@ -20,3 +20,6 @@ spade-simulation-ext = {path = "../spade-simulation-ext"}
 
 [build-dependencies]
 cxx-build = "1.0"
+
+[lints]
+workspace = true

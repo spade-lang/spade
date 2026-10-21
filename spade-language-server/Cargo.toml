@@ -39,3 +39,6 @@ tap = "1.0.1"
 prettydiff.workspace = true
 insta = "1.43.1"
 owo-colors = "4.2.1"
+
+[lints]
+workspace = true

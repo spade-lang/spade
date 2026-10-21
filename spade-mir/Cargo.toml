@@ -32,3 +32,6 @@ colored.workspace = true
 spade-codespan.workspace = true
 prettydiff.workspace = true
 pretty_assertions.workspace = true
+
+[lints]
+workspace = true

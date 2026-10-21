@@ -34,3 +34,6 @@ spade-types.workspace = true
 # spade-testutil = {path = "../spade-testutil"}
 pretty_assertions.workspace = true
 matches = "0.1"
+
+[lints]
+workspace = true

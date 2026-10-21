@@ -22,3 +22,6 @@ serde.workspace = true
 
 spade-common.workspace = true
 spade-diagnostics.workspace = true
+
+[lints]
+workspace = true

@@ -34,3 +34,6 @@ spade-types.workspace = true
 spade-ast = {path = "../spade-ast"}
 assert_matches = "1.5"
 spade-ast-lowering = {path = "../spade-ast-lowering"}
+
+[lints]
+workspace = true

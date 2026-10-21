@@ -23,3 +23,6 @@ spade-hir-lowering = {path = "../spade-hir-lowering"}
 spade-common = {path = "../spade-common"}
 spade-lang = {path = "../spade-compiler"}
 spade-ast = {path = "../spade-ast"}
+
+[lints]
+workspace = true

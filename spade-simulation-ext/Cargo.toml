@@ -37,3 +37,6 @@ vcd-translate = {path = "../vcd-translate"}
 
 [features]
 python = ["pyo3"]
+
+[lints]
+workspace = true

@@ -36,3 +36,6 @@ spade-simulation-ext = {path = "../spade-simulation-ext", features = ["python"]}
 spade-typeinference = {path = "../spade-typeinference"}
 spade-types = {path = "../spade-types"}
 vcd-translate = {path = "../vcd-translate"}
+
+[lints]
+workspace = true

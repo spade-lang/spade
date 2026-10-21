@@ -27,3 +27,6 @@ spade-ast.workspace = true
 spade-common.workspace = true
 spade-diagnostics.workspace = true
 spade-macros.workspace = true
+
+[lints]
+workspace = true

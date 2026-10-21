@@ -34,4 +34,7 @@ itertools.workspace = true
 spade-hir.workspace = true
 postcard.workspace = true
 
+[lints]
+workspace = true
+
 

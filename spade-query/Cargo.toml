@@ -13,3 +13,6 @@ spade-ast.workspace = true
 spade-hir.workspace = true
 spade-common.workspace = true
 serde.workspace = true
+
+[lints]
+workspace = true

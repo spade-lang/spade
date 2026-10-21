@@ -38,3 +38,6 @@ colored.workspace = true
 insta.workspace = true
 prettydiff.workspace = true
 pretty_assertions.workspace = true
+
+[lints]
+workspace = true

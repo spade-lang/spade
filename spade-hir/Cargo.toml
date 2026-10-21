@@ -27,3 +27,6 @@ tracing.workspace = true
 spade-common.workspace = true
 spade-diagnostics.workspace = true
 spade-types.workspace = true
+
+[lints]
+workspace = true
