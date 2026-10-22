@@ -184,6 +184,9 @@ pub enum UsageInfo {
 #[derive(Debug)]
 struct LinearTree {
     pub kind: LinearTreeKind,
+    // The number of nested conditional blocks in which this tree was defined. Consumption
+    // can only happen at the same depth to prevent consuming wires conditionally
+    pub depth: u64,
     pub aliases: Vec<Loc<ItemReference>>,
 }
 
@@ -199,11 +202,20 @@ enum LinearTreeKind {
 pub type ConsumptionError = (InvComponentWitness, Loc<()>);
 
 impl LinearTree {
+    pub fn is_limited(&self) -> bool {
+        match &self.kind {
+            LinearTreeKind::Leaf(usage_info) => !matches!(usage_info, UsageInfo::Unlimited),
+            LinearTreeKind::Struct(inner) => inner.values().any(|t| t.borrow().is_limited()),
+            LinearTreeKind::Tuple(inner) => inner.iter().any(|t| t.borrow().is_limited()),
+            LinearTreeKind::Array(inner) => inner.iter().any(|t| t.borrow().is_limited()),
+            LinearTreeKind::CopyView(_) => false,
+        }
+    }
     /// Attempts to mark this node as consumed, returning a witness to a node
     /// which is being doubly consumed if consumption is not possible.
     ///
     /// If consumption is possible, returns the new state of the tree.
-    pub fn try_consume(&mut self, loc: Loc<()>) -> Result<(), ConsumptionError> {
+    pub fn try_consume(&mut self, at_depth: u64, loc: Loc<()>) -> Result<(), ConsumptionError> {
         match &mut self.kind {
             LinearTreeKind::Leaf(state) => match state {
                 UsageInfo::Unlimited => Ok(()),
@@ -216,28 +228,34 @@ impl LinearTree {
             },
             LinearTreeKind::Struct(members) => {
                 members.iter().try_for_each(|(ident, sub)| {
-                    sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (
-                            InvComponentWitness::Field(ident.clone(), Box::new(witness)),
-                            loc,
-                        )
-                    })
+                    sub.borrow_mut()
+                        .try_consume(at_depth, loc)
+                        .map_err(|(witness, loc)| {
+                            (
+                                InvComponentWitness::Field(ident.clone(), Box::new(witness)),
+                                loc,
+                            )
+                        })
                 })?;
                 Ok(())
             }
             LinearTreeKind::Tuple(members) => {
                 members.iter().enumerate().try_for_each(|(i, sub)| {
-                    sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (InvComponentWitness::TupleIndex(i, Box::new(witness)), loc)
-                    })
+                    sub.borrow_mut()
+                        .try_consume(at_depth, loc)
+                        .map_err(|(witness, loc)| {
+                            (InvComponentWitness::TupleIndex(i, Box::new(witness)), loc)
+                        })
                 })?;
                 Ok(())
             }
             LinearTreeKind::Array(members) => {
                 members.iter().enumerate().try_for_each(|(i, sub)| {
-                    sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (InvComponentWitness::ArrayIndex(i, Box::new(witness)), loc)
-                    })
+                    sub.borrow_mut()
+                        .try_consume(at_depth, loc)
+                        .map_err(|(witness, loc)| {
+                            (InvComponentWitness::ArrayIndex(i, Box::new(witness)), loc)
+                        })
                 })?;
                 Ok(())
             }
@@ -245,7 +263,7 @@ impl LinearTree {
         }
     }
 
-    fn leaf(is_limited: bool) -> Self {
+    fn leaf(is_limited: bool, depth: u64) -> Self {
         let usage = if is_limited {
             UsageInfo::Unused
         } else {
@@ -254,34 +272,39 @@ impl LinearTree {
 
         Self {
             kind: LinearTreeKind::Leaf(usage),
+            depth,
             aliases: vec![],
         }
     }
 
-    fn tuple(inner: Vec<Rc<RefCell<LinearTree>>>) -> Self {
+    fn tuple(inner: Vec<Rc<RefCell<LinearTree>>>, depth: u64) -> Self {
         Self {
             kind: LinearTreeKind::Tuple(inner),
+            depth,
             aliases: vec![],
         }
     }
 
-    fn array(inner: Vec<Rc<RefCell<LinearTree>>>) -> Self {
+    fn array(inner: Vec<Rc<RefCell<LinearTree>>>, depth: u64) -> Self {
         Self {
             kind: LinearTreeKind::Array(inner),
+            depth,
             aliases: vec![],
         }
     }
 
-    fn struct_(fields: BTreeMap<Identifier, Rc<RefCell<LinearTree>>>) -> Self {
+    fn struct_(fields: BTreeMap<Identifier, Rc<RefCell<LinearTree>>>, depth: u64) -> Self {
         Self {
             kind: LinearTreeKind::Struct(fields),
+            depth,
             aliases: vec![],
         }
     }
 
-    fn copy_view(inner: Rc<RefCell<LinearTree>>) -> Self {
+    fn copy_view(inner: Rc<RefCell<LinearTree>>, depth: u64) -> Self {
         Self {
             kind: LinearTreeKind::CopyView(inner),
+            depth,
             aliases: vec![],
         }
     }
@@ -359,15 +382,15 @@ impl LinearTree {
     }
 }
 
-fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
+fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType, depth: u64) -> LinearTree {
     match ty {
-        ConcreteType::Error => LinearTree::leaf(false),
+        ConcreteType::Error => LinearTree::leaf(false, depth),
         ConcreteType::Tuple(inner) => {
             let inner = inner
                 .iter()
-                .map(|ty| Rc::new(RefCell::new(build_linear_tree(source_loc, ty))))
+                .map(|ty| Rc::new(RefCell::new(build_linear_tree(source_loc, ty, depth))))
                 .collect();
-            LinearTree::tuple(inner)
+            LinearTree::tuple(inner, depth)
         }
         ConcreteType::Struct {
             name: _,
@@ -379,20 +402,20 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
                 .map(|(name, ty)| {
                     (
                         name.clone(),
-                        Rc::new(RefCell::new(build_linear_tree(source_loc, ty))),
+                        Rc::new(RefCell::new(build_linear_tree(source_loc, ty, depth))),
                     )
                 })
                 .collect();
-            LinearTree::struct_(inner)
+            LinearTree::struct_(inner, depth)
         }
         ConcreteType::Array { inner, size } => {
             if is_linear(inner) {
                 let inner = (0..size.to_usize().expect("Array size > 2^64"))
-                    .map(|_| Rc::new(RefCell::new(build_linear_tree(source_loc, inner))))
+                    .map(|_| Rc::new(RefCell::new(build_linear_tree(source_loc, inner, depth))))
                     .collect();
-                LinearTree::array(inner)
+                LinearTree::array(inner, depth)
             } else {
-                LinearTree::leaf(false)
+                LinearTree::leaf(false, depth)
             }
         }
         ConcreteType::Enum { options } => {
@@ -400,24 +423,28 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
                 .iter()
                 .flat_map(|(_, variant)| variant)
                 .any(|(_, ty)| is_linear(ty));
-            LinearTree::leaf(any_field_is_linear)
+            LinearTree::leaf(any_field_is_linear, depth)
         }
-        ConcreteType::Single { base, params: _ } => match base {
-            spade_types::PrimitiveType::Int => LinearTree::leaf(false),
-            spade_types::PrimitiveType::Uint => LinearTree::leaf(false),
-            spade_types::PrimitiveType::Clock => LinearTree::leaf(false),
-            spade_types::PrimitiveType::Bool => LinearTree::leaf(false),
-            spade_types::PrimitiveType::Tri => LinearTree::leaf(false),
-            spade_types::PrimitiveType::Memory => LinearTree::leaf(false),
-            spade_types::PrimitiveType::InOut => LinearTree::leaf(true),
-        },
-        ConcreteType::Integer(_) => LinearTree::leaf(false),
-        ConcreteType::Bool(_) => LinearTree::leaf(false),
-        ConcreteType::String(_) => LinearTree::leaf(false),
-        ConcreteType::Backward(_) => LinearTree::leaf(true),
-        ConcreteType::CopyView(inner) => {
-            LinearTree::copy_view(Rc::new(RefCell::new(build_linear_tree(source_loc, inner))))
+        ConcreteType::Single { base, params: _ } => {
+            let is_linear = match base {
+                spade_types::PrimitiveType::Int => false,
+                spade_types::PrimitiveType::Uint => false,
+                spade_types::PrimitiveType::Clock => false,
+                spade_types::PrimitiveType::Bool => false,
+                spade_types::PrimitiveType::Tri => false,
+                spade_types::PrimitiveType::Memory => false,
+                spade_types::PrimitiveType::InOut => true,
+            };
+            LinearTree::leaf(is_linear, depth)
         }
+        ConcreteType::Integer(_) => LinearTree::leaf(false, depth),
+        ConcreteType::Bool(_) => LinearTree::leaf(false, depth),
+        ConcreteType::String(_) => LinearTree::leaf(false, depth),
+        ConcreteType::Backward(_) => LinearTree::leaf(true, depth),
+        ConcreteType::CopyView(inner) => LinearTree::copy_view(
+            Rc::new(RefCell::new(build_linear_tree(source_loc, inner, depth))),
+            depth,
+        ),
     }
 }
 
@@ -489,31 +516,31 @@ impl LinearState {
         Ok(())
     }
 
-    pub fn push_type(&mut self, reference: Loc<ItemReference>, ty: &ConcreteType) {
-        let tree = Rc::new(RefCell::new(build_linear_tree(reference.loc(), ty)));
+    pub fn push_type(&mut self, reference: Loc<ItemReference>, ty: &ConcreteType, depth: u64) {
+        let tree = Rc::new(RefCell::new(build_linear_tree(reference.loc(), ty, depth)));
 
         tree.borrow_mut().add_alias(reference.clone());
         self.trees.insert(reference.inner.clone(), tree);
     }
 
     // Inserts a new [LinearTree] for the specified expression.
-    pub fn push_new_expression(&mut self, expr_id: &Loc<ExprID>, ctx: &LinearCtx) {
+    pub fn push_new_expression(&mut self, expr_id: &Loc<ExprID>, depth: u64, ctx: &LinearCtx) {
         // Generic arguments cannot be linear types, so we can ignore non-fully known types
         if let Ok(ty) = &ctx
             .type_state
             .concrete_type_of(expr_id, ctx.symtab, ctx.types)
         {
             let reference = ItemReference::Anonymous(expr_id.inner).at_loc(expr_id);
-            self.push_type(reference, ty);
+            self.push_type(reference, ty, depth);
         }
     }
 
     #[tracing::instrument(level = "trace", skip_all, fields(%name))]
-    pub fn push_new_name(&mut self, name: &Loc<NameID>, ctx: &LinearCtx) {
+    pub fn push_new_name(&mut self, name: &Loc<NameID>, depth: u64, ctx: &LinearCtx) {
         // Generic arguments cannot be linear types, so we can ignore non-fully known types
         if let Ok(ty) = &ctx.type_state.concrete_type_of(name, ctx.symtab, ctx.types) {
             let reference = ItemReference::Name(name.inner.clone()).at_loc(name);
-            self.push_type(reference, ty);
+            self.push_type(reference, ty, depth);
         }
     }
 
@@ -637,7 +664,12 @@ impl LinearState {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn push_pattern(&mut self, pat: &Pattern, ctx: &LinearCtx) -> Result<(), Diagnostic> {
+    pub fn push_pattern(
+        &mut self,
+        pat: &Pattern,
+        depth: u64,
+        ctx: &LinearCtx,
+    ) -> Result<(), Diagnostic> {
         match &pat.kind {
             PatternKind::Integer(_) => {}
             PatternKind::Bool(_) => {}
@@ -649,39 +681,43 @@ impl LinearState {
             } => {
                 let id_loc = pat.id.at_loc(name);
                 if !pre_declared {
-                    self.push_new_expression(&id_loc, ctx);
+                    self.push_new_expression(&id_loc, depth, ctx);
                 }
                 self.add_alias_name(id_loc, name)?;
                 if let Some(pat) = inner {
-                    self.push_pattern(pat, ctx)?;
+                    self.push_pattern(pat, depth, ctx)?;
                     // NOTE: this is not ideal and doesn't produce an error message immediately as
                     // should be done. However, this prevents any port on either side from being
                     // used, which prevents any unsoundness. If somebody who actually knows how the
                     // linear checker works, feel free to improve this.
-                    self.consume_pattern(pat)?;
-                    self.consume_id(id_loc)?;
+                    self.consume_pattern(pat, depth)?;
+                    self.consume_id(id_loc, depth)?;
                 }
             }
             PatternKind::Tuple(inner) => {
                 for pat in inner {
-                    self.push_pattern(pat, ctx)?;
+                    self.push_pattern(pat, depth, ctx)?;
                 }
             }
             PatternKind::Array(inner) => {
                 for pat in inner {
-                    self.push_pattern(pat, ctx)?;
+                    self.push_pattern(pat, depth, ctx)?;
                 }
             }
             PatternKind::Type(_, args) => {
                 for arg in args {
-                    self.push_pattern(&arg.value.inner, ctx)?;
+                    self.push_pattern(&arg.value.inner, depth, ctx)?;
                 }
             }
         }
         Ok(())
     }
 
-    pub fn consume_pattern(&mut self, pat: &Loc<Pattern>) -> crate::error::Result<()> {
+    pub fn consume_pattern(
+        &mut self,
+        pat: &Loc<Pattern>,
+        at_depth: u64,
+    ) -> crate::error::Result<()> {
         match &pat.kind {
             PatternKind::Integer(_) => {}
             PatternKind::Bool(_) => {}
@@ -691,35 +727,39 @@ impl LinearState {
                 pre_declared: _,
                 wire: _,
             } => {
-                self.consume_id(pat.id.at_loc(name))?;
+                self.consume_id(pat.id.at_loc(name), at_depth)?;
                 if let Some(pat) = inner {
-                    self.consume_pattern(pat)?;
+                    self.consume_pattern(pat, at_depth)?;
                 }
             }
             PatternKind::Tuple(inner) => {
                 for pat in inner {
-                    self.consume_pattern(pat)?;
+                    self.consume_pattern(pat, at_depth)?;
                 }
             }
             PatternKind::Array(inner) => {
                 for pat in inner {
-                    self.consume_pattern(pat)?;
+                    self.consume_pattern(pat, at_depth)?;
                 }
             }
             PatternKind::Type(_, args) => {
                 for arg in args {
-                    self.consume_pattern(&arg.value)?;
+                    self.consume_pattern(&arg.value, at_depth)?;
                 }
             }
         }
         Ok(())
     }
 
-    pub fn consume_expression(&mut self, expr: &Loc<Expression>) -> crate::error::Result<()> {
-        self.consume_id(expr.map_ref(|e| e.id))
+    pub fn consume_expression(
+        &mut self,
+        expr: &Loc<Expression>,
+        at_depth: u64,
+    ) -> crate::error::Result<()> {
+        self.consume_id(expr.map_ref(|e| e.id), at_depth)
     }
 
-    pub fn consume_id(&mut self, id: Loc<ExprID>) -> crate::error::Result<()> {
+    pub fn consume_id(&mut self, id: Loc<ExprID>, at_depth: u64) -> crate::error::Result<()> {
         // NOTE: This is fairly inefficient at the moment. It might be better to try
         // and use something like a multi-map for several references to the same tree
 
@@ -749,13 +789,22 @@ impl LinearState {
         // For each *unique* tree, try to consume the trees
         for tree in trees_to_consume {
             trace!("Consuming tree {}", tree.as_ptr() as usize);
-            tree.borrow_mut()
-                .try_consume(id.loc())
-                .map_err(|(_witness, previous_use)| {
+            let node_depth = tree.borrow().depth;
+            if node_depth != at_depth && tree.borrow().is_limited() {
+                Err(
+                    Diagnostic::error(id, "Resource consumed inside a conditional")
+                        .primary_label("Cannot consume resource inside conditional")
+                        .help("Only resources defined inside a conditional can be consumed there"),
+                )?;
+            }
+
+            tree.borrow_mut().try_consume(at_depth, id.loc()).map_err(
+                |(_witness, previous_use)| {
                     Diagnostic::error(id, "Use of consumed resource")
                         .primary_label("Use of consumed resource")
                         .secondary_label(previous_use, "Previously used here")
-                })?;
+                },
+            )?;
         }
 
         Ok(())

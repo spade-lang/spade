@@ -1,4 +1,4 @@
-use crate::{build_items, snapshot_error};
+use crate::{build_items, code_compiles, snapshot_error};
 
 snapshot_error! {
     double_consumption_of_identifier_produces_error,
@@ -359,6 +359,61 @@ snapshot_error! {
                     true
                 },
                 _ => false,
+            };
+        }
+    "
+}
+
+snapshot_error! {
+    consuming_in_if_is_disallowed,
+    "
+        fn e1(pls_no_consume: inv bool) {
+            if true {
+                set pls_no_consume = true;
+            } else {}
+        }
+
+        fn e2(pls_no_consume: inv bool) {
+            if true {
+            } else {
+                set pls_no_consume = true;
+            }
+        }
+    "
+}
+
+code_compiles! {
+    consuming_internal_if_is_allowed,
+    "
+        fn e1() {
+            if true {
+                let pls_consume = port().1;
+                set pls_consume = true;
+            } else {}
+        }
+
+        fn e2() {
+            if true {
+            } else {
+                let pls_consume = port().1;
+                set pls_consume = true;
+            }
+        }
+    "
+}
+
+snapshot_error! {
+    consuming_in_match_is_disallowed,
+    "
+        fn e1(pls_no_consume: inv bool) {
+            let _ = match true {
+                true => {
+                    set pls_no_consume = true;
+                    true
+                },
+                _ => {
+                    true
+                }
             };
         }
     "

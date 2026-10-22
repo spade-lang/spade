@@ -40,18 +40,20 @@ pub fn check_linear_types(
 
     let mut linear_state = LinearState::new();
 
+    let depth = 0;
+
     for Input {
         wire: _,
         name,
         ty: _,
     } in inputs
     {
-        linear_state.push_new_name(name, &ctx)
+        linear_state.push_new_name(name, depth, &ctx)
     }
 
-    visit_expression(body, &mut linear_state, &ctx)?;
+    visit_expression(body, &mut linear_state, depth, &ctx)?;
 
-    linear_state.consume_expression(body)?;
+    linear_state.consume_expression(body, depth)?;
 
     linear_state.check_unused().map_err(|(alias, witness)| {
         let self_description = match &alias.inner {
@@ -77,6 +79,7 @@ pub fn check_linear_types(
 pub fn visit_statement(
     stmt: &Loc<Statement>,
     linear_state: &mut LinearState,
+    depth: u64,
     ctx: &LinearCtx,
 ) -> Result<()> {
     match &stmt.inner {
@@ -86,12 +89,12 @@ pub fn visit_statement(
             ty: _,
             value,
         }) => {
-            visit_expression(value, linear_state, ctx)?;
-            linear_state.consume_expression(value)?;
-            linear_state.push_pattern(pattern, ctx)?
+            visit_expression(value, linear_state, depth, ctx)?;
+            linear_state.consume_expression(value, depth)?;
+            linear_state.push_pattern(pattern, depth, ctx)?
         }
         Statement::Expression(expr) => {
-            visit_expression(expr, linear_state, ctx)?;
+            visit_expression(expr, linear_state, depth, ctx)?;
         }
         Statement::Register(reg) => {
             let Register {
@@ -105,25 +108,25 @@ pub fn visit_statement(
                 attributes: _,
             } = &reg;
 
-            linear_state.push_pattern(pattern, ctx)?;
+            linear_state.push_pattern(pattern, depth, ctx)?;
 
-            visit_expression(clock, linear_state, ctx)?;
+            visit_expression(clock, linear_state, depth, ctx)?;
             if let Some((trig, val)) = &reset {
-                visit_expression(trig, linear_state, ctx)?;
-                visit_expression(val, linear_state, ctx)?;
+                visit_expression(trig, linear_state, depth, ctx)?;
+                visit_expression(val, linear_state, depth, ctx)?;
             }
             initial
                 .as_ref()
-                .map(|i| visit_expression(i, linear_state, ctx))
+                .map(|i| visit_expression(i, linear_state, depth, ctx))
                 .transpose()?;
 
-            visit_expression(value, linear_state, ctx)?;
+            visit_expression(value, linear_state, depth, ctx)?;
 
-            linear_state.consume_expression(value)?;
+            linear_state.consume_expression(value, depth)?;
         }
         Statement::Declaration(names) => {
             for name in names {
-                linear_state.push_new_name(name, ctx)
+                linear_state.push_new_name(name, depth, ctx)
             }
         }
         Statement::PipelineRegMarker(cond) => match cond {
@@ -132,7 +135,7 @@ pub fn visit_statement(
                 count_typeexpr_id: _,
             }) => {}
             Some(PipelineRegMarkerExtra::Condition(cond)) => {
-                visit_expression(cond, linear_state, ctx)?;
+                visit_expression(cond, linear_state, depth, ctx)?;
             }
             None => {}
         },
@@ -146,6 +149,7 @@ pub fn visit_statement(
 fn visit_expression(
     expr: &Loc<Expression>,
     linear_state: &mut LinearState,
+    depth: u64,
     ctx: &LinearCtx,
 ) -> Result<()> {
     let produces_new_resource = match &expr.kind {
@@ -195,7 +199,7 @@ fn visit_expression(
 
     if produces_new_resource {
         trace!("Pushing expression {}", expr.id.0);
-        linear_state.push_new_expression(&expr.map_ref(|e| e.id), ctx);
+        linear_state.push_new_expression(&expr.map_ref(|e| e.id), depth, ctx);
     }
 
     match &expr.kind {
@@ -211,24 +215,24 @@ fn visit_expression(
         spade_hir::ExprKind::StageValid | spade_hir::ExprKind::StageReady => {}
         spade_hir::ExprKind::TupleLiteral(inner) => {
             for (i, expr) in inner.iter().enumerate() {
-                visit_expression(expr, linear_state, ctx)?;
+                visit_expression(expr, linear_state, depth, ctx)?;
                 trace!("visited tuple literal member {i}");
-                linear_state.consume_expression(expr)?;
+                linear_state.consume_expression(expr, depth)?;
             }
         }
         spade_hir::ExprKind::ArrayLiteral(inner) => {
             for expr in inner {
-                visit_expression(expr, linear_state, ctx)?;
+                visit_expression(expr, linear_state, depth, ctx)?;
                 trace!("Consuming array literal inner");
-                linear_state.consume_expression(expr)?;
+                linear_state.consume_expression(expr, depth)?;
             }
         }
         spade_hir::ExprKind::ArrayShorthandLiteral(inner, _) => {
-            visit_expression(inner, linear_state, ctx)?;
+            visit_expression(inner, linear_state, depth, ctx)?;
             // FIXME: should allow `[instance of ~&T; 0]` and `[instance of ~&T; 1]` here
             // try to consume twice. if we get an error, add a note
-            linear_state.consume_expression(inner)?;
-            if let Err(mut diag) = linear_state.consume_expression(inner) {
+            linear_state.consume_expression(inner, depth)?;
+            if let Err(mut diag) = linear_state.consume_expression(inner, depth) {
                 diag.push_subdiagnostic(Subdiagnostic::span_note(
                     expr,
                     "The resource is used in this array initialization",
@@ -237,8 +241,8 @@ fn visit_expression(
             }
         }
         spade_hir::ExprKind::Index(target, idx_expr) => {
-            visit_expression(target, linear_state, ctx)?;
-            visit_expression(idx_expr, linear_state, ctx)?;
+            visit_expression(target, linear_state, depth, ctx)?;
+            visit_expression(idx_expr, linear_state, depth, ctx)?;
 
             if is_linear(
                 &ctx.type_state
@@ -273,70 +277,72 @@ fn visit_expression(
                     &idx.at_loc(idx_expr),
                 )?;
             } else {
-                linear_state.consume_expression(target)?;
+                linear_state.consume_expression(target, depth)?;
             }
 
-            linear_state.consume_expression(idx_expr)?;
+            linear_state.consume_expression(idx_expr, depth)?;
         }
         spade_hir::ExprKind::RangeIndex {
             target,
             start: _,
             end: _,
         } => {
-            visit_expression(target, linear_state, ctx)?;
+            visit_expression(target, linear_state, depth, ctx)?;
             // We don't track individual elements of arrays, so we'll have to consume the
             // whole thing here
-            linear_state.consume_expression(target)?;
+            linear_state.consume_expression(target, depth)?;
         }
         spade_hir::ExprKind::TupleIndex(base, idx) => {
-            visit_expression(base, linear_state, ctx)?;
+            visit_expression(base, linear_state, depth, ctx)?;
             linear_state.alias_tuple_member(expr.id.at_loc(expr), base.id, idx)?
         }
         spade_hir::ExprKind::FieldAccess(base, field) => {
-            visit_expression(base, linear_state, ctx)?;
+            visit_expression(base, linear_state, depth, ctx)?;
             linear_state.alias_struct_member(expr.id.at_loc(expr), base.id, field)?
         }
         spade_hir::ExprKind::TypeCast(base, _) => {
-            visit_expression(base, linear_state, ctx)?;
-            linear_state.consume_expression(base)?;
+            visit_expression(base, linear_state, depth, ctx)?;
+            linear_state.consume_expression(base, depth)?;
         }
         spade_hir::ExprKind::BinaryOperator(lhs, _, rhs) => {
-            visit_expression(lhs, linear_state, ctx)?;
-            visit_expression(rhs, linear_state, ctx)?;
-            linear_state.consume_expression(lhs)?;
-            linear_state.consume_expression(rhs)?;
+            visit_expression(lhs, linear_state, depth, ctx)?;
+            visit_expression(rhs, linear_state, depth, ctx)?;
+            linear_state.consume_expression(lhs, depth)?;
+            linear_state.consume_expression(rhs, depth)?;
         }
         spade_hir::ExprKind::UnaryOperator(op, operand) => {
-            visit_expression(operand, linear_state, ctx)?;
+            visit_expression(operand, linear_state, depth, ctx)?;
             match op.inner {
                 UnaryOperator::Sub | UnaryOperator::Not | UnaryOperator::BitwiseNot => {
-                    linear_state.consume_expression(operand)?;
+                    linear_state.consume_expression(operand, depth)?;
                 }
                 UnaryOperator::Reference | UnaryOperator::Dereference => {}
             }
         }
         spade_hir::ExprKind::Match(cond, variants) => {
-            visit_expression(cond, linear_state, ctx)?;
-            linear_state.consume_expression(cond)?;
+            visit_expression(cond, linear_state, depth, ctx)?;
+            linear_state.consume_expression(cond, depth)?;
 
             for (pat, if_cond, expr) in variants {
-                linear_state.push_pattern(pat, ctx)?;
+                let depth = depth + 1;
+
+                linear_state.push_pattern(pat, depth, ctx)?;
                 if let Some(if_cond) = if_cond {
-                    visit_expression(if_cond, linear_state, ctx)?;
+                    visit_expression(if_cond, linear_state, depth, ctx)?;
                 }
-                visit_expression(expr, linear_state, ctx)?;
-                linear_state.consume_expression(expr)?;
+                visit_expression(expr, linear_state, depth, ctx)?;
+                linear_state.consume_expression(expr, depth)?;
             }
         }
         spade_hir::ExprKind::ConstTypeExpr(_) => {}
         spade_hir::ExprKind::Block(b) => {
             for statement in &b.statements {
-                visit_statement(statement, linear_state, ctx)?;
+                visit_statement(statement, linear_state, depth, ctx)?;
             }
             if let Some(result) = &b.result {
-                visit_expression(result, linear_state, ctx)?;
+                visit_expression(result, linear_state, depth, ctx)?;
                 trace!("Consuming block {}", expr.id.0);
-                linear_state.consume_expression(result)?;
+                linear_state.consume_expression(result, depth)?;
             }
         }
         spade_hir::ExprKind::Call {
@@ -351,16 +357,16 @@ fn visit_expression(
                 for arg in args {
                     match arg {
                         NamedArgument::Full(_, expr) | NamedArgument::Short(_, expr) => {
-                            visit_expression(expr, linear_state, ctx)?;
-                            linear_state.consume_expression(expr)?;
+                            visit_expression(expr, linear_state, depth, ctx)?;
+                            linear_state.consume_expression(expr, depth)?;
                         }
                     }
                 }
             }
             ArgumentList::Positional(args) => {
                 for arg in args {
-                    visit_expression(arg, linear_state, ctx)?;
-                    linear_state.consume_expression(arg)?;
+                    visit_expression(arg, linear_state, depth, ctx)?;
+                    linear_state.consume_expression(arg, depth)?;
                 }
             }
         },
@@ -369,13 +375,14 @@ fn visit_expression(
             on_true,
             on_false,
         } => {
-            visit_expression(cond, linear_state, ctx)?;
+            visit_expression(cond, linear_state, depth, ctx)?;
 
-            visit_expression(on_true, linear_state, ctx)?;
-            linear_state.consume_expression(on_true)?;
+            let depth = depth + 1;
+            visit_expression(on_true, linear_state, depth, ctx)?;
+            linear_state.consume_expression(on_true, depth)?;
 
-            visit_expression(on_false, linear_state, ctx)?;
-            linear_state.consume_expression(on_false)?;
+            visit_expression(on_false, linear_state, depth, ctx)?;
+            linear_state.consume_expression(on_false, depth)?;
         }
         spade_hir::ExprKind::PipelineRef {
             stage: _,
@@ -384,7 +391,7 @@ fn visit_expression(
             depth_typeexpr_id: _,
         } => {
             if *declares_name {
-                linear_state.push_new_name(name, ctx);
+                linear_state.push_new_name(name, depth, ctx);
             }
             linear_state.add_alias_name(expr.id.at_loc(expr), &name.clone())?
         }
