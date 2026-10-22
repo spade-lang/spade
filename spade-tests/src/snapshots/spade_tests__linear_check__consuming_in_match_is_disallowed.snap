@@ -1,0 +1,23 @@
+---
+source: spade-tests/src/linear_check.rs
+---
+fn e1(pls_no_consume: inv bool) {
+    let _ = match true {
+        true => {
+            set pls_no_consume = true;
+            true
+        },
+        _ => {
+            true
+        }
+    };
+}
+
+
+error: Resource consumed inside a conditional
+  ┌─ testinput:4:17
+  │
+4 │             set pls_no_consume = true;
+  │                 ^^^^^^^^^^^^^^ Cannot consume resource inside conditional
+  │
+  = help: Only resources defined inside a conditional can be consumed there
