@@ -152,7 +152,7 @@ mod test {
         let pass = SplitCompoundRegs {};
         let mut after = before.clone();
         after.statements =
-            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
+            pass.transform_statements(&before.statements, &ExprIdTracker::new_at(100));
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
             (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
@@ -180,7 +180,7 @@ mod test {
         let pass = SplitCompoundRegs {};
         let mut after = before.clone();
         after.statements =
-            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
+            pass.transform_statements(&before.statements, &ExprIdTracker::new_at(100));
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
             (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));
@@ -208,7 +208,7 @@ mod test {
         let pass = SplitCompoundRegs {};
         let mut after = before.clone();
         after.statements =
-            pass.transform_statements(&before.statements, &mut ExprIdTracker::new_at(100));
+            pass.transform_statements(&before.statements, &ExprIdTracker::new_at(100));
 
         let expected = entity!("pong"; ("_i_clk", n(0, "clk"), Type::Bool, "val", n(2, "val"), ty.clone()) -> Type::int(6); {
             (e(10); Type::int(4); IndexTuple((0)); n(2, "val"));

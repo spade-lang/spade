@@ -129,7 +129,7 @@ impl PrettyDebug for WhereClause {
 impl PrettyDebug for AttributeList {
     fn pretty_debug(&self) -> String {
         if self.0.len() != 0 {
-            format!("[attribute list omitted]")
+            "[attribute list omitted]".to_string()
         } else {
             String::new()
         }
@@ -168,8 +168,8 @@ impl PrettyDebug for TypeSpec {
             }
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_debug()),
             TypeSpec::CopyView(inner) => format!("&{}", inner.pretty_debug()),
-            TypeSpec::TraitSelf(_) => format!("Self"),
-            TypeSpec::Wildcard(_) => format!("_"),
+            TypeSpec::TraitSelf(_) => "Self".to_string(),
+            TypeSpec::Wildcard(_) => "_".to_string(),
         }
     }
 }
@@ -196,12 +196,8 @@ impl PrettyDebug for ConstGeneric {
             ConstGeneric::Mod(lhs, rhs) => {
                 format!("({} % {})", lhs.pretty_debug(), rhs.pretty_debug())
             }
-            ConstGeneric::IntBitsFor(inner) => {
-                format!("{}", inner.pretty_debug())
-            }
-            ConstGeneric::UintBitsFor(inner) => {
-                format!("{}", inner.pretty_debug())
-            }
+            ConstGeneric::IntBitsFor(inner) => inner.pretty_debug().to_string(),
+            ConstGeneric::UintBitsFor(inner) => inner.pretty_debug().to_string(),
             ConstGeneric::Eq(lhs, rhs) => {
                 format!("({} == {})", lhs.pretty_debug(), rhs.pretty_debug())
             }
@@ -310,7 +306,7 @@ impl PrettyDebug for ExprKind {
                 code! {
                     [0] format!("{}{}", if *safety == Safety::Unsafe { "unsafe " } else { "" }, target.pretty_debug());
                     [1]    format!(".{name}<{}>", turbofish.pretty_debug());
-                    [1]    format!("{}", args.pretty_debug())
+                    [1]    args.pretty_debug().to_string()
                 }.to_string()
             }
             crate::ExprKind::Call {
@@ -398,7 +394,7 @@ impl PrettyDebug for ExprKind {
                 name: _,
                 declares_name: _,
                 depth_typeexpr_id: _,
-            } => format!("[pipeline ref omitted]"),
+            } => "[pipeline ref omitted]".to_string(),
             crate::ExprKind::LambdaDef {
                 unit_kind,
                 lambda_type,
@@ -428,13 +424,13 @@ impl PrettyDebug for ExprKind {
                     );
                 }.to_string()
             },
-            crate::ExprKind::StageValid => format!("stage.valid"),
-            crate::ExprKind::StageReady => format!("stage.ready"),
+            crate::ExprKind::StageValid => "stage.valid".to_string(),
+            crate::ExprKind::StageReady => "stage.ready".to_string(),
             crate::ExprKind::StaticUnreachable(_) => {
-                format!("<STATIC_UNREACHABLE>")
+                "<STATIC_UNREACHABLE>".to_string()
             },
 
-            crate::ExprKind::Null => format!("<NULL>"),
+            crate::ExprKind::Null => "<NULL>".to_string(),
         }
     }
 }
@@ -579,7 +575,7 @@ impl PrettyDebug for Statement {
                     names.iter().map(PrettyDebug::pretty_debug).join(", ")
                 )
             }
-            Statement::PipelineRegMarker(_) => format!("[pipeline reg marker]"),
+            Statement::PipelineRegMarker(_) => "[pipeline reg marker]".to_string(),
             Statement::Label(name) => format!("'{};", name.pretty_debug()),
             Statement::Assert(loc) => format!("assert {};", loc.pretty_debug()),
         }

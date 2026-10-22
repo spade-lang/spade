@@ -121,18 +121,10 @@ impl ServerBackend {
                 symbol_table::Thing::ArrayLabel(value) => {
                     format!("Array label: {value}")
                 }
-                symbol_table::Thing::Module(_, _) => {
-                    format!("(module)")
-                }
-                symbol_table::Thing::Macro(_, _) => {
-                    format!("(macro)")
-                }
-                symbol_table::Thing::Trait(_) => {
-                    format!("(trait)")
-                }
-                symbol_table::Thing::Dummy => {
-                    format!("(dummy)")
-                }
+                symbol_table::Thing::Module(_, _) => "(module)".to_string(),
+                symbol_table::Thing::Macro(_, _) => "(macro)".to_string(),
+                symbol_table::Thing::Trait(_) => "(trait)".to_string(),
+                symbol_table::Thing::Dummy => "(dummy)".to_string(),
             })
     }
 
@@ -159,11 +151,11 @@ impl ServerBackend {
                         TypeDeclKind::Struct => "struct",
                         TypeDeclKind::Enum => "enum",
                         TypeDeclKind::Primitive { .. } => "primitive type",
-                        TypeDeclKind::Alias { .. } => "type alias",
+                        TypeDeclKind::Alias => "type alias",
                     };
 
                     let generics = match generics.as_slice() {
-                        [] => format!(""),
+                        [] => String::new(),
                         r#gen => r#gen.iter().map(|g| g.pretty_print()).join("{}"),
                     };
 
@@ -209,12 +201,13 @@ impl ServerBackend {
             .expression
             .iter()
             .filter(|(expr, _ty)| expr.kind.is_hover_target(loc))
-            .find_map(|(_expr, ty)| {
-                Some(format!(
+            .map(|(_expr, ty)| {
+                format!(
                     "**Expression type**:\n```spade\n{}\n```",
                     ty.resolve(&ts).display(ts)
-                ))
-            });
+                )
+            })
+            .next();
 
         let struct_field_info = info.field.map(|fi| match fi {
             FieldInfo::Field {

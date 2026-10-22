@@ -974,7 +974,7 @@ pub fn visit_const_generic(
                             "{name} is not a type level integer but is used in a const generic expression."
                         ),
                     )
-                        .primary_label(format!("Expected type level integer"))
+                        .primary_label("Expected type level integer".to_string())
                     .secondary_label(sym, format!("{name} is defined here")))
                 }
                 TypeSymbol::GenericArg { traits: _ }=> {
@@ -1159,7 +1159,7 @@ pub fn visit_const_generic(
         _ => {
             return Err(Diagnostic::error(
                 t,
-                format!("This expression is not supported in a type expression"),
+                "This expression is not supported in a type expression".to_string(),
             )
             .primary_label("Not supported in a type expression"));
         }
@@ -2697,7 +2697,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                                 "#int ",
                             )
                             .span_suggest_insert_before(
-                                format!("or a type level uint"),
+                                "or a type level uint".to_string(),
                                 *ty,
                                 "#uint ",
                             ))

@@ -55,31 +55,31 @@ impl Type {
             [0] format!("class {class_name} {{");
             [1]     "public:";
             [2]         format!("{class_name}({root_class}* root)");
-            [4]         format!(": root(root) ");
+            [4]         ": root(root) ";
             [4]         field_constructor_calls;
             [2]         "{}";
             [4]         format!("{root_class}* root;");
             [2]         "bool operator==(std::string const& other) const {";
             [3]             format!(r#"auto field = root->s_ext->output_field({{{field_as_strings}}});"#);
-            [3]             format!("auto val = spade::new_bit_string(root->output_string_fn());");
-            [3]             format!(r#"return root"#);
-            [3]             format!(r#"         ->s_ext"#);
-            [3]             format!(r#"         ->compare_field(*field, other, *val)"#);
-            [3]             format!(r#"         ->matches();"#);
+            [3]             "auto val = spade::new_bit_string(root->output_string_fn());";
+            [3]             r#"return root"#.to_string();
+            [3]             r#"         ->s_ext"#.to_string();
+            [3]             r#"         ->compare_field(*field, other, *val)"#.to_string();
+            [3]             r#"         ->matches();"#.to_string();
             [2]         "}";
-            [2]         format!("void assert_eq(std::string const& expected, std::string const& source_loc) {{");
+            [2]         "void assert_eq(std::string const& expected, std::string const& source_loc) {";
             [3]             format!(r#"auto field = root->s_ext->output_field({{{field_as_strings}}});"#);
-            [3]             format!("auto val = spade::new_bit_string(root->output_string_fn());");
-            [3]             format!(r#"root"#);
-            [3]             format!(r#"    ->s_ext"#);
-            [3]             format!(r#"    ->assert_eq(*field, expected, *val, source_loc);"#);
+            [3]             "auto val = spade::new_bit_string(root->output_string_fn());";
+            [3]             r#"root"#.to_string();
+            [3]             r#"    ->s_ext"#.to_string();
+            [3]             r#"    ->assert_eq(*field, expected, *val, source_loc);"#.to_string();
             [2]         "}";
-            [2]         format!("std::string spade_repr() {{");
+            [2]         "std::string spade_repr() {";
             [3]             format!(r#"auto field = root->s_ext->output_field({{{field_as_strings}}});"#);
-            [3]             format!("auto val = spade::new_bit_string(root->output_string_fn());");
-            [3]             format!(r#"return std::string(root"#);
-            [3]             format!(r#"    ->s_ext"#);
-            [3]             format!(r#"    ->field_value(*field, *val));"#);
+            [3]             "auto val = spade::new_bit_string(root->output_string_fn());";
+            [3]             r#"return std::string(root"#.to_string();
+            [3]             r#"    ->s_ext"#.to_string();
+            [3]             r#"    ->field_value(*field, *val));"#.to_string();
             [2]         "}";
             [2]         field_members;
             [0] "};";
@@ -229,7 +229,7 @@ impl Entity {
                         code!{
                             [0] format!("std::bitset<{}> bits_;", size_u64 % 32);
                             [0] format!("bits_ = this->top->output___05F[{}];", size_u64 / 32);
-                            [0] format!("ss << bits_;")
+                            [0] "ss << bits_;"
                         }
                     }
                     else {
@@ -240,7 +240,7 @@ impl Entity {
                     .map(|i| {
                         code! {
                             [0] format!("bits = this->top->output___05F[{i}];");
-                            [0] format!("ss << bits;")
+                            [0] "ss << bits;"
                         }.to_string()
                     })
                     .join("\n");

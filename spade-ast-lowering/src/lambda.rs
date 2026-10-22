@@ -221,8 +221,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                     }
                     .at_loc(tp))
                 })
-                .collect::<Result<Vec<_>>>()?
-                .into_iter(),
+                .collect::<Result<Vec<_>>>()?,
         )
         .collect::<Vec<_>>()
         .at_loc(&debug_loc);

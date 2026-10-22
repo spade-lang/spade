@@ -378,7 +378,7 @@ fn forward_expression_code(
                 [1]     format!("if ({divisor} == 0) begin");
                 [2]         format!("{name} = {dividend};");
                 [1]     "end";
-                [1]     format!("else begin");
+                [1]     "else begin";
                 [2]         format!("{name} = $signed($signed({dividend}) + $signed(1 << ({divisor} - 1))) >>> $signed({divisor});");
                 [1]     "end";
                 [0] "end";
@@ -505,7 +505,7 @@ fn forward_expression_code(
                 ),
             }
         }
-        Operator::ConstructArray { .. } => {
+        Operator::ConstructArray => {
             // NOTE: Reversing because we declare the array as logic[SIZE:0] and
             // we want the [x*width+:width] indexing to work
             format!(
@@ -534,7 +534,7 @@ fn forward_expression_code(
                     format!("{}[{}+:{}]", op_names[0], end_index, offset)
                 }
             } else {
-                format!("{}", op_names[0])
+                op_names[0].to_string()
             }
         }
         Operator::RangeIndexArray {
@@ -664,7 +664,7 @@ fn forward_expression_code(
             let size = inner.size();
             let backward_size = inner.backward_size();
             if size.is_zero() || backward_size.is_zero() {
-                format!("{}", op_names[0])
+                op_names[0].to_string()
             } else {
                 format!(
                     "{{{}[0+:{}], {}[{}+:{}]}}",
@@ -795,9 +795,9 @@ fn forward_expression_code(
             );
             let ty = &types[&ops[0]];
             if ty.size() == BigUint::zero() {
-                format!("{}", ops[0].backward_var_name())
+                ops[0].backward_var_name().to_string()
             } else if ty.backward_size() == BigUint::zero() {
-                format!("{}", ops[0].var_name())
+                ops[0].var_name().to_string()
             } else {
                 // This layout may be unintuitive, so pay extra attention when handling copy view
                 // data. In particular:
@@ -1094,7 +1094,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                         [0] format!(
                             "{}{} \\{} ({});",
                             &module_name.as_verilog(),
-                            if param_string.is_empty() { "".into() } else { format!("{}", param_string)},
+                            if param_string.is_empty() { "".into() } else { param_string.to_string()},
                             instance_name,
                             args.join(", ")
                         )
@@ -1393,7 +1393,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
 
             let val_var = val.var_name();
             code! {
-                [0] format!("`ifndef SYNTHESIS");
+                [0] "`ifndef SYNTHESIS";
                 [0] format!("always @({val_var}) begin");
                     // This #0 is a bit unintiutive, but it seems to prevent assertions
                     // triggering too early. For example, in the case of !(x == 1 && y == 2)
@@ -1413,7 +1413,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                         [2] ";";
                     [1] "`endif";
                 [0] "end";
-                [0] format!("`endif")
+                [0] "`endif"
             }
         }
         Statement::Set { target, value } => {
@@ -1762,12 +1762,8 @@ mod tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &binding,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&binding, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -1783,12 +1779,8 @@ mod tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &binding,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&binding, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -1806,12 +1798,8 @@ mod tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &reg,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&reg, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -1834,12 +1822,8 @@ mod tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &reg,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&reg, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -1865,12 +1849,8 @@ mod tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &reg,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&reg, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2147,12 +2127,8 @@ mod tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &input,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&input, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         )
     }
@@ -2280,12 +2256,8 @@ mod backward_expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2306,7 +2278,7 @@ mod backward_expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), Type::Tuple(tuple_members)),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2327,12 +2299,8 @@ mod backward_expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2354,8 +2322,7 @@ mod backward_expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
-                .to_string(),
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::empty()).to_string(),
             expected
         );
     }
@@ -2387,8 +2354,7 @@ mod backward_expression_tests {
             .with(ValueName::Expr(ExprID(3)), Type::int(3));
 
         assert_same_code!(
-            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
-                .to_string(),
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::empty()).to_string(),
             expected
         );
     }
@@ -2408,12 +2374,8 @@ mod backward_expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2451,7 +2413,7 @@ mod expression_tests {
                     statement!(e(2); Type::Int(8u8.to_biguint()); Alias; e(0))
                 ]);
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &types, &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &types, &CodeBundle::empty()).to_string(), &expected)
             }
         }
     }
@@ -2474,7 +2436,7 @@ mod expression_tests {
                     assign _e_0 = $signed(_e_1) {} $signed(_e_2);"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &types, &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &types, &CodeBundle::empty()).to_string(), &expected)
             }
         }
     }
@@ -2491,7 +2453,7 @@ mod expression_tests {
                     assign _e_0 = {}_e_1;"#, $verilog_ty, $verilog_op
                 );
 
-                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::new("".to_string())).to_string(), &expected)
+                assert_same_code!(&statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty()).to_string(), &expected)
             }
         }
     }
@@ -2551,12 +2513,8 @@ mod expression_tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2572,12 +2530,8 @@ mod expression_tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2604,7 +2558,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), Type::int(2)),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2621,12 +2575,8 @@ mod expression_tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2648,7 +2598,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::int(6))
                     .with(ValueName::Expr(ExprID(2)), Type::int(3)),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2667,12 +2617,8 @@ mod expression_tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2692,7 +2638,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2714,7 +2660,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2736,7 +2682,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2759,12 +2705,8 @@ mod expression_tests {
         );
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -2784,7 +2726,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2806,7 +2748,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2832,7 +2774,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2858,7 +2800,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2880,7 +2822,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &stmt,
                 &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), ty),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2900,7 +2842,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &statement,
                 &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2925,7 +2867,7 @@ mod expression_tests {
             &statement_code_and_declaration(
                 &statement,
                 &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2952,7 +2894,7 @@ mod expression_tests {
                         length: 3_u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -2979,7 +2921,7 @@ mod expression_tests {
                         length: 4_u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3006,7 +2948,7 @@ mod expression_tests {
                         length: 1_u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3033,7 +2975,7 @@ mod expression_tests {
                         length: 1_u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3067,7 +3009,7 @@ mod expression_tests {
                         length: 4u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3101,7 +3043,7 @@ mod expression_tests {
                         length: 4u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3135,7 +3077,7 @@ mod expression_tests {
                         length: 1u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3173,7 +3115,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::Bool)
                     .with(ValueName::Expr(ExprID(2)), Type::Bool),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3209,7 +3151,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::Bool)
                     .with(ValueName::Expr(ExprID(2)), Type::Bool),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3243,7 +3185,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(1)), Type::Bool)
                     .with(ValueName::Expr(ExprID(2)), Type::Bool),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3279,8 +3221,7 @@ mod expression_tests {
             .with(ValueName::Expr(ExprID(2)), Type::backward(Type::Bool));
 
         assert_same_code!(
-            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
-                .to_string(),
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::empty()).to_string(),
             expected
         );
     }
@@ -3318,7 +3259,7 @@ mod expression_tests {
                         length: 2u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3353,7 +3294,7 @@ mod expression_tests {
                         length: 1u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3390,7 +3331,7 @@ mod expression_tests {
                         length: 1u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3441,7 +3382,7 @@ mod expression_tests {
                         length: 2u32.to_biguint(),
                     }
                 ),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3459,12 +3400,8 @@ mod expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }
@@ -3485,7 +3422,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::Int(5_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::Int(3_u32.to_biguint())),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3507,7 +3444,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::Int(4_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::Int(3_u32.to_biguint())),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3529,7 +3466,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::Int(3_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::Int(3_u32.to_biguint())),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3552,7 +3489,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::UInt(5_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::UInt(3_u32.to_biguint())),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3574,7 +3511,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::UInt(4_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::UInt(3_u32.to_biguint())),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3597,7 +3534,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::UInt(3_u32.to_biguint()))
                     .with(ValueName::Expr(ExprID(1)), Type::UInt(3_u32.to_biguint())),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3619,8 +3556,7 @@ mod expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
-                .to_string(),
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::empty()).to_string(),
             expected
         );
     }
@@ -3640,8 +3576,7 @@ mod expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::new("".to_string()))
-                .to_string(),
+            &statement_code_and_declaration(&stmt, &type_list, &CodeBundle::empty()).to_string(),
             expected
         );
     }
@@ -3704,7 +3639,7 @@ mod expression_tests {
                 &MirTypeList::empty()
                     .with(ValueName::Expr(ExprID(0)), Type::backward(Type::Bool))
                     .with(ValueName::Expr(ExprID(1)), Type::Bool),
-                &CodeBundle::new("".to_string())
+                &CodeBundle::empty()
             )
             .to_string(),
             expected
@@ -3721,12 +3656,8 @@ mod expression_tests {
         };
 
         assert_same_code!(
-            &statement_code_and_declaration(
-                &stmt,
-                &MirTypeList::empty(),
-                &CodeBundle::new("".to_string())
-            )
-            .to_string(),
+            &statement_code_and_declaration(&stmt, &MirTypeList::empty(), &CodeBundle::empty())
+                .to_string(),
             expected
         );
     }

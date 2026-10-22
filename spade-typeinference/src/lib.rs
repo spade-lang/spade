@@ -879,9 +879,7 @@ impl TypeState {
                             |diag, _e| {
                                 diag.secondary_label(
                                     name,
-                                    format!(
-                                        "The type of this argument is not `Data + Copy` which means it cannot be stored in a register."
-                                    ),
+                                    "The type of this argument is not `Data + Copy` which means it cannot be stored in a register.",
                                 )
                                 .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
                                 .span_suggest_insert_before("Consider making the argument a wire", name, "wire ")
@@ -932,9 +930,7 @@ impl TypeState {
                         |diag, _e| {
                             diag.secondary_label(
                                 &reg.value,
-                                format!(
-                                    "The type of this expression is not `Data + Copy` which means it cannot be stored in a register."
-                                ),
+                                "The type of this expression is not `Data + Copy` which means it cannot be stored in a register.",
                             )
                             .help("An expression not being `Data + Copy` means it contains at least one `inv` or `clock` type")
                                 .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
@@ -977,9 +973,7 @@ impl TypeState {
                                 |diag, _e| {
                                     diag.secondary_label(
                                         name,
-                                        format!(
-                                            "The type of this expression is not `Data + Copy` which means it cannot be stored in a register."
-                                        ),
+                                        "The type of this expression is not `Data + Copy` which means it cannot be stored in a register.",
                                     )
                                     .secondary_label(pipeline_loc, "The value needs to be in a register because it is in this pipeline")
                                     .span_suggest_insert_before("Consider making the binding a wire", name, "wire ")
@@ -1074,9 +1068,7 @@ impl TypeState {
                         |diag, _e| {
                             diag.secondary_label(
                                 &expr.loc(),
-                                format!(
-                                    "The result of an if-expression must be Data."
-                                ),
+                                "The result of an if-expression must be Data.",
                             )
                             .help("An expression not being `Data` typically means it contains at least one `clock` type")
                                 .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
@@ -1095,9 +1087,7 @@ impl TypeState {
                         |diag, _e| {
                             diag.secondary_label(
                                 &expr.loc(),
-                                format!(
-                                    "The result of a match-expression must be Data."
-                                ),
+                                "The result of a match-expression must be Data.",
                             )
                             .help("An expression not being `Data` typically means it contains at least one `clock` type")
                             .help(format!("You can learn more about `Data` here: {}", WIRE_DOCS))
@@ -3666,14 +3656,14 @@ impl TypeState {
                             // parameters can match
                             let target_impls = impld
                                 .iter()
-                                .filter_map(|trait_impl| {
+                                .filter(|trait_impl| {
                                     if trait_impl.trait_type_params.len()
                                         != trait_req.type_params.len()
                                     {
-                                        return None;
+                                        return false;
                                     }
                                     if trait_impl.name != trait_req.name {
-                                        return None;
+                                        return false;
                                     }
                                     self.checkpoint();
                                     let trait_params_match = trait_impl
@@ -3687,7 +3677,7 @@ impl TypeState {
                                     self.restore();
 
                                     if trait_impl.target_type_params.len() != params.len() {
-                                        return None;
+                                        return false;
                                     }
 
                                     self.checkpoint();
@@ -3700,11 +3690,7 @@ impl TypeState {
                                         );
                                     self.restore();
 
-                                    if trait_params_match && impl_params_match {
-                                        Some(trait_impl)
-                                    } else {
-                                        None
-                                    }
+                                    trait_params_match && impl_params_match
                                 })
                                 .collect::<Vec<_>>();
 

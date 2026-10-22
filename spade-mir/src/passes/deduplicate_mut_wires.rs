@@ -39,7 +39,7 @@ fn recursive_lookup(
 
 fn op_needs_deduplication(op: &Operator) -> bool {
     match op {
-        Operator::IndexArray { .. }
+        Operator::IndexArray
         | Operator::Alias
         | Operator::IndexMemory
         | Operator::RangeIndexArray { .. }
@@ -90,8 +90,8 @@ fn op_needs_deduplication(op: &Operator) -> bool {
         | Operator::ReadWriteItemsInOut(_)
         | Operator::BitwiseNot
         | Operator::DivPow2
-        | Operator::SignExtend { .. }
-        | Operator::ZeroExtend { .. }
+        | Operator::SignExtend
+        | Operator::ZeroExtend
         | Operator::Truncate
         | Operator::Concat
         | Operator::Match
@@ -274,8 +274,8 @@ mod tests {
         };
 
         let mut deduplicated = input.clone();
-        deduplicated.statements = DeduplicateMutWires {}
-            .transform_statements(&input.statements, &mut ExprIdTracker::new());
+        deduplicated.statements =
+            DeduplicateMutWires {}.transform_statements(&input.statements, &ExprIdTracker::new());
 
         assert_same_mir!(&expected, &deduplicated);
     }

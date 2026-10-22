@@ -89,7 +89,7 @@ impl TypeVarID {
                         "<{}>",
                         params
                             .iter()
-                            .map(|p| format!("{}", p.display_with_meta(meta, type_state)))
+                            .map(|p| p.display_with_meta(meta, type_state).to_string())
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
@@ -110,7 +110,7 @@ impl TypeVarID {
                     "({})",
                     params
                         .iter()
-                        .map(|t| format!("{}", t.display_with_meta(meta, type_state)))
+                        .map(|t| t.display_with_meta(meta, type_state).to_string())
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -144,7 +144,7 @@ impl TypeVarID {
                     if meta {
                         format!("{}", meta_type)
                     } else {
-                        format!("_")
+                        "_".to_string()
                     }
                 }
             },
@@ -167,11 +167,11 @@ impl TypeVarID {
                     KnownType::Integer(big_int) => format!("{big_int}"),
                     KnownType::Bool(val) => format!("{val}"),
                     KnownType::String(val) => format!("{val:?}"),
-                    KnownType::Tuple => format!("Tuple"),
-                    KnownType::Array => format!("Array"),
-                    KnownType::Inverted => format!("inv"),
-                    KnownType::CopyView => format!("&"),
-                    KnownType::Error => format!("{{error}}"),
+                    KnownType::Tuple => "Tuple".to_string(),
+                    KnownType::Array => "Array".to_string(),
+                    KnownType::Inverted => "inv".to_string(),
+                    KnownType::CopyView => "&".to_string(),
+                    KnownType::Error => "{error}".to_string(),
                 };
                 format!("{base}{params}")
             }
@@ -197,7 +197,7 @@ impl TypeVarID {
             TypeVarString(
                 format!(
                     "{}[{}]",
-                    format!("{result}").cyan(),
+                    result.to_string().cyan(),
                     format!("{}", self.inner).blue()
                 ),
                 self,
@@ -481,7 +481,7 @@ impl TypeVar {
                         "<{}>",
                         params
                             .iter()
-                            .map(|p| format!("{}", p.display_with_meta(display_meta, type_state)))
+                            .map(|p| p.display_with_meta(display_meta, type_state).to_string())
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
@@ -502,7 +502,7 @@ impl TypeVar {
                     "({})",
                     params
                         .iter()
-                        .map(|t| format!("{}", t.display_with_meta(display_meta, type_state)))
+                        .map(|t| t.display_with_meta(display_meta, type_state).to_string())
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -531,16 +531,12 @@ impl TypeVar {
                 }
             }
             // If we have traits, we know this is a type
-            TypeVar::Unknown(_, _, traits, _meta) => {
-                format!(
-                    "{}",
-                    traits
-                        .inner
-                        .iter()
-                        .map(|t| format!("{}", t.display_with_meta(display_meta, type_state)))
-                        .join("+"),
-                )
-            }
+            TypeVar::Unknown(_, _, traits, _meta) => traits
+                .inner
+                .iter()
+                .map(|t| t.display_with_meta(display_meta, type_state).to_string())
+                .join("+")
+                .to_string(),
         }
     }
 }

@@ -909,18 +909,15 @@ mod tests {
     fn sanity_check_static_sources_stdlib_included() {
         let included = super::stdlib_files()
             .into_iter()
-            .filter_map(|(_, file, _)| {
-                Some(
-                    PathBuf::from(file)
-                        .file_name()
-                        .map(|f| f.to_string_lossy().to_string()),
-                )
+            .map(|(_, file, _)| {
+                PathBuf::from(file)
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
             })
             .collect::<Vec<_>>();
 
         let missing_files = std::fs::read_dir("stdlib/")
             .expect("Failed to read stdlib")
-            .into_iter()
             .map(|f| {
                 f.unwrap()
                     .path()

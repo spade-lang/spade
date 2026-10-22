@@ -163,9 +163,7 @@ where
             let name = translate_val_name(name, lhs_trans, rhs_trans);
             format!("seal {name}: {ty} (variant {variant})")
         }
-        Statement::Error => {
-            format!("Error")
-        }
+        Statement::Error => "Error".to_string(),
     }
 }
 

@@ -478,7 +478,7 @@ impl std::fmt::Display for DeconstructedPattern {
                 }
                 ConcreteType::Enum { .. } => unreachable!(),
                 ConcreteType::Single { .. } => write!(f, "_"),
-                ConcreteType::Error { .. } => write!(f, "{{error}}"),
+                ConcreteType::Error => write!(f, "{{error}}"),
                 ConcreteType::Integer(_) => unreachable!("Pattern on type level integer"),
                 ConcreteType::Bool(_) => unreachable!("Pattern on type level bool"),
                 ConcreteType::String(_) => unreachable!("Pattern on a type level string"),

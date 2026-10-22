@@ -75,34 +75,38 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
 
         parser.clear_item_context();
 
-        if head.extern_token.is_some() && block.is_some() {
-            return Err(Diagnostic::error(
-                head.extern_token.unwrap(),
-                "`extern` units cannot have a body",
-            )
-            .span_suggest_remove("Remove this body", block.as_ref().unwrap()));
-        } else if head.extern_token.is_none() & block.is_none() {
-            return Err(Diagnostic::error(
-                &head,
-                format!("This {} is missing a body", head.unit_kind),
-            )
-            .span_suggest_replace(
-                format!("Did you forget to add the {}'s body?", head.unit_kind),
-                after_head_token,
-                " {}",
-            )
-            .span_suggest_insert_before(
-                format!("Or did you mean to declare an `extern` {}?", head.unit_kind),
-                &head.unit_kind,
-                "extern ",
-            ));
+        match (head.extern_token, block) {
+            (Some(_), Some(b)) => {
+                return Err(Diagnostic::error(
+                    head.extern_token.unwrap(),
+                    "`extern` units cannot have a body",
+                )
+                .span_suggest_remove("Remove this body", b));
+            }
+            (None, None) => {
+                return Err(Diagnostic::error(
+                    &head,
+                    format!("This {} is missing a body", head.unit_kind),
+                )
+                .span_suggest_replace(
+                    format!("Did you forget to add the {}'s body?", head.unit_kind),
+                    after_head_token,
+                    " {}",
+                )
+                .span_suggest_insert_before(
+                    format!("Or did you mean to declare an `extern` {}?", head.unit_kind),
+                    &head.unit_kind,
+                    "extern ",
+                ));
+            }
+            (_, b) => {
+                return Ok(Unit {
+                    head: head.inner.clone(),
+                    body: b.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
+                }
+                .between(parser.file_id(), &head, &block_span));
+            }
         }
-
-        Ok(Unit {
-            head: head.inner.clone(),
-            body: block.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
-        }
-        .between(parser.file_id(), &head, &block_span))
     }
 }
 

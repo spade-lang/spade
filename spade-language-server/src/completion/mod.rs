@@ -442,7 +442,7 @@ impl UnitKindExt for UnitKind {
                 match (has_inst, has_depth) {
                     (false, false) => ("".to_string(), format!("inst({depth}) ")),
                     (true, false) => ("".to_string(), format!("({depth}) ")),
-                    (true, true) => ("".to_string(), format!("")),
+                    (true, true) => ("".to_string(), String::new()),
 
                     // NOTE: This should not occur in practice, we'll just return something that sort of works
                     (false, true) => ("".to_string(), "".to_string()),
@@ -475,13 +475,13 @@ impl ParamListExt for ParameterList {
 
         if relevant_params.len() == 0 {
             if !is_enum_variant {
-                (format!("()"), format!("()$0"))
+                ("()".to_string(), "()$0".to_string())
             } else {
                 (String::new(), String::new())
             }
         } else {
             (
-                format!("(…)"),
+                "(…)".to_string(),
                 format!(
                     "({})$0",
                     relevant_params
@@ -504,7 +504,7 @@ fn type_field_completions(
 ) -> Option<CompletionResponse> {
     let methods = methods_for_type(&trait_impls, &ty, type_state)
         .into_iter()
-        .filter_map(|(method, fn_info)| {
+        .map(|(method, fn_info)| {
             let actual_fn = symtab.unit_by_id(&fn_info.name);
 
             let mut snippet_builder = SnippetBuilder::new();
@@ -520,7 +520,7 @@ fn type_field_completions(
             let label = format!("{inst_label}{method}{arg_label}");
             let inserted = Some(format!("{inst_snippet}{method}{arg_snippet}"));
 
-            Some(CompletionItem {
+            CompletionItem {
                 label: label,
                 label_details: None,
                 kind: Some(CompletionItemKind::FUNCTION),
@@ -544,7 +544,7 @@ fn type_field_completions(
                 commit_characters: None,
                 data: None,
                 tags: None,
-            })
+            }
         });
 
     let field_like = match ty.resolve(type_state) {

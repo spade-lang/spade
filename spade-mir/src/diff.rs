@@ -2,7 +2,6 @@ use rustc_hash::FxHashMap as HashMap;
 use spade_common::{id_tracker::ExprID, location_info::Loc};
 
 use crate::{Entity, MirInput, Register, Statement, ValueName};
-
 macro_rules! check {
     ($cond:expr) => {
         if !($cond) {

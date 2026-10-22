@@ -60,13 +60,13 @@ pub fn check_linear_types(
                 let (kind, path) = witness.motivation();
 
                 if kind == "" {
-                    format!("This is a value containing inverted wires that")
+                    "This is a value containing inverted wires that".to_string()
                 } else {
                     format!("This has a {kind} `{path}` that")
                 }
             }
         };
-        Diagnostic::error(&alias, format!("Unused value with inverted wires"))
+        Diagnostic::error(&alias, "Unused value with inverted wires".to_string())
             .primary_label(format!("{self_description} is unused"))
             .note("Inverted wires must be set exactly once")
     })?;
@@ -406,7 +406,7 @@ fn visit_expression(
             expr,
             "lambda def should have been lowered to function by this point"
         ),
-        spade_hir::ExprKind::Null { .. } => {
+        spade_hir::ExprKind::Null => {
             diag_bail!(expr, "Null expression created before linear check")
         }
         spade_hir::ExprKind::StaticUnreachable(_) => {}

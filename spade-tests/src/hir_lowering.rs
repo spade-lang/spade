@@ -450,7 +450,7 @@ mod tests {
         expected.sort_by_key(|e| e.name.clone());
         result.sort_by_key(|e| e.name.clone());
 
-        for (exp, res) in expected.into_iter().zip(result.into_iter()) {
+        for (exp, res) in expected.into_iter().zip(result) {
             assert_same_mir!(&res, &exp);
         }
     }
@@ -491,7 +491,7 @@ mod tests {
         expected.sort_by_key(|e| e.name.clone());
         result.sort_by_key(|e| e.name.clone());
 
-        for (exp, res) in expected.into_iter().zip(result.into_iter()) {
+        for (exp, res) in expected.into_iter().zip(result) {
             assert_same_mir!(&res, &exp);
         }
     }

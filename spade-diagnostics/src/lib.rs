@@ -311,6 +311,11 @@ impl CodeBundle {
         }
     }
 
+    //String::new to not preallocate by default (with_capacity might be nice to look at in the future)
+    pub fn empty() -> Self {
+        CodeBundle::new(std::string::String::new())
+    }
+
     pub fn from_files(files: &[(String, String)]) -> Self {
         let mut result = Self {
             files: SimpleFiles::new(),

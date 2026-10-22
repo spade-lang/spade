@@ -50,7 +50,7 @@ impl TraitReq {
                 self.name,
                 self.type_params
                     .iter()
-                    .map(|t| format!("{}", t.display_with_meta(display_meta, type_state)))
+                    .map(|t| t.display_with_meta(display_meta, type_state).to_string())
                     .join(", ")
             )
         }
@@ -65,7 +65,7 @@ impl TraitReq {
                 self.name,
                 self.type_params
                     .iter()
-                    .map(|t| format!("{}", t.debug_resolve(type_state).0))
+                    .map(|t| t.debug_resolve(type_state).0.to_string())
                     .join(", ")
             )
         }
@@ -109,7 +109,7 @@ impl TraitList {
         let merged = self
             .inner
             .into_iter()
-            .chain(other.inner.into_iter())
+            .chain(other.inner)
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect_vec();

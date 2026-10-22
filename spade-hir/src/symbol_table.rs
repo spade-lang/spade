@@ -457,12 +457,10 @@ impl TypeDeclKind {
 
     pub fn name(&self) -> String {
         match self {
-            TypeDeclKind::Struct => {
-                format!("struct")
-            }
-            TypeDeclKind::Enum { .. } => "enum".to_string(),
+            TypeDeclKind::Struct => "struct".to_string(),
+            TypeDeclKind::Enum => "enum".to_string(),
             TypeDeclKind::Primitive { .. } => "primitive".to_string(),
-            TypeDeclKind::Alias { .. } => "type alias".to_string(),
+            TypeDeclKind::Alias => "type alias".to_string(),
         }
     }
 }

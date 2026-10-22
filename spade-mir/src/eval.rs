@@ -1,3 +1,7 @@
+#![allow(
+    clippy::unusual_byte_groupings,
+    reason = "Byte alignment makes sense, just nonstandard"
+)]
 use itertools::Itertools;
 use num::BigInt;
 use num::BigUint;

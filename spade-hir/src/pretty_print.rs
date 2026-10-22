@@ -62,7 +62,7 @@ impl PrettyPrint for GenericArg {
                         ": {}",
                         traits
                             .iter()
-                            .map(|t| format!("{}", t.pretty_print()))
+                            .map(|t| t.pretty_print().to_string())
                             .join(", ")
                     )
                 };
@@ -128,12 +128,8 @@ impl PrettyPrint for ConstGeneric {
             ConstGeneric::Mod(lhs, rhs) => {
                 format!("({} % {})", lhs.pretty_print(), rhs.pretty_print())
             }
-            ConstGeneric::IntBitsFor(inner) => {
-                format!("{}", inner.pretty_print())
-            }
-            ConstGeneric::UintBitsFor(inner) => {
-                format!("{}", inner.pretty_print())
-            }
+            ConstGeneric::IntBitsFor(inner) => inner.pretty_print().to_string(),
+            ConstGeneric::UintBitsFor(inner) => inner.pretty_print().to_string(),
             ConstGeneric::Eq(lhs, rhs) => {
                 format!("({} == {})", lhs.pretty_print(), rhs.pretty_print())
             }
@@ -207,8 +203,8 @@ impl PrettyPrint for TypeSpec {
             }
             TypeSpec::Inverted(inner) => format!("inv {}", inner.pretty_print()),
             TypeSpec::CopyView(inner) => format!("&{}", inner.pretty_print()),
-            TypeSpec::TraitSelf(_) => format!("self"),
-            TypeSpec::Wildcard(_) => format!("_"),
+            TypeSpec::TraitSelf(_) => "self".to_string(),
+            TypeSpec::Wildcard(_) => "_".to_string(),
         }
     }
 }

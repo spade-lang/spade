@@ -1771,7 +1771,7 @@ impl<'a> Parser<'a> {
             match next.kind {
                 TokenKind::GreekQuestionMark => Err(Diagnostic::error(
                     next.clone(),
-                    format!("Expected `;`, got a greek question mark (;)"),
+                    "Expected `;`, got a greek question mark (;)".to_string(),
                 )
                 .help("The greek question mark (;) looks similar to the normal `;` character")),
                 other => Ok(other),
@@ -2314,8 +2314,7 @@ impl<'a> Parser<'a> {
                                         return Err(Diagnostic::from(UnexpectedToken {
                                             got: next,
                                             expected: vec![":", "==", "!=", ">", ">=", "<=", "<"],
-                                        })
-                                        .into());
+                                        }));
                                     }
                                 };
 
@@ -2820,9 +2819,7 @@ impl<'a> Parser<'a> {
                                         token.loc(),
                                         format!("`{}` is an enclosing delimiter", token.kind.as_str()),
                                     )
-                                    .note(format!(
-                                        "Enclosing delimiters cannot be used in this context"
-                                    )));
+                                    .note("Enclosing delimiters cannot be used in this context".to_string()));
                                 }
                                 // These denote repetitions (with no delimiter)
                                 TokenKind::Asterisk | TokenKind::Plus | TokenKind::QuestionMark => {

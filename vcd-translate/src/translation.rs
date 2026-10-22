@@ -434,7 +434,7 @@ mod tests {
 
         assert_eq!(
             translated,
-            MaybeValue::Value(BigUint::from(0x10000_0000u64))
+            MaybeValue::Value(BigUint::from(0x0001_0000_0000_u64))
         )
     }
 

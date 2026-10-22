@@ -179,7 +179,7 @@ fn write_escape(mut s: &str, out: &mut String) {
             '"' => Some("&quot;"),
             _ => None,
         }
-        .map_or(false, |s| {
+        .is_some_and(|s| {
             ent = s;
             true
         })

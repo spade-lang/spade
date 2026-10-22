@@ -270,16 +270,16 @@ pub(crate) fn completion_data(name: &str, thing: &ThingOrType) -> CompletionData
                 &UnitKind::Function(spade_hir::FunctionKind::Enum),
             ),
             Thing::Unit(t) => unit_like(&t.inputs, &t.unit_kind.inner),
-            Thing::Macro(_, _) => (format!("{name}"), format!("{name}!")),
+            Thing::Macro(_, _) => (name.to_string(), format!("{name}!")),
 
             Thing::Variable(_)
             | Thing::Alias { .. }
             | Thing::ArrayLabel(_)
             | Thing::Module(_, _)
             | Thing::Trait(_)
-            | Thing::Dummy => (format!("{name}"), format!("{name}")),
+            | Thing::Dummy => (name.to_string(), name.to_string()),
         },
-        ThingOrType::Type(_) => (format!("{name}"), format!("{name}")),
+        ThingOrType::Type(_) => (name.to_string(), name.to_string()),
     };
 
     CompletionData {

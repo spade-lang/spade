@@ -456,7 +456,7 @@ impl std::fmt::Display for TypeSpec {
                 format!("{name}{type_params}")
             }
             TypeSpec::Generic(Generic::Named(name)) => format!("{name}"),
-            TypeSpec::Generic(Generic::Hidden(_)) => format!("(hidden generic)"),
+            TypeSpec::Generic(Generic::Hidden(_)) => "(hidden generic)".to_string(),
             TypeSpec::Tuple(members) => {
                 format!(
                     "({})",
@@ -1166,7 +1166,7 @@ impl ImplTarget {
                     "{}{}",
                     name,
                     if args.is_empty() {
-                        format!("")
+                        String::new()
                     } else {
                         format!("<{}>", args.iter().map(|arg| format!("{}", arg)).join(", "))
                     }

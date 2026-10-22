@@ -205,10 +205,14 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                         type_state,
                     );
                     diag.type_error(
-                        format!("{}", e.failing.display_with_meta(display_meta, type_state)),
+                        e.failing
+                            .display_with_meta(display_meta, type_state)
+                            .to_string(),
                         e.inside
                             .map(|o| o.display_with_meta(display_meta, type_state)),
-                        format!("{}", g.failing.display_with_meta(display_meta, type_state)),
+                        g.failing
+                            .display_with_meta(display_meta, type_state)
+                            .to_string(),
                         g.inside
                             .map(|o| o.display_with_meta(display_meta, type_state)),
                     )
@@ -229,7 +233,9 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                             traits[traits.len() - 1].display_with_meta(display_meta, type_state)
                         )
                     } else {
-                        format!("{}", traits[0].display_with_meta(display_meta, type_state))
+                        traits[0]
+                            .display_with_meta(display_meta, type_state)
+                            .to_string()
                     };
                     let short_msg = format!(
                         "{var} does not implement {impls_str}",
@@ -277,20 +283,17 @@ impl<T> UnificationErrorExt<T> for std::result::Result<T, UnificationError> {
                     ));
 
                     let diag = diag.type_error(
-                        format!(
-                            "{}",
-                            expected
-                                .failing
-                                .display_with_meta(is_meta_error, type_state)
-                        ),
+                        expected
+                            .failing
+                            .display_with_meta(is_meta_error, type_state)
+                            .to_string(),
                         expected
                             .inside
                             .as_ref()
                             .map(|o| o.display_with_meta(is_meta_error, type_state)),
-                        format!(
-                            "{}",
-                            got.failing.display_with_meta(is_meta_error, type_state)
-                        ),
+                        got.failing
+                            .display_with_meta(is_meta_error, type_state)
+                            .to_string(),
                         got.inside
                             .as_ref()
                             .map(|o| o.display_with_meta(is_meta_error, type_state)),
