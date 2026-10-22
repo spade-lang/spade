@@ -722,14 +722,7 @@ impl PipelineAvailability for Expression {
             }
             ExprKind::Call { kind, args, .. } => {
                 // FIXME: Re-add this check to allow nested pipelines
-                let arg_availability = try_compute_availability(
-                    &args
-                        .expressions()
-                        .iter()
-                        .map(|arg| *arg)
-                        .collect::<Vec<_>>(),
-                    ctx,
-                )?;
+                let arg_availability = try_compute_availability(&args.expressions().to_vec(), ctx)?;
                 match &kind {
                     CallKind::Pipeline {
                         inst_loc,

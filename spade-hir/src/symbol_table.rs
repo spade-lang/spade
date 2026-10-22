@@ -275,7 +275,7 @@ pub struct EnumVariant {
 impl EnumVariant {
     pub fn as_unit_head(&self) -> UnitHead {
         UnitHead {
-            name: self.name.clone(),
+            name: self.name,
             is_nonstatic_method: false,
             inputs: self.params.clone(),
             output_type: Some(self.output_type.clone()),
@@ -302,7 +302,7 @@ pub struct StructCallable {
 impl StructCallable {
     pub fn as_unit_head(&self) -> UnitHead {
         UnitHead {
-            name: self.name.clone(),
+            name: self.name,
             is_nonstatic_method: false,
             inputs: self.params.clone(),
             output_type: Some(self.self_type.clone()),
@@ -832,7 +832,7 @@ impl SymbolTable {
         visibility: Loc<Visibility>,
         deprecation_note: Option<Option<Loc<String>>>,
     ) -> Result<NameID, Diagnostic> {
-        self.ensure_is_unique(&Path::ident_with_loc(name.clone()))?;
+        self.ensure_is_unique(&Path::ident_with_loc(name))?;
 
         Ok(self.add_thing(
             Path::ident(name),
@@ -871,13 +871,7 @@ impl SymbolTable {
         self.add_local_variable_at_offset(0, name)
     }
     pub fn add_local_variable_at_offset(&mut self, offset: usize, name: Loc<Identifier>) -> NameID {
-        self.add_thing_at_offset(
-            offset,
-            Path::ident(name.clone()),
-            Thing::Variable(name),
-            None,
-            None,
-        )
+        self.add_thing_at_offset(offset, Path::ident(name), Thing::Variable(name), None, None)
     }
 
     pub fn add_dummy(&mut self, segment: PathSegment) -> NameID {
@@ -891,7 +885,7 @@ impl SymbolTable {
                 .secondary_label(old, "Previously declared here")
         };
         // Check if a variable with this name already exists
-        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident.clone()), false) {
+        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident), false) {
             if let Some(Thing::Variable(prev)) = self.things.get(&id) {
                 return Err(declared_more_than_once(ident, prev));
             }
@@ -900,7 +894,7 @@ impl SymbolTable {
         if let Some((old, _)) = self.declarations.last().unwrap().get_key_value(&ident) {
             Err(declared_more_than_once(ident, old))
         } else {
-            let name_id = self.add_local_variable(ident.clone());
+            let name_id = self.add_local_variable(ident);
             self.declarations
                 .last_mut()
                 .unwrap()
@@ -910,7 +904,7 @@ impl SymbolTable {
     }
 
     pub fn add_undecleared_at_offset(&mut self, offset: usize, name: Loc<Identifier>) -> NameID {
-        let path = Path::ident(name.clone());
+        let path = Path::ident(name);
 
         let name_id = NameID(self.id_tracker.next(), path.clone());
         let full_name = self.namespace.join(path);
@@ -948,8 +942,8 @@ impl SymbolTable {
             .unwrap()
             .iter()
             .filter_map(|(ident, state)| match state {
-                DeclarationState::Undefined(_) => Some((ident.clone(), state.clone())),
-                DeclarationState::Undecleared(_) => Some((ident.clone(), state.clone())),
+                DeclarationState::Undefined(_) => Some((*ident, state.clone())),
+                DeclarationState::Undecleared(_) => Some((*ident, state.clone())),
                 DeclarationState::Defined(_) => None,
             })
             .collect()
@@ -1087,7 +1081,7 @@ impl SymbolTable {
             Thing::Struct(s) => s.clone()
         },
         macro_by_id, lookup_macro, lookup_macro_in_namespace, Identifier, NotAMacro {
-            Thing::Macro(_, m) => m.clone()
+            Thing::Macro(_, m) => *m
         },
         trait_by_id, lookup_trait, lookup_trait_in_namespace, TraitMarker, NotATrait {
             Thing::Trait(t) => t.clone()

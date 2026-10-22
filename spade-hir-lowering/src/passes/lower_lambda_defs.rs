@@ -117,7 +117,7 @@ impl LambdaReplacement {
                         name: clock.clone(),
                         inner: None,
                         pre_declared: false,
-                        wire: wire.clone(),
+                        wire: *wire,
                     }
                     .with_id(idtracker.next())
                     .at_loc(&clock),
@@ -168,7 +168,7 @@ impl LambdaReplacement {
                             .with_id(idtracker.next())
                             .at_loc(cap_name),
                         ),
-                        cap_ident.clone(),
+                        *cap_ident,
                     )
                     .with_id(idtracker.next())
                     .at_loc(cap_name),
@@ -205,7 +205,7 @@ impl LambdaReplacement {
                 .inputs
                 .iter()
                 .map(|Input { wire, name, ty }| Input {
-                    wire: wire.clone(),
+                    wire: *wire,
                     name: name.clone(),
                     ty: self.update_type_spec(ty.clone()),
                 })

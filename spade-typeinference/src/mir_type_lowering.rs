@@ -115,7 +115,7 @@ impl TypeState {
                             .iter()
                             .map(|arg| {
                                 Ok((
-                                    arg.name.inner.clone(),
+                                    arg.name.inner,
                                     Self::type_spec_to_concrete(
                                         &arg.ty.inner,
                                         type_list,
@@ -144,7 +144,7 @@ impl TypeState {
                              field_translator: _,
                          }| {
                             Ok((
-                                ident.inner.clone(),
+                                ident.inner,
                                 Self::type_spec_to_concrete(t, type_list, &generic_subs)?,
                             ))
                         },
@@ -157,9 +157,7 @@ impl TypeState {
                          field_translator,
                          ..
                      }| {
-                        field_translator
-                            .as_ref()
-                            .map(|t| (name.inner.clone(), t.clone()))
+                        field_translator.as_ref().map(|t| (name.inner, t.clone()))
                     },
                 );
 

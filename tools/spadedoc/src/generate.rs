@@ -398,7 +398,7 @@ impl Generator {
 
         let nameid = self
             .symtab
-            .lookup_id(&Path::ident(t.name.clone()).nowhere(), true)
+            .lookup_id(&Path::ident(t.name).nowhere(), true)
             .unwrap();
 
         let attrs = match &t.inner.kind {

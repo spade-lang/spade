@@ -15,7 +15,7 @@ impl CopyWitness {
 
     pub fn loc(&self) -> Loc<()> {
         match self {
-            CopyWitness::Here(here) => here.clone(),
+            CopyWitness::Here(here) => *here,
             CopyWitness::Recursive(inner) => inner.loc(),
         }
     }
@@ -35,7 +35,7 @@ impl DataWitness {
 
     pub fn loc(&self) -> Loc<()> {
         match self {
-            DataWitness::Here(here) => here.clone(),
+            DataWitness::Here(here) => *here,
             DataWitness::Recursive(inner) => inner.loc(),
         }
     }

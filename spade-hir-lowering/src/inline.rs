@@ -67,7 +67,7 @@ impl<'a> InlinedStatements<'a> {
                             },
                             initial: reg.initial.clone(),
                             value: get_final_name(&reg.value),
-                            loc: reg.loc.clone(),
+                            loc: reg.loc,
                         }),
                         Statement::Constant(value_name, ty, constant_value) => Statement::Constant(
                             get_final_name(value_name),
@@ -82,7 +82,7 @@ impl<'a> InlinedStatements<'a> {
                         Statement::Seal { name, ty, variant } => Statement::Seal {
                             name: get_final_name(name),
                             ty: ty.clone(),
-                            variant: variant.clone(),
+                            variant: *variant,
                         },
                     };
                     new_statements.push(new.at_loc(stmt));
@@ -155,7 +155,7 @@ impl<'a> InlinedStatements<'a> {
                             .clone(),
                     ],
                     ty: (*ty).clone(),
-                    loc: Some((*loc).clone()),
+                    loc: Some(*loc),
                 })
                 .at_loc(loc);
 
@@ -368,7 +368,6 @@ pub fn do_inlining(
 ) -> Result<Vec<MirOutput>> {
     let source_map = mir_entities
         .iter()
-        .cloned()
         .map(|e| (e.mir.name.clone(), e.clone()))
         .collect::<BTreeMap<_, _>>();
 

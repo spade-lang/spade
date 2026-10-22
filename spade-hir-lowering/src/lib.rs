@@ -2418,7 +2418,7 @@ impl ExprLocal for Loc<Expression> {
                         .map(|param| {
                             let name = param.name.clone();
 
-                            let t = instance_list[&name].clone().resolve(&ctx.types);
+                            let t = instance_list[&name].resolve(&ctx.types);
                             t.into_known(&ctx.types)
                                 .ok_or_else(|| {
                                     diag_anyhow!(

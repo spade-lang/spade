@@ -217,10 +217,7 @@ impl LinearTree {
             LinearTreeKind::Struct(members) => {
                 members.iter().try_for_each(|(ident, sub)| {
                     sub.borrow_mut().try_consume(loc).map_err(|(witness, loc)| {
-                        (
-                            InvComponentWitness::Field(ident.clone(), Box::new(witness)),
-                            loc,
-                        )
+                        (InvComponentWitness::Field(*ident, Box::new(witness)), loc)
                     })
                 })?;
                 Ok(())
@@ -323,10 +320,7 @@ impl LinearTree {
                     match sub.borrow().check_unused() {
                         Ok(_) => {}
                         Err(witness) => {
-                            return Err(InvComponentWitness::Field(
-                                name.clone(),
-                                Box::new(witness),
-                            ));
+                            return Err(InvComponentWitness::Field(*name, Box::new(witness)));
                         }
                     }
                 }
@@ -378,7 +372,7 @@ fn build_linear_tree(source_loc: Loc<()>, ty: &ConcreteType) -> LinearTree {
                 .iter()
                 .map(|(name, ty)| {
                     (
-                        name.clone(),
+                        *name,
                         Rc::new(RefCell::new(build_linear_tree(source_loc, ty))),
                     )
                 })

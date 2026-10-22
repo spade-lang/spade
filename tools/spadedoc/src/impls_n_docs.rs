@@ -306,8 +306,7 @@ pub(crate) fn gather_impls_n_docs(
             ast::Item::Module(m) => {
                 impls.add_outer_doc(&ctx.symtab, &m.name, &m.attributes);
 
-                ctx.symtab
-                    .push_namespace(PathSegment::Named(m.name.clone()));
+                ctx.symtab.push_namespace(PathSegment::Named(m.name));
                 if let Err(e) = gather_impls_n_docs(&m.body, impls, ctx) {
                     ctx.symtab.pop_namespace();
                     return Err(e);

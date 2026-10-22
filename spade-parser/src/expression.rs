@@ -590,7 +590,7 @@ impl<'a> Parser<'a> {
                 if let Some(args) = self.argument_list(braces)? {
                     Ok(Expression::MethodCall {
                         target: Box::new(expr.clone()),
-                        name: field.clone(),
+                        name: field,
                         args: args.clone(),
                         kind: pipeline_depth
                             .map(|(depth, _)| {
@@ -624,7 +624,7 @@ impl<'a> Parser<'a> {
                     .with_suggestions())
                 } else {
                     Ok(
-                        Expression::FieldAccess(Box::new(expr.clone()), field.clone()).between(
+                        Expression::FieldAccess(Box::new(expr.clone()), field).between(
                             self.file_id(),
                             &expr,
                             &field,

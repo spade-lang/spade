@@ -169,7 +169,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         match &item {
             hir::Item::Unit(u) => {
                 let name = &unit.head.name;
-                trait_members.push((name.inner.clone(), u.head.clone()));
+                trait_members.push((name.inner, u.head.clone()));
 
                 if let Some(imp) = trait_impl.get(&name.inner) {
                     return Err(
@@ -180,7 +180,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
                 }
 
                 trait_impl.insert(
-                    name.inner.clone(),
+                    name.inner,
                     hir::TraitUnitImpl {
                         name: u.name.name_id().inner.clone(),
                         fn_loc: u.loc(),
@@ -297,7 +297,7 @@ pub fn get_or_create_trait(
                 let mut type_expressions = vec![];
                 for param in &params.inner {
                     let (name, _) = ctx.symtab.lookup_type_symbol(
-                        &param.map_ref(|_| Path::ident(param.inner.name().clone())),
+                        &param.map_ref(|_| Path::ident(*param.inner.name())),
                         false,
                     )?;
                     let spec = hir::TypeSpec::Generic(hir::Generic::Named(name.at_loc(param)));
@@ -1077,7 +1077,7 @@ fn map_trait_method_parameters(
                     ctx,
                 )
                 .map(|ty| hir::Parameter {
-                    name: param.name.clone(),
+                    name: param.name,
                     ty,
                     no_mangle: param.no_mangle,
                     wire: param.wire,
@@ -1471,7 +1471,7 @@ pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diag
         {
             let target = block.target.clone();
             block.fns.retain(|f, imp| {
-                let specs = set.entry(f.clone()).or_default();
+                let specs = set.entry(*f).or_default();
                 if let Some((prev, _)) = specs
                     .iter()
                     .find(|(_, spec)| type_specs_overlap(&target.inner, spec))

@@ -156,7 +156,7 @@ pub fn run_global_compilation_tasks(
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
                     ().nowhere(),
-                    namespace.namespace.0.last().unwrap().unwrap_named().clone(),
+                    *namespace.namespace.0.last().unwrap().unwrap_named(),
                 ),
                 Some(Visibility::Implicit.nowhere()),
                 None,

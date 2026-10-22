@@ -99,7 +99,7 @@ pub fn select_method(
     type_state: &TypeState,
 ) -> Result<Option<(Loc<NameID>, i32)>, Diagnostic> {
     let self_type = self_type_id.resolve(type_state);
-    let mut raw_self_type_id = self_type_id.clone();
+    let mut raw_self_type_id = *self_type_id;
     let mut raw_self_type = self_type.clone();
     let mut self_view_layers_delta = 0i32;
 

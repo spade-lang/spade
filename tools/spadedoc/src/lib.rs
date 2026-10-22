@@ -158,7 +158,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
                 namespace.namespace.clone(),
                 spade_hir::symbol_table::Thing::Module(
                     ().nowhere(),
-                    namespace.namespace.0.last().unwrap().unwrap_named().clone(),
+                    *namespace.namespace.0.last().unwrap().unwrap_named(),
                 ),
                 Some(Visibility::Implicit.nowhere()),
                 None,
@@ -262,9 +262,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
             // NOTE: These identifiers do not have the correct file_id. However,
             // as far as I know, they will never be part of an error, so we *should*
             // be safe.
-            generator
-                .symtab
-                .push_namespace(PathSegment::Named(ident.clone()));
+            generator.symtab.push_namespace(PathSegment::Named(*ident));
         }
         std::fs::create_dir_all(&generator.current_dir).or_report(&mut errors);
         generator

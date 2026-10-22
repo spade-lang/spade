@@ -241,7 +241,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<
             traits: _,
             default,
         } => {
-            let path = Path::ident(ident.clone()).at_loc(ident);
+            let path = Path::ident(*ident).at_loc(ident);
             let (name_id, tsym) = ctx.symtab.lookup_type_symbol(&path, true)?;
 
             let trait_bounds = match &tsym.inner {
@@ -270,7 +270,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<
             name,
             default,
         } => {
-            let path = Path::ident(name.clone()).at_loc(name);
+            let path = Path::ident(*name).at_loc(name);
             let name_id = ctx.symtab.lookup_type_symbol(&path, false)?.0;
             let default = visit_default_type_expression(default, ctx)?;
 
@@ -666,7 +666,7 @@ fn visit_parameter_list(
                     .secondary_label(prev, format!("{name} previously declared here")),
             );
         }
-        arg_names.insert(name.clone());
+        arg_names.insert(*name);
         let t = visit_type_spec(input_type, &TypeSpecKind::Argument, ctx)?;
 
         let mut attrs = attrs.clone();
@@ -678,7 +678,7 @@ fn visit_parameter_list(
         attrs.report_unused("a parameter")?;
 
         result.push(hir::Parameter {
-            name: name.clone(),
+            name: *name,
             ty: t,
             no_mangle,
             wire: wire_marker.map(|w| w.loc()),
@@ -946,7 +946,7 @@ pub fn unit_head(
         .collect();
 
     Ok(hir::UnitHead {
-        name: head.name.clone(),
+        name: head.name,
         is_nonstatic_method: head.inputs.self_.is_some(),
         inputs,
         output_type,
@@ -1326,7 +1326,7 @@ pub fn visit_unit(
 
     let path = extra_path
         .unwrap_or(Path(vec![]))
-        .join(Path::ident(name.clone()))
+        .join(Path::ident(*name))
         .at_loc(&name.loc());
 
     let (id, head) = ctx.symtab.lookup_unit(&path, false).map_err(|_| {
@@ -1412,8 +1412,8 @@ pub fn visit_unit(
                  field_translator: _,
              }| {
                 Input {
-                    wire: wire.clone(),
-                    name: ctx.symtab.add_local_variable(ident.clone()).at_loc(ident),
+                    wire: *wire,
+                    name: ctx.symtab.add_local_variable(*ident).at_loc(ident),
                     ty: ty.clone(),
                 }
             },
@@ -1430,7 +1430,7 @@ pub fn visit_unit(
         } = param.inner
         {
             let ident = param.ident().unwrap();
-            ctx.symtab.re_add_type(ident.clone(), name_id.inner.clone())
+            ctx.symtab.re_add_type(*ident, name_id.inner.clone())
         }
     }
 
@@ -1692,19 +1692,17 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
         if let Some(state) = ctx.symtab.get_declaration(ident) {
             match state.inner {
                 DeclarationState::Undefined(id) => {
-                    ctx.symtab
-                        .mark_declaration_defined(ident.clone(), ident.loc());
+                    ctx.symtab.mark_declaration_defined(*ident, ident.loc());
                     Ok((id, true))
                 }
                 DeclarationState::Undecleared(id) => {
                     ctx.symtab.add_thing_with_name_id(
                         id.clone(),
-                        Thing::Variable(ident.clone()),
+                        Thing::Variable(*ident),
                         None,
                         None,
                     );
-                    ctx.symtab
-                        .mark_declaration_defined(ident.clone(), ident.loc());
+                    ctx.symtab.mark_declaration_defined(*ident, ident.loc());
                     Ok((id, true))
                 }
                 DeclarationState::Defined(previous) => {
@@ -1719,12 +1717,8 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
             }
         } else {
             Ok((
-                ctx.symtab.add_thing(
-                    Path::ident(ident.clone()),
-                    Thing::Variable(ident.clone()),
-                    None,
-                    None,
-                ),
+                ctx.symtab
+                    .add_thing(Path::ident(*ident), Thing::Variable(*ident), None, None),
                 false,
             ))
         }
@@ -1756,7 +1750,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                         name: name_id.at_loc(ident),
                         inner: None,
                         pre_declared,
-                        wire: wire.clone(),
+                        wire: *wire,
                     }
                 }
                 (_, []) => unreachable!(),
@@ -1794,7 +1788,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                                  no_mangle: _,
                                  wire: _,
                                  field_translator: _,
-                             }| ident.inner.clone(),
+                             }| ident.inner,
                         )
                         .collect::<HashSet<_>>();
 
@@ -1804,7 +1798,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                             let ast_pattern = pattern.as_ref().cloned().unwrap_or_else(|| {
                                 ast::Pattern::Path {
                                     wire: None,
-                                    path: Path::ident_with_loc(target.clone()),
+                                    path: Path::ident_with_loc(*target),
                                 }
                                 .at_loc(target)
                             });
@@ -1813,15 +1807,15 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                             if let Some(prev) = bound.get(target) {
                                 return Err(Diagnostic::from(
                                     ArgumentError::DuplicateNamedBindings {
-                                        new: target.clone(),
+                                        new: *target,
                                         prev_loc: prev.loc(),
                                     },
                                 ));
                             }
-                            bound.insert(target.clone());
+                            bound.insert(*target);
                             if unbound.take(target).is_none() {
                                 return Err(Diagnostic::from(ArgumentError::NoSuchArgument {
-                                    name: target.clone(),
+                                    name: *target,
                                 }));
                             }
 
@@ -1831,7 +1825,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                             };
 
                             Ok(hir::PatternArgument {
-                                target: target.clone(),
+                                target: *target,
                                 value: new_pattern.at_loc(&ast_pattern),
                                 kind,
                             })
@@ -1866,7 +1860,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                         .map(|(p, arg)| {
                             let pat = p.try_map_ref(|p| visit_pattern(p, ctx))?;
                             Ok(hir::PatternArgument {
-                                target: arg.name.clone(),
+                                target: arg.name,
                                 value: pat,
                                 kind: hir::ArgumentKind::Positional,
                             })
@@ -1891,7 +1885,7 @@ fn try_visit_statement(
                 .iter()
                 .map(|name| {
                     ctx.symtab
-                        .add_declaration(name.clone())
+                        .add_declaration(*name)
                         .map(|decl| decl.at_loc(name))
                 })
                 .filter_map(|name| name.handle_in(&mut ctx.diags.lock().unwrap()))
@@ -1997,7 +1991,7 @@ fn try_visit_statement(
             // NOTE: pipeline labels are lowered in visit_pipeline
             let (name, sym) = ctx
                 .symtab
-                .lookup_type_symbol(&Path::ident(name.clone()).at_loc(name), false)?;
+                .lookup_type_symbol(&Path::ident(*name).at_loc(name), false)?;
             Ok(vec![hir::Statement::Label(name.at_loc(&sym)).at_loc(s)])
         }
         ast::Statement::Assert(expr) => {
@@ -2087,16 +2081,16 @@ fn visit_argument_list(
                 .map(|arg| match arg {
                     ast::NamedArgument::Full(name, expr) => {
                         Ok(hir::expression::NamedArgument::Full(
-                            name.clone(),
+                            *name,
                             expr.visit(visit_expression, ctx),
                         ))
                     }
                     ast::NamedArgument::Short(name) => {
-                        let expr = ast::Expression::Identifier(Path::ident_with_loc(name.clone()))
-                            .at_loc(name);
+                        let expr =
+                            ast::Expression::Identifier(Path::ident_with_loc(*name)).at_loc(name);
 
                         Ok(hir::expression::NamedArgument::Short(
-                            name.clone(),
+                            *name,
                             expr.visit(visit_expression, ctx),
                         ))
                     }
@@ -2137,17 +2131,17 @@ pub fn visit_turbofish(
             .map(|fish| match &fish.inner {
                 ast::NamedTurbofish::Short(name) => {
                     let arg = ast::TypeExpression::TypeSpec(Box::new(
-                        ast::TypeSpec::Named(Path::ident_with_loc(name.clone()), None).at_loc(name),
+                        ast::TypeSpec::Named(Path::ident_with_loc(*name), None).at_loc(name),
                     ));
 
                     let arg =
                         visit_type_expression(&arg, &TypeSpecKind::Turbofish, ctx)?.at_loc(name);
-                    Ok(hir::expression::NamedArgument::Short(name.clone(), arg))
+                    Ok(hir::expression::NamedArgument::Short(*name, arg))
                 }
                 ast::NamedTurbofish::Full(name, arg) => {
                     let arg =
                         visit_type_expression(arg, &TypeSpecKind::Turbofish, ctx)?.at_loc(arg);
-                    Ok(hir::expression::NamedArgument::Full(name.clone(), arg))
+                    Ok(hir::expression::NamedArgument::Full(*name, arg))
                 }
             })
             .collect::<Result<Vec<_>>>()
@@ -2345,7 +2339,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 for (i, (label, _expr)) in exprs.iter().enumerate() {
                     if let Some(label) = label {
                         ctx.symtab.add_thing(
-                            Path::ident(label.clone()),
+                            Path::ident(*label),
                             Thing::ArrayLabel(i.at_loc(label)),
                             None,
                             None,
@@ -2416,7 +2410,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         }
         ast::Expression::FieldAccess(target, field) => Ok(hir::ExprKind::FieldAccess(
             Box::new(target.visit(visit_expression, ctx)),
-            field.clone(),
+            *field,
         )),
         ast::Expression::TypeCast(target, ty) => Ok(hir::ExprKind::TypeCast(
             Box::new(target.visit(visit_expression, ctx)),
@@ -2433,7 +2427,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             Ok(hir::ExprKind::MethodCall {
                 target: Box::new(target),
                 sugar_info: None,
-                name: name.clone(),
+                name: *name,
                 args: args.try_map_ref(|args| visit_argument_list(args, ctx))?,
                 call_kind: visit_call_kind(kind, ctx)?,
                 turbofish: turbofish
@@ -2643,7 +2637,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     // When it's not found, try to find the type behind it for associated functions
                     if callee.0.len() >= 2 {
                         let ty = callee.prelude();
-                        let assoc = callee.tail().unwrap_named().clone();
+                        let assoc = *callee.tail().unwrap_named();
 
                         let start = ty.0.first().unwrap().loc();
                         let end = ty.0.last().unwrap().loc();
@@ -2765,7 +2759,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 ast::PipelineStageReference::Absolute(name) => {
                     hir::expression::PipelineRefKind::Absolute(
                         ctx.symtab
-                            .lookup_type_symbol(&Path::ident(name.clone()).at_loc(name), false)?
+                            .lookup_type_symbol(&Path::ident(*name).at_loc(name), false)?
                             .0
                             .at_loc(name),
                     )
@@ -2778,7 +2772,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 .as_ref()
                 .expect("Expected to have a pipeline context");
 
-            let path = Path::ident_with_loc(name.clone());
+            let path = Path::ident_with_loc(*name);
             let (name_id, declares_name) = match ctx.symtab.try_lookup_variable(&path)? {
                 Some(id) => (id.at_loc(name), false),
                 None => {
@@ -2788,9 +2782,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                     if let Some(DeclarationState::Undecleared(name_id)) = undecleared_lookup {
                         (name_id.clone().at_loc(name), false)
                     } else {
-                        let name_id = ctx
-                            .symtab
-                            .add_undecleared_at_offset(pipeline_offset, name.clone());
+                        let name_id = ctx.symtab.add_undecleared_at_offset(pipeline_offset, *name);
                         (name_id.at_loc(name), true)
                     }
                 }
@@ -2942,8 +2934,7 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
         .lower(&mut |attr| match &attr.inner {
             ast::Attribute::Fsm { state } => {
                 let name_id = if let Some(state) = state {
-                    ctx.symtab
-                        .lookup_variable(&Path::ident_with_loc(state.clone()))?
+                    ctx.symtab.lookup_variable(&Path::ident_with_loc(*state))?
                 } else if let PatternKind::Bound {
                     name, inner: None, ..
                 } = &pattern.inner.kind

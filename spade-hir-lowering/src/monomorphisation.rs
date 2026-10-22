@@ -366,12 +366,11 @@ fn monomorphize_item(
                                 .ok_or_else(|| diag_anyhow!(unit, "Did not have a generic list"))?
                                 .clone();
                             for (i, (_, ty)) in replacement.arguments.into_iter().enumerate() {
-                                let old_ty = gl
+                                let old_ty = *gl
                                     .get(&unit.head.get_type_params()[i].name)
                                     .ok_or_else(|| {
                                         diag_anyhow!(unit, "Did not have an entry for argument {i}")
-                                    })?
-                                    .clone();
+                                    })?;
 
                                 ty.insert(type_state)
                                     .unify_with(&old_ty, type_state)

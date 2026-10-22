@@ -170,7 +170,7 @@ impl<'a, TypeLike, T> ParameterListWrapper<'a, TypeLike, T> {
     fn arg_default(&self, name: &'a Identifier) -> Option<Option<&'a Loc<T>>> {
         self.0.iter().find_map(|(aname, _, default)| {
             if &aname.inner == name {
-                Some(default.clone())
+                Some(*default)
             } else {
                 None
             }
@@ -261,7 +261,7 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                                 .0
                                 .iter()
                                 .skip(inner.len())
-                                .map(|(name, _, _)| name.inner.clone())
+                                .map(|(name, _, _)| name.inner)
                                 .collect(),
                             at: inner_loc,
                             num_defaults,
@@ -291,18 +291,16 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                     // Check if this is a new binding
                     if let Some(prev) = bound.get(target) {
                         return Err(ArgumentError::DuplicateNamedBindings {
-                            new: target.clone(),
+                            new: *target,
                             prev_loc: prev.loc(),
                         });
                     }
-                    bound.insert(target.clone());
+                    bound.insert(*target);
 
                     let target_type = if let Some(t) = params.try_get_arg_type(&target.inner) {
                         t
                     } else {
-                        return Err(ArgumentError::NoSuchArgument {
-                            name: target.clone(),
-                        });
+                        return Err(ArgumentError::NoSuchArgument { name: *target });
                     };
 
                     unbound.remove(target);

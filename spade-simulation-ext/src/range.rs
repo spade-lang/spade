@@ -1,3 +1,7 @@
+#![allow(
+    clippy::clone_on_copy,
+    reason = "Pyo3 does a clone in the macro expansion"
+)]
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 

@@ -184,12 +184,7 @@ impl Path {
 
     /// Generate a path from a list of Loc<Identifier>
     pub fn from_idents(elems: &[&Loc<Identifier>]) -> Self {
-        Path(
-            elems
-                .iter()
-                .map(|x| PathSegment::Named((*x).clone()))
-                .collect(),
-        )
+        Path(elems.iter().map(|x| PathSegment::Named(**x)).collect())
     }
 
     pub fn ident(ident: Loc<Identifier>) -> Self {

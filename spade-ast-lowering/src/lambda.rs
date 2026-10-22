@@ -98,11 +98,8 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 spade_hir::symbol_table::Thing::Variable(name) => {
                     let mut visited_variables = visited_variables.lock().unwrap();
                     if !visited_variables.contains(name) {
-                        captures
-                            .lock()
-                            .unwrap()
-                            .push((name.clone(), previous.clone()));
-                        visited_variables.insert(name.clone());
+                        captures.lock().unwrap().push((*name, previous.clone()));
+                        visited_variables.insert(*name);
                     }
                     Ok(())
                 }
@@ -124,7 +121,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
 
     let clock = clock_arg
         .as_ref()
-        .map(|(_, _, clk, _)| ctx.symtab.add_local_variable(clk.clone()).at_loc(&clk));
+        .map(|(_, _, clk, _)| ctx.symtab.add_local_variable(*clk).at_loc(&clk));
     let arguments = actual_args
         .iter()
         .map(|arg| arg.try_visit(visit_pattern, ctx))
@@ -160,7 +157,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .map(|(i, arg)| Identifier::intern(&format!("A{i}")).at_loc(arg))
         .collect::<Vec<_>>();
 
-    let output_generic_param_name = output_type_name.clone().at_loc(unit_kind);
+    let output_generic_param_name = output_type_name.at_loc(unit_kind);
 
     // Generic params of the environment in which the lambda is defined
     let outer_generic_params = current_unit
@@ -179,7 +176,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
     let manufactured_generic_params = arg_generic_param_names
         .clone()
         .into_iter()
-        .chain(Some(output_generic_param_name.clone()))
+        .chain(Some(output_generic_param_name))
         .chain(captured_value_generic_param_names.clone())
         .collect::<Vec<_>>();
 
@@ -189,7 +186,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .chain(
             outer_generic_params
                 .iter()
-                .map(|p| p.ident().unwrap().inner.clone().at_loc(&p)),
+                .map(|p| p.ident().unwrap().inner.at_loc(&p)),
         )
         .collect::<Vec<_>>();
 
@@ -197,7 +194,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .iter()
         .map(|name| {
             ast::TypeParam::TypeName {
-                name: name.clone(),
+                name: *name,
                 traits: vec![],
                 default: None,
             }
@@ -208,7 +205,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                 .iter()
                 .map(|tp| {
                     Ok(ast::TypeParam::TypeWithMeta {
-                        name: tp.ident().unwrap().inner.clone().at_loc(tp),
+                        name: tp.ident().unwrap().inner.at_loc(tp),
                         // NOTE: Recreating the meta-type like this is kind of strange, but works for now. If we add more meta-types in the future, recondsider this decision
                         meta: match tp.meta {
                             MetaType::Int => Identifier::intern("int").at_loc(tp),
@@ -250,11 +247,11 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
 
     let type_decl = ast::TypeDeclaration {
         visibility: Visibility::Implicit.nowhere(),
-        name: type_name.clone().at_loc(&debug_loc),
+        name: type_name.at_loc(&debug_loc),
         kind: spade_ast::TypeDeclKind::Struct(
             ast::Struct {
                 attributes: ast::AttributeList::empty(),
-                name: type_name.clone().at_loc(&debug_loc),
+                name: type_name.at_loc(&debug_loc),
                 members: ast::ParameterList::without_self(
                     captures
                         .iter()
@@ -267,7 +264,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             )
                             .at_loc(name_id);
 
-                            (ast::AttributeList::empty(), None, name_ident.clone(), ty)
+                            (ast::AttributeList::empty(), None, *name_ident, ty)
                         })
                         .collect(),
                 )
@@ -302,7 +299,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
                             ast::TypeExpression::TypeSpec(Box::new(args_spec.clone())).nowhere(),
                             ast::TypeExpression::TypeSpec(Box::new(
                                 ast::TypeSpec::Named(
-                                    Path::ident(output_type_name.clone().nowhere()).nowhere(),
+                                    Path::ident(output_type_name.nowhere()).nowhere(),
                                     None,
                                 )
                                 .nowhere(),
@@ -319,13 +316,13 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
             type_params: Some(type_params),
             where_clauses: vec![],
             target: ast::TypeSpec::Named(
-                Path::ident(type_name.clone().nowhere()).nowhere(),
+                Path::ident(type_name.nowhere()).nowhere(),
                 Some(
                     all_generic_param_names
                         .iter()
                         .map(|name| {
                             ast::TypeExpression::TypeSpec(Box::new(
-                                ast::TypeSpec::Named(Path::ident(name.clone()).at_loc(name), None)
+                                ast::TypeSpec::Named(Path::ident(*name).at_loc(name), None)
                                     .at_loc(name),
                             ))
                             .at_loc(name)
@@ -532,7 +529,7 @@ fn handle_unit_kind(
                             } else {
                                 None
                             },
-                            p.0.last().unwrap().unwrap_named().clone(),
+                            *p.0.last().unwrap().unwrap_named(),
                             ast::TypeSpec::Named(Path::from_strs(&["clock"]).at_loc(clock), None)
                                 .at_loc(clock),
                         )),

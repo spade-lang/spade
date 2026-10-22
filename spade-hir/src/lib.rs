@@ -160,7 +160,7 @@ impl Pattern {
                 pre_declared: _,
                 inner,
                 wire,
-            } => vec![(name.clone(), wire.clone())]
+            } => vec![(name.clone(), *wire)]
                 .into_iter()
                 .chain(inner.iter().flat_map(|i| i.get_names_and_wireness()))
                 .collect(),

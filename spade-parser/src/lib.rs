@@ -306,7 +306,7 @@ impl<'a> Parser<'a> {
 
             Ok(NamedTurbofish::Full(name, value).at(self.file_id(), &span))
         } else {
-            Ok(NamedTurbofish::Short(name.clone()).at(self.file_id(), &name))
+            Ok(NamedTurbofish::Short(name).at(self.file_id(), &name))
         }
     }
 
@@ -1136,7 +1136,7 @@ impl<'a> Parser<'a> {
                     &close_paren.span,
                 ),
                 stage: reference,
-                name: ident.clone(),
+                name: ident,
             }
             .between(self.file_id(), &stage_keyword.span, &ident),
         ))
@@ -1241,20 +1241,19 @@ impl<'a> Parser<'a> {
                                     s.eat_unconditional()?;
 
                                     // Safe index since we check the length earlier
-                                    let name = path.tail().unwrap_named().clone();
+                                    let name = *path.tail().unwrap_named();
 
                                     if let Some(value) = s.maybe_expression(ExprBraces::Allow)? {
                                         let loc = ().between(s.file_id(), &next, &value);
                                         Ok(ArgKind::Named(
-                                            NamedArgument::Full(name.clone(), value)
+                                            NamedArgument::Full(name, value)
                                                 .between_locs(&name, &loc),
                                             loc,
                                         ))
                                     } else {
                                         let loc = ().at(s.file_id(), &next);
                                         Ok(ArgKind::Named(
-                                            NamedArgument::Short(name.clone())
-                                                .between_locs(&name, &loc),
+                                            NamedArgument::Short(name).between_locs(&name, &loc),
                                             loc,
                                         ))
                                     }
@@ -1358,14 +1357,14 @@ impl<'a> Parser<'a> {
 
             Ok(NamedArgument::Full(name, value).at(self.file_id(), &span))
         } else {
-            Ok(NamedArgument::Short(name.clone()).at(self.file_id(), &name))
+            Ok(NamedArgument::Short(name).at(self.file_id(), &name))
         }
     }
 
     #[trace_parser]
     pub fn type_expression(&mut self) -> Result<Loc<TypeExpression>> {
         if let Some(val) = self.bool_literal()? {
-            Ok(TypeExpression::Bool(val.inner.clone()).at_loc(&val))
+            Ok(TypeExpression::Bool(val.inner).at_loc(&val))
         } else if let Some(val) = self.int_literal()? {
             Ok(TypeExpression::Integer(val.inner.clone().as_signed()).at_loc(&val))
         } else if let Some(val) = self.str_literal()? {
@@ -1614,7 +1613,7 @@ impl<'a> Parser<'a> {
                 if path.0.len() == 1 && s.peek_kind(&TokenKind::At)? {
                     s.eat_unconditional()?;
 
-                    let name = path.tail().unwrap_named().clone();
+                    let name = *path.tail().unwrap_named();
                     let inner = s.pattern()?;
                     let inner_span = inner.span;
 
