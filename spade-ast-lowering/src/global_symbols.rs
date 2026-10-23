@@ -323,7 +323,7 @@ pub fn gather_symbols(module: &ast::ModuleBody, ctx: &mut Context) -> Result<()>
 pub fn visit_item(item: &ast::Item, ctx: &mut Context) -> Result<()> {
     match item {
         ast::Item::Unit(e) => {
-            visit_unit(&None, e, &None, &vec![], ctx)?;
+            visit_unit(&None, e, &None, &[], ctx)?;
         }
         ast::Item::MacroDef(_) => {}
         ast::Item::TraitDef(def) => {

@@ -91,7 +91,7 @@ pub fn visit_impl_inner(block: &Loc<ast::ImplBlock>, ctx: &mut Context) -> Resul
         .ok_or_else(|| {
             Diagnostic::bug(
                 block,
-                format!("Failed to find trait {} in the item list", &trait_name),
+                format!("Failed to find trait {} in the item list", trait_name),
             )
         })?
         .clone();

@@ -1533,7 +1533,7 @@ pub fn visit_trait_spec(
         let param_str = match param_ty {
             None => String::from("()"),
             Some(ty @ ast::TypeExpression::TypeSpec(ts)) if ts.is_tuple() => ty.to_string(),
-            Some(ty) => format!("({})", ty.to_string()),
+            Some(ty) => format!("({})", ty),
         };
 
         let return_str = match return_ty {

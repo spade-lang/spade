@@ -220,7 +220,7 @@ impl ServerBackend {
                         spade_path(&namespace.base_namespace),
                         path.clone().into_std_path_buf().as_path(),
                     )
-                    .with_context(|| format!("Failed to open {}", &path.to_string()))?,
+                    .with_context(|| format!("Failed to open {}", path))?,
                     path.to_string(),
                     if let Some((modified_path, new_content)) = modified_file {
                         if path == modified_path {

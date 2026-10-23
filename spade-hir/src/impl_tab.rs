@@ -73,7 +73,7 @@ impl ImplTab {
                     format!(
                         "Multiple implementations of {} for {}",
                         path,
-                        &target.display(&target_args)
+                        target.display(&target_args)
                     ),
                 )
                 .secondary_label(duplicate, "Previous impl here"));

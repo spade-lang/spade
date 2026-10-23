@@ -275,14 +275,14 @@ impl TypeState {
                 self.shared.modify_generic_lists(|gl| {
                     (f)(gl
                         .get_mut(token)
-                        .expect(&format!("Did not find a generic list for {token:?}")))
+                        .unwrap_or_else(|| panic!("Did not find a generic list for {token:?}")))
                 })
             }
             GenericListToken::Definition(_) | GenericListToken::Expression(_) => (f)(self
                 .owned
                 .generic_lists
                 .get_mut(token)
-                .expect(&format!("Did not find a generic list for {token:?}"))),
+                .unwrap_or_else(|| panic!("Did not find a generic list for {token:?}"))),
         }
     }
 

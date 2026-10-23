@@ -606,7 +606,7 @@ impl Generator {
                             &Path::from_strs(&[]),
                             false,
                         )
-                        .expect(&format!("Did not find a primitive named {name}"));
+                        .unwrap_or_else(|_| panic!("Did not find a primitive named {name}"));
 
                     ImplTargetBase::Named(nameid)
                 }
@@ -781,10 +781,7 @@ impl Generator {
             &self.current_dir.join("styles.css"),
             include_str!("./styles.css"),
         )
-        .expect(&format!(
-            "Failed to write style.css into {}",
-            self.current_dir
-        ));
+        .unwrap_or_else(|_| panic!("Failed to write style.css into {}", self.current_dir));
         let mut buf = BufWriter::new(file);
         let mut node = Node::new(&mut buf);
 

@@ -16,7 +16,7 @@ pub(crate) struct UnitParser {}
 impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
     fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
         |kind| {
-            vec![
+            [
                 TokenKind::Function,
                 TokenKind::Entity,
                 TokenKind::Pipeline,
@@ -60,7 +60,7 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
                     next.clone(),
                     format!("Unexpected `{}`, expected body or `;`", next.kind.as_str(),),
                 )
-                .primary_label(format!("Unexpected {}", &next.kind.as_str()))
+                .primary_label(format!("Unexpected {}", next.kind.as_str()))
                 .secondary_label(&head, format!("Expected body for this {}", head.unit_kind)))
             }
         })();

@@ -49,12 +49,12 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
                  base_namespace,
              }| {
                 let mut file = File::open(&infile)
-                    .with_context(|| format!("Failed to open {}", &infile.to_string_lossy()))?;
+                    .with_context(|| format!("Failed to open {}", infile.to_string_lossy()))?;
                 let mut file_content = String::new();
                 file.read_to_string(&mut file_content)?;
                 Ok((
                     ModuleNamespace::new(namespace, base_namespace, infile.as_path())
-                        .with_context(|| format!("Failed to open {}", &infile.to_string_lossy()))?,
+                        .with_context(|| format!("Failed to open {}", infile.to_string_lossy()))?,
                     infile.to_string_lossy().to_string(),
                     file_content,
                 ))
@@ -255,7 +255,7 @@ pub fn doc(infiles: Vec<NamespacedFile>, gen_dir: Utf8PathBuf) -> Result<(), Buf
             let PathSegment::Named(ident) = seg else {
                 panic!(
                     "Spadedoc assumes that modules can't be in impls/entites: {}",
-                    &namespace.namespace
+                    namespace.namespace
                 );
             };
             generator.current_dir.push(ident.inner.as_str());

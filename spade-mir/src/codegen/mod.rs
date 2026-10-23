@@ -628,7 +628,7 @@ fn forward_expression_code(
                     let (write_index, write_value) = if inner_w == 1u32.to_biguint() {
                         (
                             format!("{}[{addr}]", name),
-                            format!("{}[{}]", op_names[1], &write_value_start),
+                            format!("{}[{}]", op_names[1], write_value_start),
                         )
                     } else {
                         (

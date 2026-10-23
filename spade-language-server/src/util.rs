@@ -71,7 +71,7 @@ impl ServerBackend {
             .dump_files()
             .into_iter()
             .enumerate()
-            .find(|(_id, (file, _content))| **file == path.to_string_lossy().to_string());
+            .find(|(_id, (file, _content))| **file == path.to_string_lossy());
 
         match file {
             Some((id, (_file, content))) => {

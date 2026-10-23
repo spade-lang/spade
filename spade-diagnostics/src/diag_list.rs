@@ -31,10 +31,7 @@ impl Drop for DiagList {
     fn drop(&mut self) {
         if !self.errors.is_empty() {
             println!("WARNING: Dropped a DiagList without draining the errors");
-            println!(
-                "Backtrace:\n{}",
-                std::backtrace::Backtrace::capture().to_string()
-            )
+            println!("Backtrace:\n{}", std::backtrace::Backtrace::capture())
         }
     }
 }
