@@ -49,7 +49,7 @@ jobs:
             rustup component add clippy
       - name: cargo clippy
         run: |
-            cargo clippy --workspace         
+            cargo clippy --workspace --tests
             
   fmt:
     runs-on: ["fbs", "medium", "debian-13-x86_64"]
