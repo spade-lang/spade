@@ -76,7 +76,8 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
             }
         } else {
             let expected = indoc::formatdoc!("{}", code);
-            let response = response.expect(&format!("Did not find any completions information"));
+            let response =
+                response.unwrap_or_else(|| panic!("Did not find any completions information"));
 
             if let CompletionResponse::Array(items) = response {
                 let mut result = String::new();
@@ -92,7 +93,7 @@ async fn check_completion(test_name: &str, code: &str, expect_none: bool) {
                     {
                         result += &format!(
                             "{}\t{}\n",
-                            &item.label,
+                            item.label,
                             item.insert_text.unwrap_or("-".to_string())
                         );
                     }

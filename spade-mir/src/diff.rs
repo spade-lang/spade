@@ -321,7 +321,12 @@ mod statement_comparison_tests {
         let lhs = statement!(e(0); Type::int(5); Add; e(1), n(2, "test"));
         let rhs = statement!(e(3); Type::int(5); Add; e(2), n(3, "test"));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
         assert!(map.compare_exprs(ExprID(0), ExprID(3)))
@@ -337,7 +342,12 @@ mod statement_comparison_tests {
         let lhs = statement!(n(0, "a"); Type::int(5); Add; e(1), n(2, "test"));
         let rhs = statement!(n(3, "a"); Type::int(5); Add; e(2), n(3, "test"));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
         assert!(map.compare_name((&0, "a"), (&3, "a")))
@@ -353,7 +363,14 @@ mod statement_comparison_tests {
         let lhs = statement!(n(0, "a"); Type::int(5); Add; e(1), n(2, "test"));
         let rhs = statement!(n(3, "b"); Type::int(5); Add; e(2), n(3, "test"));
 
-        assert!(populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).is_err());
+        assert!(
+            populate_var_map(
+                std::slice::from_ref(&lhs),
+                std::slice::from_ref(&rhs),
+                &mut map
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -366,7 +383,12 @@ mod statement_comparison_tests {
         let lhs = statement!(e(0); Type::int(5); Add; e(1), e(2));
         let rhs = statement!(e(3); Type::int(4); Add; e(1), e(2));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -381,7 +403,12 @@ mod statement_comparison_tests {
         let lhs = statement!(e(0); Type::int(5); Add; e(1), e(2));
         let rhs = statement!(e(3); Type::int(5); Select; e(1), e(2));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -396,7 +423,12 @@ mod statement_comparison_tests {
         let lhs = statement!(e(0); Type::int(5); Add; e(2), e(1));
         let rhs = statement!(e(3); Type::int(5); Add; e(1), e(2));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -411,7 +443,12 @@ mod statement_comparison_tests {
         let lhs = statement!(e(0); Type::int(5); Add; e(2), e(1));
         let rhs = statement!(e(3); Type::int(5); Add; e(1), e(3));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -429,7 +466,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(5); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
     }
@@ -446,7 +488,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(5); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
@@ -465,7 +512,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg n(0, "test"); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg n(5, "test"); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
@@ -484,7 +536,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(3)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -501,7 +558,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(3)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(3)); reset(e(2), e(4)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -518,7 +580,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(5)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -535,7 +602,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(2));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -552,7 +624,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)) initial(vec![statement!(e(0); Type::Bool; Alias; e(3))]); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)) initial(vec![statement!(e(0); Type::Bool; Alias; e(2))]); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -569,7 +646,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)) initial(vec![statement!(e(0); Type::Bool; Alias; e(2))]); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -586,7 +668,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(0); Type::int(5); clock(e(2)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -603,7 +690,12 @@ mod statement_comparison_tests {
         let lhs = statement!(reg e(0); Type::int(6); clock(e(2)); reset(e(3), e(4)); e(1));
         let rhs = statement!(reg e(5); Type::int(5); clock(e(2)); reset(e(3), e(4)); e(1));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -617,7 +709,12 @@ mod statement_comparison_tests {
         let lhs = statement!(const 0; Type::int(5); ConstantValue::int(10));
         let rhs = statement!(const 0; Type::int(5); ConstantValue::int(10));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
     }
@@ -629,7 +726,12 @@ mod statement_comparison_tests {
         let lhs = statement!(const 0; Type::int(5); ConstantValue::int(10));
         let rhs = statement!(const 1; Type::int(5); ConstantValue::int(10));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(compare_statements(&lhs, &rhs, &mut map));
 
@@ -643,7 +745,12 @@ mod statement_comparison_tests {
         let lhs = statement!(const 0; Type::int(6); ConstantValue::int(10));
         let rhs = statement!(const 0; Type::int(5); ConstantValue::int(10));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -655,7 +762,12 @@ mod statement_comparison_tests {
         let lhs = statement!(const 0; Type::int(5); ConstantValue::int(11));
         let rhs = statement!(const 0; Type::int(5); ConstantValue::int(10));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
@@ -667,7 +779,12 @@ mod statement_comparison_tests {
         let lhs = statement!(const 0; Type::int(5); ConstantValue::Bool(false));
         let rhs = statement!(const 0; Type::int(5); ConstantValue::int(10));
 
-        populate_var_map(&vec![lhs.clone()], &vec![rhs.clone()], &mut map).unwrap();
+        populate_var_map(
+            std::slice::from_ref(&lhs),
+            std::slice::from_ref(&rhs),
+            &mut map,
+        )
+        .unwrap();
 
         assert!(!compare_statements(&lhs, &rhs, &mut map));
     }
