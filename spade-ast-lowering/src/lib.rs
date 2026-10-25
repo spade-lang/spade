@@ -784,8 +784,7 @@ fn validate_default_param_position(
 ) -> Result<()> {
     let misplaced_default = type_params
         .iter()
-        .map(Loc::strip_ref)
-        .flatten()
+        .flat_map(Loc::strip_ref)
         .rev()
         .skip_while(|d| d.default().is_some())
         .find(|d| d.default().is_some());
@@ -1961,10 +1960,7 @@ fn try_visit_statement(
         }
         ast::Statement::Register(inner) => visit_register(inner, ctx),
         ast::Statement::PipelineRegMarker(count, cond) => {
-            let cond = match cond {
-                Some(cond) => Some(cond.visit(visit_expression, ctx)),
-                None => None,
-            };
+            let cond = cond.as_ref().map(|cond| cond.visit(visit_expression, ctx));
 
             let extra = match (count, cond) {
                 (None, None) => None,

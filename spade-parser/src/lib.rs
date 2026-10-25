@@ -541,10 +541,7 @@ impl<'a> Parser<'a> {
         }
 
         let actual_char = if val.len() == 2 && val.starts_with('\\') {
-            Self::map_escape_char(
-                val.chars().skip(1).next().unwrap().at_loc(&next.loc()),
-                '\'',
-            )?
+            Self::map_escape_char(val.chars().nth(1).unwrap().at_loc(&next.loc()), '\'')?
         } else if val.len() > 1 {
             return Err(Diagnostic::error(
                 next,

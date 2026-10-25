@@ -106,7 +106,7 @@ impl ServerBackend {
                         .1
                         .to_named_strs()
                         .into_iter()
-                        .filter_map(|x| x)
+                        .flatten()
                         .join("::");
 
                     let CompletionData {
@@ -125,14 +125,7 @@ impl ServerBackend {
                     };
 
                     let description = resolved_thing
-                        .map(|name| {
-                            name.0
-                                 .1
-                                .to_named_strs()
-                                .into_iter()
-                                .filter_map(|x| x)
-                                .join("::")
-                        })
+                        .map(|name| name.0 .1.to_named_strs().into_iter().flatten().join("::"))
                         .unwrap_or(full_path);
 
                     Some(CompletionItem {
@@ -186,12 +179,12 @@ pub(crate) fn follow_aliases<'a>(
             } => symtab
                 .lookup_thing(path, true)
                 .ok()
-                .and_then(|(name, thing)| {
-                    match follow_aliases(symtab, &ThingOrType::Thing(thing)) {
-                        None => Some((name, ThingOrType::Thing(thing))),
-                        Some((name, t)) => Some((name, t)),
-                    }
-                })
+                .map(
+                    |(name, thing)| match follow_aliases(symtab, &ThingOrType::Thing(thing)) {
+                        None => (name, ThingOrType::Thing(thing)),
+                        Some((name, t)) => (name, t),
+                    },
+                )
                 .or_else(|| {
                     symtab
                         .lookup_type_symbol(path, true)

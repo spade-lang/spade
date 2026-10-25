@@ -1990,7 +1990,6 @@ impl TypeState {
             .into_iter()
             .chain(hidden_type_params.into_iter())
             .chain(scope_type_params.into_iter())
-            .map(|(name, t)| (name, t))
             .collect::<HashMap<_, _>>();
 
         self.owned.trace_stack.push(|| {

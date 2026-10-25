@@ -55,12 +55,10 @@ impl<'a> InlinedStatements<'a> {
                             name: get_final_name(&reg.name),
                             ty: reg.ty.clone(),
                             clock: get_final_name(&reg.clock),
-                            reset: match &reg.reset {
-                                Some((trig, val)) => {
-                                    Some((get_final_name(trig), get_final_name(val)))
-                                }
-                                None => None,
-                            },
+                            reset: reg
+                                .reset
+                                .as_ref()
+                                .map(|(trig, val)| (get_final_name(trig), get_final_name(val))),
                             initial: reg.initial.clone(),
                             value: get_final_name(&reg.value),
                             loc: reg.loc,

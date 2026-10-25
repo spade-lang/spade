@@ -523,8 +523,7 @@ pub fn visit_type_declaration(
     let min_required_params = t
         .generic_args
         .iter()
-        .map(Loc::strip_ref)
-        .flatten()
+        .flat_map(Loc::strip_ref)
         .take_while(|d| d.default().is_none())
         .count();
 

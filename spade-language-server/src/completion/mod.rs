@@ -70,7 +70,7 @@ impl ServerBackend {
 
         let completions = paths_around
             .iter()
-            .map(|name| {
+            .flat_map(|name| {
                 let path_until_cursor = name
                     .0
                     .iter()
@@ -112,7 +112,7 @@ impl ServerBackend {
                     .symtab()
                     .things_and_types()
                     .iter()
-                    .map(|(name, thing)| {
+                    .flat_map(|(name, thing)| {
                         candidate_paths
                             .iter()
                             .filter_map(|candidate| {
@@ -163,27 +163,20 @@ impl ServerBackend {
                             })
                             .collect::<Vec<_>>()
                     })
-                    .flatten()
                     .collect::<Vec<_>>();
 
-                let associated_fns = symtab
-                    .symtab()
-                    .types
-                    .iter()
-                    .map(|ty| {
-                        Self::complete_associated_fns(
-                            ty,
-                            &candidate_paths,
-                            &path_until_cursor,
-                            symtab,
-                            &self.trait_impls,
-                        )
-                    })
-                    .flatten();
+                let associated_fns = symtab.symtab().types.iter().flat_map(|ty| {
+                    Self::complete_associated_fns(
+                        ty,
+                        &candidate_paths,
+                        &path_until_cursor,
+                        symtab,
+                        &self.trait_impls,
+                    )
+                });
 
                 symtab_matches.into_iter().chain(associated_fns).collect()
             })
-            .flatten()
             .collect::<Vec<_>>();
 
         if completions.is_empty() {
@@ -202,7 +195,7 @@ impl ServerBackend {
     ) -> Vec<CompletionItem> {
         candidate_paths
             .iter()
-            .map(|candidate| {
+            .flat_map(|candidate| {
                 let full_path = candidate
                     .iter()
                     .chain(path_until_cursor.0.iter())
@@ -221,57 +214,52 @@ impl ServerBackend {
                     .inner
                     .iter()
                     .filter(|(target, _impls)| *target == &ImplTarget::Named(name.clone()))
-                    .map(|(_target, impls)| {
-                        impls
-                            .iter()
-                            .map(|r#impl| {
-                                r#impl
-                                    .impl_block
-                                    .fns
-                                    .iter()
-                                    .filter(|(_n, unit)| {
-                                        matches!(unit.selfness, spade_hir::Selfness::Static)
-                                    })
-                                    .map(|(n, unit)| {
-                                        let target = symtab.symtab().unit_by_id(&unit.name);
+                    .flat_map(|(_target, impls)| {
+                        impls.iter().flat_map(|r#impl| {
+                            r#impl
+                                .impl_block
+                                .fns
+                                .iter()
+                                .filter(|(_n, unit)| {
+                                    matches!(unit.selfness, spade_hir::Selfness::Static)
+                                })
+                                .map(|(n, unit)| {
+                                    let target = symtab.symtab().unit_by_id(&unit.name);
 
-                                        let CompletionData {
-                                            kind,
-                                            label,
-                                            snippet,
-                                        } = completion_data(
-                                            n.as_str(),
-                                            &ThingOrType::Thing(&Thing::Unit(target)),
-                                        );
+                                    let CompletionData {
+                                        kind,
+                                        label,
+                                        snippet,
+                                    } = completion_data(
+                                        n.as_str(),
+                                        &ThingOrType::Thing(&Thing::Unit(target)),
+                                    );
 
-                                        CompletionItem {
-                                            label: label.clone(),
-                                            label_details: None,
-                                            kind: Some(kind),
-                                            detail: None,
-                                            documentation: None, // FIXME: Docs
-                                            deprecated: None,    // FIXME
-                                            preselect: None,
-                                            sort_text: Some(label.clone()),
-                                            filter_text: Some(label),
-                                            insert_text: Some(snippet),
-                                            insert_text_format: Some(InsertTextFormat::SNIPPET),
-                                            insert_text_mode: None,
-                                            text_edit: None,
-                                            additional_text_edits: None,
-                                            command: None,
-                                            commit_characters: None,
-                                            data: None,
-                                            tags: None,
-                                        }
-                                    })
-                            })
-                            .flatten()
+                                    CompletionItem {
+                                        label: label.clone(),
+                                        label_details: None,
+                                        kind: Some(kind),
+                                        detail: None,
+                                        documentation: None, // FIXME: Docs
+                                        deprecated: None,    // FIXME
+                                        preselect: None,
+                                        sort_text: Some(label.clone()),
+                                        filter_text: Some(label),
+                                        insert_text: Some(snippet),
+                                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                                        insert_text_mode: None,
+                                        text_edit: None,
+                                        additional_text_edits: None,
+                                        command: None,
+                                        commit_characters: None,
+                                        data: None,
+                                        tags: None,
+                                    }
+                                })
+                        })
                     })
-                    .flatten()
                     .collect()
             })
-            .flatten()
             .collect()
     }
 

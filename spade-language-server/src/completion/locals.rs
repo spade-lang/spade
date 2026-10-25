@@ -24,36 +24,33 @@ impl ServerBackend {
             .map(|u| u.inputs.iter().map(|i| i.name.clone()).collect::<Vec<_>>())
             .unwrap_or_default();
 
-        let from_expr = things_around
-            .iter()
-            .map(|thing| {
-                let spade_query::QueryThing::Expr(e) = &thing.inner else {
-                    return vec![];
-                };
-                let ExprKind::Block(block) = &e.kind else {
-                    return vec![];
-                };
-                let Block {
-                    statements,
-                    result: _,
-                } = &**block;
+        let from_expr = things_around.iter().flat_map(|thing| {
+            let spade_query::QueryThing::Expr(e) = &thing.inner else {
+                return vec![];
+            };
+            let ExprKind::Block(block) = &e.kind else {
+                return vec![];
+            };
+            let Block {
+                statements,
+                result: _,
+            } = &**block;
 
-                statements
-                    .iter()
-                    .filter(|statement| statement.span.start() < loc.span.start())
-                    .flat_map(|s| match &s.inner {
-                        spade_hir::Statement::Error => vec![],
-                        spade_hir::Statement::Binding(binding) => binding.pattern.get_names(),
-                        spade_hir::Statement::Expression(_) => vec![],
-                        spade_hir::Statement::Register(register) => register.pattern.get_names(),
-                        spade_hir::Statement::Declaration(names) => names.clone(),
-                        spade_hir::Statement::PipelineRegMarker(_) => vec![],
-                        spade_hir::Statement::Label(_) => vec![],
-                        spade_hir::Statement::Assert(_) => vec![],
-                    })
-                    .collect()
-            })
-            .flatten();
+            statements
+                .iter()
+                .filter(|statement| statement.span.start() < loc.span.start())
+                .flat_map(|s| match &s.inner {
+                    spade_hir::Statement::Error => vec![],
+                    spade_hir::Statement::Binding(binding) => binding.pattern.get_names(),
+                    spade_hir::Statement::Expression(_) => vec![],
+                    spade_hir::Statement::Register(register) => register.pattern.get_names(),
+                    spade_hir::Statement::Declaration(names) => names.clone(),
+                    spade_hir::Statement::PipelineRegMarker(_) => vec![],
+                    spade_hir::Statement::Label(_) => vec![],
+                    spade_hir::Statement::Assert(_) => vec![],
+                })
+                .collect()
+        });
 
         Some(
             from_head

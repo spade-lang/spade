@@ -170,8 +170,8 @@ async fn init_with_file(code: &str, opt: InitFileOpt, include_stdlib: bool) -> T
                     .diagnostics
                     .lock()
                     .await
-                    .iter()
-                    .flat_map(|(_, diags)| diags)
+                    .values()
+                    .flatten()
                     .any(
                         |diag| &diag.message == *expected_diagnostic && diag.range == marker.range
                     ));

@@ -75,9 +75,9 @@ impl ServerBackend {
 
         match file {
             Some((id, (_file, content))) => {
-                let line_starts = line_starts(content);
+                let mut line_starts = line_starts(content);
 
-                let start = line_starts.skip(pos.line as usize).next();
+                let start = line_starts.nth(pos.line as usize);
 
                 match start {
                     Some(s) => Ok(Loc {

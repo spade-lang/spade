@@ -364,8 +364,8 @@ impl ServerBackend {
         let code = &self.code.lock().unwrap();
         Ok(item_list
             .executables
-            .iter()
-            .filter_map(|(_id, executable)| match executable {
+            .values()
+            .filter_map(|executable| match executable {
                 spade_hir::ExecutableItem::EnumInstance {
                     base_enum: _,
                     variant: _,

@@ -1457,7 +1457,7 @@ fn map_type_spec_to_trait(
 #[tracing::instrument(skip(item_list))]
 pub fn ensure_unique_anonymous_traits(item_list: &mut hir::ItemList) -> Vec<Diagnostic> {
     let mut diags = vec![];
-    for (_impl_target, impls) in item_list.impls.inner.iter_mut() {
+    for impls in item_list.impls.inner.values_mut() {
         let mut set: HashMap<Identifier, Vec<(Loc<()>, hir::TypeSpec)>> = HashMap::default();
 
         for block in impls

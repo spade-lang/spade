@@ -669,10 +669,7 @@ pub fn parse(
             .namespaces
             .push(namespace.clone().at(parser.file_id(), &(0..content.len())));
 
-        let result = parser
-            .top_level_module_body()
-            .map_err(|e| e)
-            .or_report(errors);
+        let result = parser.top_level_module_body().or_report(errors);
         if print_parse_traceback
             .as_ref()
             .map(|file| name.contains(file))

@@ -82,7 +82,7 @@ pub fn methods_for_type<'a>(
                 })
             },
         )
-        .filter_map(|x| x)
+        .flatten()
         .collect::<Vec<_>>()
 }
 
@@ -161,17 +161,11 @@ pub fn select_method(
             )
             .multiunzip();
 
-    let matched_candidates = matched_candidates
-        .into_iter()
-        .filter_map(|x| x)
-        .collect::<Vec<_>>();
-    let maybe_candidates = maybe_candidates
-        .into_iter()
-        .filter_map(|x| x)
-        .collect::<Vec<_>>();
+    let matched_candidates = matched_candidates.into_iter().flatten().collect::<Vec<_>>();
+    let maybe_candidates = maybe_candidates.into_iter().flatten().collect::<Vec<_>>();
     let unmatched_candidates = unmatched_candidates
         .into_iter()
-        .filter_map(|x| x)
+        .flatten()
         .collect::<Vec<_>>();
 
     if !maybe_candidates.is_empty() {

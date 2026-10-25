@@ -244,7 +244,7 @@ impl TyExt for Loc<TypeDeclaration> {
 }
 
 pub fn enforce_enum_data(ctx: &mut Context) {
-    for (_, ty) in &ctx.item_list.types {
+    for ty in ctx.item_list.types.values() {
         match &ty.kind {
             spade_hir::TypeDeclKind::Enum(e) => {
                 for (_, parameters) in &e.options {

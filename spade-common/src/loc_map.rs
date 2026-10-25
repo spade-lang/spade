@@ -35,17 +35,14 @@ impl<T> LocMap<T> {
             .map(|starts| {
                 let after_start = starts.range(..=loc.span.start());
                 after_start
-                    .map(|(start, ends)| {
-                        ends.range(loc.span.end()..)
-                            .map(|(end, things)| {
-                                let with_locs = things.iter().map(|thing| {
-                                    Loc::new(thing, Span::new(*start, *end), loc.file_id)
-                                });
-                                with_locs
-                            })
-                            .flatten()
+                    .flat_map(|(start, ends)| {
+                        ends.range(loc.span.end()..).flat_map(|(end, things)| {
+                            let with_locs = things
+                                .iter()
+                                .map(|thing| Loc::new(thing, Span::new(*start, *end), loc.file_id));
+                            with_locs
+                        })
                     })
-                    .flatten()
                     .rev()
                     .collect::<Vec<_>>()
             })

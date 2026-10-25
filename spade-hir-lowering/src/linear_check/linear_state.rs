@@ -79,8 +79,7 @@ pub fn is_linear(ty: &ConcreteType) -> bool {
         ConcreteType::Array { inner, size: _ } => is_linear(inner),
         ConcreteType::Enum { options } => options
             .iter()
-            .map(|o| &o.1)
-            .flatten()
+            .flat_map(|o| &o.1)
             .any(|(_, ty)| is_linear(ty)),
         ConcreteType::Single { base, params: _ } => match base {
             spade_types::PrimitiveType::Int

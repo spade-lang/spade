@@ -50,11 +50,11 @@ impl QueryCache {
     pub fn from_artifacts(items: &ItemList, floating_nodes: &FloatingNodes) -> Self {
         let mut result = QueryCache::empty();
 
-        for (_, item) in items.executables.iter() {
+        for item in items.executables.values() {
             result.visit_executable(item.clone());
         }
 
-        for (_, ty) in items.types.iter() {
+        for ty in items.types.values() {
             result.visit_type_decl(ty)
         }
 
@@ -90,7 +90,7 @@ impl QueryCache {
     }
 
     pub fn id_to_expression(&self, id: ExprID) -> Option<&Loc<Expression>> {
-        self.ids.get(&id).map(|x| x)
+        self.ids.get(&id)
     }
 
     fn handle_nameid(&mut self, name: Loc<NameID>) {

@@ -312,7 +312,7 @@ impl SerializedSize for StoredCompilerState {
         } = self;
 
         if let Some(mir_context) = mir_context {
-            for (_, mc) in mir_context {
+            for mc in mir_context.values() {
                 let mut path = field.to_vec();
                 path.push("mir_context");
                 mc.accumulate_size(&path, into);
