@@ -37,10 +37,9 @@ impl<T> LocMap<T> {
                 after_start
                     .flat_map(|(start, ends)| {
                         ends.range(loc.span.end()..).flat_map(|(end, things)| {
-                            let with_locs = things
+                            things
                                 .iter()
-                                .map(|thing| Loc::new(thing, Span::new(*start, *end), loc.file_id));
-                            with_locs
+                                .map(|thing| Loc::new(thing, Span::new(*start, *end), loc.file_id))
                         })
                     })
                     .rev()

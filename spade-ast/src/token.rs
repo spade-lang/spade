@@ -33,8 +33,8 @@ fn parse_int(slice: &str, radix: u32) -> (BigUint, LiteralKind) {
 }
 
 fn process_ident(ident: &str) -> Identifier {
-    if ident.starts_with("r#") {
-        Identifier::intern(&ident[2..])
+    if let Some(stripped_ident) = ident.strip_prefix("r#") {
+        Identifier::intern(stripped_ident)
     } else {
         Identifier::intern(ident)
     }

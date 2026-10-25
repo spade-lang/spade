@@ -736,9 +736,8 @@ impl<'a> Parser<'a> {
         };
 
         if is_gen {
-            let on_false = on_false.unwrap_or(
-                Expression::Block(Box::new(Block::default())).at(self.file_id(), &start.span),
-            );
+            let on_false = on_false
+                .unwrap_or(Expression::Block(Box::default()).at(self.file_id(), &start.span));
 
             Ok(Some(
                 Expression::TypeLevelIf {
@@ -1094,14 +1093,14 @@ impl<'a> Parser<'a> {
             TokenKind::Plus => {
                 let start = self.eat_unconditional()?;
                 let offset = self.expression(ExprBraces::Allow)?;
-                let result = PipelineStageReference::Relative(
+
+                PipelineStageReference::Relative(
                     TypeExpression::ConstGeneric(Box::new(offset.clone())).between(
                         self.file_id(),
                         &start,
                         &offset,
                     ),
-                );
-                result
+                )
             }
             TokenKind::Minus => {
                 let start = self.eat_unconditional()?;

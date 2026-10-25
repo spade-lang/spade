@@ -180,7 +180,8 @@ impl OwnedTypeState {
     /// existing type state
     pub fn fresh() -> Self {
         let key = fastrand::u64(..);
-        let result = Self {
+
+        Self {
             key,
             keys: [key].into_iter().collect(),
             equations: HashMap::default(),
@@ -193,8 +194,7 @@ impl OwnedTypeState {
             error_type: None,
             pipeline_state: None,
             diags: DiagList::new(),
-        };
-        result
+        }
     }
 
     pub fn create_child(&self) -> Self {
@@ -3110,7 +3110,6 @@ impl TypeState {
     /// Performs unification but does not update constraints. This is done to avoid
     /// updating constraints more often than necessary. Technically, constraints can
     /// be updated even less often, but `unify` is a pretty natural point to do so.
-
     fn unify_inner(
         &mut self,
         e1: &impl HasType,

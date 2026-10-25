@@ -26,7 +26,7 @@ impl ImplTargetBase {
     ) -> bool {
         match spec {
             TypeSpec::Tuple(exprs) => {
-                let not_specialized = !exprs.into_iter().any(|e| Self::for_type_expr(e, symtab, f));
+                let not_specialized = !exprs.iter().any(|e| Self::for_type_expr(e, symtab, f));
                 if not_specialized {
                     f(ImplTargetBase::Tuple);
                 }

@@ -1207,7 +1207,7 @@ impl ImplTarget {
             ImplTarget::Array => {
                 format!(
                     "[{}; {}]",
-                    args.get(0)
+                    args.first()
                         .map(|a| format!("{}", a))
                         .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
                     args.get(1)
@@ -1218,7 +1218,7 @@ impl ImplTarget {
             ImplTarget::Inverted => {
                 format!(
                     "inv {}",
-                    args.get(0)
+                    args.first()
                         .map(|a| format!("{}", a))
                         .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
                 )
@@ -1226,7 +1226,7 @@ impl ImplTarget {
             ImplTarget::CopyView => {
                 format!(
                     "&{}",
-                    args.get(0)
+                    args.first()
                         .map(|a| format!("{}", a))
                         .unwrap_or_else(|| "<(bug) Missing param 0>".to_string()),
                 )

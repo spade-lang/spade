@@ -1,5 +1,5 @@
-/// Macros for writing mir.
-/// Requires the crate to be in scope, i.e. `use spade_mir;`
+//! Macros for writing mir.
+//! Requires the crate to be in scope, i.e. `use spade_mir;`
 
 #[macro_export]
 macro_rules! value_name {

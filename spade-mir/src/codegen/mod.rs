@@ -1310,11 +1310,10 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     snippets.join("\n")
                 }
                 Operator::ConstructCopyView => {
-                    let c = code! {
+                    code! {
                         [0] forward_expression.map(|f| format!("assign {} = {};", name, f));
                     }
-                    .to_string();
-                    c
+                    .to_string()
                 }
                 .to_string(),
                 Operator::ConstructEnum { variant } => {

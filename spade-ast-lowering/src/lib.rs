@@ -1735,8 +1735,7 @@ fn try_lookup_enum_variant(path: &Loc<Path>, ctx: &mut Context) -> Result<hir::P
             path.loc(),
             format!(
                 "({})",
-                std::iter::repeat("_")
-                    .take(expected)
+                std::iter::repeat_n("_", expected)
                     .collect::<Vec<_>>()
                     .join(", ")
             ),

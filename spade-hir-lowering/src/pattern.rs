@@ -548,7 +548,7 @@ mod tests {
 
         for test_case in test_cases {
             let subranges = test_case
-                .into_iter()
+                .iter()
                 .map(|range| Constructor::IntRange {
                     first: range.start().to_bigint(),
                     last: range.end().to_bigint(),

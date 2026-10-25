@@ -11,7 +11,6 @@ macro_rules! check {
 }
 
 /// Functions for diffing and comparing mir code while ignoring exact variable IDs
-
 pub struct VarMap {
     pub expr_map: HashMap<ExprID, ExprID>,
     pub expr_map_rev: HashMap<ExprID, ExprID>,
@@ -295,7 +294,7 @@ fn populate_var_map(
             }
             (Statement::Memory { .. }, _) => Err(()),
             (Statement::Constant(e1, _, _), Statement::Constant(e2, _, _)) => {
-                var_map.try_update_name(&*e1, &*e2)
+                var_map.try_update_name(e1, e2)
             }
             (Statement::Constant { .. }, _) => Err(()),
             (Statement::Assert(_), Statement::Assert(_)) => Ok(()),

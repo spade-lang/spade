@@ -235,7 +235,7 @@ impl Spade {
         symtab.set_base_namespace(SpadePath(
             namespace
                 .0
-                .get(0)
+                .first()
                 .map(|segment| vec![segment.clone()])
                 .unwrap_or(vec![]),
         ));

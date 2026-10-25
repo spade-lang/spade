@@ -150,7 +150,7 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
     let get_replacement = |v: Loc<ValueName>| replaced_names.get(&v).cloned().unwrap_or(v);
 
     let iter_result = stmts
-        .into_iter()
+        .iter()
         .filter_map(|stmt| {
             match stmt.inner.clone() {
                 Statement::Binding(Binding {

@@ -550,7 +550,7 @@ impl KnownTypeVar {
         TypeVar::Known(
             *loc,
             base.clone(),
-            params.into_iter().map(|p| p.insert(type_state)).collect(),
+            params.iter().map(|p| p.insert(type_state)).collect(),
         )
         .insert(type_state)
     }

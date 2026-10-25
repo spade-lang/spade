@@ -73,7 +73,7 @@ impl ConcreteType {
         }
     }
 
-    pub fn assume_array(&self) -> (&Box<ConcreteType>, &BigInt) {
+    pub fn assume_array(&self) -> (&ConcreteType, &BigInt) {
         match self {
             ConcreteType::Array { inner, size } => (inner, size),
             t => unreachable!("Assumed {} was an array", t),

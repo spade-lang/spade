@@ -154,7 +154,7 @@ impl LambdaReplacement {
                         Box::new(
                             ExprKind::Identifier(
                                 old.inputs
-                                    .get(0)
+                                    .first()
                                     .ok_or_else(|| {
                                         diag_anyhow!(
                                             cap_name,
