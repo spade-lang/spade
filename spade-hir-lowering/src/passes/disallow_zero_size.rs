@@ -83,18 +83,7 @@ impl<'a> Pass for DisallowZeroSize<'a> {
                     | spade_hir::expression::UnaryOperator::Reference => Ok(()),
                 }
             }
-            spade_hir::ExprKind::Match(_cond, operands) => {
-                if let Some((_, _, val)) = operands.first() {
-                    if type_of(val)?.size() == BigUint::ZERO {
-                        return Err(Diagnostic::error(
-                            val,
-                            "Match expressions cannot produce zero size values",
-                        )
-                        .primary_label("Zero size value"));
-                    }
-                }
-                Ok(())
-            }
+            spade_hir::ExprKind::Match(_, _) => Ok(()),
             spade_hir::ExprKind::ConstTypeExpr(_) => Ok(()),
             spade_hir::ExprKind::Block(_) => Ok(()),
             spade_hir::ExprKind::If { .. } => Ok(()),

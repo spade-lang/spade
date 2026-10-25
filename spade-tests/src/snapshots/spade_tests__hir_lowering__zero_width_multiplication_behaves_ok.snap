@@ -30,13 +30,6 @@ fn test6() {
     let _ = - 0i0;
 }
 
-fn test7() {
-    let _ = match 0u8 {
-        0 => 0u0,
-        _ => 0
-    };
-}
-
 
 error: Operator * does not support zero size operands
   ┌─ testinput:4:13
@@ -61,9 +54,3 @@ error: Operator << does not support zero size operands
    │             ^^^ -- is not supported by this operator
    │             │    
    │             Zero size operand
-
-error: Match expressions cannot produce zero size values
-   ┌─ testinput:32:14
-   │
-32 │         0 => 0u0,
-   │              ^^^ Zero size value

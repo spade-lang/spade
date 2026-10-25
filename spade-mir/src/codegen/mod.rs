@@ -3827,4 +3827,49 @@ mod expression_tests {
             expected
         );
     }
+
+    #[test]
+    fn zero_sized_match_operator_codegens_correctly() {
+        let stmt = statement!(e(0); Type::unit(); Match; e(1), e(2), e(3), e(4), e(5), e(6), e(7));
+
+        let expected = indoc!(
+            r#"
+            assign _e_2 = _e_1;
+            assign _e_5 = _e_1;"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), Type::int(2)),
+                &CodeBundle::empty()
+            )
+            .to_string(),
+            expected
+        );
+    }
+
+    #[test]
+    fn zero_sized_fwd_match_operator_codegens_correctly() {
+        let stmt = statement!(e(0); Type::backward(Type::uint(2)); Match; e(1), e(2), e(3), e(4), e(5), e(6), e(7));
+
+        let expected = indoc!(
+            r#"
+            logic[1:0] _e_0_mut;
+            assign _e_4_mut = _e_0_mut;
+            assign _e_7_mut = _e_0_mut;
+            assign _e_2 = _e_1;
+            assign _e_5 = _e_1;"#
+        );
+
+        assert_same_code!(
+            &statement_code_and_declaration(
+                &stmt,
+                &MirTypeList::empty().with(ValueName::Expr(ExprID(1)), Type::int(2)),
+                &CodeBundle::empty()
+            )
+            .to_string(),
+            expected
+        );
+    }
 }
