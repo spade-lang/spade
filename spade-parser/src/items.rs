@@ -76,36 +76,30 @@ impl KeywordPeekingParser<Loc<Unit>> for UnitParser {
         parser.clear_item_context();
 
         match (head.extern_token, block) {
-            (Some(_), Some(b)) => {
-                return Err(Diagnostic::error(
-                    head.extern_token.unwrap(),
-                    "`extern` units cannot have a body",
-                )
-                .span_suggest_remove("Remove this body", b));
+            (Some(_), Some(b)) => Err(Diagnostic::error(
+                head.extern_token.unwrap(),
+                "`extern` units cannot have a body",
+            )
+            .span_suggest_remove("Remove this body", b)),
+            (None, None) => Err(Diagnostic::error(
+                &head,
+                format!("This {} is missing a body", head.unit_kind),
+            )
+            .span_suggest_replace(
+                format!("Did you forget to add the {}'s body?", head.unit_kind),
+                after_head_token,
+                " {}",
+            )
+            .span_suggest_insert_before(
+                format!("Or did you mean to declare an `extern` {}?", head.unit_kind),
+                &head.unit_kind,
+                "extern ",
+            )),
+            (_, b) => Ok(Unit {
+                head: head.inner.clone(),
+                body: b.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
             }
-            (None, None) => {
-                return Err(Diagnostic::error(
-                    &head,
-                    format!("This {} is missing a body", head.unit_kind),
-                )
-                .span_suggest_replace(
-                    format!("Did you forget to add the {}'s body?", head.unit_kind),
-                    after_head_token,
-                    " {}",
-                )
-                .span_suggest_insert_before(
-                    format!("Or did you mean to declare an `extern` {}?", head.unit_kind),
-                    &head.unit_kind,
-                    "extern ",
-                ));
-            }
-            (_, b) => {
-                return Ok(Unit {
-                    head: head.inner.clone(),
-                    body: b.map(|inner| inner.map(|inner| Expression::Block(Box::new(inner)))),
-                }
-                .between(parser.file_id(), &head, &block_span));
-            }
+            .between(parser.file_id(), &head, &block_span)),
         }
     }
 }
@@ -358,7 +352,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for StructParser {
 
         let result = TypeDeclaration {
             visibility: visibility.clone(),
-            name: name,
+            name,
             kind: TypeDeclKind::Struct(
                 Struct {
                     name,
@@ -405,7 +399,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for EnumParser {
 
         let result = TypeDeclaration {
             visibility: visibility.clone(),
-            name: name,
+            name,
             kind: TypeDeclKind::Enum(
                 Enum {
                     name,
@@ -497,7 +491,7 @@ impl KeywordPeekingParser<Loc<TypeDeclaration>> for TypeAliasParser {
         let end = parser.eat(&TokenKind::Semi)?;
 
         Ok(TypeDeclaration {
-            name: name,
+            name,
             generic_args,
             kind: TypeDeclKind::Alias(
                 TypeAlias {

@@ -472,7 +472,7 @@ impl TypeState {
         generic_list: &GenericListToken,
     ) -> Result<()> {
         assuming_kind!(ExprKind::AssociatedCall { kind, callee, callee_ty, name, args, turbofish, safety: _ } = &expression => {
-            self.visit_argument_list(&args, ctx, generic_list)?;
+            self.visit_argument_list(args, ctx, generic_list)?;
 
             let target_type = self.type_var_from_hir(callee.loc(), callee, generic_list, ctx)?;
             let self_type = self.type_of(&TypedExpression::Id(expression.id));
@@ -481,7 +481,7 @@ impl TypeState {
 
             let requirement = Requirement::HasMethod {
                 expr_id: expression.map_ref(|e| e.id),
-                target_type: target_type.at_loc(&callee),
+                target_type: target_type.at_loc(callee),
                 method: *name,
                 expr: self_type.at_loc(expression),
                 args: args.clone(),
@@ -697,18 +697,18 @@ impl TypeState {
 
             let (t, is_num) = match tid.resolve(self) {
                 TypeVar::Unknown(_, _, _, MetaType::Bool) => (
-                    self.t_bool(loc, &ctx.symtab),
+                    self.t_bool(loc, ctx.symtab),
                     false,
                 ),
                 TypeVar::Unknown(_, _, _, MetaType::Int) => (
-                    self.new_split_generic_int(loc, &ctx.symtab).0,
+                    self.new_split_generic_int(loc, ctx.symtab).0,
                     true,
                 ),
                 TypeVar::Unknown(_, _, _, MetaType::Uint) => (
-                    self.new_split_generic_uint(loc, &ctx.symtab).0,
+                    self.new_split_generic_uint(loc, ctx.symtab).0,
                     true,
                 ),
-                TypeVar::Unknown(_, _, _, MetaType::Number) => (self.new_generic_number(loc, &ctx).0, true),
+                TypeVar::Unknown(_, _, _, MetaType::Number) => (self.new_generic_number(loc, ctx).0, true),
                 TypeVar::Unknown(_, _, _, MetaType::Str) => {
                     return Err(Diagnostic::error(
                         loc,
@@ -730,7 +730,7 @@ impl TypeState {
                 });
             }
 
-            self.unify_expression_generic_error(expression, &t, &ctx)?;
+            self.unify_expression_generic_error(expression, &t, ctx)?;
         });
 
         Ok(())
@@ -1041,7 +1041,7 @@ impl TypeState {
                 self.setup_pipeline_state(
                     unit_kind,
                     body,
-                    &generic_list,
+                    generic_list,
                     depth,
                     depth_typeexpr_id,
                     ctx,

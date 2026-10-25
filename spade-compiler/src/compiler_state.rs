@@ -197,7 +197,7 @@ impl CompilerState {
         }
     }
 
-    pub fn build_query_cache<'a>(&'a self) -> QueryCache {
+    pub fn build_query_cache(&self) -> QueryCache {
         QueryCache::from_artifacts(&self.item_list, &self.floating_nodes)
     }
 

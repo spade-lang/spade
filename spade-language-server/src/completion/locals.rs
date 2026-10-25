@@ -66,7 +66,7 @@ impl ServerBackend {
                         kind: Some(CompletionItemKind::VARIABLE),
                         detail: unit_type_state
                             .as_ref()
-                            .and_then(|ts| name_id.try_get_type(&ts).map(|ty| ty.display(&ts))),
+                            .and_then(|ts| name_id.try_get_type(ts).map(|ty| ty.display(ts))),
                         documentation: None,
                         deprecated: None,
                         preselect: None,

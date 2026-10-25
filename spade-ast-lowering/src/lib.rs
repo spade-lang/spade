@@ -259,7 +259,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<
             let default = visit_default_type_expression(default, ctx)?;
 
             Ok(hir::TypeParam {
-                name: Generic::Named(name_id.at_loc(&ident)),
+                name: Generic::Named(name_id.at_loc(ident)),
                 trait_bounds,
                 meta: MetaType::Type,
                 default: default.map(Box::new),
@@ -275,7 +275,7 @@ pub fn re_visit_type_param(param: &ast::TypeParam, ctx: &mut Context) -> Result<
             let default = visit_default_type_expression(default, ctx)?;
 
             Ok(hir::TypeParam {
-                name: Generic::Named(name_id.at_loc(&name)),
+                name: Generic::Named(name_id.at_loc(name)),
                 trait_bounds: vec![],
                 meta: visit_meta_type(meta)?,
                 default: default.map(Box::new),
@@ -502,21 +502,23 @@ pub fn visit_type_spec(
                                 TypeSymbol::Declared(_, _, _)
                                 | TypeSymbol::GenericArg { traits: _ }
                                 | TypeSymbol::GenericMeta(MetaType::Type) => Ok(t.at_loc(p)),
-                                | TypeSymbol::GenericMeta(other_meta) => {
-                                    return Err(Diagnostic::error(name, format!("Tuple members can only be types, found {other_meta}"))
-                                    .primary_label(format!("Expected type, found {other_meta}"))
-                                    .secondary_label(&inner, format!("{name} is defined as {other_meta} here")))
-                                }
+                                TypeSymbol::GenericMeta(other_meta) => Err(Diagnostic::error(
+                                    name,
+                                    format!("Tuple members can only be types, found {other_meta}"),
+                                )
+                                .primary_label(format!("Expected type, found {other_meta}"))
+                                .secondary_label(
+                                    &inner,
+                                    format!("{name} is defined as {other_meta} here"),
+                                )),
                             }
                         }
                     },
-                    _ => {
-                        return Err(Diagnostic::error(
-                            p,
-                            "Tuple elements must be types, not type-level values",
-                        )
-                        .primary_label("Tuples cannot contain non-types"))
-                    }
+                    _ => Err(Diagnostic::error(
+                        p,
+                        "Tuple elements must be types, not type-level values",
+                    )
+                    .primary_label("Tuples cannot contain non-types")),
                 })
                 .collect::<Result<Vec<_>>>()?;
 
@@ -557,8 +559,8 @@ pub fn visit_type_spec(
                 .collect::<Result<Vec<_>>>()?;
 
             let new_id = ctx.generic_idtracker.next();
-            ctx.item_list.hidden_constraints.push(specs.at_loc(&t));
-            Ok(hir::TypeSpec::Generic(Generic::Hidden(new_id.at_loc(&t))))
+            ctx.item_list.hidden_constraints.push(specs.at_loc(t));
+            Ok(hir::TypeSpec::Generic(Generic::Hidden(new_id.at_loc(t))))
         }
         ast::TypeSpec::Wildcard => {
             let default_error = |message, primary| {
@@ -1439,7 +1441,7 @@ pub fn visit_unit(
     let body = body
         .as_ref()
         .unwrap()
-        .map_ref(|body| visit_expression(&body, ctx));
+        .map_ref(|body| visit_expression(body, ctx));
 
     ctx.symtab.close_scope();
     ctx.current_unit = None;
@@ -1705,15 +1707,14 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
                     ctx.symtab.mark_declaration_defined(*ident, ident.loc());
                     Ok((id, true))
                 }
-                DeclarationState::Defined(previous) => {
-                    return Err(
-                        Diagnostic::error(ident, format!("{ident} was already defined"))
-                            .secondary_label(previous, "First defined here")
-                            .primary_label("Later defined here")
-                            .secondary_label(state.loc(), format!("{ident} declared here"))
-                            .note("Declared variables can only be defined once"),
-                    );
-                }
+                DeclarationState::Defined(previous) => Err(Diagnostic::error(
+                    ident,
+                    format!("{ident} was already defined"),
+                )
+                .secondary_label(previous, "First defined here")
+                .primary_label("Later defined here")
+                .secondary_label(state.loc(), format!("{ident} declared here"))
+                .note("Declared variables can only be defined once")),
             }
         } else {
             Ok((
@@ -1733,7 +1734,7 @@ pub fn visit_pattern(p: &ast::Pattern, ctx: &mut Context) -> Result<hir::Pattern
 
             hir::PatternKind::Bound {
                 name: name_id.at_loc(name),
-                inner: Some(Box::new(pat.at_loc(&inner))),
+                inner: Some(Box::new(pat.at_loc(inner))),
                 pre_declared,
                 // FIXME: Support wires on bounds
                 wire: None,
@@ -1992,7 +1993,7 @@ fn try_visit_statement(
             let (name, sym) = ctx
                 .symtab
                 .lookup_type_symbol(&Path::ident(*name).at_loc(name), false)?;
-            Ok(vec![hir::Statement::Label(name.at_loc(&sym)).at_loc(s)])
+            Ok(vec![hir::Statement::Label(name.at_loc(sym)).at_loc(s)])
         }
         ast::Statement::Assert(expr) => {
             let expr = expr.visit(visit_expression, ctx);
@@ -2145,7 +2146,7 @@ pub fn visit_turbofish(
                 }
             })
             .collect::<Result<Vec<_>>>()
-            .map(|params| hir::ArgumentList::Named(params)),
+            .map(hir::ArgumentList::Named),
         ast::TurbofishInner::Positional(args) => args
             .iter()
             .map(|arg| {
@@ -2395,7 +2396,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             deprecated_syntax,
         } => {
             if *deprecated_syntax {
-                let loc = ().between_locs(&target, &index);
+                let loc = ().between_locs(target, index);
                 ctx.diags.lock().unwrap().errors.push(
                     Diagnostic::warning(loc, "Deprecated tuple syntax indexing")
                         .primary_label("`#` syntax for tuple indexing is deprecated")
@@ -2414,7 +2415,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
         )),
         ast::Expression::TypeCast(target, ty) => Ok(hir::ExprKind::TypeCast(
             Box::new(target.visit(visit_expression, ctx)),
-            visit_type_expression(ty, &TypeSpecKind::TypeCast, ctx)?.at_loc(&ty),
+            visit_type_expression(ty, &TypeSpecKind::TypeCast, ctx)?.at_loc(ty),
         )),
         ast::Expression::MethodCall {
             kind,
@@ -2958,7 +2959,7 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
             _ => Err(attr.report_unused("a register")),
         })
         .handle_in(&mut ctx.diags.lock().unwrap())
-        .unwrap_or_else(|| hir::AttributeList::empty());
+        .unwrap_or_else(hir::AttributeList::empty);
 
     stmts.push(
         hir::Statement::Register(hir::Register {
@@ -3050,7 +3051,7 @@ fn handle_include(
             "`include!` used inside a compiler built-in file",
         ));
     };
-    let file_path = base.join(&path);
+    let file_path = base.join(path);
     let mut src = String::new();
 
     let new_working_dir = file_path
@@ -3102,7 +3103,7 @@ fn handle_include_bytes(
             "`include_bytes!` used inside a compiler built-in file",
         ));
     };
-    let file_path = base.join(&path);
+    let file_path = base.join(path);
     let mut bytes = vec![];
 
     File::open(file_path)

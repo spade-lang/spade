@@ -123,14 +123,15 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
                 loc: _,
             }) => {
                 // We're only interested in mut wires
-                if ty.backward_size() != BigUint::ZERO && op_needs_deduplication(operator) {
-                    if let Some(prev_name) = seen_statements.get(&(operator, operands, ty)) {
-                        replaced_names.insert(
-                            name.clone(),
-                            recursive_lookup(&replaced_names, prev_name.clone().at_loc(stmt))
-                                .unwrap_or(prev_name.clone().at_loc(stmt)),
-                        );
-                    }
+                if ty.backward_size() != BigUint::ZERO
+                    && op_needs_deduplication(operator)
+                    && let Some(prev_name) = seen_statements.get(&(operator, operands, ty))
+                {
+                    replaced_names.insert(
+                        name.clone(),
+                        recursive_lookup(&replaced_names, prev_name.clone().at_loc(stmt))
+                            .unwrap_or(prev_name.clone().at_loc(stmt)),
+                    );
                 }
                 seen_statements.insert((operator, operands, ty), name.inner.clone());
             }
@@ -182,14 +183,11 @@ fn replace_duplicate_mut_wires(stmts: &[Loc<Statement>]) -> Vec<Loc<Statement>> 
                     if replaced_names.contains_key(&target) {
                         None
                     } else {
-                        Some(Statement::Set {
-                            target: target,
-                            value: value,
-                        })
+                        Some(Statement::Set { target, value })
                     }
                 }
             }
-            .map(|s| s.at_loc(&stmt))
+            .map(|s| s.at_loc(stmt))
         })
         .collect::<Vec<_>>();
 

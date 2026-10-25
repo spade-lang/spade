@@ -502,7 +502,7 @@ fn type_field_completions(
     has_inst: bool,
     has_depth: bool,
 ) -> Option<CompletionResponse> {
-    let methods = methods_for_type(&trait_impls, &ty, type_state)
+    let methods = methods_for_type(trait_impls, ty, type_state)
         .into_iter()
         .map(|(method, fn_info)| {
             let actual_fn = symtab.unit_by_id(&fn_info.name);
@@ -521,7 +521,7 @@ fn type_field_completions(
             let inserted = Some(format!("{inst_snippet}{method}{arg_snippet}"));
 
             CompletionItem {
-                label: label,
+                label,
                 label_details: None,
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: None,

@@ -121,14 +121,14 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
 
     let clock = clock_arg
         .as_ref()
-        .map(|(_, _, clk, _)| ctx.symtab.add_local_variable(*clk).at_loc(&clk));
+        .map(|(_, _, clk, _)| ctx.symtab.add_local_variable(*clk).at_loc(clk));
     let arguments = actual_args
         .iter()
         .map(|arg| arg.try_visit(visit_pattern, ctx))
         .collect::<Result<Vec<_>>>()?;
 
     let prev_pipeline_ctx = if unit_kind.is_pipeline() {
-        let new_context = perform_pipelining_tasks(0, args.len(), args.loc(), &body, ctx)?;
+        let new_context = perform_pipelining_tasks(0, args.len(), args.loc(), body, ctx)?;
 
         let pipeline_ctx = ctx.pipeline_ctx.take();
         ctx.pipeline_ctx = new_context;
@@ -186,7 +186,7 @@ pub fn visit_lambda(e: &ast::Expression, ctx: &mut Context) -> Result<hir::ExprK
         .chain(
             outer_generic_params
                 .iter()
-                .map(|p| p.ident().unwrap().inner.at_loc(&p)),
+                .map(|p| p.ident().unwrap().inner.at_loc(p)),
         )
         .collect::<Vec<_>>();
 

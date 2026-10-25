@@ -224,7 +224,7 @@ impl Spade {
             .report_and_convert(&mut error_buffer, &code.read().unwrap(), &mut diag_handler)?;
 
         if !uut_head.get_type_params().is_empty() {
-            return Err(anyhow!(
+            Err(anyhow!(
                 "Testing units with generics is currently unsupported"
             ))?;
         }
@@ -336,7 +336,7 @@ impl Spade {
         // We don't actually use the result here, but we want to pigyback off
         // the error message
         let (_, actual_ty) = field.write_range_and_type()?;
-        self.compile_expr(&value, &actual_ty)
+        self.compile_expr(value, &actual_ty)
             .map(|v| BitString(v.as_string()))
     }
 
@@ -785,8 +785,8 @@ impl Spade {
         {
             if arg == name.as_str() {
                 let source = FieldSource::Input {
-                    mangled_fwd: mangle_input(no_mangle, &arg),
-                    mangled_back: mangle_output(no_mangle, &arg),
+                    mangled_fwd: mangle_input(no_mangle, arg),
+                    mangled_back: mangle_output(no_mangle, arg),
                 };
 
                 let generic_list = self
@@ -799,7 +799,7 @@ impl Spade {
                 };
                 let ty = self
                     .type_state
-                    .type_var_from_hir(ty.loc(), &ty, &generic_list, &type_ctx)
+                    .type_var_from_hir(ty.loc(), ty, &generic_list, type_ctx)
                     .report_and_convert(&mut self.error_buffer, &code, &mut self.diag_handler)?
                     .resolve(&self.type_state)
                     .into_known(&self.type_state)

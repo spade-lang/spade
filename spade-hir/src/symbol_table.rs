@@ -835,7 +835,7 @@ impl SymbolTable {
         Ok(self.add_thing(
             Path::ident(name),
             Thing::Alias {
-                loc: loc,
+                loc,
                 path: target,
                 in_namespace: self.current_namespace().clone(),
             },
@@ -861,7 +861,7 @@ impl SymbolTable {
         let id_tracker = self.id_tracker.make_clone();
         FrozenSymtab {
             inner: self,
-            id_tracker: id_tracker,
+            id_tracker,
         }
     }
 
@@ -883,10 +883,10 @@ impl SymbolTable {
                 .secondary_label(old, "Previously declared here")
         };
         // Check if a variable with this name already exists
-        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident), false) {
-            if let Some(Thing::Variable(prev)) = self.things.get(&id) {
-                return Err(declared_more_than_once(ident, prev));
-            }
+        if let Some(id) = self.try_lookup_id(&Path::ident_with_loc(ident), false)
+            && let Some(Thing::Variable(prev)) = self.things.get(&id)
+        {
+            return Err(declared_more_than_once(ident, prev));
         }
 
         if let Some((old, _)) = self.declarations.last().unwrap().get_key_value(&ident) {

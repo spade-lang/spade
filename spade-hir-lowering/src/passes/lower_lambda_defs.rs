@@ -120,13 +120,13 @@ impl LambdaReplacement {
                         wire: *wire,
                     }
                     .with_id(idtracker.next())
-                    .at_loc(&clock),
+                    .at_loc(clock),
                     None,
                     ExprKind::Identifier(name.inner.clone())
                         .with_id(idtracker.next())
-                        .at_loc(&clock),
+                        .at_loc(clock),
                 )
-                .at_loc(&clock),
+                .at_loc(clock),
             )
         } else {
             None
@@ -265,9 +265,9 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                 .cloned()
                 .map(|arg| {
                     let ty = arg
-                        .get_type(&self.type_state)
-                        .resolve(&self.type_state)
-                        .into_known(&self.type_state)
+                        .get_type(self.type_state)
+                        .resolve(self.type_state)
+                        .into_known(self.type_state)
                         .ok_or_else(|| {
                             Diagnostic::error(&arg, "The type of this argument is not fully known")
                                 .primary_label("Type is not fully known")
@@ -292,8 +292,8 @@ impl<'a> Pass for LowerLambdaDefs<'a> {
                             "The type of this type param in the lambda was not in the generic list"
                         )
                         })?
-                        .resolve(&self.type_state)
-                        .into_known(&self.type_state)
+                        .resolve(self.type_state)
+                        .into_known(self.type_state)
                         .ok_or_else(|| {
                             diag_anyhow!(
                                 tp,

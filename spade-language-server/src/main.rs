@@ -55,6 +55,6 @@ impl Client for LspClient {
 async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(|client| ServerFrontend::new(client));
+    let (service, socket) = LspService::new(ServerFrontend::new);
     Server::new(stdin, stdout, socket).serve(service).await;
 }

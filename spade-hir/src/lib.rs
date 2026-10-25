@@ -492,9 +492,9 @@ impl TraitSpec {
             paren_syntax: self.paren_syntax,
             type_params: self.type_params.as_ref().map(|tp| {
                 tp.iter()
-                    .map(|e| e.inner.clone().replace_in(from, to).at_loc(&e))
+                    .map(|e| e.inner.clone().replace_in(from, to).at_loc(e))
                     .collect::<Vec<_>>()
-                    .at_loc(&tp)
+                    .at_loc(tp)
             }),
         }
     }
@@ -1221,7 +1221,7 @@ impl ItemList {
         name: Loc<NameID>,
         item: ExecutableItem,
     ) -> Result<(), Diagnostic> {
-        if let Some(_) = self.executables.get_key_value(&name) {
+        if self.executables.get_key_value(&name).is_some() {
             Err(
                 Diagnostic::error(&name, format!("Multiple definitions of thing {name}"))
                     .primary_label("New definition"),

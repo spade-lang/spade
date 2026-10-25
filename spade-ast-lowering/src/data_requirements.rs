@@ -9,10 +9,10 @@ pub fn new_data_trait_spec(loc: &Loc<()>, ctx: &Context) -> Loc<spade_hir::Trait
             ctx.symtab
                 .lang_item(spade_hir::symbol_table::LangItem::DataTrait)
                 .clone()
-                .at_loc(&loc),
+                .at_loc(loc),
         ),
         type_params: None,
         paren_syntax: false,
     }
-    .at_loc(&loc)
+    .at_loc(loc)
 }

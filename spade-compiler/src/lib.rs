@@ -380,7 +380,7 @@ pub fn run_local_compilation_steps(
         &global_state.idtracker,
         &name_source_map,
         &global_state.item_list,
-        &opt_passes,
+        opt_passes,
         &global_state.impl_type_state,
         &global_state.mapped_trait_impls,
     );
@@ -590,20 +590,20 @@ pub fn compile(
 
     let stored_state = state.into_stored();
 
-    if compilation_goal.should_codegen() {
-        if let Some(state_dump_file) = opts.state_dump_file {
-            if std::env::var("SPADE_REPORT_SERIALIZED_SIZE").is_ok() {
-                spade_common::sizes::SerializedSize::report_size(&stored_state);
-            }
+    if compilation_goal.should_codegen()
+        && let Some(state_dump_file) = opts.state_dump_file
+    {
+        if std::env::var("SPADE_REPORT_SERIALIZED_SIZE").is_ok() {
+            spade_common::sizes::SerializedSize::report_size(&stored_state);
+        }
 
-            match postcard::to_stdvec(&stored_state) {
-                Ok(encoded) => {
-                    std::fs::write(state_dump_file, encoded).or_report(&mut errors);
-                }
-                Err(e) => {
-                    errors.set_failed();
-                    println!("Failed to encode compiler state info as bincode {:?}", e)
-                }
+        match postcard::to_stdvec(&stored_state) {
+            Ok(encoded) => {
+                std::fs::write(state_dump_file, encoded).or_report(&mut errors);
+            }
+            Err(e) => {
+                errors.set_failed();
+                println!("Failed to encode compiler state info as bincode {:?}", e)
             }
         }
     }

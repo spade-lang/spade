@@ -157,14 +157,14 @@ pub fn handle_statement(
                             name: next_name.clone().at_loc(&reg.original),
                             operator: mir::Operator::Select,
                             operands: vec![
-                                enable.clone().near_loc(&statement),
+                                enable.clone().near_loc(statement),
                                 reg.previous.value_name().at_loc(&reg.original),
                                 reg.new.value_name().at_loc(&reg.original),
                             ],
                             ty: reg_type.clone(),
                             loc: Some(statement.loc()),
                         })
-                        .near_loc(&statement),
+                        .near_loc(statement),
                         &reg.original,
                         "Pipeline enable mux",
                     );
@@ -190,7 +190,7 @@ pub fn handle_statement(
                         // of the variable?
                         loc: Some(statement.loc()),
                     })
-                    .near_loc(&statement),
+                    .near_loc(statement),
                     &reg.original,
                     "Pipelined",
                 );
@@ -300,13 +300,13 @@ pub fn lower_pipeline<'a>(
                     .expect("No enable name for first stage that needs one");
                 statements.push_anonymous(
                     mir::Statement::Binding(mir::Binding {
-                        name: name.clone().near_loc(&body),
+                        name: name.clone().near_loc(body),
                         operator: mir::Operator::Alias,
-                        operands: vec![local.clone().near_loc(&body)],
+                        operands: vec![local.clone().near_loc(body)],
                         ty: mir::types::Type::Bool,
                         loc: None,
                     })
-                    .near_loc(&body),
+                    .near_loc(body),
                 );
                 current_enable = Some(name.clone());
             }
@@ -318,13 +318,13 @@ pub fn lower_pipeline<'a>(
                 // stage
                 statements.push_anonymous(
                     mir::Statement::Binding(mir::Binding {
-                        name: name.clone().near_loc(&body),
+                        name: name.clone().near_loc(body),
                         operator: mir::Operator::Alias,
-                        operands: vec![prev.clone().near_loc(&body)],
+                        operands: vec![prev.clone().near_loc(body)],
                         ty: mir::types::Type::Bool,
                         loc: None,
                     })
-                    .near_loc(&body),
+                    .near_loc(body),
                 );
                 current_enable = Some(name.clone());
             }
@@ -334,13 +334,13 @@ pub fn lower_pipeline<'a>(
                     .expect("No enable name for first stage that needs one");
                 statements.push_anonymous(
                     mir::Statement::Binding(mir::Binding {
-                        name: name.clone().near_loc(&body),
+                        name: name.clone().near_loc(body),
                         operator: mir::Operator::LogicalAnd,
-                        operands: vec![local.clone().near_loc(&body), prev.clone().near_loc(&body)],
+                        operands: vec![local.clone().near_loc(body), prev.clone().near_loc(body)],
                         ty: mir::types::Type::Bool,
                         loc: None,
                     })
-                    .near_loc(&body),
+                    .near_loc(body),
                 );
                 current_enable = Some(name.clone());
             }
@@ -408,7 +408,7 @@ pub fn lower_pipeline<'a>(
             .value_name();
 
         let valid_mux = constexpr_select(
-            &().near_loc(&body),
+            &().near_loc(body),
             prev_valid.clone().or_const_true(),
             MaybeConst::Val(valid_name.clone()),
             valid_select.clone().or_const_true(),
@@ -417,21 +417,21 @@ pub fn lower_pipeline<'a>(
         );
 
         let local_cond_inv = constexpr_inv(
-            &().near_loc(&body),
+            &().near_loc(body),
             local_cond.or_const_true(),
             statements,
             ctx,
         );
         let stall_here = constexpr_and(
-            &().near_loc(&body),
+            &().near_loc(body),
             local_cond_inv,
             downstream_enable,
             statements,
             ctx,
         );
-        let stall_here_inv = constexpr_inv(&().near_loc(&body), stall_here, statements, ctx);
+        let stall_here_inv = constexpr_inv(&().near_loc(body), stall_here, statements, ctx);
         let valid_next = constexpr_and(
-            &().near_loc(&body),
+            &().near_loc(body),
             valid_mux,
             stall_here_inv,
             statements,
@@ -442,15 +442,15 @@ pub fn lower_pipeline<'a>(
             MaybeConst::Val(next) => {
                 statements.push_anonymous(
                     mir::Statement::Register(mir::Register {
-                        name: valid_name.clone().near_loc(&body),
+                        name: valid_name.clone().near_loc(body),
                         ty: mir::types::Type::Bool,
-                        clock: clock.value_name().near_loc(&body),
+                        clock: clock.value_name().near_loc(body),
                         reset: None,
                         initial: None,
-                        value: next.near_loc(&body),
+                        value: next.near_loc(body),
                         loc: None,
                     })
-                    .near_loc(&body),
+                    .near_loc(body),
                 );
                 prev_valid = Some(valid_name.clone());
                 valid_signals.push(Some(valid_name))
@@ -591,7 +591,7 @@ pub fn constexpr_select(
                     ty: mir::types::Type::Bool,
                     loc: None,
                 })
-                .near_loc(&rough_loc),
+                .near_loc(rough_loc),
             );
 
             MaybeConst::Val(new_name)
@@ -618,7 +618,7 @@ pub fn constexpr_inv(
                     ty: mir::types::Type::Bool,
                     loc: None,
                 })
-                .near_loc(&rough_loc),
+                .near_loc(rough_loc),
             );
 
             MaybeConst::Val(new_name)

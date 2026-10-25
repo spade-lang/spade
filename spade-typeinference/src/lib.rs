@@ -286,8 +286,8 @@ impl TypeState {
         }
     }
 
-    pub fn hir_type_expr_to_var<'a>(
-        &'a mut self,
+    pub fn hir_type_expr_to_var(
+        &mut self,
         e: &Loc<hir::TypeExpression>,
         generic_list_token: &GenericListToken,
         ctx: &Context,
@@ -298,8 +298,8 @@ impl TypeState {
 
     /// See [type_var_from_hir_with_obligations] for explanation of obligations
     #[tracing::instrument(level = "trace", skip_all)]
-    fn hir_type_expr_to_var_with_obligations<'a>(
-        &'a mut self,
+    fn hir_type_expr_to_var_with_obligations(
+        &mut self,
         e: &Loc<hir::TypeExpression>,
         generic_list_token: &GenericListToken,
         ctx: &Context,
@@ -347,8 +347,8 @@ impl TypeState {
     /// during initial impl block visiting there is no impl information present which
     /// means that these obligations can only be resolved once all impl blocks have
     /// been visited
-    pub fn type_var_from_hir_with_obligations<'a>(
-        &'a mut self,
+    pub fn type_var_from_hir_with_obligations(
+        &mut self,
         loc: Loc<()>,
         hir_type: &crate::hir::TypeSpec,
         generic_list_token: &GenericListToken,
@@ -410,7 +410,7 @@ impl TypeState {
                     return self.type_var_from_hir_with_obligations(
                         loc,
                         &a.type_spec,
-                        &generic_list_token,
+                        generic_list_token,
                         ctx,
                     );
                 }
@@ -425,7 +425,7 @@ impl TypeState {
                 .ok_or_else(|| {
                     diag_anyhow!(loc, "Found no generic list for {}", name.pretty_print())
                 })?
-                .get(&name)
+                .get(name)
             {
                 Some(t) => *t,
                 None => {
@@ -473,8 +473,8 @@ impl TypeState {
     }
 
     #[tracing::instrument(level = "trace", skip_all, fields(%hir_type))]
-    pub fn type_var_from_hir<'a>(
-        &'a mut self,
+    pub fn type_var_from_hir(
+        &mut self,
         loc: Loc<()>,
         hir_type: &crate::hir::TypeSpec,
         generic_list_token: &GenericListToken,
@@ -1032,7 +1032,7 @@ impl TypeState {
         match &expr.kind {
             ExprKind::Block(inner) => {
                 for stmt in &inner.statements {
-                    self.statement_data_constraints(&stmt, pipeline_loc, ctx)
+                    self.statement_data_constraints(stmt, pipeline_loc, ctx)
                         .handle_in(&mut self.owned.diags);
                 }
                 if let Some(result) = &inner.result {
@@ -1044,8 +1044,8 @@ impl TypeState {
                 on_true,
                 on_false,
             } => {
-                self.expression_data_constraints(&on_true, pipeline_loc, ctx)?;
-                self.expression_data_constraints(&on_false, pipeline_loc, ctx)?;
+                self.expression_data_constraints(on_true, pipeline_loc, ctx)?;
+                self.expression_data_constraints(on_false, pipeline_loc, ctx)?;
             }
             ExprKind::TypeLevelMatch {
                 expression: _,
@@ -1067,7 +1067,7 @@ impl TypeState {
                         &on_true.loc(),
                         |diag, _e| {
                             diag.secondary_label(
-                                &expr.loc(),
+                                expr.loc(),
                                 "The result of an if-expression must be Data.",
                             )
                             .help("An expression not being `Data` typically means it contains at least one `clock` type")
@@ -1086,7 +1086,7 @@ impl TypeState {
                         &value.loc(),
                         |diag, _e| {
                             diag.secondary_label(
-                                &expr.loc(),
+                                expr.loc(),
                                 "The result of a match-expression must be Data.",
                             )
                             .help("An expression not being `Data` typically means it contains at least one `clock` type")
@@ -1193,7 +1193,7 @@ impl TypeState {
             } = arg;
 
             let mut target_tv =
-                self.type_var_from_hir(value.loc(), &target_type, generic_list, ctx)?;
+                self.type_var_from_hir(value.loc(), target_type, generic_list, ctx)?;
 
             let mut value_tv = value.inner.get_type(self);
 
@@ -1534,7 +1534,7 @@ impl TypeState {
         }
 
         if visit_args {
-            self.visit_argument_list(args, ctx, &generic_list)?;
+            self.visit_argument_list(args, ctx, generic_list)?;
         }
 
         let type_params = &head.get_type_params();
@@ -2026,7 +2026,7 @@ impl TypeState {
                         target,
                         Vec::from_iter(all_transitive_traits).as_slice(),
                         &token,
-                        &ctx,
+                        ctx,
                     )?;
                 }
                 WhereClause::Int {
@@ -2052,7 +2052,7 @@ impl TypeState {
                                 *tvar,
                                 int_constraint,
                                 constraint.loc(),
-                                &tvar,
+                                tvar,
                                 ConstraintSource::Where,
                             );
                         }
@@ -2062,7 +2062,7 @@ impl TypeState {
                                 rhsvar,
                                 int_constraint,
                                 constraint.loc(),
-                                &tvar,
+                                tvar,
                                 ConstraintSource::Where,
                             );
 
@@ -2175,7 +2175,7 @@ impl TypeState {
                                 let loc = trait_name
                                     .name_loc()
                                     .map(|n| ().at_loc(&n))
-                                    .unwrap_or(().at_loc(&impl_block));
+                                    .unwrap_or(().at_loc(impl_block));
 
                                 let trait_type_params = trait_args
                                     .iter()
@@ -2269,13 +2269,11 @@ impl TypeState {
                             pat.get_type(self),
                         );
                     }
-                } else {
-                    if !pre_declared {
-                        self.add_equation(
-                            TypedExpression::Name(name.clone().inner),
-                            pattern.get_type(self),
-                        );
-                    }
+                } else if !pre_declared {
+                    self.add_equation(
+                        TypedExpression::Name(name.clone().inner),
+                        pattern.get_type(self),
+                    );
                 }
 
                 let name_expr = TypedExpression::Name(name.clone().inner);
@@ -2787,7 +2785,7 @@ impl TypeState {
                 )
             })?;
 
-            let Some(tvar) = generic_list.get(&target) else {
+            let Some(tvar) = generic_list.get(target) else {
                 return Err(Diagnostic::bug(
                     target.loc(),
                     "Couldn't find generic from where clause in generic list",
@@ -2837,7 +2835,7 @@ impl TypeState {
     ) -> Result<TypeVarID> {
         let var = match &generic.inner.inner {
             ConstGeneric::Name(name) => {
-                let ty = &ctx.symtab.type_symbol_by_id(&name);
+                let ty = &ctx.symtab.type_symbol_by_id(name);
                 match &ty.inner {
                     TypeSymbol::Declared(_, _, _) => {
                         return Err(Diagnostic::error(
@@ -3038,7 +3036,7 @@ impl TypeState {
         source: ConstraintSource,
     ) {
         let replaces = lhs;
-        let rhs = rhs.with_context(&replaces, &inside, source).at_loc(&loc);
+        let rhs = rhs.with_context(&replaces, inside, source).at_loc(&loc);
 
         self.owned
             .trace_stack
@@ -3171,7 +3169,7 @@ impl TypeState {
 
                                 let new_ts1 = ctx.symtab.type_symbol_by_id(n1).inner;
                                 let new_ts2 = ctx.symtab.type_symbol_by_id(n2).inner;
-                                unify_params(self, &p1, &p2)?;
+                                unify_params(self, p1, p2)?;
                                 unify_if!(new_ts1 == new_ts2, v1, vec![])
                             }
                             (TypeSymbol::Declared(_, _, _), TypeSymbol::GenericArg { traits }) => {
@@ -3213,7 +3211,7 @@ impl TypeState {
                         // Note, replacements should only occur when a variable goes from Unknown
                         // to Known, not when the base is the same. Replacements take care
                         // of parameters. Therefore, None is returned here
-                        unify_params(self, &p1, &p2)?;
+                        unify_params(self, p1, p2)?;
                         Ok((v1, vec![]))
                     }
                     (_, _) => Err(err_producer!()),

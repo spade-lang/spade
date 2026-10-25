@@ -130,7 +130,7 @@ impl ConcreteType {
             },
             ConcreteType::Array { inner, size } => ConcreteType::Array {
                 inner: Box::new(inner.resolve_recursive_inversions(invert)),
-                size: size,
+                size,
             },
             ConcreteType::CopyView(inner) => {
                 let inner = Box::new(inner.resolve_recursive_inversions(false));

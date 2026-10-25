@@ -120,7 +120,7 @@ pub fn handle_external_modules(
 
                     // We're going to eagerly add the `mod` first in order to detect duplicates.
                     let name_id = ctx.symtab.add_unique_thing(
-                        Path::ident(*name).at_loc(&name),
+                        Path::ident(*name).at_loc(name),
                         Thing::Module(em.loc(), *name),
                         Some(em.visibility.clone()),
                         deprecation_note,
@@ -129,7 +129,7 @@ pub fn handle_external_modules(
                     ctx.item_list.modules.insert(
                         name_id.clone(),
                         spade_hir::Module {
-                            name: name_id.at_loc(&name),
+                            name: name_id.at_loc(name),
                             documentation: String::new(),
                         },
                     );
@@ -440,7 +440,7 @@ pub fn visit_generic_args(
                     default: _,
                 } => GenericArg::TypeName {
                     name: name.inner,
-                    traits: visit_trait_specs(&traits, &TypeSpecKind::TraitBound, ctx)?,
+                    traits: visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?,
                 },
                 ast::TypeParam::TypeWithMeta {
                     name,
@@ -564,19 +564,19 @@ pub fn visit_type_declaration(
         None,
     )?;
 
-    if let ast::TypeDeclKind::Alias(a) = &t.kind {
-        if let ast::TypeSpec::Named(target_path, _) = &a.type_spec.inner {
-            ctx.symtab.add_thing_with_name_id(
-                name_id,
-                Thing::Alias {
-                    loc: t.loc(),
-                    path: target_path.clone(),
-                    in_namespace: ctx.symtab.current_namespace().clone(),
-                },
-                visibility,
-                deprecation_note,
-            );
-        }
+    if let ast::TypeDeclKind::Alias(a) = &t.kind
+        && let ast::TypeSpec::Named(target_path, _) = &a.type_spec.inner
+    {
+        ctx.symtab.add_thing_with_name_id(
+            name_id,
+            Thing::Alias {
+                loc: t.loc(),
+                path: target_path.clone(),
+                in_namespace: ctx.symtab.current_namespace().clone(),
+            },
+            visibility,
+            deprecation_note,
+        );
     }
 
     Ok(())
@@ -699,7 +699,7 @@ pub fn re_visit_type_declaration(
             } => hir::TypeParam {
                 name: hir::Generic::Named(name_id.clone().at_loc(name)),
                 trait_bounds: vec![],
-                meta: visit_meta_type(&meta)?,
+                meta: visit_meta_type(meta)?,
                 default: visit_default_type_expression(default, ctx)?.map(Box::new),
             },
         };
@@ -881,7 +881,7 @@ pub fn re_visit_type_declaration(
                 if hir_ty.is_inout(ctx)? {
                     return Err(Diagnostic::error(ty, "Inout in struct")
                         .primary_label("This is an inout")
-                        .secondary_label(&s.name, "This is a struct"));
+                        .secondary_label(s.name, "This is a struct"));
                 }
                 add_type_spec_name_ids_to_graph(
                     &hir_ty.inner,
@@ -962,10 +962,10 @@ pub fn re_visit_type_declaration(
 
             let type_spec = visit_type_spec(&a.type_spec, &TypeSpecKind::Alias, ctx)?;
 
-            if type_spec.is_inout(&ctx)? {
+            if type_spec.is_inout(ctx)? {
                 return Err(Diagnostic::error(type_spec, "Inout in alias")
                     .primary_label("This is an inout")
-                    .secondary_label(&a.name, "This is an alias"));
+                    .secondary_label(a.name, "This is an alias"));
             }
 
             add_type_spec_name_ids_to_graph(
@@ -999,7 +999,7 @@ pub fn re_visit_type_declaration(
                     current_name,
                     format!("... which is part of type declaration `{current_name}`"),
                 ));
-                current_name = visited_edges.get(&current_name).unwrap();
+                current_name = visited_edges.get(current_name).unwrap();
             }
 
             diag.push_subdiagnostic(Subdiagnostic::span_note(
@@ -1082,7 +1082,7 @@ fn add_type_spec_name_ids_to_graph(
     match ty {
         hir::TypeSpec::Declared(name, args) => {
             names.insert(name.inner.clone());
-            edges.insert(name.inner.clone(), prev_name.inner.clone().at_loc(&name));
+            edges.insert(name.inner.clone(), prev_name.inner.clone().at_loc(name));
             for arg in args {
                 if let hir::TypeExpression::TypeSpec(ts) = &arg.inner {
                     add_type_spec_name_ids_to_graph(ts, prev_name, names, edges);

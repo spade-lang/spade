@@ -100,7 +100,7 @@ impl ServerBackend {
                 symbol_table::Thing::Variable(var) => {
                     let ty = unit_type_state
                         .as_ref()
-                        .and_then(|ts| name.try_get_type(ts).map(|ty| ty.resolve(&ts).display(ts)))
+                        .and_then(|ts| name.try_get_type(ts).map(|ty| ty.resolve(ts).display(ts)))
                         .map(|ty| format!(": {ty}"))
                         .unwrap_or_else(|| ": ?".to_string());
 
@@ -204,7 +204,7 @@ impl ServerBackend {
             .map(|(_expr, ty)| {
                 format!(
                     "**Expression type**:\n```spade\n{}\n```",
-                    ty.resolve(&ts).display(ts)
+                    ty.resolve(ts).display(ts)
                 )
             })
             .next();

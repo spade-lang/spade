@@ -486,9 +486,9 @@ fn forward_expression_code(
         Operator::IndexTuple(idx) => {
             let is_copy_view = matches!(&types[&ops[0]], Type::CopyView(_));
             let tuple_type = &types[&ops[0]];
-            let fwd_idx = compute_forward_tuple_index(&tuple_type, *idx);
+            let fwd_idx = compute_forward_tuple_index(tuple_type, *idx);
             let back_idx = if is_copy_view {
-                compute_copied_backward_tuple_index(&tuple_type, *idx)
+                compute_copied_backward_tuple_index(tuple_type, *idx)
             } else {
                 TupleIndex::ZeroWidth
             };
@@ -957,7 +957,7 @@ fn backward_expression_code(
             // assert_eq!(&inner_types[*index as usize], self_type);
 
             let tuple_type = &types[&ops[0]];
-            let index = compute_backward_tuple_index(&tuple_type, *index);
+            let index = compute_backward_tuple_index(tuple_type, *index);
             format!("{}{}", op_names[0], index.verilog_code())
         }
         Operator::ConstructEnum { .. } => {
@@ -1167,7 +1167,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                             ))
                         }
 
-                        let fallback = format!("{}'dx", ctx.types[&global_pat].backward_size());
+                        let fallback = format!("{}'dx", ctx.types[global_pat].backward_size());
 
                         snippets.push(code! (
                             [0] "always_comb begin";
@@ -1418,14 +1418,14 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
         }
         Statement::Set { target, value } => {
             let mut assignments = Vec::new();
-            if ctx.types[&value].size() != BigUint::ZERO {
+            if ctx.types[value].size() != BigUint::ZERO {
                 assignments.push(format!(
                     "assign {} = {};",
                     target.backward_var_name(),
                     value.var_name(),
                 ));
             }
-            if ctx.types[&value].backward_size() != BigUint::ZERO {
+            if ctx.types[value].backward_size() != BigUint::ZERO {
                 assignments.push(format!(
                     "assign {} = {};",
                     value.backward_var_name(),
@@ -1684,10 +1684,10 @@ pub fn entity_code(
     let mut body = Code::new();
 
     for stmt in &entity.statements {
-        body.join(&statement_declaration(stmt, source_code, &mut name_map))
+        body.join(statement_declaration(stmt, source_code, &mut name_map))
     }
     for stmt in &entity.statements {
-        body.join(&statement_code(stmt, &mut ctx))
+        body.join(statement_code(stmt, &mut ctx))
     }
 
     // Collect all port definitions into an already indented code snippet

@@ -318,7 +318,7 @@ impl<'a> Parser<'a> {
             // safe unwrap, only None for token kind != Lt
             let params = self.generic_spec_list()?.unwrap();
 
-            Ok(Some(params.map(|p| TurbofishInner::Positional(p))))
+            Ok(Some(params.map(TurbofishInner::Positional)))
         } else if self.peek_kind(&TokenKind::Dollar)? {
             self.eat_unconditional()?;
             let (params, loc) = self.surrounded(
@@ -362,7 +362,7 @@ impl<'a> Parser<'a> {
                 Ok(Some((
                     path,
                     is_macro,
-                    Some(params.map(|p| TurbofishInner::Positional(p))),
+                    Some(params.map(TurbofishInner::Positional)),
                 )))
             } else if self.peek_kind(&TokenKind::Dollar)? {
                 self.eat_unconditional()?;
@@ -522,7 +522,7 @@ impl<'a> Parser<'a> {
         let next = self.peek()?;
         if let TokenKind::Utf8CharLiteral = &next.kind {
             return Err(
-                Diagnostic::error(&next.loc(), "Unicode char literals are unsupported.")
+                Diagnostic::error(next.loc(), "Unicode char literals are unsupported.")
                     .primary_label("Unicode char literal")
                     .span_suggest_insert_before("Consider making this an ASCII literal", next.loc(), "b")
                     .help("The `b` prefix is used to denote ASCII literals as opposed to full Unicode"),
@@ -577,7 +577,7 @@ impl<'a> Parser<'a> {
                 &self.eat_unconditional()?,
             )));
         }
-        if let Some(_) = self.peek_and_eat(&TokenKind::Comma)? {
+        if self.peek_and_eat(&TokenKind::Comma)?.is_some() {
             let closer = self.eat(&TokenKind::CloseParen)?;
             return Ok(Some(Expression::TupleLiteral(vec![]).between(
                 self.file_id(),
@@ -805,7 +805,7 @@ impl<'a> Parser<'a> {
                 &start.span,
                 &end_loc,
             )))
-        } else if let Some(_) = self.peek_and_eat(&TokenKind::Match)? {
+        } else if self.peek_and_eat(&TokenKind::Match)?.is_some() {
             let expr = self.expression(ExprBraces::Forbid)?;
 
             let (branches, body_loc) = self.surrounded(
@@ -1163,7 +1163,7 @@ impl<'a> Parser<'a> {
                 &ident,
             ))),
             other => Err(Diagnostic::error(
-                &ident,
+                ident,
                 format!("Expected `ready` or `valid`, got `{other}`"),
             )
             .primary_label("Expected `ready` or `valid`")),
@@ -1188,7 +1188,7 @@ impl<'a> Parser<'a> {
                 let loc = ().at(self.file_id(), &dollar.span);
 
                 self.diags.errors.push(
-                    Diagnostic::warning(&loc, "`$` syntax for named arguments is deprecated")
+                    Diagnostic::warning(loc, "`$` syntax for named arguments is deprecated")
                         .primary_label("Use of deprecated named argument syntax"),
                 );
 
@@ -1399,7 +1399,7 @@ impl<'a> Parser<'a> {
         } else if let Some(amp) = self.peek_and_eat(&TokenKind::Ampersand)? {
             if let Some(mut_) = self.peek_and_eat(&TokenKind::Mut)? {
                 return Err(Diagnostic::error(
-                    &().at(self.file_id(), &mut_),
+                    ().at(self.file_id(), &mut_),
                     "The syntax of `&mut` has changed to `inv`",
                 )
                 .primary_label("`&mut` is now written as `inv`")
@@ -1493,7 +1493,7 @@ impl<'a> Parser<'a> {
     #[trace_parser]
     pub fn tuple_spec(&mut self) -> Result<Option<Loc<TypeSpec>>> {
         let start = peek_for!(self, &TokenKind::OpenParen);
-        if let Some(_) = self.peek_and_eat(&TokenKind::Comma)? {
+        if self.peek_and_eat(&TokenKind::Comma)?.is_some() {
             let closer = self.eat(&TokenKind::CloseParen)?;
             return Ok(Some(TypeSpec::Tuple(vec![]).between(
                 self.file_id(),
@@ -1658,7 +1658,7 @@ impl<'a> Parser<'a> {
 
                     s.diags.errors.push(
                         Diagnostic::warning(
-                            &start_dollar.loc(),
+                            start_dollar.loc(),
                             "`$` syntax for named arguments is deprecated",
                         )
                         .primary_label("Use of deprecated named argument syntax"),
@@ -1807,15 +1807,15 @@ impl<'a> Parser<'a> {
                 Box::new(BindingParser {}.then(semi_continuation)),
                 Box::new(RegisterParser {}.then(semi_continuation).then(
                     move |statement, _parser| {
-                        if let Statement::PipelineRegMarker(_, _) = statement.inner {
-                            if !allow_stages {
-                                return Err(Diagnostic::error(
-                                    statement.loc(),
-                                    "stage outside pipeline",
-                                )
-                                .primary_label("stage is not allowed here")
-                                .note("stages are only allowed in the root block of a pipeline"));
-                            }
+                        if let Statement::PipelineRegMarker(_, _) = statement.inner
+                            && !allow_stages
+                        {
+                            return Err(Diagnostic::error(
+                                statement.loc(),
+                                "stage outside pipeline",
+                            )
+                            .primary_label("stage is not allowed here")
+                            .note("stages are only allowed in the root block of a pipeline"));
                         }
                         Ok(statement)
                     },
@@ -2320,21 +2320,21 @@ impl<'a> Parser<'a> {
 
                                 let expression = s.expression(ExprBraces::Forbid)?;
 
-                                let if_unsatisfied =
-                                    if let Some(_) = s.peek_and_eat(&TokenKind::Else)? {
-                                        let message = s.eat_unconditional()?;
-                                        match message.kind {
-                                            TokenKind::String(s) => Some(s),
-                                            _ => {
-                                                return Err(Diagnostic::from(UnexpectedToken {
-                                                    got: message,
-                                                    expected: vec!["\""],
-                                                }));
-                                            }
+                                let if_unsatisfied = if s.peek_and_eat(&TokenKind::Else)?.is_some()
+                                {
+                                    let message = s.eat_unconditional()?;
+                                    match message.kind {
+                                        TokenKind::String(s) => Some(s),
+                                        _ => {
+                                            return Err(Diagnostic::from(UnexpectedToken {
+                                                got: message,
+                                                expected: vec!["\""],
+                                            }));
                                         }
-                                    } else {
-                                        None
-                                    };
+                                    }
+                                } else {
+                                    None
+                                };
 
                                 Ok(WhereClause::GenericInt {
                                     target: name,
@@ -2603,7 +2603,7 @@ impl<'a> Parser<'a> {
                         &TokenKind::CloseParen,
                     )?;
                     if all.inner.as_str() != "all" {
-                        Err(Diagnostic::error(&all, "Invalid attribute syntax")
+                        Err(Diagnostic::error(all, "Invalid attribute syntax")
                             .primary_label("Unexpected parameter to `#[no_mangle])")
                             .span_suggest_replace("Did you mean `#[no_mangle(all)]`?", all, "all"))
                     } else {
@@ -2685,7 +2685,7 @@ impl<'a> Parser<'a> {
             }
             "inline" => Ok(Attribute::Inline),
             other => Err(
-                Diagnostic::error(&start, format!("Unknown attribute '{other}'"))
+                Diagnostic::error(start, format!("Unknown attribute '{other}'"))
                     .primary_label("Unrecognised attribute"),
             ),
         }
@@ -2761,7 +2761,7 @@ impl<'a> Parser<'a> {
         };
 
         let error_stray_delimiter = |t: &Token, open: TokenKind| {
-            return Err(Diagnostic::error(
+            Err(Diagnostic::error(
                 t.loc(),
                 "Stray closing delimiter found while parsing macro pattern",
             )
@@ -2772,7 +2772,7 @@ impl<'a> Parser<'a> {
                     t.kind.as_str(),
                     open.as_str()
                 ),
-            ));
+            ))
         };
 
         match token.kind {
@@ -3508,7 +3508,7 @@ impl<TOuter, TInner> SizedKeywordPeekingParser<TInner> for TOuter where
 
 struct MappingParser<Inner, Mapper, I, T>
 where
-    Inner: SizedKeywordPeekingParser<I> + ?Sized,
+    Inner: SizedKeywordPeekingParser<I>,
     Mapper: Fn(I) -> Result<T>,
 {
     inner: Box<Inner>,
@@ -3518,7 +3518,7 @@ where
 
 impl<Inner, Mapper, I, T> KeywordPeekingParser<T> for MappingParser<Inner, Mapper, I, T>
 where
-    Inner: SizedKeywordPeekingParser<I> + ?Sized,
+    Inner: SizedKeywordPeekingParser<I>,
     Mapper: Fn(I) -> Result<T>,
 {
     fn is_leading_token(&self) -> fn(&TokenKind) -> bool {
@@ -3542,7 +3542,7 @@ where
 /// easily change the grammar from LL(1)
 struct ThenParser<Inner, After, T>
 where
-    Inner: SizedKeywordPeekingParser<T> + ?Sized,
+    Inner: SizedKeywordPeekingParser<T>,
     After: Fn(T, &mut Parser) -> Result<T>,
 {
     inner: Box<Inner>,
@@ -3552,7 +3552,7 @@ where
 
 impl<Inner, After, T> KeywordPeekingParser<T> for ThenParser<Inner, After, T>
 where
-    Inner: SizedKeywordPeekingParser<T> + ?Sized,
+    Inner: SizedKeywordPeekingParser<T>,
     After: Fn(T, &mut Parser) -> Result<T>,
 {
     fn is_leading_token(&self) -> fn(&TokenKind) -> bool {

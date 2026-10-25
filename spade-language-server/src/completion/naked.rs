@@ -283,8 +283,8 @@ pub(crate) fn completion_data(name: &str, thing: &ThingOrType) -> CompletionData
     };
 
     CompletionData {
-        kind: kind,
+        kind,
         label,
-        snippet: snippet,
+        snippet,
     }
 }

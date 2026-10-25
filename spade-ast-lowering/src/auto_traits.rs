@@ -292,7 +292,7 @@ fn impl_auto_trait(
                         diag_bail!(param, "Found an impl Trait in a type definition")
                     };
                     let name = ctx.symtab.add_type(
-                        name.1.clone().at_loc(&name),
+                        name.1.clone().at_loc(name),
                         TypeSymbol::GenericArg {
                             traits: vec![
                                 TraitSpec {
@@ -344,7 +344,7 @@ fn impl_auto_trait(
                 target_args.clone(),
                 ImplBlock {
                     fns: HashMap::default(),
-                    type_params: type_params,
+                    type_params,
                     target: TypeSpec::Declared(
                         name.clone().nowhere(),
                         target_args.clone().into_iter().map(Loc::nowhere).collect(),

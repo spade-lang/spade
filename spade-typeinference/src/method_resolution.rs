@@ -73,7 +73,7 @@ pub fn methods_for_type<'a>(
                  impl_block: r#impl,
              }| {
                 r#impl.fns.iter().map(move |(fn_name, actual_fn)| {
-                    let is_overlapping = spec_is_overlapping(&r#impl.target, &ty, type_state);
+                    let is_overlapping = spec_is_overlapping(&r#impl.target, ty, type_state);
                     match is_overlapping {
                         Overlap::Yes => Some((fn_name, actual_fn)),
                         Overlap::Maybe => None,

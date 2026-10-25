@@ -75,7 +75,7 @@ impl<'a> Pass for LowerGenExpr<'a> {
 
                     let pat_matches_e = if let Some(p) = pat.inner {
                         let concrete_pat = self.type_state.concrete_type_of(
-                            &p.at_loc(&loc),
+                            p.at_loc(&loc),
                             self.symtab.symtab(),
                             &self.items.types,
                         )?;
@@ -108,11 +108,11 @@ impl<'a> Pass for LowerGenExpr<'a> {
 
                     Ok(())
                 } else {
-                    return Err(Diagnostic::error(
+                    Err(Diagnostic::error(
                         &*expression,
                         "`gen match` is not exhaustive but is required to return a value",
                     )
-                    .primary_label(format!("`{concrete_e}` is not covered")));
+                    .primary_label(format!("`{concrete_e}` is not covered")))
                 }
             }
             _ => Ok(()),

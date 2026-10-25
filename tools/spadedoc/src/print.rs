@@ -199,10 +199,10 @@ impl Generator {
     ) -> DResult<()> {
         self.print_visibility(b, &unit.visibility)?;
 
-        if let Some(_) = unit.unsafe_token {
+        if unit.unsafe_token.is_some() {
             fwrite!(b, "unsafe ");
         }
-        if let Some(_) = unit.extern_token {
+        if unit.extern_token.is_some() {
             fwrite!(b, "extern ");
         }
 
@@ -230,7 +230,7 @@ impl Generator {
             fwrite!(b, unit.name.as_str());
             Ok(())
         })?;
-        if let Some(_) = anchor_id {
+        if anchor_id.is_some() {
             fwrite!(b, "</a>");
         }
         self.print_type_params(b, &unit.type_params)?;
@@ -468,9 +468,9 @@ impl Generator {
                     fwrite!(b, "&gt;");
                 }
 
-                self.print_type_expr(b, &args)?;
+                self.print_type_expr(b, args)?;
                 fwrite!(b, " -&gt; ");
-                self.print_type_expr(b, &ret)?;
+                self.print_type_expr(b, ret)?;
             } else {
                 fwrite!(b, "&lt;");
                 separated(b, ", ", args.inner.iter(), |b, expr| {

@@ -174,7 +174,7 @@ impl ServerBackend {
         let library_files: Vec<_> = library_dirs
             .iter()
             .map(|(name, dir)| {
-                swim::spade::spade_files_in_dir(Namespace::new_lib(&name), &dir.src_dir())
+                swim::spade::spade_files_in_dir(Namespace::new_lib(name), &dir.src_dir())
             })
             .collect::<color_eyre::Result<Vec<_>>>()?
             .into_iter()
@@ -323,10 +323,10 @@ impl ServerBackend {
                 *self.query_cache.lock().unwrap() = item_list
                     .as_ref()
                     .map(|item_list| {
-                        QueryCache::from_artifacts(&item_list, &floating_nodes.unwrap_or_default())
+                        QueryCache::from_artifacts(item_list, &floating_nodes.unwrap_or_default())
                     })
-                    .unwrap_or_else(|| QueryCache::empty());
-                *self.item_list.lock().unwrap() = item_list.unwrap_or_else(|| ItemList::new());
+                    .unwrap_or_else(QueryCache::empty);
+                *self.item_list.lock().unwrap() = item_list.unwrap_or_else(ItemList::new);
                 *self.type_states.lock().unwrap() = type_states.unwrap_or_default();
                 *self.symtab.lock().unwrap() = symtab.map(|st| st.freeze());
                 *self.trait_impls.lock().unwrap() = TraitImplList::new();

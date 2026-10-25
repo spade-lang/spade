@@ -362,7 +362,7 @@ pub fn variable_name_info(
                     let true_name = ctx
                         .query_cache
                         .id_to_expression(id.inner)
-                        .and_then(|expr| descriptive_loc(expr))
+                        .and_then(descriptive_loc)
                         .and_then(|loc| loc.resolve(&state.code))
                         .as_ref()
                         .map(ResolvedLoc::to_true_name);
@@ -772,7 +772,7 @@ fn info_from_concrete(ty: &ConcreteType) -> Result<VariableInfo> {
             subfields: members
                 .iter()
                 .map(|(f, inner)| {
-                    let inner = info_from_concrete(&inner)?;
+                    let inner = info_from_concrete(inner)?;
                     let inner = if let Some(translator) = field_translators.get(f) {
                         match inner {
                             VariableInfo::Bits => {

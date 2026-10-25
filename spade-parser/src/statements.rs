@@ -268,8 +268,8 @@ impl KeywordPeekingParser<Loc<Statement>> for LabelParser {
                 "Label parser was called but it did not get a label"
             )
         };
-        parser.disallow_attributes(attributes, &tok)?;
-        parser.disallow_visibility(visibility, &tok)?;
+        parser.disallow_attributes(attributes, tok)?;
+        parser.disallow_visibility(visibility, tok)?;
 
         Ok(Statement::Label((*l).at(parser.file_id(), &tok.span)).at(parser.file_id(), &tok.span))
     }

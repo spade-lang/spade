@@ -112,12 +112,12 @@ impl Requirement {
                 expr,
             } => {
                 let mut raw_id = target_type.inner;
-                let mut raw_ty = raw_id.resolve(&type_state);
+                let mut raw_ty = raw_id.resolve(type_state);
                 let mut view_layers = 0;
 
                 while let TypeVar::Known(_, KnownType::CopyView, ref inner) = raw_ty {
                     raw_id = inner[0];
-                    raw_ty = raw_id.resolve(&type_state);
+                    raw_ty = raw_id.resolve(type_state);
                     view_layers += 1;
                 }
 
@@ -244,16 +244,14 @@ impl Requirement {
                 call_kind,
                 takes_self,
             } => match &target_type.inner.resolve(type_state) {
-                TypeVar::Known(_, KnownType::Error, _) => {
-                    return Ok(RequirementResult::Satisfied(vec![]));
-                }
+                TypeVar::Known(_, KnownType::Error, _) => Ok(RequirementResult::Satisfied(vec![])),
                 TypeVar::Known(_, _, _) => {
                     let Some((implementor, self_view_layers_delta)) = select_method(
                         expr.loc(),
                         target_type,
                         method,
                         *takes_self,
-                        &ctx.trait_impls,
+                        ctx.trait_impls,
                         type_state,
                     )?
                     else {
@@ -291,15 +289,13 @@ impl Requirement {
                         .collect::<Vec<_>>();
 
                     match candidates.as_slice() {
-                        [] => {
-                            return Ok(RequirementResult::UnsatisfiedNow(Diagnostic::error(
-                                expr_id,
-                                format!(
-                                    "{target_type} has no method `{method}`",
-                                    target_type = target_type.display(type_state)
-                                ),
-                            )));
-                        }
+                        [] => Ok(RequirementResult::UnsatisfiedNow(Diagnostic::error(
+                            expr_id,
+                            format!(
+                                "{target_type} has no method `{method}`",
+                                target_type = target_type.display(type_state)
+                            ),
+                        ))),
                         // NOTE: We need to wait until we've unified with a known type
                         // before dropping this requirement in order to create a generic list
                         [_] => Ok(RequirementResult::NoChange),

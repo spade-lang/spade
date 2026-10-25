@@ -24,7 +24,7 @@ impl FastWrite for str {
         w.write_str(self).map_err(|_| DocError::FWriteError)
     }
 }
-impl<'a> FastWrite for &'a str {
+impl FastWrite for &str {
     fn write(&self, w: &mut impl fmt::Write) -> DResult<()> {
         w.write_str(self).map_err(|_| DocError::FWriteError)
     }

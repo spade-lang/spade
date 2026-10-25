@@ -636,7 +636,7 @@ impl<'a> Parser<'a> {
             let (inner_expr, loc) = self.surrounded(
                 &TokenKind::OpenBracket,
                 |s| {
-                    if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
+                    if s.peek_and_eat(&TokenKind::DotDot)?.is_some() {
                         let end = if s.peek_kind(&TokenKind::CloseBracket)? {
                             None
                         } else {
@@ -656,7 +656,7 @@ impl<'a> Parser<'a> {
                         // - a range index (`a[1..2]`) which does not allow an expression
                         let start = s.expression(braces)?;
 
-                        if let Some(_) = s.peek_and_eat(&TokenKind::DotDot)? {
+                        if s.peek_and_eat(&TokenKind::DotDot)?.is_some() {
                             let end = if s.peek_kind(&TokenKind::CloseBracket)? {
                                 None
                             } else {

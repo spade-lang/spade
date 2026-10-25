@@ -241,18 +241,17 @@ pub(crate) fn gather_impls_n_docs(
                             is_wild = false;
                         }
                     });
-                    if is_wild {
-                        if let Ok((module_name, _)) = ctx
+                    if is_wild
+                        && let Ok((module_name, _)) = ctx
                             .symtab
                             .lookup_thing(&ctx.symtab.current_namespace().clone().nowhere(), true)
-                        {
-                            impls
-                                .wild_impls
-                                .entry(module_name)
-                                .or_default()
-                                .1
-                                .push(timpl.clone());
-                        }
+                    {
+                        impls
+                            .wild_impls
+                            .entry(module_name)
+                            .or_default()
+                            .1
+                            .push(timpl.clone());
                     }
                 } else {
                     let dimpl = DirectImpl {
@@ -277,18 +276,17 @@ pub(crate) fn gather_impls_n_docs(
                             is_wild = false;
                         }
                     });
-                    if is_wild {
-                        if let Ok((module_name, _)) = ctx
+                    if is_wild
+                        && let Ok((module_name, _)) = ctx
                             .symtab
                             .lookup_thing(&ctx.symtab.current_namespace().clone().nowhere(), true)
-                        {
-                            impls
-                                .wild_impls
-                                .entry(module_name)
-                                .or_default()
-                                .0
-                                .push(dimpl.clone());
-                        }
+                    {
+                        impls
+                            .wild_impls
+                            .entry(module_name)
+                            .or_default()
+                            .0
+                            .push(dimpl.clone());
                     }
                 }
             }

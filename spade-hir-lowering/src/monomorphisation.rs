@@ -268,9 +268,9 @@ pub fn compile_items(
         rayon::scope_fifo(move |s| {
             while let Some(item) = state.next_target(&panic_marker) {
                 let state = Arc::clone(&state);
-                let name_source_map = Arc::clone(&name_source_map);
+                let name_source_map = Arc::clone(name_source_map);
                 let result = Arc::clone(&result);
-                let idtracker = Arc::clone(&idtracker);
+                let idtracker = Arc::clone(idtracker);
                 let body_replacements = Arc::clone(&body_replacements);
 
                 s.spawn_fifo(move |_s| {
@@ -345,7 +345,7 @@ fn monomorphize_item(
                 .unwrap()
                 .remove(&(u.name.name_id().inner.clone(), item.params.clone()))
             {
-                let new_unit = match replacement.replace_in(u.clone(), &idtracker) {
+                let new_unit = match replacement.replace_in(u.clone(), idtracker) {
                     Ok(u) => {
                         unit = u;
                         &unit
@@ -443,13 +443,13 @@ fn monomorphize_item(
 
                 let mut errors = vec![];
                 for diag in type_state.owned.diags.drain() {
-                    errors.push(state.add_mono_traceback(diag, &item));
+                    errors.push(state.add_mono_traceback(diag, item));
                 }
 
                 match revisit_result {
                     Ok(_) => {}
                     Err(e) => {
-                        errors.push(state.add_mono_traceback(e, &item));
+                        errors.push(state.add_mono_traceback(e, item));
                     }
                 }
 
@@ -478,7 +478,7 @@ fn monomorphize_item(
 
             run_pass!(LowerLambdaDefs {
                 type_state: &mut type_state,
-                idtracker: &idtracker,
+                idtracker,
                 replacements: body_replacements,
             });
             run_pass!(FlattenRegs {
@@ -491,7 +491,7 @@ fn monomorphize_item(
                 items: item_list,
                 symtab,
                 impls: trait_impls,
-                idtracker: &idtracker,
+                idtracker,
             });
             run_pass!(LowerGenExpr {
                 type_state: &type_state,
@@ -526,11 +526,11 @@ fn monomorphize_item(
                 &mut type_state,
                 type_ctx,
                 symtab,
-                &idtracker,
+                idtracker,
                 item_list,
                 &generic_list_token,
                 &mut reg_name_map,
-                &state,
+                state,
                 name_source_map,
                 self_mono_item,
                 opt_passes,
@@ -539,7 +539,7 @@ fn monomorphize_item(
             .map_err(|e| vec![state.add_mono_traceback(e, &item)])
             .map(|mir| MirOutput {
                 mir,
-                type_state: type_state,
+                type_state,
                 reg_name_map,
             });
             out.map(Some)

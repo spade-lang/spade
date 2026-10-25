@@ -24,7 +24,7 @@ impl FieldSource {
             FieldSource::Input {
                 mangled_fwd,
                 mangled_back: _,
-            } => &mangled_fwd,
+            } => mangled_fwd,
             FieldSource::Output {} => "input__",
         }
     }
@@ -34,7 +34,7 @@ impl FieldSource {
             FieldSource::Input {
                 mangled_fwd: _,
                 mangled_back,
-            } => &mangled_back,
+            } => mangled_back,
             FieldSource::Output {} => "output__",
         }
     }

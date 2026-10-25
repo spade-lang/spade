@@ -10,7 +10,7 @@ pub enum CopyWitness {
 
 impl CopyWitness {
     pub fn recurse(self, loc: &Loc<()>) -> Self {
-        Self::Recursive(Box::new(self.at_loc(&loc)))
+        Self::Recursive(Box::new(self.at_loc(loc)))
     }
 
     pub fn loc(&self) -> Loc<()> {
@@ -30,7 +30,7 @@ pub enum DataWitness {
 
 impl DataWitness {
     pub fn recurse(self, loc: &Loc<()>) -> Self {
-        Self::Recursive(Box::new(self.at_loc(&loc)))
+        Self::Recursive(Box::new(self.at_loc(loc)))
     }
 
     pub fn loc(&self) -> Loc<()> {

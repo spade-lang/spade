@@ -47,11 +47,7 @@ impl<'a> InlinedStatements<'a> {
                         Statement::Binding(binding) => Statement::Binding(Binding {
                             name: get_final_name(&binding.name),
                             operator: binding.operator.clone(),
-                            operands: binding
-                                .operands
-                                .iter()
-                                .map(|op| get_final_name(op))
-                                .collect(),
+                            operands: binding.operands.iter().map(&get_final_name).collect(),
                             ty: binding.ty.clone(),
                             loc: binding.loc,
                         }),
@@ -140,12 +136,12 @@ impl<'a> InlinedStatements<'a> {
                 let result_binding = Statement::Binding(Binding {
                     name: name_map
                         .get(outer_output_name)
-                        .unwrap_or(&outer_output_name)
+                        .unwrap_or(outer_output_name)
                         .clone(),
                     operator: Operator::Alias,
                     operands: vec![
                         new_name_map
-                            .get(&inner_output_name)
+                            .get(inner_output_name)
                             .ok_or_else(|| {
                                 diag_anyhow!(
                                     *loc,
@@ -299,10 +295,7 @@ fn perform_inlining<'a>(
                                         // NOTE: The path::from_strs here is a lie,
                                         // but we only need this for lookups so
                                         // we're fine
-                                        TypedExpression::Name(NameID(
-                                            *id,
-                                            Path::from_strs(&[&name]),
-                                        ))
+                                        TypedExpression::Name(NameID(*id, Path::from_strs(&[name])))
                                     }
                                     ValueName::Expr(expr_id) => TypedExpression::Id(*expr_id),
                                 };

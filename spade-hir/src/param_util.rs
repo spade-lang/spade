@@ -107,7 +107,7 @@ impl From<ArgumentError> for Diagnostic {
                 )
             }
             ArgumentError::NoSuchArgument { name } => {
-                Diagnostic::error(&name, format!("No such argument: {name}"))
+                Diagnostic::error(name, format!("No such argument: {name}"))
                     .primary_label("No such argument")
             }
             ArgumentError::MissingArguments { mut missing, at } => {
@@ -121,7 +121,7 @@ impl From<ArgumentError> for Diagnostic {
                     .primary_label(format!("Missing argument{plural}: {arg_list}"))
             }
             ArgumentError::DuplicateNamedBindings { new, prev_loc } => {
-                Diagnostic::error(&new, format!("{new} specified multiple times"))
+                Diagnostic::error(new, format!("{new} specified multiple times"))
                     .primary_label("Later specified here")
                     .secondary_label(prev_loc, "First specified here")
             }
@@ -325,9 +325,9 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
             for name in unbound.clone() {
                 // NOTE: Safe unwraps, all these are guaranteed to exist because they belong to an
                 // unbound parameter
-                if let Some(default) = params.arg_default(&name).unwrap() {
-                    let index = params.arg_index(&name).unwrap();
-                    let target_type = params.try_get_arg_type(&name).unwrap();
+                if let Some(default) = params.arg_default(name).unwrap() {
+                    let index = params.arg_index(name).unwrap();
+                    let target_type = params.try_get_arg_type(name).unwrap();
                     unbound.remove(&name);
                     result.push((
                         index,

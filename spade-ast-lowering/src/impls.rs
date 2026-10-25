@@ -386,12 +386,11 @@ pub fn canonicalize_impl_target(
                 .map(|t| hir::TypeExpression::TypeSpec(t.inner))
                 .collect(),
         )),
-        hir::TypeSpec::Wildcard(_) => {
-            return Err(
-                Diagnostic::error(target_spec, "Impl target cannot be wildcard")
-                    .primary_label("Impl target cannot be wildcard"),
-            );
-        }
+        hir::TypeSpec::Wildcard(_) => Err(Diagnostic::error(
+            target_spec,
+            "Impl target cannot be wildcard",
+        )
+        .primary_label("Impl target cannot be wildcard")),
         hir::TypeSpec::TraitSelf(_) => {
             diag_bail!(target_spec, "Did not expect trait's `Self` as impl target")
         }
@@ -455,7 +454,7 @@ pub fn create_trait_from_unit_heads_inner(
                                 traits,
                                 default: _,
                             } => TypeSymbol::GenericArg {
-                                traits: visit_trait_specs(&traits, &TypeSpecKind::TraitBound, ctx)?,
+                                traits: visit_trait_specs(traits, &TypeSpecKind::TraitBound, ctx)?,
                             }
                             .at_loc(name),
                             ast::TypeParam::TypeWithMeta {
@@ -476,7 +475,7 @@ pub fn create_trait_from_unit_heads_inner(
                                 traits,
                                 default,
                             } => hir::TypeParam {
-                                name: hir::Generic::Named(name_id.at_loc(&ident)),
+                                name: hir::Generic::Named(name_id.at_loc(ident)),
                                 trait_bounds: visit_trait_specs(
                                     traits,
                                     &TypeSpecKind::TraitBound,
@@ -490,7 +489,7 @@ pub fn create_trait_from_unit_heads_inner(
                                 name: _,
                                 default,
                             } => hir::TypeParam {
-                                name: hir::Generic::Named(name_id.at_loc(&ident)),
+                                name: hir::Generic::Named(name_id.at_loc(ident)),
                                 trait_bounds: vec![],
                                 meta: visit_meta_type(meta)?,
                                 default: visit_default_type_expression(default, ctx)?.map(Box::new),
@@ -546,7 +545,7 @@ pub fn create_trait_from_unit_heads_inner(
                     current_name,
                     format!("... which is a supertrait of `{current_name}`"),
                 ));
-                current_name = visited_edges.get(&current_name).unwrap();
+                current_name = visited_edges.get(current_name).unwrap();
             }
 
             diag.push_subdiagnostic(Subdiagnostic::span_note(
@@ -725,7 +724,7 @@ fn check_safeness_for_impl_method_and_trait_method_match(
 ) -> Result<()> {
     let diag = || {
         Diagnostic::error(
-            &impl_method.name,
+            impl_method.name,
             "Safeness of impl method does not match that of trait definition",
         )
     };
@@ -738,7 +737,7 @@ fn check_safeness_for_impl_method_and_trait_method_match(
             .span_suggest_insert_before("Add unsafe here", &impl_method.unit_kind, "unsafe ")),
         (Some(loc), None) => Err(diag()
             .primary_label("This impl is marked as unsafe")
-            .secondary_label(&trait_method.name, "But the trait definition isn't")
+            .secondary_label(trait_method.name, "But the trait definition isn't")
             .span_suggest_remove("Remove unsafe here", loc)),
     }
 }
@@ -751,7 +750,7 @@ fn check_type_params_for_impl_element_and_trait_element_match(
     if impl_elem.1.len() != trait_elem.1.len() {
         if impl_elem.1.is_empty() {
             Err(Diagnostic::error(
-                &impl_elem.0,
+                impl_elem.0,
                 format!(
                     "Missing type parameter{} on impl of generic {}",
                     if trait_elem.1.len() != 1 { "s" } else { "" },
@@ -784,7 +783,7 @@ fn check_type_params_for_impl_element_and_trait_element_match(
                 "Type parameter{} specified here",
                 if impl_elem.1.len() != 1 { "s" } else { "" },
             ))
-            .secondary_label(&trait_elem.0, "But this is not generic"))
+            .secondary_label(trait_elem.0, "But this is not generic"))
         } else {
             Err(Diagnostic::error(
                 ().between_locs(impl_elem.1.first().unwrap(), impl_elem.1.last().unwrap()),
@@ -841,7 +840,7 @@ fn resolve_trait_self(
                         self_id,
                         assoc_type_remaps,
                     )
-                    .at_loc(&inner)
+                    .at_loc(inner)
                 })
                 .collect(),
         ),
@@ -989,7 +988,7 @@ fn check_params_for_impl_method_and_trait_method_match(
                 return Err(
                     Diagnostic::error(name, "Trait method does not have this argument")
                         .primary_label("Extra argument")
-                        .secondary_label(&trait_method.name, "Method defined here"),
+                        .secondary_label(trait_method.name, "Method defined here"),
                 );
             }
             EitherOrBoth::Right(hir::Parameter {
@@ -1090,7 +1089,7 @@ fn map_trait_method_parameters(
 
     let output_type = if let Some(ty) = trait_method.output_type.as_ref() {
         Some(map_type_spec_to_trait(
-            &ty,
+            ty,
             trait_type_params.as_slice(),
             trait_method_type_params.as_slice(),
             impl_or_default_type_params.as_slice(),
@@ -1189,72 +1188,72 @@ fn map_const_generic_to_trait(
         }
 
         hir::ConstGeneric::Add(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Add(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Add(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Sub(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Sub(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Sub(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Mul(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Mul(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Mul(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Div(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Div(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Div(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Mod(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Mod(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Mod(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::IntBitsFor(inner) => {
-            Ok(hir::ConstGeneric::IntBitsFor(map_boilerplate(inner)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::IntBitsFor(map_boilerplate(inner)?).at_loc(cg))
         }
         hir::ConstGeneric::UintBitsFor(inner) => {
-            Ok(hir::ConstGeneric::UintBitsFor(map_boilerplate(inner)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::UintBitsFor(map_boilerplate(inner)?).at_loc(cg))
         }
         hir::ConstGeneric::Eq(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Eq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Eq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::NotEq(lhs, rhs) => {
-            Ok(hir::ConstGeneric::NotEq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::NotEq(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Lt(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Lt(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Lt(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Gt(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Gt(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Gt(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Le(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Le(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Le(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::Ge(lhs, rhs) => {
-            Ok(hir::ConstGeneric::Ge(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::Ge(map_boilerplate(lhs)?, map_boilerplate(rhs)?).at_loc(cg))
         }
         hir::ConstGeneric::LogicalNot(inner) => {
-            Ok(hir::ConstGeneric::LogicalNot(map_boilerplate(inner)?).at_loc(&cg))
+            Ok(hir::ConstGeneric::LogicalNot(map_boilerplate(inner)?).at_loc(cg))
         }
         hir::ConstGeneric::LogicalAnd(lhs, rhs) => Ok(hir::ConstGeneric::LogicalAnd(
             map_boilerplate(lhs)?,
             map_boilerplate(rhs)?,
         )
-        .at_loc(&cg)),
+        .at_loc(cg)),
         hir::ConstGeneric::LogicalOr(lhs, rhs) => Ok(hir::ConstGeneric::LogicalOr(
             map_boilerplate(lhs)?,
             map_boilerplate(rhs)?,
         )
-        .at_loc(&cg)),
+        .at_loc(cg)),
         hir::ConstGeneric::LogicalXor(lhs, rhs) => Ok(hir::ConstGeneric::LogicalXor(
             map_boilerplate(lhs)?,
             map_boilerplate(rhs)?,
         )
-        .at_loc(&cg)),
+        .at_loc(cg)),
         hir::ConstGeneric::LeftShift(lhs, rhs) => Ok(hir::ConstGeneric::LeftShift(
             map_boilerplate(lhs)?,
             map_boilerplate(rhs)?,
         )
-        .at_loc(&cg)),
+        .at_loc(cg)),
         hir::ConstGeneric::RightShift(lhs, rhs) => Ok(hir::ConstGeneric::RightShift(
             map_boilerplate(lhs)?,
             map_boilerplate(rhs)?,
         )
-        .at_loc(&cg)),
+        .at_loc(cg)),
         hir::ConstGeneric::Bool(_) => Ok(cg.clone()),
         hir::ConstGeneric::Int(_) => Ok(cg.clone()),
         hir::ConstGeneric::Str(_) => Ok(cg.clone()),
@@ -1295,7 +1294,7 @@ fn map_type_expr_to_trait(
                 ctx,
             )?,
         )
-        .at_loc(&te)),
+        .at_loc(te)),
     }
 }
 

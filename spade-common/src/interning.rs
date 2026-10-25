@@ -6,7 +6,7 @@ use std::{
 use bumpalo::Bump;
 use rustc_hash::{FxBuildHasher, FxHashSet};
 
-pub static INTERNER: LazyLock<Interner> = LazyLock::new(|| Interner::new());
+pub static INTERNER: LazyLock<Interner> = LazyLock::new(Interner::new);
 
 pub struct Interner {
     inner: Mutex<(FxHashSet<&'static str>, Bump)>,

@@ -1055,7 +1055,7 @@ fn test() {
         code_bundle.clone(),
     );
 
-    let mut parser = spade_parser::Parser::new(&code, FILE_ID, None);
+    let mut parser = spade_parser::Parser::new(code, FILE_ID, None);
 
     let _ = match parser.top_level_module_body() {
         Ok(root) => root,
