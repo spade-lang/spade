@@ -376,8 +376,8 @@ async fn multiline_def_works() {
         //  ^[3] goto-target-end
 
             fn rec_call() -> int<8> {
-                rec( 2 ^rec(5 & rec(1 ^ rec(1*rec(rec(1 + 2 * 1 - 1))))))
-                                             //   ^[1] goto
+                rec(1 ^ rec(1*rec(rec(rec(1 + 2 * 1 - 1)))))
+                                 //   ^[1] goto
             }
     "#,
         InitFileOpt::default(),

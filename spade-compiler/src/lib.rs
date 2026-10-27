@@ -555,7 +555,7 @@ pub fn compile(
             Arc::clone(&code),
             &mut errors,
             &state.idtracker,
-            &state.symtab.symtab().id_tracker,
+            &state.symtab.id_tracker,
         );
         final_bumpy_mir_entities = Some(bumpy_mir_entities);
         state.mir_context = Some(mir_context);
