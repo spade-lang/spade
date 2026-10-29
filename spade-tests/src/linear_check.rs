@@ -363,3 +363,17 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    if_let_inv_produces_acceptable_error_message,
+    "
+        fn e(p: Option<inv bool>) {
+            let _ = if let Some(q) = p {
+                set q = false;
+                false
+            } else {
+                true
+            };
+        }
+    "
+}

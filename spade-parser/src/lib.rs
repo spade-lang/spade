@@ -711,7 +711,9 @@ impl<'a> Parser<'a> {
             .primary_label("expected a block here"));
         };
 
-        let (end_span, on_false) = if self.peek_and_eat(&TokenKind::Else)?.is_some() {
+        let else_tok = self.peek_and_eat(&TokenKind::Else)?;
+
+        let (end_span, on_false) = if else_tok.is_some() {
             let on_false = if let Some(block) = self.block(allow_stages)? {
                 block.map(Box::new).map(Expression::Block)
             } else if let Some(expr) = self.if_expression(allow_stages, allow_let, is_gen)? {
@@ -746,7 +748,7 @@ impl<'a> Parser<'a> {
                 .between(self.file_id(), &start.span, &end_span),
             ))
         } else {
-            let Some(on_false) = on_false else {
+            let (Some(else_tok), Some(on_false)) = (else_tok, on_false) else {
                 let loc = ().between(self.file_id(), &start.span, &end_span);
                 return Err(
                     Diagnostic::error(loc, "`if` expression requires an `else` branch")
@@ -771,13 +773,15 @@ impl<'a> Parser<'a> {
                     Expression::Match {
                         expression: Box::new(cond),
                         branches: vec![
-                            (pat, None, on_true),
+                            (pat.clone(), None, on_true),
                             (
                                 Pattern::Path {
                                     wire: None,
-                                    path: Path::from_strs(&["_"]).nowhere(),
+                                    path: Path::ident_with_loc(
+                                        Identifier::intern("_").at(self.file_id(), &else_tok),
+                                    ),
                                 }
-                                .nowhere(),
+                                .at(self.file_id(), &else_tok),
                                 None,
                                 on_false,
                             ),
