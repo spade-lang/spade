@@ -296,7 +296,6 @@ impl PrettyDebug for ExprKind {
             }
             crate::ExprKind::MethodCall {
                 target,
-                sugar_info: _,
                 name,
                 args,
                 call_kind: _,

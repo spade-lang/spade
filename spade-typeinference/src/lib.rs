@@ -1611,7 +1611,7 @@ impl TypeState {
                     ctx
                 )?
             },
-            ["std", "mem", "clocked_memory"]  => {
+            ["std", "mem", "clocked_memory"] => {
                 let num_elements = generic_arg!(0);
                 let addr_size = generic_arg!(2);
 
@@ -1619,13 +1619,13 @@ impl TypeState {
             },
             // NOTE: the last argument of _init does not need special treatment, so
             // we can use the same code path for both for now
-            ["std", "mem", "clocked_memory_init"]  => {
+            ["std", "mem", "clocked_memory_init"] => {
                 let num_elements = generic_arg!(0);
                 let addr_size = generic_arg!(2);
 
                 self.handle_clocked_memory(num_elements, addr_size, &matched_args, ctx)?
             },
-            ["std", "mem", "read_memory"]  => {
+            ["std", "mem", "read_memory"] => {
                 let addr_size = generic_arg!(0);
                 let num_elements = generic_arg!(2);
 
@@ -1640,7 +1640,104 @@ impl TypeState {
             ctx,
             &unit_generic_list,
             self_view_layers_delta,
-        )?;
+        )
+        .map_err(|diag| {
+            macro_rules! unop_handler {
+                ($fmt:literal, $op:literal, $trait:literal) => {{
+                    let t = matched_args[0].value.get_type(self).display(self);
+
+                    return Diagnostic::error(expression_id.loc(), format!($fmt, t)).note(concat!(
+                        $op,
+                        " can only be used with operands that implement ",
+                        $trait,
+                    ));
+                }};
+            }
+
+            macro_rules! binop_handler {
+                ($fmt:literal, $op:literal, $trait:literal) => {{
+                    let tl = matched_args[0].value.get_type(self).display(self);
+                    let tr = matched_args[1].value.get_type(self).display(self);
+
+                    return Diagnostic::error(expression_id.loc(), format!($fmt, tl, tr))
+                        .secondary_label(matched_args[0].value, format!("This has type `{tl}`"))
+                        .secondary_label(matched_args[1].value, format!("This has type `{tr}`"))
+                        .note(concat!(
+                            $op,
+                            " can only be used with operands that implement ",
+                            $trait,
+                        ));
+                }};
+            }
+
+            handle_special_functions! {
+                ["core", "ops", "compiler", "eq"] => {
+                    binop_handler!("Cannot compare `{}` to `{}`", "`==`", "`Eq`")
+                },
+                ["core", "ops", "compiler", "ne"] => {
+                    binop_handler!("Cannot compare `{}` to `{}`", "`!=`", "`Eq`")
+                },
+                ["core", "ops", "compiler", "wrapping_neg"] => {
+                    unop_handler!("Cannot negate `{}`", "Unary `-.`", "`WrappingNeg`")
+                },
+                ["core", "ops", "compiler", "wrapping_add"] => {
+                    binop_handler!("Cannot add `{}` and `{}`", "`+.`", "`WrappingAdd`")
+                },
+                ["core", "ops", "compiler", "wrapping_sub"] => {
+                    binop_handler!("Cannot subtract `{}` and `{}`", "Binary `-.`", "`WrappingSub`")
+                },
+                ["core", "ops", "compiler", "wrapping_mul"] => {
+                    binop_handler!("Cannot multiply `{}` and `{}`", "`*.`", "`WrappingMul`")
+                },
+                ["core", "ops", "compiler", "wrapping_shl"] => {
+                    binop_handler!("Cannot shift `{}` left by `{}`", "`<<.`", "`WrappingShl`")
+                },
+                ["core", "ops", "compiler", "wrapping_shr"] => {
+                    binop_handler!("Cannot shift `{}` right by `{}`", "`>>.`", "`WrappingShr`")
+                },
+                ["core", "ops", "compiler", "not"] => {
+                    unop_handler!("Cannot invert `{}`", "`!`", "`WrappingNot`")
+                },
+                ["core", "ops", "compiler", "bit_not"] => {
+                    unop_handler!("Cannot invert `{}`", "`~`", "`BitNot`")
+                },
+                ["core", "ops", "compiler", "and"] => {
+                    binop_handler!("Cannot perform logical AND on `{}` and `{}`", "`&&`", "`And`")
+                },
+                ["core", "ops", "compiler", "bit_and"] => {
+                    binop_handler!("Cannot perform bitwise AND on `{}` and `{}`", "`&`", "`BitAnd`")
+                },
+                ["core", "ops", "compiler", "or"] => {
+                    binop_handler!("Cannot perform logical OR on `{}` and `{}`", "`||`", "`Or`")
+                },
+                ["core", "ops", "compiler", "bit_or"] => {
+                    binop_handler!("Cannot perform bitwise OR on `{}` and `{}`", "`|`", "`BitOr`")
+                },
+                ["core", "ops", "compiler", "xor"] => {
+                    binop_handler!("Cannot perform logical XOR on `{}` and `{}`", "`^^`", "`Xor`")
+                },
+                ["core", "ops", "compiler", "bit_xor"] => {
+                    binop_handler!("Cannot perform bitwise XOR on `{}` and `{}`", "`^`", "`BitXor`")
+                },
+                ["core", "ops", "compiler", "lt"] => {
+                    binop_handler!("Cannot compare `{}` to `{}`", "`<`", "`PartialOrd`")
+                },
+                ["core", "ops", "compiler", "le"] => {
+                    binop_handler!("Cannot compare `{}` to `{}`", "`<=`", "`PartialOrd`")
+                },
+                ["core", "ops", "compiler", "gt"] => {
+                    binop_handler!("Cannot compare `{}` to `{}`", "`>`", "`PartialOrd`")
+                },
+                ["core", "ops", "compiler", "ge"] => {
+                    binop_handler!("Cannot compare `{}` to `{}`", "`>=`", "`PartialOrd`")
+                },
+                ["core", "ops", "compiler", "connect"] => {
+                    binop_handler!("Cannot connect `{}` and `{}`", "`set`", "`Set`")
+                }
+            };
+
+            diag
+        })?;
 
         let return_type = head
             .output_type

@@ -653,3 +653,110 @@ mod intrinsics {
 
     pub(super) extern fn connect<T>(lhs: inv T, rhs: T);
 }
+
+mod compiler {
+    #[inline]
+    fn eq<T: super::PartialEq>(lhs: T, rhs: T) -> bool {
+        lhs.eq(rhs)
+    }
+
+    #[inline]
+    fn ne<T: super::PartialEq>(lhs: T, rhs: T) -> bool {
+        lhs.ne(rhs)
+    }
+
+    #[inline]
+    fn wrapping_neg<T: super::WrappingNeg>(val: T) -> T {
+        val.wrapping_neg()
+    }
+
+    #[inline]
+    fn wrapping_add<T: super::WrappingAdd>(lhs: T, rhs: T) -> T {
+        lhs.wrapping_add(rhs)
+    }
+
+    #[inline]
+    fn wrapping_sub<T: super::WrappingSub>(lhs: T, rhs: T) -> T {
+        lhs.wrapping_sub(rhs)
+    }
+
+    #[inline]
+    fn wrapping_mul<T: super::WrappingMul>(lhs: T, rhs: T) -> T {
+        lhs.wrapping_mul(rhs)
+    }
+
+    #[inline]
+    fn wrapping_shl<T: super::WrappingShl>(lhs: T, rhs: T) -> T {
+        lhs.wrapping_shl(rhs)
+    }
+
+    #[inline]
+    fn wrapping_shr<T: super::WrappingShr>(lhs: T, rhs: T) -> T {
+        lhs.wrapping_shr(rhs)
+    }
+
+    #[inline]
+    fn not<T: super::Not>(val: T) -> T {
+        val.not()
+    }
+
+    #[inline]
+    fn bit_not<T: super::BitNot>(val: T) -> T {
+        val.bit_not()
+    }
+
+    #[inline]
+    fn and<T: super::And>(lhs: T, rhs: T) -> T {
+        lhs.and(rhs)
+    }
+
+    #[inline]
+    fn bit_and<T: super::BitAnd>(lhs: T, rhs: T) -> T {
+        lhs.bit_and(rhs)
+    }
+
+    #[inline]
+    fn or<T: super::Or>(lhs: T, rhs: T) -> T {
+        lhs.or(rhs)
+    }
+
+    #[inline]
+    fn bit_or<T: super::BitOr>(lhs: T, rhs: T) -> T {
+        lhs.bit_or(rhs)
+    }
+
+    #[inline]
+    fn xor<T: super::Xor>(lhs: T, rhs: T) -> T {
+        lhs.xor(rhs)
+    }
+
+    #[inline]
+    fn bit_xor<T: super::BitXor>(lhs: T, rhs: T) -> T {
+        lhs.bit_xor(rhs)
+    }
+
+    #[inline]
+    fn lt<T: super::PartialOrd>(lhs: T, rhs: T) -> bool {
+        lhs.lt(rhs)
+    }
+
+    #[inline]
+    fn le<T: super::PartialOrd>(lhs: T, rhs: T) -> bool {
+        lhs.le(rhs)
+    }
+
+    #[inline]
+    fn gt<T: super::PartialOrd>(lhs: T, rhs: T) -> bool {
+        lhs.gt(rhs)
+    }
+
+    #[inline]
+    fn ge<T: super::PartialOrd>(lhs: T, rhs: T) -> bool {
+        lhs.ge(rhs)
+    }
+
+    #[inline]
+    fn connect<T, U: super::Set<T>>(lhs: U, rhs: T) {
+        lhs.connect(rhs)
+    }
+}

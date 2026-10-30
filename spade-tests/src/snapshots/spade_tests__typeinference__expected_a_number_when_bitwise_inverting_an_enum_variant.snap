@@ -5,10 +5,10 @@ entity main() -> uint<8> {
     ~None
 }
 
-error: Trait bound not satisfied. core::option::Option<core::marker::Data> does not implement core::ops::BitNot
-  ┌─ testinput:2:6
+error: Cannot invert `core::option::Option<core::marker::Data>`
+  ┌─ testinput:2:5
   │
 2 │     ~None
-  │     -^^^^ core::option::Option<core::marker::Data> does not implement core::ops::BitNot
-  │     │ 
-  │     Required because of the trait bound specified here
+  │     ^^^^^
+  │
+  = note: `~` can only be used with operands that implement `BitNot`

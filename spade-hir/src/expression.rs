@@ -1,8 +1,6 @@
 use std::borrow::BorrowMut;
 
-use crate::{
-    ConstGenericWithId, Pattern, TraitSpec, TypeExpression, TypeParam, TypeSpec, UnitKind,
-};
+use crate::{ConstGenericWithId, Pattern, TypeExpression, TypeParam, TypeSpec, UnitKind};
 
 use super::{Block, NameID};
 use num::{BigInt, BigUint};
@@ -203,12 +201,6 @@ pub enum IncompleteExpression {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct SugarInfo {
-    pub op_trait: Loc<TraitSpec>,
-    pub unify_args: bool,
-}
-
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Error,
     Identifier(NameID),
@@ -231,7 +223,6 @@ pub enum ExprKind {
     TypeCast(Box<Loc<Expression>>, Loc<TypeExpression>),
     MethodCall {
         target: Box<Loc<Expression>>,
-        sugar_info: Option<SugarInfo>,
         name: Loc<Identifier>,
         args: Loc<ArgumentList<Expression>>,
         call_kind: CallKind,

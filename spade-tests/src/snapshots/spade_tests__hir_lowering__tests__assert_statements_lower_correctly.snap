@@ -2,8 +2,9 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \name ((x, x_n128, int<16>), (y, y_n129, int<16>)) -> int<16> {
-	let e825: bool = Eq(x_n128, y_n129)
-	let e2: bool = Alias(e825)
+entity \name ((x, x_n172, int<16>), (y, y_n173, int<16>)) -> int<16> {
+	let e909: bool = Eq(x_n172, y_n173)
+	let e907: bool = Alias(e909)
+	let e2: bool = Alias(e907)
 	assert e2
-} => x_n128
+} => x_n172

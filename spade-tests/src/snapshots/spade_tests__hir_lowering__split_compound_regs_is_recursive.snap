@@ -2,14 +2,14 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "itertools :: Itertools ::\njoin(& mut items.iter().map(| item | format! (\"{item}\")), \"\\n\")"
 ---
-entity \test ((clk, clk_n128, bool), (x, x_n129, ((uint<8>, uint<8>), uint<8>))) -> ((uint<8>, uint<8>), uint<8>) {
-	let e822: (uint<8>, uint<8>) = IndexTuple(0)(x_n129)
-	let e824: uint<8> = IndexTuple(0)(e822)
-	reg(clk_n128) e825: uint<8> = e824
-	let e826: uint<8> = IndexTuple(1)(e822)
-	reg(clk_n128) e827: uint<8> = e826
-	let e823: (uint<8>, uint<8>) = ConstructTuple(e825, e827)
-	let e828: uint<8> = IndexTuple(1)(x_n129)
-	reg(clk_n128) e829: uint<8> = e828
-	let s1_x_n800: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e823, e829)
-} => s1_x_n800
+entity \test ((clk, clk_n172, bool), (x, x_n173, ((uint<8>, uint<8>), uint<8>))) -> ((uint<8>, uint<8>), uint<8>) {
+	let e903: (uint<8>, uint<8>) = IndexTuple(0)(x_n173)
+	let e905: uint<8> = IndexTuple(0)(e903)
+	reg(clk_n172) e906: uint<8> = e905
+	let e907: uint<8> = IndexTuple(1)(e903)
+	reg(clk_n172) e908: uint<8> = e907
+	let e904: (uint<8>, uint<8>) = ConstructTuple(e906, e908)
+	let e909: uint<8> = IndexTuple(1)(x_n173)
+	reg(clk_n172) e910: uint<8> = e909
+	let s1_x_n883: ((uint<8>, uint<8>), uint<8>) = ConstructTuple(e904, e910)
+} => s1_x_n883

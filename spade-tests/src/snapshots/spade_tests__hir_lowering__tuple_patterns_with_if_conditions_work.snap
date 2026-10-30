@@ -2,35 +2,37 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n128, (int<16>, bool))) -> bool {
-	let e838: (int<16>, bool) = Nop()
-	let e6: (int<16>, bool) = Alias(e838)
-	let e4: int<16> = IndexTuple(0)(e838)
-	let b_n129: bool = IndexTuple(1)(e838)
+entity \uwu ((e, e_n172, (int<16>, bool))) -> bool {
+	let e919: (int<16>, bool) = Nop()
+	let e6: (int<16>, bool) = Alias(e919)
+	let e4: int<16> = IndexTuple(0)(e919)
+	let b_n173: bool = IndexTuple(1)(e919)
 	const e8: int<7> = 6
 	const e9: int<7> = 8
-	let e855: bool = Eq(e8, e9)
-	let e7: bool = Alias(e855)
-	const e841: int<16> = 0
-	let e840: bool = Eq(e4, e841)
-	const e842: bool = true
-	let e843: bool = LogicalAnd(e840, e842)
-	let e844: bool = LogicalAnd(e843, e7)
-	let e845: (int<16>, bool) = Nop()
-	let e13: (int<16>, bool) = Alias(e845)
-	let x_n130: int<16> = IndexTuple(0)(e845)
-	let e12: bool = IndexTuple(1)(e845)
+	let e939: bool = Eq(e8, e9)
+	let e937: bool = Alias(e939)
+	let e7: bool = Alias(e937)
+	const e922: int<16> = 0
+	let e921: bool = Eq(e4, e922)
+	const e923: bool = true
+	let e924: bool = LogicalAnd(e921, e923)
+	let e925: bool = LogicalAnd(e924, e7)
+	let e926: (int<16>, bool) = Nop()
+	let e13: (int<16>, bool) = Alias(e926)
+	let x_n174: int<16> = IndexTuple(0)(e926)
+	let e12: bool = IndexTuple(1)(e926)
 	const e15: int<7> = 0
 	const e16: int<7> = 1
-	let e857: bool = Eq(e15, e16)
-	let e14: bool = Alias(e857)
-	const e847: bool = true
-	let e849: bool = LogicalAnd(e847, e12)
-	let e850: bool = LogicalAnd(e849, e14)
+	let e945: bool = Eq(e15, e16)
+	let e943: bool = Alias(e945)
+	let e14: bool = Alias(e943)
+	const e928: bool = true
+	let e930: bool = LogicalAnd(e928, e12)
+	let e931: bool = LogicalAnd(e930, e14)
 	const e17: bool = true
-	let e851: (int<16>, bool) = Nop()
-	let __n131: (int<16>, bool) = Alias(e851)
-	const e852: bool = true
+	let e932: (int<16>, bool) = Nop()
+	let __n175: (int<16>, bool) = Alias(e932)
+	const e933: bool = true
 	const e19: bool = false
-	let e2: bool = Match(e_n128, e838, e844, b_n129, e845, e850, e17, e851, e852, e19)
+	let e2: bool = Match(e_n172, e919, e925, b_n173, e926, e931, e17, e932, e933, e19)
 } => e2

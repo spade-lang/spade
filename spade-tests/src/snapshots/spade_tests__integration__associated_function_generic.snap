@@ -2,15 +2,15 @@
 source: spade-tests/src/integration.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \generic[807] () -> uint<8> {
+entity \generic[890] () -> uint<8> {
 	let e2: uint<8> = Instance(\impl#0::favnum )()
 } => e2
-entity \generic[808] () -> uint<8> {
+entity \generic[891] () -> uint<8> {
 	let e2: uint<8> = Instance(\impl#1::favnum )()
 } => e2
 entity \test () -> (uint<8>, uint<8>) {
-	let e10: uint<8> = Instance(\generic[807] )()
-	let e11: uint<8> = Instance(\generic[808] )()
+	let e10: uint<8> = Instance(\generic[890] )()
+	let e11: uint<8> = Instance(\generic[891] )()
 	let e9: (uint<8>, uint<8>) = ConstructTuple(e10, e11)
 } => e9
 entity \impl#0::favnum () -> uint<8> {

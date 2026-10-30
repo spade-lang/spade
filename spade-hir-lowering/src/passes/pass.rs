@@ -62,7 +62,6 @@ impl Passable for Loc<Expression> {
             ExprKind::TypeCast(lhs, _) => subnodes!(lhs),
             ExprKind::MethodCall {
                 target: self_,
-                sugar_info: _,
                 name: _,
                 args,
                 call_kind: _,

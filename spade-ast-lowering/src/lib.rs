@@ -28,11 +28,7 @@ use recursive::recursive;
 use spade_diagnostics::diag_list::{DiagList, ResultExt};
 use spade_diagnostics::diagnostic::SuggestionParts;
 use spade_diagnostics::{CodeBundle, Diagnostic, codespan::Span, diag_anyhow, diag_bail};
-use spade_hir::{
-    Selfness,
-    expression::{Safety, SugarInfo},
-    symbol_table::TypeDeclKind,
-};
+use spade_hir::{Selfness, expression::Safety, symbol_table::TypeDeclKind};
 use spade_parser::{ExprBraces, Parser};
 use spade_types::meta_types::MetaType;
 use tracing::{Level, event};
@@ -2078,38 +2074,25 @@ fn try_visit_statement(
             let target = target.visit(visit_expression, ctx);
             let value = value.visit(visit_expression, ctx);
 
-            let trait_spec = ast::TraitSpec {
-                path: Path::from_strs(&["Set"]).at_loc(s),
-                type_params: Some(
-                    vec![
-                        ast::TypeExpression::TypeSpec(Box::new(ast::TypeSpec::Wildcard.nowhere()))
-                            .nowhere(),
-                    ]
-                    .nowhere(),
-                ),
-                paren_syntax: false,
-            };
+            let path = Path::from_strs(&["core", "ops", "compiler", "connect"]).nowhere();
+            let name_id = ctx.symtab.lookup_id(&path, false)?;
 
             Ok(vec![
                 hir::Statement::Expression(
                     hir::Expression {
-                        kind: hir::ExprKind::MethodCall {
-                            target: Box::new(target.clone()),
-                            sugar_info: Some(SugarInfo {
-                                op_trait: visit_trait_spec(
-                                    &trait_spec.at_loc(s),
-                                    &TypeSpecKind::Turbofish,
-                                    ctx,
-                                )?,
-                                unify_args: false,
-                            }),
-                            name: Identifier::intern("connect").at_loc(s),
-                            turbofish: None,
-                            args: hir::ArgumentList::Positional(vec![value.clone()]).at_loc(&value),
-                            call_kind: hir::expression::CallKind::Function,
-                            safety: Safety::Default,
-                        },
                         id: ctx.idtracker.next(),
+                        kind: hir::ExprKind::Call {
+                            kind: hir::expression::CallKind::Function,
+                            callee: name_id.at_loc(s),
+                            args: hir::ArgumentList::Positional(vec![
+                                target.clone(),
+                                value.clone(),
+                            ])
+                            .at_loc(s),
+                            turbofish: None,
+                            safety: Safety::Default,
+                            verilog_attr_groups: vec![],
+                        },
                     }
                     .at_loc(s),
                 )
@@ -2266,7 +2249,7 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let lhs = &lhs.visit(visit_expression, ctx);
             let rhs = &rhs.visit(visit_expression, ctx);
 
-            let op = |op: BinaryOperator| {
+            let binop = |op: BinaryOperator| {
                 hir::ExprKind::BinaryOperator(
                     Box::new(lhs.clone()),
                     op.at_loc(tok),
@@ -2274,76 +2257,46 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 )
             };
 
-            let mut op_method =
-                |op: &'static str,
-                 trait_name: &'static str,
-                 trait_params: Vec<Loc<ast::TypeExpression>>| {
-                    let rhs_loc = rhs.loc();
+            let binop_call = |name: &'static str| {
+                let path = Path::from_strs(&["core", "ops", "compiler", name]).at_loc(tok);
+                let name_id = ctx.symtab.lookup_id(&path, false)?;
 
-                    let trait_spec = ast::TraitSpec {
-                        path: Path::from_strs(&[trait_name]).at_loc(tok),
-                        type_params: if trait_params.is_empty() {
-                            None
-                        } else {
-                            Some(trait_params.nowhere())
-                        },
-                        paren_syntax: false,
-                    };
-
-                    Result::Ok(hir::ExprKind::MethodCall {
-                        target: Box::new(lhs.clone()),
-                        sugar_info: Some(SugarInfo {
-                            op_trait: visit_trait_spec(
-                                &trait_spec.at_loc(tok),
-                                &TypeSpecKind::Turbofish,
-                                ctx,
-                            )?,
-                            unify_args: true,
-                        }),
-                        name: Identifier::intern(op).at_loc(tok),
-                        turbofish: None,
-                        args: hir::ArgumentList::Positional(vec![rhs.clone()]).at_loc(&rhs_loc),
-                        call_kind: hir::expression::CallKind::Function,
-                        safety: Safety::Default,
-                    })
-                };
+                Result::Ok(hir::ExprKind::Call {
+                    kind: hir::expression::CallKind::Function,
+                    callee: name_id.at_loc(tok),
+                    args: hir::ArgumentList::Positional(vec![lhs.clone(), rhs.clone()]).nowhere(),
+                    turbofish: None,
+                    safety: Safety::Default,
+                    verilog_attr_groups: vec![],
+                })
+            };
 
             match tok.inner {
-                ast::BinaryOperator::Add => Ok(op(BinaryOperator::Add)),
-                ast::BinaryOperator::Sub => Ok(op(BinaryOperator::Sub)),
-                ast::BinaryOperator::Mul => Ok(op(BinaryOperator::Mul)),
-                ast::BinaryOperator::Div => Ok(op(BinaryOperator::Div)),
-                ast::BinaryOperator::Mod => Ok(op(BinaryOperator::Mod)),
-                ast::BinaryOperator::Eq => Ok(op_method("eq", "PartialEq", vec![])?),
-                ast::BinaryOperator::Neq => Ok(op_method("ne", "PartialEq", vec![])?),
-                ast::BinaryOperator::Gt => Ok(op_method("gt", "PartialOrd", vec![])?),
-                ast::BinaryOperator::Lt => Ok(op_method("lt", "PartialOrd", vec![])?),
-                ast::BinaryOperator::Ge => Ok(op_method("ge", "PartialOrd", vec![])?),
-                ast::BinaryOperator::Le => Ok(op_method("le", "PartialOrd", vec![])?),
-                ast::BinaryOperator::LeftShift => Ok(op(BinaryOperator::LeftShift)),
-                ast::BinaryOperator::RightShift => Ok(op(BinaryOperator::RightShift)),
-                ast::BinaryOperator::ArithmeticRightShift => Ok(op(BinaryOperator::RightShift)),
-                ast::BinaryOperator::WrappingAdd => {
-                    Ok(op_method("wrapping_add", "WrappingAdd", vec![])?)
-                }
-                ast::BinaryOperator::WrappingSub => {
-                    Ok(op_method("wrapping_sub", "WrappingSub", vec![])?)
-                }
-                ast::BinaryOperator::WrappingMul => {
-                    Ok(op_method("wrapping_mul", "WrappingMul", vec![])?)
-                }
-                ast::BinaryOperator::WrappingLeftShift => {
-                    Ok(op_method("wrapping_shl", "WrappingShl", vec![])?)
-                }
-                ast::BinaryOperator::WrappingRightShift => {
-                    Ok(op_method("wrapping_shr", "WrappingShr", vec![])?)
-                }
-                ast::BinaryOperator::LogicalAnd => Ok(op_method("and", "And", vec![])?),
-                ast::BinaryOperator::LogicalOr => Ok(op_method("or", "Or", vec![])?),
-                ast::BinaryOperator::LogicalXor => Ok(op_method("xor", "Xor", vec![])?),
-                ast::BinaryOperator::BitwiseOr => Ok(op_method("bit_or", "BitOr", vec![])?),
-                ast::BinaryOperator::BitwiseAnd => Ok(op_method("bit_and", "BitAnd", vec![])?),
-                ast::BinaryOperator::BitwiseXor => Ok(op_method("bit_xor", "BitXor", vec![])?),
+                ast::BinaryOperator::Add => Ok(binop(BinaryOperator::Add)),
+                ast::BinaryOperator::Sub => Ok(binop(BinaryOperator::Sub)),
+                ast::BinaryOperator::Mul => Ok(binop(BinaryOperator::Mul)),
+                ast::BinaryOperator::Div => Ok(binop(BinaryOperator::Div)),
+                ast::BinaryOperator::Mod => Ok(binop(BinaryOperator::Mod)),
+                ast::BinaryOperator::Eq => Ok(binop_call("eq")?),
+                ast::BinaryOperator::Neq => Ok(binop_call("ne")?),
+                ast::BinaryOperator::Gt => Ok(binop_call("gt")?),
+                ast::BinaryOperator::Lt => Ok(binop_call("lt")?),
+                ast::BinaryOperator::Ge => Ok(binop_call("ge")?),
+                ast::BinaryOperator::Le => Ok(binop_call("le")?),
+                ast::BinaryOperator::LeftShift => Ok(binop(BinaryOperator::LeftShift)),
+                ast::BinaryOperator::RightShift => Ok(binop(BinaryOperator::RightShift)),
+                ast::BinaryOperator::ArithmeticRightShift => Ok(binop(BinaryOperator::RightShift)),
+                ast::BinaryOperator::WrappingAdd => Ok(binop_call("wrapping_add")?),
+                ast::BinaryOperator::WrappingSub => Ok(binop_call("wrapping_sub")?),
+                ast::BinaryOperator::WrappingMul => Ok(binop_call("wrapping_mul")?),
+                ast::BinaryOperator::WrappingLeftShift => Ok(binop_call("wrapping_shl")?),
+                ast::BinaryOperator::WrappingRightShift => Ok(binop_call("wrapping_shr")?),
+                ast::BinaryOperator::LogicalAnd => Ok(binop_call("and")?),
+                ast::BinaryOperator::LogicalOr => Ok(binop_call("or")?),
+                ast::BinaryOperator::LogicalXor => Ok(binop_call("xor")?),
+                ast::BinaryOperator::BitwiseOr => Ok(binop_call("bit_or")?),
+                ast::BinaryOperator::BitwiseAnd => Ok(binop_call("bit_and")?),
+                ast::BinaryOperator::BitwiseXor => Ok(binop_call("bit_xor")?),
             }
         }
         ast::Expression::UnaryOperator(operator, operand) => {
@@ -2353,45 +2306,25 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
                 hir::ExprKind::UnaryOperator(op.at_loc(operator), Box::new(operand.clone()))
             };
 
-            let mut unop_method =
-                |op: &'static str,
-                 trait_name: &'static str,
-                 trait_params: Vec<Loc<ast::TypeExpression>>| {
-                    let trait_spec = ast::TraitSpec {
-                        path: Path::from_strs(&[trait_name]).at_loc(operator),
-                        type_params: if trait_params.is_empty() {
-                            None
-                        } else {
-                            Some(trait_params.nowhere())
-                        },
-                        paren_syntax: false,
-                    };
+            let unop_call = |name: &'static str| {
+                let path = Path::from_strs(&["core", "ops", "compiler", name]).at_loc(operator);
+                let name_id = ctx.symtab.lookup_id(&path, false)?;
 
-                    Result::Ok(hir::ExprKind::MethodCall {
-                        target: Box::new(operand.clone()),
-                        sugar_info: Some(SugarInfo {
-                            op_trait: visit_trait_spec(
-                                &trait_spec.at_loc(operator),
-                                &TypeSpecKind::Turbofish,
-                                ctx,
-                            )?,
-                            unify_args: true,
-                        }),
-                        name: Identifier::intern(op).at_loc(operator),
-                        turbofish: None,
-                        args: hir::ArgumentList::empty().nowhere(),
-                        call_kind: hir::expression::CallKind::Function,
-                        safety: Safety::Default,
-                    })
-                };
+                Result::Ok(hir::ExprKind::Call {
+                    kind: hir::expression::CallKind::Function,
+                    callee: name_id.at_loc(operator),
+                    args: hir::ArgumentList::Positional(vec![operand.clone()]).nowhere(),
+                    turbofish: None,
+                    safety: Safety::Default,
+                    verilog_attr_groups: vec![],
+                })
+            };
 
             match operator.inner {
                 ast::UnaryOperator::Sub => Ok(unop(hir::expression::UnaryOperator::Sub)),
-                ast::UnaryOperator::Not => Ok(unop_method("not", "Not", vec![])?),
-                ast::UnaryOperator::BitwiseNot => Ok(unop_method("bit_not", "BitNot", vec![])?),
-                ast::UnaryOperator::WrappingSub => {
-                    Ok(unop_method("wrapping_neg", "WrappingNeg", vec![])?)
-                }
+                ast::UnaryOperator::Not => Ok(unop_call("not")?),
+                ast::UnaryOperator::BitwiseNot => Ok(unop_call("bit_not")?),
+                ast::UnaryOperator::WrappingSub => Ok(unop_call("wrapping_neg")?),
                 ast::UnaryOperator::Dereference => {
                     Ok(unop(hir::expression::UnaryOperator::Dereference))
                 }
@@ -2501,7 +2434,6 @@ fn visit_expression_result(e: &ast::Expression, ctx: &mut Context) -> Result<hir
             let target = target.visit(visit_expression, ctx);
             Ok(hir::ExprKind::MethodCall {
                 target: Box::new(target),
-                sugar_info: None,
                 name: *name,
                 args: args.try_map_ref(|args| visit_argument_list(args, ctx))?,
                 call_kind: visit_call_kind(kind, ctx)?,

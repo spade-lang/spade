@@ -302,7 +302,6 @@ impl ExprKindExt for ExprKind {
             ExprKind::TypeLevelInteger(_) => true,
             ExprKind::MethodCall {
                 target: _,
-                sugar_info: _,
                 name,
                 args: _,
                 call_kind: _,

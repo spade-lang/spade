@@ -2,20 +2,21 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n131, enum option [], option [])) -> bool {
-	let e829: enum option [], option [] = Nop()
-	let e4: enum option [], option [] = Alias(e829)
-	seal e829: enum option [], option [] (variant 0)
+entity \uwu ((e, e_n175, enum option [], option [])) -> bool {
+	let e910: enum option [], option [] = Nop()
+	let e4: enum option [], option [] = Alias(e910)
+	seal e910: enum option [], option [] (variant 0)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e836: bool = Eq(e6, e7)
-	let e5: bool = Alias(e836)
-	let e831: bool = IsEnumVariant(0)(e829)
-	let e832: bool = LogicalAnd(e831, e5)
+	let e920: bool = Eq(e6, e7)
+	let e918: bool = Alias(e920)
+	let e5: bool = Alias(e918)
+	let e912: bool = IsEnumVariant(0)(e910)
+	let e913: bool = LogicalAnd(e912, e5)
 	const e8: bool = true
-	let e833: enum option [], option [] = Nop()
-	let __n132: enum option [], option [] = Alias(e833)
-	const e834: bool = true
+	let e914: enum option [], option [] = Nop()
+	let __n176: enum option [], option [] = Alias(e914)
+	const e915: bool = true
 	const e10: bool = false
-	let e2: bool = Match(e_n131, e829, e832, e8, e833, e834, e10)
+	let e2: bool = Match(e_n175, e910, e913, e8, e914, e915, e10)
 } => e2

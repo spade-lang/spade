@@ -2,27 +2,29 @@
 source: spade-tests/src/hir_lowering.rs
 expression: "items.iter().map(| item | format! (\"{item}\")).join(\"\\n\")"
 ---
-entity \uwu ((e, e_n128, bool)) -> bool {
-	let e834: bool = Nop()
-	let e4: bool = Alias(e834)
+entity \uwu ((e, e_n172, bool)) -> bool {
+	let e915: bool = Nop()
+	let e4: bool = Alias(e915)
 	const e6: int<7> = 6
 	const e7: int<7> = 8
-	let e843: bool = Eq(e6, e7)
-	let e5: bool = Alias(e843)
-	let e835: bool = LogicalAnd(e834, e5)
+	let e927: bool = Eq(e6, e7)
+	let e925: bool = Alias(e927)
+	let e5: bool = Alias(e925)
+	let e916: bool = LogicalAnd(e915, e5)
 	const e8: bool = true
-	let e836: bool = Nop()
-	let e9: bool = Alias(e836)
+	let e917: bool = Nop()
+	let e9: bool = Alias(e917)
 	const e11: int<7> = 0
 	const e12: int<7> = 1
-	let e845: bool = Eq(e11, e12)
-	let e10: bool = Alias(e845)
-	let e838: bool = LogicalNot(e836)
-	let e837: bool = LogicalAnd(e838, e10)
+	let e933: bool = Eq(e11, e12)
+	let e931: bool = Alias(e933)
+	let e10: bool = Alias(e931)
+	let e919: bool = LogicalNot(e917)
+	let e918: bool = LogicalAnd(e919, e10)
 	const e13: bool = false
-	let e839: bool = Nop()
-	let __n129: bool = Alias(e839)
-	const e840: bool = true
+	let e920: bool = Nop()
+	let __n173: bool = Alias(e920)
+	const e921: bool = true
 	const e15: bool = false
-	let e2: bool = Match(e_n128, e834, e835, e8, e836, e837, e13, e839, e840, e15)
+	let e2: bool = Match(e_n172, e915, e916, e8, e917, e918, e13, e920, e921, e15)
 } => e2

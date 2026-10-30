@@ -218,7 +218,6 @@ impl ServerBackend {
                 }
                 ExprKind::MethodCall {
                     target,
-                    sugar_info: _,
                     name,
                     args: _,
                     call_kind: _,
