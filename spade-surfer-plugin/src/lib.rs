@@ -645,8 +645,12 @@ fn translate_concrete(
                     kind: ValueKind::HighImp,
                 }
             } else {
-                let tag = usize::from_str_radix(tag_section, 2)
-                    .with_context(|| format!("Unexpected characters in enum tag {tag_section}"))?;
+                let tag = if tag_size > 0 {
+                    usize::from_str_radix(tag_section, 2)
+                        .with_context(|| format!("Unexpected characters in enum tag {tag_section} count {} options {options:?}", options.len()))?
+                } else {
+                    0
+                };
 
                 if tag >= options.len() {
                     *problematic = true;
