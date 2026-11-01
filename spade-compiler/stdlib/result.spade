@@ -1,0 +1,150 @@
+pub enum Result<T, E> {
+    Err { value: E },
+    Ok { value: T },
+}
+
+impl<T, E> Result<T, E> {
+    /// Returns whether the result value is `Ok(_)`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x: Result<uint<8>, bool> = Ok(8u8);
+    /// assert x.is_ok() == true;
+    ///
+    /// let x: Result<uint<8>, bool> = Err(false);
+    /// assert x.is_ok() == false;
+    /// ```
+    #[inline]
+    pub fn is_ok(self) -> bool {
+        match self {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+
+    /// Returns whether the result value is `Err(_)`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x: Result<uint<8>, bool> = Ok(8u8);
+    /// assert x.is_err() == false;
+    ///
+    /// let x: Result<uint<8>, bool> = Err(false);
+    /// assert x.is_err() == true;
+    /// ```
+    #[inline]
+    pub fn is_err(self) -> bool {
+        match self {
+            Ok(_) => false,
+            Err(_) => true,
+        }
+    }
+
+    /// Returns the value contained inside `Ok(_)` if present, or the value provided otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x: Result<uint<8>, bool> = Ok(8u8);
+    /// assert x.unwrap_or(67u8) == 8u8;
+    ///
+    /// let x: Result<uint<8>, bool> = Err(false);
+    /// assert Err(false).unwrap_or(67u8) == 67u8;
+    /// ```
+    pub fn unwrap_or(self, default: T) -> T {
+        match self {
+            Ok(val) => val,
+            Err(_) => default,
+        }
+    }
+
+    /// Returns the value contained inside `Ok(_)` if present, or an undefined value otherwise.
+    ///
+    /// The semantics of the undefined value are described in detail in `std::undef::undef`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x: Result<uint<8>, bool> = Ok(8u8);
+    /// assert x.unwrap_or_undef() == 8u8;
+    /// ```
+    pub fn unwrap_or_undef(self) -> T {
+        match self {
+            Ok(t) => t,
+            Err(_) => undef(),
+        }
+    }
+
+    /// Transforms the value contained inside `Ok(_)` using the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x: Result<uint<8>, bool> = Ok(8u8);
+    /// assert x.map(fn |x| x +. 1) == Ok(9u8);
+    ///
+    /// let x: Result<uint<8>, bool> = Err(false);
+    /// assert x.map(fn |x| x +. 1) == Err(false);
+    /// ```
+    pub fn map<O>(self, f: impl Fn(T) -> O) -> Result<O, E> {
+        match self {
+            Ok(val) => Ok(f.call((val,))),
+            Err(val) => Err(val),
+        }
+    }
+
+    /// Transforms the value contained inside `Err(_)` using the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let x: Result<uint<8>, bool> = Ok(8u8);
+    /// assert x.map_err(fn |x| !x) == Ok(8u8);
+    ///
+    /// let x: Result<uint<8>, bool> = Err(false);
+    /// assert x.map_err(fn |x| !x) == Err(true);
+    /// ```
+    pub fn map_err<O>(self, f: impl Fn(E) -> O) -> Result<T, O> {
+        match self {
+            Ok(val) => Ok(val),
+            Err(val) => Err(f.call((val,))),
+        }
+    }
+
+    /// Returns `Err(_)` if the result value is `Err(_)`, keeping its value inside, otherwise maps
+    /// the content of `Ok(_)`.
+    ///
+    /// # Examples
+    ///
+    /// ```spade
+    /// let f = fn |x| if x > 10u8 { Ok(x +. 8) } else { Err(true) };
+    ///
+    /// assert Ok(8u8).and_then(f) == Err(true);
+    /// assert Ok(12u8).and_then(f) == Ok(20);
+    /// assert Err(false).and_then(f) == Err(false);
+    /// ```
+    pub fn and_then<O>(self, f: impl Fn(T) -> Result<O, E>) -> Result<O, E> {
+        match self {
+            Ok(val) => f.call((val,)),
+            Err(val) => Err(val),
+        }
+    }
+}
+
+impl<T: PartialEq, E: PartialEq> PartialEq for Result<T, E> {
+    fn eq(self, rhs: Self) -> bool {
+        match (self, rhs) {
+            (Ok(lhs), Ok(rhs)) => lhs == rhs,
+            (Err(lhs), Err(rhs)) => lhs == rhs,
+            (Ok(_), Err(_)) => false,
+            (Err(_), Ok(_)) => false,
+        }
+    }
+
+    #[inline]
+    fn ne(self, rhs: Self) -> bool {
+        !(self == rhs)
+    }
+}
