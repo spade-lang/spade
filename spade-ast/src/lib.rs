@@ -874,7 +874,7 @@ pub struct Memory {
 pub struct Register {
     pub keyword: Loc<()>,
     pub pattern: Loc<Pattern>,
-    pub clock: Loc<Expression>,
+    pub clock: Option<Loc<Expression>>,
     pub reset: Option<(Loc<Expression>, Loc<Expression>)>,
     pub initial: Option<Loc<Expression>>,
     pub value: Loc<Expression>,

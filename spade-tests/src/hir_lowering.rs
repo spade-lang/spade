@@ -2848,3 +2848,36 @@ snapshot_error! {
         }
     "
 }
+
+snapshot_error! {
+    entity_cannot_have_reg_with_implicit_clock,
+    r#"
+    entity test() {
+        reg x = false;
+    }
+    "#
+}
+
+code_compiles! {
+    pipeline_can_have_reg_with_implicit_clock,
+    r#"
+    pipeline(1) test(clk: clock) -> bool {
+        reg x = false;
+    reg;
+        x
+    }
+    "#
+}
+
+code_compiles! {
+    lambda_pipeline_can_have_reg_with_implicit_clock,
+    r#"
+    entity test(something: (), clk: clock) {
+        let _ = pipeline(1) |clk| {
+            reg x = false;
+        reg;
+            x
+        };
+    }
+    "#
+}

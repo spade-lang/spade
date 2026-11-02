@@ -124,7 +124,10 @@ pub fn visit_statement(
 
             linear_state.push_pattern(pattern, depth, ctx)?;
 
-            visit_expression(clock, linear_state, depth, ctx)?;
+            if let Some(clock) = clock {
+                visit_expression(clock, linear_state, depth, ctx)?;
+            }
+
             if let Some((trig, val)) = &reset {
                 visit_expression(trig, linear_state, depth, ctx)?;
                 visit_expression(val, linear_state, depth, ctx)?;

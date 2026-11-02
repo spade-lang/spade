@@ -1,0 +1,19 @@
+---
+source: spade-tests/src/hir_lowering.rs
+---
+entity test() {
+    reg x = false;
+}
+
+
+error: Register with implicit clock inside entity
+  ┌─ testinput:2:5
+  │
+2 │     reg x = false;
+  │     ^^^^^^^^^^^^^ This `reg` has no clock
+  │
+  = note: Only pipelines may have registers with implicit clock signals
+  = Consider adding an explicit clock to the register
+  │
+2 │     reg(/* clk */) x = false;
+  │        +++++++++++

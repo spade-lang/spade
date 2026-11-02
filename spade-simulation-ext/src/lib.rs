@@ -947,6 +947,7 @@ impl Spade {
             subs: &mut Substitutions::new(),
             pipeline_context: &mut MaybePipelineContext::NotPipeline,
             self_mono_item: None,
+            unit_kind: spade_hir::UnitKind::Function(spade_hir::FunctionKind::Fn).nowhere(),
             trait_impls: &trait_impls,
         };
 

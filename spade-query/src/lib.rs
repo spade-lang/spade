@@ -363,7 +363,9 @@ impl<'a> QueryCache {
             }) => {
                 self.visit_pattern(pattern);
                 // FIXME: Handle value_type
-                self.visit_expression(clock);
+                if let Some(clock) = clock {
+                    self.visit_expression(clock);
+                }
                 if let Some((trig, val)) = reset {
                     self.visit_expression(trig);
                     self.visit_expression(val);

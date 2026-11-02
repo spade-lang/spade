@@ -160,15 +160,17 @@ impl KeywordPeekingParser<Loc<Statement>> for RegisterParser {
             .ensure_unit_allows_reg(().at(parser.file_id(), &start_token.span()))?;
 
         // Clock selection
-        let (clock, _clock_paren_span) = parser.surrounded(
-            &TokenKind::OpenParen,
-            |s| s.expression(ExprBraces::Allow).map(Some),
-            &TokenKind::CloseParen,
-        )?;
+        let clock = if parser.peek_kind(&TokenKind::OpenParen)? {
+            let (c, _) = parser.surrounded(
+                &TokenKind::OpenParen,
+                |s| s.expression(ExprBraces::Allow),
+                &TokenKind::CloseParen,
+            )?;
 
-        // Identifier parsing cannot fail since we map it into a Some. Therefore,
-        // unwrap is safe
-        let clock = clock.unwrap();
+            Some(c)
+        } else {
+            None
+        };
 
         // Name
         let pattern = parser.pattern()?;

@@ -1158,7 +1158,7 @@ impl StatementLocal for Loc<Statement> {
             }
             Statement::Register(register) => {
                 let hir::Register {
-                    keyword: _,
+                    keyword,
                     clock,
                     reset,
                     initial,
@@ -1167,7 +1167,32 @@ impl StatementLocal for Loc<Statement> {
                     value_type: _,
                     attributes,
                 } = &register;
-                result.append(clock.lower(ctx)?);
+                let clock = if let Some(clock) = clock {
+                    result.append(clock.lower(ctx)?);
+                    clock.variable(ctx)?
+                } else {
+                    match ctx.unit_kind.inner {
+                        UnitKind::Function(_) => {
+                            return Err(Diagnostic::bug(self, "Register found inside function"));
+                        }
+                        UnitKind::Entity => {
+                            return Err(Diagnostic::error(
+                                self,
+                                "Register with implicit clock inside entity",
+                            )
+                            .primary_label("This `reg` has no clock")
+                            .note("Only pipelines may have registers with implicit clock signals")
+                            .span_suggest_insert_after(
+                                "Consider adding an explicit clock to the register",
+                                keyword,
+                                "(/* clk */)",
+                            ));
+                        }
+                        UnitKind::Pipeline { .. } => {
+                            ctx.pipeline_context.get(self)?.clock_signal.clone()
+                        }
+                    }
+                };
 
                 if let Some((trig, value)) = &reset {
                     result.append(trig.lower(ctx)?);
@@ -1219,7 +1244,7 @@ impl StatementLocal for Loc<Statement> {
                             .types
                             .concrete_type_of(pattern, ctx.symtab.symtab(), &ctx.item_list.types)?
                             .to_mir_type(),
-                        clock: clock.variable(ctx)?,
+                        clock,
                         reset: reset
                             .as_ref()
                             .map::<Result<_>, _>(|(value, trig)| {
@@ -3835,6 +3860,7 @@ pub struct Context<'a> {
     pub subs: &'a mut Substitutions,
     pub pipeline_context: &'a mut MaybePipelineContext,
     pub self_mono_item: Option<MonoItem>,
+    pub unit_kind: Loc<UnitKind>,
     pub trait_impls: &'a TraitImplList,
     pub type_ctx: &'a spade_typeinference::Context<'a>,
 }
@@ -3853,6 +3879,7 @@ pub fn generate_unit<'a>(
     mono_state: &MonoState,
     name_source_map: &RwLock<NameSourceMap>,
     self_mono_item: Option<MonoItem>,
+    unit_kind: Loc<UnitKind>,
     opt_passes: &[&(dyn MirPass + Send + Sync)],
     trait_impls: &TraitImplList,
 ) -> Result<mir::Entity> {
@@ -3925,6 +3952,7 @@ pub fn generate_unit<'a>(
         mono_state,
         pipeline_context,
         self_mono_item,
+        unit_kind,
         trait_impls,
     };
 

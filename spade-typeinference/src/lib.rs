@@ -2697,7 +2697,10 @@ impl TypeState {
                 )?;
         }
 
-        self.visit_expression(&reg.clock, ctx, generic_list);
+        if let Some(clock) = &reg.clock {
+            self.visit_expression(clock, ctx, generic_list);
+        }
+
         self.visit_expression(&reg.value, ctx, generic_list);
 
         if let Some(tvar) = &type_spec_type {
@@ -2762,24 +2765,26 @@ impl TypeState {
                 )?;
         }
 
-        reg.clock
-            .unify_with(&self.t_clock(reg.clock.loc(), ctx.symtab), self)
-            .commit(self, ctx)
-            .into_diagnostic(
-                reg.clock.loc(),
-                |diag,
-                 Tm {
-                     g: got,
-                     e: _expected,
-                 }| {
-                    diag.message(format!(
-                        "Expected clock, got {got}",
-                        got = got.display(self)
-                    ))
-                    .primary_label("expected clock")
-                },
-                self,
-            )?;
+        if let Some(clock) = &reg.clock {
+            clock
+                .unify_with(&self.t_clock(clock.loc(), ctx.symtab), self)
+                .commit(self, ctx)
+                .into_diagnostic(
+                    clock.loc(),
+                    |diag,
+                     Tm {
+                         g: got,
+                         e: _expected,
+                     }| {
+                        diag.message(format!(
+                            "Expected clock, got {got}",
+                            got = got.display(self)
+                        ))
+                        .primary_label("expected clock")
+                    },
+                    self,
+                )?;
+        }
 
         self.unify(&TypedExpression::Id(reg.pattern.id), &reg.value, ctx)
             .into_diagnostic(

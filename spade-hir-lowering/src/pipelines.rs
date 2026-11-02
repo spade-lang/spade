@@ -33,6 +33,8 @@ pub struct PipelineContext {
     /// `stage.valid` should map to. If the stage is always valid, the corresponding
     /// value is `None`
     pub valid_signals: Vec<Option<ValueName>>,
+    /// Signal used implicitly throughout the pipeline to clock registers.
+    pub clock_signal: Loc<ValueName>,
 }
 
 pub enum MaybePipelineContext {
@@ -468,6 +470,7 @@ pub fn lower_pipeline<'a>(
     *ctx.pipeline_context = MaybePipelineContext::Pipeline(PipelineContext {
         ready_signals,
         valid_signals,
+        clock_signal: clock.value_name().at_loc(clock),
     });
 
     let result_latency = body.available_in(ctx)?.unwrap_or(0);

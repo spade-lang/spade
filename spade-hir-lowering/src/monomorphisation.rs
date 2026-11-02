@@ -533,6 +533,7 @@ fn monomorphize_item(
                 state,
                 name_source_map,
                 self_mono_item,
+                u.head.unit_kind.clone(),
                 opt_passes,
                 trait_impls,
             )

@@ -2977,7 +2977,10 @@ fn visit_register(reg: &Loc<ast::Register>, ctx: &mut Context) -> Result<Vec<Loc
 
     let pattern = reg.pattern.try_visit(visit_pattern, ctx)?;
 
-    let clock = reg.clock.visit(visit_expression, ctx);
+    let clock = reg
+        .clock
+        .as_ref()
+        .map(|clock| clock.visit(visit_expression, ctx));
 
     let reset = if let Some((trig, value)) = &reg.reset {
         Some((
