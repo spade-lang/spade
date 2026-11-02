@@ -156,9 +156,11 @@ impl Passable for Loc<Expression> {
                             }
 
                             match clock {
-                                Some(clock) => subnodes!(clock, value),
+                                Some(clock) => subnodes!(clock),
                                 None => {}
                             }
+
+                            subnodes!(value)
                         }
                         Statement::Declaration(_) => {}
                         Statement::PipelineRegMarker(extra) => match extra {
