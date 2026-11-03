@@ -1,0 +1,20 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+entity test() {
+    memory {
+        _: core::mem::Ro<bool, 128, 0>,
+    };
+}
+
+
+error: Attempted to ignore parameter
+  ┌─ testinput:3:9
+  │
+3 │         _: core::mem::Ro<bool, 128, 0>,
+  │         ^ Parameters cannot be ignored with `_`
+  │
+  = Consider giving it a name
+  │
+3 │         /* name */: core::mem::Ro<bool, 128, 0>,
+  │         ~~~~~~~~~~

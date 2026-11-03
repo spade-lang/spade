@@ -2711,3 +2711,39 @@ snapshot_error! {
     }
     "#
 }
+
+snapshot_error! {
+    unit_parameter_cannot_be_ignored,
+    r#"
+    fn test(_: bool) {}
+    "#
+}
+
+snapshot_error! {
+    struct_declaration_field_cannot_be_ignored,
+    r#"
+    struct Foo {
+        _: bool,
+    }
+    "#
+}
+
+snapshot_error! {
+    enum_declaration_field_cannot_be_ignored,
+    r#"
+    enum Foo {
+        Variant { _: bool },
+    }
+    "#
+}
+
+snapshot_error! {
+    memory_port_cannot_be_ignored,
+    r#"
+    entity test() {
+        memory {
+            _: core::mem::Ro<bool, 128, 0>,
+        };
+    }
+    "#
+}

@@ -712,6 +712,11 @@ fn visit_parameter_list_impl(
     };
 
     for (attrs, wire_marker, name, input_type) in &l.args {
+        if name.as_str() == "_" {
+            return Err(Diagnostic::error(name, "Attempted to ignore parameter")
+                .primary_label("Parameters cannot be ignored with `_`")
+                .span_suggest_replace("Consider giving it a name", name, "/* name */"));
+        }
         if let Some(prev) = arg_names.get(name) {
             return Err(
                 Diagnostic::error(name, "Multiple arguments with the same name")

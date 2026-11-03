@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+struct Foo {
+    _: bool,
+}
+
+
+error: Attempted to ignore parameter
+  ┌─ testinput:2:5
+  │
+2 │     _: bool,
+  │     ^ Parameters cannot be ignored with `_`
+  │
+  = Consider giving it a name
+  │
+2 │     /* name */: bool,
+  │     ~~~~~~~~~~

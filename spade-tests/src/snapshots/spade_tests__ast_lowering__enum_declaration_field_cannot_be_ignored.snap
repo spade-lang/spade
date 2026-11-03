@@ -1,0 +1,18 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+enum Foo {
+    Variant { _: bool },
+}
+
+
+error: Attempted to ignore parameter
+  ┌─ testinput:2:15
+  │
+2 │     Variant { _: bool },
+  │               ^ Parameters cannot be ignored with `_`
+  │
+  = Consider giving it a name
+  │
+2 │     Variant { /* name */: bool },
+  │               ~~~~~~~~~~

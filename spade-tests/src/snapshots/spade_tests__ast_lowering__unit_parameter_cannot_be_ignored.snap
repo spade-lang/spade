@@ -1,0 +1,16 @@
+---
+source: spade-tests/src/ast_lowering.rs
+---
+fn test(_: bool) {}
+
+
+error: Attempted to ignore parameter
+  ┌─ testinput:1:9
+  │
+1 │ fn test(_: bool) {}
+  │         ^ Parameters cannot be ignored with `_`
+  │
+  = Consider giving it a name
+  │
+1 │ fn test(/* name */: bool) {}
+  │         ~~~~~~~~~~
