@@ -83,6 +83,20 @@ pub struct Context {
 }
 
 impl Context {
+    fn in_param_context<T>(
+        &mut self,
+        param_ctx: ParamContext,
+        transform: impl FnOnce(&mut Context) -> T,
+    ) -> T {
+        let old_param_ctx = self.param_ctx.clone();
+        self.param_ctx = param_ctx;
+
+        let result = transform(self);
+        self.param_ctx = old_param_ctx;
+
+        result
+    }
+
     fn in_fresh_unit<T>(&mut self, transform: impl FnOnce(&mut Context) -> T) -> T {
         let mut tmp_pipeline_ctx = None;
         let mut tmp_param_ctx = ParamContext::FreeStanding;
@@ -620,7 +634,9 @@ fn visit_memory_port_list(
     l: &Loc<ParameterList>,
     ctx: &mut Context,
 ) -> Result<Loc<hir::MemoryPortList>> {
-    let param_list = visit_parameter_list_impl(l, ctx, None, &TypeSpecKind::MemoryPort)?;
+    let param_list = ctx.in_param_context(ParamContext::MemoryPorts, |ctx| {
+        visit_parameter_list_impl(l, ctx, None, &TypeSpecKind::MemoryPort)
+    })?;
 
     // Add ports to the symtab
     let ports = param_list
