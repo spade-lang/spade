@@ -1181,7 +1181,7 @@ impl TypeState {
     fn type_check_argument_list(
         &mut self,
         args: &[Argument<Expression, TypeSpec>],
-        is_method: bool,
+        takes_self: bool,
         ctx: &Context,
         generic_list: &GenericListToken,
         self_view_layers_delta: i32,
@@ -1209,7 +1209,7 @@ impl TypeState {
             // `Copy`. This is not a problem though, as method lowering will perform proper type
             // checking when the actual argument expression is modified. This operation provides
             // type inference though.
-            if is_method && idx == 0 {
+            if takes_self && idx == 0 {
                 for _ in self_view_layers_delta..0 {
                     target_tv = self.add_type_var(TypeVar::Known(
                         ().nowhere(),
@@ -1481,7 +1481,7 @@ impl TypeState {
         visit_args: bool,
         // If we are calling a method, we have an implicit self argument which means
         // that any error reporting number of arguments should be reduced by one
-        is_method: bool,
+        takes_self: bool,
         self_view_layers_delta: i32,
         turbofish: Option<&Loc<ArgumentList<TypeExpression>>>,
         generic_list: &GenericListToken,
@@ -1569,7 +1569,7 @@ impl TypeState {
         }
 
         let matched_args =
-            match_args_with_params(args, &head.inputs.inner, is_method).map_err(|e| {
+            match_args_with_params(args, &head.inputs.inner, takes_self).map_err(|e| {
                 let diag: Diagnostic = e.into();
                 diag.secondary_label(
                     head,
@@ -1636,7 +1636,7 @@ impl TypeState {
         // Unify the types of the arguments
         self.type_check_argument_list(
             &matched_args,
-            is_method,
+            takes_self,
             ctx,
             &unit_generic_list,
             self_view_layers_delta,

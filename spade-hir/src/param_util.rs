@@ -210,7 +210,7 @@ impl<'a> ParameterListLike<'a, (), TypeExpression> for &[Loc<TypeParam>] {
 pub fn match_args_with_params<'a, T: Clone, TypeLike>(
     arg_list: &'a Loc<ArgumentList<T>>,
     params: &'a impl ParameterListLike<'a, TypeLike, T>,
-    is_method: bool,
+    takes_self: bool,
 ) -> Result<Vec<Argument<'a, T, TypeLike>>, ArgumentError> {
     match &arg_list.inner {
         ArgumentList::Positional(inner) => {
@@ -237,8 +237,8 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                         kind: ArgumentKind::Positional,
                     }),
                     EitherOrBoth::Left(_) => Err(ArgumentError::TooManyArguments {
-                        got: inner.len() - if is_method { 1 } else { 0 },
-                        expected: params.0.len() - if is_method { 1 } else { 0 },
+                        got: inner.len() - if takes_self { 1 } else { 0 },
+                        expected: params.0.len() - if takes_self { 1 } else { 0 },
                         extra: inner
                             .iter()
                             .skip(params.0.len())
@@ -255,8 +255,8 @@ pub fn match_args_with_params<'a, T: Clone, TypeLike>(
                             kind: ArgumentKind::Default,
                         }),
                         None => Err(ArgumentError::TooFewArguments {
-                            got: i - if is_method { 1 } else { 0 },
-                            expected: params.0.len() - if is_method { 1 } else { 0 },
+                            got: i - if takes_self { 1 } else { 0 },
+                            expected: params.0.len() - if takes_self { 1 } else { 0 },
                             missing: params
                                 .0
                                 .iter()

@@ -269,7 +269,7 @@ impl Requirement {
                         args,
                         ctx,
                         false,
-                        true,
+                        *takes_self,
                         self_view_layers_delta,
                         turbofish.as_ref(),
                         prev_generic_list,
