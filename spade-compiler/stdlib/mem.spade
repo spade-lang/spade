@@ -65,6 +65,7 @@ impl<#uint W, D> ReadPort<W, D> {
 }
 
 /// Read a read port. Deprecated, prefer using the `ReadPort::read()` method instead
+#[deprecated = "Use `Ro<T, N, L>::read` instead"]
 pub pipeline(1) read_read_port<#uint W, D>(read_clk: clock, addr: uint<W>, wire p: ReadPort<W, D>) -> D {
     let result = p.inst(1) read(read_clk, addr);
 reg;
@@ -73,6 +74,7 @@ reg;
 
 /// A dual port block RAM that supports read and write ports being in different domains.
 /// If writes and reads happen to the same address, the behaviour is undefined.
+#[deprecated = "Use `std::mem::simple_dual_port_ram` instead"]
 pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (WritePort<W, D>, ReadPort<W, D>) {
     memory: [D; C] {
         read_port: Ro<_, _, 1>,
@@ -104,6 +106,16 @@ pub entity dp_bram<#uint W, D, #uint C>(write_clk: clock, read_clk: clock) -> (W
     )
 }
 
+/// A dual port block RAM that supports read and write ports being in different domains.
+/// If writes and reads happen to the same address, the behaviour is undefined.
+pub entity simple_dual_port_ram<T, #uint N>() -> (Ro<T, N, 1>, Wo<T, N, 1>) {
+    memory: [T; N] {
+        read_port: Ro<_, _, 1>,
+        write_port: Wo<_, _, 1>,
+    };
+
+    (read_port, write_port)
+}
 
 /// A fifo write port. Writes a single element of data data in to the write port unless `full`
 /// is true. If full is true, the write is ignored
@@ -111,6 +123,7 @@ pub struct FifoWrite<D> {
     write: inv Option<D>,
     full: bool,
 }
+
 /// A fifo read port
 /// If there fifo is not empty, `read` contains the next value. If ack is set,
 /// that element is popped from the fifo this clock cycle. / The num_elements
@@ -127,22 +140,21 @@ mod fifo_impl {
 
     use lib::mem::FifoRead;
     use lib::mem::FifoWrite;
-    use lib::mem::ReadPort;
-    use lib::mem::WritePort;
-    use lib::mem::read_read_port;
+    use lib::mem::Ro;
+    use lib::mem::Wo;
 
     struct FifoRtoW<#uint W> {
         read_ptr: uint<W>,
         write_ptr: inv uint<W>,
     }
 
-    pub(super) entity fifo_read<#uint W, D, #uint C>(
+    pub(super) entity fifo_read<D, #uint C>(
         read_clk: clock,
         read_rst: bool,
-        mem: ReadPort<W, D>,
-        to_w: inv FifoRtoW<W>,
+        mem: Ro<D, C, 1>,
+        to_w: inv FifoRtoW<{uint::bits_for(C - 1)}>,
         write_clk: clock
-    ) -> FifoRead<W, D> {
+    ) -> FifoRead<{uint::bits_for(C - 1)}, D> {
         // Synchronization stuff
         let write_ptr = unsafe {
             inst lib::cdc::sync_uint_counter(
@@ -164,7 +176,7 @@ mod fifo_impl {
         };
         reg(read_clk) read_ptr reset(read_rst: 0) = read_ptr_next;
 
-        let out = inst(1) read_read_port(read_clk, read_ptr_next, mem);
+        let out = mem.inst(1) read(read_clk, Some(read_ptr_next)).unwrap_or_undef();
 
         let num_elements = {
             // If write is behind read, it is catching up
@@ -188,11 +200,11 @@ mod fifo_impl {
         }
     }
 
-    pub(super) entity fifo_write<#uint W, D>(
+    pub(super) entity fifo_write<D, #uint C>(
         write_clk: clock,
         write_rst: bool,
-        mem: WritePort<W, D>,
-        from_w: FifoRtoW<W>,
+        mem: Wo<D, C, 1>,
+        from_w: FifoRtoW<{uint::bits_for(C - 1)}>,
         read_clk: clock
     ) -> FifoWrite<D> {
         let read_ptr = unsafe {
@@ -214,11 +226,12 @@ mod fifo_impl {
             _ => write_ptr,
         };
 
-        set mem.addr = write_ptr;
-        set mem.write =  match (write_value.0, full) {
-            (Some(v), false) => Some(v),
-            _ => None
+        let req = match (write_value.0, full) {
+            (Some(v), false) => Some((write_ptr, v)),
+            _ => None,
         };
+
+        mem.write(write_clk, req);
 
         set from_w.write_ptr = write_ptr;
         FifoWrite {
@@ -229,19 +242,20 @@ mod fifo_impl {
 }
 
 /// A cross-domain fifo backed by block RAM.
-/// NOTE: W *must* be 2^C but this is not currently checked
-pub entity fifo<#uint AddrWidth, Data, #uint NumElements>(
+pub entity fifo<Data, #uint NumElements>(
     write_clk: clock,
     write_rst: bool,
     read_clk: clock,
     read_rst: bool,
-) -> (FifoWrite<Data>, FifoRead<AddrWidth, Data>) {
-    let (mem_write, mem_read) = inst dp_bram::<AddrWidth, Data, NumElements>(write_clk:, read_clk:);
+) -> (FifoWrite<Data>, FifoRead<{uint::bits_for(NumElements - 1)}, Data>)
+where NumElements == 1 << uint::bits_for(NumElements - 1) else "Number of elements must be a power of two"
+{
+    let (read_port, write_port) = inst simple_dual_port_ram::<Data, NumElements>();
 
     let (from_w, to_w) = port();
 
-    let write = inst fifo_impl::fifo_write::<AddrWidth, Data>(write_clk:, write_rst:, mem: mem_write, from_w:, read_clk:);
-    let read = inst fifo_impl::fifo_read::<AddrWidth, Data, NumElements>(read_clk:, read_rst:, mem: mem_read, to_w:, write_clk:);
+    let write = inst fifo_impl::fifo_write::<Data, NumElements>(write_clk:, write_rst:, mem: write_port, from_w:, read_clk:);
+    let read = inst fifo_impl::fifo_read::<Data, NumElements>(read_clk:, read_rst:, mem: read_port, to_w:, write_clk:);
 
     (write, read)
 }
