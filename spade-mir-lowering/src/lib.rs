@@ -207,6 +207,8 @@ impl StatementExt for Loc<mir::Statement> {
             spade_mir::Statement::Binding(binding) => Some((&binding.name, &binding.ty)),
             spade_mir::Statement::Register(register) => Some((&register.name, &register.ty)),
             spade_mir::Statement::Constant(name, ty, _) => Some((name, ty)),
+            spade_mir::Statement::Memory { storage, ty, initial, ports } => todo!(),
+            spade_mir::Statement::Seal { name, ty, variant } => todo!(),
             spade_mir::Statement::Assert(_) => None,
             spade_mir::Statement::Set { .. } => None,
             spade_mir::Statement::Error => None,
@@ -327,6 +329,8 @@ impl StatementExt for Loc<mir::Statement> {
                 )
                 .at_loc(self),
             ]),
+            spade_mir::Statement::Memory { storage, ty, initial, ports } => todo!(),
+            spade_mir::Statement::Seal { name, ty, variant } => todo!(),
             mir::Statement::Error => Ok(vec![lir::Statement::Error.at_loc(self)]),
         }
     }
@@ -385,11 +389,10 @@ impl BindingExt for Loc<&mir::Binding> {
             mir::Operator::UnsignedGe => trivial_fwd_operator(lir::Operator::UnsignedGe),
             mir::Operator::Le => trivial_fwd_operator(lir::Operator::Le),
             mir::Operator::UnsignedLe => trivial_fwd_operator(lir::Operator::UnsignedLe),
-            mir::Operator::LeftShift => trivial_fwd_operator(lir::Operator::LeftShift),
-            mir::Operator::RightShift => trivial_fwd_operator(lir::Operator::RightShift),
-            mir::Operator::ArithmeticRightShift => {
-                trivial_fwd_operator(lir::Operator::ArithmeticRightShift)
-            }
+            mir::Operator::LeftShift => trivial_fwd_operator(lir::Operator::SignedLeftShift),
+            mir::Operator::RightShift => trivial_fwd_operator(lir::Operator::SignedRightShift),
+            mir::Operator::UnsignedLeftShift => trivial_fwd_operator(lir::Operator::UnsignedLeftShift),
+            mir::Operator::UnsignedRightShift => trivial_fwd_operator(lir::Operator::UnsignedRightShift),
             mir::Operator::LogicalAnd => trivial_fwd_operator(lir::Operator::LogicalAnd),
             mir::Operator::LogicalOr => trivial_fwd_operator(lir::Operator::LogicalOr),
             mir::Operator::LogicalXor => trivial_fwd_operator(lir::Operator::LogicalXor),

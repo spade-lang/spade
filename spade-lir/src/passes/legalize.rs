@@ -241,9 +241,10 @@ impl Binding {
             | Operator::UnsignedDiv
             | Operator::Mod
             | Operator::UnsignedMod
-            | Operator::LeftShift
-            | Operator::RightShift
-            | Operator::ArithmeticRightShift
+            | Operator::SignedLeftShift
+            | Operator::SignedRightShift
+            | Operator::UnsignedLeftShift
+            | Operator::UnsignedRightShift
             | Operator::LogicalAnd
             | Operator::LogicalOr
             | Operator::LogicalXor
