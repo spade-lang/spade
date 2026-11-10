@@ -152,9 +152,9 @@ mod fifo_impl {
         read_clk: clock,
         read_rst: bool,
         mem: Ro<D, C, 1>,
-        to_w: inv FifoRtoW<{uint::bits_for(C - 1)}>,
+        to_w: inv FifoRtoW<{uint::bits_for(C)}>,
         write_clk: clock
-    ) -> FifoRead<{uint::bits_for(C - 1)}, D> {
+    ) -> FifoRead<{uint::bits_for(C)}, D> {
         // Synchronization stuff
         let write_ptr = unsafe {
             inst lib::cdc::sync_uint_counter(
@@ -171,12 +171,12 @@ mod fifo_impl {
         let empty = write_ptr == read_ptr;
         let read_ptr_next = match (ack.0, empty) {
             (true, true) => read_ptr,
-            (true, false) => trunc(read_ptr + 1),
+            (true, false) => read_ptr +. 1,
             (false, _) => read_ptr,
         };
         reg(read_clk) read_ptr reset(read_rst: 0) = read_ptr_next;
 
-        let out = mem.inst(1) read(read_clk, Some(read_ptr_next)).unwrap_or_undef();
+        let out = mem.inst(1) read(read_clk, Some(read_ptr_next.trunc())).unwrap_or_undef();
 
         let num_elements = {
             // If write is behind read, it is catching up
@@ -186,15 +186,19 @@ mod fifo_impl {
             // now (w - r) is positive and < C
 
             // The + 0 here is a manual zext
-            let write_ptr_abs = if write_ptr < read_ptr {write_ptr + 0 + C} else {zext(write_ptr)};
+            let write_ptr_abs = if write_ptr < read_ptr {
+                write_ptr + 0 + C
+            } else {
+                zext(write_ptr)
+            };
 
-            trunc((write_ptr_abs - zext(read_ptr)))
+            trunc(write_ptr_abs - zext(read_ptr))
         };
 
         set to_w.read_ptr = read_ptr;
 
         FifoRead {
-            read: if !empty { Some(out) } else { None },
+            read: (!empty).then_some(out),
             ack: ack.1,
             num_elements: num_elements,
         }
@@ -204,7 +208,7 @@ mod fifo_impl {
         write_clk: clock,
         write_rst: bool,
         mem: Wo<D, C, 1>,
-        from_w: FifoRtoW<{uint::bits_for(C - 1)}>,
+        from_w: FifoRtoW<{uint::bits_for(C)}>,
         read_clk: clock
     ) -> FifoWrite<D> {
         let read_ptr = unsafe {
@@ -219,15 +223,18 @@ mod fifo_impl {
         let write_value = port();
 
         decl write_ptr;
-        let full = trunc(write_ptr + 1) == read_ptr;
+
+        // If the pointers are exactly `C` elements apart from each other, then
+        // the FIFO must be full
+        let full = write_ptr ^ read_ptr == C;
 
         reg(write_clk) write_ptr reset(write_rst: 0) = match (write_value.0, full) {
-            (Some(v), false) => trunc(write_ptr + 1),
+            (Some(v), false) => write_ptr +. 1,
             _ => write_ptr,
         };
 
         let req = match (write_value.0, full) {
-            (Some(v), false) => Some((write_ptr, v)),
+            (Some(v), false) => Some((write_ptr.trunc(), v)),
             _ => None,
         };
 
@@ -247,7 +254,7 @@ pub entity fifo<Data, #uint NumElements>(
     write_rst: bool,
     read_clk: clock,
     read_rst: bool,
-) -> (FifoWrite<Data>, FifoRead<{uint::bits_for(NumElements - 1)}, Data>)
+) -> (FifoWrite<Data>, FifoRead<{uint::bits_for(NumElements)}, Data>)
 where NumElements == 1 << uint::bits_for(NumElements - 1) else "Number of elements must be a power of two"
 {
     let (read_port, write_port) = inst simple_dual_port_ram::<Data, NumElements>();

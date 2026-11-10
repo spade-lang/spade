@@ -64,7 +64,7 @@ async def inserting_and_removing_one_element_works(dut):
     s.o.r_read.assert_eq("None")
 
 @cocotb.test()
-async def fifo_fills_after_15_insertions(dut):
+async def fifo_fills_after_16_insertions(dut):
     s = SpadeExt(dut)
     write_clk = dut.write_clk_i
     read_clk = dut.read_clk_i
@@ -72,7 +72,7 @@ async def fifo_fills_after_15_insertions(dut):
     await initial_setup(s, write_clk, read_clk)
 
     await FallingEdge(write_clk)
-    for i in range(0, 15):
+    for i in range(0, 16):
         s.i.write = f"Some({i})"
         await FallingEdge(write_clk)
     s.i.write = "None"
@@ -81,9 +81,9 @@ async def fifo_fills_after_15_insertions(dut):
     await FallingEdge(read_clk);
     await FallingEdge(read_clk);
     await FallingEdge(read_clk);
-    s.o.r_num_elements.assert_eq("15")
+    s.o.r_num_elements.assert_eq("16")
 
-    for i in range(0, 15):
+    for i in range(0, 16):
         s.o.r_read.assert_eq(f"Some({i})")
         s.i.ack = "true"
         await FallingEdge(read_clk)
@@ -91,7 +91,7 @@ async def fifo_fills_after_15_insertions(dut):
 
 
 @cocotb.test()
-async def fifo_fills_after_15_insertions_when_in_middle_of_fifo(dut):
+async def fifo_fills_after_16_insertions_when_in_middle_of_fifo(dut):
     s = SpadeExt(dut)
     write_clk = dut.write_clk_i
     read_clk = dut.read_clk_i
@@ -122,7 +122,7 @@ async def fifo_fills_after_15_insertions_when_in_middle_of_fifo(dut):
     await FallingEdge(write_clk);
 
     await FallingEdge(write_clk)
-    for i in range(0, 15):
+    for i in range(0, 16):
         s.i.write = f"Some({i})"
         await FallingEdge(write_clk)
     s.i.write = "None"
@@ -131,9 +131,9 @@ async def fifo_fills_after_15_insertions_when_in_middle_of_fifo(dut):
     await FallingEdge(read_clk);
     await FallingEdge(read_clk);
     await FallingEdge(read_clk);
-    s.o.r_num_elements.assert_eq("15")
+    s.o.r_num_elements.assert_eq("16")
 
-    for i in range(0, 15):
+    for i in range(0, 16):
         s.o.r_read.assert_eq(f"Some({i})")
         s.i.ack = "true"
         await FallingEdge(read_clk)
@@ -185,4 +185,3 @@ async def smoke_test(dut):
 
     await read
     await write
-

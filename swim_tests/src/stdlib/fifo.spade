@@ -3,7 +3,7 @@ use std::mem::fifo;
 struct FifoTestHarnessOut {
     w_full: bool,
     r_read: Option<int<8>>,
-    r_num_elements: uint<4>
+    r_num_elements: uint<5>
 }
 
 entity fifo_test_harness(
