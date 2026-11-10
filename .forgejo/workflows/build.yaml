@@ -50,7 +50,7 @@ jobs:
       - name: cargo clippy
         run: |
             cargo clippy --workspace --tests
-            
+
   fmt:
     runs-on: ["fbs", "medium", "debian-13-x86_64"]
     container:
@@ -77,13 +77,13 @@ jobs:
       # our wheels are rejected by alpine (we should fix this)
       # and apt is _extremely_ slow on the lysator runners. For now, just doing
       # the CI on arch is the easiest option
-      image: archlinux:latest
+      image: debian:latest
     steps:
       ### Checkout
       - name: "Pre-clone dependencies"
         run: |
-          pacman -Sy
-          pacman -S --noconfirm nodejs git tar
+          apt update
+          apt install -y nodejs git
       - name: "Checkout"
         uses: actions/checkout@v5
         with:
@@ -91,11 +91,12 @@ jobs:
       ####
       - name: dependencies
         run: |
-            pacman -S --noconfirm python-virtualenv uv iverilog jq wget unzip rustup gcc make
+            apt install -y python3-virtualenv python3-pip iverilog jq unzip rustup gcc make curl
+            curl -LsSf https://astral.sh/uv/install.sh | sh
             rustup install stable
       - name: download-swim
         run: |
-          wget $(curl https://codeberg.org/api/v1/repos/spade-lang/swim/actions/artifacts?name=swim | jq .[0].archive_download_url -r) -O swim.zip
+          curl $(curl https://codeberg.org/api/v1/repos/spade-lang/swim/actions/artifacts?name=swim | jq .[0].archive_download_url -r) -Lo swim.zip
           unzip swim.zip
           chmod +x swim
       # - uses: https://github.com/Swatinem/rust-cache@v2
