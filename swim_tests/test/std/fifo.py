@@ -116,13 +116,77 @@ async def fifo_fills_after_16_insertions_when_in_middle_of_fifo(dut):
     s.i.ack = "false"
     s.o.r_num_elements.assert_eq("0")
 
-
     await FallingEdge(write_clk);
     await FallingEdge(write_clk);
     await FallingEdge(write_clk);
 
     await FallingEdge(write_clk)
     for i in range(0, 16):
+        s.i.write = f"Some({i})"
+        await FallingEdge(write_clk)
+    s.i.write = "None"
+    s.o.w_full.assert_eq("true")
+    # It takes a while for the new size to propagate to the read domain
+    await FallingEdge(read_clk);
+    await FallingEdge(read_clk);
+    await FallingEdge(read_clk);
+    s.o.r_num_elements.assert_eq("16")
+
+    for i in range(0, 16):
+        s.o.r_read.assert_eq(f"Some({i})")
+        s.i.ack = "true"
+        await FallingEdge(read_clk)
+    s.o.r_read.assert_eq("None")
+
+
+@cocotb.test()
+async def fifo_will_discard_new_values_when_full(dut):
+    s = SpadeExt(dut)
+    write_clk = dut.write_clk_i
+    read_clk = dut.read_clk_i
+
+    await initial_setup(s, write_clk, read_clk)
+
+    await FallingEdge(write_clk)
+    for i in range(0, 16):
+        s.i.write = f"Some({i})"
+        await FallingEdge(write_clk)
+    s.i.write = "None"
+    s.o.w_full.assert_eq("true")
+    # It takes a while for the new size to propagate to the read domain
+    await FallingEdge(read_clk);
+    await FallingEdge(read_clk);
+    await FallingEdge(read_clk);
+    s.o.r_num_elements.assert_eq("16")
+
+    # Attempt to push an extra element, FIFO must discard it
+    s.i.write = f"Some(17)"
+    await FallingEdge(write_clk)
+    s.i.write = "None"
+    s.o.w_full.assert_eq("true")
+    # It takes a while for the new size to propagate to the read domain
+    await FallingEdge(read_clk);
+    await FallingEdge(read_clk);
+    await FallingEdge(read_clk);
+    s.o.r_num_elements.assert_eq("16")
+
+    for i in range(0, 16):
+        s.o.r_read.assert_eq(f"Some({i})")
+        s.i.ack = "true"
+        await FallingEdge(read_clk)
+    s.o.r_read.assert_eq("None")
+
+
+@cocotb.test()
+async def fifo_will_discard_new_values_when_full_but_tighter(dut):
+    s = SpadeExt(dut)
+    write_clk = dut.write_clk_i
+    read_clk = dut.read_clk_i
+
+    await initial_setup(s, write_clk, read_clk)
+
+    await FallingEdge(write_clk)
+    for i in range(0, 17):
         s.i.write = f"Some({i})"
         await FallingEdge(write_clk)
     s.i.write = "None"
