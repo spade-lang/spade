@@ -9,6 +9,91 @@ released as a new version.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.21.0] - 2026-11-12
+
+### Added
+- [#1113][#1113] Support const generics inside struct and enum definitions
+- [#1140][#1140] Added named parameter support inside parenthesized argument lists `(...)`
+- [#1148][#1148] Added `const type { ... }` to create inline const generics that can be used as values
+- [#1152][#1152] Added `gen match { ... }` blocks
+- [#1162][#1162] `then_some` method on `bool`
+- [#1174][#1174] Added `<<` and `>>` to const generics
+- [#1184][#1184] Implementations for Type Aliases
+- [#1194][#1194] Add `memory` language construct to build memories
+- [#1204][#1204] Added `std::undef::unused()` to the standard library and prelude,
+  a function that returns an unconnected inverted signal (equivalent to `port().1`,
+  but signals the design intent more clearly).
+- [#1235][#1235] Added `Result` type to stdlib
+- [#718][#718] Allowed `{ ... }` instead of `$(...)` for named argument lists
+
+### Fixed
+- [#1143][#1143] Made arrays render in the correct order in Surfer and test benches (their contents were reversed)
+- [#1150][#1150] Fix some rare panics in typeinference when constraints are resolved at the wrong time
+- [#1151][#1151] Fixed a bug where certain malformed items cause an ICE
+- [#1159][#1159] Fixed a bug where match expressions could miss si integer values
+- [#1163][#1163] Fixed an error message where `uint` would erroneously be printed as `int`
+- [#1191][#1191] Fixed ICE when defining pipeline method with no arguments besides `self` (no clock)
+- [#1195][#1195] Fixed parsing error when using named stages in pipeline lambdas
+- [#1226][#1226] Fix duplicate equation panic in test benches
+- [#712][#712] Fixed generic substitution bug inside copy views.
+- [#712][#712] Preluded `core::marker::Copy` that was accidentally left behind.
+- [#717][#717] Fixed spurious linearity error when using `as` on `inv` values
+- [#717][#717] `tri` is now actually `!Data`
+
+### Changed
+- [#1139][#1139] Made `.` correctly traverse through `inv` inside copy views
+- [#1140][#1140] Deprecated `$(...)` named argument list syntax
+- [#1141][#1141] `inv` wires now can appear inside enum variants.
+- [#1173][#1173] Deprecated `>>>` in favor of `>>`
+- [#1175][#1175] Improved `set` ergonomics by expanding it to work on `inv` wires inside arrays and tuples
+- [#1187][#1187] Updated cocotb to 2.1. If you use fancy cocotb features, this may cause **breaking changes**
+- [#1194][#1194] Deprecated `std::mem::clocked_memory` and associated elements
+- [#1213][#1213] Disallow consuming linear resources inside conditionals
+- [#1223][#1223] Allowed `match` expressions returning zero-sized values
+- [#1236][#1236] Register definitions inside pipelines may be written without an explicit clock signal (it will use the pipeline's clock signal)
+- [#1243][#1243] Deprecated `std::mem::dp_bram` in favor of `std::mem::simple_dual_port_ram`
+- [#1243][#1243] Deprecated `std::mem::read_read_port`
+- [#1243][#1243] Removed address width parameter from `std::mem::fifo` and enforced a power-of-two number of elements
+- [#712][#712] Now copy views carry with them the data of `inv` wires.
+- [#712][#712] Changed the signature of `inv T::inspect` to `inspect(&self) -> &T`.
+- [#715][#715] Allowed `inv` values to be returned by `if`/`else` and `match` blocks to be connected from the outside (all arms receive the same value)
+- [#716][#716] Made `inv` values interact gracefully with pattern matching.
+
+
+[#1113]: https://codeberg.org/spade-lang/spade/pulls/1113
+[#1139]: https://codeberg.org/spade-lang/spade/pulls/1139
+[#1140]: https://codeberg.org/spade-lang/spade/pulls/1140
+[#1141]: https://codeberg.org/spade-lang/spade/pulls/1141
+[#1143]: https://codeberg.org/spade-lang/spade/pulls/1143
+[#1148]: https://codeberg.org/spade-lang/spade/pulls/1148
+[#1150]: https://codeberg.org/spade-lang/spade/pulls/1150
+[#1151]: https://codeberg.org/spade-lang/spade/pulls/1151
+[#1152]: https://codeberg.org/spade-lang/spade/pulls/1152
+[#1159]: https://codeberg.org/spade-lang/spade/pulls/1159
+[#1162]: https://codeberg.org/spade-lang/spade/pulls/1162
+[#1163]: 1163
+[#1173]: https://codeberg.org/spade-lang/spade/pulls/1173
+[#1174]: https://codeberg.org/spade-lang/spade/pulls/1174
+[#1175]: https://codeberg.org/spade-lang/spade/pulls/1175
+[#1184]: https://codeberg.org/spade-lang/spade/pulls/1184
+[#1187]: https://codeberg.org/spade-lang/spade/pulls/1187
+[#1191]: https://codeberg.org/spade-lang/spade/pulls/1191
+[#1194]: https://codeberg.org/spade-lang/spade/pulls/1194
+[#1195]: https://codeberg.org/spade-lang/spade/pulls/1195
+[#1204]: https://codeberg.org/spade-lang/spade/pulls/1204
+[#1213]: https://codeberg.org/spade-lang/spade/pulls/1213
+[#1223]: https://codeberg.org/spade-lang/spade/pulls/1223
+[#1226]: https://codeberg.org/spade-lang/spade/pulls/1226
+[#1235]: https://codeberg.org/spade-lang/spade/pulls/1235
+[#1236]: https://codeberg.org/spade-lang/spade/pulls/1236
+[#1243]: https://codeberg.org/spade-lang/spade/pulls/1243
+[#712]: https://codeberg.org/spade-lang/spade/pulls/712
+[#715]: https://codeberg.org/spade-lang/spade/pulls/715
+[#716]: https://codeberg.org/spade-lang/spade/pulls/716
+[#717]: https://codeberg.org/spade-lang/spade/pulls/717
+[#718]: https://codeberg.org/spade-lang/spade/pulls/718
+
+
 ## [0.20.0] - 2026-08-20
 
 ### Added
@@ -812,7 +897,8 @@ Initial numbered version
 
 [Associated Swim release](https://gitlab.com/spade-lang/swim/-/tree/v0.1.0)
 
-[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.20.0...main
+[Unreleased]: https://gitlab.com/spade-lang/spade/-/compare/v0.21.0...main
+[0.21.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.21.0...v0.20.0
 [0.20.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.20.0...v0.19.0
 [0.19.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.19.0...v0.18.0
 [0.18.0]: https://gitlab.com/spade-lang/spade/-/compare/v0.18.0...v0.17.0
