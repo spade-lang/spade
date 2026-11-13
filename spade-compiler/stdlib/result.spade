@@ -131,6 +131,44 @@ impl<T, E> Result<T, E> {
             Err(val) => Err(val),
         }
     }
+
+	/// Converts `Result<T, E>` to `Option<T>`.
+	///
+	/// Returns `Some(val)` if the result value is `Ok(val)`, and `None` if it is `Err(_)`.
+	///
+	/// # Examples
+	///
+	/// ```spade
+	/// let val_ok: Result<uint<8>, bool> = Ok(8u8);
+	/// let val_err: Result<uint<8>, bool> = Err(false);
+	/// assert val_ok.ok() == Some(8u8);
+	/// assert val_err.ok() == None;
+	/// ```
+	pub fn ok(self) -> Option<T> {
+		match self {
+			Ok(val) => Some(val),
+			Err(_) => None,
+		}
+	}
+
+	/// Converts `Result<T, E>` to `Option<E>`.
+	///
+	/// Returns `None` if the result value is `Ok(_)`, and `Some(val)` it it is `Err(val)`.
+	///
+	/// # Examples
+	///
+	/// ```spade
+	/// let val_ok: Result<uint<8>, bool> = Ok(8u8);
+	/// let val_err: Result<uint<8>, bool> = Err(false);
+	/// assert val_ok.err() == None;
+	/// assert val_err.err() == Some(false);
+	/// ```
+	pub fn err(self) -> Option<E> {
+		match self {
+			Ok(_) => None,
+			Err(e) => Some(e),
+		}
+	}
 }
 
 impl<T: PartialEq, E: PartialEq> PartialEq for Result<T, E> {
