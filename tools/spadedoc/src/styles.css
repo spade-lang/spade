@@ -12,6 +12,9 @@
 
     --code-background: #f5f5f5;
 
+    --hint-bg: #fff8a7;
+    --deprecated-text: #444;
+
     --heading-like-weight: 600;
     --font-code: "Source Code Pro",monospace;
 }
@@ -33,6 +36,9 @@
         --color-primitive: rgb(255, 160, 165);
         --color-type-alias: rgb(255, 160, 165);
         --color-trait: rgb(57, 175, 215);
+
+        --hint-bg: #1a1f5b;
+        --deprecated-text: #e7e7e7;
     }
 
     h1, h2, h3, h4 {
@@ -173,7 +179,7 @@ details > summary {
 
 .deprecation {
     padding: 5px 10px;
-    background-color: #fff8a7;
+    background-color: var(--hint-bg);
     display: inline-block;
     margin-bottom: 0;
 }
@@ -187,7 +193,7 @@ main > .deprecation {
 }
 .deprecation::before {
     content: "🕸️ Deprecated";
-    color: #444;
+    color: var(--deprecated-text);
     position: relative;
     top: -3px;
     left: -4px;
