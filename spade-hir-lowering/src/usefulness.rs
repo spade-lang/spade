@@ -224,6 +224,18 @@ pub(crate) fn is_useful(pattern: &PatStack, prev_patterns: &Matrix) -> Usefulnes
         }
     };
 
+    // If an existing row contains only wildcards, it necessarily covers every
+    // remaining value. Therefore this candidate cannot cover any cases that
+    // the previous case didn't (is useful), so we can avoid recursing and just
+    // indicate that this pattern is useless
+    if prev_patterns.rows().iter().any(|row| {
+        row.pats
+            .iter()
+            .all(|pat| matches!(pat.ctor, Constructor::Wildcard))
+    }) {
+        return Usefulness::new_useless();
+    }
+
     let v_ctor = &pattern.head().ctor;
 
     let ty = &pattern.head().ty;
