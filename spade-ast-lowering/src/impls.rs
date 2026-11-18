@@ -1265,6 +1265,40 @@ fn map_const_generic_to_trait(
     }
 }
 
+fn map_generic_to_trait(
+    name: &hir::Generic,
+    trait_type_params: &[Loc<hir::TypeParam>],
+    trait_method_type_params: &[Loc<hir::TypeParam>],
+    impl_type_params: &[Loc<hir::TypeExpression>],
+    impl_method_type_params: &[Loc<hir::TypeExpression>],
+) -> Result<Loc<hir::TypeExpression>> {
+    let param_idx = trait_type_params
+        .iter()
+        .find_position(|tp| &tp.name == name)
+        .map(|(idx, _)| idx);
+
+    if let Some(param_idx) = param_idx {
+        Ok(impl_type_params[param_idx].clone())
+    } else {
+        let param_idx = trait_method_type_params
+            .iter()
+            .find_position(|tp| &tp.name == name)
+            .map(|(idx, _)| idx);
+
+        if let Some(param_idx) = param_idx {
+            Ok(impl_method_type_params[param_idx].clone())
+        } else {
+            Err(Diagnostic::bug(
+                name.loc(),
+                format!(
+                    "Could not find type parameter {} in trait or trait method.",
+                    name.pretty_debug()
+                ),
+            ))
+        }
+    }
+}
+
 fn map_type_expr_to_trait(
     te: &Loc<hir::TypeExpression>,
     trait_type_params: &[Loc<hir::TypeParam>],
@@ -1277,6 +1311,13 @@ fn map_type_expr_to_trait(
         hir::TypeExpression::Bool(_) => Ok(te.clone()),
         hir::TypeExpression::Integer(_) => Ok(te.clone()),
         hir::TypeExpression::String(_) => Ok(te.clone()),
+        hir::TypeExpression::TypeSpec(hir::TypeSpec::Generic(name)) => map_generic_to_trait(
+            name,
+            trait_type_params,
+            trait_method_type_params,
+            impl_type_params,
+            impl_method_type_params,
+        ),
         hir::TypeExpression::TypeSpec(s) => {
             let (inner, loc) = map_type_spec_to_trait(
                 &s.clone().at_loc(te),
@@ -1330,63 +1371,30 @@ fn map_type_spec_to_trait(
             Ok(hir::TypeSpec::Declared(name.clone(), mono_tes).at_loc(ty))
         }
         hir::TypeSpec::Generic(name) => {
-            let param_idx = trait_type_params
-                .iter()
-                .find_position(|tp| &tp.name == name)
-                .map(|(idx, _)| idx);
+            let te = map_generic_to_trait(
+                name,
+                trait_type_params,
+                trait_method_type_params,
+                impl_type_params,
+                impl_method_type_params,
+            )?;
 
-            if let Some(param_idx) = param_idx {
-                impl_type_params[param_idx].try_map_ref(|te| match &te {
-                    hir::TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
-                    hir::TypeExpression::Bool(_) => Err(Diagnostic::bug(
-                        &impl_type_params[param_idx],
-                        "Expected a TypeExpression::TypeSpec, found TypeExpression::Bool",
-                    )),
-                    hir::TypeExpression::Integer(_) => Err(Diagnostic::bug(
-                        &impl_type_params[param_idx],
-                        "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",
-                    )),
-                    hir::TypeExpression::String(_) => Err(Diagnostic::bug(
-                        &impl_type_params[param_idx],
-                        "Expected a TypeExpression::TypeSpec, found TypeExpression::String",
-                    )),
-                    hir::TypeExpression::ConstGeneric(_) => {
-                        diag_bail!(ty, "Const generic in impl head")
-                    }
-                })
-            } else {
-                let param_idx = trait_method_type_params
-                    .iter()
-                    .find_position(|tp| &tp.name == name)
-                    .map(|(idx, _)| idx);
-
-                if let Some(param_idx) = param_idx {
-                    impl_method_type_params[param_idx].try_map_ref(|te| match &te {
-                        hir::TypeExpression::TypeSpec(spec) => Ok(spec.clone()),
-                        hir::TypeExpression::Bool(_) => Err(Diagnostic::bug(
-                            &impl_type_params[param_idx],
-                            "Expected a TypeExpression::TypeSpec, found TypeExpression::Bool",
-                        )),
-                        hir::TypeExpression::Integer(_) => Err(Diagnostic::bug(
-                            &impl_method_type_params[param_idx],
-                            "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",
-                        )),
-                        hir::TypeExpression::String(_) => Err(Diagnostic::bug(
-                            &impl_method_type_params[param_idx],
-                            "Expected a TypeExpression::TypeSpec, found TypeExpression::String",
-                        )),
-                        hir::TypeExpression::ConstGeneric(_) => {
-                            diag_bail!(ty, "Const generic in impl head")
-                        }
-                    })
-                } else {
-                    Err(Diagnostic::bug(
-                        name.loc(),
-                        format!(
-                            "Could not find type parameter {} in trait or trait method.",
-                            name.pretty_debug()
-                        ),
-                    ))
+            match &te.inner {
+                hir::TypeExpression::TypeSpec(spec) => Ok(spec.clone().at_loc(&te)),
+                hir::TypeExpression::Bool(_) => Err(Diagnostic::bug(
+                    &te,
+                    "Expected a TypeExpression::TypeSpec, found TypeExpression::Bool",
+                )),
+                hir::TypeExpression::Integer(_) => Err(Diagnostic::bug(
+                    &te,
+                    "Expected a TypeExpression::TypeSpec, found TypeExpression::Integer",
+                )),
+                hir::TypeExpression::String(_) => Err(Diagnostic::bug(
+                    &te,
+                    "Expected a TypeExpression::TypeSpec, found TypeExpression::String",
+                )),
+                hir::TypeExpression::ConstGeneric(_) => {
+                    diag_bail!(ty, "Const generic in impl head")
                 }
             }
         }
