@@ -1493,7 +1493,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                     let code = if latency.is_zero() {
                         code! {
                             [0] format!("assign {var}{valid} = {back_var}{re} ? 1'b1 : 1'b0;");
-                            [0] format!("assign {var}{d_out} = {back_var}{re} ? {mem_name}[{back_var}{addr}] : 'sbx;");
+                            [0] format!("assign {var}{d_out} = {back_var}{re} ? {mem_name}[{back_var}{addr}] : {elem_width}'bx;");
                         }
                     } else {
                         // FIXME: support memory latencies greater than one
@@ -1504,7 +1504,7 @@ fn statement_code(statement: &Statement, ctx: &mut Context) -> Code {
                             [2]         format!("{var}{d_out} <= {mem_name}[{back_var}{addr}];");
                             [1]     "end else begin";
                             [2]         format!("{var}{valid} <= 1'b0;");
-                            [2]         format!("{var}{d_out} <= 'sbx;");
+                            [2]         format!("{var}{d_out} <= {elem_width}'bx;");
                             [1]     "end";
                             [0] "end";
                         }
