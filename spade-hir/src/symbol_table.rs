@@ -985,18 +985,18 @@ impl SymbolTable {
     pub fn lookup_thing(
         &self,
         path: &Loc<Path>,
-        ignore_metadata: bool,
+        check_metadata: bool,
     ) -> Result<(NameID, &Thing), LookupError> {
-        self.lookup_thing_impl(path, self.current_namespace(), ignore_metadata)
+        self.lookup_thing_impl(path, self.current_namespace(), check_metadata)
     }
 
     pub fn lookup_thing_in_namespace(
         &self,
         path: &Loc<Path>,
         namespace: &Path,
-        ignore_metadata: bool,
+        check_metadata: bool,
     ) -> Result<(NameID, &Thing), LookupError> {
-        self.lookup_thing_impl(path, namespace, ignore_metadata)
+        self.lookup_thing_impl(path, namespace, check_metadata)
     }
 
     pub fn lang_item(&self, item: LangItem) -> &NameID {
@@ -1035,10 +1035,10 @@ macro_rules! thing_accessors {
                 &self,
                 name: &Loc<Path>,
                 namespace: &Path,
-                ignore_metadata: bool,
+                check_metadata: bool,
             ) -> Result<(NameID, Loc<$result>), LookupError> {
                 let (id, thing) =
-                    self.lookup_thing_in_namespace(name, namespace, ignore_metadata)?;
+                    self.lookup_thing_in_namespace(name, namespace, check_metadata)?;
 
                 match thing {
                     $(
@@ -1047,7 +1047,7 @@ macro_rules! thing_accessors {
                     Thing::Alias { path, in_namespace, .. } => self.$lookup_in_ns_name(
                         &path,
                         &in_namespace,
-                        ignore_metadata,
+                        check_metadata,
                     ),
                     other => Err(LookupError::$err(name.clone(), other.clone())),
                 }
@@ -1059,9 +1059,9 @@ macro_rules! thing_accessors {
             pub fn $lookup_name(
                 &self,
                 name: &Loc<Path>,
-                ignore_metadata: bool,
+                check_metadata: bool,
             ) -> Result<(NameID, Loc<$result>), LookupError> {
-                self.$lookup_in_ns_name(name, self.current_namespace(), ignore_metadata)
+                self.$lookup_in_ns_name(name, self.current_namespace(), check_metadata)
             }
         )*
     }
